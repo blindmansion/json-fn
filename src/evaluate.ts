@@ -366,6 +366,21 @@ function replaceVars(
       return varValue;
     }
 
+    if ("$return" in expression) {
+      const localNames = new Set(
+        Object.keys(expression).filter((k) => k !== "$return")
+      );
+      const maskedGetVar = localNames.size > 0
+        ? (name: string) => (localNames.has(name) ? undefined : getVar(name))
+        : getVar;
+
+      const newObject: Record<string, JSONType> = {};
+      for (const [key, value] of Object.entries(expression)) {
+        newObject[key] = replaceVars(value, maskedGetVar);
+      }
+      return newObject;
+    }
+
     const newObject: Record<string, JSONType> = {};
     for (const [key, value] of Object.entries(expression)) {
       newObject[key] = replaceVars(value, getVar);
