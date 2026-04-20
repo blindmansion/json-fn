@@ -1,10 +1,4 @@
-type JSONType =
-  | string
-  | number
-  | boolean
-  | null
-  | JSONType[]
-  | { [key: string]: JSONType };
+type JSONType = string | number | boolean | null | JSONType[] | { [key: string]: JSONType };
 
 enum ExpressionType {
   FunctionCall,
@@ -67,7 +61,7 @@ const BUILTIN_MARKER = Symbol("builtin");
 
 type BuiltinFunction = ((
   args: JSONType[],
-  call: (fn: JSONType, args: JSONType[]) => JSONType
+  call: (fn: JSONType, args: JSONType[]) => JSONType,
 ) => JSONType) & { [BUILTIN_MARKER]: true };
 
 type FunctionRegistry = Record<string, Function | FunctionBody>;
@@ -83,5 +77,20 @@ type EvaluationContext = {
   getVar?: (name: string) => JSONType | undefined;
 };
 
-export type { JSONType, FunctionCall, FunctionReference, BuiltinFunction, FunctionRegistry, FunctionDeclaration, EvaluationContext, FunctionBody, ArgReference, VariableReference, Conditional, Cond, PropertyAccess, EvaluatedFunctionCall };
+export type {
+  JSONType,
+  FunctionCall,
+  FunctionReference,
+  BuiltinFunction,
+  FunctionRegistry,
+  FunctionDeclaration,
+  EvaluationContext,
+  FunctionBody,
+  ArgReference,
+  VariableReference,
+  Conditional,
+  Cond,
+  PropertyAccess,
+  EvaluatedFunctionCall,
+};
 export { BUILTIN_MARKER, ExpressionType };

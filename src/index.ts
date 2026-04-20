@@ -1,2 +1,3 @@
-export { callFunction, builtin, type JSONType, type BuiltinFunction, type FunctionRegistry } from "./evaluate";
+export { callFunction, builtin } from "./evaluate";
+export type { JSONType, BuiltinFunction, FunctionRegistry } from "./types";
 export { createStdlib } from "./stdlib";

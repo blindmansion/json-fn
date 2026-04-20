@@ -7,12 +7,15 @@ function run(body: JSONType, args: JSONType[] = [], extraFns: Record<string, any
 
 describe("returning function bodies as values (closures)", () => {
   test("makeAdder(10) returns a closure with x captured", () => {
-    const result = run({
-      x: { $arg: 0 },
-      $return: {
-        $return: { $fn: "add", $args: [{ $var: "x" }, { $arg: 0 }] },
+    const result = run(
+      {
+        x: { $arg: 0 },
+        $return: {
+          $return: { $fn: "add", $args: [{ $var: "x" }, { $arg: 0 }] },
+        },
       },
-    }, [10]);
+      [10],
+    );
 
     expect(result).toEqual({
       $return: { $fn: "add", $args: [10, { $arg: 0 }] },
@@ -44,32 +47,47 @@ describe("calling returned function bodies", () => {
 
 describe("variadic arguments with $arg: []", () => {
   test("capture all args", () => {
-    expect(run({
-      allArgs: { $arg: [] },
-      $return: { $var: "allArgs" },
-    }, [10, 20, 30])).toEqual([10, 20, 30]);
+    expect(
+      run(
+        {
+          allArgs: { $arg: [] },
+          $return: { $var: "allArgs" },
+        },
+        [10, 20, 30],
+      ),
+    ).toEqual([10, 20, 30]);
   });
 });
 
 describe("dynamic function dispatch", () => {
   test("call a function by name from args (add)", () => {
-    expect(run({
-      fnName: { $arg: 0 },
-      $return: {
-        $fn: { $var: "fnName" },
-        $args: [3, 4],
-      },
-    }, ["add"])).toBe(7);
+    expect(
+      run(
+        {
+          fnName: { $arg: 0 },
+          $return: {
+            $fn: { $var: "fnName" },
+            $args: [3, 4],
+          },
+        },
+        ["add"],
+      ),
+    ).toBe(7);
   });
 
   test("call a function by name from args (mul)", () => {
-    expect(run({
-      fnName: { $arg: 0 },
-      $return: {
-        $fn: { $var: "fnName" },
-        $args: [3, 4],
-      },
-    }, ["mul"])).toBe(12);
+    expect(
+      run(
+        {
+          fnName: { $arg: 0 },
+          $return: {
+            $fn: { $var: "fnName" },
+            $args: [3, 4],
+          },
+        },
+        ["mul"],
+      ),
+    ).toBe(12);
   });
 });
 
@@ -82,11 +100,7 @@ describe("closure capture", () => {
   };
 
   test("partialAdd(10) returns a function", () => {
-    const result = run(
-      { $return: { $fn: "partialAdd", $args: [10] } },
-      [],
-      { partialAdd },
-    );
+    const result = run({ $return: { $fn: "partialAdd", $args: [10] } }, [], { partialAdd });
 
     expect(result).toEqual({
       $return: { $fn: "add", $args: [10, { $arg: 0 }] },
@@ -94,13 +108,19 @@ describe("closure capture", () => {
   });
 
   test("partialAdd(10)(7) = 17", () => {
-    expect(run({
-      partial: { $fn: "partialAdd", $args: [10] },
-      $return: {
-        $fn: { $var: "partial" },
-        $args: [7],
-      },
-    }, [], { partialAdd })).toBe(17);
+    expect(
+      run(
+        {
+          partial: { $fn: "partialAdd", $args: [10] },
+          $return: {
+            $fn: { $var: "partial" },
+            $args: [7],
+          },
+        },
+        [],
+        { partialAdd },
+      ),
+    ).toBe(17);
   });
 });
 
@@ -116,33 +136,43 @@ describe("accumulating arguments across calls", () => {
   };
 
   test("accum(1,2)(3,4) concatenates args", () => {
-    expect(run({
-      step1: { $fn: "accum", $args: [1, 2] },
-      $return: {
-        $fn: { $var: "step1" },
-        $args: [3, 4],
-      },
-    }, [], { accum })).toEqual([1, 2, 3, 4]);
+    expect(
+      run(
+        {
+          step1: { $fn: "accum", $args: [1, 2] },
+          $return: {
+            $fn: { $var: "step1" },
+            $args: [3, 4],
+          },
+        },
+        [],
+        { accum },
+      ),
+    ).toEqual([1, 2, 3, 4]);
   });
 });
 
 describe("arity check", () => {
   test("length([1,2,3]) >= 3 is true", () => {
-    expect(run({
-      args: [1, 2, 3],
-      numArgs: { $fn: "length", $args: [{ $var: "args" }] },
-      enough: { $fn: "gte", $args: [{ $var: "numArgs" }, 3] },
-      $return: { $var: "enough" },
-    })).toBe(true);
+    expect(
+      run({
+        args: [1, 2, 3],
+        numArgs: { $fn: "length", $args: [{ $var: "args" }] },
+        enough: { $fn: "gte", $args: [{ $var: "numArgs" }, 3] },
+        $return: { $var: "enough" },
+      }),
+    ).toBe(true);
   });
 
   test("length([1,2]) >= 3 is false", () => {
-    expect(run({
-      args: [1, 2],
-      numArgs: { $fn: "length", $args: [{ $var: "args" }] },
-      enough: { $fn: "gte", $args: [{ $var: "numArgs" }, 3] },
-      $return: { $var: "enough" },
-    })).toBe(false);
+    expect(
+      run({
+        args: [1, 2],
+        numArgs: { $fn: "length", $args: [{ $var: "args" }] },
+        enough: { $fn: "gte", $args: [{ $var: "numArgs" }, 3] },
+        $return: { $var: "enough" },
+      }),
+    ).toBe(false);
   });
 });
 
@@ -158,13 +188,19 @@ describe("manual curry of add", () => {
   };
 
   test("curriedAdd(10)(32) = 42", () => {
-    expect(run({
-      step1: { $fn: "curriedAdd", $args: [10] },
-      $return: {
-        $fn: { $var: "step1" },
-        $args: [32],
-      },
-    }, [], { curriedAdd })).toBe(42);
+    expect(
+      run(
+        {
+          step1: { $fn: "curriedAdd", $args: [10] },
+          $return: {
+            $fn: { $var: "step1" },
+            $args: [32],
+          },
+        },
+        [],
+        { curriedAdd },
+      ),
+    ).toBe(42);
   });
 });
 
@@ -186,12 +222,7 @@ describe("generic curry", () => {
       $else: {
         $return: {
           $fn: "curryApply",
-          $args: [
-            { $var: "targetFn" },
-            { $var: "arity" },
-            { $var: "allArgs" },
-            { $arg: [] },
-          ],
+          $args: [{ $var: "targetFn" }, { $var: "arity" }, { $var: "allArgs" }, { $arg: [] }],
         },
       },
     },
@@ -211,67 +242,91 @@ describe("generic curry", () => {
   const fns = { curryApply, curry };
 
   test("curry('add', 2) returns a function", () => {
-    const result = run(
-      { $return: { $fn: "curry", $args: ["add", 2] } },
-      [],
-      fns,
-    );
+    const result = run({ $return: { $fn: "curry", $args: ["add", 2] } }, [], fns);
     expect(result).toBeDefined();
     expect(result).toHaveProperty("$return");
   });
 
   test("curry('add', 2)(10) returns another function", () => {
-    const result = run({
-      curriedAdd: { $fn: "curry", $args: ["add", 2] },
-      $return: {
-        $fn: { $var: "curriedAdd" },
-        $args: [10],
+    const result = run(
+      {
+        curriedAdd: { $fn: "curry", $args: ["add", 2] },
+        $return: {
+          $fn: { $var: "curriedAdd" },
+          $args: [10],
+        },
       },
-    }, [], fns);
+      [],
+      fns,
+    );
 
     expect(result).toHaveProperty("$return");
   });
 
   test("curry('add', 2)(10)(32) = 42", () => {
-    expect(run({
-      step1: { $fn: "curry", $args: ["add", 2] },
-      step2: {
-        $fn: { $var: "step1" },
-        $args: [10],
-      },
-      $return: {
-        $fn: { $var: "step2" },
-        $args: [32],
-      },
-    }, [], fns)).toBe(42);
+    expect(
+      run(
+        {
+          step1: { $fn: "curry", $args: ["add", 2] },
+          step2: {
+            $fn: { $var: "step1" },
+            $args: [10],
+          },
+          $return: {
+            $fn: { $var: "step2" },
+            $args: [32],
+          },
+        },
+        [],
+        fns,
+      ),
+    ).toBe(42);
   });
 
   test("curry('add', 2)(10, 32) — all args at once", () => {
-    expect(run({
-      curriedAdd: { $fn: "curry", $args: ["add", 2] },
-      $return: {
-        $fn: { $var: "curriedAdd" },
-        $args: [10, 32],
-      },
-    }, [], fns)).toBe(42);
+    expect(
+      run(
+        {
+          curriedAdd: { $fn: "curry", $args: ["add", 2] },
+          $return: {
+            $fn: { $var: "curriedAdd" },
+            $args: [10, 32],
+          },
+        },
+        [],
+        fns,
+      ),
+    ).toBe(42);
   });
 
   test("curry('add3', 3)(1)(2)(3) = 6", () => {
     const add3 = (a: number, b: number, c: number) => a + b + c;
-    expect(run({
-      step1: { $fn: "curry", $args: ["add3", 3] },
-      step2: { $fn: { $var: "step1" }, $args: [1] },
-      step3: { $fn: { $var: "step2" }, $args: [2] },
-      $return: { $fn: { $var: "step3" }, $args: [3] },
-    }, [], { ...fns, add3 })).toBe(6);
+    expect(
+      run(
+        {
+          step1: { $fn: "curry", $args: ["add3", 3] },
+          step2: { $fn: { $var: "step1" }, $args: [1] },
+          step3: { $fn: { $var: "step2" }, $args: [2] },
+          $return: { $fn: { $var: "step3" }, $args: [3] },
+        },
+        [],
+        { ...fns, add3 },
+      ),
+    ).toBe(6);
   });
 
   test("curry('add3', 3)(1, 2)(3) = 6", () => {
     const add3 = (a: number, b: number, c: number) => a + b + c;
-    expect(run({
-      step1: { $fn: "curry", $args: ["add3", 3] },
-      step2: { $fn: { $var: "step1" }, $args: [1, 2] },
-      $return: { $fn: { $var: "step2" }, $args: [3] },
-    }, [], { ...fns, add3 })).toBe(6);
+    expect(
+      run(
+        {
+          step1: { $fn: "curry", $args: ["add3", 3] },
+          step2: { $fn: { $var: "step1" }, $args: [1, 2] },
+          $return: { $fn: { $var: "step2" }, $args: [3] },
+        },
+        [],
+        { ...fns, add3 },
+      ),
+    ).toBe(6);
   });
 });

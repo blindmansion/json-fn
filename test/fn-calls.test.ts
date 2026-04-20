@@ -15,22 +15,29 @@ describe("calling external (JS) functions with $fn/$args", () => {
   });
 
   test("nested calls: mul(add(2,3), sub(10,4))", () => {
-    expect(run({
-      $return: {
-        $fn: "mul",
-        $args: [
-          { $fn: "add", $args: [2, 3] },
-          { $fn: "sub", $args: [10, 4] },
-        ],
-      },
-    })).toBe(30);
+    expect(
+      run({
+        $return: {
+          $fn: "mul",
+          $args: [
+            { $fn: "add", $args: [2, 3] },
+            { $fn: "sub", $args: [10, 4] },
+          ],
+        },
+      }),
+    ).toBe(30);
   });
 });
 
 describe("positional arguments with $arg", () => {
   test("$arg references by index", () => {
-    expect(run({
-      $return: { $fn: "add", $args: [{ $arg: 0 }, { $arg: 1 }] },
-    }, [10, 20])).toBe(30);
+    expect(
+      run(
+        {
+          $return: { $fn: "add", $args: [{ $arg: 0 }, { $arg: 1 }] },
+        },
+        [10, 20],
+      ),
+    ).toBe(30);
   });
 });

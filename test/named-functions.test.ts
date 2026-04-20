@@ -17,27 +17,15 @@ describe("JSON-defined named functions", () => {
   };
 
   test("double(21)", () => {
-    expect(run(
-      { $return: { $fn: "double", $args: [21] } },
-      [],
-      { double },
-    )).toBe(42);
+    expect(run({ $return: { $fn: "double", $args: [21] } }, [], { double })).toBe(42);
   });
 
   test("isEven(4)", () => {
-    expect(run(
-      { $return: { $fn: "isEven", $args: [4] } },
-      [],
-      { isEven },
-    )).toBe(true);
+    expect(run({ $return: { $fn: "isEven", $args: [4] } }, [], { isEven })).toBe(true);
   });
 
   test("isEven(7)", () => {
-    expect(run(
-      { $return: { $fn: "isEven", $args: [7] } },
-      [],
-      { isEven },
-    )).toBe(false);
+    expect(run({ $return: { $fn: "isEven", $args: [7] } }, [], { isEven })).toBe(false);
   });
 });
 
@@ -49,10 +37,7 @@ describe("recursion", () => {
       $then: 1,
       $else: {
         $fn: "mul",
-        $args: [
-          { $var: "n" },
-          { $fn: "fact", $args: [{ $fn: "sub", $args: [{ $var: "n" }, 1] }] },
-        ],
+        $args: [{ $var: "n" }, { $fn: "fact", $args: [{ $fn: "sub", $args: [{ $var: "n" }, 1] }] }],
       },
     },
   };

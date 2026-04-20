@@ -1,9 +1,15 @@
 {
   "name": "json-fn",
-  "module": "index.ts",
   "type": "module",
+  "module": "index.ts",
+  "scripts": {
+    "check": "bunx tsc --noEmit && oxlint && oxfmt --check",
+    "fix": "bunx tsc --noEmit && oxlint --fix && oxfmt"
+  },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "oxfmt": "^0.46.0",
+    "oxlint": "^1.61.0"
   },
   "peerDependencies": {
     "typescript": "^5"

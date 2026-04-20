@@ -88,10 +88,7 @@ functions.checkLine = {
       {
         $return: {
           $fn: "eq",
-          $args: [
-            { $get: { $arg: 0 }, $from: { $var: "board" } },
-            { $var: "player" },
-          ],
+          $args: [{ $get: { $arg: 0 }, $from: { $var: "board" } }, { $var: "player" }],
         },
       },
       { $var: "line" },
@@ -106,9 +103,14 @@ functions.checkWin = {
   board: { $arg: 0 },
   player: { $arg: 1 },
   lines: [
-    [0, 1, 2], [3, 4, 5], [6, 7, 8],  // rows
-    [0, 3, 6], [1, 4, 7], [2, 5, 8],  // cols
-    [0, 4, 8], [2, 4, 6],             // diagonals
+    [0, 1, 2],
+    [3, 4, 5],
+    [6, 7, 8], // rows
+    [0, 3, 6],
+    [1, 4, 7],
+    [2, 5, 8], // cols
+    [0, 4, 8],
+    [2, 4, 6], // diagonals
   ],
   $return: {
     $fn: "some",
@@ -129,10 +131,7 @@ functions.isBoardFull = {
   board: { $arg: 0 },
   $return: {
     $fn: "every",
-    $args: [
-      { $return: { $fn: "neq", $args: [{ $arg: 0 }, null] } },
-      { $var: "board" },
-    ],
+    $args: [{ $return: { $fn: "neq", $args: [{ $arg: 0 }, null] } }, { $var: "board" }],
   },
 };
 
@@ -206,8 +205,14 @@ functions.minimax = {
   opponent: { $fn: "otherPlayer", $args: [{ $var: "aiPlayer" }] },
   status: { $fn: "getStatus", $args: [{ $var: "board" }] },
   gameOver: { $fn: "neq", $args: [{ $var: "status" }, "playing"] },
-  aiWins: { $fn: "and", $args: [{ $var: "gameOver" }, { $fn: "eq", $args: [{ $var: "status" }, { $var: "aiPlayer" }] }] },
-  opponentWins: { $fn: "and", $args: [{ $var: "gameOver" }, { $fn: "eq", $args: [{ $var: "status" }, { $var: "opponent" }] }] },
+  aiWins: {
+    $fn: "and",
+    $args: [{ $var: "gameOver" }, { $fn: "eq", $args: [{ $var: "status" }, { $var: "aiPlayer" }] }],
+  },
+  opponentWins: {
+    $fn: "and",
+    $args: [{ $var: "gameOver" }, { $fn: "eq", $args: [{ $var: "status" }, { $var: "opponent" }] }],
+  },
 
   // Recursive case (lazy — only evaluated if game is not over)
   currentPlayer: {
@@ -236,11 +241,7 @@ functions.minimax = {
           $args: [
             {
               $fn: "makeMove",
-              $args: [
-                { $var: "board" },
-                { $arg: 0 },
-                { $var: "currentPlayer" },
-              ],
+              $args: [{ $var: "board" }, { $arg: 0 }, { $var: "currentPlayer" }],
             },
             { $fn: "add", $args: [{ $var: "depth" }, 1] },
             { $fn: "not", $args: [{ $var: "isMaximizing" }] },
@@ -414,11 +415,7 @@ const stepMoves = [0, 3, 1, 4, 2];
 let state: any = NEW_GAME;
 for (const move of stepMoves) {
   const player = state.turn;
-  state = callFunction(
-    functions.playMove,
-    [state, move],
-    functions
-  );
+  state = callFunction(functions.playMove, [state, move], functions);
   console.log(`  ${player} plays position ${move}:`);
   console.log(formatBoard(state.board));
   if (state.status !== "playing") {
@@ -453,11 +450,7 @@ const bestPos = run("  bestMove(board, O)", {
 const elapsed = (performance.now() - t0).toFixed(0);
 console.log(`  (computed in ${elapsed}ms)`);
 
-const afterAI = callFunction(
-  functions.makeMove,
-  [aiBoard, bestPos, "O"],
-  functions
-);
+const afterAI = callFunction(functions.makeMove, [aiBoard, bestPos, "O"], functions);
 console.log(`\n  O plays position ${bestPos}:`);
 console.log(formatBoard(afterAI as JSONType[]));
 
@@ -482,17 +475,9 @@ console.log();
 const t1 = performance.now();
 let moveCount = 0;
 while (aiState.status === "playing") {
-  const pos = callFunction(
-    functions.bestMove,
-    [aiState.board, aiState.turn],
-    functions
-  );
+  const pos = callFunction(functions.bestMove, [aiState.board, aiState.turn], functions);
   const player = aiState.turn;
-  aiState = callFunction(
-    functions.playMove,
-    [aiState, pos],
-    functions
-  );
+  aiState = callFunction(functions.playMove, [aiState, pos], functions);
   moveCount++;
   console.log(`  ${player} plays position ${pos}:`);
   console.log(formatBoard(aiState.board));

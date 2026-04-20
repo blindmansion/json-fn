@@ -1,4 +1,5 @@
-import { builtin, type FunctionRegistry } from "./evaluate";
+import { builtin } from "./evaluate";
+import type { FunctionRegistry } from "./types";
 
 export function createStdlib(): FunctionRegistry {
   return {
@@ -48,10 +49,7 @@ export function createStdlib(): FunctionRegistry {
     reduce: builtin((args, call) => {
       const [callback, init, arr] = args as [any, any, any];
       if (!Array.isArray(arr)) throw new Error("reduce: third argument must be an array");
-      return arr.reduce(
-        (acc: any, item: any, i: number) => call(callback, [acc, item, i]),
-        init
-      );
+      return arr.reduce((acc: any, item: any, i: number) => call(callback, [acc, item, i]), init);
     }),
     some: builtin((args, call) => {
       const [callback, arr] = args;

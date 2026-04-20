@@ -1,10 +1,23 @@
-import type { JSONType, FunctionCall, FunctionReference, BuiltinFunction, FunctionDeclaration, EvaluationContext, FunctionBody, FunctionRegistry, ArgReference, VariableReference, Conditional, Cond, PropertyAccess, EvaluatedFunctionCall } from "./types";
+import type {
+  JSONType,
+  FunctionCall,
+  FunctionReference,
+  BuiltinFunction,
+  FunctionDeclaration,
+  EvaluationContext,
+  FunctionBody,
+  FunctionRegistry,
+  ArgReference,
+  VariableReference,
+  Conditional,
+  Cond,
+  PropertyAccess,
+  EvaluatedFunctionCall,
+} from "./types";
 import { BUILTIN_MARKER, ExpressionType } from "./types";
 
 function exprError(expr: JSONType, message: string): never {
-  throw new Error(
-    `Invalid JSON expression: ${JSON.stringify(expr, null, 2)}. ${message}`
-  );
+  throw new Error(`Invalid JSON expression: ${JSON.stringify(expr, null, 2)}. ${message}`);
 }
 
 function cloneIfNeeded(value: JSONType): JSONType {
@@ -13,7 +26,7 @@ function cloneIfNeeded(value: JSONType): JSONType {
 }
 
 export function builtin(
-  fn: (args: JSONType[], call: (fn: JSONType, args: JSONType[]) => JSONType) => JSONType
+  fn: (args: JSONType[], call: (fn: JSONType, args: JSONType[]) => JSONType) => JSONType,
 ): BuiltinFunction {
   (fn as any)[BUILTIN_MARKER] = true;
   return fn as BuiltinFunction;
@@ -26,7 +39,7 @@ function isBuiltin(fn: unknown): fn is BuiltinFunction {
 export function callFunction(
   fn: FunctionDeclaration,
   args: JSONType[],
-  functions: FunctionRegistry
+  functions: FunctionRegistry,
 ): JSONType {
   return callFunctionInternal(fn, args, { functions });
 }
@@ -34,7 +47,7 @@ export function callFunction(
 function callFunctionInternal(
   fn: FunctionDeclaration,
   args: JSONType[],
-  context: EvaluationContext
+  context: EvaluationContext,
 ): JSONType {
   const { functions } = context;
   if (typeof fn === "string") {
@@ -62,12 +75,8 @@ function callFunctionInternal(
   }
 }
 
-function callExternalFunction(
-  fn: Function,
-  args: JSONType[],
-  name: string
-): JSONType {
-  const safeArgs = args.map(a => cloneIfNeeded(a));
+function callExternalFunction(fn: Function, args: JSONType[], name: string): JSONType {
+  const safeArgs = args.map((a) => cloneIfNeeded(a));
   try {
     const result = fn(...safeArgs);
     return cloneIfNeeded(result);
@@ -76,11 +85,7 @@ function callExternalFunction(
   }
 }
 
-function callJSONFunction(
-  fn: FunctionBody,
-  args: JSONType[],
-  context: EvaluationContext
-) {
+function callJSONFunction(fn: FunctionBody, args: JSONType[], context: EvaluationContext) {
   const { functions, getVar: getVarParent } = context;
   const evaluatedVars: Record<string, JSONType> = {};
 
@@ -110,10 +115,7 @@ function callJSONFunction(
   return evaluateExpression(fn.$return, { args, functions, getVar });
 }
 
-function evaluateExpression(
-  expression: JSONType,
-  context: EvaluationContext
-): JSONType {
+function evaluateExpression(expression: JSONType, context: EvaluationContext): JSONType {
   const { args, functions, getVar } = context;
   const expressionType = getExpressionType(expression);
 
@@ -122,15 +124,11 @@ function evaluateExpression(
       const fnCall = expression as FunctionCall;
       const evaluatedFunctionCall = evaluateFunctionCall(fnCall, context);
 
-      return callFunctionInternal(
-        evaluatedFunctionCall.fnDeclaration,
-        evaluatedFunctionCall.args,
-        {
-          args: [],
-          functions,
-          getVar,
-        }
-      );
+      return callFunctionInternal(evaluatedFunctionCall.fnDeclaration, evaluatedFunctionCall.args, {
+        args: [],
+        functions,
+        getVar,
+      });
 
     case ExpressionType.FunctionReference:
       const fnRef = expression as FunctionReference;
@@ -143,7 +141,7 @@ function evaluateExpression(
       ) {
         exprError(
           expression,
-          `Evaluated function references must be strings or function bodies. Got ${evaluatedFnRefType}.`
+          `Evaluated function references must be strings or function bodies. Got ${evaluatedFnRefType}.`,
         );
       }
 
@@ -206,9 +204,7 @@ function evaluateExpression(
 
       if (evaluatedTarget === null || typeof evaluatedTarget !== "object") {
         throw new Error(
-          `Invalid $get target: expected object or array, got ${JSON.stringify(
-            evaluatedTarget
-          )}`
+          `Invalid $get target: expected object or array, got ${JSON.stringify(evaluatedTarget)}`,
         );
       }
 
@@ -218,8 +214,8 @@ function evaluateExpression(
           if (current === null || typeof current !== "object") {
             throw new Error(
               `Invalid $get path traversal: cannot access property ${JSON.stringify(
-                segment
-              )} on ${JSON.stringify(current)}`
+                segment,
+              )} on ${JSON.stringify(current)}`,
             );
           }
           current = (current as any)[segment as string | number];
@@ -237,8 +233,8 @@ function evaluateExpression(
 
       throw new Error(
         `Invalid $get key: expected string, number, or array of strings/numbers, got ${JSON.stringify(
-          evaluatedKey
-        )}`
+          evaluatedKey,
+        )}`,
       );
 
     case ExpressionType.Array:
@@ -267,7 +263,7 @@ function evaluateExpression(
 
 function replaceVars(
   expression: JSONType,
-  getVar: (name: string) => JSONType | undefined
+  getVar: (name: string) => JSONType | undefined,
 ): JSONType {
   if (Array.isArray(expression)) {
     return expression.map((item) => replaceVars(item, getVar));
@@ -283,12 +279,11 @@ function replaceVars(
     }
 
     if ("$return" in expression) {
-      const localNames = new Set(
-        Object.keys(expression).filter((k) => k !== "$return")
-      );
-      const maskedGetVar = localNames.size > 0
-        ? (name: string) => (localNames.has(name) ? undefined : getVar(name))
-        : getVar;
+      const localNames = new Set(Object.keys(expression).filter((k) => k !== "$return"));
+      const maskedGetVar =
+        localNames.size > 0
+          ? (name: string) => (localNames.has(name) ? undefined : getVar(name))
+          : getVar;
 
       const newObject: Record<string, JSONType> = {};
       for (const [key, value] of Object.entries(expression)) {
@@ -309,7 +304,7 @@ function replaceVars(
 
 function evaluateFunctionCall(
   fnCall: FunctionCall,
-  context: EvaluationContext
+  context: EvaluationContext,
 ): EvaluatedFunctionCall {
   const { $fn, $args } = fnCall;
 
@@ -324,15 +319,12 @@ function evaluateFunctionCall(
   ) {
     exprError(
       fnCall,
-      `Evaluated function references must be strings or function bodies. Got ${evaluatedFnType}.`
+      `Evaluated function references must be strings or function bodies. Got ${evaluatedFnType}.`,
     );
   }
 
   if (evaluatedArgsType !== ExpressionType.Array) {
-    exprError(
-      fnCall,
-      `Evaluated function arguments must be an array. Got ${evaluatedArgsType}.`
-    );
+    exprError(fnCall, `Evaluated function arguments must be an array. Got ${evaluatedArgsType}.`);
   }
 
   return {
@@ -412,7 +404,10 @@ function getExpressionType(json: JSONType): ExpressionType {
     const hasElse = "$else" in json;
     if (hasIf || hasThen || hasElse) {
       if (!(hasIf && hasThen && hasElse)) {
-        exprError(json, "Conditional expressions must have all three properties: $if, $then, $else.");
+        exprError(
+          json,
+          "Conditional expressions must have all three properties: $if, $then, $else.",
+        );
       }
       if (size > 3) {
         exprError(json, "Conditional expressions cannot have more than three properties.");
