@@ -5,11 +5,7 @@
 // one at a time, to find exactly where the DSL works and where it breaks.
 // ---------------------------------------------------------------------------
 
-import {
-  callFunction,
-  type JSONType,
-} from "../src/evaluate";
-import { createStdlib } from "../src/stdlib";
+import { callFunction, createStdlib, type JSONType } from "../src";
 
 const functions: Record<string, any> = createStdlib();
 

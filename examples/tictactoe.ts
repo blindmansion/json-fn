@@ -6,11 +6,7 @@
 // property access, conditionals, and lazy variable evaluation.
 // ---------------------------------------------------------------------------
 
-import {
-  callFunction,
-  type JSONType,
-} from "../src/evaluate";
-import { createStdlib } from "../src/stdlib";
+import { callFunction, createStdlib, type JSONType } from "../src";
 
 // ---------------------------------------------------------------------------
 // Helpers

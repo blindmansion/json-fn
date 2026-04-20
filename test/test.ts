@@ -1,8 +1,4 @@
-import {
-  callFunction,
-  type JSONType,
-} from "../src/evaluate";
-import { createStdlib } from "../src/stdlib";
+import { callFunction, createStdlib, type JSONType } from "../src";
 
 // ---------------------------------------------------------------------------
 // Helper: run a JSON function body and print the result
