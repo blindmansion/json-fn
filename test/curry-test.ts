@@ -7,29 +7,15 @@
 
 import {
   callFunction,
-  FunctionSource,
-  type NamedFunctionDeclaration,
   type JSONType,
 } from "../src/evaluate";
+import { createStdlib } from "../src/stdlib";
 
-const functions: Record<string, NamedFunctionDeclaration> = {};
-
-function ext(name: string, fn: Function): NamedFunctionDeclaration {
-  return { source: FunctionSource.External, name, fn };
-}
-
-function json(
-  name: string,
-  fn: { [key: string]: JSONType; $return: JSONType }
-): NamedFunctionDeclaration {
-  return { source: FunctionSource.JSON, name, fn };
-}
-
-const getFunction = (name: string) => functions[name];
+const functions: Record<string, any> = createStdlib();
 
 function run(label: string, body: any, args: JSONType[] = []): JSONType | null {
   try {
-    const result = callFunction(body, args, { getFunction });
+    const result = callFunction(body, args, functions);
     console.log(`  ✓ ${label}  →  ${JSON.stringify(result)}`);
     return result;
   } catch (e: any) {
@@ -37,18 +23,6 @@ function run(label: string, body: any, args: JSONType[] = []): JSONType | null {
     return null;
   }
 }
-
-// Register primitives
-Object.assign(functions, {
-  add: ext("add", (a: number, b: number) => a + b),
-  sub: ext("sub", (a: number, b: number) => a - b),
-  mul: ext("mul", (a: number, b: number) => a * b),
-  eq: ext("eq", (a: any, b: any) => a === b),
-  gte: ext("gte", (a: number, b: number) => a >= b),
-  lte: ext("lte", (a: number, b: number) => a <= b),
-  length: ext("length", (arr: any[]) => arr.length),
-  concat: ext("concat", (a: any[], b: any[]) => [...a, ...b]),
-});
 
 
 // ===========================================================================
@@ -154,12 +128,12 @@ console.log("\n── Test 5: Closure capture ──\n");
 // partialAdd captures `a` and returns a function waiting for `b`.
 // partialAdd(10) → fn(b) → add(10, b)
 // Then we call that with (7) → 17
-functions.partialAdd = json("partialAdd", {
+functions.partialAdd = {
   a: { $args: 0 },
   $return: {
     $return: { $fn: "add", $args: [{ $var: "a" }, { $args: 0 }] },
   },
-});
+};
 
 run("partialAdd(10) returns a function", {
   $return: { $fn: "partialAdd", $args: [10] },
@@ -183,7 +157,7 @@ run("call partialAdd(10)(7)", {
 console.log("\n── Test 6: Accumulate arguments across calls ──\n");
 
 // accum(initialArgs) → fn(moreArgs) → concat(initialArgs, moreArgs)
-functions.accum = json("accum", {
+functions.accum = {
   initial: { $args: [] },
   $return: {
     $return: {
@@ -191,7 +165,7 @@ functions.accum = json("accum", {
       $args: [{ $var: "initial" }, { $args: [] }],
     },
   },
-});
+};
 
 run("accum([1,2])([3,4])", {
   step1: { $fn: "accum", $args: [1, 2] },
@@ -235,7 +209,7 @@ run("length([1,2]) >= 3", {
 // ===========================================================================
 console.log("\n── Test 8: Manual curry of add ──\n");
 
-functions.curriedAdd = json("curriedAdd", {
+functions.curriedAdd = {
   a: { $args: 0 },
   $return: {
     $return: {
@@ -243,7 +217,7 @@ functions.curriedAdd = json("curriedAdd", {
       $args: [{ $var: "a" }, { $args: 0 }],
     },
   },
-});
+};
 
 run("curriedAdd(10)(32)", {
   step1: { $fn: "curriedAdd", $args: [10] },
@@ -272,7 +246,7 @@ console.log("\n── Test 9: Generic curry ──\n");
 // Helper: curryApply(targetFn, arity, accumulatedArgs, newArgs)
 // Concatenates args, checks if we have enough, either applies or returns
 // another collector function.
-functions.curryApply = json("curryApply", {
+functions.curryApply = {
   targetFn: { $args: 0 },
   arity: { $args: 1 },
   accumulated: { $args: 2 },
@@ -299,10 +273,10 @@ functions.curryApply = json("curryApply", {
       },
     },
   },
-});
+};
 
 // curry(targetFnName, arity) → returns a collector function
-functions.curry = json("curry", {
+functions.curry = {
   targetFn: { $args: 0 },
   arity: { $args: 1 },
   $return: {
@@ -312,7 +286,7 @@ functions.curry = json("curry", {
       $args: [{ $var: "targetFn" }, { $var: "arity" }, [], { $args: [] }],
     },
   },
-});
+};
 
 // curry("add", 2) should return a function.
 // Calling it with (10) should return another function.
@@ -355,7 +329,7 @@ run("curry('add', 2)(10, 32) — all args at once", {
 });
 
 // Test with a 3-argument function
-functions.add3 = ext("add3", (a: number, b: number, c: number) => a + b + c);
+functions.add3 = (a: number, b: number, c: number) => a + b + c;
 
 run("curry('add3', 3)(1)(2)(3)", {
   step1: { $fn: "curry", $args: ["add3", 3] },

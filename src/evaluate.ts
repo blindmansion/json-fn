@@ -63,29 +63,25 @@ type PropertyAccess = {
   $from: JSONType;
 };
 
-export enum FunctionSource {
-  External,
-  JSON,
-  Builtin,
+const BUILTIN_MARKER = Symbol("builtin");
+
+export type BuiltinFunction = ((
+  args: JSONType[],
+  call: (fn: JSONType, args: JSONType[]) => JSONType
+) => JSONType) & { [BUILTIN_MARKER]: true };
+
+export function builtin(
+  fn: (args: JSONType[], call: (fn: JSONType, args: JSONType[]) => JSONType) => JSONType
+): BuiltinFunction {
+  (fn as any)[BUILTIN_MARKER] = true;
+  return fn as BuiltinFunction;
 }
 
-export type CallFunction = (
-  fn: FunctionDeclaration,
-  args: JSONType[],
-  context: EvaluationContext
-) => JSONType;
+function isBuiltin(fn: unknown): fn is BuiltinFunction {
+  return typeof fn === "function" && BUILTIN_MARKER in fn;
+}
 
-export type BuiltinFunction = (
-  args: JSONType[],
-  context: EvaluationContext,
-  callFn: CallFunction
-) => JSONType;
-
-export type NamedFunctionDeclaration = {
-  source: FunctionSource;
-  name: string;
-  fn: Function | FunctionBody | FunctionCall | BuiltinFunction;
-};
+export type FunctionRegistry = Record<string, Function | FunctionBody>;
 
 type EvaluatedFunctionCall = {
   fnDeclaration: FunctionDeclaration;
@@ -93,7 +89,7 @@ type EvaluatedFunctionCall = {
 };
 
 type EvaluationContext = {
-  getFunction: (fn: string) => NamedFunctionDeclaration | undefined;
+  functions: FunctionRegistry;
   args?: JSONType[];
   getVar?: (name: string) => JSONType | undefined;
 };
@@ -111,22 +107,34 @@ function clone<T>(obj: T): T {
 export function callFunction(
   fn: FunctionDeclaration,
   args: JSONType[],
+  functions: FunctionRegistry
+): JSONType {
+  return callFunctionInternal(fn, args, { functions });
+}
+
+function callFunctionInternal(
+  fn: FunctionDeclaration,
+  args: JSONType[],
   context: EvaluationContext
 ): JSONType {
-  const { getFunction } = context;
+  const { functions } = context;
   if (typeof fn === "string") {
-    const namedFn = getFunction(fn);
-    if (namedFn === undefined) {
+    const entry = functions[fn];
+    if (entry === undefined) {
       throw new Error(`Function ${fn} not found`);
     }
 
-    if (namedFn.source === FunctionSource.External) {
-      return callExternalFunction(namedFn.fn as Function, args, namedFn.name);
-    } else if (namedFn.source === FunctionSource.Builtin) {
-      return (namedFn.fn as BuiltinFunction)(args, context, callFunction);
+    if (typeof entry === "function") {
+      if (isBuiltin(entry)) {
+        const call = (f: JSONType, a: JSONType[]) =>
+          callFunctionInternal(f as FunctionDeclaration, a, context);
+        return entry(args, call);
+      } else {
+        return callExternalFunction(entry, args, fn);
+      }
     } else {
-      return callJSONFunction(namedFn.fn as FunctionBody, args, {
-        getFunction,
+      return callJSONFunction(entry as FunctionBody, args, {
+        functions,
         args: [],
       });
     }
@@ -157,7 +165,7 @@ function callJSONFunction(
   args: JSONType[],
   context: EvaluationContext
 ) {
-  const { getFunction, getVar: getVarParent } = context;
+  const { functions, getVar: getVarParent } = context;
   const evaluatedVars: Record<string, JSONType> = {};
 
   const getVar = (name: string): JSONType | undefined => {
@@ -169,7 +177,7 @@ function callJSONFunction(
     if (expression !== undefined) {
       const evaluated = evaluateExpression(expression, {
         args,
-        getFunction,
+        functions,
         getVar,
       });
       evaluatedVars[name] = evaluated;
@@ -183,14 +191,14 @@ function callJSONFunction(
     return undefined;
   };
 
-  return evaluateExpression(fn.$return, { args, getFunction, getVar });
+  return evaluateExpression(fn.$return, { args, functions, getVar });
 }
 
 function evaluateExpression(
   expression: JSONType,
   context: EvaluationContext
 ): JSONType {
-  const { args, getFunction, getVar } = context;
+  const { args, functions, getVar } = context;
   const expressionType = getExpressionType(expression);
 
   switch (expressionType) {
@@ -198,13 +206,12 @@ function evaluateExpression(
       const fnCall = expression as FunctionCall;
       const evaluatedFunctionCall = evaluateFunctionCall(fnCall, context);
 
-      return callFunction(
+      return callFunctionInternal(
         evaluatedFunctionCall.fnDeclaration,
         evaluatedFunctionCall.args,
         {
-          // Pass args for this function, not parent
           args: [],
-          getFunction,
+          functions,
           getVar,
         }
       );

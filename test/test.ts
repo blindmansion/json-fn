@@ -1,88 +1,21 @@
 import {
   callFunction,
-  FunctionSource,
-  type NamedFunctionDeclaration,
-  type BuiltinFunction,
   type JSONType,
 } from "../src/evaluate";
+import { createStdlib } from "../src/stdlib";
 
 // ---------------------------------------------------------------------------
 // Helper: run a JSON function body and print the result
 // ---------------------------------------------------------------------------
 function run(label: string, body: JSONType, args: JSONType[] = []) {
-  const result = callFunction(body as any, args, { getFunction });
+  const result = callFunction(body as any, args, functions);
   console.log(`${label}  →  ${JSON.stringify(result)}`);
 }
 
 // ---------------------------------------------------------------------------
-// Function registry — a mix of native JS primitives and JSON-defined functions
+// Function registry — stdlib + test-specific functions added below
 // ---------------------------------------------------------------------------
-const functions: Record<string, NamedFunctionDeclaration> = {
-  // Arithmetic
-  add: ext("add", (a: number, b: number) => a + b),
-  sub: ext("sub", (a: number, b: number) => a - b),
-  mul: ext("mul", (a: number, b: number) => a * b),
-  mod: ext("mod", (a: number, b: number) => a % b),
-
-  // Comparison
-  eq: ext("eq", (a: any, b: any) => a === b),
-  gt: ext("gt", (a: number, b: number) => a > b),
-  gte: ext("gte", (a: number, b: number) => a >= b),
-  lt: ext("lt", (a: number, b: number) => a < b),
-  lte: ext("lte", (a: number, b: number) => a <= b),
-
-  // Logic
-  not: ext("not", (a: boolean) => !a),
-  and: ext("and", (a: boolean, b: boolean) => a && b),
-  or: ext("or", (a: boolean, b: boolean) => a || b),
-
-  // Arrays
-  length: ext("length", (arr: any[]) => arr.length),
-  head: ext("head", (arr: any[]) => arr[0]),
-  tail: ext("tail", (arr: any[]) => arr.slice(1)),
-  concat: ext("concat", (a: any[], b: any[]) => [...a, ...b]),
-
-  // Builtins (interpreter-aware — can invoke JSON callbacks)
-  map: builtin("map", (args, ctx, callFn) => {
-    const [callback, arr] = args;
-    if (!Array.isArray(arr)) throw new Error("map: second argument must be an array");
-    return arr.map((item, i) => callFn(callback as any, [item, i], ctx));
-  }),
-  filter: builtin("filter", (args, ctx, callFn) => {
-    const [callback, arr] = args;
-    if (!Array.isArray(arr)) throw new Error("filter: second argument must be an array");
-    return arr.filter((item, i) => callFn(callback as any, [item, i], ctx));
-  }),
-  reduce: builtin("reduce", (args, ctx, callFn) => {
-    const [callback, init, arr] = args as [JSONType, JSONType, JSONType];
-    if (!Array.isArray(arr)) throw new Error("reduce: third argument must be an array");
-    return arr.reduce(
-      (acc: JSONType, item, i) => callFn(callback as any, [acc, item, i], ctx),
-      init
-    );
-  }),
-
-  // Strings
-  upper: ext("upper", (s: string) => s.toUpperCase()),
-  strcat: ext("strcat", (a: string, b: string) => a + b),
-};
-
-function ext(name: string, fn: Function): NamedFunctionDeclaration {
-  return { source: FunctionSource.External, name, fn };
-}
-
-function builtin(name: string, fn: BuiltinFunction): NamedFunctionDeclaration {
-  return { source: FunctionSource.Builtin, name, fn };
-}
-
-function json(
-  name: string,
-  fn: { [key: string]: JSONType; $return: JSONType }
-): NamedFunctionDeclaration {
-  return { source: FunctionSource.JSON, name, fn };
-}
-
-const getFunction = (name: string) => functions[name];
+const functions: Record<string, any> = createStdlib();
 
 // ===========================================================================
 //  DEMOS
@@ -181,16 +114,16 @@ run("if false", {
 console.log("\n=== 6. JSON-defined (named) functions ===\n");
 
 // Register a JSON-defined function that doubles its argument.
-functions.double = json("double", {
+functions.double = {
   $return: { $fn: "mul", $args: [{ $args: 0 }, 2] },
-});
+};
 
 // Register "isEven" which uses double, mod, and eq.
-functions.isEven = json("isEven", {
+functions.isEven = {
   n: { $args: 0 },
   remainder: { $fn: "mod", $args: [{ $var: "n" }, 2] },
   $return: { $fn: "eq", $args: [{ $var: "remainder" }, 0] },
-});
+};
 
 run("double(21)", { $return: { $fn: "double", $args: [21] } });
 run("isEven(4)", { $return: { $fn: "isEven", $args: [4] } });
@@ -200,7 +133,7 @@ run("isEven(7)", { $return: { $fn: "isEven", $args: [7] } });
 console.log("\n=== 7. Recursion ===\n");
 
 // Factorial: fact(n) = if n <= 1 then 1 else n * fact(n - 1)
-functions.fact = json("fact", {
+functions.fact = {
   n: { $args: 0 },
   $return: {
     $if: { $fn: "lte", $args: [{ $var: "n" }, 1] },
@@ -213,7 +146,7 @@ functions.fact = json("fact", {
       ],
     },
   },
-});
+};
 
 run("fact(0)", { $return: { $fn: "fact", $args: [0] } });
 run("fact(1)", { $return: { $fn: "fact", $args: [1] } });
@@ -221,7 +154,7 @@ run("fact(5)", { $return: { $fn: "fact", $args: [5] } }); // 120
 run("fact(10)", { $return: { $fn: "fact", $args: [10] } }); // 3628800
 
 // Fibonacci (same as original demo)
-functions.fib = json("fib", {
+functions.fib = {
   n: { $args: 0 },
   $return: {
     $if: { $fn: "lte", $args: [{ $var: "n" }, 1] },
@@ -234,7 +167,7 @@ functions.fib = json("fib", {
       ],
     },
   },
-});
+};
 
 run("fib(0)", { $return: { $fn: "fib", $args: [0] } });
 run("fib(1)", { $return: { $fn: "fib", $args: [1] } });
@@ -481,7 +414,7 @@ console.log("\n=== 12. Multi-branch conditionals with $cond ===\n");
 // Use [true, ...] as a catch-all default.
 
 // Simple multi-way branch — classify a number
-functions.classify = json("classify", {
+functions.classify = {
   n: { $args: 0 },
   $return: {
     $cond: [
@@ -490,14 +423,14 @@ functions.classify = json("classify", {
       [true, "positive"],
     ],
   },
-});
+};
 
 run("classify(-5)", { $return: { $fn: "classify", $args: [-5] } }); // "negative"
 run("classify(0)", { $return: { $fn: "classify", $args: [0] } }); // "zero"
 run("classify(42)", { $return: { $fn: "classify", $args: [42] } }); // "positive"
 
 // Replaces a nested if/else chain — FizzBuzz
-functions.fizzbuzz = json("fizzbuzz", {
+functions.fizzbuzz = {
   n: { $args: 0 },
   divBy3: { $fn: "eq", $args: [{ $fn: "mod", $args: [{ $var: "n" }, 3] }, 0] },
   divBy5: { $fn: "eq", $args: [{ $fn: "mod", $args: [{ $var: "n" }, 5] }, 0] },
@@ -510,7 +443,7 @@ functions.fizzbuzz = json("fizzbuzz", {
       [true, { $var: "n" }],
     ],
   },
-});
+};
 
 run("fizzbuzz(15)", { $return: { $fn: "fizzbuzz", $args: [15] } }); // "FizzBuzz"
 run("fizzbuzz(9)", { $return: { $fn: "fizzbuzz", $args: [9] } }); // "Fizz"

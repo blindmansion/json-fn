@@ -8,160 +8,23 @@
 
 import {
   callFunction,
-  FunctionSource,
-  type NamedFunctionDeclaration,
-  type BuiltinFunction,
   type JSONType,
 } from "../src/evaluate";
+import { createStdlib } from "../src/stdlib";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-const functions: Record<string, NamedFunctionDeclaration> = {};
-
-function ext(name: string, fn: Function): NamedFunctionDeclaration {
-  return { source: FunctionSource.External, name, fn };
-}
-
-function builtin(name: string, fn: BuiltinFunction): NamedFunctionDeclaration {
-  return { source: FunctionSource.Builtin, name, fn };
-}
-
-function json(
-  name: string,
-  fn: { [key: string]: JSONType; $return: JSONType }
-): NamedFunctionDeclaration {
-  return { source: FunctionSource.JSON, name, fn };
-}
-
-const getFunction = (name: string) => functions[name];
+const functions: Record<string, any> = createStdlib();
 
 function run(label: string, body: any, args: JSONType[] = []): JSONType {
-  const result = callFunction(body, args, { getFunction });
+  const result = callFunction(body, args, functions);
   console.log(`  ${label}  →  ${JSON.stringify(result)}`);
   return result;
 }
 
-// ---------------------------------------------------------------------------
-// 1. External primitives
-// ---------------------------------------------------------------------------
-Object.assign(functions, {
-  add: ext("add", (a: number, b: number) => a + b),
-  sub: ext("sub", (a: number, b: number) => a - b),
-  mul: ext("mul", (a: number, b: number) => a * b),
-  mod: ext("mod", (a: number, b: number) => a % b),
-  eq: ext("eq", (a: any, b: any) => a === b),
-  neq: ext("neq", (a: any, b: any) => a !== b),
-  gt: ext("gt", (a: number, b: number) => a > b),
-  gte: ext("gte", (a: number, b: number) => a >= b),
-  lt: ext("lt", (a: number, b: number) => a < b),
-  lte: ext("lte", (a: number, b: number) => a <= b),
-  not: ext("not", (a: boolean) => !a),
-  and: ext("and", (a: boolean, b: boolean) => a && b),
-  or: ext("or", (a: boolean, b: boolean) => a || b),
-  length: ext("length", (arr: any[]) => arr.length),
-  head: ext("head", (arr: any[]) => arr[0]),
-  tail: ext("tail", (arr: any[]) => arr.slice(1)),
-  concat: ext("concat", (a: any[], b: any[]) => [...a, ...b]),
-});
-
-// ---------------------------------------------------------------------------
-// 2. Builtins (interpreter-aware — can invoke JSON callbacks)
-// ---------------------------------------------------------------------------
-Object.assign(functions, {
-  map: builtin("map", (args, ctx, callFn) => {
-    const [callback, arr] = args;
-    if (!Array.isArray(arr)) throw new Error("map: second argument must be an array");
-    return arr.map((item, i) => callFn(callback as any, [item, i], ctx));
-  }),
-  filter: builtin("filter", (args, ctx, callFn) => {
-    const [callback, arr] = args;
-    if (!Array.isArray(arr)) throw new Error("filter: second argument must be an array");
-    return arr.filter((item, i) => callFn(callback as any, [item, i], ctx));
-  }),
-  reduce: builtin("reduce", (args, ctx, callFn) => {
-    const [callback, init, arr] = args as [JSONType, JSONType, JSONType];
-    if (!Array.isArray(arr)) throw new Error("reduce: third argument must be an array");
-    return arr.reduce(
-      (acc: JSONType, item, i) => callFn(callback as any, [acc, item, i], ctx),
-      init
-    );
-  }),
-});
-
-// ---------------------------------------------------------------------------
-// 3. JSON utility functions
-//
-// `some` and `every` are defined in the DSL itself via reduce, showcasing
-// that higher-order functions can be composed within the language.
-// The reduce callback closes over `pred` from the outer scope — when the
-// callback FunctionBody is returned as a value, replaceVars substitutes
-// { $var: "pred" } with the actual predicate, forming a closure.
-// ---------------------------------------------------------------------------
-
-// some(predicate, arr) — true if any element satisfies predicate
-functions.some = json("some", {
-  pred: { $args: 0 },
-  arr: { $args: 1 },
-  $return: {
-    $fn: "reduce",
-    $args: [
-      {
-        $return: {
-          $fn: "or",
-          $args: [
-            { $args: 0 },
-            { $fn: { $var: "pred" }, $args: [{ $args: 1 }] },
-          ],
-        },
-      },
-      false,
-      { $var: "arr" },
-    ],
-  },
-});
-
-// every(predicate, arr) — true if all elements satisfy predicate
-functions.every = json("every", {
-  pred: { $args: 0 },
-  arr: { $args: 1 },
-  $return: {
-    $fn: "reduce",
-    $args: [
-      {
-        $return: {
-          $fn: "and",
-          $args: [
-            { $args: 0 },
-            { $fn: { $var: "pred" }, $args: [{ $args: 1 }] },
-          ],
-        },
-      },
-      true,
-      { $var: "arr" },
-    ],
-  },
-});
-
-// range(n) — [0, 1, ..., n-1]. Needed to generate position indices.
-// Recursive JSON function: range(n) = if n <= 0 then [] else concat(range(n-1), [n-1])
-functions.range = json("range", {
-  n: { $args: 0 },
-  $return: {
-    $if: { $fn: "lte", $args: [{ $var: "n" }, 0] },
-    $then: [],
-    $else: {
-      $fn: "concat",
-      $args: [
-        { $fn: "range", $args: [{ $fn: "sub", $args: [{ $var: "n" }, 1] }] },
-        [{ $fn: "sub", $args: [{ $var: "n" }, 1] }],
-      ],
-    },
-  },
-});
-
 // ===========================================================================
-// 4. Game logic — all defined as JSON functions
+// Game logic — all defined as JSON functions
 //
 // Board: flat 9-element array, indexed 0–8 (row-major).
 //   0 | 1 | 2
@@ -176,28 +39,28 @@ functions.range = json("range", {
 // ===========================================================================
 
 // otherPlayer("X") → "O",  otherPlayer("O") → "X"
-functions.otherPlayer = json("otherPlayer", {
+functions.otherPlayer = {
   $return: {
     $if: { $fn: "eq", $args: [{ $args: 0 }, "X"] },
     $then: "O",
     $else: "X",
   },
-});
+};
 
 // validMove(board, pos) — is the cell at pos empty?
-functions.validMove = json("validMove", {
+functions.validMove = {
   board: { $args: 0 },
   pos: { $args: 1 },
   $return: {
     $fn: "eq",
     $args: [{ $get: { $var: "pos" }, $from: { $var: "board" } }, null],
   },
-});
+};
 
 // makeMove(board, pos, player) — return a new board with player's mark at pos.
 // Uses map: for each (cell, index), if index === pos return player, else cell.
 // The map callback closes over `pos` and `player` via replaceVars.
-functions.makeMove = json("makeMove", {
+functions.makeMove = {
   board: { $args: 0 },
   pos: { $args: 1 },
   player: { $args: 2 },
@@ -214,12 +77,12 @@ functions.makeMove = json("makeMove", {
       { $var: "board" },
     ],
   },
-});
+};
 
 // checkLine(board, player, line) — do all positions in `line` contain `player`?
 // Uses every: for each position index in the line, board[pos] === player.
 // The every callback closes over `board` and `player`.
-functions.checkLine = json("checkLine", {
+functions.checkLine = {
   board: { $args: 0 },
   player: { $args: 1 },
   line: { $args: 2 },
@@ -238,12 +101,12 @@ functions.checkLine = json("checkLine", {
       { $var: "line" },
     ],
   },
-});
+};
 
 // checkWin(board, player) — does player have three in a row?
 // Uses some: is any of the 8 win lines fully owned by player?
 // The some callback closes over `board` and `player`.
-functions.checkWin = json("checkWin", {
+functions.checkWin = {
   board: { $args: 0 },
   player: { $args: 1 },
   lines: [
@@ -263,10 +126,10 @@ functions.checkWin = json("checkWin", {
       { $var: "lines" },
     ],
   },
-});
+};
 
 // isBoardFull(board) — are all 9 cells occupied?
-functions.isBoardFull = json("isBoardFull", {
+functions.isBoardFull = {
   board: { $args: 0 },
   $return: {
     $fn: "every",
@@ -275,10 +138,10 @@ functions.isBoardFull = json("isBoardFull", {
       { $var: "board" },
     ],
   },
-});
+};
 
 // getStatus(board) → "X" | "O" | "draw" | "playing"
-functions.getStatus = json("getStatus", {
+functions.getStatus = {
   board: { $args: 0 },
   xWins: { $fn: "checkWin", $args: [{ $var: "board" }, "X"] },
   oWins: { $fn: "checkWin", $args: [{ $var: "board" }, "O"] },
@@ -296,13 +159,13 @@ functions.getStatus = json("getStatus", {
       },
     },
   },
-});
+};
 
 // playMove(state, pos) — apply a move and return the new game state.
 // Validates that the game is still playing and the cell is empty.
 // Thanks to lazy evaluation, newBoard/newStatus/nextTurn are only
 // computed when the move is actually valid.
-functions.playMove = json("playMove", {
+functions.playMove = {
   state: { $args: 0 },
   pos: { $args: 1 },
   board: { $get: "board", $from: { $var: "state" } },
@@ -326,10 +189,10 @@ functions.playMove = json("playMove", {
     },
     $else: { $var: "state" },
   },
-});
+};
 
 // ===========================================================================
-// 5. Minimax AI
+// Minimax AI
 //
 // minimax(board, depth, isMaximizing, aiPlayer) → score
 //
@@ -343,7 +206,7 @@ functions.playMove = json("playMove", {
 // values into the closure. Inner local variables (like $args references)
 // are left untouched for the callback's own scope.
 // ===========================================================================
-functions.minimax = json("minimax", {
+functions.minimax = {
   board: { $args: 0 },
   depth: { $args: 1 },
   isMaximizing: { $args: 2 },
@@ -395,34 +258,8 @@ functions.minimax = json("minimax", {
       { $var: "emptyPos" },
     ],
   },
-  maxScore: {
-    $fn: "reduce",
-    $args: [
-      {
-        $return: {
-          $if: { $fn: "gt", $args: [{ $args: 1 }, { $args: 0 }] },
-          $then: { $args: 1 },
-          $else: { $args: 0 },
-        },
-      },
-      -100,
-      { $var: "scores" },
-    ],
-  },
-  minScore: {
-    $fn: "reduce",
-    $args: [
-      {
-        $return: {
-          $if: { $fn: "lt", $args: [{ $args: 1 }, { $args: 0 }] },
-          $then: { $args: 1 },
-          $else: { $args: 0 },
-        },
-      },
-      100,
-      { $var: "scores" },
-    ],
-  },
+  maxScore: { $fn: "max", $args: [{ $var: "scores" }] },
+  minScore: { $fn: "min", $args: [{ $var: "scores" }] },
 
   $return: {
     $if: { $var: "gameOver" },
@@ -441,13 +278,13 @@ functions.minimax = json("minimax", {
       $else: { $var: "minScore" },
     },
   },
-});
+};
 
 // bestMove(board, aiPlayer) → position index (0–8)
 // Reduces over empty positions, tracking { score, pos } of the best option.
 // The reduce callback has its own local variables (newBoard, score) that
 // are NOT in the outer scope, so replaceVars correctly leaves them alone.
-functions.bestMove = json("bestMove", {
+functions.bestMove = {
   board: { $args: 0 },
   aiPlayer: { $args: 1 },
   emptyPos: {
@@ -486,10 +323,10 @@ functions.bestMove = json("bestMove", {
     ],
   },
   $return: { $get: "pos", $from: { $var: "best" } },
-});
+};
 
 // ===========================================================================
-// 6. Display helper (external, just for pretty-printing)
+// Display helper (external, just for pretty-printing)
 // ===========================================================================
 function formatBoard(board: JSONType[]): string {
   const cell = (v: JSONType) => (v === null ? "·" : String(v));
@@ -593,9 +430,9 @@ let state: any = NEW_GAME;
 for (const move of stepMoves) {
   const player = state.turn;
   state = callFunction(
-    functions.playMove.fn as any,
+    functions.playMove as any,
     [state, move],
-    { getFunction }
+    functions
   );
   console.log(`  ${player} plays position ${move}:`);
   console.log(formatBoard(state.board));
@@ -632,9 +469,9 @@ const elapsed = (performance.now() - t0).toFixed(0);
 console.log(`  (computed in ${elapsed}ms)`);
 
 const afterAI = callFunction(
-  functions.makeMove.fn as any,
+  functions.makeMove as any,
   [aiBoard, bestPos, "O"],
-  { getFunction }
+  functions
 );
 console.log(`\n  O plays position ${bestPos}:`);
 console.log(formatBoard(afterAI as JSONType[]));
@@ -661,15 +498,15 @@ const t1 = performance.now();
 let moveCount = 0;
 while (aiState.status === "playing") {
   const pos = callFunction(
-    functions.bestMove.fn as any,
+    functions.bestMove as any,
     [aiState.board, aiState.turn],
-    { getFunction }
+    functions
   );
   const player = aiState.turn;
   aiState = callFunction(
-    functions.playMove.fn as any,
+    functions.playMove as any,
     [aiState, pos],
-    { getFunction }
+    functions
   );
   moveCount++;
   console.log(`  ${player} plays position ${pos}:`);
