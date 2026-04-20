@@ -13,7 +13,7 @@ import type {
   PropertyAccess,
   EvaluatedFunctionCall,
 } from "./types";
-import { BUILTIN_MARKER, PURE_MARKER, ExpressionType } from "./types";
+import { BUILTIN_MARKER, PURE_MARKER, ARITY_MARKER, ExpressionType } from "./types";
 
 export type PerfStats = {
   evaluateExpression: number;
@@ -78,9 +78,11 @@ export function pure(fn: Function): Function {
 }
 
 export function builtin(
-  fn: (args: JSONType[], call: (fn: JSONType, args: JSONType[]) => JSONType) => JSONType,
+  fn: (args: JSONType[], call: (fn: JSONType, args: JSONType[]) => JSONType, functions: FunctionRegistry) => JSONType,
+  arity?: number,
 ): BuiltinFunction {
   (fn as any)[BUILTIN_MARKER] = true;
+  if (arity !== undefined) (fn as any)[ARITY_MARKER] = arity;
   return fn as BuiltinFunction;
 }
 
@@ -121,7 +123,7 @@ function callFunctionInternal(
         if (isBuiltin(entry)) {
           const call = (f: JSONType, a: JSONType[]) =>
             callFunctionInternal(f as FunctionDeclaration, a, context);
-          return entry(args, call);
+          return entry(args, call, functions);
         } else {
           return callExternalFunction(entry, args, fn);
         }
@@ -525,4 +527,29 @@ function getExpressionType(json: JSONType): ExpressionType {
   }
 
   exprError(json, "Unrecognized expression type.");
+}
+
+export function getArity(fn: unknown, registry?: FunctionRegistry): number | null {
+  if (typeof fn === "object" && fn !== null && !Array.isArray(fn) && "$return" in fn) {
+    const params = (fn as any).$params as string[] | undefined;
+    if (!params || params.length === 0) return 0;
+    const last = params[params.length - 1]!;
+    return last.startsWith("...") ? params.length - 1 : params.length;
+  }
+
+  if (typeof fn === "string" && registry) {
+    const entry = registry[fn];
+    if (entry === undefined) return null;
+    return getArity(entry, registry);
+  }
+
+  if (typeof fn === "function" && ARITY_MARKER in fn) {
+    return (fn as any)[ARITY_MARKER] as number;
+  }
+
+  if (typeof fn === "function") {
+    return fn.length;
+  }
+
+  return null;
 }

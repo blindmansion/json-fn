@@ -1,4 +1,4 @@
-import { builtin, pure } from "./evaluate";
+import { builtin, pure, getArity } from "./evaluate";
 import type { FunctionRegistry } from "./types";
 
 export function createStdlib(): FunctionRegistry {
@@ -89,17 +89,17 @@ export function createStdlib(): FunctionRegistry {
       const [callback, arr] = args;
       if (!Array.isArray(arr)) throw new Error("map: second argument must be an array");
       return arr.map((item, i) => call(callback!, [item, i]));
-    }),
+    }, 2),
     filter: builtin((args, call) => {
       const [callback, arr] = args;
       if (!Array.isArray(arr)) throw new Error("filter: second argument must be an array");
       return arr.filter((item, i) => call(callback!, [item, i]));
-    }),
+    }, 2),
     reduce: builtin((args, call) => {
       const [callback, init, arr] = args as [any, any, any];
       if (!Array.isArray(arr)) throw new Error("reduce: third argument must be an array");
       return arr.reduce((acc: any, item: any, i: number) => call(callback, [acc, item, i]), init);
-    }),
+    }, 3),
     find: builtin((args, call) => {
       const [callback, arr] = args;
       if (!Array.isArray(arr)) throw new Error("find: second argument must be an array");
@@ -107,7 +107,7 @@ export function createStdlib(): FunctionRegistry {
         if (call(callback!, [arr[i]!, i])) return arr[i]!;
       }
       return null;
-    }),
+    }, 2),
     findIndex: builtin((args, call) => {
       const [callback, arr] = args;
       if (!Array.isArray(arr)) throw new Error("findIndex: second argument must be an array");
@@ -115,21 +115,26 @@ export function createStdlib(): FunctionRegistry {
         if (call(callback!, [arr[i]!, i])) return i;
       }
       return -1;
-    }),
+    }, 2),
     some: builtin((args, call) => {
       const [callback, arr] = args;
       if (!Array.isArray(arr)) throw new Error("some: second argument must be an array");
       return arr.some((item, i) => call(callback!, [item, i]));
-    }),
+    }, 2),
     every: builtin((args, call) => {
       const [callback, arr] = args;
       if (!Array.isArray(arr)) throw new Error("every: second argument must be an array");
       return arr.every((item, i) => call(callback!, [item, i]));
-    }),
+    }, 2),
     sort: builtin((args, call) => {
       const [comparator, arr] = args;
       if (!Array.isArray(arr)) throw new Error("sort: second argument must be an array");
       return [...arr].sort((a, b) => call(comparator!, [a, b]) as number);
-    }),
+    }, 2),
+
+    // Introspection
+    arity: builtin((args, _call, functions) => {
+      return getArity(args[0], functions) ?? null;
+    }, 1),
   };
 }

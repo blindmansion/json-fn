@@ -54,10 +54,12 @@ type PropertyAccess = {
 
 const BUILTIN_MARKER = Symbol("builtin");
 const PURE_MARKER = Symbol("pure");
+const ARITY_MARKER = Symbol("arity");
 
 type BuiltinFunction = ((
   args: JSONType[],
   call: (fn: JSONType, args: JSONType[]) => JSONType,
+  functions: FunctionRegistry,
 ) => JSONType) & { [BUILTIN_MARKER]: true };
 
 type FunctionRegistry = Record<string, Function | FunctionBody>;
@@ -87,4 +89,4 @@ export type {
   PropertyAccess,
   EvaluatedFunctionCall,
 };
-export { BUILTIN_MARKER, PURE_MARKER, ExpressionType };
+export { BUILTIN_MARKER, PURE_MARKER, ARITY_MARKER, ExpressionType };

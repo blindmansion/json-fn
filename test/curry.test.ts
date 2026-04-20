@@ -335,3 +335,90 @@ describe("generic curry", () => {
     ).toBe(6);
   });
 });
+
+describe("auto-curry using arity introspection", () => {
+  const curryApply: any = {
+    $params: ["targetFn", "arity", "accumulated", "newArgs"],
+    allArgs: { $fn: "concat", $args: [{ $var: "accumulated" }, { $var: "newArgs" }] },
+    numArgs: { $fn: "length", $args: [{ $var: "allArgs" }] },
+    enough: { $fn: "gte", $args: [{ $var: "numArgs" }, { $var: "arity" }] },
+    $return: {
+      $if: { $var: "enough" },
+      $then: {
+        $fn: { $var: "targetFn" },
+        $args: { $var: "allArgs" },
+      },
+      $else: {
+        $params: ["...nextArgs"],
+        $return: {
+          $fn: "curryApply",
+          $args: [{ $var: "targetFn" }, { $var: "arity" }, { $var: "allArgs" }, { $var: "nextArgs" }],
+        },
+      },
+    },
+  };
+
+  const autoCurry = {
+    $params: ["targetFn"],
+    detectedArity: { $fn: "arity", $args: [{ $var: "targetFn" }] },
+    $return: {
+      $params: ["...newArgs"],
+      $return: {
+        $fn: "curryApply",
+        $args: [{ $var: "targetFn" }, { $var: "detectedArity" }, [], { $var: "newArgs" }],
+      },
+    },
+  };
+
+  const fns = { curryApply, autoCurry };
+
+  test("autoCurry('add')(10)(32) = 42", () => {
+    expect(
+      run(
+        {
+          step1: { $fn: "autoCurry", $args: ["add"] },
+          step2: { $fn: { $var: "step1" }, $args: [10] },
+          $return: { $fn: { $var: "step2" }, $args: [32] },
+        },
+        [],
+        fns,
+      ),
+    ).toBe(42);
+  });
+
+  test("autoCurry('add')(10, 32) — all args at once", () => {
+    expect(
+      run(
+        {
+          curriedAdd: { $fn: "autoCurry", $args: ["add"] },
+          $return: { $fn: { $var: "curriedAdd" }, $args: [10, 32] },
+        },
+        [],
+        fns,
+      ),
+    ).toBe(42);
+  });
+
+  test("autoCurry with a JSON function", () => {
+    const add3: any = {
+      $params: ["a", "b", "c"],
+      $return: {
+        $fn: "add",
+        $args: [{ $var: "a" }, { $fn: "add", $args: [{ $var: "b" }, { $var: "c" }] }],
+      },
+    };
+
+    expect(
+      run(
+        {
+          step1: { $fn: "autoCurry", $args: ["add3"] },
+          step2: { $fn: { $var: "step1" }, $args: [1] },
+          step3: { $fn: { $var: "step2" }, $args: [2] },
+          $return: { $fn: { $var: "step3" }, $args: [3] },
+        },
+        [],
+        { ...fns, add3 },
+      ),
+    ).toBe(6);
+  });
+});
