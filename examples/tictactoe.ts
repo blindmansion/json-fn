@@ -37,7 +37,7 @@ function run(label: string, body: any, args: JSONType[] = []): JSONType {
 // otherPlayer("X") → "O",  otherPlayer("O") → "X"
 functions.otherPlayer = {
   $return: {
-    $if: { $fn: "eq", $args: [{ $args: 0 }, "X"] },
+    $if: { $fn: "eq", $args: [{ $arg: 0 }, "X"] },
     $then: "O",
     $else: "X",
   },
@@ -45,8 +45,8 @@ functions.otherPlayer = {
 
 // validMove(board, pos) — is the cell at pos empty?
 functions.validMove = {
-  board: { $args: 0 },
-  pos: { $args: 1 },
+  board: { $arg: 0 },
+  pos: { $arg: 1 },
   $return: {
     $fn: "eq",
     $args: [{ $get: { $var: "pos" }, $from: { $var: "board" } }, null],
@@ -57,17 +57,17 @@ functions.validMove = {
 // Uses map: for each (cell, index), if index === pos return player, else cell.
 // The map callback closes over `pos` and `player` via replaceVars.
 functions.makeMove = {
-  board: { $args: 0 },
-  pos: { $args: 1 },
-  player: { $args: 2 },
+  board: { $arg: 0 },
+  pos: { $arg: 1 },
+  player: { $arg: 2 },
   $return: {
     $fn: "map",
     $args: [
       {
         $return: {
-          $if: { $fn: "eq", $args: [{ $args: 1 }, { $var: "pos" }] },
+          $if: { $fn: "eq", $args: [{ $arg: 1 }, { $var: "pos" }] },
           $then: { $var: "player" },
-          $else: { $args: 0 },
+          $else: { $arg: 0 },
         },
       },
       { $var: "board" },
@@ -79,9 +79,9 @@ functions.makeMove = {
 // Uses every: for each position index in the line, board[pos] === player.
 // The every callback closes over `board` and `player`.
 functions.checkLine = {
-  board: { $args: 0 },
-  player: { $args: 1 },
-  line: { $args: 2 },
+  board: { $arg: 0 },
+  player: { $arg: 1 },
+  line: { $arg: 2 },
   $return: {
     $fn: "every",
     $args: [
@@ -89,7 +89,7 @@ functions.checkLine = {
         $return: {
           $fn: "eq",
           $args: [
-            { $get: { $args: 0 }, $from: { $var: "board" } },
+            { $get: { $arg: 0 }, $from: { $var: "board" } },
             { $var: "player" },
           ],
         },
@@ -103,8 +103,8 @@ functions.checkLine = {
 // Uses some: is any of the 8 win lines fully owned by player?
 // The some callback closes over `board` and `player`.
 functions.checkWin = {
-  board: { $args: 0 },
-  player: { $args: 1 },
+  board: { $arg: 0 },
+  player: { $arg: 1 },
   lines: [
     [0, 1, 2], [3, 4, 5], [6, 7, 8],  // rows
     [0, 3, 6], [1, 4, 7], [2, 5, 8],  // cols
@@ -116,7 +116,7 @@ functions.checkWin = {
       {
         $return: {
           $fn: "checkLine",
-          $args: [{ $var: "board" }, { $var: "player" }, { $args: 0 }],
+          $args: [{ $var: "board" }, { $var: "player" }, { $arg: 0 }],
         },
       },
       { $var: "lines" },
@@ -126,11 +126,11 @@ functions.checkWin = {
 
 // isBoardFull(board) — are all 9 cells occupied?
 functions.isBoardFull = {
-  board: { $args: 0 },
+  board: { $arg: 0 },
   $return: {
     $fn: "every",
     $args: [
-      { $return: { $fn: "neq", $args: [{ $args: 0 }, null] } },
+      { $return: { $fn: "neq", $args: [{ $arg: 0 }, null] } },
       { $var: "board" },
     ],
   },
@@ -138,7 +138,7 @@ functions.isBoardFull = {
 
 // getStatus(board) → "X" | "O" | "draw" | "playing"
 functions.getStatus = {
-  board: { $args: 0 },
+  board: { $arg: 0 },
   xWins: { $fn: "checkWin", $args: [{ $var: "board" }, "X"] },
   oWins: { $fn: "checkWin", $args: [{ $var: "board" }, "O"] },
   full: { $fn: "isBoardFull", $args: [{ $var: "board" }] },
@@ -157,8 +157,8 @@ functions.getStatus = {
 // Thanks to lazy evaluation, newBoard/newStatus/nextTurn are only
 // computed when the move is actually valid.
 functions.playMove = {
-  state: { $args: 0 },
-  pos: { $args: 1 },
+  state: { $arg: 0 },
+  pos: { $arg: 1 },
   board: { $get: "board", $from: { $var: "state" } },
   turn: { $get: "turn", $from: { $var: "state" } },
   currentStatus: { $get: "status", $from: { $var: "state" } },
@@ -198,10 +198,10 @@ functions.playMove = {
 // are left untouched for the callback's own scope.
 // ===========================================================================
 functions.minimax = {
-  board: { $args: 0 },
-  depth: { $args: 1 },
-  isMaximizing: { $args: 2 },
-  aiPlayer: { $args: 3 },
+  board: { $arg: 0 },
+  depth: { $arg: 1 },
+  isMaximizing: { $arg: 2 },
+  aiPlayer: { $arg: 3 },
 
   opponent: { $fn: "otherPlayer", $args: [{ $var: "aiPlayer" }] },
   status: { $fn: "getStatus", $args: [{ $var: "board" }] },
@@ -221,7 +221,7 @@ functions.minimax = {
       {
         $return: {
           $fn: "validMove",
-          $args: [{ $var: "board" }, { $args: 0 }],
+          $args: [{ $var: "board" }, { $arg: 0 }],
         },
       },
       { $fn: "range", $args: [9] },
@@ -238,7 +238,7 @@ functions.minimax = {
               $fn: "makeMove",
               $args: [
                 { $var: "board" },
-                { $args: 0 },
+                { $arg: 0 },
                 { $var: "currentPlayer" },
               ],
             },
@@ -270,15 +270,15 @@ functions.minimax = {
 // The reduce callback has its own local variables (newBoard, score) that
 // are NOT in the outer scope, so replaceVars correctly leaves them alone.
 functions.bestMove = {
-  board: { $args: 0 },
-  aiPlayer: { $args: 1 },
+  board: { $arg: 0 },
+  aiPlayer: { $arg: 1 },
   emptyPos: {
     $fn: "filter",
     $args: [
       {
         $return: {
           $fn: "validMove",
-          $args: [{ $var: "board" }, { $args: 0 }],
+          $args: [{ $var: "board" }, { $arg: 0 }],
         },
       },
       { $fn: "range", $args: [9] },
@@ -290,17 +290,17 @@ functions.bestMove = {
       {
         newBoard: {
           $fn: "makeMove",
-          $args: [{ $var: "board" }, { $args: 1 }, { $var: "aiPlayer" }],
+          $args: [{ $var: "board" }, { $arg: 1 }, { $var: "aiPlayer" }],
         },
         score: {
           $fn: "minimax",
           $args: [{ $var: "newBoard" }, 1, false, { $var: "aiPlayer" }],
         },
-        bestScore: { $get: "score", $from: { $args: 0 } },
+        bestScore: { $get: "score", $from: { $arg: 0 } },
         $return: {
           $if: { $fn: "gt", $args: [{ $var: "score" }, { $var: "bestScore" }] },
-          $then: { score: { $var: "score" }, pos: { $args: 1 } },
-          $else: { $args: 0 },
+          $then: { score: { $var: "score" }, pos: { $arg: 1 } },
+          $else: { $arg: 0 },
         },
       },
       { score: -100, pos: -1 },
@@ -415,7 +415,7 @@ let state: any = NEW_GAME;
 for (const move of stepMoves) {
   const player = state.turn;
   state = callFunction(
-    functions.playMove as any,
+    functions.playMove,
     [state, move],
     functions
   );
@@ -454,7 +454,7 @@ const elapsed = (performance.now() - t0).toFixed(0);
 console.log(`  (computed in ${elapsed}ms)`);
 
 const afterAI = callFunction(
-  functions.makeMove as any,
+  functions.makeMove,
   [aiBoard, bestPos, "O"],
   functions
 );
@@ -483,13 +483,13 @@ const t1 = performance.now();
 let moveCount = 0;
 while (aiState.status === "playing") {
   const pos = callFunction(
-    functions.bestMove as any,
+    functions.bestMove,
     [aiState.board, aiState.turn],
     functions
   );
   const player = aiState.turn;
   aiState = callFunction(
-    functions.playMove as any,
+    functions.playMove,
     [aiState, pos],
     functions
   );

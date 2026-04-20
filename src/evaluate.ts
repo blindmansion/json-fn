@@ -36,7 +36,7 @@ type FunctionReference = {
 type FunctionDeclaration = string | FunctionBody;
 
 type ArgReference = {
-  $args: number | number[];
+  $arg: number | number[];
 };
 
 type VariableReference = {
@@ -239,7 +239,7 @@ function evaluateExpression(
       }
 
       const argRef = expression as ArgReference;
-      const index = argRef.$args;
+      const index = argRef.$arg;
       if (typeof index === "number") {
         return args[index]!;
       } else {
@@ -469,7 +469,7 @@ function getExpressionType(json: JSONType): ExpressionType {
       return ExpressionType.FunctionReference;
     }
 
-    if ("$args" in json) {
+    if ("$arg" in json) {
       if (size > 1) {
         exprError(json, "Arg references cannot have other properties.");
       }

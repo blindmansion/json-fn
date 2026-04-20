@@ -32,11 +32,11 @@ function run(label: string, body: any, args: JSONType[] = []): JSONType | null {
 console.log("\n── Test 1: Return a function body as a value ──\n");
 
 // A function that returns an "adder" function with `x` captured.
-// makeAdder(10) should return { $return: { $fn: "add", $args: [10, { $args: 0 }] } }
+// makeAdder(10) should return { $return: { $fn: "add", $args: [10, { $arg: 0 }] } }
 run("makeAdder(10)", {
-  x: { $args: 0 },
+  x: { $arg: 0 },
   $return: {
-    $return: { $fn: "add", $args: [{ $var: "x" }, { $args: 0 }] },
+    $return: { $fn: "add", $args: [{ $var: "x" }, { $arg: 0 }] },
   },
 }, [10]);
 
@@ -54,7 +54,7 @@ console.log("\n── Test 2: Call a returned function body ──\n");
 run("makeAdder(10)(5) — via nested inline call", {
   adder: {
     $fn: {
-      x: { $args: 0 },
+      x: { $arg: 0 },
       $return: {
         $return: { $fn: "add", $args: [{ $var: "x" }, { $args: 0 }] },
       },
@@ -69,17 +69,17 @@ run("makeAdder(10)(5) — via nested inline call", {
 
 
 // ===========================================================================
-// TEST 3: Variadic arguments — { $args: [] }
+// TEST 3: Variadic arguments — { $arg: [] }
 //
-// The curryJson sketch uses { $args: [] } to mean "all arguments." In the
-// interpreter, $args can be a number (single arg) or a two-element array
+// The curryJson sketch uses { $arg: [] } to mean "all arguments." In the
+// interpreter, $arg can be a number (single arg) or a two-element array
 // (slice). An empty array would do args.slice(undefined, undefined), which
 // in JS returns a copy of the full array. Let's see if it actually works.
 // ===========================================================================
 console.log("\n── Test 3: Variadic arguments with { $args: [] } ──\n");
 
-run("capture all args via { $args: [] }", {
-  allArgs: { $args: [] },
+run("capture all args via { $arg: [] }", {
+  allArgs: { $arg: [] },
   $return: { $var: "allArgs" },
 }, [10, 20, 30]);
 
@@ -95,7 +95,7 @@ console.log("\n── Test 4: Dynamic function dispatch via variable ──\n");
 
 // Pass "add" as an argument, then call it dynamically.
 run("call a function by name from args", {
-  fnName: { $args: 0 },
+  fnName: { $arg: 0 },
   $return: {
     $fn: { $var: "fnName" },
     $args: [3, 4],
@@ -104,7 +104,7 @@ run("call a function by name from args", {
 
 // Pass "mul" as an argument.
 run("call 'mul' by name from args", {
-  fnName: { $args: 0 },
+  fnName: { $arg: 0 },
   $return: {
     $fn: { $var: "fnName" },
     $args: [3, 4],
@@ -125,9 +125,9 @@ console.log("\n── Test 5: Closure capture ──\n");
 // partialAdd(10) → fn(b) → add(10, b)
 // Then we call that with (7) → 17
 functions.partialAdd = {
-  a: { $args: 0 },
+  a: { $arg: 0 },
   $return: {
-    $return: { $fn: "add", $args: [{ $var: "a" }, { $args: 0 }] },
+    $return: { $fn: "add", $args: [{ $var: "a" }, { $arg: 0 }] },
   },
 };
 
@@ -154,11 +154,11 @@ console.log("\n── Test 6: Accumulate arguments across calls ──\n");
 
 // accum(initialArgs) → fn(moreArgs) → concat(initialArgs, moreArgs)
 functions.accum = {
-  initial: { $args: [] },
+  initial: { $arg: [] },
   $return: {
     $return: {
       $fn: "concat",
-      $args: [{ $var: "initial" }, { $args: [] }],
+      $args: [{ $var: "initial" }, { $arg: [] }],
     },
   },
 };
@@ -206,11 +206,11 @@ run("length([1,2]) >= 3", {
 console.log("\n── Test 8: Manual curry of add ──\n");
 
 functions.curriedAdd = {
-  a: { $args: 0 },
+  a: { $arg: 0 },
   $return: {
     $return: {
       $fn: "add",
-      $args: [{ $var: "a" }, { $args: 0 }],
+      $args: [{ $var: "a" }, { $arg: 0 }],
     },
   },
 };
@@ -243,10 +243,10 @@ console.log("\n── Test 9: Generic curry ──\n");
 // Concatenates args, checks if we have enough, either applies or returns
 // another collector function.
 functions.curryApply = {
-  targetFn: { $args: 0 },
-  arity: { $args: 1 },
-  accumulated: { $args: 2 },
-  newArgs: { $args: 3 },
+  targetFn: { $arg: 0 },
+  arity: { $arg: 1 },
+  accumulated: { $arg: 2 },
+  newArgs: { $arg: 3 },
   allArgs: { $fn: "concat", $args: [{ $var: "accumulated" }, { $var: "newArgs" }] },
   numArgs: { $fn: "length", $args: [{ $var: "allArgs" }] },
   enough: { $fn: "gte", $args: [{ $var: "numArgs" }, { $var: "arity" }] },
@@ -264,7 +264,7 @@ functions.curryApply = {
           { $var: "targetFn" },
           { $var: "arity" },
           { $var: "allArgs" },
-          { $args: [] },
+          { $arg: [] },
         ],
       },
     },
@@ -273,13 +273,13 @@ functions.curryApply = {
 
 // curry(targetFnName, arity) → returns a collector function
 functions.curry = {
-  targetFn: { $args: 0 },
-  arity: { $args: 1 },
+  targetFn: { $arg: 0 },
+  arity: { $arg: 1 },
   $return: {
     // Return a function that starts accumulation with empty list
     $return: {
       $fn: "curryApply",
-      $args: [{ $var: "targetFn" }, { $var: "arity" }, [], { $args: [] }],
+      $args: [{ $var: "targetFn" }, { $var: "arity" }, [], { $arg: [] }],
     },
   },
 };

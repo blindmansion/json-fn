@@ -60,7 +60,7 @@ console.log("\n=== 3. Positional arguments with $args ===\n");
 
 // A function that adds its two arguments:
 const addArgs = {
-  $return: { $fn: "add", $args: [{ $args: 0 }, { $args: 1 }] },
+  $return: { $fn: "add", $args: [{ $arg: 0 }, { $arg: 1 }] },
 };
 run("addArgs(10, 20)", addArgs, [10, 20]);
 
@@ -79,8 +79,8 @@ run("local vars", {
 
 // Variables can also reference arguments:
 run("vars + args", {
-  x: { $args: 0 },
-  y: { $args: 1 },
+  x: { $arg: 0 },
+  y: { $arg: 1 },
   product: { $fn: "mul", $args: [{ $var: "x" }, { $var: "y" }] },
   $return: { $var: "product" },
 }, [7, 8]); // 7 * 8  →  56
@@ -111,12 +111,12 @@ console.log("\n=== 6. JSON-defined (named) functions ===\n");
 
 // Register a JSON-defined function that doubles its argument.
 functions.double = {
-  $return: { $fn: "mul", $args: [{ $args: 0 }, 2] },
+  $return: { $fn: "mul", $args: [{ $arg: 0 }, 2] },
 };
 
 // Register "isEven" which uses double, mod, and eq.
 functions.isEven = {
-  n: { $args: 0 },
+  n: { $arg: 0 },
   remainder: { $fn: "mod", $args: [{ $var: "n" }, 2] },
   $return: { $fn: "eq", $args: [{ $var: "remainder" }, 0] },
 };
@@ -130,7 +130,7 @@ console.log("\n=== 7. Recursion ===\n");
 
 // Factorial: fact(n) = if n <= 1 then 1 else n * fact(n - 1)
 functions.fact = {
-  n: { $args: 0 },
+  n: { $arg: 0 },
   $return: {
     $if: { $fn: "lte", $args: [{ $var: "n" }, 1] },
     $then: 1,
@@ -151,7 +151,7 @@ run("fact(10)", { $return: { $fn: "fact", $args: [10] } }); // 3628800
 
 // Fibonacci (same as original demo)
 functions.fib = {
-  n: { $args: 0 },
+  n: { $arg: 0 },
   $return: {
     $if: { $fn: "lte", $args: [{ $var: "n" }, 1] },
     $then: { $var: "n" },
@@ -179,7 +179,7 @@ console.log("\n=== 8. Inline (anonymous) functions ===\n");
 run("inline square(5)", {
   $return: {
     $fn: {
-      x: { $args: 0 },
+      x: { $arg: 0 },
       $return: { $fn: "mul", $args: [{ $var: "x" }, { $var: "x" }] },
     },
     $args: [5],
@@ -192,11 +192,11 @@ run("inline square(5)", {
 run("inline sumThenSquare(3, 4)", {
   $return: {
     $fn: {
-      a: { $args: 0 },
-      b: { $args: 1 },
+      a: { $arg: 0 },
+      b: { $arg: 1 },
       $return: {
         $fn: {
-          sum: { $args: 0 },
+          sum: { $arg: 0 },
           $return: { $fn: "mul", $args: [{ $var: "sum" }, { $var: "sum" }] },
         },
         $args: [{ $fn: "add", $args: [{ $var: "a" }, { $var: "b" }] }],
@@ -223,8 +223,8 @@ run("isEven(fact(6))", {
 
 // Build a greeting from parts using variables and string concatenation.
 run("greeting", {
-  first: { $args: 0 },
-  last: { $args: 1 },
+  first: { $arg: 0 },
+  last: { $arg: 1 },
   full: { $fn: "strcat", $args: [{ $var: "first" }, { $fn: "strcat", $args: [" ", { $var: "last" }] }] },
   $return: { $fn: "strcat", $args: ["Hello, ", { $var: "full" }] },
 }, ["Ada", "Lovelace"]); // "Hello, Ada Lovelace"
@@ -311,7 +311,7 @@ run("map with inline square fn", {
   $return: {
     $fn: "map",
     $args: [
-      { $return: { $fn: "mul", $args: [{ $args: 0 }, { $args: 0 }] } },
+      { $return: { $fn: "mul", $args: [{ $arg: 0 }, { $arg: 0 }] } },
       [1, 2, 3, 4, 5],
     ],
   },
@@ -332,7 +332,7 @@ run("filter values > 3", {
   $return: {
     $fn: "filter",
     $args: [
-      { $return: { $fn: "gt", $args: [{ $args: 0 }, 3] } },
+      { $return: { $fn: "gt", $args: [{ $arg: 0 }, 3] } },
       [1, 2, 3, 4, 5, 6],
     ],
   },
@@ -349,8 +349,8 @@ run("reduce sum of squares", {
     $fn: "reduce",
     $args: [
       {
-        acc: { $args: 0 },
-        item: { $args: 1 },
+        acc: { $arg: 0 },
+        item: { $arg: 1 },
         $return: {
           $fn: "add",
           $args: [
@@ -376,7 +376,7 @@ run("square all then sum", {
   squares: {
     $fn: "map",
     $args: [
-      { $return: { $fn: "mul", $args: [{ $args: 0 }, { $args: 0 }] } },
+      { $return: { $fn: "mul", $args: [{ $arg: 0 }, { $arg: 0 }] } },
       [1, 2, 3],
     ],
   },
@@ -396,7 +396,7 @@ run("map with index (element + index)", {
   $return: {
     $fn: "map",
     $args: [
-      { $return: { $fn: "add", $args: [{ $args: 0 }, { $args: 1 }] } },
+      { $return: { $fn: "add", $args: [{ $arg: 0 }, { $arg: 1 }] } },
       [10, 20, 30],
     ],
   },
@@ -411,7 +411,7 @@ console.log("\n=== 12. Multi-branch conditionals with $cond ===\n");
 
 // Simple multi-way branch — classify a number
 functions.classify = {
-  n: { $args: 0 },
+  n: { $arg: 0 },
   $return: {
     $cond: [
       [{ $fn: "lt", $args: [{ $var: "n" }, 0] }, "negative"],
@@ -427,7 +427,7 @@ run("classify(42)", { $return: { $fn: "classify", $args: [42] } }); // "positive
 
 // Replaces a nested if/else chain — FizzBuzz
 functions.fizzbuzz = {
-  n: { $args: 0 },
+  n: { $arg: 0 },
   divBy3: { $fn: "eq", $args: [{ $fn: "mod", $args: [{ $var: "n" }, 3] }, 0] },
   divBy5: { $fn: "eq", $args: [{ $fn: "mod", $args: [{ $var: "n" }, 5] }, 0] },
   divBy15: { $fn: "and", $args: [{ $var: "divBy3" }, { $var: "divBy5" }] },
@@ -448,7 +448,7 @@ run("fizzbuzz(7)", { $return: { $fn: "fizzbuzz", $args: [7] } }); // 7
 
 // Inline $cond — no named function needed
 run("inline letter grade", {
-  score: { $args: 0 },
+  score: { $arg: 0 },
   $return: {
     $cond: [
       [{ $fn: "gte", $args: [{ $var: "score" }, 90] }, "A"],
