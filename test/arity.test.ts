@@ -27,9 +27,7 @@ describe("arity introspection", () => {
       $params: ["a", "b", "c"],
       $return: { $var: "a" },
     };
-    expect(
-      run({ $return: { $fn: "arity", $args: ["myFn"] } }, [], { myFn }),
-    ).toBe(3);
+    expect(run({ $return: { $fn: "arity", $args: ["myFn"] } }, [], { myFn })).toBe(3);
   });
 
   test("arity of a JSON function body (inline)", () => {
@@ -46,9 +44,7 @@ describe("arity introspection", () => {
 
   test("arity of a zero-param JSON function", () => {
     const noArgs = { $return: 42 };
-    expect(
-      run({ $return: { $fn: "arity", $args: ["noArgs"] } }, [], { noArgs }),
-    ).toBe(0);
+    expect(run({ $return: { $fn: "arity", $args: ["noArgs"] } }, [], { noArgs })).toBe(0);
   });
 
   test("arity of a JSON function with rest params excludes the rest", () => {
@@ -56,15 +52,11 @@ describe("arity introspection", () => {
       $params: ["first", "second", "...rest"],
       $return: { $var: "first" },
     };
-    expect(
-      run({ $return: { $fn: "arity", $args: ["varFn"] } }, [], { varFn }),
-    ).toBe(2);
+    expect(run({ $return: { $fn: "arity", $args: ["varFn"] } }, [], { varFn })).toBe(2);
   });
 
   test("arity of unknown function returns null", () => {
-    expect(
-      run({ $return: { $fn: "arity", $args: ["nonexistent"] } }),
-    ).toBeNull();
+    expect(run({ $return: { $fn: "arity", $args: ["nonexistent"] } })).toBeNull();
   });
 
   test("arity of arity is 1", () => {

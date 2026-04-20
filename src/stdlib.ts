@@ -68,9 +68,7 @@ export function createStdlib(): FunctionRegistry {
       end === undefined ? arr.slice(start) : arr.slice(start, end),
     reverse: (arr: any[]) => [...arr].reverse(),
     includes: pure((arr: any[] | string, value: any) => arr.includes(value)),
-    indexOf: pure((arr: any[] | string, value: any) =>
-      (arr as any[]).indexOf(value),
-    ),
+    indexOf: pure((arr: any[] | string, value: any) => (arr as any[]).indexOf(value)),
 
     // Strings
     upper: pure((s: string) => s.toUpperCase()),

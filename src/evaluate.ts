@@ -198,7 +198,13 @@ function evaluateExpression(expression: JSONType, context: EvaluationContext): J
       const fnRef = expression as FunctionReference;
       const evaluatedFnRef = evaluateExpression(fnRef.$fn, context);
 
-      if (typeof evaluatedFnRef !== "string" && (typeof evaluatedFnRef !== "object" || evaluatedFnRef === null || Array.isArray(evaluatedFnRef) || !("$return" in evaluatedFnRef))) {
+      if (
+        typeof evaluatedFnRef !== "string" &&
+        (typeof evaluatedFnRef !== "object" ||
+          evaluatedFnRef === null ||
+          Array.isArray(evaluatedFnRef) ||
+          !("$return" in evaluatedFnRef))
+      ) {
         exprError(
           expression,
           `Evaluated function references must be strings or function bodies. Got ${typeof evaluatedFnRef}.`,
@@ -371,7 +377,13 @@ function evaluateFunctionCall(
   const evaluatedFn = evaluateExpression($fn, context);
   const evaluatedArgs = evaluateExpression($args, context);
 
-  if (typeof evaluatedFn !== "string" && (typeof evaluatedFn !== "object" || evaluatedFn === null || Array.isArray(evaluatedFn) || !("$return" in evaluatedFn))) {
+  if (
+    typeof evaluatedFn !== "string" &&
+    (typeof evaluatedFn !== "object" ||
+      evaluatedFn === null ||
+      Array.isArray(evaluatedFn) ||
+      !("$return" in evaluatedFn))
+  ) {
     exprError(
       fnCall,
       `Evaluated function references must be strings or function bodies. Got ${typeof evaluatedFn}.`,
@@ -379,7 +391,10 @@ function evaluateFunctionCall(
   }
 
   if (!Array.isArray(evaluatedArgs)) {
-    exprError(fnCall, `Evaluated function arguments must be an array. Got ${typeof evaluatedArgs}.`);
+    exprError(
+      fnCall,
+      `Evaluated function arguments must be an array. Got ${typeof evaluatedArgs}.`,
+    );
   }
 
   return {

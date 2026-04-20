@@ -227,7 +227,12 @@ describe("generic curry", () => {
         $params: ["...nextArgs"],
         $return: {
           $fn: "curryApply",
-          $args: [{ $var: "targetFn" }, { $var: "arity" }, { $var: "allArgs" }, { $var: "nextArgs" }],
+          $args: [
+            { $var: "targetFn" },
+            { $var: "arity" },
+            { $var: "allArgs" },
+            { $var: "nextArgs" },
+          ],
         },
       },
     },
@@ -352,7 +357,12 @@ describe("auto-curry using arity introspection", () => {
         $params: ["...nextArgs"],
         $return: {
           $fn: "curryApply",
-          $args: [{ $var: "targetFn" }, { $var: "arity" }, { $var: "allArgs" }, { $var: "nextArgs" }],
+          $args: [
+            { $var: "targetFn" },
+            { $var: "arity" },
+            { $var: "allArgs" },
+            { $var: "nextArgs" },
+          ],
         },
       },
     },
