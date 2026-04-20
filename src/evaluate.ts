@@ -100,8 +100,9 @@ function exprError(expr: JSONType, message: string): never {
   );
 }
 
-function clone<T>(obj: T): T {
-  return JSON.parse(JSON.stringify(obj));
+function cloneIfNeeded(value: JSONType): JSONType {
+  if (value === null || typeof value !== "object") return value;
+  return structuredClone(value);
 }
 
 export function callFunction(
@@ -148,13 +149,10 @@ function callExternalFunction(
   args: JSONType[],
   name: string
 ): JSONType {
-  const clonedArgs = clone(args);
+  const safeArgs = args.map(a => cloneIfNeeded(a));
   try {
-    if (Array.isArray(clonedArgs)) {
-      return clone(fn(...clonedArgs));
-    } else {
-      return clone(fn(clonedArgs));
-    }
+    const result = fn(...safeArgs);
+    return cloneIfNeeded(result);
   } catch (e) {
     throw new Error(`Error calling external function ${name}: ${e}`);
   }
