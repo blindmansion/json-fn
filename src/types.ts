@@ -58,6 +58,7 @@ type PropertyAccess = {
 };
 
 const BUILTIN_MARKER = Symbol("builtin");
+const PURE_MARKER = Symbol("pure");
 
 type BuiltinFunction = ((
   args: JSONType[],
@@ -93,4 +94,4 @@ export type {
   PropertyAccess,
   EvaluatedFunctionCall,
 };
-export { BUILTIN_MARKER, ExpressionType };
+export { BUILTIN_MARKER, PURE_MARKER, ExpressionType };

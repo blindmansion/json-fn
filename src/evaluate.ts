@@ -14,7 +14,7 @@ import type {
   PropertyAccess,
   EvaluatedFunctionCall,
 } from "./types";
-import { BUILTIN_MARKER, ExpressionType } from "./types";
+import { BUILTIN_MARKER, PURE_MARKER, ExpressionType } from "./types";
 
 export type PerfStats = {
   evaluateExpression: number;
@@ -67,6 +67,15 @@ function cloneIfNeeded(value: JSONType): JSONType {
   if (value === null || typeof value !== "object") return value;
   if (_perf) _perf.structuredClones++;
   return structuredClone(value);
+}
+
+function isPure(fn: unknown): boolean {
+  return typeof fn === "function" && PURE_MARKER in fn;
+}
+
+export function pure(fn: Function): Function {
+  (fn as any)[PURE_MARKER] = true;
+  return fn;
 }
 
 export function builtin(
@@ -136,6 +145,13 @@ function callFunctionInternal(
 
 function callExternalFunction(fn: Function, args: JSONType[], name: string): JSONType {
   if (_perf) _perf.callExternalFunction++;
+  if (isPure(fn)) {
+    try {
+      return fn(...args);
+    } catch (e) {
+      throw new Error(`Error calling external function ${name}: ${e}`);
+    }
+  }
   const safeArgs = args.map((a) => cloneIfNeeded(a));
   try {
     const result = fn(...safeArgs);
@@ -199,15 +215,11 @@ function evaluateExpression(expression: JSONType, context: EvaluationContext): J
     case ExpressionType.FunctionReference:
       const fnRef = expression as FunctionReference;
       const evaluatedFnRef = evaluateExpression(fnRef.$fn, context);
-      const evaluatedFnRefType = getExpressionType(evaluatedFnRef);
 
-      if (
-        evaluatedFnRefType !== ExpressionType.String &&
-        evaluatedFnRefType !== ExpressionType.FunctionBody
-      ) {
+      if (typeof evaluatedFnRef !== "string" && (typeof evaluatedFnRef !== "object" || evaluatedFnRef === null || Array.isArray(evaluatedFnRef) || !("$return" in evaluatedFnRef))) {
         exprError(
           expression,
-          `Evaluated function references must be strings or function bodies. Got ${evaluatedFnRefType}.`,
+          `Evaluated function references must be strings or function bodies. Got ${typeof evaluatedFnRef}.`,
         );
       }
 
@@ -376,28 +388,29 @@ function evaluateFunctionCall(
   const { $fn, $args } = fnCall;
 
   const evaluatedFn = evaluateExpression($fn, context);
-  const evaluatedFnType = getExpressionType(evaluatedFn);
   const evaluatedArgs = evaluateExpression($args, context);
-  const evaluatedArgsType = getExpressionType(evaluatedArgs);
 
-  if (
-    evaluatedFnType !== ExpressionType.String &&
-    evaluatedFnType !== ExpressionType.FunctionBody
-  ) {
+  if (typeof evaluatedFn !== "string" && (typeof evaluatedFn !== "object" || evaluatedFn === null || Array.isArray(evaluatedFn) || !("$return" in evaluatedFn))) {
     exprError(
       fnCall,
-      `Evaluated function references must be strings or function bodies. Got ${evaluatedFnType}.`,
+      `Evaluated function references must be strings or function bodies. Got ${typeof evaluatedFn}.`,
     );
   }
 
-  if (evaluatedArgsType !== ExpressionType.Array) {
-    exprError(fnCall, `Evaluated function arguments must be an array. Got ${evaluatedArgsType}.`);
+  if (!Array.isArray(evaluatedArgs)) {
+    exprError(fnCall, `Evaluated function arguments must be an array. Got ${typeof evaluatedArgs}.`);
   }
 
   return {
     fnDeclaration: evaluatedFn as FunctionDeclaration,
     args: evaluatedArgs as JSONType[],
   };
+}
+
+function objectKeyCount(obj: Record<string, unknown>): number {
+  let n = 0;
+  for (const _ in obj) n++;
+  return n;
 }
 
 function getExpressionType(json: JSONType): ExpressionType {
@@ -411,13 +424,11 @@ function getExpressionType(json: JSONType): ExpressionType {
   if (json === null) return ExpressionType.Null;
 
   if (typeof json === "object") {
-    const size = Object.keys(json).length;
-
     if ("$var" in json) {
       if (typeof json.$var !== "string") {
         exprError(json, "Variable references must have a string $var property.");
       }
-      if (size > 1) {
+      if (objectKeyCount(json) > 1) {
         exprError(json, "Variable references cannot have other properties.");
       }
       return ExpressionType.VariableReference;
@@ -429,7 +440,7 @@ function getExpressionType(json: JSONType): ExpressionType {
       if (!(hasGet && hasFrom)) {
         exprError(json, "Property access expressions must have both $get and $from.");
       }
-      if (size > 2) {
+      if (objectKeyCount(json) > 2) {
         exprError(json, "Property access expressions cannot have more than two properties.");
       }
       return ExpressionType.PropertyAccess;
@@ -448,20 +459,20 @@ function getExpressionType(json: JSONType): ExpressionType {
       }
 
       if ("$args" in json) {
-        if (size > 2) {
+        if (objectKeyCount(json) > 2) {
           exprError(json, "Function calls cannot have more than two properties.");
         }
         return ExpressionType.FunctionCall;
       }
 
-      if (size > 1) {
+      if (objectKeyCount(json) > 1) {
         exprError(json, "Function references cannot have other properties.");
       }
       return ExpressionType.FunctionReference;
     }
 
     if ("$arg" in json) {
-      if (size > 1) {
+      if (objectKeyCount(json) > 1) {
         exprError(json, "Arg references cannot have other properties.");
       }
       return ExpressionType.ArgReference;
@@ -477,14 +488,14 @@ function getExpressionType(json: JSONType): ExpressionType {
           "Conditional expressions must have all three properties: $if, $then, $else.",
         );
       }
-      if (size > 3) {
+      if (objectKeyCount(json) > 3) {
         exprError(json, "Conditional expressions cannot have more than three properties.");
       }
       return ExpressionType.Conditional;
     }
 
     if ("$cond" in json) {
-      if (size > 1) {
+      if (objectKeyCount(json) > 1) {
         exprError(json, "$cond expressions cannot have other properties.");
       }
       const pairs = json.$cond;
