@@ -3,7 +3,6 @@ type JSONType = string | number | boolean | null | JSONType[] | { [key: string]:
 enum ExpressionType {
   FunctionCall,
   FunctionReference,
-  ArgReference,
   VariableReference,
   FunctionBody,
   Conditional,
@@ -28,10 +27,6 @@ type FunctionReference = {
 };
 
 type FunctionDeclaration = string | FunctionBody;
-
-type ArgReference = {
-  $arg: number | number[];
-};
 
 type VariableReference = {
   $var: string;
@@ -74,7 +69,6 @@ type EvaluatedFunctionCall = {
 
 type EvaluationContext = {
   functions: FunctionRegistry;
-  args?: JSONType[];
   getVar?: (name: string) => JSONType | undefined;
 };
 
@@ -87,7 +81,6 @@ export type {
   FunctionDeclaration,
   EvaluationContext,
   FunctionBody,
-  ArgReference,
   VariableReference,
   Conditional,
   Cond,

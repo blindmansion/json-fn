@@ -11,7 +11,7 @@ describe("inline (anonymous) functions", () => {
       run({
         $return: {
           $fn: {
-            x: { $arg: 0 },
+            $params: ["x"],
             $return: { $fn: "mul", $args: [{ $var: "x" }, { $var: "x" }] },
           },
           $args: [5],
@@ -25,11 +25,10 @@ describe("inline (anonymous) functions", () => {
       run({
         $return: {
           $fn: {
-            a: { $arg: 0 },
-            b: { $arg: 1 },
+            $params: ["a", "b"],
             $return: {
               $fn: {
-                sum: { $arg: 0 },
+                $params: ["sum"],
                 $return: { $fn: "mul", $args: [{ $var: "sum" }, { $var: "sum" }] },
               },
               $args: [{ $fn: "add", $args: [{ $var: "a" }, { $var: "b" }] }],

@@ -7,11 +7,12 @@ function run(body: JSONType, args: JSONType[] = [], extraFns: Record<string, any
 
 describe("JSON-defined named functions", () => {
   const double = {
-    $return: { $fn: "mul", $args: [{ $arg: 0 }, 2] },
+    $params: ["x"],
+    $return: { $fn: "mul", $args: [{ $var: "x" }, 2] },
   };
 
   const isEven = {
-    n: { $arg: 0 },
+    $params: ["n"],
     remainder: { $fn: "mod", $args: [{ $var: "n" }, 2] },
     $return: { $fn: "eq", $args: [{ $var: "remainder" }, 0] },
   };
@@ -31,7 +32,7 @@ describe("JSON-defined named functions", () => {
 
 describe("recursion", () => {
   const fact: any = {
-    n: { $arg: 0 },
+    $params: ["n"],
     $return: {
       $if: { $fn: "lte", $args: [{ $var: "n" }, 1] },
       $then: 1,
@@ -43,7 +44,7 @@ describe("recursion", () => {
   };
 
   const fib: any = {
-    n: { $arg: 0 },
+    $params: ["n"],
     $return: {
       $if: { $fn: "lte", $args: [{ $var: "n" }, 1] },
       $then: { $var: "n" },

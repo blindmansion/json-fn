@@ -9,16 +9,18 @@ describe("returning function bodies as values (closures)", () => {
   test("makeAdder(10) returns a closure with x captured", () => {
     const result = run(
       {
-        x: { $arg: 0 },
+        $params: ["x"],
         $return: {
-          $return: { $fn: "add", $args: [{ $var: "x" }, { $arg: 0 }] },
+          $params: ["y"],
+          $return: { $fn: "add", $args: [{ $var: "x" }, { $var: "y" }] },
         },
       },
       [10],
     );
 
     expect(result).toEqual({
-      $return: { $fn: "add", $args: [10, { $arg: 0 }] },
+      $params: ["y"],
+      $return: { $fn: "add", $args: [10, { $var: "y" }] },
     });
   });
 });
@@ -28,9 +30,10 @@ describe("calling returned function bodies", () => {
     const result = run({
       adder: {
         $fn: {
-          x: { $arg: 0 },
+          $params: ["x"],
           $return: {
-            $return: { $fn: "add", $args: [{ $var: "x" }, { $arg: 0 }] },
+            $params: ["y"],
+            $return: { $fn: "add", $args: [{ $var: "x" }, { $var: "y" }] },
           },
         },
         $args: [10],
@@ -45,12 +48,12 @@ describe("calling returned function bodies", () => {
   });
 });
 
-describe("variadic arguments with $arg: []", () => {
+describe("variadic arguments with ...rest params", () => {
   test("capture all args", () => {
     expect(
       run(
         {
-          allArgs: { $arg: [] },
+          $params: ["...allArgs"],
           $return: { $var: "allArgs" },
         },
         [10, 20, 30],
@@ -64,7 +67,7 @@ describe("dynamic function dispatch", () => {
     expect(
       run(
         {
-          fnName: { $arg: 0 },
+          $params: ["fnName"],
           $return: {
             $fn: { $var: "fnName" },
             $args: [3, 4],
@@ -79,7 +82,7 @@ describe("dynamic function dispatch", () => {
     expect(
       run(
         {
-          fnName: { $arg: 0 },
+          $params: ["fnName"],
           $return: {
             $fn: { $var: "fnName" },
             $args: [3, 4],
@@ -93,9 +96,10 @@ describe("dynamic function dispatch", () => {
 
 describe("closure capture", () => {
   const partialAdd = {
-    a: { $arg: 0 },
+    $params: ["a"],
     $return: {
-      $return: { $fn: "add", $args: [{ $var: "a" }, { $arg: 0 }] },
+      $params: ["b"],
+      $return: { $fn: "add", $args: [{ $var: "a" }, { $var: "b" }] },
     },
   };
 
@@ -103,7 +107,8 @@ describe("closure capture", () => {
     const result = run({ $return: { $fn: "partialAdd", $args: [10] } }, [], { partialAdd });
 
     expect(result).toEqual({
-      $return: { $fn: "add", $args: [10, { $arg: 0 }] },
+      $params: ["b"],
+      $return: { $fn: "add", $args: [10, { $var: "b" }] },
     });
   });
 
@@ -126,11 +131,12 @@ describe("closure capture", () => {
 
 describe("accumulating arguments across calls", () => {
   const accum = {
-    initial: { $arg: [] },
+    $params: ["...initial"],
     $return: {
+      $params: ["...more"],
       $return: {
         $fn: "concat",
-        $args: [{ $var: "initial" }, { $arg: [] }],
+        $args: [{ $var: "initial" }, { $var: "more" }],
       },
     },
   };
@@ -178,11 +184,12 @@ describe("arity check", () => {
 
 describe("manual curry of add", () => {
   const curriedAdd = {
-    a: { $arg: 0 },
+    $params: ["a"],
     $return: {
+      $params: ["b"],
       $return: {
         $fn: "add",
-        $args: [{ $var: "a" }, { $arg: 0 }],
+        $args: [{ $var: "a" }, { $var: "b" }],
       },
     },
   };
@@ -206,10 +213,7 @@ describe("manual curry of add", () => {
 
 describe("generic curry", () => {
   const curryApply: any = {
-    targetFn: { $arg: 0 },
-    arity: { $arg: 1 },
-    accumulated: { $arg: 2 },
-    newArgs: { $arg: 3 },
+    $params: ["targetFn", "arity", "accumulated", "newArgs"],
     allArgs: { $fn: "concat", $args: [{ $var: "accumulated" }, { $var: "newArgs" }] },
     numArgs: { $fn: "length", $args: [{ $var: "allArgs" }] },
     enough: { $fn: "gte", $args: [{ $var: "numArgs" }, { $var: "arity" }] },
@@ -220,21 +224,22 @@ describe("generic curry", () => {
         $args: { $var: "allArgs" },
       },
       $else: {
+        $params: ["...nextArgs"],
         $return: {
           $fn: "curryApply",
-          $args: [{ $var: "targetFn" }, { $var: "arity" }, { $var: "allArgs" }, { $arg: [] }],
+          $args: [{ $var: "targetFn" }, { $var: "arity" }, { $var: "allArgs" }, { $var: "nextArgs" }],
         },
       },
     },
   };
 
   const curry = {
-    targetFn: { $arg: 0 },
-    arity: { $arg: 1 },
+    $params: ["targetFn", "arity"],
     $return: {
+      $params: ["...newArgs"],
       $return: {
         $fn: "curryApply",
-        $args: [{ $var: "targetFn" }, { $var: "arity" }, [], { $arg: [] }],
+        $args: [{ $var: "targetFn" }, { $var: "arity" }, [], { $var: "newArgs" }],
       },
     },
   };

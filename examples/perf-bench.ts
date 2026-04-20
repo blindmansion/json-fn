@@ -81,9 +81,13 @@ for (const depth of [100, 500, 1000, 5000]) {
 console.log("\n═══ 2. Map over large arrays ═══");
 
 const mapProgram: JSONType = {
+  $params: ["arr"],
   $return: {
     $fn: "map",
-    $args: [{ $return: { $fn: "add", $args: [{ $arg: 0 }, 1] } }, { $arg: 0 }],
+    $args: [
+      { $params: ["x"], $return: { $fn: "add", $args: [{ $var: "x" }, 1] } },
+      { $var: "arr" },
+    ],
   },
 };
 
@@ -107,16 +111,21 @@ console.log("\n═══ 3. Nested map (closure stress) ═══");
 functions.inc = (x: number) => x + 1;
 
 const nestedMapProgram: JSONType = {
+  $params: ["grid"],
   $return: {
     $fn: "map",
     $args: [
       {
+        $params: ["row"],
         $return: {
           $fn: "map",
-          $args: [{ $return: { $fn: "add", $args: [{ $arg: 0 }, 1] } }, { $arg: 0 }],
+          $args: [
+            { $params: ["x"], $return: { $fn: "add", $args: [{ $var: "x" }, 1] } },
+            { $var: "row" },
+          ],
         },
       },
-      { $arg: 0 },
+      { $var: "grid" },
     ],
   },
 };
@@ -139,9 +148,17 @@ for (const size of [10, 50, 100]) {
 console.log("\n═══ 4. Reduce (accumulator cloning) ═══");
 
 const sumProgram: JSONType = {
+  $params: ["arr"],
   $return: {
     $fn: "reduce",
-    $args: [{ $return: { $fn: "add", $args: [{ $arg: 0 }, { $arg: 1 }] } }, 0, { $arg: 0 }],
+    $args: [
+      {
+        $params: ["acc", "item"],
+        $return: { $fn: "add", $args: [{ $var: "acc" }, { $var: "item" }] },
+      },
+      0,
+      { $var: "arr" },
+    ],
   },
 };
 
@@ -164,7 +181,7 @@ console.log("\n═══ 5. Variable-heavy function bodies ═══");
 
 function makeManyVarsProgram(numVars: number): JSONType {
   const body: Record<string, JSONType> = {};
-  body["v0"] = { $arg: 0 };
+  body["$params"] = ["v0"];
   for (let i = 1; i < numVars; i++) {
     body[`v${i}`] = { $fn: "add", $args: [{ $var: `v${i - 1}` }, 1] };
   }
@@ -186,7 +203,7 @@ for (const numVars of [10, 50, 100, 500]) {
 console.log("\n═══ 6. Recursive fibonacci ═══");
 
 functions.fib = {
-  n: { $arg: 0 },
+  $params: ["n"],
   $return: {
     $if: { $fn: "lte", $args: [{ $var: "n" }, 1] },
     $then: { $var: "n" },
@@ -221,7 +238,8 @@ function makeClosureStress(capturedVars: number, arraySize: number): JSONType {
     body[`c${i}`] = i;
   }
   const innerBody: Record<string, JSONType> = {
-    $return: { $fn: "add", $args: [{ $arg: 0 }, { $var: "c0" }] },
+    $params: ["x"],
+    $return: { $fn: "add", $args: [{ $var: "x" }, { $var: "c0" }] },
   };
   body.$return = {
     $fn: "map",
@@ -254,16 +272,16 @@ for (const [vars, size] of [
 console.log("\n═══ 8. Tic-tac-toe minimax ═══");
 
 functions.otherPlayer = {
+  $params: ["player"],
   $return: {
-    $if: { $fn: "eq", $args: [{ $arg: 0 }, "X"] },
+    $if: { $fn: "eq", $args: [{ $var: "player" }, "X"] },
     $then: "O",
     $else: "X",
   },
 };
 
 functions.validMove = {
-  board: { $arg: 0 },
-  pos: { $arg: 1 },
+  $params: ["board", "pos"],
   $return: {
     $fn: "eq",
     $args: [{ $get: { $var: "pos" }, $from: { $var: "board" } }, null],
@@ -271,17 +289,16 @@ functions.validMove = {
 };
 
 functions.makeMove = {
-  board: { $arg: 0 },
-  pos: { $arg: 1 },
-  player: { $arg: 2 },
+  $params: ["board", "pos", "player"],
   $return: {
     $fn: "map",
     $args: [
       {
+        $params: ["cell", "idx"],
         $return: {
-          $if: { $fn: "eq", $args: [{ $arg: 1 }, { $var: "pos" }] },
+          $if: { $fn: "eq", $args: [{ $var: "idx" }, { $var: "pos" }] },
           $then: { $var: "player" },
-          $else: { $arg: 0 },
+          $else: { $var: "cell" },
         },
       },
       { $var: "board" },
@@ -290,16 +307,15 @@ functions.makeMove = {
 };
 
 functions.checkLine = {
-  board: { $arg: 0 },
-  player: { $arg: 1 },
-  line: { $arg: 2 },
+  $params: ["board", "player", "line"],
   $return: {
     $fn: "every",
     $args: [
       {
+        $params: ["pos"],
         $return: {
           $fn: "eq",
-          $args: [{ $get: { $arg: 0 }, $from: { $var: "board" } }, { $var: "player" }],
+          $args: [{ $get: { $var: "pos" }, $from: { $var: "board" } }, { $var: "player" }],
         },
       },
       { $var: "line" },
@@ -308,8 +324,7 @@ functions.checkLine = {
 };
 
 functions.checkWin = {
-  board: { $arg: 0 },
-  player: { $arg: 1 },
+  $params: ["board", "player"],
   lines: [
     [0, 1, 2],
     [3, 4, 5],
@@ -324,9 +339,10 @@ functions.checkWin = {
     $fn: "some",
     $args: [
       {
+        $params: ["line"],
         $return: {
           $fn: "checkLine",
-          $args: [{ $var: "board" }, { $var: "player" }, { $arg: 0 }],
+          $args: [{ $var: "board" }, { $var: "player" }, { $var: "line" }],
         },
       },
       { $var: "lines" },
@@ -335,15 +351,18 @@ functions.checkWin = {
 };
 
 functions.isBoardFull = {
-  board: { $arg: 0 },
+  $params: ["board"],
   $return: {
     $fn: "every",
-    $args: [{ $return: { $fn: "neq", $args: [{ $arg: 0 }, null] } }, { $var: "board" }],
+    $args: [
+      { $params: ["cell"], $return: { $fn: "neq", $args: [{ $var: "cell" }, null] } },
+      { $var: "board" },
+    ],
   },
 };
 
 functions.getStatus = {
-  board: { $arg: 0 },
+  $params: ["board"],
   xWins: { $fn: "checkWin", $args: [{ $var: "board" }, "X"] },
   oWins: { $fn: "checkWin", $args: [{ $var: "board" }, "O"] },
   full: { $fn: "isBoardFull", $args: [{ $var: "board" }] },
@@ -358,10 +377,7 @@ functions.getStatus = {
 };
 
 functions.minimax = {
-  board: { $arg: 0 },
-  depth: { $arg: 1 },
-  isMaximizing: { $arg: 2 },
-  aiPlayer: { $arg: 3 },
+  $params: ["board", "depth", "isMaximizing", "aiPlayer"],
   opponent: { $fn: "otherPlayer", $args: [{ $var: "aiPlayer" }] },
   status: { $fn: "getStatus", $args: [{ $var: "board" }] },
   gameOver: { $fn: "neq", $args: [{ $var: "status" }, "playing"] },
@@ -382,9 +398,10 @@ functions.minimax = {
     $fn: "filter",
     $args: [
       {
+        $params: ["pos"],
         $return: {
           $fn: "validMove",
-          $args: [{ $var: "board" }, { $arg: 0 }],
+          $args: [{ $var: "board" }, { $var: "pos" }],
         },
       },
       { $fn: "range", $args: [9] },
@@ -394,12 +411,13 @@ functions.minimax = {
     $fn: "map",
     $args: [
       {
+        $params: ["pos"],
         $return: {
           $fn: "minimax",
           $args: [
             {
               $fn: "makeMove",
-              $args: [{ $var: "board" }, { $arg: 0 }, { $var: "currentPlayer" }],
+              $args: [{ $var: "board" }, { $var: "pos" }, { $var: "currentPlayer" }],
             },
             { $fn: "add", $args: [{ $var: "depth" }, 1] },
             { $fn: "not", $args: [{ $var: "isMaximizing" }] },
@@ -424,15 +442,15 @@ functions.minimax = {
 };
 
 functions.bestMove = {
-  board: { $arg: 0 },
-  aiPlayer: { $arg: 1 },
+  $params: ["board", "aiPlayer"],
   emptyPos: {
     $fn: "filter",
     $args: [
       {
+        $params: ["pos"],
         $return: {
           $fn: "validMove",
-          $args: [{ $var: "board" }, { $arg: 0 }],
+          $args: [{ $var: "board" }, { $var: "pos" }],
         },
       },
       { $fn: "range", $args: [9] },
@@ -442,19 +460,20 @@ functions.bestMove = {
     $fn: "reduce",
     $args: [
       {
+        $params: ["acc", "pos"],
         newBoard: {
           $fn: "makeMove",
-          $args: [{ $var: "board" }, { $arg: 1 }, { $var: "aiPlayer" }],
+          $args: [{ $var: "board" }, { $var: "pos" }, { $var: "aiPlayer" }],
         },
         score: {
           $fn: "minimax",
           $args: [{ $var: "newBoard" }, 1, false, { $var: "aiPlayer" }],
         },
-        bestScore: { $get: "score", $from: { $arg: 0 } },
+        bestScore: { $get: "score", $from: { $var: "acc" } },
         $return: {
           $if: { $fn: "gt", $args: [{ $var: "score" }, { $var: "bestScore" }] },
-          $then: { score: { $var: "score" }, pos: { $arg: 1 } },
-          $else: { $arg: 0 },
+          $then: { score: { $var: "score" }, pos: { $var: "pos" } },
+          $else: { $var: "acc" },
         },
       },
       { score: -100, pos: -1 },
@@ -499,9 +518,13 @@ console.log("\n═══ 9. getExpressionType overhead (isolated) ═══");
     (bigObject as any)[`key${i}`] = i;
   }
   const program: JSONType = {
+    $params: ["arr"],
     $return: {
       $fn: "map",
-      $args: [{ $return: { $fn: "add", $args: [{ $arg: 0 }, 1] } }, { $arg: 0 }],
+      $args: [
+        { $params: ["x"], $return: { $fn: "add", $args: [{ $var: "x" }, 1] } },
+        { $var: "arr" },
+      ],
     },
   };
   const smallArr = Array.from({ length: 100 }, () => bigObject);

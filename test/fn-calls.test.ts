@@ -29,12 +29,13 @@ describe("calling external (JS) functions with $fn/$args", () => {
   });
 });
 
-describe("positional arguments with $arg", () => {
-  test("$arg references by index", () => {
+describe("named parameters with $params", () => {
+  test("$params binds arguments by name", () => {
     expect(
       run(
         {
-          $return: { $fn: "add", $args: [{ $arg: 0 }, { $arg: 1 }] },
+          $params: ["a", "b"],
+          $return: { $fn: "add", $args: [{ $var: "a" }, { $var: "b" }] },
         },
         [10, 20],
       ),

@@ -33,7 +33,7 @@ describe("$if/$then/$else conditionals", () => {
 
 describe("$cond multi-branch conditionals", () => {
   const classify = {
-    n: { $arg: 0 },
+    $params: ["n"],
     $return: {
       $cond: [
         [{ $fn: "lt", $args: [{ $var: "n" }, 0] }, "negative"],
@@ -56,7 +56,7 @@ describe("$cond multi-branch conditionals", () => {
   });
 
   const fizzbuzz = {
-    n: { $arg: 0 },
+    $params: ["n"],
     divBy3: { $fn: "eq", $args: [{ $fn: "mod", $args: [{ $var: "n" }, 3] }, 0] },
     divBy5: { $fn: "eq", $args: [{ $fn: "mod", $args: [{ $var: "n" }, 5] }, 0] },
     divBy15: { $fn: "and", $args: [{ $var: "divBy3" }, { $var: "divBy5" }] },
@@ -90,7 +90,7 @@ describe("$cond multi-branch conditionals", () => {
     expect(
       run(
         {
-          score: { $arg: 0 },
+          $params: ["score"],
           $return: {
             $cond: [
               [{ $fn: "gte", $args: [{ $var: "score" }, 90] }, "A"],

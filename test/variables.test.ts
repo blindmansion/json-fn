@@ -18,12 +18,11 @@ describe("local variables with $var", () => {
     ).toBe(30);
   });
 
-  test("variables can reference arguments", () => {
+  test("variables can reference arguments via $params", () => {
     expect(
       run(
         {
-          x: { $arg: 0 },
-          y: { $arg: 1 },
+          $params: ["x", "y"],
           product: { $fn: "mul", $args: [{ $var: "x" }, { $var: "y" }] },
           $return: { $var: "product" },
         },

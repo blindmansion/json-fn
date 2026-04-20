@@ -7,7 +7,6 @@ import type {
   EvaluationContext,
   FunctionBody,
   FunctionRegistry,
-  ArgReference,
   VariableReference,
   Conditional,
   Cond,
@@ -127,10 +126,7 @@ function callFunctionInternal(
           return callExternalFunction(entry, args, fn);
         }
       } else {
-        return callJSONFunction(entry as FunctionBody, args, {
-          functions,
-          args: [],
-        });
+        return callJSONFunction(entry as FunctionBody, args, { functions });
       }
     } else {
       if (_perf) {
@@ -166,6 +162,18 @@ function callJSONFunction(fn: FunctionBody, args: JSONType[], context: Evaluatio
   const { functions, getVar: getVarParent } = context;
   const evaluatedVars: Record<string, JSONType> = {};
 
+  const params = (fn as any).$params as string[] | undefined;
+  if (params) {
+    for (let i = 0; i < params.length; i++) {
+      const name = params[i]!;
+      if (name.startsWith("...")) {
+        evaluatedVars[name.slice(3)] = args.slice(i);
+        break;
+      }
+      evaluatedVars[name] = args[i] ?? null;
+    }
+  }
+
   const getVar = (name: string): JSONType | undefined => {
     if (name in evaluatedVars) {
       return evaluatedVars[name];
@@ -174,7 +182,6 @@ function callJSONFunction(fn: FunctionBody, args: JSONType[], context: Evaluatio
     const expression = fn[name];
     if (expression !== undefined) {
       const evaluated = evaluateExpression(expression, {
-        args,
         functions,
         getVar,
       });
@@ -189,12 +196,12 @@ function callJSONFunction(fn: FunctionBody, args: JSONType[], context: Evaluatio
     return undefined;
   };
 
-  return evaluateExpression(fn.$return, { args, functions, getVar });
+  return evaluateExpression(fn.$return, { functions, getVar });
 }
 
 function evaluateExpression(expression: JSONType, context: EvaluationContext): JSONType {
   if (_perf) _perf.evaluateExpression++;
-  const { args, functions, getVar } = context;
+  const { functions, getVar } = context;
   const expressionType = getExpressionType(expression);
   if (_perf) {
     const name = ExpressionType[expressionType] ?? String(expressionType);
@@ -207,7 +214,6 @@ function evaluateExpression(expression: JSONType, context: EvaluationContext): J
       const evaluatedFunctionCall = evaluateFunctionCall(fnCall, context);
 
       return callFunctionInternal(evaluatedFunctionCall.fnDeclaration, evaluatedFunctionCall.args, {
-        args: [],
         functions,
         getVar,
       });
@@ -224,19 +230,6 @@ function evaluateExpression(expression: JSONType, context: EvaluationContext): J
       }
 
       return evaluatedFnRef;
-
-    case ExpressionType.ArgReference:
-      if (!args) {
-        exprError(expression, "args is not defined.");
-      }
-
-      const argRef = expression as ArgReference;
-      const index = argRef.$arg;
-      if (typeof index === "number") {
-        return args[index]!;
-      } else {
-        return args.slice(index[0], index[1]);
-      }
 
     case ExpressionType.VariableReference:
       const varRef = expression as VariableReference;
@@ -358,7 +351,19 @@ function replaceVars(
     }
 
     if ("$return" in expression) {
-      const localNames = new Set(Object.keys(expression).filter((k) => k !== "$return"));
+      const localNames = new Set(
+        Object.keys(expression).filter((k) => k !== "$return" && k !== "$params"),
+      );
+
+      const params = expression.$params;
+      if (Array.isArray(params)) {
+        for (const p of params) {
+          if (typeof p === "string") {
+            localNames.add(p.startsWith("...") ? p.slice(3) : p);
+          }
+        }
+      }
+
       const maskedGetVar =
         localNames.size > 0
           ? (name: string) => (localNames.has(name) ? undefined : getVar(name))
@@ -450,6 +455,12 @@ function getExpressionType(json: JSONType): ExpressionType {
       if ("$fn" in json || "$args" in json) {
         exprError(json, "Function bodies cannot have other keyword properties.");
       }
+      if ("$params" in json) {
+        const params = json.$params;
+        if (!Array.isArray(params) || !params.every((p) => typeof p === "string")) {
+          exprError(json, "$params must be an array of strings.");
+        }
+      }
       return ExpressionType.FunctionBody;
     }
 
@@ -472,10 +483,10 @@ function getExpressionType(json: JSONType): ExpressionType {
     }
 
     if ("$arg" in json) {
-      if (objectKeyCount(json) > 1) {
-        exprError(json, "Arg references cannot have other properties.");
-      }
-      return ExpressionType.ArgReference;
+      exprError(
+        json,
+        "$arg has been removed. Use $params on function bodies to declare named parameters, then use $var to reference them.",
+      );
     }
 
     const hasIf = "$if" in json;

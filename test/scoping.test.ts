@@ -7,10 +7,10 @@ function run(body: JSONType, args: JSONType[] = [], extraFns: Record<string, any
 }
 
 describe("replaceVars respects scope boundaries", () => {
-  test("inner variable shadows outer variable of the same name", () => {
+  test("inner variable shadows outer parameter of the same name", () => {
     const result = run(
       {
-        x: { $arg: 0 },
+        $params: ["x"],
         $return: {
           $fn: {
             x: 999,
@@ -25,13 +25,13 @@ describe("replaceVars respects scope boundaries", () => {
     expect(result).toBe(999);
   });
 
-  test("inner variable shadows outer in a nested function call", () => {
+  test("inner parameter shadows outer parameter in a nested function call", () => {
     const result = run(
       {
-        x: { $arg: 0 },
+        $params: ["x"],
         $return: {
           $fn: {
-            x: { $arg: 0 },
+            $params: ["x"],
             $return: { $fn: "add", $args: [{ $var: "x" }, 1] },
           },
           $args: [50],
@@ -43,13 +43,13 @@ describe("replaceVars respects scope boundaries", () => {
     expect(result).toBe(51);
   });
 
-  test("outer variable is still captured when not shadowed", () => {
+  test("outer parameter is still captured when not shadowed", () => {
     const result = run(
       {
-        x: { $arg: 0 },
+        $params: ["x"],
         $return: {
           $fn: {
-            y: { $arg: 0 },
+            $params: ["y"],
             $return: { $fn: "add", $args: [{ $var: "x" }, { $var: "y" }] },
           },
           $args: [5],
@@ -63,9 +63,9 @@ describe("replaceVars respects scope boundaries", () => {
 
   test("returned closure captures outer but preserves inner scope", () => {
     const makeAdder = {
-      x: { $arg: 0 },
+      $params: ["x"],
       $return: {
-        x: { $arg: 0 },
+        $params: ["x"],
         $return: { $fn: "add", $args: [{ $var: "x" }, 1000] },
       },
     };
@@ -75,7 +75,7 @@ describe("replaceVars respects scope boundaries", () => {
     });
 
     expect(closure).toEqual({
-      x: { $arg: 0 },
+      $params: ["x"],
       $return: { $fn: "add", $args: [{ $var: "x" }, 1000] },
     });
 
@@ -114,9 +114,10 @@ describe("replaceVars respects scope boundaries", () => {
 
   test("shadowed name in closure is not prematurely substituted", () => {
     const outer = {
-      n: { $arg: 0 },
+      $params: ["n"],
       $return: {
-        n: { $fn: "mul", $args: [{ $arg: 0 }, 10] },
+        $params: ["x"],
+        n: { $fn: "mul", $args: [{ $var: "x" }, 10] },
         $return: { $var: "n" },
       },
     };
@@ -124,7 +125,8 @@ describe("replaceVars respects scope boundaries", () => {
     const closure = run({ $return: { $fn: "outer", $args: [5] } }, [], { outer });
 
     expect(closure).toEqual({
-      n: { $fn: "mul", $args: [{ $arg: 0 }, 10] },
+      $params: ["x"],
+      n: { $fn: "mul", $args: [{ $var: "x" }, 10] },
       $return: { $var: "n" },
     });
 
@@ -141,10 +143,9 @@ describe("replaceVars respects scope boundaries", () => {
 
   test("non-shadowed outer vars are baked into closure", () => {
     const outer = {
-      a: { $arg: 0 },
-      b: { $arg: 1 },
+      $params: ["a", "b"],
       $return: {
-        c: { $arg: 0 },
+        $params: ["c"],
         $return: {
           $fn: "add",
           $args: [{ $var: "a" }, { $fn: "add", $args: [{ $var: "b" }, { $var: "c" }] }],
@@ -155,7 +156,7 @@ describe("replaceVars respects scope boundaries", () => {
     const closure = run({ $return: { $fn: "outer", $args: [10, 20] } }, [], { outer });
 
     expect(closure).toEqual({
-      c: { $arg: 0 },
+      $params: ["c"],
       $return: { $fn: "add", $args: [10, { $fn: "add", $args: [20, { $var: "c" }] }] },
     });
   });
@@ -166,7 +167,7 @@ describe("replaceVars respects scope boundaries", () => {
       y: 200,
       $return: {
         $fn: {
-          x: { $arg: 0 },
+          $params: ["x"],
           $return: { $fn: "add", $args: [{ $var: "x" }, { $var: "y" }] },
         },
         $args: [1],

@@ -6,11 +6,12 @@ function run(body: JSONType, args: JSONType[] = [], extraFns: Record<string, any
 }
 
 const double = {
-  $return: { $fn: "mul", $args: [{ $arg: 0 }, 2] },
+  $params: ["x"],
+  $return: { $fn: "mul", $args: [{ $var: "x" }, 2] },
 };
 
 const isEven = {
-  n: { $arg: 0 },
+  $params: ["n"],
   remainder: { $fn: "mod", $args: [{ $var: "n" }, 2] },
   $return: { $fn: "eq", $args: [{ $var: "remainder" }, 0] },
 };
@@ -27,7 +28,10 @@ describe("map", () => {
       run({
         $return: {
           $fn: "map",
-          $args: [{ $return: { $fn: "mul", $args: [{ $arg: 0 }, { $arg: 0 }] } }, [1, 2, 3, 4, 5]],
+          $args: [
+            { $params: ["x"], $return: { $fn: "mul", $args: [{ $var: "x" }, { $var: "x" }] } },
+            [1, 2, 3, 4, 5],
+          ],
         },
       }),
     ).toEqual([1, 4, 9, 16, 25]);
@@ -44,7 +48,13 @@ describe("map", () => {
       run({
         $return: {
           $fn: "map",
-          $args: [{ $return: { $fn: "add", $args: [{ $arg: 0 }, { $arg: 1 }] } }, [10, 20, 30]],
+          $args: [
+            {
+              $params: ["item", "idx"],
+              $return: { $fn: "add", $args: [{ $var: "item" }, { $var: "idx" }] },
+            },
+            [10, 20, 30],
+          ],
         },
       }),
     ).toEqual([10, 21, 32]);
@@ -65,7 +75,10 @@ describe("filter", () => {
       run({
         $return: {
           $fn: "filter",
-          $args: [{ $return: { $fn: "gt", $args: [{ $arg: 0 }, 3] } }, [1, 2, 3, 4, 5, 6]],
+          $args: [
+            { $params: ["x"], $return: { $fn: "gt", $args: [{ $var: "x" }, 3] } },
+            [1, 2, 3, 4, 5, 6],
+          ],
         },
       }),
     ).toEqual([4, 5, 6]);
@@ -88,8 +101,7 @@ describe("reduce", () => {
           $fn: "reduce",
           $args: [
             {
-              acc: { $arg: 0 },
-              item: { $arg: 1 },
+              $params: ["acc", "item"],
               $return: {
                 $fn: "add",
                 $args: [
@@ -126,7 +138,10 @@ describe("chained higher-order operations", () => {
       run({
         squares: {
           $fn: "map",
-          $args: [{ $return: { $fn: "mul", $args: [{ $arg: 0 }, { $arg: 0 }] } }, [1, 2, 3]],
+          $args: [
+            { $params: ["x"], $return: { $fn: "mul", $args: [{ $var: "x" }, { $var: "x" }] } },
+            [1, 2, 3],
+          ],
         },
         $return: { $fn: "reduce", $args: [{ $fn: "add" }, 0, { $var: "squares" }] },
       }),

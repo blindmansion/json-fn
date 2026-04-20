@@ -7,7 +7,7 @@ function run(body: JSONType, args: JSONType[] = [], extraFns: Record<string, any
 
 describe("composing features together", () => {
   const fact: any = {
-    n: { $arg: 0 },
+    $params: ["n"],
     $return: {
       $if: { $fn: "lte", $args: [{ $var: "n" }, 1] },
       $then: 1,
@@ -19,7 +19,7 @@ describe("composing features together", () => {
   };
 
   const isEven = {
-    n: { $arg: 0 },
+    $params: ["n"],
     remainder: { $fn: "mod", $args: [{ $var: "n" }, 2] },
     $return: { $fn: "eq", $args: [{ $var: "remainder" }, 0] },
   };
@@ -46,8 +46,7 @@ describe("composing features together", () => {
     expect(
       run(
         {
-          first: { $arg: 0 },
-          last: { $arg: 1 },
+          $params: ["first", "last"],
           full: {
             $fn: "strcat",
             $args: [{ $var: "first" }, { $fn: "strcat", $args: [" ", { $var: "last" }] }],
