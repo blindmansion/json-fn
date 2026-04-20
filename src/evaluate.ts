@@ -1,98 +1,5 @@
-export type JSONType =
-  | string
-  | number
-  | boolean
-  | null
-  | JSONType[]
-  | { [key: string]: JSONType };
-
-enum ExpressionType {
-  FunctionCall,
-  FunctionReference,
-  ArgReference,
-  VariableReference,
-  FunctionBody,
-  Conditional,
-  Cond,
-  PropertyAccess,
-  Object,
-  Array,
-  String,
-  Integer,
-  Number,
-  Boolean,
-  Null,
-}
-
-type FunctionCall = {
-  $fn: JSONType;
-  $args: JSONType;
-};
-
-type FunctionReference = {
-  $fn: JSONType;
-};
-
-type FunctionDeclaration = string | FunctionBody;
-
-type ArgReference = {
-  $arg: number | number[];
-};
-
-type VariableReference = {
-  $var: string;
-};
-
-type FunctionBody = {
-  [key: string]: JSONType;
-  $return: JSONType;
-};
-
-type Conditional = {
-  $if: JSONType;
-  $then: JSONType;
-  $else: JSONType;
-};
-
-type Cond = {
-  $cond: [JSONType, JSONType][];
-};
-
-type PropertyAccess = {
-  $get: JSONType;
-  $from: JSONType;
-};
-
-const BUILTIN_MARKER = Symbol("builtin");
-
-export type BuiltinFunction = ((
-  args: JSONType[],
-  call: (fn: JSONType, args: JSONType[]) => JSONType
-) => JSONType) & { [BUILTIN_MARKER]: true };
-
-export function builtin(
-  fn: (args: JSONType[], call: (fn: JSONType, args: JSONType[]) => JSONType) => JSONType
-): BuiltinFunction {
-  (fn as any)[BUILTIN_MARKER] = true;
-  return fn as BuiltinFunction;
-}
-
-function isBuiltin(fn: unknown): fn is BuiltinFunction {
-  return typeof fn === "function" && BUILTIN_MARKER in fn;
-}
-
-export type FunctionRegistry = Record<string, Function | FunctionBody>;
-
-type EvaluatedFunctionCall = {
-  fnDeclaration: FunctionDeclaration;
-  args: JSONType[];
-};
-
-type EvaluationContext = {
-  functions: FunctionRegistry;
-  args?: JSONType[];
-  getVar?: (name: string) => JSONType | undefined;
-};
+import type { JSONType, FunctionCall, FunctionReference, BuiltinFunction, FunctionDeclaration, EvaluationContext, FunctionBody, FunctionRegistry, ArgReference, VariableReference, Conditional, Cond, PropertyAccess, EvaluatedFunctionCall } from "./types";
+import { BUILTIN_MARKER, ExpressionType } from "./types";
 
 function exprError(expr: JSONType, message: string): never {
   throw new Error(
@@ -103,6 +10,17 @@ function exprError(expr: JSONType, message: string): never {
 function cloneIfNeeded(value: JSONType): JSONType {
   if (value === null || typeof value !== "object") return value;
   return structuredClone(value);
+}
+
+export function builtin(
+  fn: (args: JSONType[], call: (fn: JSONType, args: JSONType[]) => JSONType) => JSONType
+): BuiltinFunction {
+  (fn as any)[BUILTIN_MARKER] = true;
+  return fn as BuiltinFunction;
+}
+
+function isBuiltin(fn: unknown): fn is BuiltinFunction {
+  return typeof fn === "function" && BUILTIN_MARKER in fn;
 }
 
 export function callFunction(
