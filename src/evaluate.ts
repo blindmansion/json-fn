@@ -16,12 +16,56 @@ import type {
 } from "./types";
 import { BUILTIN_MARKER, ExpressionType } from "./types";
 
+export type PerfStats = {
+  evaluateExpression: number;
+  getExpressionType: number;
+  callFunctionInternal: number;
+  callJSONFunction: number;
+  callExternalFunction: number;
+  replaceVars: number;
+  cloneIfNeeded: number;
+  structuredClones: number;
+  exprTypeCounts: Record<string, number>;
+  functionCallCounts: Record<string, number>;
+  maxCallDepth: number;
+};
+
+let _perf: PerfStats | null = null;
+let _callDepth = 0;
+
+export function enablePerf(): PerfStats {
+  _callDepth = 0;
+  _perf = {
+    evaluateExpression: 0,
+    getExpressionType: 0,
+    callFunctionInternal: 0,
+    callJSONFunction: 0,
+    callExternalFunction: 0,
+    replaceVars: 0,
+    cloneIfNeeded: 0,
+    structuredClones: 0,
+    exprTypeCounts: {},
+    functionCallCounts: {},
+    maxCallDepth: 0,
+  };
+  return _perf;
+}
+
+export function disablePerf(): PerfStats | null {
+  const stats = _perf;
+  _perf = null;
+  _callDepth = 0;
+  return stats;
+}
+
 function exprError(expr: JSONType, message: string): never {
   throw new Error(`Invalid JSON expression: ${JSON.stringify(expr, null, 2)}. ${message}`);
 }
 
 function cloneIfNeeded(value: JSONType): JSONType {
+  if (_perf) _perf.cloneIfNeeded++;
   if (value === null || typeof value !== "object") return value;
+  if (_perf) _perf.structuredClones++;
   return structuredClone(value);
 }
 
@@ -49,33 +93,49 @@ function callFunctionInternal(
   args: JSONType[],
   context: EvaluationContext,
 ): JSONType {
-  const { functions } = context;
-  if (typeof fn === "string") {
-    const entry = functions[fn];
-    if (entry === undefined) {
-      throw new Error(`Function ${fn} not found`);
-    }
+  if (_perf) {
+    _perf.callFunctionInternal++;
+    _callDepth++;
+    if (_callDepth > _perf.maxCallDepth) _perf.maxCallDepth = _callDepth;
+  }
+  try {
+    const { functions } = context;
+    if (typeof fn === "string") {
+      if (_perf) {
+        _perf.functionCallCounts[fn] = (_perf.functionCallCounts[fn] ?? 0) + 1;
+      }
+      const entry = functions[fn];
+      if (entry === undefined) {
+        throw new Error(`Function ${fn} not found`);
+      }
 
-    if (typeof entry === "function") {
-      if (isBuiltin(entry)) {
-        const call = (f: JSONType, a: JSONType[]) =>
-          callFunctionInternal(f as FunctionDeclaration, a, context);
-        return entry(args, call);
+      if (typeof entry === "function") {
+        if (isBuiltin(entry)) {
+          const call = (f: JSONType, a: JSONType[]) =>
+            callFunctionInternal(f as FunctionDeclaration, a, context);
+          return entry(args, call);
+        } else {
+          return callExternalFunction(entry, args, fn);
+        }
       } else {
-        return callExternalFunction(entry, args, fn);
+        return callJSONFunction(entry as FunctionBody, args, {
+          functions,
+          args: [],
+        });
       }
     } else {
-      return callJSONFunction(entry as FunctionBody, args, {
-        functions,
-        args: [],
-      });
+      if (_perf) {
+        _perf.functionCallCounts["<inline>"] = (_perf.functionCallCounts["<inline>"] ?? 0) + 1;
+      }
+      return callJSONFunction(fn as FunctionBody, args, context);
     }
-  } else {
-    return callJSONFunction(fn as FunctionBody, args, context);
+  } finally {
+    if (_perf) _callDepth--;
   }
 }
 
 function callExternalFunction(fn: Function, args: JSONType[], name: string): JSONType {
+  if (_perf) _perf.callExternalFunction++;
   const safeArgs = args.map((a) => cloneIfNeeded(a));
   try {
     const result = fn(...safeArgs);
@@ -86,6 +146,7 @@ function callExternalFunction(fn: Function, args: JSONType[], name: string): JSO
 }
 
 function callJSONFunction(fn: FunctionBody, args: JSONType[], context: EvaluationContext) {
+  if (_perf) _perf.callJSONFunction++;
   const { functions, getVar: getVarParent } = context;
   const evaluatedVars: Record<string, JSONType> = {};
 
@@ -116,8 +177,13 @@ function callJSONFunction(fn: FunctionBody, args: JSONType[], context: Evaluatio
 }
 
 function evaluateExpression(expression: JSONType, context: EvaluationContext): JSONType {
+  if (_perf) _perf.evaluateExpression++;
   const { args, functions, getVar } = context;
   const expressionType = getExpressionType(expression);
+  if (_perf) {
+    const name = ExpressionType[expressionType] ?? String(expressionType);
+    _perf.exprTypeCounts[name] = (_perf.exprTypeCounts[name] ?? 0) + 1;
+  }
 
   switch (expressionType) {
     case ExpressionType.FunctionCall:
@@ -265,6 +331,7 @@ function replaceVars(
   expression: JSONType,
   getVar: (name: string) => JSONType | undefined,
 ): JSONType {
+  if (_perf) _perf.replaceVars++;
   if (Array.isArray(expression)) {
     return expression.map((item) => replaceVars(item, getVar));
   }
@@ -334,6 +401,7 @@ function evaluateFunctionCall(
 }
 
 function getExpressionType(json: JSONType): ExpressionType {
+  if (_perf) _perf.getExpressionType++;
   if (Array.isArray(json)) return ExpressionType.Array;
   if (typeof json === "string") return ExpressionType.String;
   if (typeof json === "number") {
