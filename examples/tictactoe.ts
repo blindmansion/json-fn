@@ -147,17 +147,12 @@ functions.getStatus = {
   oWins: { $fn: "checkWin", $args: [{ $var: "board" }, "O"] },
   full: { $fn: "isBoardFull", $args: [{ $var: "board" }] },
   $return: {
-    $if: { $var: "xWins" },
-    $then: "X",
-    $else: {
-      $if: { $var: "oWins" },
-      $then: "O",
-      $else: {
-        $if: { $var: "full" },
-        $then: "draw",
-        $else: "playing",
-      },
-    },
+    $cond: [
+      [{ $var: "xWins" }, "X"],
+      [{ $var: "oWins" }, "O"],
+      [{ $var: "full" }, "draw"],
+      [true, "playing"],
+    ],
   },
 };
 
@@ -215,6 +210,8 @@ functions.minimax = {
   opponent: { $fn: "otherPlayer", $args: [{ $var: "aiPlayer" }] },
   status: { $fn: "getStatus", $args: [{ $var: "board" }] },
   gameOver: { $fn: "neq", $args: [{ $var: "status" }, "playing"] },
+  aiWins: { $fn: "and", $args: [{ $var: "gameOver" }, { $fn: "eq", $args: [{ $var: "status" }, { $var: "aiPlayer" }] }] },
+  opponentWins: { $fn: "and", $args: [{ $var: "gameOver" }, { $fn: "eq", $args: [{ $var: "status" }, { $var: "opponent" }] }] },
 
   // Recursive case (lazy — only evaluated if game is not over)
   currentPlayer: {
@@ -262,21 +259,13 @@ functions.minimax = {
   minScore: { $fn: "min", $args: [{ $var: "scores" }] },
 
   $return: {
-    $if: { $var: "gameOver" },
-    $then: {
-      $if: { $fn: "eq", $args: [{ $var: "status" }, { $var: "aiPlayer" }] },
-      $then: { $fn: "sub", $args: [10, { $var: "depth" }] },
-      $else: {
-        $if: { $fn: "eq", $args: [{ $var: "status" }, { $var: "opponent" }] },
-        $then: { $fn: "sub", $args: [{ $var: "depth" }, 10] },
-        $else: 0,
-      },
-    },
-    $else: {
-      $if: { $var: "isMaximizing" },
-      $then: { $var: "maxScore" },
-      $else: { $var: "minScore" },
-    },
+    $cond: [
+      [{ $var: "aiWins" }, { $fn: "sub", $args: [10, { $var: "depth" }] }],
+      [{ $var: "opponentWins" }, { $fn: "sub", $args: [{ $var: "depth" }, 10] }],
+      [{ $var: "gameOver" }, 0],
+      [{ $var: "isMaximizing" }, { $var: "maxScore" }],
+      [true, { $var: "minScore" }],
+    ],
   },
 };
 
