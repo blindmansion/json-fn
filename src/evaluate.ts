@@ -452,13 +452,6 @@ function getExpressionType(json: JSONType): ExpressionType {
       return ExpressionType.FunctionReference;
     }
 
-    if ("$arg" in json) {
-      exprError(
-        json,
-        "$arg has been removed. Use $params on function bodies to declare named parameters, then use $var to reference them.",
-      );
-    }
-
     const hasIf = "$if" in json;
     const hasThen = "$then" in json;
     const hasElse = "$else" in json;
