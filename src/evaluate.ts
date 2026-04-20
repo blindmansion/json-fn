@@ -2,7 +2,6 @@ import type {
   JSONType,
   FunctionCall,
   FunctionReference,
-  BuiltinFunction,
   FunctionDeclaration,
   EvaluationContext,
   FunctionBody,
@@ -13,7 +12,8 @@ import type {
   PropertyAccess,
   EvaluatedFunctionCall,
 } from "./types";
-import { BUILTIN_MARKER, PURE_MARKER, ARITY_MARKER, ExpressionType } from "./types";
+import { ExpressionType } from "./types";
+import { exprError, objectKeyCount, isPure, isBuiltin } from "./utils";
 
 export type PerfStats = {
   evaluateExpression: number;
@@ -57,37 +57,11 @@ export function disablePerf(): PerfStats | null {
   return stats;
 }
 
-function exprError(expr: JSONType, message: string): never {
-  throw new Error(`Invalid JSON expression: ${JSON.stringify(expr, null, 2)}. ${message}`);
-}
-
 function cloneIfNeeded(value: JSONType): JSONType {
   if (_perf) _perf.cloneIfNeeded++;
   if (value === null || typeof value !== "object") return value;
   if (_perf) _perf.structuredClones++;
   return structuredClone(value);
-}
-
-function isPure(fn: unknown): boolean {
-  return typeof fn === "function" && PURE_MARKER in fn;
-}
-
-export function pure(fn: Function): Function {
-  (fn as any)[PURE_MARKER] = true;
-  return fn;
-}
-
-export function builtin(
-  fn: (args: JSONType[], call: (fn: JSONType, args: JSONType[]) => JSONType, functions: FunctionRegistry) => JSONType,
-  arity?: number,
-): BuiltinFunction {
-  (fn as any)[BUILTIN_MARKER] = true;
-  if (arity !== undefined) (fn as any)[ARITY_MARKER] = arity;
-  return fn as BuiltinFunction;
-}
-
-function isBuiltin(fn: unknown): fn is BuiltinFunction {
-  return typeof fn === "function" && BUILTIN_MARKER in fn;
 }
 
 export function callFunction(
@@ -414,12 +388,6 @@ function evaluateFunctionCall(
   };
 }
 
-function objectKeyCount(obj: Record<string, unknown>): number {
-  let n = 0;
-  for (const _ in obj) n++;
-  return n;
-}
-
 function getExpressionType(json: JSONType): ExpressionType {
   if (_perf) _perf.getExpressionType++;
   if (Array.isArray(json)) return ExpressionType.Array;
@@ -527,29 +495,4 @@ function getExpressionType(json: JSONType): ExpressionType {
   }
 
   exprError(json, "Unrecognized expression type.");
-}
-
-export function getArity(fn: unknown, registry?: FunctionRegistry): number | null {
-  if (typeof fn === "object" && fn !== null && !Array.isArray(fn) && "$return" in fn) {
-    const params = (fn as any).$params as string[] | undefined;
-    if (!params || params.length === 0) return 0;
-    const last = params[params.length - 1]!;
-    return last.startsWith("...") ? params.length - 1 : params.length;
-  }
-
-  if (typeof fn === "string" && registry) {
-    const entry = registry[fn];
-    if (entry === undefined) return null;
-    return getArity(entry, registry);
-  }
-
-  if (typeof fn === "function" && ARITY_MARKER in fn) {
-    return (fn as any)[ARITY_MARKER] as number;
-  }
-
-  if (typeof fn === "function") {
-    return fn.length;
-  }
-
-  return null;
 }

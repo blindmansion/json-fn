@@ -1,4 +1,4 @@
-import { builtin, pure, getArity } from "./evaluate";
+import { builtin, pure, getArity } from "./utils";
 import type { FunctionRegistry } from "./types";
 
 export function createStdlib(): FunctionRegistry {
