@@ -220,7 +220,7 @@
     },
 
     "$return": {
-      "$fn": ["flatten", [{ "$var": "fwd1" }, { "$var": "fwd2" }, { "$var": "captures" }]],
+      "$fn": ["concat", { "$var": "fwd1" }, { "$var": "fwd2" }, { "$var": "captures" }],
     },
   },
 

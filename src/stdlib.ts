@@ -93,7 +93,13 @@ export function createStdlib(): FunctionRegistry {
     head: pure((arr: any[]) => arr[0]),
     last: pure((arr: any[]) => arr[arr.length - 1] ?? null),
     tail: pure((arr: any[]) => arr.slice(1)),
-    concat: pure((a: any[], b: any[]) => [...a, ...b]),
+    concat: pure((...arrays: any[][]) => {
+      const result: any[] = [];
+      for (const arr of arrays) {
+        for (const item of arr) result.push(item);
+      }
+      return result;
+    }),
     range: pure((n: number) => Array.from({ length: n }, (_, i) => i)),
     slice: pure((arr: any[] | string, start: number, end?: number) =>
       end === undefined ? arr.slice(start) : arr.slice(start, end),

@@ -357,7 +357,7 @@ All functions listed below are available in the standard library.
 | `head`     | `(arr)`              | first element                          |
 | `last`     | `(arr)`              | last element (null if empty)           |
 | `tail`     | `(arr)`              | all but first                          |
-| `concat`   | `(a, b)`             | concatenate two arrays                 |
+| `concat`   | `(...arrays)`        | concatenate arrays (variadic)          |
 | `range`    | `(n)`                | `[0, 1, ..., n-1]`                     |
 | `slice`    | `(arr, start, end?)` | slice                                  |
 | `reverse`  | `(arr)`              | reversed copy                          |
