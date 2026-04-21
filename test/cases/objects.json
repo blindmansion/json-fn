@@ -4,7 +4,11 @@
     {
       "description": "entries: returns key-value pairs",
       "body": { "$return": { "$fn": "entries", "$args": [{ "a": 1, "b": 2, "c": 3 }] } },
-      "expected": [["a", 1], ["b", 2], ["c", 3]]
+      "expected": [
+        ["a", 1],
+        ["b", 2],
+        ["c", 3]
+      ]
     },
     {
       "description": "entries: empty object returns empty array",
@@ -16,7 +20,12 @@
       "body": {
         "$return": {
           "$fn": "fromEntries",
-          "$args": [[["x", 10], ["y", 20]]]
+          "$args": [
+            [
+              ["x", 10],
+              ["y", 20]
+            ]
+          ]
         }
       },
       "expected": { "x": 10, "y": 20 }
@@ -44,7 +53,10 @@
       "body": {
         "$return": {
           "$fn": "merge",
-          "$args": [{ "a": 1, "b": 2 }, { "b": 99, "c": 3 }]
+          "$args": [
+            { "a": 1, "b": 2 },
+            { "b": 99, "c": 3 }
+          ]
         }
       },
       "expected": { "a": 1, "b": 99, "c": 3 }

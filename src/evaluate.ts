@@ -141,6 +141,19 @@ function callExternalFunction(fn: Function, args: JSONType[], name: string): JSO
 function callJSONFunction(fn: FunctionBody, args: JSONType[], context: EvaluationContext) {
   if (_perf) _perf.callJSONFunction++;
   const { functions, getVar: getVarParent } = context;
+
+  const localFnKeys: string[] = [];
+  let scopedFunctions = functions;
+  for (const key of Object.keys(fn)) {
+    if (key === "$return" || key === "$params") continue;
+    const val = fn[key];
+    if (typeof val === "object" && val !== null && !Array.isArray(val) && "$return" in val) {
+      if (scopedFunctions === functions) scopedFunctions = { ...functions };
+      scopedFunctions[key] = val as FunctionBody;
+      localFnKeys.push(key);
+    }
+  }
+
   const evaluatedVars: Record<string, JSONType> = {};
 
   const params = (fn as any).$params as string[] | undefined;
@@ -163,7 +176,7 @@ function callJSONFunction(fn: FunctionBody, args: JSONType[], context: Evaluatio
     const expression = fn[name];
     if (expression !== undefined) {
       const evaluated = evaluateExpression(expression, {
-        functions,
+        functions: scopedFunctions,
         getVar,
       });
       evaluatedVars[name] = evaluated;
@@ -177,7 +190,13 @@ function callJSONFunction(fn: FunctionBody, args: JSONType[], context: Evaluatio
     return undefined;
   };
 
-  return evaluateExpression(fn.$return, { functions, getVar });
+  if (localFnKeys.length > 0) {
+    for (const key of localFnKeys) {
+      scopedFunctions[key] = replaceVars(fn[key]!, getVar) as FunctionBody;
+    }
+  }
+
+  return evaluateExpression(fn.$return, { functions: scopedFunctions, getVar });
 }
 
 function evaluateExpression(expression: JSONType, context: EvaluationContext): JSONType {

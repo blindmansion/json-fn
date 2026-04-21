@@ -29,10 +29,13 @@ Calls a function. `$fn` evaluates to a string (function name), a function body, 
 Nested calls — arguments can themselves be calls:
 
 ```json
-{ "$fn": "mul", "$args": [
-  { "$fn": "add", "$args": [2, 3] },
-  { "$fn": "sub", "$args": [10, 4] }
-]}
+{
+  "$fn": "mul",
+  "$args": [
+    { "$fn": "add", "$args": [2, 3] },
+    { "$fn": "sub", "$args": [10, 4] }
+  ]
+}
 ```
 
 ### Function Reference — `{ $fn }` (no `$args`)
@@ -43,7 +46,7 @@ Evaluates `$fn` and returns the result (a string name or function body) without 
 { "$fn": "double" }
 ```
 
-### Variable Reference — `{ $var }` 
+### Variable Reference — `{ $var }`
 
 Resolves a variable by name. Must be the only key in the object.
 
@@ -122,7 +125,13 @@ Dynamic key (from variable or function result):
 Returns the value as-is without evaluating nested expressions. Use for constant data in hot paths or to prevent keyword collisions (data that happens to contain `$fn`, `$var`, etc. keys).
 
 ```json
-{ "$literal": [[0, 1, 2], [3, 4, 5], [6, 7, 8]] }
+{
+  "$literal": [
+    [0, 1, 2],
+    [3, 4, 5],
+    [6, 7, 8]
+  ]
+}
 ```
 
 ## Function Bodies
@@ -228,6 +237,58 @@ Functions can call themselves by name if registered in the function registry.
 }
 ```
 
+### Local Recursive Functions
+
+Local variables that are statically-defined function bodies (i.e. the value has a `$return` key) are automatically available by name for string dispatch within their scope. This enables recursion without registering the function in the global registry.
+
+```json
+{
+  "$params": ["n"],
+  "fact": {
+    "$params": ["x"],
+    "$return": {
+      "$if": { "$fn": "lte", "$args": [{ "$var": "x" }, 1] },
+      "$then": 1,
+      "$else": {
+        "$fn": "mul",
+        "$args": [
+          { "$var": "x" },
+          { "$fn": "fact", "$args": [{ "$fn": "sub", "$args": [{ "$var": "x" }, 1] }] }
+        ]
+      }
+    }
+  },
+  "$return": { "$fn": "fact", "$args": [{ "$var": "n" }] }
+}
+```
+
+Mutual recursion between local function bodies in the same scope also works:
+
+```json
+{
+  "$params": ["n"],
+  "isEven": {
+    "$params": ["x"],
+    "$return": {
+      "$if": { "$fn": "eq", "$args": [{ "$var": "x" }, 0] },
+      "$then": true,
+      "$else": { "$fn": "isOdd", "$args": [{ "$fn": "sub", "$args": [{ "$var": "x" }, 1] }] }
+    }
+  },
+  "isOdd": {
+    "$params": ["x"],
+    "$return": {
+      "$if": { "$fn": "eq", "$args": [{ "$var": "x" }, 0] },
+      "$then": false,
+      "$else": { "$fn": "isEven", "$args": [{ "$fn": "sub", "$args": [{ "$var": "x" }, 1] }] }
+    }
+  },
+  "$return": { "$fn": "isEven", "$args": [{ "$var": "n" }] }
+}
+```
+
+Local function bodies can reference other variables from their enclosing scope (parameters and sibling locals). They can also shadow global registry functions of the same name within their scope. Local function names are scoped — they do not leak into parent or sibling scopes.
+
 ## Dynamic Dispatch
 
 `$fn` can be a `$var` reference or any expression that evaluates to a function name or body.
@@ -247,123 +308,123 @@ All functions listed below are available in the standard library.
 
 ### Arithmetic
 
-| Function | Args | Description |
-|----------|------|-------------|
-| `add` | `(a, b)` | `a + b` |
-| `sub` | `(a, b)` | `a - b` |
-| `mul` | `(a, b)` | `a * b` |
-| `div` | `(a, b)` | `a / b` (throws on zero) |
-| `mod` | `(a, b)` | `a % b` |
-| `abs` | `(a)` | absolute value |
-| `neg` | `(a)` | `-a` |
-| `floor` | `(a)` | floor |
-| `ceil` | `(a)` | ceiling |
-| `round` | `(a)` | round |
-| `max` | `(arr)` | max of array |
-| `min` | `(arr)` | min of array |
+| Function | Args     | Description              |
+| -------- | -------- | ------------------------ |
+| `add`    | `(a, b)` | `a + b`                  |
+| `sub`    | `(a, b)` | `a - b`                  |
+| `mul`    | `(a, b)` | `a * b`                  |
+| `div`    | `(a, b)` | `a / b` (throws on zero) |
+| `mod`    | `(a, b)` | `a % b`                  |
+| `abs`    | `(a)`    | absolute value           |
+| `neg`    | `(a)`    | `-a`                     |
+| `floor`  | `(a)`    | floor                    |
+| `ceil`   | `(a)`    | ceiling                  |
+| `round`  | `(a)`    | round                    |
+| `max`    | `(arr)`  | max of array             |
+| `min`    | `(arr)`  | min of array             |
 
 ### Comparison
 
-| Function | Args | Description |
-|----------|------|-------------|
-| `eq` | `(a, b)` | strict equality |
-| `neq` | `(a, b)` | strict inequality |
-| `gt` | `(a, b)` | `a > b` |
-| `gte` | `(a, b)` | `a >= b` |
-| `lt` | `(a, b)` | `a < b` |
-| `lte` | `(a, b)` | `a <= b` |
+| Function | Args     | Description       |
+| -------- | -------- | ----------------- |
+| `eq`     | `(a, b)` | strict equality   |
+| `neq`    | `(a, b)` | strict inequality |
+| `gt`     | `(a, b)` | `a > b`           |
+| `gte`    | `(a, b)` | `a >= b`          |
+| `lt`     | `(a, b)` | `a < b`           |
+| `lte`    | `(a, b)` | `a <= b`          |
 
 ### Logic
 
-| Function | Args | Description |
-|----------|------|-------------|
-| `not` | `(a)` | logical not |
-| `and` | `(a, b)` | logical and |
-| `or` | `(a, b)` | logical or |
+| Function | Args     | Description |
+| -------- | -------- | ----------- |
+| `not`    | `(a)`    | logical not |
+| `and`    | `(a, b)` | logical and |
+| `or`     | `(a, b)` | logical or  |
 
 ### Type Checking
 
-| Function | Args | Description |
-|----------|------|-------------|
-| `isNull` | `(a)` | is null |
-| `isBool` | `(a)` | is boolean |
-| `isNumber` | `(a)` | is number |
-| `isString` | `(a)` | is string |
-| `isArray` | `(a)` | is array |
+| Function   | Args  | Description                           |
+| ---------- | ----- | ------------------------------------- |
+| `isNull`   | `(a)` | is null                               |
+| `isBool`   | `(a)` | is boolean                            |
+| `isNumber` | `(a)` | is number                             |
+| `isString` | `(a)` | is string                             |
+| `isArray`  | `(a)` | is array                              |
 | `isObject` | `(a)` | is plain object (not array, not null) |
 
 ### Type Coercion
 
-| Function | Args | Description |
-|----------|------|-------------|
-| `str` | `(a)` | to string (serializes non-strings) |
-| `num` | `(a)` | to number (throws if unparseable) |
+| Function | Args  | Description                        |
+| -------- | ----- | ---------------------------------- |
+| `str`    | `(a)` | to string (serializes non-strings) |
+| `num`    | `(a)` | to number (throws if unparseable)  |
 
 ### Arrays
 
-| Function | Args | Description |
-|----------|------|-------------|
-| `length` | `(arr)` | length (works on strings too) |
-| `head` | `(arr)` | first element |
-| `last` | `(arr)` | last element (null if empty) |
-| `tail` | `(arr)` | all but first |
-| `concat` | `(a, b)` | concatenate two arrays |
-| `range` | `(n)` | `[0, 1, ..., n-1]` |
-| `slice` | `(arr, start, end?)` | slice |
-| `reverse` | `(arr)` | reversed copy |
-| `includes` | `(arr, value)` | contains check (works on strings) |
-| `indexOf` | `(arr, value)` | index of value (-1 if missing) |
-| `flatten` | `(arr)` | flatten one level |
+| Function   | Args                 | Description                       |
+| ---------- | -------------------- | --------------------------------- |
+| `length`   | `(arr)`              | length (works on strings too)     |
+| `head`     | `(arr)`              | first element                     |
+| `last`     | `(arr)`              | last element (null if empty)      |
+| `tail`     | `(arr)`              | all but first                     |
+| `concat`   | `(a, b)`             | concatenate two arrays            |
+| `range`    | `(n)`                | `[0, 1, ..., n-1]`                |
+| `slice`    | `(arr, start, end?)` | slice                             |
+| `reverse`  | `(arr)`              | reversed copy                     |
+| `includes` | `(arr, value)`       | contains check (works on strings) |
+| `indexOf`  | `(arr, value)`       | index of value (-1 if missing)    |
+| `flatten`  | `(arr)`              | flatten one level                 |
 
 ### Strings
 
-| Function | Args | Description |
-|----------|------|-------------|
-| `upper` | `(s)` | uppercase |
-| `lower` | `(s)` | lowercase |
-| `trim` | `(s)` | trim whitespace |
-| `strcat` | `(a, b)` | concatenate two strings |
-| `split` | `(s, sep)` | split string |
-| `join` | `(arr, sep)` | join array with separator |
+| Function | Args         | Description               |
+| -------- | ------------ | ------------------------- |
+| `upper`  | `(s)`        | uppercase                 |
+| `lower`  | `(s)`        | lowercase                 |
+| `trim`   | `(s)`        | trim whitespace           |
+| `strcat` | `(a, b)`     | concatenate two strings   |
+| `split`  | `(s, sep)`   | split string              |
+| `join`   | `(arr, sep)` | join array with separator |
 
 ### Objects
 
-| Function | Args | Description |
-|----------|------|-------------|
-| `keys` | `(obj)` | array of keys |
-| `values` | `(obj)` | array of values |
-| `entries` | `(obj)` | array of `[key, value]` pairs |
-| `fromEntries` | `(pairs)` | object from `[key, value]` pairs |
-| `merge` | `(a, b)` | shallow merge (b wins on conflict) |
-| `hasKey` | `(obj, key)` | key exists check |
-| `pick` | `(obj, keys)` | select specified keys |
-| `omit` | `(obj, keys)` | exclude specified keys |
+| Function      | Args          | Description                        |
+| ------------- | ------------- | ---------------------------------- |
+| `keys`        | `(obj)`       | array of keys                      |
+| `values`      | `(obj)`       | array of values                    |
+| `entries`     | `(obj)`       | array of `[key, value]` pairs      |
+| `fromEntries` | `(pairs)`     | object from `[key, value]` pairs   |
+| `merge`       | `(a, b)`      | shallow merge (b wins on conflict) |
+| `hasKey`      | `(obj, key)`  | key exists check                   |
+| `pick`        | `(obj, keys)` | select specified keys              |
+| `omit`        | `(obj, keys)` | exclude specified keys             |
 
 ### Higher-Order Functions
 
 Higher-order functions can invoke json-fn callbacks. The callback argument can be a function reference (`{ "$fn": "name" }`), an inline function body, or a string name.
 
-| Function | Args | Description |
-|----------|------|-------------|
-| `map` | `(callback, arr)` | map. Callback receives `(item, index)`. |
-| `filter` | `(callback, arr)` | filter. Callback receives `(item, index)`. |
-| `reduce` | `(callback, init, arr)` | reduce. Callback receives `(acc, item, index)`. |
-| `find` | `(callback, arr)` | first match or `null`. Callback receives `(item, index)`. |
-| `findIndex` | `(callback, arr)` | index of first match or `-1`. Callback receives `(item, index)`. |
-| `some` | `(callback, arr)` | any match. Callback receives `(item, index)`. |
-| `every` | `(callback, arr)` | all match. Callback receives `(item, index)`. |
-| `sort` | `(comparator, arr)` | sorted copy. Comparator receives `(a, b)`, returns number. |
-| `sortBy` | `(keyFn, arr)` | sorted copy by key function. keyFn receives `(item, index)`. |
-| `flatMap` | `(callback, arr)` | map then flatten one level. Callback receives `(item, index)`. |
-| `groupBy` | `(keyFn, arr)` | group into object. keyFn receives `(item, index)`, must return string or number. |
-| `mapValues` | `(callback, obj)` | transform object values. Callback receives `(value, key)`. |
-| `pipe` | `(fns, init)` | thread value through array of functions left-to-right. |
+| Function    | Args                    | Description                                                                      |
+| ----------- | ----------------------- | -------------------------------------------------------------------------------- |
+| `map`       | `(callback, arr)`       | map. Callback receives `(item, index)`.                                          |
+| `filter`    | `(callback, arr)`       | filter. Callback receives `(item, index)`.                                       |
+| `reduce`    | `(callback, init, arr)` | reduce. Callback receives `(acc, item, index)`.                                  |
+| `find`      | `(callback, arr)`       | first match or `null`. Callback receives `(item, index)`.                        |
+| `findIndex` | `(callback, arr)`       | index of first match or `-1`. Callback receives `(item, index)`.                 |
+| `some`      | `(callback, arr)`       | any match. Callback receives `(item, index)`.                                    |
+| `every`     | `(callback, arr)`       | all match. Callback receives `(item, index)`.                                    |
+| `sort`      | `(comparator, arr)`     | sorted copy. Comparator receives `(a, b)`, returns number.                       |
+| `sortBy`    | `(keyFn, arr)`          | sorted copy by key function. keyFn receives `(item, index)`.                     |
+| `flatMap`   | `(callback, arr)`       | map then flatten one level. Callback receives `(item, index)`.                   |
+| `groupBy`   | `(keyFn, arr)`          | group into object. keyFn receives `(item, index)`, must return string or number. |
+| `mapValues` | `(callback, obj)`       | transform object values. Callback receives `(value, key)`.                       |
+| `pipe`      | `(fns, init)`           | thread value through array of functions left-to-right.                           |
 
 ### Introspection
 
-| Function | Args | Description |
-|----------|------|-------------|
-| `arity` | `(fn)` | returns parameter count. For rest params, excludes the rest param. `null` for unknown functions. Argument is a function name (string) or body. |
+| Function | Args   | Description                                                                                                                                    |
+| -------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `arity`  | `(fn)` | returns parameter count. For rest params, excludes the rest param. `null` for unknown functions. Argument is a function name (string) or body. |
 
 ## HOF Argument Order
 
@@ -411,10 +472,7 @@ Or use `pipe`:
 ```json
 {
   "$fn": "pipe",
-  "$args": [
-    [{ "$fn": "neg" }, { "$fn": "abs" }, { "$fn": "str" }],
-    -5
-  ]
+  "$args": [[{ "$fn": "neg" }, { "$fn": "abs" }, { "$fn": "str" }], -5]
 }
 ```
 

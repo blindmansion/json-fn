@@ -27,7 +27,10 @@
         "$return": {
           "$fn": "flatMap",
           "$args": [
-            { "$params": ["x"], "$return": [{ "$var": "x" }, { "$fn": "neg", "$args": [{ "$var": "x" }] }] },
+            {
+              "$params": ["x"],
+              "$return": [{ "$var": "x" }, { "$fn": "neg", "$args": [{ "$var": "x" }] }]
+            },
             [1, 2, 3]
           ]
         }
@@ -52,10 +55,7 @@
       "body": {
         "$return": {
           "$fn": "flatMap",
-          "$args": [
-            { "$params": ["x", "i"], "$return": [{ "$var": "i" }] },
-            ["a", "b", "c"]
-          ]
+          "$args": [{ "$params": ["x", "i"], "$return": [{ "$var": "i" }] }, ["a", "b", "c"]]
         }
       },
       "expected": [0, 1, 2]
@@ -303,7 +303,10 @@
           "$args": [
             [
               { "$fn": "neg" },
-              { "$params": ["x"], "$return": { "$fn": "mul", "$args": [{ "$var": "x" }, { "$var": "x" }] } },
+              {
+                "$params": ["x"],
+                "$return": { "$fn": "mul", "$args": [{ "$var": "x" }, { "$var": "x" }] }
+              },
               { "$fn": "str" }
             ],
             3

@@ -23,7 +23,10 @@
         "$return": {
           "$fn": "map",
           "$args": [
-            { "$params": ["x"], "$return": { "$fn": "mul", "$args": [{ "$var": "x" }, { "$var": "x" }] } },
+            {
+              "$params": ["x"],
+              "$return": { "$fn": "mul", "$args": [{ "$var": "x" }, { "$var": "x" }] }
+            },
             [1, 2, 3, 4, 5]
           ]
         }
@@ -53,7 +56,9 @@
     },
     {
       "description": "filter with a named JSON function (isEven)",
-      "body": { "$return": { "$fn": "filter", "$args": [{ "$fn": "isEven" }, [1, 2, 3, 4, 5, 6]] } },
+      "body": {
+        "$return": { "$fn": "filter", "$args": [{ "$fn": "isEven" }, [1, 2, 3, 4, 5, 6]] }
+      },
       "expected": [2, 4, 6]
     },
     {
@@ -113,7 +118,10 @@
         "squares": {
           "$fn": "map",
           "$args": [
-            { "$params": ["x"], "$return": { "$fn": "mul", "$args": [{ "$var": "x" }, { "$var": "x" }] } },
+            {
+              "$params": ["x"],
+              "$return": { "$fn": "mul", "$args": [{ "$var": "x" }, { "$var": "x" }] }
+            },
             [1, 2, 3]
           ]
         },

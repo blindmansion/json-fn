@@ -70,7 +70,10 @@
           "$params": ["a", "b", "c"],
           "$return": {
             "$fn": "add",
-            "$args": [{ "$fn": "add", "$args": [{ "$var": "a" }, { "$var": "b" }] }, { "$var": "c" }]
+            "$args": [
+              { "$fn": "add", "$args": [{ "$var": "a" }, { "$var": "b" }] },
+              { "$var": "c" }
+            ]
           }
         }
       },

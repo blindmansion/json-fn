@@ -65,7 +65,8 @@ export function createStdlib(): FunctionRegistry {
     concat: pure((a: any[], b: any[]) => [...a, ...b]),
     range: pure((n: number) => Array.from({ length: n }, (_, i) => i)),
     slice: pure((arr: any[] | string, start: number, end?: number) =>
-      end === undefined ? arr.slice(start) : arr.slice(start, end)),
+      end === undefined ? arr.slice(start) : arr.slice(start, end),
+    ),
     reverse: pure((arr: any[]) => [...arr].reverse()),
     includes: pure((arr: any[] | string, value: any) => arr.includes(value)),
     indexOf: pure((arr: any[] | string, value: any) => (arr as any[]).indexOf(value)),
