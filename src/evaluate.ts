@@ -368,6 +368,55 @@ function replaceVars(
   return expression;
 }
 
+function getParamNames(fn: FunctionBody): string[] | undefined {
+  const params = (fn as any).$params as string[] | undefined;
+  if (!Array.isArray(params)) return undefined;
+  return params;
+}
+
+function resolveNamedArgs(
+  namedArgs: Record<string, JSONType>,
+  fnDeclaration: FunctionDeclaration,
+  context: EvaluationContext,
+  fnCall: FunctionCall,
+): JSONType[] {
+  let fnBody: FunctionBody | undefined;
+
+  if (typeof fnDeclaration === "string") {
+    const entry = context.functions[fnDeclaration];
+    if (entry === undefined) {
+      exprError(fnCall, `Function ${fnDeclaration} not found.`);
+    }
+    if (typeof entry === "function") {
+      exprError(fnCall, `Named arguments are not supported for external functions.`);
+    }
+    fnBody = entry as FunctionBody;
+  } else {
+    fnBody = fnDeclaration;
+  }
+
+  const paramNames = getParamNames(fnBody);
+  if (!paramNames) {
+    exprError(fnCall, `Named arguments require the target function to declare $params.`);
+  }
+
+  if (paramNames.some((p) => p.startsWith("..."))) {
+    exprError(fnCall, `Named arguments are not supported for functions with rest parameters.`);
+  }
+
+  const argKeys = new Set(Object.keys(namedArgs));
+  for (const key of argKeys) {
+    if (!paramNames.includes(key)) {
+      exprError(
+        fnCall,
+        `Unknown named argument "${key}". Expected one of: ${paramNames.join(", ")}.`,
+      );
+    }
+  }
+
+  return paramNames.map((name) => namedArgs[name] ?? null);
+}
+
 function evaluateFunctionCall(
   fnCall: FunctionCall,
   context: EvaluationContext,
@@ -390,17 +439,30 @@ function evaluateFunctionCall(
     );
   }
 
-  if (!Array.isArray(evaluatedArgs)) {
-    exprError(
-      fnCall,
-      `Evaluated function arguments must be an array. Got ${typeof evaluatedArgs}.`,
-    );
+  const fnDeclaration = evaluatedFn as FunctionDeclaration;
+
+  if (Array.isArray(evaluatedArgs)) {
+    return { fnDeclaration, args: evaluatedArgs as JSONType[] };
   }
 
-  return {
-    fnDeclaration: evaluatedFn as FunctionDeclaration,
-    args: evaluatedArgs as JSONType[],
-  };
+  if (
+    typeof evaluatedArgs === "object" &&
+    evaluatedArgs !== null &&
+    !Array.isArray(evaluatedArgs)
+  ) {
+    const args = resolveNamedArgs(
+      evaluatedArgs as Record<string, JSONType>,
+      fnDeclaration,
+      context,
+      fnCall,
+    );
+    return { fnDeclaration, args };
+  }
+
+  exprError(
+    fnCall,
+    `Evaluated function arguments must be an array or named-args object. Got ${typeof evaluatedArgs}.`,
+  );
 }
 
 function getExpressionType(json: JSONType): ExpressionType {
