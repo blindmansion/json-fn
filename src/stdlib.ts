@@ -61,43 +61,43 @@ export function createStdlib(): FunctionRegistry {
     length: pure((arr: any[] | string) => arr.length),
     head: pure((arr: any[]) => arr[0]),
     last: pure((arr: any[]) => arr[arr.length - 1] ?? null),
-    tail: (arr: any[]) => arr.slice(1),
-    concat: (a: any[], b: any[]) => [...a, ...b],
-    range: (n: number) => Array.from({ length: n }, (_, i) => i),
-    slice: (arr: any[] | string, start: number, end?: number) =>
-      end === undefined ? arr.slice(start) : arr.slice(start, end),
-    reverse: (arr: any[]) => [...arr].reverse(),
+    tail: pure((arr: any[]) => arr.slice(1)),
+    concat: pure((a: any[], b: any[]) => [...a, ...b]),
+    range: pure((n: number) => Array.from({ length: n }, (_, i) => i)),
+    slice: pure((arr: any[] | string, start: number, end?: number) =>
+      end === undefined ? arr.slice(start) : arr.slice(start, end)),
+    reverse: pure((arr: any[]) => [...arr].reverse()),
     includes: pure((arr: any[] | string, value: any) => arr.includes(value)),
     indexOf: pure((arr: any[] | string, value: any) => (arr as any[]).indexOf(value)),
-    flatten: (arr: any[]) => arr.flat(),
+    flatten: pure((arr: any[]) => arr.flat()),
 
     // Strings
     upper: pure((s: string) => s.toUpperCase()),
     lower: pure((s: string) => s.toLowerCase()),
     trim: pure((s: string) => s.trim()),
     strcat: pure((a: string, b: string) => a + b),
-    split: (s: string, sep: string) => s.split(sep),
+    split: pure((s: string, sep: string) => s.split(sep)),
     join: pure((arr: any[], sep: string) => arr.join(sep)),
 
     // Object utilities
-    keys: (obj: Record<string, any>) => Object.keys(obj),
-    values: (obj: Record<string, any>) => Object.values(obj),
-    entries: (obj: Record<string, any>) => Object.entries(obj),
-    fromEntries: (pairs: [string, any][]) => Object.fromEntries(pairs),
-    merge: (a: Record<string, any>, b: Record<string, any>) => ({ ...a, ...b }),
+    keys: pure((obj: Record<string, any>) => Object.keys(obj)),
+    values: pure((obj: Record<string, any>) => Object.values(obj)),
+    entries: pure((obj: Record<string, any>) => Object.entries(obj)),
+    fromEntries: pure((pairs: [string, any][]) => Object.fromEntries(pairs)),
+    merge: pure((a: Record<string, any>, b: Record<string, any>) => ({ ...a, ...b })),
     hasKey: pure((obj: Record<string, any>, key: string) => Object.hasOwn(obj, key)),
     isObject: pure((a: any) => typeof a === "object" && a !== null && !Array.isArray(a)),
-    pick: (obj: Record<string, any>, ks: string[]) => {
+    pick: pure((obj: Record<string, any>, ks: string[]) => {
       const result: Record<string, any> = {};
       for (const k of ks) if (k in obj) result[k] = obj[k];
       return result;
-    },
-    omit: (obj: Record<string, any>, ks: string[]) => {
+    }),
+    omit: pure((obj: Record<string, any>, ks: string[]) => {
       const exclude = new Set(ks);
       const result: Record<string, any> = {};
       for (const k of Object.keys(obj)) if (!exclude.has(k)) result[k] = obj[k];
       return result;
-    },
+    }),
 
     // Higher-order builtins (interpreter-aware — can invoke JSON callbacks)
     map: builtin((args, call) => {
