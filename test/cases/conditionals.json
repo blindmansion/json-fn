@@ -1,0 +1,123 @@
+{
+  "description": "conditionals",
+  "functions": {
+    "classify": {
+      "$params": ["n"],
+      "$return": {
+        "$cond": [
+          [{ "$fn": "lt", "$args": [{ "$var": "n" }, 0] }, "negative"],
+          [{ "$fn": "eq", "$args": [{ "$var": "n" }, 0] }, "zero"],
+          [true, "positive"]
+        ]
+      }
+    },
+    "fizzbuzz": {
+      "$params": ["n"],
+      "divBy3": { "$fn": "eq", "$args": [{ "$fn": "mod", "$args": [{ "$var": "n" }, 3] }, 0] },
+      "divBy5": { "$fn": "eq", "$args": [{ "$fn": "mod", "$args": [{ "$var": "n" }, 5] }, 0] },
+      "divBy15": { "$fn": "and", "$args": [{ "$var": "divBy3" }, { "$var": "divBy5" }] },
+      "$return": {
+        "$cond": [
+          [{ "$var": "divBy15" }, "FizzBuzz"],
+          [{ "$var": "divBy3" }, "Fizz"],
+          [{ "$var": "divBy5" }, "Buzz"],
+          [true, { "$var": "n" }]
+        ]
+      }
+    }
+  },
+  "cases": [
+    {
+      "description": "$if: truthy condition returns $then",
+      "body": {
+        "$return": {
+          "$if": { "$fn": "gt", "$args": [10, 5] },
+          "$then": "ten is greater",
+          "$else": "five is greater"
+        }
+      },
+      "expected": "ten is greater"
+    },
+    {
+      "description": "$if: falsy condition returns $else",
+      "body": {
+        "$return": {
+          "$if": { "$fn": "gt", "$args": [3, 5] },
+          "$then": "three is greater",
+          "$else": "five is greater"
+        }
+      },
+      "expected": "five is greater"
+    },
+    {
+      "description": "$cond: classify negative",
+      "body": { "$return": { "$fn": "classify", "$args": [-5] } },
+      "expected": "negative"
+    },
+    {
+      "description": "$cond: classify zero",
+      "body": { "$return": { "$fn": "classify", "$args": [0] } },
+      "expected": "zero"
+    },
+    {
+      "description": "$cond: classify positive",
+      "body": { "$return": { "$fn": "classify", "$args": [42] } },
+      "expected": "positive"
+    },
+    {
+      "description": "$cond: fizzbuzz(15) → FizzBuzz",
+      "body": { "$return": { "$fn": "fizzbuzz", "$args": [15] } },
+      "expected": "FizzBuzz"
+    },
+    {
+      "description": "$cond: fizzbuzz(9) → Fizz",
+      "body": { "$return": { "$fn": "fizzbuzz", "$args": [9] } },
+      "expected": "Fizz"
+    },
+    {
+      "description": "$cond: fizzbuzz(10) → Buzz",
+      "body": { "$return": { "$fn": "fizzbuzz", "$args": [10] } },
+      "expected": "Buzz"
+    },
+    {
+      "description": "$cond: fizzbuzz(7) → 7 (number passthrough)",
+      "body": { "$return": { "$fn": "fizzbuzz", "$args": [7] } },
+      "expected": 7
+    },
+    {
+      "description": "$cond: inline letter grade",
+      "body": {
+        "$params": ["score"],
+        "$return": {
+          "$cond": [
+            [{ "$fn": "gte", "$args": [{ "$var": "score" }, 90] }, "A"],
+            [{ "$fn": "gte", "$args": [{ "$var": "score" }, 80] }, "B"],
+            [{ "$fn": "gte", "$args": [{ "$var": "score" }, 70] }, "C"],
+            [{ "$fn": "gte", "$args": [{ "$var": "score" }, 60] }, "D"],
+            [true, "F"]
+          ]
+        }
+      },
+      "args": [85],
+      "expected": "B"
+    },
+    {
+      "description": "$cond: short-circuits (only first matching branch evaluates)",
+      "body": {
+        "$return": {
+          "$cond": [
+            [false, { "$fn": "add", "$args": [1, 2] }],
+            [true, "matched second"],
+            [true, "never reached"]
+          ]
+        }
+      },
+      "expected": "matched second"
+    },
+    {
+      "description": "$cond: single pair works as a guard",
+      "body": { "$return": { "$cond": [[true, "always this"]] } },
+      "expected": "always this"
+    }
+  ]
+}

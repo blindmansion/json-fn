@@ -1,0 +1,89 @@
+{
+  "description": "property access with $get/$from",
+  "cases": [
+    {
+      "description": "single key access on an object",
+      "body": {
+        "person": { "name": "Ada", "age": 36 },
+        "$return": { "$get": "name", "$from": { "$var": "person" } }
+      },
+      "expected": "Ada"
+    },
+    {
+      "description": "numeric index access on an array",
+      "body": { "$return": { "$get": 1, "$from": [10, 20, 30] } },
+      "expected": 20
+    },
+    {
+      "description": "path access walks nested structure",
+      "body": {
+        "person": { "name": "Ada", "address": { "city": "London", "zip": "SW1" } },
+        "$return": { "$get": ["address", "city"], "$from": { "$var": "person" } }
+      },
+      "expected": "London"
+    },
+    {
+      "description": "dynamic key via variable",
+      "body": {
+        "data": { "x": 100, "y": 200 },
+        "field": "y",
+        "$return": { "$get": { "$var": "field" }, "$from": { "$var": "data" } }
+      },
+      "expected": 200
+    },
+    {
+      "description": "dynamic key from function result",
+      "body": {
+        "data": { "hello": "world" },
+        "$return": {
+          "$get": { "$fn": "strcat", "$args": ["hel", "lo"] },
+          "$from": { "$var": "data" }
+        }
+      },
+      "expected": "world"
+    },
+    {
+      "description": "path with array index",
+      "body": {
+        "data": { "items": ["a", "b", "c"] },
+        "$return": { "$get": ["items", 2], "$from": { "$var": "data" } }
+      },
+      "expected": "c"
+    },
+    {
+      "description": "missing key returns null",
+      "body": {
+        "obj": { "a": 1 },
+        "$return": { "$get": "z", "$from": { "$var": "obj" } }
+      },
+      "expected": null
+    },
+    {
+      "description": "missing path segment returns null",
+      "body": {
+        "obj": { "a": { "b": 1 } },
+        "$return": { "$get": ["a", "missing", "deep"], "$from": { "$var": "obj" } }
+      },
+      "expected": null
+    },
+    {
+      "description": "$get from function call result",
+      "body": {
+        "$return": {
+          "$get": 0,
+          "$from": { "$fn": "concat", "$args": [[10], [20]] }
+        }
+      },
+      "expected": 10
+    },
+    {
+      "description": "get field then transform",
+      "body": {
+        "person": { "name": "ada", "age": 36 },
+        "name": { "$get": "name", "$from": { "$var": "person" } },
+        "$return": { "$fn": "upper", "$args": [{ "$var": "name" }] }
+      },
+      "expected": "ADA"
+    }
+  ]
+}

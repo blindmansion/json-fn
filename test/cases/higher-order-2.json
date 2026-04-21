@@ -1,0 +1,332 @@
+{
+  "description": "higher-order functions (part 2)",
+  "cases": [
+    {
+      "description": "flatten: flattens one level of nesting",
+      "body": { "$return": { "$fn": "flatten", "$args": [[[1, 2], [3, 4], [5]]] } },
+      "expected": [1, 2, 3, 4, 5]
+    },
+    {
+      "description": "flatten: does not flatten deeper than one level",
+      "body": { "$return": { "$fn": "flatten", "$args": [[[1, [2, 3]], [4]]] } },
+      "expected": [1, [2, 3], 4]
+    },
+    {
+      "description": "flatten: non-array elements pass through",
+      "body": { "$return": { "$fn": "flatten", "$args": [[1, [2, 3], 4, [5]]] } },
+      "expected": [1, 2, 3, 4, 5]
+    },
+    {
+      "description": "flatten: empty array returns empty array",
+      "body": { "$return": { "$fn": "flatten", "$args": [[]] } },
+      "expected": []
+    },
+    {
+      "description": "flatMap: maps and flattens in one step",
+      "body": {
+        "$return": {
+          "$fn": "flatMap",
+          "$args": [
+            { "$params": ["x"], "$return": [{ "$var": "x" }, { "$fn": "neg", "$args": [{ "$var": "x" }] }] },
+            [1, 2, 3]
+          ]
+        }
+      },
+      "expected": [1, -1, 2, -2, 3, -3]
+    },
+    {
+      "description": "flatMap: non-array return values are kept as-is",
+      "body": {
+        "$return": {
+          "$fn": "flatMap",
+          "$args": [
+            { "$params": ["x"], "$return": { "$fn": "mul", "$args": [{ "$var": "x" }, 10] } },
+            [1, 2, 3]
+          ]
+        }
+      },
+      "expected": [10, 20, 30]
+    },
+    {
+      "description": "flatMap: callback receives index as second argument",
+      "body": {
+        "$return": {
+          "$fn": "flatMap",
+          "$args": [
+            { "$params": ["x", "i"], "$return": [{ "$var": "i" }] },
+            ["a", "b", "c"]
+          ]
+        }
+      },
+      "expected": [0, 1, 2]
+    },
+    {
+      "description": "flatMap: empty arrays from callback are removed",
+      "body": {
+        "$return": {
+          "$fn": "flatMap",
+          "$args": [
+            {
+              "$params": ["x"],
+              "$return": {
+                "$if": { "$fn": "gt", "$args": [{ "$var": "x" }, 2] },
+                "$then": [{ "$var": "x" }],
+                "$else": []
+              }
+            },
+            [1, 2, 3, 4]
+          ]
+        }
+      },
+      "expected": [3, 4]
+    },
+    {
+      "description": "flatMap: empty input returns empty array",
+      "body": {
+        "$return": {
+          "$fn": "flatMap",
+          "$args": [{ "$params": ["x"], "$return": [{ "$var": "x" }] }, []]
+        }
+      },
+      "expected": []
+    },
+    {
+      "description": "groupBy: groups by string key",
+      "body": {
+        "$return": {
+          "$fn": "groupBy",
+          "$args": [
+            { "$params": ["item"], "$return": { "$get": "role", "$from": { "$var": "item" } } },
+            [
+              { "name": "alice", "role": "admin" },
+              { "name": "bob", "role": "user" },
+              { "name": "carol", "role": "admin" },
+              { "name": "dave", "role": "user" }
+            ]
+          ]
+        }
+      },
+      "expected": {
+        "admin": [
+          { "name": "alice", "role": "admin" },
+          { "name": "carol", "role": "admin" }
+        ],
+        "user": [
+          { "name": "bob", "role": "user" },
+          { "name": "dave", "role": "user" }
+        ]
+      }
+    },
+    {
+      "description": "groupBy: groups by computed numeric key",
+      "body": {
+        "$return": {
+          "$fn": "groupBy",
+          "$args": [
+            { "$params": ["n"], "$return": { "$fn": "mod", "$args": [{ "$var": "n" }, 2] } },
+            [1, 2, 3, 4, 5, 6]
+          ]
+        }
+      },
+      "expected": { "1": [1, 3, 5], "0": [2, 4, 6] }
+    },
+    {
+      "description": "groupBy: works with named function",
+      "body": { "$return": { "$fn": "groupBy", "$args": [{ "$fn": "parity" }, [1, 2, 3, 4]] } },
+      "functions": {
+        "parity": {
+          "$params": ["n"],
+          "$return": {
+            "$if": { "$fn": "eq", "$args": [{ "$fn": "mod", "$args": [{ "$var": "n" }, 2] }, 0] },
+            "$then": "even",
+            "$else": "odd"
+          }
+        }
+      },
+      "expected": { "odd": [1, 3], "even": [2, 4] }
+    },
+    {
+      "description": "groupBy: empty array returns empty object",
+      "body": {
+        "$return": {
+          "$fn": "groupBy",
+          "$args": [{ "$params": ["x"], "$return": "a" }, []]
+        }
+      },
+      "expected": {}
+    },
+    {
+      "description": "sortBy: sorts by numeric key function",
+      "body": {
+        "$return": {
+          "$fn": "sortBy",
+          "$args": [
+            { "$params": ["s"], "$return": { "$fn": "length", "$args": [{ "$var": "s" }] } },
+            ["bbb", "a", "cccc", "dd"]
+          ]
+        }
+      },
+      "expected": ["a", "dd", "bbb", "cccc"]
+    },
+    {
+      "description": "sortBy: sorts by string key function",
+      "body": {
+        "$return": {
+          "$fn": "sortBy",
+          "$args": [
+            { "$params": ["item"], "$return": { "$get": "name", "$from": { "$var": "item" } } },
+            [
+              { "name": "charlie", "age": 30 },
+              { "name": "alice", "age": 25 },
+              { "name": "bob", "age": 35 }
+            ]
+          ]
+        }
+      },
+      "expected": [
+        { "name": "alice", "age": 25 },
+        { "name": "bob", "age": 35 },
+        { "name": "charlie", "age": 30 }
+      ]
+    },
+    {
+      "description": "sortBy: sorts by object field extraction",
+      "body": {
+        "$return": {
+          "$fn": "sortBy",
+          "$args": [
+            { "$params": ["item"], "$return": { "$get": "age", "$from": { "$var": "item" } } },
+            [
+              { "name": "alice", "age": 30 },
+              { "name": "bob", "age": 20 },
+              { "name": "carol", "age": 25 }
+            ]
+          ]
+        }
+      },
+      "expected": [
+        { "name": "bob", "age": 20 },
+        { "name": "carol", "age": 25 },
+        { "name": "alice", "age": 30 }
+      ]
+    },
+    {
+      "description": "sortBy: stable sort preserves order of equal keys",
+      "body": {
+        "$return": {
+          "$fn": "sortBy",
+          "$args": [
+            { "$params": ["item"], "$return": { "$get": "group", "$from": { "$var": "item" } } },
+            [
+              { "name": "alice", "group": 1 },
+              { "name": "bob", "group": 2 },
+              { "name": "carol", "group": 1 }
+            ]
+          ]
+        }
+      },
+      "expected": [
+        { "name": "alice", "group": 1 },
+        { "name": "carol", "group": 1 },
+        { "name": "bob", "group": 2 }
+      ]
+    },
+    {
+      "description": "sortBy: empty array returns empty array",
+      "body": {
+        "$return": {
+          "$fn": "sortBy",
+          "$args": [{ "$params": ["x"], "$return": { "$var": "x" } }, []]
+        }
+      },
+      "expected": []
+    },
+    {
+      "description": "pipe: threads value through a list of functions",
+      "body": {
+        "$return": { "$fn": "pipe", "$args": [[{ "$fn": "neg" }, { "$fn": "abs" }], -5] }
+      },
+      "expected": 5
+    },
+    {
+      "description": "pipe: single function in pipeline",
+      "body": {
+        "$return": { "$fn": "pipe", "$args": [[{ "$fn": "neg" }], 42] }
+      },
+      "expected": -42
+    },
+    {
+      "description": "pipe: empty pipeline returns initial value",
+      "body": {
+        "$return": { "$fn": "pipe", "$args": [[], 99] }
+      },
+      "expected": 99
+    },
+    {
+      "description": "pipe: works with inline functions",
+      "body": {
+        "$return": {
+          "$fn": "pipe",
+          "$args": [
+            [
+              { "$params": ["x"], "$return": { "$fn": "mul", "$args": [{ "$var": "x" }, 2] } },
+              { "$params": ["x"], "$return": { "$fn": "add", "$args": [{ "$var": "x" }, 1] } }
+            ],
+            5
+          ]
+        }
+      },
+      "expected": 11
+    },
+    {
+      "description": "pipe: works with named functions",
+      "body": {
+        "$return": { "$fn": "pipe", "$args": [[{ "$fn": "double" }, { "$fn": "addTen" }], 3] }
+      },
+      "functions": {
+        "double": {
+          "$params": ["x"],
+          "$return": { "$fn": "mul", "$args": [{ "$var": "x" }, 2] }
+        },
+        "addTen": {
+          "$params": ["x"],
+          "$return": { "$fn": "add", "$args": [{ "$var": "x" }, 10] }
+        }
+      },
+      "expected": 16
+    },
+    {
+      "description": "pipe: mix of named and inline functions",
+      "body": {
+        "$return": {
+          "$fn": "pipe",
+          "$args": [
+            [
+              { "$fn": "neg" },
+              { "$params": ["x"], "$return": { "$fn": "mul", "$args": [{ "$var": "x" }, { "$var": "x" }] } },
+              { "$fn": "str" }
+            ],
+            3
+          ]
+        }
+      },
+      "expected": "9"
+    },
+    {
+      "description": "pipe: pipeline over a string (split → length)",
+      "body": {
+        "$return": {
+          "$fn": "pipe",
+          "$args": [
+            [
+              { "$params": ["s"], "$return": { "$fn": "split", "$args": [{ "$var": "s" }, " "] } },
+              { "$fn": "length" }
+            ],
+            "hello world foo"
+          ]
+        }
+      },
+      "expected": 3
+    }
+  ]
+}

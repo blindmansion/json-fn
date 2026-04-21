@@ -1,0 +1,178 @@
+{
+  "description": "scoping",
+  "cases": [
+    {
+      "description": "inner variable shadows outer parameter of the same name",
+      "body": {
+        "$params": ["x"],
+        "$return": {
+          "$fn": {
+            "x": 999,
+            "$return": { "$var": "x" }
+          },
+          "$args": []
+        }
+      },
+      "args": [10],
+      "expected": 999
+    },
+    {
+      "description": "inner parameter shadows outer parameter in a nested function call",
+      "body": {
+        "$params": ["x"],
+        "$return": {
+          "$fn": {
+            "$params": ["x"],
+            "$return": { "$fn": "add", "$args": [{ "$var": "x" }, 1] }
+          },
+          "$args": [50]
+        }
+      },
+      "args": [10],
+      "expected": 51
+    },
+    {
+      "description": "outer parameter is still captured when not shadowed",
+      "body": {
+        "$params": ["x"],
+        "$return": {
+          "$fn": {
+            "$params": ["y"],
+            "$return": { "$fn": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] }
+          },
+          "$args": [5]
+        }
+      },
+      "args": [10],
+      "expected": 15
+    },
+    {
+      "description": "returned closure preserves inner scope (closure shape)",
+      "body": { "$return": { "$fn": "makeAdder", "$args": [10] } },
+      "functions": {
+        "makeAdder": {
+          "$params": ["x"],
+          "$return": {
+            "$params": ["x"],
+            "$return": { "$fn": "add", "$args": [{ "$var": "x" }, 1000] }
+          }
+        }
+      },
+      "expected": {
+        "$params": ["x"],
+        "$return": { "$fn": "add", "$args": [{ "$var": "x" }, 1000] }
+      }
+    },
+    {
+      "description": "returned closure preserves inner scope (call through)",
+      "body": {
+        "adder": { "$fn": "makeAdder", "$args": [10] },
+        "$return": { "$fn": { "$var": "adder" }, "$args": [42] }
+      },
+      "functions": {
+        "makeAdder": {
+          "$params": ["x"],
+          "$return": {
+            "$params": ["x"],
+            "$return": { "$fn": "add", "$args": [{ "$var": "x" }, 1000] }
+          }
+        }
+      },
+      "expected": 1042
+    },
+    {
+      "description": "multiple levels of shadowing",
+      "body": {
+        "x": 1,
+        "$return": {
+          "$fn": {
+            "x": 2,
+            "$return": {
+              "$fn": {
+                "x": 3,
+                "$return": { "$var": "x" }
+              },
+              "$args": []
+            }
+          },
+          "$args": []
+        }
+      },
+      "expected": 3
+    },
+    {
+      "description": "shadowed name in closure is not prematurely substituted (closure shape)",
+      "body": { "$return": { "$fn": "outer", "$args": [5] } },
+      "functions": {
+        "outer": {
+          "$params": ["n"],
+          "$return": {
+            "$params": ["x"],
+            "n": { "$fn": "mul", "$args": [{ "$var": "x" }, 10] },
+            "$return": { "$var": "n" }
+          }
+        }
+      },
+      "expected": {
+        "$params": ["x"],
+        "n": { "$fn": "mul", "$args": [{ "$var": "x" }, 10] },
+        "$return": { "$var": "n" }
+      }
+    },
+    {
+      "description": "shadowed name in closure is not prematurely substituted (call through)",
+      "body": {
+        "$return": { "$fn": { "$fn": "outer", "$args": [5] }, "$args": [7] }
+      },
+      "functions": {
+        "outer": {
+          "$params": ["n"],
+          "$return": {
+            "$params": ["x"],
+            "n": { "$fn": "mul", "$args": [{ "$var": "x" }, 10] },
+            "$return": { "$var": "n" }
+          }
+        }
+      },
+      "expected": 70
+    },
+    {
+      "description": "non-shadowed outer vars are baked into closure",
+      "body": { "$return": { "$fn": "outer", "$args": [10, 20] } },
+      "functions": {
+        "outer": {
+          "$params": ["a", "b"],
+          "$return": {
+            "$params": ["c"],
+            "$return": {
+              "$fn": "add",
+              "$args": [{ "$var": "a" }, { "$fn": "add", "$args": [{ "$var": "b" }, { "$var": "c" }] }]
+            }
+          }
+        }
+      },
+      "expected": {
+        "$params": ["c"],
+        "$return": {
+          "$fn": "add",
+          "$args": [10, { "$fn": "add", "$args": [20, { "$var": "c" }] }]
+        }
+      }
+    },
+    {
+      "description": "partial shadowing — only the colliding name is masked",
+      "body": {
+        "x": 100,
+        "y": 200,
+        "$return": {
+          "$fn": {
+            "$params": ["x"],
+            "$return": { "$fn": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] }
+          },
+          "$args": [1]
+        }
+      },
+      "expected": 201
+    }
+  ]
+}

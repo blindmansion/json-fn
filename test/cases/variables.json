@@ -1,0 +1,26 @@
+{
+  "description": "local variables with $var",
+  "cases": [
+    {
+      "description": "variables can reference each other",
+      "body": {
+        "a": 5,
+        "b": 10,
+        "sum": { "$fn": "add", "$args": [{ "$var": "a" }, { "$var": "b" }] },
+        "doubled": { "$fn": "mul", "$args": [{ "$var": "sum" }, 2] },
+        "$return": { "$var": "doubled" }
+      },
+      "expected": 30
+    },
+    {
+      "description": "variables can reference arguments via $params",
+      "body": {
+        "$params": ["x", "y"],
+        "product": { "$fn": "mul", "$args": [{ "$var": "x" }, { "$var": "y" }] },
+        "$return": { "$var": "product" }
+      },
+      "args": [7, 8],
+      "expected": 56
+    }
+  ]
+}

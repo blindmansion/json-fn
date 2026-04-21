@@ -1,0 +1,307 @@
+{
+  "description": "closures, currying, and advanced function patterns",
+  "functions": {
+    "partialAdd": {
+      "$params": ["a"],
+      "$return": {
+        "$params": ["b"],
+        "$return": { "$fn": "add", "$args": [{ "$var": "a" }, { "$var": "b" }] }
+      }
+    },
+    "accum": {
+      "$params": ["...initial"],
+      "$return": {
+        "$params": ["...more"],
+        "$return": {
+          "$fn": "concat",
+          "$args": [{ "$var": "initial" }, { "$var": "more" }]
+        }
+      }
+    },
+    "curriedAdd": {
+      "$params": ["a"],
+      "$return": {
+        "$params": ["b"],
+        "$return": { "$fn": "add", "$args": [{ "$var": "a" }, { "$var": "b" }] }
+      }
+    },
+    "curryApply": {
+      "$params": ["targetFn", "arity", "accumulated", "newArgs"],
+      "allArgs": { "$fn": "concat", "$args": [{ "$var": "accumulated" }, { "$var": "newArgs" }] },
+      "numArgs": { "$fn": "length", "$args": [{ "$var": "allArgs" }] },
+      "enough": { "$fn": "gte", "$args": [{ "$var": "numArgs" }, { "$var": "arity" }] },
+      "$return": {
+        "$if": { "$var": "enough" },
+        "$then": {
+          "$fn": { "$var": "targetFn" },
+          "$args": { "$var": "allArgs" }
+        },
+        "$else": {
+          "$params": ["...nextArgs"],
+          "$return": {
+            "$fn": "curryApply",
+            "$args": [
+              { "$var": "targetFn" },
+              { "$var": "arity" },
+              { "$var": "allArgs" },
+              { "$var": "nextArgs" }
+            ]
+          }
+        }
+      }
+    },
+    "curry": {
+      "$params": ["targetFn", "arity"],
+      "$return": {
+        "$params": ["...newArgs"],
+        "$return": {
+          "$fn": "curryApply",
+          "$args": [{ "$var": "targetFn" }, { "$var": "arity" }, [], { "$var": "newArgs" }]
+        }
+      }
+    },
+    "autoCurry": {
+      "$params": ["targetFn"],
+      "detectedArity": { "$fn": "arity", "$args": [{ "$var": "targetFn" }] },
+      "$return": {
+        "$params": ["...newArgs"],
+        "$return": {
+          "$fn": "curryApply",
+          "$args": [{ "$var": "targetFn" }, { "$var": "detectedArity" }, [], { "$var": "newArgs" }]
+        }
+      }
+    },
+    "add3": {
+      "$params": ["a", "b", "c"],
+      "$return": {
+        "$fn": "add",
+        "$args": [{ "$var": "a" }, { "$fn": "add", "$args": [{ "$var": "b" }, { "$var": "c" }] }]
+      }
+    }
+  },
+  "cases": [
+    {
+      "description": "makeAdder(10) returns a closure with x captured",
+      "body": {
+        "$params": ["x"],
+        "$return": {
+          "$params": ["y"],
+          "$return": { "$fn": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] }
+        }
+      },
+      "args": [10],
+      "expected": {
+        "$params": ["y"],
+        "$return": { "$fn": "add", "$args": [10, { "$var": "y" }] }
+      }
+    },
+    {
+      "description": "makeAdder(10)(5) via nested inline call",
+      "body": {
+        "adder": {
+          "$fn": {
+            "$params": ["x"],
+            "$return": {
+              "$params": ["y"],
+              "$return": { "$fn": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] }
+            }
+          },
+          "$args": [10]
+        },
+        "$return": {
+          "$fn": { "$var": "adder" },
+          "$args": [5]
+        }
+      },
+      "expected": 15
+    },
+    {
+      "description": "variadic: capture all args with ...rest",
+      "body": {
+        "$params": ["...allArgs"],
+        "$return": { "$var": "allArgs" }
+      },
+      "args": [10, 20, 30],
+      "expected": [10, 20, 30]
+    },
+    {
+      "description": "dynamic dispatch: call function by name from args (add)",
+      "body": {
+        "$params": ["fnName"],
+        "$return": {
+          "$fn": { "$var": "fnName" },
+          "$args": [3, 4]
+        }
+      },
+      "args": ["add"],
+      "expected": 7
+    },
+    {
+      "description": "dynamic dispatch: call function by name from args (mul)",
+      "body": {
+        "$params": ["fnName"],
+        "$return": {
+          "$fn": { "$var": "fnName" },
+          "$args": [3, 4]
+        }
+      },
+      "args": ["mul"],
+      "expected": 12
+    },
+    {
+      "description": "partialAdd(10) returns a function",
+      "body": { "$return": { "$fn": "partialAdd", "$args": [10] } },
+      "expected": {
+        "$params": ["b"],
+        "$return": { "$fn": "add", "$args": [10, { "$var": "b" }] }
+      }
+    },
+    {
+      "description": "partialAdd(10)(7) = 17",
+      "body": {
+        "partial": { "$fn": "partialAdd", "$args": [10] },
+        "$return": {
+          "$fn": { "$var": "partial" },
+          "$args": [7]
+        }
+      },
+      "expected": 17
+    },
+    {
+      "description": "accum(1,2)(3,4) concatenates args",
+      "body": {
+        "step1": { "$fn": "accum", "$args": [1, 2] },
+        "$return": {
+          "$fn": { "$var": "step1" },
+          "$args": [3, 4]
+        }
+      },
+      "expected": [1, 2, 3, 4]
+    },
+    {
+      "description": "arity check: length([1,2,3]) >= 3 is true",
+      "body": {
+        "args": [1, 2, 3],
+        "numArgs": { "$fn": "length", "$args": [{ "$var": "args" }] },
+        "enough": { "$fn": "gte", "$args": [{ "$var": "numArgs" }, 3] },
+        "$return": { "$var": "enough" }
+      },
+      "expected": true
+    },
+    {
+      "description": "arity check: length([1,2]) >= 3 is false",
+      "body": {
+        "args": [1, 2],
+        "numArgs": { "$fn": "length", "$args": [{ "$var": "args" }] },
+        "enough": { "$fn": "gte", "$args": [{ "$var": "numArgs" }, 3] },
+        "$return": { "$var": "enough" }
+      },
+      "expected": false
+    },
+    {
+      "description": "curriedAdd(10)(32) = 42",
+      "body": {
+        "step1": { "$fn": "curriedAdd", "$args": [10] },
+        "$return": {
+          "$fn": { "$var": "step1" },
+          "$args": [32]
+        }
+      },
+      "expected": 42
+    },
+    {
+      "description": "curry('add', 2) returns a function",
+      "body": { "$return": { "$fn": "curry", "$args": ["add", 2] } },
+      "expected": {
+        "$params": ["...newArgs"],
+        "$return": {
+          "$fn": "curryApply",
+          "$args": ["add", 2, [], { "$var": "newArgs" }]
+        }
+      }
+    },
+    {
+      "description": "curry('add', 2)(10) returns another function",
+      "body": {
+        "curriedAdd": { "$fn": "curry", "$args": ["add", 2] },
+        "$return": {
+          "$fn": { "$var": "curriedAdd" },
+          "$args": [10]
+        }
+      },
+      "expected": {
+        "$params": ["...nextArgs"],
+        "$return": {
+          "$fn": "curryApply",
+          "$args": ["add", 2, [10], { "$var": "nextArgs" }]
+        }
+      }
+    },
+    {
+      "description": "curry('add', 2)(10)(32) = 42",
+      "body": {
+        "step1": { "$fn": "curry", "$args": ["add", 2] },
+        "step2": { "$fn": { "$var": "step1" }, "$args": [10] },
+        "$return": { "$fn": { "$var": "step2" }, "$args": [32] }
+      },
+      "expected": 42
+    },
+    {
+      "description": "curry('add', 2)(10, 32) — all args at once",
+      "body": {
+        "curriedAdd": { "$fn": "curry", "$args": ["add", 2] },
+        "$return": {
+          "$fn": { "$var": "curriedAdd" },
+          "$args": [10, 32]
+        }
+      },
+      "expected": 42
+    },
+    {
+      "description": "curry('add3', 3)(1)(2)(3) = 6",
+      "body": {
+        "step1": { "$fn": "curry", "$args": ["add3", 3] },
+        "step2": { "$fn": { "$var": "step1" }, "$args": [1] },
+        "step3": { "$fn": { "$var": "step2" }, "$args": [2] },
+        "$return": { "$fn": { "$var": "step3" }, "$args": [3] }
+      },
+      "expected": 6
+    },
+    {
+      "description": "curry('add3', 3)(1, 2)(3) = 6",
+      "body": {
+        "step1": { "$fn": "curry", "$args": ["add3", 3] },
+        "step2": { "$fn": { "$var": "step1" }, "$args": [1, 2] },
+        "$return": { "$fn": { "$var": "step2" }, "$args": [3] }
+      },
+      "expected": 6
+    },
+    {
+      "description": "autoCurry('add')(10)(32) = 42",
+      "body": {
+        "step1": { "$fn": "autoCurry", "$args": ["add"] },
+        "step2": { "$fn": { "$var": "step1" }, "$args": [10] },
+        "$return": { "$fn": { "$var": "step2" }, "$args": [32] }
+      },
+      "expected": 42
+    },
+    {
+      "description": "autoCurry('add')(10, 32) — all args at once",
+      "body": {
+        "curriedAdd": { "$fn": "autoCurry", "$args": ["add"] },
+        "$return": { "$fn": { "$var": "curriedAdd" }, "$args": [10, 32] }
+      },
+      "expected": 42
+    },
+    {
+      "description": "autoCurry with a JSON function (add3)",
+      "body": {
+        "step1": { "$fn": "autoCurry", "$args": ["add3"] },
+        "step2": { "$fn": { "$var": "step1" }, "$args": [1] },
+        "step3": { "$fn": { "$var": "step2" }, "$args": [2] },
+        "$return": { "$fn": { "$var": "step3" }, "$args": [3] }
+      },
+      "expected": 6
+    }
+  ]
+}

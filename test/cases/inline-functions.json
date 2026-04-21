@@ -1,0 +1,37 @@
+{
+  "description": "inline (anonymous) functions",
+  "cases": [
+    {
+      "description": "inline square(5)",
+      "body": {
+        "$return": {
+          "$fn": {
+            "$params": ["x"],
+            "$return": { "$fn": "mul", "$args": [{ "$var": "x" }, { "$var": "x" }] }
+          },
+          "$args": [5]
+        }
+      },
+      "expected": 25
+    },
+    {
+      "description": "nested inline: sumThenSquare(3, 4)",
+      "body": {
+        "$return": {
+          "$fn": {
+            "$params": ["a", "b"],
+            "$return": {
+              "$fn": {
+                "$params": ["sum"],
+                "$return": { "$fn": "mul", "$args": [{ "$var": "sum" }, { "$var": "sum" }] }
+              },
+              "$args": [{ "$fn": "add", "$args": [{ "$var": "a" }, { "$var": "b" }] }]
+            }
+          },
+          "$args": [3, 4]
+        }
+      },
+      "expected": 49
+    }
+  ]
+}
