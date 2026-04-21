@@ -1,6 +1,37 @@
 import { builtin, pure, getArity } from "./utils";
 import type { FunctionRegistry } from "./types";
 
+const INLINE_FLAGS_RE = /^\(\?([imsu]*)\)/;
+const VALID_FLAGS = new Set(["i", "m", "s", "u"]);
+
+function parsePattern(pattern: string): RegExp {
+  const flagMatch = INLINE_FLAGS_RE.exec(pattern);
+  let flags = "";
+  let source = pattern;
+  if (flagMatch) {
+    flags = flagMatch[1]!;
+    source = pattern.slice(flagMatch[0].length);
+    for (const f of flags) {
+      if (!VALID_FLAGS.has(f)) throw new Error(`reTest: unsupported flag "${f}"`);
+    }
+  }
+  return new RegExp(source, flags);
+}
+
+function buildMatchResult(m: RegExpExecArray): Record<string, any> {
+  const named: Record<string, string> = {};
+  if (m.groups) {
+    for (const [k, v] of Object.entries(m.groups)) {
+      named[k] = v ?? null;
+    }
+  }
+  const groups: (string | null)[] = [];
+  for (let i = 1; i < m.length; i++) {
+    groups.push(m[i] ?? null);
+  }
+  return { match: m[0], index: m.index, groups, named };
+}
+
 export function createStdlib(): FunctionRegistry {
   return {
     // Arithmetic
@@ -207,6 +238,58 @@ export function createStdlib(): FunctionRegistry {
       }
       return value!;
     }, 2),
+
+    // Regex
+    reTest: pure((pattern: string, str: string) => {
+      return parsePattern(pattern).test(str);
+    }),
+    reMatch: pure((pattern: string, str: string) => {
+      const re = parsePattern(pattern);
+      const m = re.exec(str);
+      if (!m) return null;
+      return buildMatchResult(m);
+    }),
+    reMatchAll: pure((pattern: string, str: string) => {
+      const re = parsePattern(pattern);
+      const global = new RegExp(re.source, re.flags.includes("g") ? re.flags : re.flags + "g");
+      const results: Record<string, any>[] = [];
+      let m: RegExpExecArray | null;
+      while ((m = global.exec(str)) !== null) {
+        results.push(buildMatchResult(m));
+        if (m[0]!.length === 0) global.lastIndex++;
+      }
+      return results;
+    }),
+    reReplace: pure((pattern: string, replacement: string, str: string) => {
+      const re = parsePattern(pattern);
+      const global = new RegExp(re.source, re.flags.includes("g") ? re.flags : re.flags + "g");
+      return str.replace(global, replacement);
+    }),
+    reSplit: pure((pattern: string, str: string) => {
+      return str.split(parsePattern(pattern));
+    }),
+    reReplaceWith: builtin((args, call) => {
+      const [pattern, callback, str] = args as [string, any, string];
+      if (typeof pattern !== "string")
+        throw new Error("reReplaceWith: first argument must be a pattern string");
+      if (typeof str !== "string")
+        throw new Error("reReplaceWith: third argument must be a string");
+      const re = parsePattern(pattern);
+      const global = new RegExp(re.source, re.flags.includes("g") ? re.flags : re.flags + "g");
+      const parts: string[] = [];
+      let lastIndex = 0;
+      let m: RegExpExecArray | null;
+      while ((m = global.exec(str)) !== null) {
+        parts.push(str.slice(lastIndex, m.index));
+        const matchObj = buildMatchResult(m);
+        const replaced = call(callback, [matchObj]);
+        parts.push(String(replaced));
+        lastIndex = m.index + m[0]!.length;
+        if (m[0]!.length === 0) global.lastIndex++;
+      }
+      parts.push(str.slice(lastIndex));
+      return parts.join("");
+    }, 3),
 
     // Introspection
     arity: builtin((args, _call, functions) => {

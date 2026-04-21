@@ -370,6 +370,22 @@ All functions listed below are available in the standard library.
 | `split`  | `(s, sep)`   | split string              |
 | `join`   | `(arr, sep)` | join array with separator |
 
+### Regex
+
+Patterns are plain strings. Flags are specified via inline `(?flags)` prefix: `i` (case-insensitive), `m` (multiline), `s` (dotall). Example: `"(?i)hello"`.
+
+Match results are objects with `match` (full matched text), `index` (start position), `groups` (positional captures, `null` for unmatched optional groups), and `named` (named capture groups, empty object if none).
+
+| Function     | Args                          | Description                                                |
+| ------------ | ----------------------------- | ---------------------------------------------------------- |
+| `reTest`     | `(pattern, str)`              | true if pattern matches anywhere in str                    |
+| `reMatch`    | `(pattern, str)`              | first match object, or `null`                              |
+| `reMatchAll` | `(pattern, str)`              | array of all non-overlapping match objects                 |
+| `reReplace`  | `(pattern, replacement, str)` | replace all matches. `$0` = full match, `$1`/`$2` = groups |
+| `reSplit`    | `(pattern, str)`              | split string by pattern                                    |
+
+`reReplaceWith` is a higher-order variant listed under [Higher-Order Functions](#higher-order-functions).
+
 ### Objects
 
 | Function      | Args          | Description                        |
@@ -387,21 +403,22 @@ All functions listed below are available in the standard library.
 
 Higher-order functions can invoke json-fn callbacks. The callback argument can be a function reference (`{ "$fn": "name" }`), an inline function body, or a string name.
 
-| Function    | Args                    | Description                                                                      |
-| ----------- | ----------------------- | -------------------------------------------------------------------------------- |
-| `map`       | `(callback, arr)`       | map. Callback receives `(item, index)`.                                          |
-| `filter`    | `(callback, arr)`       | filter. Callback receives `(item, index)`.                                       |
-| `reduce`    | `(callback, init, arr)` | reduce. Callback receives `(acc, item, index)`.                                  |
-| `find`      | `(callback, arr)`       | first match or `null`. Callback receives `(item, index)`.                        |
-| `findIndex` | `(callback, arr)`       | index of first match or `-1`. Callback receives `(item, index)`.                 |
-| `some`      | `(callback, arr)`       | any match. Callback receives `(item, index)`.                                    |
-| `every`     | `(callback, arr)`       | all match. Callback receives `(item, index)`.                                    |
-| `sort`      | `(comparator, arr)`     | sorted copy. Comparator receives `(a, b)`, returns number.                       |
-| `sortBy`    | `(keyFn, arr)`          | sorted copy by key function. keyFn receives `(item, index)`.                     |
-| `flatMap`   | `(callback, arr)`       | map then flatten one level. Callback receives `(item, index)`.                   |
-| `groupBy`   | `(keyFn, arr)`          | group into object. keyFn receives `(item, index)`, must return string or number. |
-| `mapValues` | `(callback, obj)`       | transform object values. Callback receives `(value, key)`.                       |
-| `pipe`      | `(fns, init)`           | thread value through array of functions left-to-right.                           |
+| Function        | Args                       | Description                                                                      |
+| --------------- | -------------------------- | -------------------------------------------------------------------------------- |
+| `map`           | `(callback, arr)`          | map. Callback receives `(item, index)`.                                          |
+| `filter`        | `(callback, arr)`          | filter. Callback receives `(item, index)`.                                       |
+| `reduce`        | `(callback, init, arr)`    | reduce. Callback receives `(acc, item, index)`.                                  |
+| `find`          | `(callback, arr)`          | first match or `null`. Callback receives `(item, index)`.                        |
+| `findIndex`     | `(callback, arr)`          | index of first match or `-1`. Callback receives `(item, index)`.                 |
+| `some`          | `(callback, arr)`          | any match. Callback receives `(item, index)`.                                    |
+| `every`         | `(callback, arr)`          | all match. Callback receives `(item, index)`.                                    |
+| `sort`          | `(comparator, arr)`        | sorted copy. Comparator receives `(a, b)`, returns number.                       |
+| `sortBy`        | `(keyFn, arr)`             | sorted copy by key function. keyFn receives `(item, index)`.                     |
+| `flatMap`       | `(callback, arr)`          | map then flatten one level. Callback receives `(item, index)`.                   |
+| `groupBy`       | `(keyFn, arr)`             | group into object. keyFn receives `(item, index)`, must return string or number. |
+| `mapValues`     | `(callback, obj)`          | transform object values. Callback receives `(value, key)`.                       |
+| `pipe`          | `(fns, init)`              | thread value through array of functions left-to-right.                           |
+| `reReplaceWith` | `(pattern, callback, str)` | replace all regex matches via callback. Callback receives a match object.        |
 
 ### Introspection
 
