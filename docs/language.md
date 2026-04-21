@@ -239,7 +239,7 @@ Functions can call themselves by name if registered in the function registry.
 
 ### Local Recursive Functions
 
-Local variables that are statically-defined function bodies (i.e. the value has a `$return` key) are automatically available by name for string dispatch within their scope. This enables recursion without registering the function in the global registry.
+Local variables whose values are function bodies (have a `$return` key) can be called by name within their scope. This enables recursion without registering in the global registry. Mutual recursion between sibling locals works too.
 
 ```json
 {
@@ -262,32 +262,7 @@ Local variables that are statically-defined function bodies (i.e. the value has 
 }
 ```
 
-Mutual recursion between local function bodies in the same scope also works:
-
-```json
-{
-  "$params": ["n"],
-  "isEven": {
-    "$params": ["x"],
-    "$return": {
-      "$if": { "$fn": "eq", "$args": [{ "$var": "x" }, 0] },
-      "$then": true,
-      "$else": { "$fn": "isOdd", "$args": [{ "$fn": "sub", "$args": [{ "$var": "x" }, 1] }] }
-    }
-  },
-  "isOdd": {
-    "$params": ["x"],
-    "$return": {
-      "$if": { "$fn": "eq", "$args": [{ "$var": "x" }, 0] },
-      "$then": false,
-      "$else": { "$fn": "isEven", "$args": [{ "$fn": "sub", "$args": [{ "$var": "x" }, 1] }] }
-    }
-  },
-  "$return": { "$fn": "isEven", "$args": [{ "$var": "n" }] }
-}
-```
-
-Local function bodies can reference other variables from their enclosing scope (parameters and sibling locals). They can also shadow global registry functions of the same name within their scope. Local function names are scoped — they do not leak into parent or sibling scopes.
+Local function names can shadow global registry functions and do not leak into parent or sibling scopes.
 
 ## Dynamic Dispatch
 
