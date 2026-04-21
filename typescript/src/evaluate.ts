@@ -69,7 +69,14 @@ function cloneIfNeeded(value: JSONType): JSONType {
 }
 
 type ParsedPath = { variable: string; path: (string | number)[] };
+const PATH_CACHE_MAX = 1024;
 const _pathCache = new Map<string, ParsedPath>();
+
+function cachePath(str: string, result: ParsedPath): ParsedPath {
+  if (_pathCache.size >= PATH_CACHE_MAX) _pathCache.delete(_pathCache.keys().next().value!);
+  _pathCache.set(str, result);
+  return result;
+}
 
 function parsePath(str: string): ParsedPath {
   const cached = _pathCache.get(str);
@@ -80,8 +87,7 @@ function parsePath(str: string): ParsedPath {
 
   if (dotIdx === -1 && bracketIdx === -1) {
     const result: ParsedPath = { variable: str, path: [] };
-    _pathCache.set(str, result);
-    return result;
+    return cachePath(str, result);
   }
 
   let splitIdx: number;
@@ -129,8 +135,14 @@ function parsePath(str: string): ParsedPath {
   }
 
   const result: ParsedPath = { variable, path };
-  _pathCache.set(str, result);
-  return result;
+  return cachePath(str, result);
+}
+
+function isFnDeclaration(value: JSONType): value is FunctionDeclaration {
+  return (
+    typeof value === "string" ||
+    (typeof value === "object" && value !== null && !Array.isArray(value) && "$return" in value)
+  );
 }
 
 function walkPath(value: JSONType, path: (string | number)[]): JSONType {
@@ -153,6 +165,27 @@ function walkPath(value: JSONType, path: (string | number)[]): JSONType {
     }
   }
   return current;
+}
+
+function resolveVar(
+  varPath: string,
+  getVar: (name: string) => JSONType | undefined,
+  expression: JSONType,
+): JSONType {
+  const parsed = parsePath(varPath);
+  const value = getVar(parsed.variable);
+  if (value === undefined) {
+    exprError(expression, `Variable ${parsed.variable} not found.`);
+  }
+  return parsed.path.length > 0 ? walkPath(value, parsed.path) : value;
+}
+
+function validateParamName(name: string): void {
+  if (name.includes(".") || name.includes("[")) {
+    throw new Error(
+      `Parameter name "${name}" must not contain "." or "[". Use simple identifiers.`,
+    );
+  }
 }
 
 const DEFAULT_MAX_CALL_DEPTH = 256;
@@ -271,19 +304,11 @@ function callJSONFunction(fn: FunctionBody, args: JSONType[], context: Evaluatio
       const name = params[i]!;
       if (name.startsWith("...")) {
         const restName = name.slice(3);
-        if (restName.includes(".") || restName.includes("[")) {
-          throw new Error(
-            `Parameter name "${restName}" must not contain "." or "[". Use simple identifiers.`,
-          );
-        }
+        validateParamName(restName);
         evaluatedVars[restName] = args.slice(i);
         break;
       }
-      if (name.includes(".") || name.includes("[")) {
-        throw new Error(
-          `Parameter name "${name}" must not contain "." or "[". Use simple identifiers.`,
-        );
-      }
+      validateParamName(name);
       evaluatedVars[name] = args[i] ?? null;
     }
   }
@@ -368,13 +393,7 @@ function evaluateExpression(expression: JSONType, context: EvaluationContext): J
       const fnRef = expression as FunctionReference;
       const evaluatedFnRef = evaluateExpression(fnRef.$fn, context);
 
-      if (
-        typeof evaluatedFnRef !== "string" &&
-        (typeof evaluatedFnRef !== "object" ||
-          evaluatedFnRef === null ||
-          Array.isArray(evaluatedFnRef) ||
-          !("$return" in evaluatedFnRef))
-      ) {
+      if (!isFnDeclaration(evaluatedFnRef)) {
         exprError(
           expression,
           `Evaluated function references must be strings or function bodies. Got ${typeof evaluatedFnRef}.`,
@@ -388,15 +407,7 @@ function evaluateExpression(expression: JSONType, context: EvaluationContext): J
       if (!getVar) {
         exprError(expression, "getVar is not defined.");
       }
-      const parsedVar = parsePath(varRef.$var);
-      const value = getVar(parsedVar.variable);
-      if (value === undefined) {
-        exprError(expression, `Variable ${parsedVar.variable} not found.`);
-      }
-      if (parsedVar.path.length > 0) {
-        return walkPath(value, parsedVar.path);
-      }
-      return value;
+      return resolveVar(varRef.$var, getVar, expression);
 
     case ExpressionType.FunctionBody:
       if (!getVar) {
@@ -443,70 +454,7 @@ function evaluateExpression(expression: JSONType, context: EvaluationContext): J
       return orResult;
 
     case ExpressionType.PropertyAccess:
-      const propExpr = expression as PropertyAccess | VarPropertyAccess;
-      const evaluatedKey = evaluateExpression(propExpr.$get, context);
-      let evaluatedTarget: JSONType;
-      if ("$var" in propExpr) {
-        if (!getVar) {
-          exprError(expression, "getVar is not defined.");
-        }
-        const parsedProp = parsePath(propExpr.$var);
-        const varValue = getVar(parsedProp.variable);
-        if (varValue === undefined) {
-          exprError(expression, `Variable ${parsedProp.variable} not found.`);
-        }
-        evaluatedTarget =
-          parsedProp.path.length > 0 ? walkPath(varValue, parsedProp.path) : varValue;
-      } else {
-        evaluatedTarget = evaluateExpression(propExpr.$from, context);
-      }
-
-      if (
-        evaluatedTarget === null ||
-        (typeof evaluatedTarget !== "object" && typeof evaluatedTarget !== "string")
-      ) {
-        throw new Error(
-          `Invalid $get target: expected object, array, or string, got ${JSON.stringify(evaluatedTarget)}`,
-        );
-      }
-
-      if (typeof evaluatedTarget === "string") {
-        if (typeof evaluatedKey === "number") {
-          return evaluatedTarget[evaluatedKey] ?? null;
-        }
-        throw new Error(
-          `Invalid $get key for string: expected number, got ${JSON.stringify(evaluatedKey)}`,
-        );
-      }
-
-      if (Array.isArray(evaluatedKey)) {
-        let current: JSONType = evaluatedTarget;
-        for (const segment of evaluatedKey) {
-          if (current === null || typeof current !== "object") {
-            throw new Error(
-              `Invalid $get path traversal: cannot access property ${JSON.stringify(
-                segment,
-              )} on ${JSON.stringify(current)}`,
-            );
-          }
-          current = (current as any)[segment as string | number];
-          if (current === undefined) {
-            return null;
-          }
-        }
-        return current;
-      }
-
-      if (typeof evaluatedKey === "string" || typeof evaluatedKey === "number") {
-        const result = (evaluatedTarget as any)[evaluatedKey];
-        return result === undefined ? null : result;
-      }
-
-      throw new Error(
-        `Invalid $get key: expected string, number, or array of strings/numbers, got ${JSON.stringify(
-          evaluatedKey,
-        )}`,
-      );
+      return evaluatePropertyAccess(expression as PropertyAccess | VarPropertyAccess, context);
 
     case ExpressionType.Literal:
       const literalValue = (expression as { $literal: JSONType }).$literal;
@@ -620,6 +568,70 @@ function replaceVars(
   return expression;
 }
 
+function evaluatePropertyAccess(
+  expression: PropertyAccess | VarPropertyAccess,
+  context: EvaluationContext,
+): JSONType {
+  const { getVar } = context;
+  const evaluatedKey = evaluateExpression(expression.$get, context);
+  let evaluatedTarget: JSONType;
+  if ("$var" in expression) {
+    if (!getVar) {
+      exprError(expression, "getVar is not defined.");
+    }
+    evaluatedTarget = resolveVar(expression.$var, getVar, expression);
+  } else {
+    evaluatedTarget = evaluateExpression(expression.$from, context);
+  }
+
+  if (
+    evaluatedTarget === null ||
+    (typeof evaluatedTarget !== "object" && typeof evaluatedTarget !== "string")
+  ) {
+    throw new Error(
+      `Invalid $get target: expected object, array, or string, got ${JSON.stringify(evaluatedTarget)}`,
+    );
+  }
+
+  if (typeof evaluatedTarget === "string") {
+    if (typeof evaluatedKey === "number") {
+      return evaluatedTarget[evaluatedKey] ?? null;
+    }
+    throw new Error(
+      `Invalid $get key for string: expected number, got ${JSON.stringify(evaluatedKey)}`,
+    );
+  }
+
+  if (Array.isArray(evaluatedKey)) {
+    let current: JSONType = evaluatedTarget;
+    for (const segment of evaluatedKey) {
+      if (current === null || typeof current !== "object") {
+        throw new Error(
+          `Invalid $get path traversal: cannot access property ${JSON.stringify(
+            segment,
+          )} on ${JSON.stringify(current)}`,
+        );
+      }
+      current = (current as any)[segment as string | number];
+      if (current === undefined) {
+        return null;
+      }
+    }
+    return current;
+  }
+
+  if (typeof evaluatedKey === "string" || typeof evaluatedKey === "number") {
+    const result = (evaluatedTarget as any)[evaluatedKey];
+    return result === undefined ? null : result;
+  }
+
+  throw new Error(
+    `Invalid $get key: expected string, number, or array of strings/numbers, got ${JSON.stringify(
+      evaluatedKey,
+    )}`,
+  );
+}
+
 function evaluateFunctionCall(
   fnCall: FunctionCall,
   context: EvaluationContext,
@@ -629,13 +641,7 @@ function evaluateFunctionCall(
 
   const evaluatedFn = evaluateExpression(fnExpr, context);
 
-  if (
-    typeof evaluatedFn !== "string" &&
-    (typeof evaluatedFn !== "object" ||
-      evaluatedFn === null ||
-      Array.isArray(evaluatedFn) ||
-      !("$return" in evaluatedFn))
-  ) {
+  if (!isFnDeclaration(evaluatedFn)) {
     exprError(
       fnCall,
       `Evaluated function references must be strings or function bodies. Got ${typeof evaluatedFn}.`,
@@ -702,12 +708,7 @@ function getExpressionType(json: JSONType): ExpressionType {
         }
         for (const p of params) {
           const name = (p as string).startsWith("...") ? (p as string).slice(3) : (p as string);
-          if (name.includes(".") || name.includes("[")) {
-            exprError(
-              json,
-              `Parameter name "${name}" must not contain "." or "[". Use simple identifiers.`,
-            );
-          }
+          validateParamName(name);
         }
       }
       return ExpressionType.FunctionBody;
