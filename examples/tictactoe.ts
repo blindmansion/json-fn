@@ -157,9 +157,9 @@ functions.getStatus = {
 // computed when the move is actually valid.
 functions.playMove = {
   $params: ["state", "pos"],
-  board: { $var: "state", $get: "board" },
-  turn: { $var: "state", $get: "turn" },
-  currentStatus: { $var: "state", $get: "status" },
+  board: { $var: "state.board" },
+  turn: { $var: "state.turn" },
+  currentStatus: { $var: "state.status" },
   stillPlaying: { $fn: ["eq", { $var: "currentStatus" }, "playing"] },
   valid: { $fn: ["validMove", { $var: "board" }, { $var: "pos" }] },
   canMove: { $fn: ["and", { $var: "stillPlaying" }, { $var: "valid" }] },
@@ -287,7 +287,7 @@ functions.bestMove = {
         score: {
           $fn: ["minimax", { $var: "newBoard" }, 1, false, { $var: "aiPlayer" }],
         },
-        bestScore: { $var: "acc", $get: "score" },
+        bestScore: { $var: "acc.score" },
         $return: {
           $if: { $fn: ["gt", { $var: "score" }, { $var: "bestScore" }] },
           $then: { score: { $var: "score" }, pos: { $var: "pos" } },
@@ -298,7 +298,7 @@ functions.bestMove = {
       { $var: "emptyPos" },
     ],
   },
-  $return: { $var: "best", $get: "pos" },
+  $return: { $var: "best.pos" },
 };
 
 // ===========================================================================
