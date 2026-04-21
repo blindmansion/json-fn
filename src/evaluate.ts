@@ -77,8 +77,12 @@ export function callFunction(
 ): JSONType {
   return callFunctionInternal(fn, args, {
     functions,
-    maxCallDepth: limits?.maxCallDepth ?? DEFAULT_MAX_CALL_DEPTH,
-    callState: { depth: 0 },
+    limits: {
+      maxCallDepth: limits?.maxCallDepth ?? DEFAULT_MAX_CALL_DEPTH,
+      maxOperations: limits?.maxOperations ?? Infinity,
+      signal: limits?.signal,
+    },
+    state: { depth: 0, operations: 0 },
   });
 }
 
@@ -92,10 +96,10 @@ function callFunctionInternal(
     _callDepth++;
     if (_callDepth > _perf.maxCallDepth) _perf.maxCallDepth = _callDepth;
   }
-  context.callState.depth++;
+  context.state.depth++;
   try {
-    if (context.callState.depth > context.maxCallDepth) {
-      throw new Error(`Maximum call depth of ${context.maxCallDepth} exceeded`);
+    if (context.state.depth > context.limits.maxCallDepth) {
+      throw new Error(`Maximum call depth of ${context.limits.maxCallDepth} exceeded`);
     }
     const { functions } = context;
     let result: JSONType;
@@ -119,8 +123,8 @@ function callFunctionInternal(
       } else {
         result = callJSONFunction(entry as FunctionBody, args, {
           functions,
-          maxCallDepth: context.maxCallDepth,
-          callState: context.callState,
+          limits: context.limits,
+          state: context.state,
         });
       }
     } else {
@@ -132,7 +136,7 @@ function callFunctionInternal(
     raw(result);
     return result;
   } finally {
-    context.callState.depth--;
+    context.state.depth--;
     if (_perf) _callDepth--;
   }
 }
@@ -157,7 +161,7 @@ function callExternalFunction(fn: Function, args: JSONType[], name: string): JSO
 
 function callJSONFunction(fn: FunctionBody, args: JSONType[], context: EvaluationContext) {
   if (_perf) _perf.callJSONFunction++;
-  const { functions, getVar: getVarParent, maxCallDepth, callState } = context;
+  const { functions, getVar: getVarParent, limits, state } = context;
 
   const localFnKeys: string[] = [];
   let scopedFunctions = functions;
@@ -204,8 +208,8 @@ function callJSONFunction(fn: FunctionBody, args: JSONType[], context: Evaluatio
         const evaluated = evaluateExpression(expression, {
           functions: scopedFunctions,
           getVar,
-          maxCallDepth,
-          callState,
+          limits,
+          state,
         });
         evaluatedVars[name] = evaluated;
         return evaluated;
@@ -227,16 +231,21 @@ function callJSONFunction(fn: FunctionBody, args: JSONType[], context: Evaluatio
     }
   }
 
-  return evaluateExpression(fn.$return, {
-    functions: scopedFunctions,
-    getVar,
-    maxCallDepth,
-    callState,
-  });
+  return evaluateExpression(fn.$return, { functions: scopedFunctions, getVar, limits, state });
 }
 
 function evaluateExpression(expression: JSONType, context: EvaluationContext): JSONType {
   if (_perf) _perf.evaluateExpression++;
+
+  if (context.limits.signal?.aborted) {
+    throw new Error("Execution aborted");
+  }
+
+  if (context.limits.maxOperations < Infinity) {
+    if (++context.state.operations > context.limits.maxOperations) {
+      throw new Error(`Maximum operations limit of ${context.limits.maxOperations} exceeded`);
+    }
+  }
 
   const { getVar } = context;
   const expressionType = getExpressionType(expression);

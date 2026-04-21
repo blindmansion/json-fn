@@ -97,6 +97,62 @@
         "$return": { "$var": "c" }
       },
       "expected": 6
+    },
+    {
+      "description": "enforces maximum operations limit",
+      "body": {
+        "$return": { "$fn": "fib", "$args": [10] }
+      },
+      "functions": {
+        "fib": {
+          "$params": ["n"],
+          "$return": {
+            "$if": { "$fn": "lte", "$args": [{ "$var": "n" }, 1] },
+            "$then": { "$var": "n" },
+            "$else": {
+              "$fn": "add",
+              "$args": [
+                { "$fn": "fib", "$args": [{ "$fn": "sub", "$args": [{ "$var": "n" }, 1] }] },
+                { "$fn": "fib", "$args": [{ "$fn": "sub", "$args": [{ "$var": "n" }, 2] }] }
+              ]
+            }
+          }
+        }
+      },
+      "limits": { "maxOperations": 50 },
+      "error": "Maximum operations limit of 50 exceeded"
+    },
+    {
+      "description": "allows execution within operations limit",
+      "body": {
+        "$return": { "$fn": "add", "$args": [{ "$fn": "mul", "$args": [3, 4] }, 5] }
+      },
+      "limits": { "maxOperations": 100 },
+      "expected": 17
+    },
+    {
+      "description": "operations limit catches expensive non-deep computation",
+      "body": {
+        "$return": {
+          "$fn": "reduce",
+          "$args": [
+            "add",
+            0,
+            {
+              "$fn": "map",
+              "$args": [
+                {
+                  "$params": ["x"],
+                  "$return": { "$fn": "mul", "$args": [{ "$var": "x" }, { "$var": "x" }] }
+                },
+                { "$fn": "range", "$args": [100] }
+              ]
+            }
+          ]
+        }
+      },
+      "limits": { "maxOperations": 50 },
+      "error": "Maximum operations limit of 50 exceeded"
     }
   ]
 }
