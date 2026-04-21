@@ -136,12 +136,20 @@ function parsePath(str: string): ParsedPath {
 function walkPath(value: JSONType, path: (string | number)[]): JSONType {
   let current = value;
   for (const segment of path) {
-    if (current === null || typeof current !== "object") {
+    if (typeof current === "string") {
+      if (typeof segment === "number") {
+        const ch = current[segment];
+        current = ch === undefined ? null : ch;
+      } else {
+        return null;
+      }
+    } else if (current === null || typeof current !== "object") {
       return null;
-    }
-    current = (current as any)[segment];
-    if (current === undefined) {
-      return null;
+    } else {
+      current = (current as any)[segment];
+      if (current === undefined) {
+        return null;
+      }
     }
   }
   return current;
@@ -453,9 +461,21 @@ function evaluateExpression(expression: JSONType, context: EvaluationContext): J
         evaluatedTarget = evaluateExpression(propExpr.$from, context);
       }
 
-      if (evaluatedTarget === null || typeof evaluatedTarget !== "object") {
+      if (
+        evaluatedTarget === null ||
+        (typeof evaluatedTarget !== "object" && typeof evaluatedTarget !== "string")
+      ) {
         throw new Error(
-          `Invalid $get target: expected object or array, got ${JSON.stringify(evaluatedTarget)}`,
+          `Invalid $get target: expected object, array, or string, got ${JSON.stringify(evaluatedTarget)}`,
+        );
+      }
+
+      if (typeof evaluatedTarget === "string") {
+        if (typeof evaluatedKey === "number") {
+          return evaluatedTarget[evaluatedKey] ?? null;
+        }
+        throw new Error(
+          `Invalid $get key for string: expected number, got ${JSON.stringify(evaluatedKey)}`,
         );
       }
 

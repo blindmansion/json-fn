@@ -472,6 +472,89 @@
         "$return": 1
       },
       "error": "must not contain"
+    },
+    {
+      "description": "$get on string: index 0",
+      "body": {
+        "$return": { "$get": 0, "$from": "hello" }
+      },
+      "expected": "h"
+    },
+    {
+      "description": "$get on string: middle index",
+      "body": {
+        "$return": { "$get": 2, "$from": "hello" }
+      },
+      "expected": "l"
+    },
+    {
+      "description": "$get on string: last index",
+      "body": {
+        "$return": { "$get": 4, "$from": "hello" }
+      },
+      "expected": "o"
+    },
+    {
+      "description": "$get on string: out of bounds returns null",
+      "body": {
+        "$return": { "$get": 10, "$from": "hi" }
+      },
+      "expected": null
+    },
+    {
+      "description": "$get on string: via $var",
+      "body": {
+        "s": "abcdef",
+        "$return": { "$var": "s", "$get": 3 }
+      },
+      "expected": "d"
+    },
+    {
+      "description": "$get on string: computed index",
+      "body": {
+        "s": "world",
+        "$return": { "$var": "s", "$get": { "$fn": ["sub", 4, 2] } }
+      },
+      "expected": "r"
+    },
+    {
+      "description": "$get on string: non-numeric key throws",
+      "body": {
+        "$return": { "$get": "x", "$from": "hello" }
+      },
+      "error": "expected number"
+    },
+    {
+      "description": "$var bracket notation on string",
+      "body": {
+        "s": "hello",
+        "$return": { "$var": "s[0]" }
+      },
+      "expected": "h"
+    },
+    {
+      "description": "$var bracket notation on string: middle char",
+      "body": {
+        "s": "world",
+        "$return": { "$var": "s[3]" }
+      },
+      "expected": "l"
+    },
+    {
+      "description": "$var bracket notation on string: out of bounds returns null",
+      "body": {
+        "s": "hi",
+        "$return": { "$var": "s[5]" }
+      },
+      "expected": null
+    },
+    {
+      "description": "$var dot path ending in string index",
+      "body": {
+        "data": { "name": "Alice" },
+        "$return": { "$var": "data.name[0]" }
+      },
+      "expected": "A"
     }
   ]
 }
