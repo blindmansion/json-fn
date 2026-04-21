@@ -1,0 +1,375 @@
+{
+  "description": "search, quantify, and sort",
+  "cases": [
+    {
+      "description": "find: returns first matching element",
+      "body": {
+        "$return": {
+          "$fn": [
+            "find",
+            {
+              "$params": ["x"],
+              "$return": { "$fn": ["gt", { "$var": "x" }, 3] }
+            },
+            [1, 2, 3, 4, 5]
+          ]
+        }
+      },
+      "expected": 4
+    },
+    {
+      "description": "find: returns null when no match",
+      "body": {
+        "$return": {
+          "$fn": [
+            "find",
+            {
+              "$params": ["x"],
+              "$return": { "$fn": ["gt", { "$var": "x" }, 100] }
+            },
+            [1, 2, 3]
+          ]
+        }
+      },
+      "expected": null
+    },
+    {
+      "description": "find: returns first of multiple matches",
+      "body": {
+        "$return": {
+          "$fn": [
+            "find",
+            {
+              "$params": ["x"],
+              "$return": { "$fn": ["gt", { "$var": "x" }, 2] }
+            },
+            [1, 5, 3, 4]
+          ]
+        }
+      },
+      "expected": 5
+    },
+    {
+      "description": "find: empty array returns null",
+      "body": {
+        "$return": {
+          "$fn": [
+            "find",
+            {
+              "$params": ["x"],
+              "$return": true
+            },
+            []
+          ]
+        }
+      },
+      "expected": null
+    },
+    {
+      "description": "find: works with objects in array",
+      "body": {
+        "$return": {
+          "$fn": [
+            "find",
+            {
+              "$params": ["item"],
+              "$return": {
+                "$fn": ["gt", { "$var": "item", "$get": "age" }, 30]
+              }
+            },
+            [
+              { "name": "alice", "age": 25 },
+              { "name": "bob", "age": 35 },
+              { "name": "carol", "age": 28 }
+            ]
+          ]
+        }
+      },
+      "expected": { "name": "bob", "age": 35 }
+    },
+    {
+      "description": "findIndex: returns index of first match",
+      "body": {
+        "$return": {
+          "$fn": [
+            "findIndex",
+            {
+              "$params": ["x"],
+              "$return": { "$fn": ["gt", { "$var": "x" }, 3] }
+            },
+            [1, 2, 3, 4, 5]
+          ]
+        }
+      },
+      "expected": 3
+    },
+    {
+      "description": "findIndex: returns -1 when no match",
+      "body": {
+        "$return": {
+          "$fn": [
+            "findIndex",
+            {
+              "$params": ["x"],
+              "$return": { "$fn": ["gt", { "$var": "x" }, 100] }
+            },
+            [1, 2, 3]
+          ]
+        }
+      },
+      "expected": -1
+    },
+    {
+      "description": "findIndex: empty array returns -1",
+      "body": {
+        "$return": {
+          "$fn": [
+            "findIndex",
+            {
+              "$params": ["x"],
+              "$return": true
+            },
+            []
+          ]
+        }
+      },
+      "expected": -1
+    },
+    {
+      "description": "findIndex: callback receives index",
+      "body": {
+        "$return": {
+          "$fn": [
+            "findIndex",
+            {
+              "$params": ["x", "i"],
+              "$return": { "$fn": ["eq", { "$var": "i" }, 2] }
+            },
+            ["a", "b", "c", "d"]
+          ]
+        }
+      },
+      "expected": 2
+    },
+    {
+      "description": "some: true when at least one matches",
+      "body": {
+        "$return": {
+          "$fn": [
+            "some",
+            {
+              "$params": ["x"],
+              "$return": { "$fn": ["gt", { "$var": "x" }, 3] }
+            },
+            [1, 2, 3, 4, 5]
+          ]
+        }
+      },
+      "expected": true
+    },
+    {
+      "description": "some: false when none match",
+      "body": {
+        "$return": {
+          "$fn": [
+            "some",
+            {
+              "$params": ["x"],
+              "$return": { "$fn": ["gt", { "$var": "x" }, 100] }
+            },
+            [1, 2, 3]
+          ]
+        }
+      },
+      "expected": false
+    },
+    {
+      "description": "some: false for empty array",
+      "body": {
+        "$return": {
+          "$fn": [
+            "some",
+            {
+              "$params": ["x"],
+              "$return": true
+            },
+            []
+          ]
+        }
+      },
+      "expected": false
+    },
+    {
+      "description": "every: true when all match",
+      "body": {
+        "$return": {
+          "$fn": [
+            "every",
+            {
+              "$params": ["x"],
+              "$return": { "$fn": ["gt", { "$var": "x" }, 0] }
+            },
+            [1, 2, 3, 4, 5]
+          ]
+        }
+      },
+      "expected": true
+    },
+    {
+      "description": "every: false when one fails",
+      "body": {
+        "$return": {
+          "$fn": [
+            "every",
+            {
+              "$params": ["x"],
+              "$return": { "$fn": ["gt", { "$var": "x" }, 3] }
+            },
+            [1, 2, 3, 4, 5]
+          ]
+        }
+      },
+      "expected": false
+    },
+    {
+      "description": "every: true for empty array (vacuous truth)",
+      "body": {
+        "$return": {
+          "$fn": [
+            "every",
+            {
+              "$params": ["x"],
+              "$return": false
+            },
+            []
+          ]
+        }
+      },
+      "expected": true
+    },
+    {
+      "description": "sort: ascending numeric sort",
+      "body": {
+        "$return": {
+          "$fn": [
+            "sort",
+            {
+              "$params": ["a", "b"],
+              "$return": {
+                "$fn": ["sub", { "$var": "a" }, { "$var": "b" }]
+              }
+            },
+            [3, 1, 4, 1, 5, 9, 2, 6]
+          ]
+        }
+      },
+      "expected": [1, 1, 2, 3, 4, 5, 6, 9]
+    },
+    {
+      "description": "sort: descending numeric sort",
+      "body": {
+        "$return": {
+          "$fn": [
+            "sort",
+            {
+              "$params": ["a", "b"],
+              "$return": {
+                "$fn": ["sub", { "$var": "b" }, { "$var": "a" }]
+              }
+            },
+            [3, 1, 4, 1, 5]
+          ]
+        }
+      },
+      "expected": [5, 4, 3, 1, 1]
+    },
+    {
+      "description": "sort: empty array returns empty array",
+      "body": {
+        "$return": {
+          "$fn": [
+            "sort",
+            {
+              "$params": ["a", "b"],
+              "$return": { "$fn": ["sub", { "$var": "a" }, { "$var": "b" }] }
+            },
+            []
+          ]
+        }
+      },
+      "expected": []
+    },
+    {
+      "description": "sort: single element array",
+      "body": {
+        "$return": {
+          "$fn": [
+            "sort",
+            {
+              "$params": ["a", "b"],
+              "$return": { "$fn": ["sub", { "$var": "a" }, { "$var": "b" }] }
+            },
+            [42]
+          ]
+        }
+      },
+      "expected": [42]
+    },
+    {
+      "description": "sort: stable sort preserves order of equal elements",
+      "body": {
+        "$return": {
+          "$fn": [
+            "sort",
+            {
+              "$params": ["a", "b"],
+              "$return": {
+                "$fn": [
+                  "sub",
+                  { "$var": "a", "$get": "priority" },
+                  { "$var": "b", "$get": "priority" }
+                ]
+              }
+            },
+            [
+              { "name": "first", "priority": 1 },
+              { "name": "second", "priority": 2 },
+              { "name": "third", "priority": 1 }
+            ]
+          ]
+        }
+      },
+      "expected": [
+        { "name": "first", "priority": 1 },
+        { "name": "third", "priority": 1 },
+        { "name": "second", "priority": 2 }
+      ]
+    },
+    {
+      "description": "find + findIndex: consistent results",
+      "body": {
+        "arr": [10, 20, 30, 40, 50],
+        "pred": {
+          "$params": ["x"],
+          "$return": { "$fn": ["gte", { "$var": "x" }, 30] }
+        },
+        "found": {
+          "$fn": [
+            "find",
+            { "$var": "pred" },
+            { "$var": "arr" }
+          ]
+        },
+        "idx": {
+          "$fn": [
+            "findIndex",
+            { "$var": "pred" },
+            { "$var": "arr" }
+          ]
+        },
+        "$return": [{ "$var": "found" }, { "$var": "idx" }]
+      },
+      "expected": [30, 2]
+    }
+  ]
+}

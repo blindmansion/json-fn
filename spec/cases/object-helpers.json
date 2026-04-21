@@ -1,0 +1,88 @@
+{
+  "description": "object helpers",
+  "cases": [
+    {
+      "description": "keys: empty object returns empty array",
+      "body": {
+        "$return": { "$fn": ["keys", {}] }
+      },
+      "expected": []
+    },
+    {
+      "description": "keys: single-key object",
+      "body": {
+        "$return": { "$fn": ["keys", { "name": "alice" }] }
+      },
+      "expected": ["name"]
+    },
+    {
+      "description": "keys: multiple keys (sorted for determinism)",
+      "body": {
+        "ks": { "$fn": ["keys", { "c": 3, "a": 1, "b": 2 }] },
+        "$return": {
+          "$fn": [
+            "sortBy",
+            { "$params": ["x"], "$return": { "$var": "x" } },
+            { "$var": "ks" }
+          ]
+        }
+      },
+      "expected": ["a", "b", "c"]
+    },
+    {
+      "description": "keys: count matches number of keys",
+      "body": {
+        "$return": {
+          "$fn": ["length", { "$fn": ["keys", { "x": 1, "y": 2, "z": 3 }] }]
+        }
+      },
+      "expected": 3
+    },
+    {
+      "description": "values: empty object returns empty array",
+      "body": {
+        "$return": { "$fn": ["values", {}] }
+      },
+      "expected": []
+    },
+    {
+      "description": "values: single-key object",
+      "body": {
+        "$return": { "$fn": ["values", { "a": 42 }] }
+      },
+      "expected": [42]
+    },
+    {
+      "description": "values: multiple values (sorted for determinism)",
+      "body": {
+        "vs": { "$fn": ["values", { "a": 30, "b": 10, "c": 20 }] },
+        "$return": {
+          "$fn": [
+            "sortBy",
+            { "$params": ["x"], "$return": { "$var": "x" } },
+            { "$var": "vs" }
+          ]
+        }
+      },
+      "expected": [10, 20, 30]
+    },
+    {
+      "description": "keys and values: same length",
+      "body": {
+        "obj": { "x": 10, "y": 20, "z": 30 },
+        "kLen": { "$fn": ["length", { "$fn": ["keys", { "$var": "obj" }] }] },
+        "vLen": { "$fn": ["length", { "$fn": ["values", { "$var": "obj" }] }] },
+        "$return": { "$fn": ["eq", { "$var": "kLen" }, { "$var": "vLen" }] }
+      },
+      "expected": true
+    },
+    {
+      "description": "keys: used with includes to check key existence",
+      "body": {
+        "ks": { "$fn": ["keys", { "name": "alice", "age": 30 }] },
+        "$return": { "$fn": ["includes", { "$var": "ks" }, "name"] }
+      },
+      "expected": true
+    }
+  ]
+}

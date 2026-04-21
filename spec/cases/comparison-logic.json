@@ -1,0 +1,108 @@
+{
+  "description": "comparison and logic",
+  "cases": [
+    {
+      "description": "neq: true for different numbers",
+      "body": { "$return": { "$fn": ["neq", 1, 2] } },
+      "expected": true
+    },
+    {
+      "description": "neq: false for same numbers",
+      "body": { "$return": { "$fn": ["neq", 42, 42] } },
+      "expected": false
+    },
+    {
+      "description": "neq: true for different strings",
+      "body": { "$return": { "$fn": ["neq", "hello", "world"] } },
+      "expected": true
+    },
+    {
+      "description": "neq: false for same strings",
+      "body": { "$return": { "$fn": ["neq", "hello", "hello"] } },
+      "expected": false
+    },
+    {
+      "description": "neq: true for different booleans",
+      "body": { "$return": { "$fn": ["neq", true, false] } },
+      "expected": true
+    },
+    {
+      "description": "neq: false for same booleans",
+      "body": { "$return": { "$fn": ["neq", true, true] } },
+      "expected": false
+    },
+    {
+      "description": "neq: false for null vs null",
+      "body": { "$return": { "$fn": ["neq", null, null] } },
+      "expected": false
+    },
+    {
+      "description": "neq: true for null vs zero",
+      "body": { "$return": { "$fn": ["neq", null, 0] } },
+      "expected": true
+    },
+    {
+      "description": "neq: true for number vs string of same value",
+      "body": { "$return": { "$fn": ["neq", 1, "1"] } },
+      "expected": true
+    },
+    {
+      "description": "not: negates true",
+      "body": { "$return": { "$fn": ["not", true] } },
+      "expected": false
+    },
+    {
+      "description": "not: negates false",
+      "body": { "$return": { "$fn": ["not", false] } },
+      "expected": true
+    },
+    {
+      "description": "not: double negation returns original",
+      "body": {
+        "$return": { "$fn": ["not", { "$fn": ["not", true] }] }
+      },
+      "expected": true
+    },
+    {
+      "description": "not: combined with comparison",
+      "body": {
+        "$return": { "$fn": ["not", { "$fn": ["eq", 1, 2] }] }
+      },
+      "expected": true
+    },
+    {
+      "description": "neq: used as filter predicate",
+      "body": {
+        "$return": {
+          "$fn": [
+            "filter",
+            {
+              "$params": ["x"],
+              "$return": { "$fn": ["neq", { "$var": "x" }, 0] }
+            },
+            [0, 1, 0, 2, 0, 3]
+          ]
+        }
+      },
+      "expected": [1, 2, 3]
+    },
+    {
+      "description": "not: used to invert filter logic",
+      "body": {
+        "$return": {
+          "$fn": [
+            "filter",
+            {
+              "$params": ["x"],
+              "$return": {
+                "$fn": ["not", { "$fn": ["gt", { "$var": "x" }, 3] }]
+              }
+            },
+            [1, 2, 3, 4, 5]
+          ]
+        }
+      },
+      "expected": [1, 2, 3]
+    }
+  ]
+}

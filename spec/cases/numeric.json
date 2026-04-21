@@ -1,0 +1,130 @@
+{
+  "description": "numeric functions",
+  "cases": [
+    {
+      "description": "floor: rounds down positive decimal",
+      "body": { "$return": { "$fn": ["floor", 3.7] } },
+      "expected": 3
+    },
+    {
+      "description": "floor: rounds down negative decimal",
+      "body": { "$return": { "$fn": ["floor", -2.3] } },
+      "expected": -3
+    },
+    {
+      "description": "floor: integer unchanged",
+      "body": { "$return": { "$fn": ["floor", 5] } },
+      "expected": 5
+    },
+    {
+      "description": "floor: zero unchanged",
+      "body": { "$return": { "$fn": ["floor", 0] } },
+      "expected": 0
+    },
+    {
+      "description": "ceil: rounds up positive decimal",
+      "body": { "$return": { "$fn": ["ceil", 3.2] } },
+      "expected": 4
+    },
+    {
+      "description": "ceil: rounds up negative decimal",
+      "body": { "$return": { "$fn": ["ceil", -2.7] } },
+      "expected": -2
+    },
+    {
+      "description": "ceil: integer unchanged",
+      "body": { "$return": { "$fn": ["ceil", 5] } },
+      "expected": 5
+    },
+    {
+      "description": "ceil: zero unchanged",
+      "body": { "$return": { "$fn": ["ceil", 0] } },
+      "expected": 0
+    },
+    {
+      "description": "round: rounds down when below .5",
+      "body": { "$return": { "$fn": ["round", 3.3] } },
+      "expected": 3
+    },
+    {
+      "description": "round: rounds up when above .5",
+      "body": { "$return": { "$fn": ["round", 3.7] } },
+      "expected": 4
+    },
+    {
+      "description": "round: rounds up at .5",
+      "body": { "$return": { "$fn": ["round", 2.5] } },
+      "expected": 3
+    },
+    {
+      "description": "round: integer unchanged",
+      "body": { "$return": { "$fn": ["round", 5] } },
+      "expected": 5
+    },
+    {
+      "description": "round: negative rounds toward zero",
+      "body": { "$return": { "$fn": ["round", -2.3] } },
+      "expected": -2
+    },
+    {
+      "description": "max: returns largest element",
+      "body": { "$return": { "$fn": ["max", [3, 1, 4, 1, 5, 9, 2, 6]] } },
+      "expected": 9
+    },
+    {
+      "description": "max: single element",
+      "body": { "$return": { "$fn": ["max", [42]] } },
+      "expected": 42
+    },
+    {
+      "description": "max: works with negative numbers",
+      "body": { "$return": { "$fn": ["max", [-3, -1, -4, -1, -5]] } },
+      "expected": -1
+    },
+    {
+      "description": "max: non-array argument throws",
+      "body": { "$return": { "$fn": ["max", 42] } },
+      "error": "must be an array"
+    },
+    {
+      "description": "min: returns smallest element",
+      "body": { "$return": { "$fn": ["min", [3, 1, 4, 1, 5, 9, 2, 6]] } },
+      "expected": 1
+    },
+    {
+      "description": "min: single element",
+      "body": { "$return": { "$fn": ["min", [42]] } },
+      "expected": 42
+    },
+    {
+      "description": "min: works with negative numbers",
+      "body": { "$return": { "$fn": ["min", [-3, -1, -4, -1, -5]] } },
+      "expected": -5
+    },
+    {
+      "description": "min: non-array argument throws",
+      "body": { "$return": { "$fn": ["min", 42] } },
+      "error": "must be an array"
+    },
+    {
+      "description": "floor and ceil: bracket a decimal",
+      "body": {
+        "val": 3.7,
+        "lo": { "$fn": ["floor", { "$var": "val" }] },
+        "hi": { "$fn": ["ceil", { "$var": "val" }] },
+        "$return": [{ "$var": "lo" }, { "$var": "hi" }]
+      },
+      "expected": [3, 4]
+    },
+    {
+      "description": "max and min: range of array",
+      "body": {
+        "arr": [5, 2, 8, 1, 9, 3],
+        "hi": { "$fn": ["max", { "$var": "arr" }] },
+        "lo": { "$fn": ["min", { "$var": "arr" }] },
+        "$return": { "$fn": ["sub", { "$var": "hi" }, { "$var": "lo" }] }
+      },
+      "expected": 8
+    }
+  ]
+}

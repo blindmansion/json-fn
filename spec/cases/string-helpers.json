@@ -1,0 +1,71 @@
+{
+  "description": "string helpers",
+  "cases": [
+    {
+      "description": "trim: removes leading and trailing spaces",
+      "body": { "$return": { "$fn": ["trim", "  hello  "] } },
+      "expected": "hello"
+    },
+    {
+      "description": "trim: removes tabs and newlines",
+      "body": { "$return": { "$fn": ["trim", "\t hello \n"] } },
+      "expected": "hello"
+    },
+    {
+      "description": "trim: no-op on already trimmed string",
+      "body": { "$return": { "$fn": ["trim", "hello"] } },
+      "expected": "hello"
+    },
+    {
+      "description": "trim: empty string stays empty",
+      "body": { "$return": { "$fn": ["trim", ""] } },
+      "expected": ""
+    },
+    {
+      "description": "trim: all whitespace becomes empty",
+      "body": { "$return": { "$fn": ["trim", "   "] } },
+      "expected": ""
+    },
+    {
+      "description": "trim: preserves internal whitespace",
+      "body": { "$return": { "$fn": ["trim", "  hello world  "] } },
+      "expected": "hello world"
+    },
+    {
+      "description": "join: joins strings with separator",
+      "body": { "$return": { "$fn": ["join", ["a", "b", "c"], ", "] } },
+      "expected": "a, b, c"
+    },
+    {
+      "description": "join: empty separator concatenates",
+      "body": { "$return": { "$fn": ["join", ["x", "y", "z"], ""] } },
+      "expected": "xyz"
+    },
+    {
+      "description": "join: single element array",
+      "body": { "$return": { "$fn": ["join", ["hello"], "-"] } },
+      "expected": "hello"
+    },
+    {
+      "description": "join: empty array returns empty string",
+      "body": { "$return": { "$fn": ["join", [], ","] } },
+      "expected": ""
+    },
+    {
+      "description": "split and join roundtrip",
+      "body": {
+        "parts": { "$fn": ["split", "hello world foo", " "] },
+        "$return": { "$fn": ["join", { "$var": "parts" }, "-"] }
+      },
+      "expected": "hello-world-foo"
+    },
+    {
+      "description": "trim then split pipeline",
+      "body": {
+        "trimmed": { "$fn": ["trim", "  one two three  "] },
+        "$return": { "$fn": ["split", { "$var": "trimmed" }, " "] }
+      },
+      "expected": ["one", "two", "three"]
+    }
+  ]
+}

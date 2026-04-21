@@ -1,0 +1,63 @@
+{
+  "description": "type coercion",
+  "cases": [
+    {
+      "description": "num: parses integer string",
+      "body": { "$return": { "$fn": ["num", "42"] } },
+      "expected": 42
+    },
+    {
+      "description": "num: parses decimal string",
+      "body": { "$return": { "$fn": ["num", "3.14"] } },
+      "expected": 3.14
+    },
+    {
+      "description": "num: parses negative string",
+      "body": { "$return": { "$fn": ["num", "-7"] } },
+      "expected": -7
+    },
+    {
+      "description": "num: parses zero string",
+      "body": { "$return": { "$fn": ["num", "0"] } },
+      "expected": 0
+    },
+    {
+      "description": "num: true converts to 1",
+      "body": { "$return": { "$fn": ["num", true] } },
+      "expected": 1
+    },
+    {
+      "description": "num: false converts to 0",
+      "body": { "$return": { "$fn": ["num", false] } },
+      "expected": 0
+    },
+    {
+      "description": "num: null converts to 0",
+      "body": { "$return": { "$fn": ["num", null] } },
+      "expected": 0
+    },
+    {
+      "description": "num: number passes through unchanged",
+      "body": { "$return": { "$fn": ["num", 99] } },
+      "expected": 99
+    },
+    {
+      "description": "num: unparseable string throws",
+      "body": { "$return": { "$fn": ["num", "not a number"] } },
+      "error": "cannot parse"
+    },
+    {
+      "description": "num: used in arithmetic after coercion",
+      "body": {
+        "$return": {
+          "$fn": [
+            "add",
+            { "$fn": ["num", "10"] },
+            { "$fn": ["num", "20"] }
+          ]
+        }
+      },
+      "expected": 30
+    }
+  ]
+}

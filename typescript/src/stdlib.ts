@@ -48,8 +48,14 @@ export function createStdlib(): FunctionRegistry {
     floor: pure((a: number) => Math.floor(a)),
     ceil: pure((a: number) => Math.ceil(a)),
     round: pure((a: number) => Math.round(a)),
-    max: pure((arr: number[]) => Math.max(...arr)),
-    min: pure((arr: number[]) => Math.min(...arr)),
+    max: pure((arr: number[]) => {
+      if (!Array.isArray(arr)) throw new Error("max: argument must be an array");
+      return Math.max(...arr);
+    }),
+    min: pure((arr: number[]) => {
+      if (!Array.isArray(arr)) throw new Error("min: argument must be an array");
+      return Math.min(...arr);
+    }),
 
     // Comparison
     eq: pure((a: any, b: any) => a === b),
@@ -90,7 +96,7 @@ export function createStdlib(): FunctionRegistry {
 
     // Arrays
     length: pure((arr: any[] | string) => arr.length),
-    head: pure((arr: any[]) => arr[0]),
+    head: pure((arr: any[]) => arr[0] ?? null),
     last: pure((arr: any[]) => arr[arr.length - 1] ?? null),
     tail: pure((arr: any[]) => arr.slice(1)),
     concat: pure((...arrays: any[][]) => {
