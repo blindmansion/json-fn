@@ -86,9 +86,7 @@ export function createStdlib(): FunctionRegistry {
     fromEntries: (pairs: [string, any][]) => Object.fromEntries(pairs),
     merge: (a: Record<string, any>, b: Record<string, any>) => ({ ...a, ...b }),
     hasKey: pure((obj: Record<string, any>, key: string) => Object.hasOwn(obj, key)),
-    isObject: pure(
-      (a: any) => typeof a === "object" && a !== null && !Array.isArray(a),
-    ),
+    isObject: pure((a: any) => typeof a === "object" && a !== null && !Array.isArray(a)),
     pick: (obj: Record<string, any>, ks: string[]) => {
       const result: Record<string, any> = {};
       for (const k of ks) if (k in obj) result[k] = obj[k];
@@ -179,7 +177,9 @@ export function createStdlib(): FunctionRegistry {
       for (let i = 0; i < arr.length; i++) {
         const key = call(keyFn!, [arr[i]!, i]) as string;
         if (typeof key !== "string" && typeof key !== "number")
-          throw new Error(`groupBy: key function must return a string or number, got ${typeof key}`);
+          throw new Error(
+            `groupBy: key function must return a string or number, got ${typeof key}`,
+          );
         const k = String(key);
         if (!groups[k]) groups[k] = [];
         groups[k].push(arr[i]!);
@@ -189,13 +189,17 @@ export function createStdlib(): FunctionRegistry {
     sortBy: builtin((args, call) => {
       const [keyFn, arr] = args;
       if (!Array.isArray(arr)) throw new Error("sortBy: second argument must be an array");
-      const decorated = arr.map((item, i) => ({ item, key: call(keyFn!, [item, i]) as string | number }));
+      const decorated = arr.map((item, i) => ({
+        item,
+        key: call(keyFn!, [item, i]) as string | number,
+      }));
       decorated.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
       return decorated.map((d) => d.item);
     }, 2),
     pipe: builtin((args, call) => {
       const [fns, init] = args;
-      if (!Array.isArray(fns)) throw new Error("pipe: first argument must be an array of functions");
+      if (!Array.isArray(fns))
+        throw new Error("pipe: first argument must be an array of functions");
       let value = init;
       for (const fn of fns) {
         value = call(fn!, [value!]);

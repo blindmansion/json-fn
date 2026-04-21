@@ -7,21 +7,23 @@ function run(body: JSONType, args: JSONType[] = [], extraFns: Record<string, any
 
 describe("flatten", () => {
   test("flattens one level of nesting", () => {
-    expect(
-      run({ $return: { $fn: "flatten", $args: [[[1, 2], [3, 4], [5]]] } }),
-    ).toEqual([1, 2, 3, 4, 5]);
+    expect(run({ $return: { $fn: "flatten", $args: [[[1, 2], [3, 4], [5]]] } })).toEqual([
+      1, 2, 3, 4, 5,
+    ]);
   });
 
   test("does not flatten deeper than one level", () => {
-    expect(
-      run({ $return: { $fn: "flatten", $args: [[[1, [2, 3]], [4]]] } }),
-    ).toEqual([1, [2, 3], 4]);
+    expect(run({ $return: { $fn: "flatten", $args: [[[1, [2, 3]], [4]]] } })).toEqual([
+      1,
+      [2, 3],
+      4,
+    ]);
   });
 
   test("non-array elements pass through", () => {
-    expect(
-      run({ $return: { $fn: "flatten", $args: [[1, [2, 3], 4, [5]]] } }),
-    ).toEqual([1, 2, 3, 4, 5]);
+    expect(run({ $return: { $fn: "flatten", $args: [[1, [2, 3], 4, [5]]] } })).toEqual([
+      1, 2, 3, 4, 5,
+    ]);
   });
 
   test("empty array returns empty array", () => {
@@ -63,10 +65,7 @@ describe("flatMap", () => {
       run({
         $return: {
           $fn: "flatMap",
-          $args: [
-            { $params: ["x", "i"], $return: [{ $var: "i" }] },
-            ["a", "b", "c"],
-          ],
+          $args: [{ $params: ["x", "i"], $return: [{ $var: "i" }] }, ["a", "b", "c"]],
         },
       }),
     ).toEqual([0, 1, 2]);
@@ -98,10 +97,7 @@ describe("flatMap", () => {
       run({
         $return: {
           $fn: "flatMap",
-          $args: [
-            { $params: ["x"], $return: [{ $var: "x" }] },
-            [],
-          ],
+          $args: [{ $params: ["x"], $return: [{ $var: "x" }] }, []],
         },
       }),
     ).toEqual([]);
@@ -120,10 +116,7 @@ describe("groupBy", () => {
       run({
         $return: {
           $fn: "groupBy",
-          $args: [
-            { $params: ["item"], $return: { $get: "role", $from: { $var: "item" } } },
-            items,
-          ],
+          $args: [{ $params: ["item"], $return: { $get: "role", $from: { $var: "item" } } }, items],
         },
       }),
     ).toEqual({
@@ -165,11 +158,9 @@ describe("groupBy", () => {
       },
     };
     expect(
-      run(
-        { $return: { $fn: "groupBy", $args: [{ $fn: "parity" }, [1, 2, 3, 4]] } },
-        [],
-        { parity },
-      ),
+      run({ $return: { $fn: "groupBy", $args: [{ $fn: "parity" }, [1, 2, 3, 4]] } }, [], {
+        parity,
+      }),
     ).toEqual({ odd: [1, 3], even: [2, 4] });
   });
 
@@ -178,10 +169,7 @@ describe("groupBy", () => {
       run({
         $return: {
           $fn: "groupBy",
-          $args: [
-            { $params: ["x"], $return: "a" },
-            [],
-          ],
+          $args: [{ $params: ["x"], $return: "a" }, []],
         },
       }),
     ).toEqual({});
@@ -213,10 +201,7 @@ describe("sortBy", () => {
       run({
         $return: {
           $fn: "sortBy",
-          $args: [
-            { $params: ["item"], $return: { $get: "name", $from: { $var: "item" } } },
-            items,
-          ],
+          $args: [{ $params: ["item"], $return: { $get: "name", $from: { $var: "item" } } }, items],
         },
       }),
     ).toEqual([
@@ -236,10 +221,7 @@ describe("sortBy", () => {
       run({
         $return: {
           $fn: "sortBy",
-          $args: [
-            { $params: ["item"], $return: { $get: "age", $from: { $var: "item" } } },
-            items,
-          ],
+          $args: [{ $params: ["item"], $return: { $get: "age", $from: { $var: "item" } } }, items],
         },
       }),
     ).toEqual([
@@ -258,10 +240,7 @@ describe("sortBy", () => {
     const result = run({
       $return: {
         $fn: "sortBy",
-        $args: [
-          { $params: ["item"], $return: { $get: "group", $from: { $var: "item" } } },
-          items,
-        ],
+        $args: [{ $params: ["item"], $return: { $get: "group", $from: { $var: "item" } } }, items],
       },
     }) as any[];
     expect(result[0]).toEqual({ name: "alice", group: 1 });
@@ -274,10 +253,7 @@ describe("sortBy", () => {
       run({
         $return: {
           $fn: "sortBy",
-          $args: [
-            { $params: ["x"], $return: { $var: "x" } },
-            [],
-          ],
+          $args: [{ $params: ["x"], $return: { $var: "x" } }, []],
         },
       }),
     ).toEqual([]);

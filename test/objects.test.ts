@@ -7,9 +7,11 @@ function run(body: JSONType, args: JSONType[] = [], extraFns: Record<string, any
 
 describe("entries", () => {
   test("returns key-value pairs", () => {
-    expect(
-      run({ $return: { $fn: "entries", $args: [{ a: 1, b: 2, c: 3 }] } }),
-    ).toEqual([["a", 1], ["b", 2], ["c", 3]]);
+    expect(run({ $return: { $fn: "entries", $args: [{ a: 1, b: 2, c: 3 }] } })).toEqual([
+      ["a", 1],
+      ["b", 2],
+      ["c", 3],
+    ]);
   });
 
   test("empty object returns empty array", () => {
@@ -23,7 +25,12 @@ describe("fromEntries", () => {
       run({
         $return: {
           $fn: "fromEntries",
-          $args: [[["x", 10], ["y", 20]]],
+          $args: [
+            [
+              ["x", 10],
+              ["y", 20],
+            ],
+          ],
         },
       }),
     ).toEqual({ x: 10, y: 20 });
@@ -46,41 +53,39 @@ describe("fromEntries", () => {
 
 describe("merge", () => {
   test("merges two objects", () => {
-    expect(
-      run({ $return: { $fn: "merge", $args: [{ a: 1 }, { b: 2 }] } }),
-    ).toEqual({ a: 1, b: 2 });
+    expect(run({ $return: { $fn: "merge", $args: [{ a: 1 }, { b: 2 }] } })).toEqual({ a: 1, b: 2 });
   });
 
   test("second object wins on key conflict", () => {
     expect(
-      run({ $return: { $fn: "merge", $args: [{ a: 1, b: 2 }, { b: 99, c: 3 }] } }),
+      run({
+        $return: {
+          $fn: "merge",
+          $args: [
+            { a: 1, b: 2 },
+            { b: 99, c: 3 },
+          ],
+        },
+      }),
     ).toEqual({ a: 1, b: 99, c: 3 });
   });
 
   test("merging with empty object is identity", () => {
-    expect(
-      run({ $return: { $fn: "merge", $args: [{ a: 1 }, {}] } }),
-    ).toEqual({ a: 1 });
+    expect(run({ $return: { $fn: "merge", $args: [{ a: 1 }, {}] } })).toEqual({ a: 1 });
   });
 });
 
 describe("hasKey", () => {
   test("returns true for existing key", () => {
-    expect(
-      run({ $return: { $fn: "hasKey", $args: [{ x: 1, y: 2 }, "x"] } }),
-    ).toBe(true);
+    expect(run({ $return: { $fn: "hasKey", $args: [{ x: 1, y: 2 }, "x"] } })).toBe(true);
   });
 
   test("returns false for missing key", () => {
-    expect(
-      run({ $return: { $fn: "hasKey", $args: [{ x: 1 }, "z"] } }),
-    ).toBe(false);
+    expect(run({ $return: { $fn: "hasKey", $args: [{ x: 1 }, "z"] } })).toBe(false);
   });
 
   test("detects key with null value", () => {
-    expect(
-      run({ $return: { $fn: "hasKey", $args: [{ a: null }, "a"] } }),
-    ).toBe(true);
+    expect(run({ $return: { $fn: "hasKey", $args: [{ a: null }, "a"] } })).toBe(true);
   });
 });
 
@@ -110,41 +115,38 @@ describe("isObject", () => {
 
 describe("pick", () => {
   test("selects specified keys", () => {
-    expect(
-      run({ $return: { $fn: "pick", $args: [{ a: 1, b: 2, c: 3 }, ["a", "c"]] } }),
-    ).toEqual({ a: 1, c: 3 });
+    expect(run({ $return: { $fn: "pick", $args: [{ a: 1, b: 2, c: 3 }, ["a", "c"]] } })).toEqual({
+      a: 1,
+      c: 3,
+    });
   });
 
   test("ignores keys not present in the object", () => {
-    expect(
-      run({ $return: { $fn: "pick", $args: [{ a: 1 }, ["a", "z"]] } }),
-    ).toEqual({ a: 1 });
+    expect(run({ $return: { $fn: "pick", $args: [{ a: 1 }, ["a", "z"]] } })).toEqual({ a: 1 });
   });
 
   test("empty key list returns empty object", () => {
-    expect(
-      run({ $return: { $fn: "pick", $args: [{ a: 1, b: 2 }, []] } }),
-    ).toEqual({});
+    expect(run({ $return: { $fn: "pick", $args: [{ a: 1, b: 2 }, []] } })).toEqual({});
   });
 });
 
 describe("omit", () => {
   test("excludes specified keys", () => {
-    expect(
-      run({ $return: { $fn: "omit", $args: [{ a: 1, b: 2, c: 3 }, ["b"]] } }),
-    ).toEqual({ a: 1, c: 3 });
+    expect(run({ $return: { $fn: "omit", $args: [{ a: 1, b: 2, c: 3 }, ["b"]] } })).toEqual({
+      a: 1,
+      c: 3,
+    });
   });
 
   test("ignores keys not present in the object", () => {
-    expect(
-      run({ $return: { $fn: "omit", $args: [{ a: 1, b: 2 }, ["z"]] } }),
-    ).toEqual({ a: 1, b: 2 });
+    expect(run({ $return: { $fn: "omit", $args: [{ a: 1, b: 2 }, ["z"]] } })).toEqual({
+      a: 1,
+      b: 2,
+    });
   });
 
   test("omitting all keys returns empty object", () => {
-    expect(
-      run({ $return: { $fn: "omit", $args: [{ a: 1, b: 2 }, ["a", "b"]] } }),
-    ).toEqual({});
+    expect(run({ $return: { $fn: "omit", $args: [{ a: 1, b: 2 }, ["a", "b"]] } })).toEqual({});
   });
 });
 
@@ -183,11 +185,9 @@ describe("mapValues", () => {
       $return: { $fn: "neg", $args: [{ $var: "n" }] },
     };
     expect(
-      run(
-        { $return: { $fn: "mapValues", $args: [{ $fn: "negate" }, { a: 1, b: -2 }] } },
-        [],
-        { negate },
-      ),
+      run({ $return: { $fn: "mapValues", $args: [{ $fn: "negate" }, { a: 1, b: -2 }] } }, [], {
+        negate,
+      }),
     ).toEqual({ a: -1, b: 2 });
   });
 
@@ -196,10 +196,7 @@ describe("mapValues", () => {
       run({
         $return: {
           $fn: "mapValues",
-          $args: [
-            { $params: ["v"], $return: { $var: "v" } },
-            {},
-          ],
+          $args: [{ $params: ["v"], $return: { $var: "v" } }, {}],
         },
       }),
     ).toEqual({});
@@ -254,10 +251,7 @@ describe("object transformation pipelines", () => {
         state: { score: 0, lives: 3, level: 1 },
         $return: {
           $fn: "merge",
-          $args: [
-            { $var: "state" },
-            { score: 100, level: 2 },
-          ],
+          $args: [{ $var: "state" }, { score: 100, level: 2 }],
         },
       }),
     ).toEqual({ score: 100, lives: 3, level: 2 });
