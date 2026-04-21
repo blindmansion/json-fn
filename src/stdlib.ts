@@ -228,6 +228,11 @@ export function createStdlib(): FunctionRegistry {
       decorated.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
       return decorated.map((d) => d.item);
     }, 2),
+    apply: builtin((args, call) => {
+      const [fn, argsArray] = args;
+      if (!Array.isArray(argsArray)) throw new Error("apply: second argument must be an array");
+      return call(fn!, argsArray);
+    }, 2),
     pipe: builtin((args, call) => {
       const [fns, init] = args;
       if (!Array.isArray(fns))

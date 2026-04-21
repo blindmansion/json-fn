@@ -5,8 +5,8 @@
       "description": "entries: returns key-value pairs",
       "body": {
         "$return": {
-          "$fn": "entries",
-          "$args": [
+          "$fn": [
+            "entries",
             {
               "a": 1,
               "b": 2,
@@ -25,8 +25,7 @@
       "description": "entries: empty object returns empty array",
       "body": {
         "$return": {
-          "$fn": "entries",
-          "$args": [{}]
+          "$fn": ["entries", {}]
         }
       },
       "expected": []
@@ -35,8 +34,8 @@
       "description": "fromEntries: builds object from pairs",
       "body": {
         "$return": {
-          "$fn": "fromEntries",
-          "$args": [
+          "$fn": [
+            "fromEntries",
             [
               ["x", 10],
               ["y", 20]
@@ -53,8 +52,7 @@
       "description": "fromEntries: empty pairs returns empty object",
       "body": {
         "$return": {
-          "$fn": "fromEntries",
-          "$args": [[]]
+          "$fn": ["fromEntries", []]
         }
       },
       "expected": {}
@@ -63,8 +61,8 @@
       "description": "entries → fromEntries roundtrip",
       "body": {
         "pairs": {
-          "$fn": "entries",
-          "$args": [
+          "$fn": [
+            "entries",
             {
               "name": "alice",
               "age": 30
@@ -72,8 +70,8 @@
           ]
         },
         "$return": {
-          "$fn": "fromEntries",
-          "$args": [
+          "$fn": [
+            "fromEntries",
             {
               "$var": "pairs"
             }
@@ -89,8 +87,8 @@
       "description": "merge: merges two objects",
       "body": {
         "$return": {
-          "$fn": "merge",
-          "$args": [
+          "$fn": [
+            "merge",
             {
               "a": 1
             },
@@ -109,8 +107,8 @@
       "description": "merge: second object wins on key conflict",
       "body": {
         "$return": {
-          "$fn": "merge",
-          "$args": [
+          "$fn": [
+            "merge",
             {
               "a": 1,
               "b": 2
@@ -132,8 +130,8 @@
       "description": "merge: merging with empty object is identity",
       "body": {
         "$return": {
-          "$fn": "merge",
-          "$args": [
+          "$fn": [
+            "merge",
             {
               "a": 1
             },
@@ -149,8 +147,8 @@
       "description": "hasKey: returns true for existing key",
       "body": {
         "$return": {
-          "$fn": "hasKey",
-          "$args": [
+          "$fn": [
+            "hasKey",
             {
               "x": 1,
               "y": 2
@@ -165,8 +163,8 @@
       "description": "hasKey: returns false for missing key",
       "body": {
         "$return": {
-          "$fn": "hasKey",
-          "$args": [
+          "$fn": [
+            "hasKey",
             {
               "x": 1
             },
@@ -180,8 +178,8 @@
       "description": "hasKey: detects key with null value",
       "body": {
         "$return": {
-          "$fn": "hasKey",
-          "$args": [
+          "$fn": [
+            "hasKey",
             {
               "a": null
             },
@@ -195,8 +193,8 @@
       "description": "isObject: true for plain objects",
       "body": {
         "$return": {
-          "$fn": "isObject",
-          "$args": [
+          "$fn": [
+            "isObject",
             {
               "a": 1
             }
@@ -209,8 +207,7 @@
       "description": "isObject: true for empty object",
       "body": {
         "$return": {
-          "$fn": "isObject",
-          "$args": [{}]
+          "$fn": ["isObject", {}]
         }
       },
       "expected": true
@@ -219,8 +216,7 @@
       "description": "isObject: false for arrays",
       "body": {
         "$return": {
-          "$fn": "isObject",
-          "$args": [[1, 2]]
+          "$fn": ["isObject", [1, 2]]
         }
       },
       "expected": false
@@ -229,8 +225,7 @@
       "description": "isObject: false for null",
       "body": {
         "$return": {
-          "$fn": "isObject",
-          "$args": [null]
+          "$fn": ["isObject", null]
         }
       },
       "expected": false
@@ -239,8 +234,7 @@
       "description": "isObject: false for number",
       "body": {
         "$return": {
-          "$fn": "isObject",
-          "$args": [42]
+          "$fn": ["isObject", 42]
         }
       },
       "expected": false
@@ -249,8 +243,7 @@
       "description": "isObject: false for string",
       "body": {
         "$return": {
-          "$fn": "isObject",
-          "$args": ["hello"]
+          "$fn": ["isObject", "hello"]
         }
       },
       "expected": false
@@ -259,8 +252,7 @@
       "description": "isObject: false for boolean",
       "body": {
         "$return": {
-          "$fn": "isObject",
-          "$args": [true]
+          "$fn": ["isObject", true]
         }
       },
       "expected": false
@@ -269,8 +261,8 @@
       "description": "pick: selects specified keys",
       "body": {
         "$return": {
-          "$fn": "pick",
-          "$args": [
+          "$fn": [
+            "pick",
             {
               "a": 1,
               "b": 2,
@@ -289,8 +281,8 @@
       "description": "pick: ignores keys not present in the object",
       "body": {
         "$return": {
-          "$fn": "pick",
-          "$args": [
+          "$fn": [
+            "pick",
             {
               "a": 1
             },
@@ -306,8 +298,8 @@
       "description": "pick: empty key list returns empty object",
       "body": {
         "$return": {
-          "$fn": "pick",
-          "$args": [
+          "$fn": [
+            "pick",
             {
               "a": 1,
               "b": 2
@@ -322,8 +314,8 @@
       "description": "omit: excludes specified keys",
       "body": {
         "$return": {
-          "$fn": "omit",
-          "$args": [
+          "$fn": [
+            "omit",
             {
               "a": 1,
               "b": 2,
@@ -342,8 +334,8 @@
       "description": "omit: ignores keys not present in the object",
       "body": {
         "$return": {
-          "$fn": "omit",
-          "$args": [
+          "$fn": [
+            "omit",
             {
               "a": 1,
               "b": 2
@@ -361,8 +353,8 @@
       "description": "omit: omitting all keys returns empty object",
       "body": {
         "$return": {
-          "$fn": "omit",
-          "$args": [
+          "$fn": [
+            "omit",
             {
               "a": 1,
               "b": 2
@@ -377,13 +369,13 @@
       "description": "mapValues: transforms values with inline function",
       "body": {
         "$return": {
-          "$fn": "mapValues",
-          "$args": [
+          "$fn": [
+            "mapValues",
             {
               "$params": ["v"],
               "$return": {
-                "$fn": "mul",
-                "$args": [
+                "$fn": [
+                  "mul",
                   {
                     "$var": "v"
                   },
@@ -409,8 +401,8 @@
       "description": "mapValues: callback receives key as second argument",
       "body": {
         "$return": {
-          "$fn": "mapValues",
-          "$args": [
+          "$fn": [
+            "mapValues",
             {
               "$params": ["v", "k"],
               "$return": {
@@ -433,8 +425,8 @@
       "description": "mapValues: works with named function",
       "body": {
         "$return": {
-          "$fn": "mapValues",
-          "$args": [
+          "$fn": [
+            "mapValues",
             {
               "$fn": "negate"
             },
@@ -449,8 +441,8 @@
         "negate": {
           "$params": ["n"],
           "$return": {
-            "$fn": "neg",
-            "$args": [
+            "$fn": [
+              "neg",
               {
                 "$var": "n"
               }
@@ -467,8 +459,8 @@
       "description": "mapValues: empty object returns empty object",
       "body": {
         "$return": {
-          "$fn": "mapValues",
-          "$args": [
+          "$fn": [
+            "mapValues",
             {
               "$params": ["v"],
               "$return": {
@@ -485,8 +477,8 @@
       "description": "entries → filter → fromEntries (filter object by value)",
       "body": {
         "pairs": {
-          "$fn": "entries",
-          "$args": [
+          "$fn": [
+            "entries",
             {
               "a": 1,
               "b": 5,
@@ -496,8 +488,8 @@
           ]
         },
         "big": {
-          "$fn": "filter",
-          "$args": [
+          "$fn": [
+            "filter",
             {
               "$params": ["pair"],
               "value": {
@@ -505,8 +497,8 @@
                 "$get": 1
               },
               "$return": {
-                "$fn": "gt",
-                "$args": [
+                "$fn": [
+                  "gt",
                   {
                     "$var": "value"
                   },
@@ -520,8 +512,8 @@
           ]
         },
         "$return": {
-          "$fn": "fromEntries",
-          "$args": [
+          "$fn": [
+            "fromEntries",
             {
               "$var": "big"
             }
@@ -537,8 +529,8 @@
       "description": "entries → map → fromEntries (transform keys)",
       "body": {
         "pairs": {
-          "$fn": "entries",
-          "$args": [
+          "$fn": [
+            "entries",
             {
               "hello": 1,
               "world": 2
@@ -546,13 +538,13 @@
           ]
         },
         "uppered": {
-          "$fn": "map",
-          "$args": [
+          "$fn": [
+            "map",
             {
               "$params": ["pair"],
               "k": {
-                "$fn": "upper",
-                "$args": [
+                "$fn": [
+                  "upper",
                   {
                     "$var": "pair",
                     "$get": 0
@@ -578,8 +570,8 @@
           ]
         },
         "$return": {
-          "$fn": "fromEntries",
-          "$args": [
+          "$fn": [
+            "fromEntries",
             {
               "$var": "uppered"
             }
@@ -600,8 +592,8 @@
           "level": 1
         },
         "$return": {
-          "$fn": "merge",
-          "$args": [
+          "$fn": [
+            "merge",
             {
               "$var": "state"
             },

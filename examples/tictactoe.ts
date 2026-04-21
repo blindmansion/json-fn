@@ -38,7 +38,7 @@ function run(label: string, body: any, args: JSONType[] = []): JSONType {
 functions.otherPlayer = {
   $params: ["player"],
   $return: {
-    $if: { $fn: "eq", $args: [{ $var: "player" }, "X"] },
+    $if: { $fn: ["eq", { $var: "player" }, "X"] },
     $then: "O",
     $else: "X",
   },
@@ -48,8 +48,7 @@ functions.otherPlayer = {
 functions.validMove = {
   $params: ["board", "pos"],
   $return: {
-    $fn: "eq",
-    $args: [{ $var: "board", $get: { $var: "pos" } }, null],
+    $fn: ["eq", { $var: "board", $get: { $var: "pos" } }, null],
   },
 };
 
@@ -59,12 +58,12 @@ functions.validMove = {
 functions.makeMove = {
   $params: ["board", "pos", "player"],
   $return: {
-    $fn: "map",
-    $args: [
+    $fn: [
+      "map",
       {
         $params: ["cell", "idx"],
         $return: {
-          $if: { $fn: "eq", $args: [{ $var: "idx" }, { $var: "pos" }] },
+          $if: { $fn: ["eq", { $var: "idx" }, { $var: "pos" }] },
           $then: { $var: "player" },
           $else: { $var: "cell" },
         },
@@ -80,13 +79,12 @@ functions.makeMove = {
 functions.checkLine = {
   $params: ["board", "player", "line"],
   $return: {
-    $fn: "every",
-    $args: [
+    $fn: [
+      "every",
       {
         $params: ["pos"],
         $return: {
-          $fn: "eq",
-          $args: [{ $var: "board", $get: { $var: "pos" } }, { $var: "player" }],
+          $fn: ["eq", { $var: "board", $get: { $var: "pos" } }, { $var: "player" }],
         },
       },
       { $var: "line" },
@@ -112,13 +110,12 @@ functions.checkWin = {
     ],
   },
   $return: {
-    $fn: "some",
-    $args: [
+    $fn: [
+      "some",
       {
         $params: ["line"],
         $return: {
-          $fn: "checkLine",
-          $args: [{ $var: "board" }, { $var: "player" }, { $var: "line" }],
+          $fn: ["checkLine", { $var: "board" }, { $var: "player" }, { $var: "line" }],
         },
       },
       { $var: "lines" },
@@ -130,9 +127,9 @@ functions.checkWin = {
 functions.isBoardFull = {
   $params: ["board"],
   $return: {
-    $fn: "every",
-    $args: [
-      { $params: ["cell"], $return: { $fn: "neq", $args: [{ $var: "cell" }, null] } },
+    $fn: [
+      "every",
+      { $params: ["cell"], $return: { $fn: ["neq", { $var: "cell" }, null] } },
       { $var: "board" },
     ],
   },
@@ -141,9 +138,9 @@ functions.isBoardFull = {
 // getStatus(board) → "X" | "O" | "draw" | "playing"
 functions.getStatus = {
   $params: ["board"],
-  xWins: { $fn: "checkWin", $args: [{ $var: "board" }, "X"] },
-  oWins: { $fn: "checkWin", $args: [{ $var: "board" }, "O"] },
-  full: { $fn: "isBoardFull", $args: [{ $var: "board" }] },
+  xWins: { $fn: ["checkWin", { $var: "board" }, "X"] },
+  oWins: { $fn: ["checkWin", { $var: "board" }, "O"] },
+  full: { $fn: ["isBoardFull", { $var: "board" }] },
   $return: {
     $cond: [
       [{ $var: "xWins" }, "X"],
@@ -163,15 +160,14 @@ functions.playMove = {
   board: { $var: "state", $get: "board" },
   turn: { $var: "state", $get: "turn" },
   currentStatus: { $var: "state", $get: "status" },
-  stillPlaying: { $fn: "eq", $args: [{ $var: "currentStatus" }, "playing"] },
-  valid: { $fn: "validMove", $args: [{ $var: "board" }, { $var: "pos" }] },
-  canMove: { $fn: "and", $args: [{ $var: "stillPlaying" }, { $var: "valid" }] },
+  stillPlaying: { $fn: ["eq", { $var: "currentStatus" }, "playing"] },
+  valid: { $fn: ["validMove", { $var: "board" }, { $var: "pos" }] },
+  canMove: { $fn: ["and", { $var: "stillPlaying" }, { $var: "valid" }] },
   newBoard: {
-    $fn: "makeMove",
-    $args: [{ $var: "board" }, { $var: "pos" }, { $var: "turn" }],
+    $fn: ["makeMove", { $var: "board" }, { $var: "pos" }, { $var: "turn" }],
   },
-  newStatus: { $fn: "getStatus", $args: [{ $var: "newBoard" }] },
-  nextTurn: { $fn: "otherPlayer", $args: [{ $var: "turn" }] },
+  newStatus: { $fn: ["getStatus", { $var: "newBoard" }] },
+  nextTurn: { $fn: ["otherPlayer", { $var: "turn" }] },
   $return: {
     $if: { $var: "canMove" },
     $then: {
@@ -201,16 +197,14 @@ functions.playMove = {
 functions.minimax = {
   $params: ["board", "depth", "isMaximizing", "aiPlayer"],
 
-  opponent: { $fn: "otherPlayer", $args: [{ $var: "aiPlayer" }] },
-  status: { $fn: "getStatus", $args: [{ $var: "board" }] },
-  gameOver: { $fn: "neq", $args: [{ $var: "status" }, "playing"] },
+  opponent: { $fn: ["otherPlayer", { $var: "aiPlayer" }] },
+  status: { $fn: ["getStatus", { $var: "board" }] },
+  gameOver: { $fn: ["neq", { $var: "status" }, "playing"] },
   aiWins: {
-    $fn: "and",
-    $args: [{ $var: "gameOver" }, { $fn: "eq", $args: [{ $var: "status" }, { $var: "aiPlayer" }] }],
+    $fn: ["and", { $var: "gameOver" }, { $fn: ["eq", { $var: "status" }, { $var: "aiPlayer" }] }],
   },
   opponentWins: {
-    $fn: "and",
-    $args: [{ $var: "gameOver" }, { $fn: "eq", $args: [{ $var: "status" }, { $var: "opponent" }] }],
+    $fn: ["and", { $var: "gameOver" }, { $fn: ["eq", { $var: "status" }, { $var: "opponent" }] }],
   },
 
   currentPlayer: {
@@ -219,32 +213,30 @@ functions.minimax = {
     $else: { $var: "opponent" },
   },
   emptyPos: {
-    $fn: "filter",
-    $args: [
+    $fn: [
+      "filter",
       {
         $params: ["pos"],
         $return: {
-          $fn: "validMove",
-          $args: [{ $var: "board" }, { $var: "pos" }],
+          $fn: ["validMove", { $var: "board" }, { $var: "pos" }],
         },
       },
-      { $fn: "range", $args: [9] },
+      { $fn: ["range", 9] },
     ],
   },
   scores: {
-    $fn: "map",
-    $args: [
+    $fn: [
+      "map",
       {
         $params: ["pos"],
         $return: {
-          $fn: "minimax",
-          $args: [
+          $fn: [
+            "minimax",
             {
-              $fn: "makeMove",
-              $args: [{ $var: "board" }, { $var: "pos" }, { $var: "currentPlayer" }],
+              $fn: ["makeMove", { $var: "board" }, { $var: "pos" }, { $var: "currentPlayer" }],
             },
-            { $fn: "add", $args: [{ $var: "depth" }, 1] },
-            { $fn: "not", $args: [{ $var: "isMaximizing" }] },
+            { $fn: ["add", { $var: "depth" }, 1] },
+            { $fn: ["not", { $var: "isMaximizing" }] },
             { $var: "aiPlayer" },
           ],
         },
@@ -252,13 +244,13 @@ functions.minimax = {
       { $var: "emptyPos" },
     ],
   },
-  maxScore: { $fn: "max", $args: [{ $var: "scores" }] },
-  minScore: { $fn: "min", $args: [{ $var: "scores" }] },
+  maxScore: { $fn: ["max", { $var: "scores" }] },
+  minScore: { $fn: ["min", { $var: "scores" }] },
 
   $return: {
     $cond: [
-      [{ $var: "aiWins" }, { $fn: "sub", $args: [10, { $var: "depth" }] }],
-      [{ $var: "opponentWins" }, { $fn: "sub", $args: [{ $var: "depth" }, 10] }],
+      [{ $var: "aiWins" }, { $fn: ["sub", 10, { $var: "depth" }] }],
+      [{ $var: "opponentWins" }, { $fn: ["sub", { $var: "depth" }, 10] }],
       [{ $var: "gameOver" }, 0],
       [{ $var: "isMaximizing" }, { $var: "maxScore" }],
       [true, { $var: "minScore" }],
@@ -273,34 +265,31 @@ functions.minimax = {
 functions.bestMove = {
   $params: ["board", "aiPlayer"],
   emptyPos: {
-    $fn: "filter",
-    $args: [
+    $fn: [
+      "filter",
       {
         $params: ["pos"],
         $return: {
-          $fn: "validMove",
-          $args: [{ $var: "board" }, { $var: "pos" }],
+          $fn: ["validMove", { $var: "board" }, { $var: "pos" }],
         },
       },
-      { $fn: "range", $args: [9] },
+      { $fn: ["range", 9] },
     ],
   },
   best: {
-    $fn: "reduce",
-    $args: [
+    $fn: [
+      "reduce",
       {
         $params: ["acc", "pos"],
         newBoard: {
-          $fn: "makeMove",
-          $args: [{ $var: "board" }, { $var: "pos" }, { $var: "aiPlayer" }],
+          $fn: ["makeMove", { $var: "board" }, { $var: "pos" }, { $var: "aiPlayer" }],
         },
         score: {
-          $fn: "minimax",
-          $args: [{ $var: "newBoard" }, 1, false, { $var: "aiPlayer" }],
+          $fn: ["minimax", { $var: "newBoard" }, 1, false, { $var: "aiPlayer" }],
         },
         bestScore: { $var: "acc", $get: "score" },
         $return: {
-          $if: { $fn: "gt", $args: [{ $var: "score" }, { $var: "bestScore" }] },
+          $if: { $fn: ["gt", { $var: "score" }, { $var: "bestScore" }] },
           $then: { score: { $var: "score" }, pos: { $var: "pos" } },
           $else: { $var: "acc" },
         },
@@ -337,21 +326,21 @@ const NEW_GAME: JSONType = { board: EMPTY_BOARD, turn: "X", status: "playing" };
 console.log("═══ 1. Basic game logic ═══\n");
 
 console.log("otherPlayer:");
-run('  otherPlayer("X")', { $return: { $fn: "otherPlayer", $args: ["X"] } });
-run('  otherPlayer("O")', { $return: { $fn: "otherPlayer", $args: ["O"] } });
+run('  otherPlayer("X")', { $return: { $fn: ["otherPlayer", "X"] } });
+run('  otherPlayer("O")', { $return: { $fn: ["otherPlayer", "O"] } });
 
 console.log("\nmakeMove (place X at position 4):");
 const board1 = run("  makeMove(empty, 4, X)", {
-  $return: { $fn: "makeMove", $args: [EMPTY_BOARD, 4, "X"] },
+  $return: { $fn: ["makeMove", EMPTY_BOARD, 4, "X"] },
 });
 console.log(formatBoard(board1 as JSONType[]));
 
 console.log("\nvalidMove:");
 run("  validMove(board, 4) [occupied]", {
-  $return: { $fn: "validMove", $args: [board1, 4] },
+  $return: { $fn: ["validMove", board1, 4] },
 });
 run("  validMove(board, 0) [empty]", {
-  $return: { $fn: "validMove", $args: [board1, 0] },
+  $return: { $fn: ["validMove", board1, 0] },
 });
 
 // ── Demo 2: Win detection ─────────────────────────────────────────────────
@@ -364,28 +353,28 @@ const drawBoard: JSONType = ["X", "O", "X", "X", "X", "O", "O", "X", "O"];
 console.log("X wins (top row):");
 console.log(formatBoard(xWinsBoard as JSONType[]));
 run("  checkWin(board, X)", {
-  $return: { $fn: "checkWin", $args: [xWinsBoard, "X"] },
+  $return: { $fn: ["checkWin", xWinsBoard, "X"] },
 });
 run("  getStatus(board)", {
-  $return: { $fn: "getStatus", $args: [xWinsBoard] },
+  $return: { $fn: ["getStatus", xWinsBoard] },
 });
 
 console.log("\nNo winner yet:");
 console.log(formatBoard(noWinBoard as JSONType[]));
 run("  checkWin(board, X)", {
-  $return: { $fn: "checkWin", $args: [noWinBoard, "X"] },
+  $return: { $fn: ["checkWin", noWinBoard, "X"] },
 });
 run("  checkWin(board, O)", {
-  $return: { $fn: "checkWin", $args: [noWinBoard, "O"] },
+  $return: { $fn: ["checkWin", noWinBoard, "O"] },
 });
 run("  getStatus(board)", {
-  $return: { $fn: "getStatus", $args: [noWinBoard] },
+  $return: { $fn: ["getStatus", noWinBoard] },
 });
 
 console.log("\nDraw:");
 console.log(formatBoard(drawBoard as JSONType[]));
 run("  getStatus(board)", {
-  $return: { $fn: "getStatus", $args: [drawBoard] },
+  $return: { $fn: ["getStatus", drawBoard] },
 });
 
 // ── Demo 3: Playing a full game via reduce ────────────────────────────────
@@ -398,8 +387,7 @@ const moves: JSONType = [0, 3, 1, 4, 2];
 // reduce(playMove, initialState, moves)
 const gameResult = run("  Play moves [0, 3, 1, 4, 2]", {
   $return: {
-    $fn: "reduce",
-    $args: [{ $fn: "playMove" }, NEW_GAME, moves],
+    $fn: ["reduce", { $fn: "playMove" }, NEW_GAME, moves],
   },
 });
 
@@ -447,7 +435,7 @@ console.log("\nFinding best move for O...");
 const perfStats = enablePerf();
 const t0 = performance.now();
 const bestPos = run("  bestMove(board, O)", {
-  $return: { $fn: "bestMove", $args: [aiBoard, "O"] },
+  $return: { $fn: ["bestMove", aiBoard, "O"] },
 });
 const elapsed = (performance.now() - t0).toFixed(0);
 disablePerf();

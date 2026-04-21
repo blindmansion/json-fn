@@ -4,8 +4,8 @@
     "double": {
       "$params": ["x"],
       "$return": {
-        "$fn": "mul",
-        "$args": [
+        "$fn": [
+          "mul",
           {
             "$var": "x"
           },
@@ -16,8 +16,8 @@
     "isEven": {
       "$params": ["n"],
       "remainder": {
-        "$fn": "mod",
-        "$args": [
+        "$fn": [
+          "mod",
           {
             "$var": "n"
           },
@@ -25,8 +25,8 @@
         ]
       },
       "$return": {
-        "$fn": "eq",
-        "$args": [
+        "$fn": [
+          "eq",
           {
             "$var": "remainder"
           },
@@ -38,8 +38,8 @@
       "$params": ["n"],
       "$return": {
         "$if": {
-          "$fn": "lte",
-          "$args": [
+          "$fn": [
+            "lte",
             {
               "$var": "n"
             },
@@ -48,17 +48,17 @@
         },
         "$then": 1,
         "$else": {
-          "$fn": "mul",
-          "$args": [
+          "$fn": [
+            "mul",
             {
               "$var": "n"
             },
             {
-              "$fn": "fact",
-              "$args": [
+              "$fn": [
+                "fact",
                 {
-                  "$fn": "sub",
-                  "$args": [
+                  "$fn": [
+                    "sub",
                     {
                       "$var": "n"
                     },
@@ -75,8 +75,8 @@
       "$params": ["n"],
       "$return": {
         "$if": {
-          "$fn": "lte",
-          "$args": [
+          "$fn": [
+            "lte",
             {
               "$var": "n"
             },
@@ -87,14 +87,14 @@
           "$var": "n"
         },
         "$else": {
-          "$fn": "add",
-          "$args": [
+          "$fn": [
+            "add",
             {
-              "$fn": "fib",
-              "$args": [
+              "$fn": [
+                "fib",
                 {
-                  "$fn": "sub",
-                  "$args": [
+                  "$fn": [
+                    "sub",
                     {
                       "$var": "n"
                     },
@@ -104,11 +104,11 @@
               ]
             },
             {
-              "$fn": "fib",
-              "$args": [
+              "$fn": [
+                "fib",
                 {
-                  "$fn": "sub",
-                  "$args": [
+                  "$fn": [
+                    "sub",
                     {
                       "$var": "n"
                     },
@@ -127,8 +127,7 @@
       "description": "double(21)",
       "body": {
         "$return": {
-          "$fn": "double",
-          "$args": [21]
+          "$fn": ["double", 21]
         }
       },
       "expected": 42
@@ -137,8 +136,7 @@
       "description": "isEven(4)",
       "body": {
         "$return": {
-          "$fn": "isEven",
-          "$args": [4]
+          "$fn": ["isEven", 4]
         }
       },
       "expected": true
@@ -147,8 +145,7 @@
       "description": "isEven(7)",
       "body": {
         "$return": {
-          "$fn": "isEven",
-          "$args": [7]
+          "$fn": ["isEven", 7]
         }
       },
       "expected": false
@@ -157,8 +154,7 @@
       "description": "fact(0)",
       "body": {
         "$return": {
-          "$fn": "fact",
-          "$args": [0]
+          "$fn": ["fact", 0]
         }
       },
       "expected": 1
@@ -167,8 +163,7 @@
       "description": "fact(1)",
       "body": {
         "$return": {
-          "$fn": "fact",
-          "$args": [1]
+          "$fn": ["fact", 1]
         }
       },
       "expected": 1
@@ -177,8 +172,7 @@
       "description": "fact(5)",
       "body": {
         "$return": {
-          "$fn": "fact",
-          "$args": [5]
+          "$fn": ["fact", 5]
         }
       },
       "expected": 120
@@ -187,8 +181,7 @@
       "description": "fact(10)",
       "body": {
         "$return": {
-          "$fn": "fact",
-          "$args": [10]
+          "$fn": ["fact", 10]
         }
       },
       "expected": 3628800
@@ -197,8 +190,7 @@
       "description": "fib(0)",
       "body": {
         "$return": {
-          "$fn": "fib",
-          "$args": [0]
+          "$fn": ["fib", 0]
         }
       },
       "expected": 0
@@ -207,8 +199,7 @@
       "description": "fib(1)",
       "body": {
         "$return": {
-          "$fn": "fib",
-          "$args": [1]
+          "$fn": ["fib", 1]
         }
       },
       "expected": 1
@@ -217,8 +208,7 @@
       "description": "fib(10)",
       "body": {
         "$return": {
-          "$fn": "fib",
-          "$args": [10]
+          "$fn": ["fib", 10]
         }
       },
       "expected": 55

@@ -5,8 +5,7 @@
       "description": "add(3, 4)",
       "body": {
         "$return": {
-          "$fn": "add",
-          "$args": [3, 4]
+          "$fn": ["add", 3, 4]
         }
       },
       "expected": 7
@@ -15,8 +14,7 @@
       "description": "upper('hello')",
       "body": {
         "$return": {
-          "$fn": "upper",
-          "$args": ["hello"]
+          "$fn": ["upper", "hello"]
         }
       },
       "expected": "HELLO"
@@ -25,15 +23,13 @@
       "description": "nested calls: mul(add(2,3), sub(10,4))",
       "body": {
         "$return": {
-          "$fn": "mul",
-          "$args": [
+          "$fn": [
+            "mul",
             {
-              "$fn": "add",
-              "$args": [2, 3]
+              "$fn": ["add", 2, 3]
             },
             {
-              "$fn": "sub",
-              "$args": [10, 4]
+              "$fn": ["sub", 10, 4]
             }
           ]
         }
@@ -45,8 +41,8 @@
       "body": {
         "$params": ["a", "b"],
         "$return": {
-          "$fn": "add",
-          "$args": [
+          "$fn": [
+            "add",
             {
               "$var": "a"
             },

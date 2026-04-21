@@ -19,8 +19,7 @@ enum ExpressionType {
 }
 
 type FunctionCall = {
-  $fn: JSONType;
-  $args: JSONType;
+  $fn: JSONType[];
 };
 
 type FunctionReference = {

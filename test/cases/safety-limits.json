@@ -51,8 +51,8 @@
       "body": {
         "x": 10,
         "a": {
-          "$fn": "add",
-          "$args": [
+          "$fn": [
+            "add",
             {
               "$var": "x"
             },
@@ -77,15 +77,13 @@
       "description": "enforces maximum call depth",
       "body": {
         "$return": {
-          "$fn": "loop",
-          "$args": []
+          "$fn": ["loop"]
         }
       },
       "functions": {
         "loop": {
           "$return": {
-            "$fn": "loop",
-            "$args": []
+            "$fn": ["loop"]
           }
         }
       },
@@ -98,21 +96,18 @@
       "description": "enforces maximum call depth with mutual recursion",
       "body": {
         "$return": {
-          "$fn": "ping",
-          "$args": []
+          "$fn": ["ping"]
         }
       },
       "functions": {
         "ping": {
           "$return": {
-            "$fn": "pong",
-            "$args": []
+            "$fn": ["pong"]
           }
         },
         "pong": {
           "$return": {
-            "$fn": "ping",
-            "$args": []
+            "$fn": ["ping"]
           }
         }
       },
@@ -125,8 +120,7 @@
       "description": "allows recursion within configured limits",
       "body": {
         "$return": {
-          "$fn": "sum_to",
-          "$args": [5]
+          "$fn": ["sum_to", 5]
         }
       },
       "functions": {
@@ -134,8 +128,8 @@
           "$params": ["n"],
           "$return": {
             "$if": {
-              "$fn": "lte",
-              "$args": [
+              "$fn": [
+                "lte",
                 {
                   "$var": "n"
                 },
@@ -144,17 +138,17 @@
             },
             "$then": 0,
             "$else": {
-              "$fn": "add",
-              "$args": [
+              "$fn": [
+                "add",
                 {
                   "$var": "n"
                 },
                 {
-                  "$fn": "sum_to",
-                  "$args": [
+                  "$fn": [
+                    "sum_to",
                     {
-                      "$fn": "sub",
-                      "$args": [
+                      "$fn": [
+                        "sub",
                         {
                           "$var": "n"
                         },
@@ -178,8 +172,8 @@
       "body": {
         "a": 1,
         "b": {
-          "$fn": "add",
-          "$args": [
+          "$fn": [
+            "add",
             {
               "$var": "a"
             },
@@ -187,8 +181,8 @@
           ]
         },
         "c": {
-          "$fn": "add",
-          "$args": [
+          "$fn": [
+            "add",
             {
               "$var": "b"
             },
@@ -205,8 +199,7 @@
       "description": "enforces maximum operations limit",
       "body": {
         "$return": {
-          "$fn": "fib",
-          "$args": [10]
+          "$fn": ["fib", 10]
         }
       },
       "functions": {
@@ -214,8 +207,8 @@
           "$params": ["n"],
           "$return": {
             "$if": {
-              "$fn": "lte",
-              "$args": [
+              "$fn": [
+                "lte",
                 {
                   "$var": "n"
                 },
@@ -226,14 +219,14 @@
               "$var": "n"
             },
             "$else": {
-              "$fn": "add",
-              "$args": [
+              "$fn": [
+                "add",
                 {
-                  "$fn": "fib",
-                  "$args": [
+                  "$fn": [
+                    "fib",
                     {
-                      "$fn": "sub",
-                      "$args": [
+                      "$fn": [
+                        "sub",
                         {
                           "$var": "n"
                         },
@@ -243,11 +236,11 @@
                   ]
                 },
                 {
-                  "$fn": "fib",
-                  "$args": [
+                  "$fn": [
+                    "fib",
                     {
-                      "$fn": "sub",
-                      "$args": [
+                      "$fn": [
+                        "sub",
                         {
                           "$var": "n"
                         },
@@ -270,11 +263,10 @@
       "description": "allows execution within operations limit",
       "body": {
         "$return": {
-          "$fn": "add",
-          "$args": [
+          "$fn": [
+            "add",
             {
-              "$fn": "mul",
-              "$args": [3, 4]
+              "$fn": ["mul", 3, 4]
             },
             5
           ]
@@ -289,18 +281,18 @@
       "description": "operations limit catches expensive non-deep computation",
       "body": {
         "$return": {
-          "$fn": "reduce",
-          "$args": [
+          "$fn": [
+            "reduce",
             "add",
             0,
             {
-              "$fn": "map",
-              "$args": [
+              "$fn": [
+                "map",
                 {
                   "$params": ["x"],
                   "$return": {
-                    "$fn": "mul",
-                    "$args": [
+                    "$fn": [
+                      "mul",
                       {
                         "$var": "x"
                       },
@@ -311,8 +303,7 @@
                   }
                 },
                 {
-                  "$fn": "range",
-                  "$args": [100]
+                  "$fn": ["range", 100]
                 }
               ]
             }

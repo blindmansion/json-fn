@@ -7,8 +7,8 @@
         "$cond": [
           [
             {
-              "$fn": "lt",
-              "$args": [
+              "$fn": [
+                "lt",
                 {
                   "$var": "n"
                 },
@@ -19,8 +19,8 @@
           ],
           [
             {
-              "$fn": "eq",
-              "$args": [
+              "$fn": [
+                "eq",
                 {
                   "$var": "n"
                 },
@@ -36,11 +36,11 @@
     "fizzbuzz": {
       "$params": ["n"],
       "divBy3": {
-        "$fn": "eq",
-        "$args": [
+        "$fn": [
+          "eq",
           {
-            "$fn": "mod",
-            "$args": [
+            "$fn": [
+              "mod",
               {
                 "$var": "n"
               },
@@ -51,11 +51,11 @@
         ]
       },
       "divBy5": {
-        "$fn": "eq",
-        "$args": [
+        "$fn": [
+          "eq",
           {
-            "$fn": "mod",
-            "$args": [
+            "$fn": [
+              "mod",
               {
                 "$var": "n"
               },
@@ -66,8 +66,8 @@
         ]
       },
       "divBy15": {
-        "$fn": "and",
-        "$args": [
+        "$fn": [
+          "and",
           {
             "$var": "divBy3"
           },
@@ -112,8 +112,7 @@
       "body": {
         "$return": {
           "$if": {
-            "$fn": "gt",
-            "$args": [10, 5]
+            "$fn": ["gt", 10, 5]
           },
           "$then": "ten is greater",
           "$else": "five is greater"
@@ -126,8 +125,7 @@
       "body": {
         "$return": {
           "$if": {
-            "$fn": "gt",
-            "$args": [3, 5]
+            "$fn": ["gt", 3, 5]
           },
           "$then": "three is greater",
           "$else": "five is greater"
@@ -139,8 +137,7 @@
       "description": "$cond: classify negative",
       "body": {
         "$return": {
-          "$fn": "classify",
-          "$args": [-5]
+          "$fn": ["classify", -5]
         }
       },
       "expected": "negative"
@@ -149,8 +146,7 @@
       "description": "$cond: classify zero",
       "body": {
         "$return": {
-          "$fn": "classify",
-          "$args": [0]
+          "$fn": ["classify", 0]
         }
       },
       "expected": "zero"
@@ -159,8 +155,7 @@
       "description": "$cond: classify positive",
       "body": {
         "$return": {
-          "$fn": "classify",
-          "$args": [42]
+          "$fn": ["classify", 42]
         }
       },
       "expected": "positive"
@@ -169,8 +164,7 @@
       "description": "$cond: fizzbuzz(15) → FizzBuzz",
       "body": {
         "$return": {
-          "$fn": "fizzbuzz",
-          "$args": [15]
+          "$fn": ["fizzbuzz", 15]
         }
       },
       "expected": "FizzBuzz"
@@ -179,8 +173,7 @@
       "description": "$cond: fizzbuzz(9) → Fizz",
       "body": {
         "$return": {
-          "$fn": "fizzbuzz",
-          "$args": [9]
+          "$fn": ["fizzbuzz", 9]
         }
       },
       "expected": "Fizz"
@@ -189,8 +182,7 @@
       "description": "$cond: fizzbuzz(10) → Buzz",
       "body": {
         "$return": {
-          "$fn": "fizzbuzz",
-          "$args": [10]
+          "$fn": ["fizzbuzz", 10]
         }
       },
       "expected": "Buzz"
@@ -199,8 +191,7 @@
       "description": "$cond: fizzbuzz(7) → 7 (number passthrough)",
       "body": {
         "$return": {
-          "$fn": "fizzbuzz",
-          "$args": [7]
+          "$fn": ["fizzbuzz", 7]
         }
       },
       "expected": 7
@@ -213,8 +204,8 @@
           "$cond": [
             [
               {
-                "$fn": "gte",
-                "$args": [
+                "$fn": [
+                  "gte",
                   {
                     "$var": "score"
                   },
@@ -225,8 +216,8 @@
             ],
             [
               {
-                "$fn": "gte",
-                "$args": [
+                "$fn": [
+                  "gte",
                   {
                     "$var": "score"
                   },
@@ -237,8 +228,8 @@
             ],
             [
               {
-                "$fn": "gte",
-                "$args": [
+                "$fn": [
+                  "gte",
                   {
                     "$var": "score"
                   },
@@ -249,8 +240,8 @@
             ],
             [
               {
-                "$fn": "gte",
-                "$args": [
+                "$fn": [
+                  "gte",
                   {
                     "$var": "score"
                   },
@@ -274,8 +265,7 @@
             [
               false,
               {
-                "$fn": "add",
-                "$args": [1, 2]
+                "$fn": ["add", 1, 2]
               }
             ],
             [true, "matched second"],

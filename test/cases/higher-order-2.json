@@ -5,8 +5,7 @@
       "description": "flatten: flattens one level of nesting",
       "body": {
         "$return": {
-          "$fn": "flatten",
-          "$args": [[[1, 2], [3, 4], [5]]]
+          "$fn": ["flatten", [[1, 2], [3, 4], [5]]]
         }
       },
       "expected": [1, 2, 3, 4, 5]
@@ -15,8 +14,7 @@
       "description": "flatten: does not flatten deeper than one level",
       "body": {
         "$return": {
-          "$fn": "flatten",
-          "$args": [[[1, [2, 3]], [4]]]
+          "$fn": ["flatten", [[1, [2, 3]], [4]]]
         }
       },
       "expected": [1, [2, 3], 4]
@@ -25,8 +23,7 @@
       "description": "flatten: non-array elements pass through",
       "body": {
         "$return": {
-          "$fn": "flatten",
-          "$args": [[1, [2, 3], 4, [5]]]
+          "$fn": ["flatten", [1, [2, 3], 4, [5]]]
         }
       },
       "expected": [1, 2, 3, 4, 5]
@@ -35,8 +32,7 @@
       "description": "flatten: empty array returns empty array",
       "body": {
         "$return": {
-          "$fn": "flatten",
-          "$args": [[]]
+          "$fn": ["flatten", []]
         }
       },
       "expected": []
@@ -45,8 +41,8 @@
       "description": "flatMap: maps and flattens in one step",
       "body": {
         "$return": {
-          "$fn": "flatMap",
-          "$args": [
+          "$fn": [
+            "flatMap",
             {
               "$params": ["x"],
               "$return": [
@@ -54,8 +50,8 @@
                   "$var": "x"
                 },
                 {
-                  "$fn": "neg",
-                  "$args": [
+                  "$fn": [
+                    "neg",
                     {
                       "$var": "x"
                     }
@@ -73,13 +69,13 @@
       "description": "flatMap: non-array return values are kept as-is",
       "body": {
         "$return": {
-          "$fn": "flatMap",
-          "$args": [
+          "$fn": [
+            "flatMap",
             {
               "$params": ["x"],
               "$return": {
-                "$fn": "mul",
-                "$args": [
+                "$fn": [
+                  "mul",
                   {
                     "$var": "x"
                   },
@@ -97,8 +93,8 @@
       "description": "flatMap: callback receives index as second argument",
       "body": {
         "$return": {
-          "$fn": "flatMap",
-          "$args": [
+          "$fn": [
+            "flatMap",
             {
               "$params": ["x", "i"],
               "$return": [
@@ -117,14 +113,14 @@
       "description": "flatMap: empty arrays from callback are removed",
       "body": {
         "$return": {
-          "$fn": "flatMap",
-          "$args": [
+          "$fn": [
+            "flatMap",
             {
               "$params": ["x"],
               "$return": {
                 "$if": {
-                  "$fn": "gt",
-                  "$args": [
+                  "$fn": [
+                    "gt",
                     {
                       "$var": "x"
                     },
@@ -149,8 +145,8 @@
       "description": "flatMap: empty input returns empty array",
       "body": {
         "$return": {
-          "$fn": "flatMap",
-          "$args": [
+          "$fn": [
+            "flatMap",
             {
               "$params": ["x"],
               "$return": [
@@ -169,8 +165,8 @@
       "description": "groupBy: groups by string key",
       "body": {
         "$return": {
-          "$fn": "groupBy",
-          "$args": [
+          "$fn": [
+            "groupBy",
             {
               "$params": ["item"],
               "$return": {
@@ -226,13 +222,13 @@
       "description": "groupBy: groups by computed numeric key",
       "body": {
         "$return": {
-          "$fn": "groupBy",
-          "$args": [
+          "$fn": [
+            "groupBy",
             {
               "$params": ["n"],
               "$return": {
-                "$fn": "mod",
-                "$args": [
+                "$fn": [
+                  "mod",
                   {
                     "$var": "n"
                   },
@@ -253,8 +249,8 @@
       "description": "groupBy: works with named function",
       "body": {
         "$return": {
-          "$fn": "groupBy",
-          "$args": [
+          "$fn": [
+            "groupBy",
             {
               "$fn": "parity"
             },
@@ -267,11 +263,11 @@
           "$params": ["n"],
           "$return": {
             "$if": {
-              "$fn": "eq",
-              "$args": [
+              "$fn": [
+                "eq",
                 {
-                  "$fn": "mod",
-                  "$args": [
+                  "$fn": [
+                    "mod",
                     {
                       "$var": "n"
                     },
@@ -295,8 +291,8 @@
       "description": "groupBy: empty array returns empty object",
       "body": {
         "$return": {
-          "$fn": "groupBy",
-          "$args": [
+          "$fn": [
+            "groupBy",
             {
               "$params": ["x"],
               "$return": "a"
@@ -311,13 +307,13 @@
       "description": "sortBy: sorts by numeric key function",
       "body": {
         "$return": {
-          "$fn": "sortBy",
-          "$args": [
+          "$fn": [
+            "sortBy",
             {
               "$params": ["s"],
               "$return": {
-                "$fn": "length",
-                "$args": [
+                "$fn": [
+                  "length",
                   {
                     "$var": "s"
                   }
@@ -334,8 +330,8 @@
       "description": "sortBy: sorts by string key function",
       "body": {
         "$return": {
-          "$fn": "sortBy",
-          "$args": [
+          "$fn": [
+            "sortBy",
             {
               "$params": ["item"],
               "$return": {
@@ -379,8 +375,8 @@
       "description": "sortBy: sorts by object field extraction",
       "body": {
         "$return": {
-          "$fn": "sortBy",
-          "$args": [
+          "$fn": [
+            "sortBy",
             {
               "$params": ["item"],
               "$return": {
@@ -424,8 +420,8 @@
       "description": "sortBy: stable sort preserves order of equal keys",
       "body": {
         "$return": {
-          "$fn": "sortBy",
-          "$args": [
+          "$fn": [
+            "sortBy",
             {
               "$params": ["item"],
               "$return": {
@@ -469,8 +465,8 @@
       "description": "sortBy: empty array returns empty array",
       "body": {
         "$return": {
-          "$fn": "sortBy",
-          "$args": [
+          "$fn": [
+            "sortBy",
             {
               "$params": ["x"],
               "$return": {
@@ -487,8 +483,8 @@
       "description": "pipe: threads value through a list of functions",
       "body": {
         "$return": {
-          "$fn": "pipe",
-          "$args": [
+          "$fn": [
+            "pipe",
             [
               {
                 "$fn": "neg"
@@ -507,8 +503,8 @@
       "description": "pipe: single function in pipeline",
       "body": {
         "$return": {
-          "$fn": "pipe",
-          "$args": [
+          "$fn": [
+            "pipe",
             [
               {
                 "$fn": "neg"
@@ -524,8 +520,7 @@
       "description": "pipe: empty pipeline returns initial value",
       "body": {
         "$return": {
-          "$fn": "pipe",
-          "$args": [[], 99]
+          "$fn": ["pipe", [], 99]
         }
       },
       "expected": 99
@@ -534,14 +529,14 @@
       "description": "pipe: works with inline functions",
       "body": {
         "$return": {
-          "$fn": "pipe",
-          "$args": [
+          "$fn": [
+            "pipe",
             [
               {
                 "$params": ["x"],
                 "$return": {
-                  "$fn": "mul",
-                  "$args": [
+                  "$fn": [
+                    "mul",
                     {
                       "$var": "x"
                     },
@@ -552,8 +547,8 @@
               {
                 "$params": ["x"],
                 "$return": {
-                  "$fn": "add",
-                  "$args": [
+                  "$fn": [
+                    "add",
                     {
                       "$var": "x"
                     },
@@ -572,8 +567,8 @@
       "description": "pipe: works with named functions",
       "body": {
         "$return": {
-          "$fn": "pipe",
-          "$args": [
+          "$fn": [
+            "pipe",
             [
               {
                 "$fn": "double"
@@ -590,8 +585,8 @@
         "double": {
           "$params": ["x"],
           "$return": {
-            "$fn": "mul",
-            "$args": [
+            "$fn": [
+              "mul",
               {
                 "$var": "x"
               },
@@ -602,8 +597,8 @@
         "addTen": {
           "$params": ["x"],
           "$return": {
-            "$fn": "add",
-            "$args": [
+            "$fn": [
+              "add",
               {
                 "$var": "x"
               },
@@ -618,8 +613,8 @@
       "description": "pipe: mix of named and inline functions",
       "body": {
         "$return": {
-          "$fn": "pipe",
-          "$args": [
+          "$fn": [
+            "pipe",
             [
               {
                 "$fn": "neg"
@@ -627,8 +622,8 @@
               {
                 "$params": ["x"],
                 "$return": {
-                  "$fn": "mul",
-                  "$args": [
+                  "$fn": [
+                    "mul",
                     {
                       "$var": "x"
                     },
@@ -652,14 +647,14 @@
       "description": "pipe: pipeline over a string (split → length)",
       "body": {
         "$return": {
-          "$fn": "pipe",
-          "$args": [
+          "$fn": [
+            "pipe",
             [
               {
                 "$params": ["s"],
                 "$return": {
-                  "$fn": "split",
-                  "$args": [
+                  "$fn": [
+                    "split",
                     {
                       "$var": "s"
                     },

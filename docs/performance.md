@@ -25,7 +25,7 @@ This means:
   at each stage.
 
 When a raw-marked value later appears in an expression position (as an element in
-an `$args` array, or captured into a closure by `replaceVars`), the evaluator
+an `$fn` array, or captured into a closure by `replaceVars`), the evaluator
 recognizes it and returns it immediately without walking its contents.
 
 **You don't need to do anything to benefit from this.** It handles the most common
@@ -53,7 +53,7 @@ Consider a function that checks win conditions against a fixed set of lines:
     [0, 4, 8],
     [2, 4, 6]
   ],
-  "$return": { "$fn": "some", "$args": ["checkLine", { "$var": "lines" }] }
+  "$return": { "$fn": ["some", "checkLine", { "$var": "lines" }] }
 }
 ```
 

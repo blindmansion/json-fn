@@ -68,8 +68,7 @@
         "$return": {
           "$var": "data",
           "$get": {
-            "$fn": "strcat",
-            "$args": ["hel", "lo"]
+            "$fn": ["strcat", "hel", "lo"]
           }
         }
       },
@@ -122,8 +121,7 @@
         "$return": {
           "$get": 0,
           "$from": {
-            "$fn": "concat",
-            "$args": [[10], [20]]
+            "$fn": ["concat", [10], [20]]
           }
         }
       },
@@ -141,8 +139,8 @@
           "$get": "name"
         },
         "$return": {
-          "$fn": "upper",
-          "$args": [
+          "$fn": [
+            "upper",
             {
               "$var": "name"
             }
@@ -157,13 +155,31 @@
         "$params": ["data"],
         "$return": {
           "$params": ["key"],
-          "$return": { "$var": "data", "$get": { "$var": "key" } }
+          "$return": {
+            "$var": "data",
+            "$get": {
+              "$var": "key"
+            }
+          }
         }
       },
-      "args": [{ "x": 10, "y": 20 }],
+      "args": [
+        {
+          "x": 10,
+          "y": 20
+        }
+      ],
       "expected": {
         "$params": ["key"],
-        "$return": { "$get": { "$var": "key" }, "$from": { "x": 10, "y": 20 } }
+        "$return": {
+          "$get": {
+            "$var": "key"
+          },
+          "$from": {
+            "x": 10,
+            "y": 20
+          }
+        }
       }
     },
     {
@@ -172,11 +188,28 @@
         "$params": ["data"],
         "accessor": {
           "$params": ["key"],
-          "$return": { "$var": "data", "$get": { "$var": "key" } }
+          "$return": {
+            "$var": "data",
+            "$get": {
+              "$var": "key"
+            }
+          }
         },
-        "$return": { "$fn": { "$var": "accessor" }, "$args": ["y"] }
+        "$return": {
+          "$fn": [
+            {
+              "$var": "accessor"
+            },
+            "y"
+          ]
+        }
       },
-      "args": [{ "x": 10, "y": 20 }],
+      "args": [
+        {
+          "x": 10,
+          "y": 20
+        }
+      ],
       "expected": 20
     }
   ]

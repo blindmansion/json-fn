@@ -4,7 +4,7 @@ import type { FunctionRegistry } from "../src";
 
 const functions: FunctionRegistry = createStdlib();
 
-const addBody = { $return: { $fn: "add", $args: [1, 2] } } as any;
+const addBody = { $return: { $fn: ["add", 1, 2] } } as any;
 
 describe("AbortSignal", () => {
   test("pre-aborted signal throws immediately", () => {
@@ -30,18 +30,18 @@ describe("AbortSignal", () => {
     const controller = new AbortController();
     controller.abort();
     const expensiveBody = {
-      $return: { $fn: "fib", $args: [30] },
+      $return: { $fn: ["fib", 30] },
     } as any;
     const fib = {
       $params: ["n"],
       $return: {
-        $if: { $fn: "lte", $args: [{ $var: "n" }, 1] },
+        $if: { $fn: ["lte", { $var: "n" }, 1] },
         $then: { $var: "n" },
         $else: {
-          $fn: "add",
-          $args: [
-            { $fn: "fib", $args: [{ $fn: "sub", $args: [{ $var: "n" }, 1] }] },
-            { $fn: "fib", $args: [{ $fn: "sub", $args: [{ $var: "n" }, 2] }] },
+          $fn: [
+            "add",
+            { $fn: ["fib", { $fn: ["sub", { $var: "n" }, 1] }] },
+            { $fn: ["fib", { $fn: ["sub", { $var: "n" }, 2] }] },
           ],
         },
       },

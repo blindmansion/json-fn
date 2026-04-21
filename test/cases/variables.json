@@ -7,8 +7,8 @@
         "a": 5,
         "b": 10,
         "sum": {
-          "$fn": "add",
-          "$args": [
+          "$fn": [
+            "add",
             {
               "$var": "a"
             },
@@ -18,8 +18,8 @@
           ]
         },
         "doubled": {
-          "$fn": "mul",
-          "$args": [
+          "$fn": [
+            "mul",
             {
               "$var": "sum"
             },
@@ -37,8 +37,8 @@
       "body": {
         "$params": ["x", "y"],
         "product": {
-          "$fn": "mul",
-          "$args": [
+          "$fn": [
+            "mul",
             {
               "$var": "x"
             },

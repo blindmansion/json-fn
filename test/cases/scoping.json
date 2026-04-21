@@ -6,13 +6,14 @@
       "body": {
         "$params": ["x"],
         "$return": {
-          "$fn": {
-            "x": 999,
-            "$return": {
-              "$var": "x"
+          "$fn": [
+            {
+              "x": 999,
+              "$return": {
+                "$var": "x"
+              }
             }
-          },
-          "$args": []
+          ]
         }
       },
       "args": [10],
@@ -23,19 +24,21 @@
       "body": {
         "$params": ["x"],
         "$return": {
-          "$fn": {
-            "$params": ["x"],
-            "$return": {
-              "$fn": "add",
-              "$args": [
-                {
-                  "$var": "x"
-                },
-                1
-              ]
-            }
-          },
-          "$args": [50]
+          "$fn": [
+            {
+              "$params": ["x"],
+              "$return": {
+                "$fn": [
+                  "add",
+                  {
+                    "$var": "x"
+                  },
+                  1
+                ]
+              }
+            },
+            50
+          ]
         }
       },
       "args": [10],
@@ -46,21 +49,23 @@
       "body": {
         "$params": ["x"],
         "$return": {
-          "$fn": {
-            "$params": ["y"],
-            "$return": {
-              "$fn": "add",
-              "$args": [
-                {
-                  "$var": "x"
-                },
-                {
-                  "$var": "y"
-                }
-              ]
-            }
-          },
-          "$args": [5]
+          "$fn": [
+            {
+              "$params": ["y"],
+              "$return": {
+                "$fn": [
+                  "add",
+                  {
+                    "$var": "x"
+                  },
+                  {
+                    "$var": "y"
+                  }
+                ]
+              }
+            },
+            5
+          ]
         }
       },
       "args": [10],
@@ -70,8 +75,7 @@
       "description": "returned closure preserves inner scope (closure shape)",
       "body": {
         "$return": {
-          "$fn": "makeAdder",
-          "$args": [10]
+          "$fn": ["makeAdder", 10]
         }
       },
       "functions": {
@@ -80,8 +84,8 @@
           "$return": {
             "$params": ["x"],
             "$return": {
-              "$fn": "add",
-              "$args": [
+              "$fn": [
+                "add",
                 {
                   "$var": "x"
                 },
@@ -94,8 +98,8 @@
       "expected": {
         "$params": ["x"],
         "$return": {
-          "$fn": "add",
-          "$args": [
+          "$fn": [
+            "add",
             {
               "$var": "x"
             },
@@ -108,14 +112,15 @@
       "description": "returned closure preserves inner scope (call through)",
       "body": {
         "adder": {
-          "$fn": "makeAdder",
-          "$args": [10]
+          "$fn": ["makeAdder", 10]
         },
         "$return": {
-          "$fn": {
-            "$var": "adder"
-          },
-          "$args": [42]
+          "$fn": [
+            {
+              "$var": "adder"
+            },
+            42
+          ]
         }
       },
       "functions": {
@@ -124,8 +129,8 @@
           "$return": {
             "$params": ["x"],
             "$return": {
-              "$fn": "add",
-              "$args": [
+              "$fn": [
+                "add",
                 {
                   "$var": "x"
                 },
@@ -142,19 +147,21 @@
       "body": {
         "x": 1,
         "$return": {
-          "$fn": {
-            "x": 2,
-            "$return": {
-              "$fn": {
-                "x": 3,
-                "$return": {
-                  "$var": "x"
-                }
-              },
-              "$args": []
+          "$fn": [
+            {
+              "x": 2,
+              "$return": {
+                "$fn": [
+                  {
+                    "x": 3,
+                    "$return": {
+                      "$var": "x"
+                    }
+                  }
+                ]
+              }
             }
-          },
-          "$args": []
+          ]
         }
       },
       "expected": 3
@@ -163,8 +170,7 @@
       "description": "shadowed name in closure is not prematurely substituted (closure shape)",
       "body": {
         "$return": {
-          "$fn": "outer",
-          "$args": [5]
+          "$fn": ["outer", 5]
         }
       },
       "functions": {
@@ -173,8 +179,8 @@
           "$return": {
             "$params": ["x"],
             "n": {
-              "$fn": "mul",
-              "$args": [
+              "$fn": [
+                "mul",
                 {
                   "$var": "x"
                 },
@@ -190,8 +196,8 @@
       "expected": {
         "$params": ["x"],
         "n": {
-          "$fn": "mul",
-          "$args": [
+          "$fn": [
+            "mul",
             {
               "$var": "x"
             },
@@ -207,11 +213,12 @@
       "description": "shadowed name in closure is not prematurely substituted (call through)",
       "body": {
         "$return": {
-          "$fn": {
-            "$fn": "outer",
-            "$args": [5]
-          },
-          "$args": [7]
+          "$fn": [
+            {
+              "$fn": ["outer", 5]
+            },
+            7
+          ]
         }
       },
       "functions": {
@@ -220,8 +227,8 @@
           "$return": {
             "$params": ["x"],
             "n": {
-              "$fn": "mul",
-              "$args": [
+              "$fn": [
+                "mul",
                 {
                   "$var": "x"
                 },
@@ -240,8 +247,7 @@
       "description": "non-shadowed outer vars are baked into closure",
       "body": {
         "$return": {
-          "$fn": "outer",
-          "$args": [10, 20]
+          "$fn": ["outer", 10, 20]
         }
       },
       "functions": {
@@ -250,14 +256,14 @@
           "$return": {
             "$params": ["c"],
             "$return": {
-              "$fn": "add",
-              "$args": [
+              "$fn": [
+                "add",
                 {
                   "$var": "a"
                 },
                 {
-                  "$fn": "add",
-                  "$args": [
+                  "$fn": [
+                    "add",
                     {
                       "$var": "b"
                     },
@@ -274,12 +280,12 @@
       "expected": {
         "$params": ["c"],
         "$return": {
-          "$fn": "add",
-          "$args": [
+          "$fn": [
+            "add",
             10,
             {
-              "$fn": "add",
-              "$args": [
+              "$fn": [
+                "add",
                 20,
                 {
                   "$var": "c"
@@ -296,21 +302,23 @@
         "x": 100,
         "y": 200,
         "$return": {
-          "$fn": {
-            "$params": ["x"],
-            "$return": {
-              "$fn": "add",
-              "$args": [
-                {
-                  "$var": "x"
-                },
-                {
-                  "$var": "y"
-                }
-              ]
-            }
-          },
-          "$args": [1]
+          "$fn": [
+            {
+              "$params": ["x"],
+              "$return": {
+                "$fn": [
+                  "add",
+                  {
+                    "$var": "x"
+                  },
+                  {
+                    "$var": "y"
+                  }
+                ]
+              }
+            },
+            1
+          ]
         }
       },
       "expected": 201

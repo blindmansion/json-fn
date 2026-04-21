@@ -5,8 +5,8 @@
       "$params": ["n"],
       "$return": {
         "$if": {
-          "$fn": "lte",
-          "$args": [
+          "$fn": [
+            "lte",
             {
               "$var": "n"
             },
@@ -15,17 +15,17 @@
         },
         "$then": 1,
         "$else": {
-          "$fn": "mul",
-          "$args": [
+          "$fn": [
+            "mul",
             {
               "$var": "n"
             },
             {
-              "$fn": "fact",
-              "$args": [
+              "$fn": [
+                "fact",
                 {
-                  "$fn": "sub",
-                  "$args": [
+                  "$fn": [
+                    "sub",
                     {
                       "$var": "n"
                     },
@@ -41,8 +41,8 @@
     "isEven": {
       "$params": ["n"],
       "remainder": {
-        "$fn": "mod",
-        "$args": [
+        "$fn": [
+          "mod",
           {
             "$var": "n"
           },
@@ -50,8 +50,8 @@
         ]
       },
       "$return": {
-        "$fn": "eq",
-        "$args": [
+        "$fn": [
+          "eq",
           {
             "$var": "remainder"
           },
@@ -65,12 +65,11 @@
       "description": "isEven(fact(6)) — combines named functions, variables, conditionals",
       "body": {
         "result": {
-          "$fn": "fact",
-          "$args": [6]
+          "$fn": ["fact", 6]
         },
         "check": {
-          "$fn": "isEven",
-          "$args": [
+          "$fn": [
+            "isEven",
             {
               "$var": "result"
             }
@@ -81,12 +80,10 @@
             "$var": "check"
           },
           "$then": {
-            "$fn": "strcat",
-            "$args": ["720 is ", "even"]
+            "$fn": ["strcat", "720 is ", "even"]
           },
           "$else": {
-            "$fn": "strcat",
-            "$args": ["720 is ", "odd"]
+            "$fn": ["strcat", "720 is ", "odd"]
           }
         }
       },
@@ -97,14 +94,14 @@
       "body": {
         "$params": ["first", "last"],
         "full": {
-          "$fn": "strcat",
-          "$args": [
+          "$fn": [
+            "strcat",
             {
               "$var": "first"
             },
             {
-              "$fn": "strcat",
-              "$args": [
+              "$fn": [
+                "strcat",
                 " ",
                 {
                   "$var": "last"
@@ -114,8 +111,8 @@
           ]
         },
         "$return": {
-          "$fn": "strcat",
-          "$args": [
+          "$fn": [
+            "strcat",
             "Hello, ",
             {
               "$var": "full"

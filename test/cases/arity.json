@@ -5,8 +5,7 @@
       "description": "arity of external JS function (by name)",
       "body": {
         "$return": {
-          "$fn": "arity",
-          "$args": ["add"]
+          "$fn": ["arity", "add"]
         }
       },
       "expected": 2
@@ -15,8 +14,7 @@
       "description": "arity of single-param external function",
       "body": {
         "$return": {
-          "$fn": "arity",
-          "$args": ["abs"]
+          "$fn": ["arity", "abs"]
         }
       },
       "expected": 1
@@ -25,8 +23,7 @@
       "description": "arity of a builtin (map)",
       "body": {
         "$return": {
-          "$fn": "arity",
-          "$args": ["map"]
+          "$fn": ["arity", "map"]
         }
       },
       "expected": 2
@@ -35,8 +32,7 @@
       "description": "arity of a builtin (reduce)",
       "body": {
         "$return": {
-          "$fn": "arity",
-          "$args": ["reduce"]
+          "$fn": ["arity", "reduce"]
         }
       },
       "expected": 3
@@ -45,8 +41,7 @@
       "description": "arity of a JSON function (by name)",
       "body": {
         "$return": {
-          "$fn": "arity",
-          "$args": ["myFn"]
+          "$fn": ["arity", "myFn"]
         }
       },
       "functions": {
@@ -65,8 +60,8 @@
         "body": {
           "$params": ["x", "y"],
           "$return": {
-            "$fn": "add",
-            "$args": [
+            "$fn": [
+              "add",
               {
                 "$var": "x"
               },
@@ -77,8 +72,8 @@
           }
         },
         "$return": {
-          "$fn": "arity",
-          "$args": [
+          "$fn": [
+            "arity",
             {
               "$var": "body"
             }
@@ -91,8 +86,7 @@
       "description": "arity of a zero-param JSON function",
       "body": {
         "$return": {
-          "$fn": "arity",
-          "$args": ["noArgs"]
+          "$fn": ["arity", "noArgs"]
         }
       },
       "functions": {
@@ -106,8 +100,7 @@
       "description": "arity of a JSON function with rest params excludes the rest",
       "body": {
         "$return": {
-          "$fn": "arity",
-          "$args": ["varFn"]
+          "$fn": ["arity", "varFn"]
         }
       },
       "functions": {
@@ -124,8 +117,7 @@
       "description": "arity of unknown function returns null",
       "body": {
         "$return": {
-          "$fn": "arity",
-          "$args": ["nonexistent"]
+          "$fn": ["arity", "nonexistent"]
         }
       },
       "expected": null
@@ -134,8 +126,7 @@
       "description": "arity of arity is 1",
       "body": {
         "$return": {
-          "$fn": "arity",
-          "$args": ["arity"]
+          "$fn": ["arity", "arity"]
         }
       },
       "expected": 1

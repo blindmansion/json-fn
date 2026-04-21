@@ -4,8 +4,8 @@
     "double": {
       "$params": ["x"],
       "$return": {
-        "$fn": "mul",
-        "$args": [
+        "$fn": [
+          "mul",
           {
             "$var": "x"
           },
@@ -16,8 +16,8 @@
     "isEven": {
       "$params": ["n"],
       "remainder": {
-        "$fn": "mod",
-        "$args": [
+        "$fn": [
+          "mod",
           {
             "$var": "n"
           },
@@ -25,8 +25,8 @@
         ]
       },
       "$return": {
-        "$fn": "eq",
-        "$args": [
+        "$fn": [
+          "eq",
           {
             "$var": "remainder"
           },
@@ -40,8 +40,8 @@
       "description": "map with a named function (double)",
       "body": {
         "$return": {
-          "$fn": "map",
-          "$args": [
+          "$fn": [
+            "map",
             {
               "$fn": "double"
             },
@@ -55,13 +55,13 @@
       "description": "map with an inline square function",
       "body": {
         "$return": {
-          "$fn": "map",
-          "$args": [
+          "$fn": [
+            "map",
             {
               "$params": ["x"],
               "$return": {
-                "$fn": "mul",
-                "$args": [
+                "$fn": [
+                  "mul",
                   {
                     "$var": "x"
                   },
@@ -81,8 +81,8 @@
       "description": "map with a named JSON function (isEven)",
       "body": {
         "$return": {
-          "$fn": "map",
-          "$args": [
+          "$fn": [
+            "map",
             {
               "$fn": "isEven"
             },
@@ -96,13 +96,13 @@
       "description": "map using index argument (element + index)",
       "body": {
         "$return": {
-          "$fn": "map",
-          "$args": [
+          "$fn": [
+            "map",
             {
               "$params": ["item", "idx"],
               "$return": {
-                "$fn": "add",
-                "$args": [
+                "$fn": [
+                  "add",
                   {
                     "$var": "item"
                   },
@@ -122,8 +122,8 @@
       "description": "filter with a named JSON function (isEven)",
       "body": {
         "$return": {
-          "$fn": "filter",
-          "$args": [
+          "$fn": [
+            "filter",
             {
               "$fn": "isEven"
             },
@@ -137,13 +137,13 @@
       "description": "filter with inline function (values > 3)",
       "body": {
         "$return": {
-          "$fn": "filter",
-          "$args": [
+          "$fn": [
+            "filter",
             {
               "$params": ["x"],
               "$return": {
-                "$fn": "gt",
-                "$args": [
+                "$fn": [
+                  "gt",
                   {
                     "$var": "x"
                   },
@@ -161,8 +161,8 @@
       "description": "reduce with a named external function (add)",
       "body": {
         "$return": {
-          "$fn": "reduce",
-          "$args": [
+          "$fn": [
+            "reduce",
             {
               "$fn": "add"
             },
@@ -177,19 +177,19 @@
       "description": "reduce with inline function (sum of squares)",
       "body": {
         "$return": {
-          "$fn": "reduce",
-          "$args": [
+          "$fn": [
+            "reduce",
             {
               "$params": ["acc", "item"],
               "$return": {
-                "$fn": "add",
-                "$args": [
+                "$fn": [
+                  "add",
                   {
                     "$var": "acc"
                   },
                   {
-                    "$fn": "mul",
-                    "$args": [
+                    "$fn": [
+                      "mul",
                       {
                         "$var": "item"
                       },
@@ -212,8 +212,8 @@
       "description": "filter evens then double them",
       "body": {
         "evens": {
-          "$fn": "filter",
-          "$args": [
+          "$fn": [
+            "filter",
             {
               "$fn": "isEven"
             },
@@ -221,8 +221,8 @@
           ]
         },
         "$return": {
-          "$fn": "map",
-          "$args": [
+          "$fn": [
+            "map",
             {
               "$fn": "double"
             },
@@ -238,13 +238,13 @@
       "description": "square all then sum",
       "body": {
         "squares": {
-          "$fn": "map",
-          "$args": [
+          "$fn": [
+            "map",
             {
               "$params": ["x"],
               "$return": {
-                "$fn": "mul",
-                "$args": [
+                "$fn": [
+                  "mul",
                   {
                     "$var": "x"
                   },
@@ -258,8 +258,8 @@
           ]
         },
         "$return": {
-          "$fn": "reduce",
-          "$args": [
+          "$fn": [
+            "reduce",
             {
               "$fn": "add"
             },
@@ -277,8 +277,8 @@
       "body": {
         "nums": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
         "evens": {
-          "$fn": "filter",
-          "$args": [
+          "$fn": [
+            "filter",
             {
               "$fn": "isEven"
             },
@@ -288,8 +288,8 @@
           ]
         },
         "doubled": {
-          "$fn": "map",
-          "$args": [
+          "$fn": [
+            "map",
             {
               "$fn": "double"
             },
@@ -299,8 +299,8 @@
           ]
         },
         "$return": {
-          "$fn": "reduce",
-          "$args": [
+          "$fn": [
+            "reduce",
             {
               "$fn": "add"
             },

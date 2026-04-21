@@ -12,35 +12,37 @@ Strings, numbers, booleans, and `null` evaluate to themselves.
 
 ### Arrays
 
-Each element is evaluated recursively. `[1, { $fn: "add", $args: [2, 3] }]` evaluates to `[1, 5]`.
+Each element is evaluated recursively. `[1, { "$fn": ["add", 2, 3] }]` evaluates to `[1, 5]`.
 
 ### Plain Objects
 
-Each value is evaluated recursively (keys are not). `{ x: { $fn: "add", $args: [1, 2] } }` evaluates to `{ x: 3 }`.
+Each value is evaluated recursively (keys are not). `{ "x": { "$fn": ["add", 1, 2] } }` evaluates to `{ "x": 3 }`.
 
-### Function Call — `{ $fn, $args }`
+### Function Call — `{ $fn: [...] }`
 
-Calls a function. `$fn` evaluates to a string (function name), a function body, or a variable that resolves to one. `$args` evaluates to an array (positional) or an object (named arguments).
+Calls a function. `$fn` is an array where the first element is the function (a name, body, or expression that resolves to one) and the remaining elements are arguments.
 
 ```json
-{ "$fn": "add", "$args": [3, 4] }
+{ "$fn": ["add", 3, 4] }
 ```
 
 Nested calls — arguments can themselves be calls:
 
 ```json
 {
-  "$fn": "mul",
-  "$args": [
-    { "$fn": "add", "$args": [2, 3] },
-    { "$fn": "sub", "$args": [10, 4] }
-  ]
+  "$fn": ["mul", { "$fn": ["add", 2, 3] }, { "$fn": ["sub", 10, 4] }]
 }
 ```
 
-### Function Reference — `{ $fn }` (no `$args`)
+Zero-argument calls use a single-element array:
 
-Evaluates `$fn` and returns the result (a string name or function body) without calling it. Used to pass functions as values to higher-order functions.
+```json
+{ "$fn": ["myFunction"] }
+```
+
+### Function Reference — `{ $fn }` (non-array)
+
+When `$fn` is not an array, it evaluates the value and returns the result (a string name or function body) without calling it. Used to pass functions as values to higher-order functions.
 
 ```json
 { "$fn": "double" }
@@ -61,8 +63,8 @@ Defines a function. Required key: `$return` (the expression to evaluate when cal
 ```json
 {
   "$params": ["n"],
-  "remainder": { "$fn": "mod", "$args": [{ "$var": "n" }, 2] },
-  "$return": { "$fn": "eq", "$args": [{ "$var": "remainder" }, 0] }
+  "remainder": { "$fn": ["mod", { "$var": "n" }, 2] },
+  "$return": { "$fn": ["eq", { "$var": "remainder" }, 0] }
 }
 ```
 
@@ -74,7 +76,7 @@ All three keys are required. `$if` is evaluated; if truthy, `$then` is evaluated
 
 ```json
 {
-  "$if": { "$fn": "gt", "$args": [{ "$var": "x" }, 0] },
+  "$if": { "$fn": ["gt", { "$var": "x" }, 0] },
   "$then": "positive",
   "$else": "non-positive"
 }
@@ -87,8 +89,8 @@ Array of `[condition, result]` pairs. First truthy condition wins. Must include 
 ```json
 {
   "$cond": [
-    [{ "$fn": "lt", "$args": [{ "$var": "n" }, 0] }, "negative"],
-    [{ "$fn": "eq", "$args": [{ "$var": "n" }, 0] }, "zero"],
+    [{ "$fn": ["lt", { "$var": "n" }, 0] }, "negative"],
+    [{ "$fn": ["eq", { "$var": "n" }, 0] }, "zero"],
     [true, "positive"]
   ]
 }
@@ -125,7 +127,7 @@ Dynamic key (from variable or function result):
 For accessing properties on non-variable expressions (e.g. function results or literals), use `$get`/`$from`. `$from` evaluates to the target object/array.
 
 ```json
-{ "$get": 0, "$from": { "$fn": "concat", "$args": [[10], [20]] } }
+{ "$get": 0, "$from": { "$fn": ["concat", [10], [20]] } }
 ```
 
 ### Literal — `{ $literal }`
@@ -153,7 +155,7 @@ Array of strings. Arguments are bound positionally.
 ```json
 {
   "$params": ["a", "b"],
-  "$return": { "$fn": "add", "$args": [{ "$var": "a" }, { "$var": "b" }] }
+  "$return": { "$fn": ["add", { "$var": "a" }, { "$var": "b" }] }
 }
 ```
 
@@ -179,18 +181,10 @@ Any key other than `$return` and `$params` defines a local variable. Locals are 
 ```json
 {
   "$params": ["x", "y"],
-  "sum": { "$fn": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] },
-  "doubled": { "$fn": "mul", "$args": [{ "$var": "sum" }, 2] },
+  "sum": { "$fn": ["add", { "$var": "x" }, { "$var": "y" }] },
+  "doubled": { "$fn": ["mul", { "$var": "sum" }, 2] },
   "$return": { "$var": "doubled" }
 }
-```
-
-### Named Arguments
-
-`$args` can be an object instead of an array. Keys must match `$params` names. Not supported for functions with rest parameters. Missing keys default to `null`.
-
-```json
-{ "$fn": "greet", "$args": { "name": "world", "greeting": "Hello, " } }
 ```
 
 ## Closures
@@ -202,7 +196,7 @@ When a function body is returned as a value (not called), outer variables are ca
   "$params": ["x"],
   "$return": {
     "$params": ["y"],
-    "$return": { "$fn": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] }
+    "$return": { "$fn": ["add", { "$var": "x" }, { "$var": "y" }] }
   }
 }
 ```
@@ -212,7 +206,7 @@ Called with `[10]`, returns:
 ```json
 {
   "$params": ["y"],
-  "$return": { "$fn": "add", "$args": [10, { "$var": "y" }] }
+  "$return": { "$fn": ["add", 10, { "$var": "y" }] }
 }
 ```
 
@@ -232,14 +226,10 @@ Functions can call themselves by name if registered in the function registry.
 {
   "$params": ["n"],
   "$return": {
-    "$if": { "$fn": "lte", "$args": [{ "$var": "n" }, 1] },
+    "$if": { "$fn": ["lte", { "$var": "n" }, 1] },
     "$then": 1,
     "$else": {
-      "$fn": "mul",
-      "$args": [
-        { "$var": "n" },
-        { "$fn": "fact", "$args": [{ "$fn": "sub", "$args": [{ "$var": "n" }, 1] }] }
-      ]
+      "$fn": ["mul", { "$var": "n" }, { "$fn": ["fact", { "$fn": ["sub", { "$var": "n" }, 1] }] }]
     }
   }
 }
@@ -255,18 +245,14 @@ Local variables whose values are function bodies (have a `$return` key) can be c
   "fact": {
     "$params": ["x"],
     "$return": {
-      "$if": { "$fn": "lte", "$args": [{ "$var": "x" }, 1] },
+      "$if": { "$fn": ["lte", { "$var": "x" }, 1] },
       "$then": 1,
       "$else": {
-        "$fn": "mul",
-        "$args": [
-          { "$var": "x" },
-          { "$fn": "fact", "$args": [{ "$fn": "sub", "$args": [{ "$var": "x" }, 1] }] }
-        ]
+        "$fn": ["mul", { "$var": "x" }, { "$fn": ["fact", { "$fn": ["sub", { "$var": "x" }, 1] }] }]
       }
     }
   },
-  "$return": { "$fn": "fact", "$args": [{ "$var": "n" }] }
+  "$return": { "$fn": ["fact", { "$var": "n" }] }
 }
 ```
 
@@ -274,12 +260,12 @@ Local function names can shadow global registry functions and do not leak into p
 
 ## Dynamic Dispatch
 
-`$fn` can be a `$var` reference or any expression that evaluates to a function name or body.
+The first element of `$fn` can be a `$var` reference or any expression that evaluates to a function name or body.
 
 ```json
 {
   "$params": ["fnName"],
-  "$return": { "$fn": { "$var": "fnName" }, "$args": [3, 4] }
+  "$return": { "$fn": [{ "$var": "fnName" }, 3, 4] }
 }
 ```
 
@@ -417,6 +403,7 @@ Higher-order functions can invoke json-fn callbacks. The callback argument can b
 | `flatMap`       | `(callback, arr)`          | map then flatten one level. Callback receives `(item, index)`.                   |
 | `groupBy`       | `(keyFn, arr)`             | group into object. keyFn receives `(item, index)`, must return string or number. |
 | `mapValues`     | `(callback, obj)`          | transform object values. Callback receives `(value, key)`.                       |
+| `apply`         | `(fn, argsArray)`          | call `fn` with elements of `argsArray` as positional arguments.                  |
 | `pipe`          | `(fns, init)`              | thread value through array of functions left-to-right.                           |
 | `reReplaceWith` | `(pattern, callback, str)` | replace all regex matches via callback. Callback receives a match object.        |
 
@@ -437,43 +424,42 @@ Higher-order functions take **callback first, data second**. This is consistent 
 Register the function body in the function registry, call it by name:
 
 ```json
-{ "$fn": "myFunction", "$args": [1, 2, 3] }
+{ "$fn": ["myFunction", 1, 2, 3] }
 ```
 
 ### Inline anonymous function
 
-Use a function body directly as `$fn`:
+Use a function body directly as the first element of `$fn`:
 
 ```json
 {
-  "$fn": {
-    "$params": ["x"],
-    "$return": { "$fn": "mul", "$args": [{ "$var": "x" }, { "$var": "x" }] }
-  },
-  "$args": [5]
+  "$fn": [
+    {
+      "$params": ["x"],
+      "$return": { "$fn": ["mul", { "$var": "x" }, { "$var": "x" }] }
+    },
+    5
+  ]
 }
 ```
 
-### Pipeline (filter → map → reduce)
+### Pipeline (filter -> map -> reduce)
 
 Use local variables to chain steps:
 
 ```json
 {
   "nums": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-  "evens": { "$fn": "filter", "$args": [{ "$fn": "isEven" }, { "$var": "nums" }] },
-  "doubled": { "$fn": "map", "$args": [{ "$fn": "double" }, { "$var": "evens" }] },
-  "$return": { "$fn": "reduce", "$args": [{ "$fn": "add" }, 0, { "$var": "doubled" }] }
+  "evens": { "$fn": ["filter", { "$fn": "isEven" }, { "$var": "nums" }] },
+  "doubled": { "$fn": ["map", { "$fn": "double" }, { "$var": "evens" }] },
+  "$return": { "$fn": ["reduce", { "$fn": "add" }, 0, { "$var": "doubled" }] }
 }
 ```
 
 Or use `pipe`:
 
 ```json
-{
-  "$fn": "pipe",
-  "$args": [[{ "$fn": "neg" }, { "$fn": "abs" }, { "$fn": "str" }], -5]
-}
+{ "$fn": ["pipe", [{ "$fn": "neg" }, { "$fn": "abs" }, { "$fn": "str" }], -5] }
 ```
 
 ### Currying / Partial Application
@@ -485,29 +471,37 @@ Return a function body from a function to capture arguments:
   "$params": ["a"],
   "$return": {
     "$params": ["b"],
-    "$return": { "$fn": "add", "$args": [{ "$var": "a" }, { "$var": "b" }] }
+    "$return": { "$fn": ["add", { "$var": "a" }, { "$var": "b" }] }
   }
 }
 ```
 
+### Dynamic Apply
+
+Use `apply` to call a function with a dynamically constructed argument array:
+
+```json
+{ "$fn": ["apply", { "$var": "targetFn" }, { "$var": "collectedArgs" }] }
+```
+
 ### Object Transformation
 
-Use `entries` → HOF → `fromEntries` to transform objects:
+Use `entries` -> HOF -> `fromEntries` to transform objects:
 
 ```json
 {
-  "pairs": { "$fn": "entries", "$args": [{ "$var": "obj" }] },
+  "pairs": { "$fn": ["entries", { "$var": "obj" }] },
   "filtered": {
-    "$fn": "filter",
-    "$args": [
+    "$fn": [
+      "filter",
       {
         "$params": ["pair"],
-        "$return": { "$fn": "gt", "$args": [{ "$var": "pair", "$get": 1 }, 3] }
+        "$return": { "$fn": ["gt", { "$var": "pair", "$get": 1 }, 3] }
       },
       { "$var": "pairs" }
     ]
   },
-  "$return": { "$fn": "fromEntries", "$args": [{ "$var": "filtered" }] }
+  "$return": { "$fn": ["fromEntries", { "$var": "filtered" }] }
 }
 ```
 
@@ -518,7 +512,6 @@ Use `entries` → HOF → `fromEntries` to transform objects:
 - `$if`/`$then`/`$else` must all be present, exactly three keys.
 - `$cond` must be the sole key; each entry must be a two-element array.
 - `$literal` must be the sole key.
-- `$fn`/`$args` allows exactly those two keys. `$fn` alone (reference) allows exactly one key.
-- `$return` cannot coexist with `$fn` or `$args`.
-- Named arguments (`$args` as object) are not supported for functions with rest parameters.
+- `$fn` as an array (function call) must be the sole key. `$fn` as a non-array (reference) must also be the sole key.
+- `$return` cannot coexist with `$fn`.
 - Truthiness: `0`, `""`, `null`, `false` are falsy; everything else is truthy.

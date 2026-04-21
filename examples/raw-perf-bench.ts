@@ -67,13 +67,13 @@ console.log("═══ 1. Closure captures large dataset (map with captured arra
 const closureCapture: JSONType = {
   $params: ["records"],
   $return: {
-    $fn: "map",
-    $args: [
+    $fn: [
+      "map",
       {
         $params: ["record"],
         $return: {
           name: { $var: "record", $get: "name" },
-          totalRecords: { $fn: "length", $args: [{ $var: "records" }] },
+          totalRecords: { $fn: ["length", { $var: "records" }] },
         },
       },
       { $var: "records" },
@@ -115,8 +115,8 @@ console.log("═══ 2. Multi-step pipeline with repeated capture ═══\n"
 functions.pipelineProcess = {
   $params: ["records"],
   filtered: {
-    $fn: "filter",
-    $args: [
+    $fn: [
+      "filter",
       {
         $params: ["r"],
         $return: { $var: "r", $get: "active" },
@@ -125,22 +125,21 @@ functions.pipelineProcess = {
     ],
   },
   withCount: {
-    $fn: "map",
-    $args: [
+    $fn: [
+      "map",
       {
         $params: ["r"],
         $return: {
           name: { $var: "r", $get: "name" },
           age: { $var: "r", $get: "age" },
-          totalInDataset: { $fn: "length", $args: [{ $var: "records" }] },
+          totalInDataset: { $fn: ["length", { $var: "records" }] },
         },
       },
       { $var: "filtered" },
     ],
   },
   sorted: {
-    $fn: "sortBy",
-    $args: [{ $params: ["r"], $return: { $var: "r", $get: "age" } }, { $var: "withCount" }],
+    $fn: ["sortBy", { $params: ["r"], $return: { $var: "r", $get: "age" } }, { $var: "withCount" }],
   },
   $return: { $var: "sorted" },
 };
@@ -152,7 +151,7 @@ for (const size of [100, 500, 1000]) {
   let stats = enablePerf();
   bench(
     `plain`,
-    () => callFunction({ $return: { $fn: "pipelineProcess", $args: [data] } }, [], functions),
+    () => callFunction({ $return: { $fn: ["pipelineProcess", data] } }, [], functions),
     5,
   );
   disablePerf();
@@ -163,7 +162,7 @@ for (const size of [100, 500, 1000]) {
   stats = enablePerf();
   bench(
     `raw()`,
-    () => callFunction({ $return: { $fn: "pipelineProcess", $args: [rawData] } }, [], functions),
+    () => callFunction({ $return: { $fn: ["pipelineProcess", rawData] } }, [], functions),
     5,
   );
   disablePerf();
@@ -184,19 +183,19 @@ console.log("═══ 3. Nested closure capture (inner callback captures outer 
 const nestedCapture: JSONType = {
   $params: ["records"],
   $return: {
-    $fn: "flatMap",
-    $args: [
+    $fn: [
+      "flatMap",
       {
         $params: ["record"],
         $return: {
-          $fn: "map",
-          $args: [
+          $fn: [
+            "map",
             {
               $params: ["tag"],
               $return: {
                 tag: { $var: "tag" },
                 owner: { $var: "record", $get: "name" },
-                datasetSize: { $fn: "length", $args: [{ $var: "records" }] },
+                datasetSize: { $fn: ["length", { $var: "records" }] },
               },
             },
             { $var: "record", $get: "tags" },
@@ -238,13 +237,13 @@ console.log("═══ 4. $literal (JSON-level escape) ═══\n");
 
   const withoutLiteral: JSONType = {
     $return: {
-      $fn: "map",
-      $args: [
+      $fn: [
+        "map",
         {
           $params: ["record"],
           $return: {
             name: { $var: "record", $get: "name" },
-            totalRecords: { $fn: "length", $args: [{ $var: "records" }] },
+            totalRecords: { $fn: ["length", { $var: "records" }] },
           },
         },
         { $var: "records" },
@@ -255,13 +254,13 @@ console.log("═══ 4. $literal (JSON-level escape) ═══\n");
 
   const withLiteral: JSONType = {
     $return: {
-      $fn: "map",
-      $args: [
+      $fn: [
+        "map",
         {
           $params: ["record"],
           $return: {
             name: { $var: "record", $get: "name" },
-            totalRecords: { $fn: "length", $args: [{ $var: "records" }] },
+            totalRecords: { $fn: ["length", { $var: "records" }] },
           },
         },
         { $var: "records" },
