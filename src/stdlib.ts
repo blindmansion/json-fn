@@ -69,6 +69,7 @@ export function createStdlib(): FunctionRegistry {
     reverse: (arr: any[]) => [...arr].reverse(),
     includes: pure((arr: any[] | string, value: any) => arr.includes(value)),
     indexOf: pure((arr: any[] | string, value: any) => (arr as any[]).indexOf(value)),
+    flatten: (arr: any[]) => arr.flat(),
 
     // Strings
     upper: pure((s: string) => s.toUpperCase()),
@@ -81,6 +82,24 @@ export function createStdlib(): FunctionRegistry {
     // Object utilities
     keys: (obj: Record<string, any>) => Object.keys(obj),
     values: (obj: Record<string, any>) => Object.values(obj),
+    entries: (obj: Record<string, any>) => Object.entries(obj),
+    fromEntries: (pairs: [string, any][]) => Object.fromEntries(pairs),
+    merge: (a: Record<string, any>, b: Record<string, any>) => ({ ...a, ...b }),
+    hasKey: pure((obj: Record<string, any>, key: string) => Object.hasOwn(obj, key)),
+    isObject: pure(
+      (a: any) => typeof a === "object" && a !== null && !Array.isArray(a),
+    ),
+    pick: (obj: Record<string, any>, ks: string[]) => {
+      const result: Record<string, any> = {};
+      for (const k of ks) if (k in obj) result[k] = obj[k];
+      return result;
+    },
+    omit: (obj: Record<string, any>, ks: string[]) => {
+      const exclude = new Set(ks);
+      const result: Record<string, any> = {};
+      for (const k of Object.keys(obj)) if (!exclude.has(k)) result[k] = obj[k];
+      return result;
+    },
 
     // Higher-order builtins (interpreter-aware — can invoke JSON callbacks)
     map: builtin((args, call) => {
@@ -128,6 +147,60 @@ export function createStdlib(): FunctionRegistry {
       const [comparator, arr] = args;
       if (!Array.isArray(arr)) throw new Error("sort: second argument must be an array");
       return [...arr].sort((a, b) => call(comparator!, [a, b]) as number);
+    }, 2),
+    mapValues: builtin((args, call) => {
+      const [callback, obj] = args;
+      if (typeof obj !== "object" || obj === null || Array.isArray(obj))
+        throw new Error("mapValues: second argument must be an object");
+      const result: Record<string, any> = {};
+      for (const [k, v] of Object.entries(obj as Record<string, any>)) {
+        result[k] = call(callback!, [v, k]);
+      }
+      return result;
+    }, 2),
+    flatMap: builtin((args, call) => {
+      const [callback, arr] = args;
+      if (!Array.isArray(arr)) throw new Error("flatMap: second argument must be an array");
+      const result: any[] = [];
+      for (let i = 0; i < arr.length; i++) {
+        const mapped = call(callback!, [arr[i]!, i]);
+        if (Array.isArray(mapped)) {
+          for (const item of mapped) result.push(item);
+        } else {
+          result.push(mapped);
+        }
+      }
+      return result;
+    }, 2),
+    groupBy: builtin((args, call) => {
+      const [keyFn, arr] = args;
+      if (!Array.isArray(arr)) throw new Error("groupBy: second argument must be an array");
+      const groups: Record<string, any[]> = {};
+      for (let i = 0; i < arr.length; i++) {
+        const key = call(keyFn!, [arr[i]!, i]) as string;
+        if (typeof key !== "string" && typeof key !== "number")
+          throw new Error(`groupBy: key function must return a string or number, got ${typeof key}`);
+        const k = String(key);
+        if (!groups[k]) groups[k] = [];
+        groups[k].push(arr[i]!);
+      }
+      return groups;
+    }, 2),
+    sortBy: builtin((args, call) => {
+      const [keyFn, arr] = args;
+      if (!Array.isArray(arr)) throw new Error("sortBy: second argument must be an array");
+      const decorated = arr.map((item, i) => ({ item, key: call(keyFn!, [item, i]) as string | number }));
+      decorated.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+      return decorated.map((d) => d.item);
+    }, 2),
+    pipe: builtin((args, call) => {
+      const [fns, init] = args;
+      if (!Array.isArray(fns)) throw new Error("pipe: first argument must be an array of functions");
+      let value = init;
+      for (const fn of fns) {
+        value = call(fn!, [value!]);
+      }
+      return value!;
     }, 2),
 
     // Introspection
