@@ -285,7 +285,7 @@ functions.validMove = {
   $params: ["board", "pos"],
   $return: {
     $fn: "eq",
-    $args: [{ $get: { $var: "pos" }, $from: { $var: "board" } }, null],
+    $args: [{ $var: "board", $get: { $var: "pos" } }, null],
   },
 };
 
@@ -316,7 +316,7 @@ functions.checkLine = {
         $params: ["pos"],
         $return: {
           $fn: "eq",
-          $args: [{ $get: { $var: "pos" }, $from: { $var: "board" } }, { $var: "player" }],
+          $args: [{ $var: "board", $get: { $var: "pos" } }, { $var: "player" }],
         },
       },
       { $var: "line" },
@@ -472,7 +472,7 @@ functions.bestMove = {
           $fn: "minimax",
           $args: [{ $var: "newBoard" }, 1, false, { $var: "aiPlayer" }],
         },
-        bestScore: { $get: "score", $from: { $var: "acc" } },
+        bestScore: { $var: "acc", $get: "score" },
         $return: {
           $if: { $fn: "gt", $args: [{ $var: "score" }, { $var: "bestScore" }] },
           $then: { score: { $var: "score" }, pos: { $var: "pos" } },
@@ -483,7 +483,7 @@ functions.bestMove = {
       { $var: "emptyPos" },
     ],
   },
-  $return: { $get: "pos", $from: { $var: "best" } },
+  $return: { $var: "best", $get: "pos" },
 };
 
 // Board with 5 empty cells — expensive enough to profile

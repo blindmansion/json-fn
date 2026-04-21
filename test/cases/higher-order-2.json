@@ -3,22 +3,42 @@
   "cases": [
     {
       "description": "flatten: flattens one level of nesting",
-      "body": { "$return": { "$fn": "flatten", "$args": [[[1, 2], [3, 4], [5]]] } },
+      "body": {
+        "$return": {
+          "$fn": "flatten",
+          "$args": [[[1, 2], [3, 4], [5]]]
+        }
+      },
       "expected": [1, 2, 3, 4, 5]
     },
     {
       "description": "flatten: does not flatten deeper than one level",
-      "body": { "$return": { "$fn": "flatten", "$args": [[[1, [2, 3]], [4]]] } },
+      "body": {
+        "$return": {
+          "$fn": "flatten",
+          "$args": [[[1, [2, 3]], [4]]]
+        }
+      },
       "expected": [1, [2, 3], 4]
     },
     {
       "description": "flatten: non-array elements pass through",
-      "body": { "$return": { "$fn": "flatten", "$args": [[1, [2, 3], 4, [5]]] } },
+      "body": {
+        "$return": {
+          "$fn": "flatten",
+          "$args": [[1, [2, 3], 4, [5]]]
+        }
+      },
       "expected": [1, 2, 3, 4, 5]
     },
     {
       "description": "flatten: empty array returns empty array",
-      "body": { "$return": { "$fn": "flatten", "$args": [[]] } },
+      "body": {
+        "$return": {
+          "$fn": "flatten",
+          "$args": [[]]
+        }
+      },
       "expected": []
     },
     {
@@ -29,7 +49,19 @@
           "$args": [
             {
               "$params": ["x"],
-              "$return": [{ "$var": "x" }, { "$fn": "neg", "$args": [{ "$var": "x" }] }]
+              "$return": [
+                {
+                  "$var": "x"
+                },
+                {
+                  "$fn": "neg",
+                  "$args": [
+                    {
+                      "$var": "x"
+                    }
+                  ]
+                }
+              ]
             },
             [1, 2, 3]
           ]
@@ -43,7 +75,18 @@
         "$return": {
           "$fn": "flatMap",
           "$args": [
-            { "$params": ["x"], "$return": { "$fn": "mul", "$args": [{ "$var": "x" }, 10] } },
+            {
+              "$params": ["x"],
+              "$return": {
+                "$fn": "mul",
+                "$args": [
+                  {
+                    "$var": "x"
+                  },
+                  10
+                ]
+              }
+            },
             [1, 2, 3]
           ]
         }
@@ -55,7 +98,17 @@
       "body": {
         "$return": {
           "$fn": "flatMap",
-          "$args": [{ "$params": ["x", "i"], "$return": [{ "$var": "i" }] }, ["a", "b", "c"]]
+          "$args": [
+            {
+              "$params": ["x", "i"],
+              "$return": [
+                {
+                  "$var": "i"
+                }
+              ]
+            },
+            ["a", "b", "c"]
+          ]
         }
       },
       "expected": [0, 1, 2]
@@ -69,8 +122,20 @@
             {
               "$params": ["x"],
               "$return": {
-                "$if": { "$fn": "gt", "$args": [{ "$var": "x" }, 2] },
-                "$then": [{ "$var": "x" }],
+                "$if": {
+                  "$fn": "gt",
+                  "$args": [
+                    {
+                      "$var": "x"
+                    },
+                    2
+                  ]
+                },
+                "$then": [
+                  {
+                    "$var": "x"
+                  }
+                ],
                 "$else": []
               }
             },
@@ -85,7 +150,17 @@
       "body": {
         "$return": {
           "$fn": "flatMap",
-          "$args": [{ "$params": ["x"], "$return": [{ "$var": "x" }] }, []]
+          "$args": [
+            {
+              "$params": ["x"],
+              "$return": [
+                {
+                  "$var": "x"
+                }
+              ]
+            },
+            []
+          ]
         }
       },
       "expected": []
@@ -96,24 +171,54 @@
         "$return": {
           "$fn": "groupBy",
           "$args": [
-            { "$params": ["item"], "$return": { "$get": "role", "$from": { "$var": "item" } } },
+            {
+              "$params": ["item"],
+              "$return": {
+                "$var": "item",
+                "$get": "role"
+              }
+            },
             [
-              { "name": "alice", "role": "admin" },
-              { "name": "bob", "role": "user" },
-              { "name": "carol", "role": "admin" },
-              { "name": "dave", "role": "user" }
+              {
+                "name": "alice",
+                "role": "admin"
+              },
+              {
+                "name": "bob",
+                "role": "user"
+              },
+              {
+                "name": "carol",
+                "role": "admin"
+              },
+              {
+                "name": "dave",
+                "role": "user"
+              }
             ]
           ]
         }
       },
       "expected": {
         "admin": [
-          { "name": "alice", "role": "admin" },
-          { "name": "carol", "role": "admin" }
+          {
+            "name": "alice",
+            "role": "admin"
+          },
+          {
+            "name": "carol",
+            "role": "admin"
+          }
         ],
         "user": [
-          { "name": "bob", "role": "user" },
-          { "name": "dave", "role": "user" }
+          {
+            "name": "bob",
+            "role": "user"
+          },
+          {
+            "name": "dave",
+            "role": "user"
+          }
         ]
       }
     },
@@ -123,34 +228,81 @@
         "$return": {
           "$fn": "groupBy",
           "$args": [
-            { "$params": ["n"], "$return": { "$fn": "mod", "$args": [{ "$var": "n" }, 2] } },
+            {
+              "$params": ["n"],
+              "$return": {
+                "$fn": "mod",
+                "$args": [
+                  {
+                    "$var": "n"
+                  },
+                  2
+                ]
+              }
+            },
             [1, 2, 3, 4, 5, 6]
           ]
         }
       },
-      "expected": { "1": [1, 3, 5], "0": [2, 4, 6] }
+      "expected": {
+        "0": [2, 4, 6],
+        "1": [1, 3, 5]
+      }
     },
     {
       "description": "groupBy: works with named function",
-      "body": { "$return": { "$fn": "groupBy", "$args": [{ "$fn": "parity" }, [1, 2, 3, 4]] } },
+      "body": {
+        "$return": {
+          "$fn": "groupBy",
+          "$args": [
+            {
+              "$fn": "parity"
+            },
+            [1, 2, 3, 4]
+          ]
+        }
+      },
       "functions": {
         "parity": {
           "$params": ["n"],
           "$return": {
-            "$if": { "$fn": "eq", "$args": [{ "$fn": "mod", "$args": [{ "$var": "n" }, 2] }, 0] },
+            "$if": {
+              "$fn": "eq",
+              "$args": [
+                {
+                  "$fn": "mod",
+                  "$args": [
+                    {
+                      "$var": "n"
+                    },
+                    2
+                  ]
+                },
+                0
+              ]
+            },
             "$then": "even",
             "$else": "odd"
           }
         }
       },
-      "expected": { "odd": [1, 3], "even": [2, 4] }
+      "expected": {
+        "odd": [1, 3],
+        "even": [2, 4]
+      }
     },
     {
       "description": "groupBy: empty array returns empty object",
       "body": {
         "$return": {
           "$fn": "groupBy",
-          "$args": [{ "$params": ["x"], "$return": "a" }, []]
+          "$args": [
+            {
+              "$params": ["x"],
+              "$return": "a"
+            },
+            []
+          ]
         }
       },
       "expected": {}
@@ -161,7 +313,17 @@
         "$return": {
           "$fn": "sortBy",
           "$args": [
-            { "$params": ["s"], "$return": { "$fn": "length", "$args": [{ "$var": "s" }] } },
+            {
+              "$params": ["s"],
+              "$return": {
+                "$fn": "length",
+                "$args": [
+                  {
+                    "$var": "s"
+                  }
+                ]
+              }
+            },
             ["bbb", "a", "cccc", "dd"]
           ]
         }
@@ -174,19 +336,43 @@
         "$return": {
           "$fn": "sortBy",
           "$args": [
-            { "$params": ["item"], "$return": { "$get": "name", "$from": { "$var": "item" } } },
+            {
+              "$params": ["item"],
+              "$return": {
+                "$var": "item",
+                "$get": "name"
+              }
+            },
             [
-              { "name": "charlie", "age": 30 },
-              { "name": "alice", "age": 25 },
-              { "name": "bob", "age": 35 }
+              {
+                "name": "charlie",
+                "age": 30
+              },
+              {
+                "name": "alice",
+                "age": 25
+              },
+              {
+                "name": "bob",
+                "age": 35
+              }
             ]
           ]
         }
       },
       "expected": [
-        { "name": "alice", "age": 25 },
-        { "name": "bob", "age": 35 },
-        { "name": "charlie", "age": 30 }
+        {
+          "name": "alice",
+          "age": 25
+        },
+        {
+          "name": "bob",
+          "age": 35
+        },
+        {
+          "name": "charlie",
+          "age": 30
+        }
       ]
     },
     {
@@ -195,19 +381,43 @@
         "$return": {
           "$fn": "sortBy",
           "$args": [
-            { "$params": ["item"], "$return": { "$get": "age", "$from": { "$var": "item" } } },
+            {
+              "$params": ["item"],
+              "$return": {
+                "$var": "item",
+                "$get": "age"
+              }
+            },
             [
-              { "name": "alice", "age": 30 },
-              { "name": "bob", "age": 20 },
-              { "name": "carol", "age": 25 }
+              {
+                "name": "alice",
+                "age": 30
+              },
+              {
+                "name": "bob",
+                "age": 20
+              },
+              {
+                "name": "carol",
+                "age": 25
+              }
             ]
           ]
         }
       },
       "expected": [
-        { "name": "bob", "age": 20 },
-        { "name": "carol", "age": 25 },
-        { "name": "alice", "age": 30 }
+        {
+          "name": "bob",
+          "age": 20
+        },
+        {
+          "name": "carol",
+          "age": 25
+        },
+        {
+          "name": "alice",
+          "age": 30
+        }
       ]
     },
     {
@@ -216,19 +426,43 @@
         "$return": {
           "$fn": "sortBy",
           "$args": [
-            { "$params": ["item"], "$return": { "$get": "group", "$from": { "$var": "item" } } },
+            {
+              "$params": ["item"],
+              "$return": {
+                "$var": "item",
+                "$get": "group"
+              }
+            },
             [
-              { "name": "alice", "group": 1 },
-              { "name": "bob", "group": 2 },
-              { "name": "carol", "group": 1 }
+              {
+                "name": "alice",
+                "group": 1
+              },
+              {
+                "name": "bob",
+                "group": 2
+              },
+              {
+                "name": "carol",
+                "group": 1
+              }
             ]
           ]
         }
       },
       "expected": [
-        { "name": "alice", "group": 1 },
-        { "name": "carol", "group": 1 },
-        { "name": "bob", "group": 2 }
+        {
+          "name": "alice",
+          "group": 1
+        },
+        {
+          "name": "carol",
+          "group": 1
+        },
+        {
+          "name": "bob",
+          "group": 2
+        }
       ]
     },
     {
@@ -236,7 +470,15 @@
       "body": {
         "$return": {
           "$fn": "sortBy",
-          "$args": [{ "$params": ["x"], "$return": { "$var": "x" } }, []]
+          "$args": [
+            {
+              "$params": ["x"],
+              "$return": {
+                "$var": "x"
+              }
+            },
+            []
+          ]
         }
       },
       "expected": []
@@ -244,21 +486,47 @@
     {
       "description": "pipe: threads value through a list of functions",
       "body": {
-        "$return": { "$fn": "pipe", "$args": [[{ "$fn": "neg" }, { "$fn": "abs" }], -5] }
+        "$return": {
+          "$fn": "pipe",
+          "$args": [
+            [
+              {
+                "$fn": "neg"
+              },
+              {
+                "$fn": "abs"
+              }
+            ],
+            -5
+          ]
+        }
       },
       "expected": 5
     },
     {
       "description": "pipe: single function in pipeline",
       "body": {
-        "$return": { "$fn": "pipe", "$args": [[{ "$fn": "neg" }], 42] }
+        "$return": {
+          "$fn": "pipe",
+          "$args": [
+            [
+              {
+                "$fn": "neg"
+              }
+            ],
+            42
+          ]
+        }
       },
       "expected": -42
     },
     {
       "description": "pipe: empty pipeline returns initial value",
       "body": {
-        "$return": { "$fn": "pipe", "$args": [[], 99] }
+        "$return": {
+          "$fn": "pipe",
+          "$args": [[], 99]
+        }
       },
       "expected": 99
     },
@@ -269,8 +537,30 @@
           "$fn": "pipe",
           "$args": [
             [
-              { "$params": ["x"], "$return": { "$fn": "mul", "$args": [{ "$var": "x" }, 2] } },
-              { "$params": ["x"], "$return": { "$fn": "add", "$args": [{ "$var": "x" }, 1] } }
+              {
+                "$params": ["x"],
+                "$return": {
+                  "$fn": "mul",
+                  "$args": [
+                    {
+                      "$var": "x"
+                    },
+                    2
+                  ]
+                }
+              },
+              {
+                "$params": ["x"],
+                "$return": {
+                  "$fn": "add",
+                  "$args": [
+                    {
+                      "$var": "x"
+                    },
+                    1
+                  ]
+                }
+              }
             ],
             5
           ]
@@ -281,16 +571,45 @@
     {
       "description": "pipe: works with named functions",
       "body": {
-        "$return": { "$fn": "pipe", "$args": [[{ "$fn": "double" }, { "$fn": "addTen" }], 3] }
+        "$return": {
+          "$fn": "pipe",
+          "$args": [
+            [
+              {
+                "$fn": "double"
+              },
+              {
+                "$fn": "addTen"
+              }
+            ],
+            3
+          ]
+        }
       },
       "functions": {
         "double": {
           "$params": ["x"],
-          "$return": { "$fn": "mul", "$args": [{ "$var": "x" }, 2] }
+          "$return": {
+            "$fn": "mul",
+            "$args": [
+              {
+                "$var": "x"
+              },
+              2
+            ]
+          }
         },
         "addTen": {
           "$params": ["x"],
-          "$return": { "$fn": "add", "$args": [{ "$var": "x" }, 10] }
+          "$return": {
+            "$fn": "add",
+            "$args": [
+              {
+                "$var": "x"
+              },
+              10
+            ]
+          }
         }
       },
       "expected": 16
@@ -302,12 +621,26 @@
           "$fn": "pipe",
           "$args": [
             [
-              { "$fn": "neg" },
+              {
+                "$fn": "neg"
+              },
               {
                 "$params": ["x"],
-                "$return": { "$fn": "mul", "$args": [{ "$var": "x" }, { "$var": "x" }] }
+                "$return": {
+                  "$fn": "mul",
+                  "$args": [
+                    {
+                      "$var": "x"
+                    },
+                    {
+                      "$var": "x"
+                    }
+                  ]
+                }
               },
-              { "$fn": "str" }
+              {
+                "$fn": "str"
+              }
             ],
             3
           ]
@@ -322,8 +655,21 @@
           "$fn": "pipe",
           "$args": [
             [
-              { "$params": ["s"], "$return": { "$fn": "split", "$args": [{ "$var": "s" }, " "] } },
-              { "$fn": "length" }
+              {
+                "$params": ["s"],
+                "$return": {
+                  "$fn": "split",
+                  "$args": [
+                    {
+                      "$var": "s"
+                    },
+                    " "
+                  ]
+                }
+              },
+              {
+                "$fn": "length"
+              }
             ],
             "hello world foo"
           ]

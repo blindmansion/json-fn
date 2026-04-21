@@ -4,27 +4,45 @@
     {
       "description": "detects self-referential variable",
       "body": {
-        "x": { "$var": "x" },
-        "$return": { "$var": "x" }
+        "x": {
+          "$var": "x"
+        },
+        "$return": {
+          "$var": "x"
+        }
       },
       "error": "Circular variable dependency detected: x -> x"
     },
     {
       "description": "detects mutual variable cycle (a -> b -> a)",
       "body": {
-        "a": { "$var": "b" },
-        "b": { "$var": "a" },
-        "$return": { "$var": "a" }
+        "a": {
+          "$var": "b"
+        },
+        "b": {
+          "$var": "a"
+        },
+        "$return": {
+          "$var": "a"
+        }
       },
       "error": "Circular variable dependency detected: a -> b -> a"
     },
     {
       "description": "detects longer variable cycle (a -> b -> c -> a)",
       "body": {
-        "a": { "$var": "b" },
-        "b": { "$var": "c" },
-        "c": { "$var": "a" },
-        "$return": { "$var": "a" }
+        "a": {
+          "$var": "b"
+        },
+        "b": {
+          "$var": "c"
+        },
+        "c": {
+          "$var": "a"
+        },
+        "$return": {
+          "$var": "a"
+        }
       },
       "error": "Circular variable dependency detected: a -> b -> c -> a"
     },
@@ -32,102 +50,239 @@
       "description": "detects cycle not starting from first variable",
       "body": {
         "x": 10,
-        "a": { "$fn": "add", "$args": [{ "$var": "x" }, { "$var": "b" }] },
-        "b": { "$var": "c" },
-        "c": { "$var": "b" },
-        "$return": { "$var": "a" }
+        "a": {
+          "$fn": "add",
+          "$args": [
+            {
+              "$var": "x"
+            },
+            {
+              "$var": "b"
+            }
+          ]
+        },
+        "b": {
+          "$var": "c"
+        },
+        "c": {
+          "$var": "b"
+        },
+        "$return": {
+          "$var": "a"
+        }
       },
       "error": "Circular variable dependency detected: b -> c -> b"
     },
     {
       "description": "enforces maximum call depth",
       "body": {
-        "$return": { "$fn": "loop", "$args": [] }
+        "$return": {
+          "$fn": "loop",
+          "$args": []
+        }
       },
       "functions": {
         "loop": {
-          "$return": { "$fn": "loop", "$args": [] }
+          "$return": {
+            "$fn": "loop",
+            "$args": []
+          }
         }
       },
-      "limits": { "maxCallDepth": 10 },
+      "limits": {
+        "maxCallDepth": 10
+      },
       "error": "Maximum call depth of 10 exceeded"
     },
     {
       "description": "enforces maximum call depth with mutual recursion",
       "body": {
-        "$return": { "$fn": "ping", "$args": [] }
+        "$return": {
+          "$fn": "ping",
+          "$args": []
+        }
       },
       "functions": {
-        "ping": { "$return": { "$fn": "pong", "$args": [] } },
-        "pong": { "$return": { "$fn": "ping", "$args": [] } }
+        "ping": {
+          "$return": {
+            "$fn": "pong",
+            "$args": []
+          }
+        },
+        "pong": {
+          "$return": {
+            "$fn": "ping",
+            "$args": []
+          }
+        }
       },
-      "limits": { "maxCallDepth": 10 },
+      "limits": {
+        "maxCallDepth": 10
+      },
       "error": "Maximum call depth of 10 exceeded"
     },
     {
       "description": "allows recursion within configured limits",
       "body": {
-        "$return": { "$fn": "sum_to", "$args": [5] }
+        "$return": {
+          "$fn": "sum_to",
+          "$args": [5]
+        }
       },
       "functions": {
         "sum_to": {
           "$params": ["n"],
           "$return": {
-            "$if": { "$fn": "lte", "$args": [{ "$var": "n" }, 0] },
+            "$if": {
+              "$fn": "lte",
+              "$args": [
+                {
+                  "$var": "n"
+                },
+                0
+              ]
+            },
             "$then": 0,
             "$else": {
               "$fn": "add",
               "$args": [
-                { "$var": "n" },
-                { "$fn": "sum_to", "$args": [{ "$fn": "sub", "$args": [{ "$var": "n" }, 1] }] }
+                {
+                  "$var": "n"
+                },
+                {
+                  "$fn": "sum_to",
+                  "$args": [
+                    {
+                      "$fn": "sub",
+                      "$args": [
+                        {
+                          "$var": "n"
+                        },
+                        1
+                      ]
+                    }
+                  ]
+                }
               ]
             }
           }
         }
       },
-      "limits": { "maxCallDepth": 100 },
+      "limits": {
+        "maxCallDepth": 100
+      },
       "expected": 15
     },
     {
       "description": "non-circular variable chain resolves correctly",
       "body": {
         "a": 1,
-        "b": { "$fn": "add", "$args": [{ "$var": "a" }, 2] },
-        "c": { "$fn": "add", "$args": [{ "$var": "b" }, 3] },
-        "$return": { "$var": "c" }
+        "b": {
+          "$fn": "add",
+          "$args": [
+            {
+              "$var": "a"
+            },
+            2
+          ]
+        },
+        "c": {
+          "$fn": "add",
+          "$args": [
+            {
+              "$var": "b"
+            },
+            3
+          ]
+        },
+        "$return": {
+          "$var": "c"
+        }
       },
       "expected": 6
     },
     {
       "description": "enforces maximum operations limit",
       "body": {
-        "$return": { "$fn": "fib", "$args": [10] }
+        "$return": {
+          "$fn": "fib",
+          "$args": [10]
+        }
       },
       "functions": {
         "fib": {
           "$params": ["n"],
           "$return": {
-            "$if": { "$fn": "lte", "$args": [{ "$var": "n" }, 1] },
-            "$then": { "$var": "n" },
+            "$if": {
+              "$fn": "lte",
+              "$args": [
+                {
+                  "$var": "n"
+                },
+                1
+              ]
+            },
+            "$then": {
+              "$var": "n"
+            },
             "$else": {
               "$fn": "add",
               "$args": [
-                { "$fn": "fib", "$args": [{ "$fn": "sub", "$args": [{ "$var": "n" }, 1] }] },
-                { "$fn": "fib", "$args": [{ "$fn": "sub", "$args": [{ "$var": "n" }, 2] }] }
+                {
+                  "$fn": "fib",
+                  "$args": [
+                    {
+                      "$fn": "sub",
+                      "$args": [
+                        {
+                          "$var": "n"
+                        },
+                        1
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "$fn": "fib",
+                  "$args": [
+                    {
+                      "$fn": "sub",
+                      "$args": [
+                        {
+                          "$var": "n"
+                        },
+                        2
+                      ]
+                    }
+                  ]
+                }
               ]
             }
           }
         }
       },
-      "limits": { "maxOperations": 50 },
+      "limits": {
+        "maxOperations": 50
+      },
       "error": "Maximum operations limit of 50 exceeded"
     },
     {
       "description": "allows execution within operations limit",
       "body": {
-        "$return": { "$fn": "add", "$args": [{ "$fn": "mul", "$args": [3, 4] }, 5] }
+        "$return": {
+          "$fn": "add",
+          "$args": [
+            {
+              "$fn": "mul",
+              "$args": [3, 4]
+            },
+            5
+          ]
+        }
       },
-      "limits": { "maxOperations": 100 },
+      "limits": {
+        "maxOperations": 100
+      },
       "expected": 17
     },
     {
@@ -143,15 +298,30 @@
               "$args": [
                 {
                   "$params": ["x"],
-                  "$return": { "$fn": "mul", "$args": [{ "$var": "x" }, { "$var": "x" }] }
+                  "$return": {
+                    "$fn": "mul",
+                    "$args": [
+                      {
+                        "$var": "x"
+                      },
+                      {
+                        "$var": "x"
+                      }
+                    ]
+                  }
                 },
-                { "$fn": "range", "$args": [100] }
+                {
+                  "$fn": "range",
+                  "$args": [100]
+                }
               ]
             }
           ]
         }
       },
-      "limits": { "maxOperations": 50 },
+      "limits": {
+        "maxOperations": 50
+      },
       "error": "Maximum operations limit of 50 exceeded"
     }
   ]

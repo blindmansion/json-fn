@@ -1,15 +1,53 @@
 {
   "description": "primitives (literals evaluate to themselves)",
   "cases": [
-    { "description": "string", "body": { "$return": "hello" }, "expected": "hello" },
-    { "description": "number", "body": { "$return": 42 }, "expected": 42 },
-    { "description": "boolean", "body": { "$return": true }, "expected": true },
-    { "description": "null", "body": { "$return": null }, "expected": null },
-    { "description": "array", "body": { "$return": [1, 2, 3] }, "expected": [1, 2, 3] },
+    {
+      "description": "string",
+      "body": {
+        "$return": "hello"
+      },
+      "expected": "hello"
+    },
+    {
+      "description": "number",
+      "body": {
+        "$return": 42
+      },
+      "expected": 42
+    },
+    {
+      "description": "boolean",
+      "body": {
+        "$return": true
+      },
+      "expected": true
+    },
+    {
+      "description": "null",
+      "body": {
+        "$return": null
+      },
+      "expected": null
+    },
+    {
+      "description": "array",
+      "body": {
+        "$return": [1, 2, 3]
+      },
+      "expected": [1, 2, 3]
+    },
     {
       "description": "object",
-      "body": { "$return": { "x": 1, "y": 2 } },
-      "expected": { "x": 1, "y": 2 }
+      "body": {
+        "$return": {
+          "x": 1,
+          "y": 2
+        }
+      },
+      "expected": {
+        "x": 1,
+        "y": 2
+      }
     }
   ]
 }

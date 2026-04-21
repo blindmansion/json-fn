@@ -4,33 +4,90 @@
     "fact": {
       "$params": ["n"],
       "$return": {
-        "$if": { "$fn": "lte", "$args": [{ "$var": "n" }, 1] },
+        "$if": {
+          "$fn": "lte",
+          "$args": [
+            {
+              "$var": "n"
+            },
+            1
+          ]
+        },
         "$then": 1,
         "$else": {
           "$fn": "mul",
           "$args": [
-            { "$var": "n" },
-            { "$fn": "fact", "$args": [{ "$fn": "sub", "$args": [{ "$var": "n" }, 1] }] }
+            {
+              "$var": "n"
+            },
+            {
+              "$fn": "fact",
+              "$args": [
+                {
+                  "$fn": "sub",
+                  "$args": [
+                    {
+                      "$var": "n"
+                    },
+                    1
+                  ]
+                }
+              ]
+            }
           ]
         }
       }
     },
     "isEven": {
       "$params": ["n"],
-      "remainder": { "$fn": "mod", "$args": [{ "$var": "n" }, 2] },
-      "$return": { "$fn": "eq", "$args": [{ "$var": "remainder" }, 0] }
+      "remainder": {
+        "$fn": "mod",
+        "$args": [
+          {
+            "$var": "n"
+          },
+          2
+        ]
+      },
+      "$return": {
+        "$fn": "eq",
+        "$args": [
+          {
+            "$var": "remainder"
+          },
+          0
+        ]
+      }
     }
   },
   "cases": [
     {
       "description": "isEven(fact(6)) — combines named functions, variables, conditionals",
       "body": {
-        "result": { "$fn": "fact", "$args": [6] },
-        "check": { "$fn": "isEven", "$args": [{ "$var": "result" }] },
+        "result": {
+          "$fn": "fact",
+          "$args": [6]
+        },
+        "check": {
+          "$fn": "isEven",
+          "$args": [
+            {
+              "$var": "result"
+            }
+          ]
+        },
         "$return": {
-          "$if": { "$var": "check" },
-          "$then": { "$fn": "strcat", "$args": ["720 is ", "even"] },
-          "$else": { "$fn": "strcat", "$args": ["720 is ", "odd"] }
+          "$if": {
+            "$var": "check"
+          },
+          "$then": {
+            "$fn": "strcat",
+            "$args": ["720 is ", "even"]
+          },
+          "$else": {
+            "$fn": "strcat",
+            "$args": ["720 is ", "odd"]
+          }
         }
       },
       "expected": "720 is even"
@@ -41,9 +98,30 @@
         "$params": ["first", "last"],
         "full": {
           "$fn": "strcat",
-          "$args": [{ "$var": "first" }, { "$fn": "strcat", "$args": [" ", { "$var": "last" }] }]
+          "$args": [
+            {
+              "$var": "first"
+            },
+            {
+              "$fn": "strcat",
+              "$args": [
+                " ",
+                {
+                  "$var": "last"
+                }
+              ]
+            }
+          ]
         },
-        "$return": { "$fn": "strcat", "$args": ["Hello, ", { "$var": "full" }] }
+        "$return": {
+          "$fn": "strcat",
+          "$args": [
+            "Hello, ",
+            {
+              "$var": "full"
+            }
+          ]
+        }
       },
       "args": ["Ada", "Lovelace"],
       "expected": "Hello, Ada Lovelace"

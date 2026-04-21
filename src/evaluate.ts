@@ -11,6 +11,7 @@ import type {
   Conditional,
   Cond,
   PropertyAccess,
+  VarPropertyAccess,
   EvaluatedFunctionCall,
 } from "./types";
 import { ExpressionType } from "./types";
@@ -322,9 +323,21 @@ function evaluateExpression(expression: JSONType, context: EvaluationContext): J
       exprError(expression, "No $cond branch matched (add a [true, ...] catch-all).");
 
     case ExpressionType.PropertyAccess:
-      const propAccess = expression as PropertyAccess;
-      const evaluatedKey = evaluateExpression(propAccess.$get, context);
-      const evaluatedTarget = evaluateExpression(propAccess.$from, context);
+      const propExpr = expression as PropertyAccess | VarPropertyAccess;
+      const evaluatedKey = evaluateExpression(propExpr.$get, context);
+      let evaluatedTarget: JSONType;
+      if ("$var" in propExpr) {
+        if (!getVar) {
+          exprError(expression, "getVar is not defined.");
+        }
+        const varValue = getVar(propExpr.$var);
+        if (varValue === undefined) {
+          exprError(expression, `Variable ${propExpr.$var} not found.`);
+        }
+        evaluatedTarget = varValue;
+      } else {
+        evaluatedTarget = evaluateExpression(propExpr.$from, context);
+      }
 
       if (evaluatedTarget === null || typeof evaluatedTarget !== "object") {
         throw new Error(
@@ -413,6 +426,14 @@ function replaceVars(
 
   if (typeof expression === "object" && expression !== null) {
     if ("$var" in expression && typeof expression.$var === "string") {
+      if ("$get" in expression) {
+        const varValue = getVar(expression.$var);
+        const replacedKey = replaceVars(expression.$get, getVar);
+        if (varValue !== undefined) {
+          return { $get: replacedKey, $from: varValue };
+        }
+        return { $var: expression.$var, $get: replacedKey };
+      }
       const varValue = getVar(expression.$var);
       if (varValue === undefined) {
         return expression;
@@ -568,7 +589,14 @@ function getExpressionType(json: JSONType): ExpressionType {
       if (typeof json.$var !== "string") {
         exprError(json, "Variable references must have a string $var property.");
       }
-      if (objectKeyCount(json) > 1) {
+      const keyCount = objectKeyCount(json);
+      if ("$get" in json) {
+        if (keyCount > 2) {
+          exprError(json, "$var/$get property access cannot have other properties.");
+        }
+        return ExpressionType.PropertyAccess;
+      }
+      if (keyCount > 1) {
         exprError(json, "Variable references cannot have other properties.");
       }
       return ExpressionType.VariableReference;

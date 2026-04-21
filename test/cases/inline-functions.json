@@ -7,7 +7,17 @@
         "$return": {
           "$fn": {
             "$params": ["x"],
-            "$return": { "$fn": "mul", "$args": [{ "$var": "x" }, { "$var": "x" }] }
+            "$return": {
+              "$fn": "mul",
+              "$args": [
+                {
+                  "$var": "x"
+                },
+                {
+                  "$var": "x"
+                }
+              ]
+            }
           },
           "$args": [5]
         }
@@ -23,9 +33,31 @@
             "$return": {
               "$fn": {
                 "$params": ["sum"],
-                "$return": { "$fn": "mul", "$args": [{ "$var": "sum" }, { "$var": "sum" }] }
+                "$return": {
+                  "$fn": "mul",
+                  "$args": [
+                    {
+                      "$var": "sum"
+                    },
+                    {
+                      "$var": "sum"
+                    }
+                  ]
+                }
               },
-              "$args": [{ "$fn": "add", "$args": [{ "$var": "a" }, { "$var": "b" }] }]
+              "$args": [
+                {
+                  "$fn": "add",
+                  "$args": [
+                    {
+                      "$var": "a"
+                    },
+                    {
+                      "$var": "b"
+                    }
+                  ]
+                }
+              ]
             }
           },
           "$args": [3, 4]

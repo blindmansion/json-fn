@@ -48,7 +48,7 @@ Evaluates `$fn` and returns the result (a string name or function body) without 
 
 ### Variable Reference — `{ $var }`
 
-Resolves a variable by name. Must be the only key in the object.
+Resolves a variable by name.
 
 ```json
 { "$var": "x" }
@@ -94,30 +94,38 @@ Array of `[condition, result]` pairs. First truthy condition wins. Must include 
 }
 ```
 
-### Property Access — `{ $get, $from }`
+### Property Access — `{ $var, $get }`
 
-Both keys required. `$get` evaluates to a string key, numeric index, or array path. `$from` evaluates to the target object/array. Missing keys return `null`.
+Access a property on a variable's value. `$var` names the variable, `$get` evaluates to a string key, numeric index, or array path. Missing keys return `null`.
 
 ```json
-{ "$get": "name", "$from": { "$var": "person" } }
+{ "$var": "person", "$get": "name" }
 ```
 
 Numeric index:
 
 ```json
-{ "$get": 1, "$from": [10, 20, 30] }
+{ "$var": "items", "$get": 1 }
 ```
 
 Path (nested access):
 
 ```json
-{ "$get": ["address", "city"], "$from": { "$var": "person" } }
+{ "$var": "person", "$get": ["address", "city"] }
 ```
 
 Dynamic key (from variable or function result):
 
 ```json
-{ "$get": { "$var": "fieldName" }, "$from": { "$var": "data" } }
+{ "$var": "data", "$get": { "$var": "fieldName" } }
+```
+
+#### `{ $get, $from }` (alternative form)
+
+For accessing properties on non-variable expressions (e.g. function results or literals), use `$get`/`$from`. `$from` evaluates to the target object/array.
+
+```json
+{ "$get": 0, "$from": { "$fn": "concat", "$args": [[10], [20]] } }
 ```
 
 ### Literal — `{ $literal }`
@@ -477,7 +485,7 @@ Use `entries` → HOF → `fromEntries` to transform objects:
     "$args": [
       {
         "$params": ["pair"],
-        "$return": { "$fn": "gt", "$args": [{ "$get": 1, "$from": { "$var": "pair" } }, 3] }
+        "$return": { "$fn": "gt", "$args": [{ "$var": "pair", "$get": 1 }, 3] }
       },
       { "$var": "pairs" }
     ]
@@ -488,8 +496,8 @@ Use `entries` → HOF → `fromEntries` to transform objects:
 
 ## Constraints
 
-- `$var` must be the sole key in its object.
-- `$get`/`$from` must be the only two keys.
+- `$var` must be the sole key, or paired only with `$get` for property access.
+- `$get`/`$from` must be the only two keys (alternative property access form).
 - `$if`/`$then`/`$else` must all be present, exactly three keys.
 - `$cond` must be the sole key; each entry must be a two-element array.
 - `$literal` must be the sole key.

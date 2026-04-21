@@ -3,12 +3,22 @@
   "cases": [
     {
       "description": "add(3, 4)",
-      "body": { "$return": { "$fn": "add", "$args": [3, 4] } },
+      "body": {
+        "$return": {
+          "$fn": "add",
+          "$args": [3, 4]
+        }
+      },
       "expected": 7
     },
     {
       "description": "upper('hello')",
-      "body": { "$return": { "$fn": "upper", "$args": ["hello"] } },
+      "body": {
+        "$return": {
+          "$fn": "upper",
+          "$args": ["hello"]
+        }
+      },
       "expected": "HELLO"
     },
     {
@@ -17,8 +27,14 @@
         "$return": {
           "$fn": "mul",
           "$args": [
-            { "$fn": "add", "$args": [2, 3] },
-            { "$fn": "sub", "$args": [10, 4] }
+            {
+              "$fn": "add",
+              "$args": [2, 3]
+            },
+            {
+              "$fn": "sub",
+              "$args": [10, 4]
+            }
           ]
         }
       },
@@ -28,7 +44,17 @@
       "description": "$params binds arguments by name",
       "body": {
         "$params": ["a", "b"],
-        "$return": { "$fn": "add", "$args": [{ "$var": "a" }, { "$var": "b" }] }
+        "$return": {
+          "$fn": "add",
+          "$args": [
+            {
+              "$var": "a"
+            },
+            {
+              "$var": "b"
+            }
+          ]
+        }
       },
       "args": [10, 20],
       "expected": 30

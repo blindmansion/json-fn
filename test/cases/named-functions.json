@@ -3,23 +3,70 @@
   "functions": {
     "double": {
       "$params": ["x"],
-      "$return": { "$fn": "mul", "$args": [{ "$var": "x" }, 2] }
+      "$return": {
+        "$fn": "mul",
+        "$args": [
+          {
+            "$var": "x"
+          },
+          2
+        ]
+      }
     },
     "isEven": {
       "$params": ["n"],
-      "remainder": { "$fn": "mod", "$args": [{ "$var": "n" }, 2] },
-      "$return": { "$fn": "eq", "$args": [{ "$var": "remainder" }, 0] }
+      "remainder": {
+        "$fn": "mod",
+        "$args": [
+          {
+            "$var": "n"
+          },
+          2
+        ]
+      },
+      "$return": {
+        "$fn": "eq",
+        "$args": [
+          {
+            "$var": "remainder"
+          },
+          0
+        ]
+      }
     },
     "fact": {
       "$params": ["n"],
       "$return": {
-        "$if": { "$fn": "lte", "$args": [{ "$var": "n" }, 1] },
+        "$if": {
+          "$fn": "lte",
+          "$args": [
+            {
+              "$var": "n"
+            },
+            1
+          ]
+        },
         "$then": 1,
         "$else": {
           "$fn": "mul",
           "$args": [
-            { "$var": "n" },
-            { "$fn": "fact", "$args": [{ "$fn": "sub", "$args": [{ "$var": "n" }, 1] }] }
+            {
+              "$var": "n"
+            },
+            {
+              "$fn": "fact",
+              "$args": [
+                {
+                  "$fn": "sub",
+                  "$args": [
+                    {
+                      "$var": "n"
+                    },
+                    1
+                  ]
+                }
+              ]
+            }
           ]
         }
       }
@@ -27,13 +74,49 @@
     "fib": {
       "$params": ["n"],
       "$return": {
-        "$if": { "$fn": "lte", "$args": [{ "$var": "n" }, 1] },
-        "$then": { "$var": "n" },
+        "$if": {
+          "$fn": "lte",
+          "$args": [
+            {
+              "$var": "n"
+            },
+            1
+          ]
+        },
+        "$then": {
+          "$var": "n"
+        },
         "$else": {
           "$fn": "add",
           "$args": [
-            { "$fn": "fib", "$args": [{ "$fn": "sub", "$args": [{ "$var": "n" }, 1] }] },
-            { "$fn": "fib", "$args": [{ "$fn": "sub", "$args": [{ "$var": "n" }, 2] }] }
+            {
+              "$fn": "fib",
+              "$args": [
+                {
+                  "$fn": "sub",
+                  "$args": [
+                    {
+                      "$var": "n"
+                    },
+                    1
+                  ]
+                }
+              ]
+            },
+            {
+              "$fn": "fib",
+              "$args": [
+                {
+                  "$fn": "sub",
+                  "$args": [
+                    {
+                      "$var": "n"
+                    },
+                    2
+                  ]
+                }
+              ]
+            }
           ]
         }
       }
@@ -42,52 +125,102 @@
   "cases": [
     {
       "description": "double(21)",
-      "body": { "$return": { "$fn": "double", "$args": [21] } },
+      "body": {
+        "$return": {
+          "$fn": "double",
+          "$args": [21]
+        }
+      },
       "expected": 42
     },
     {
       "description": "isEven(4)",
-      "body": { "$return": { "$fn": "isEven", "$args": [4] } },
+      "body": {
+        "$return": {
+          "$fn": "isEven",
+          "$args": [4]
+        }
+      },
       "expected": true
     },
     {
       "description": "isEven(7)",
-      "body": { "$return": { "$fn": "isEven", "$args": [7] } },
+      "body": {
+        "$return": {
+          "$fn": "isEven",
+          "$args": [7]
+        }
+      },
       "expected": false
     },
     {
       "description": "fact(0)",
-      "body": { "$return": { "$fn": "fact", "$args": [0] } },
+      "body": {
+        "$return": {
+          "$fn": "fact",
+          "$args": [0]
+        }
+      },
       "expected": 1
     },
     {
       "description": "fact(1)",
-      "body": { "$return": { "$fn": "fact", "$args": [1] } },
+      "body": {
+        "$return": {
+          "$fn": "fact",
+          "$args": [1]
+        }
+      },
       "expected": 1
     },
     {
       "description": "fact(5)",
-      "body": { "$return": { "$fn": "fact", "$args": [5] } },
+      "body": {
+        "$return": {
+          "$fn": "fact",
+          "$args": [5]
+        }
+      },
       "expected": 120
     },
     {
       "description": "fact(10)",
-      "body": { "$return": { "$fn": "fact", "$args": [10] } },
+      "body": {
+        "$return": {
+          "$fn": "fact",
+          "$args": [10]
+        }
+      },
       "expected": 3628800
     },
     {
       "description": "fib(0)",
-      "body": { "$return": { "$fn": "fib", "$args": [0] } },
+      "body": {
+        "$return": {
+          "$fn": "fib",
+          "$args": [0]
+        }
+      },
       "expected": 0
     },
     {
       "description": "fib(1)",
-      "body": { "$return": { "$fn": "fib", "$args": [1] } },
+      "body": {
+        "$return": {
+          "$fn": "fib",
+          "$args": [1]
+        }
+      },
       "expected": 1
     },
     {
       "description": "fib(10)",
-      "body": { "$return": { "$fn": "fib", "$args": [10] } },
+      "body": {
+        "$return": {
+          "$fn": "fib",
+          "$args": [10]
+        }
+      },
       "expected": 55
     }
   ]

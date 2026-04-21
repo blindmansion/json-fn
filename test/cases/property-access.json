@@ -1,43 +1,76 @@
 {
-  "description": "property access with $get/$from",
+  "description": "property access with $var/$get and $get/$from",
   "cases": [
     {
       "description": "single key access on an object",
       "body": {
-        "person": { "name": "Ada", "age": 36 },
-        "$return": { "$get": "name", "$from": { "$var": "person" } }
+        "person": {
+          "name": "Ada",
+          "age": 36
+        },
+        "$return": {
+          "$var": "person",
+          "$get": "name"
+        }
       },
       "expected": "Ada"
     },
     {
       "description": "numeric index access on an array",
-      "body": { "$return": { "$get": 1, "$from": [10, 20, 30] } },
+      "body": {
+        "$return": {
+          "$get": 1,
+          "$from": [10, 20, 30]
+        }
+      },
       "expected": 20
     },
     {
       "description": "path access walks nested structure",
       "body": {
-        "person": { "name": "Ada", "address": { "city": "London", "zip": "SW1" } },
-        "$return": { "$get": ["address", "city"], "$from": { "$var": "person" } }
+        "person": {
+          "name": "Ada",
+          "address": {
+            "city": "London",
+            "zip": "SW1"
+          }
+        },
+        "$return": {
+          "$var": "person",
+          "$get": ["address", "city"]
+        }
       },
       "expected": "London"
     },
     {
       "description": "dynamic key via variable",
       "body": {
-        "data": { "x": 100, "y": 200 },
+        "data": {
+          "x": 100,
+          "y": 200
+        },
         "field": "y",
-        "$return": { "$get": { "$var": "field" }, "$from": { "$var": "data" } }
+        "$return": {
+          "$var": "data",
+          "$get": {
+            "$var": "field"
+          }
+        }
       },
       "expected": 200
     },
     {
       "description": "dynamic key from function result",
       "body": {
-        "data": { "hello": "world" },
+        "data": {
+          "hello": "world"
+        },
         "$return": {
-          "$get": { "$fn": "strcat", "$args": ["hel", "lo"] },
-          "$from": { "$var": "data" }
+          "$var": "data",
+          "$get": {
+            "$fn": "strcat",
+            "$args": ["hel", "lo"]
+          }
         }
       },
       "expected": "world"
@@ -45,24 +78,41 @@
     {
       "description": "path with array index",
       "body": {
-        "data": { "items": ["a", "b", "c"] },
-        "$return": { "$get": ["items", 2], "$from": { "$var": "data" } }
+        "data": {
+          "items": ["a", "b", "c"]
+        },
+        "$return": {
+          "$var": "data",
+          "$get": ["items", 2]
+        }
       },
       "expected": "c"
     },
     {
       "description": "missing key returns null",
       "body": {
-        "obj": { "a": 1 },
-        "$return": { "$get": "z", "$from": { "$var": "obj" } }
+        "obj": {
+          "a": 1
+        },
+        "$return": {
+          "$var": "obj",
+          "$get": "z"
+        }
       },
       "expected": null
     },
     {
       "description": "missing path segment returns null",
       "body": {
-        "obj": { "a": { "b": 1 } },
-        "$return": { "$get": ["a", "missing", "deep"], "$from": { "$var": "obj" } }
+        "obj": {
+          "a": {
+            "b": 1
+          }
+        },
+        "$return": {
+          "$var": "obj",
+          "$get": ["a", "missing", "deep"]
+        }
       },
       "expected": null
     },
@@ -71,7 +121,10 @@
       "body": {
         "$return": {
           "$get": 0,
-          "$from": { "$fn": "concat", "$args": [[10], [20]] }
+          "$from": {
+            "$fn": "concat",
+            "$args": [[10], [20]]
+          }
         }
       },
       "expected": 10
@@ -79,11 +132,52 @@
     {
       "description": "get field then transform",
       "body": {
-        "person": { "name": "ada", "age": 36 },
-        "name": { "$get": "name", "$from": { "$var": "person" } },
-        "$return": { "$fn": "upper", "$args": [{ "$var": "name" }] }
+        "person": {
+          "name": "ada",
+          "age": 36
+        },
+        "name": {
+          "$var": "person",
+          "$get": "name"
+        },
+        "$return": {
+          "$fn": "upper",
+          "$args": [
+            {
+              "$var": "name"
+            }
+          ]
+        }
       },
       "expected": "ADA"
+    },
+    {
+      "description": "closure captures outer var for $get",
+      "body": {
+        "$params": ["data"],
+        "$return": {
+          "$params": ["key"],
+          "$return": { "$var": "data", "$get": { "$var": "key" } }
+        }
+      },
+      "args": [{ "x": 10, "y": 20 }],
+      "expected": {
+        "$params": ["key"],
+        "$return": { "$get": { "$var": "key" }, "$from": { "x": 10, "y": 20 } }
+      }
+    },
+    {
+      "description": "closure-returned accessor works end-to-end",
+      "body": {
+        "$params": ["data"],
+        "accessor": {
+          "$params": ["key"],
+          "$return": { "$var": "data", "$get": { "$var": "key" } }
+        },
+        "$return": { "$fn": { "$var": "accessor" }, "$args": ["y"] }
+      },
+      "args": [{ "x": 10, "y": 20 }],
+      "expected": 20
     }
   ]
 }

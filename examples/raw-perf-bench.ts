@@ -72,7 +72,7 @@ const closureCapture: JSONType = {
       {
         $params: ["record"],
         $return: {
-          name: { $get: "name", $from: { $var: "record" } },
+          name: { $var: "record", $get: "name" },
           totalRecords: { $fn: "length", $args: [{ $var: "records" }] },
         },
       },
@@ -119,7 +119,7 @@ functions.pipelineProcess = {
     $args: [
       {
         $params: ["r"],
-        $return: { $get: "active", $from: { $var: "r" } },
+        $return: { $var: "r", $get: "active" },
       },
       { $var: "records" },
     ],
@@ -130,8 +130,8 @@ functions.pipelineProcess = {
       {
         $params: ["r"],
         $return: {
-          name: { $get: "name", $from: { $var: "r" } },
-          age: { $get: "age", $from: { $var: "r" } },
+          name: { $var: "r", $get: "name" },
+          age: { $var: "r", $get: "age" },
           totalInDataset: { $fn: "length", $args: [{ $var: "records" }] },
         },
       },
@@ -140,10 +140,7 @@ functions.pipelineProcess = {
   },
   sorted: {
     $fn: "sortBy",
-    $args: [
-      { $params: ["r"], $return: { $get: "age", $from: { $var: "r" } } },
-      { $var: "withCount" },
-    ],
+    $args: [{ $params: ["r"], $return: { $var: "r", $get: "age" } }, { $var: "withCount" }],
   },
   $return: { $var: "sorted" },
 };
@@ -198,11 +195,11 @@ const nestedCapture: JSONType = {
               $params: ["tag"],
               $return: {
                 tag: { $var: "tag" },
-                owner: { $get: "name", $from: { $var: "record" } },
+                owner: { $var: "record", $get: "name" },
                 datasetSize: { $fn: "length", $args: [{ $var: "records" }] },
               },
             },
-            { $get: "tags", $from: { $var: "record" } },
+            { $var: "record", $get: "tags" },
           ],
         },
       },
@@ -246,7 +243,7 @@ console.log("═══ 4. $literal (JSON-level escape) ═══\n");
         {
           $params: ["record"],
           $return: {
-            name: { $get: "name", $from: { $var: "record" } },
+            name: { $var: "record", $get: "name" },
             totalRecords: { $fn: "length", $args: [{ $var: "records" }] },
           },
         },
@@ -263,7 +260,7 @@ console.log("═══ 4. $literal (JSON-level escape) ═══\n");
         {
           $params: ["record"],
           $return: {
-            name: { $get: "name", $from: { $var: "record" } },
+            name: { $var: "record", $get: "name" },
             totalRecords: { $fn: "length", $args: [{ $var: "records" }] },
           },
         },
