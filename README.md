@@ -19,7 +19,7 @@ The [examples/](examples/) directory contains complete programs written in json-
 | Language | Directory | Package | Status |
 |----------|-----------|---------|--------|
 | TypeScript | [typescript/](typescript/) | `json-fn` (npm) | Complete |
-| Go | `go/` | — | Planned |
+| Go | `go/` | — | Complete |
 | Python | `python/` | — | Planned |
 | Rust | `rust/` | — | Planned |
 
