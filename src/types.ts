@@ -7,6 +7,8 @@ enum ExpressionType {
   FunctionBody,
   Conditional,
   Cond,
+  And,
+  Or,
   PropertyAccess,
   Literal,
   Object,

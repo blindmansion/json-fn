@@ -416,6 +416,24 @@ function evaluateExpression(expression: JSONType, context: EvaluationContext): J
       }
       exprError(expression, "No $cond branch matched (add a [true, ...] catch-all).");
 
+    case ExpressionType.And:
+      const andExprs = (expression as { $and: JSONType[] }).$and;
+      let andResult: JSONType = true;
+      for (const expr of andExprs) {
+        andResult = evaluateExpression(expr, context);
+        if (!andResult) return andResult;
+      }
+      return andResult;
+
+    case ExpressionType.Or:
+      const orExprs = (expression as { $or: JSONType[] }).$or;
+      let orResult: JSONType = false;
+      for (const expr of orExprs) {
+        orResult = evaluateExpression(expr, context);
+        if (orResult) return orResult;
+      }
+      return orResult;
+
     case ExpressionType.PropertyAccess:
       const propExpr = expression as PropertyAccess | VarPropertyAccess;
       const evaluatedKey = evaluateExpression(propExpr.$get, context);
@@ -721,6 +739,26 @@ function getExpressionType(json: JSONType): ExpressionType {
         }
       }
       return ExpressionType.Cond;
+    }
+
+    if ("$and" in json) {
+      if (objectKeyCount(json) > 1) {
+        exprError(json, "$and expressions cannot have other properties.");
+      }
+      if (!Array.isArray(json.$and)) {
+        exprError(json, "$and must be an array of expressions.");
+      }
+      return ExpressionType.And;
+    }
+
+    if ("$or" in json) {
+      if (objectKeyCount(json) > 1) {
+        exprError(json, "$or expressions cannot have other properties.");
+      }
+      if (!Array.isArray(json.$or)) {
+        exprError(json, "$or must be an array of expressions.");
+      }
+      return ExpressionType.Or;
     }
 
     if ("$literal" in json) {

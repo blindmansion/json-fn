@@ -126,6 +126,30 @@ Array of `[condition, result]` pairs. First truthy condition wins. Must include 
 }
 ```
 
+### Short-Circuit And — `{ $and }`
+
+Array of expressions evaluated left-to-right. Returns the first falsy value, or the last value if all are truthy. Short-circuits (stops evaluating after the first falsy result).
+
+```json
+{
+  "$and": [
+    { "$fn": ["gt", { "$var": "x" }, 0] },
+    { "$fn": ["lt", { "$var": "x" }, 100] },
+    "in range"
+  ]
+}
+```
+
+Unlike the stdlib `and` function, `$and` does **not** evaluate all its operands — it is a language-level special form. It is also variadic (any number of operands).
+
+### Short-Circuit Or — `{ $or }`
+
+Array of expressions evaluated left-to-right. Returns the first truthy value, or the last value if all are falsy. Short-circuits (stops evaluating after the first truthy result).
+
+```json
+{ "$or": [{ "$var": "cached" }, { "$fn": ["compute", { "$var": "x" }] }] }
+```
+
 ### Literal — `{ $literal }`
 
 Returns the value as-is without evaluating nested expressions. Use for constant data in hot paths or to prevent keyword collisions (data that happens to contain `$fn`, `$var`, etc. keys).
@@ -509,6 +533,8 @@ Use `entries` -> HOF -> `fromEntries` to transform objects:
 - `$get`/`$from` must be the only two keys (alternative property access form).
 - `$if`/`$then`/`$else` must all be present, exactly three keys.
 - `$cond` must be the sole key; each entry must be a two-element array.
+- `$and` must be the sole key; value must be an array of expressions.
+- `$or` must be the sole key; value must be an array of expressions.
 - `$literal` must be the sole key.
 - `$fn` as an array (function call) must be the sole key. `$fn` as a non-array (reference) must also be the sole key.
 - `$return` cannot coexist with `$fn`.

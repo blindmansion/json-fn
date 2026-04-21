@@ -71,22 +71,11 @@
   "inBounds": {
     "$params": ["row", "col"],
     "$return": {
-      "$fn": [
-        "and",
-        {
-          "$fn": [
-            "and",
-            { "$fn": ["gte", { "$var": "row" }, 0] },
-            { "$fn": ["lte", { "$var": "row" }, 7] },
-          ],
-        },
-        {
-          "$fn": [
-            "and",
-            { "$fn": ["gte", { "$var": "col" }, 0] },
-            { "$fn": ["lte", { "$var": "col" }, 7] },
-          ],
-        },
+      "$and": [
+        { "$fn": ["gte", { "$var": "row" }, 0] },
+        { "$fn": ["lte", { "$var": "row" }, 7] },
+        { "$fn": ["gte", { "$var": "col" }, 0] },
+        { "$fn": ["lte", { "$var": "col" }, 7] },
       ],
     },
   },
@@ -179,8 +168,7 @@
     "fwd1Row": { "$fn": ["add", { "$var": "row" }, { "$var": "dir" }] },
     "fwd1Idx": { "$fn": ["toIdx", { "$var": "fwd1Row" }, { "$var": "col" }] },
     "fwd1Ok": {
-      "$fn": [
-        "and",
+      "$and": [
         { "$fn": ["inBounds", { "$var": "fwd1Row" }, { "$var": "col" }] },
         { "$fn": ["isNull", { "$var": "board", "$get": { "$var": "fwd1Idx" } }] },
       ],
@@ -191,15 +179,9 @@
     "fwd2Row": { "$fn": ["add", { "$var": "row" }, { "$fn": ["mul", { "$var": "dir" }, 2] }] },
     "fwd2Idx": { "$fn": ["toIdx", { "$var": "fwd2Row" }, { "$var": "col" }] },
     "fwd2Ok": {
-      "$fn": [
-        "and",
-        {
-          "$fn": [
-            "and",
-            { "$fn": ["eq", { "$var": "row" }, { "$var": "startRank" }] },
-            { "$var": "fwd1Ok" },
-          ],
-        },
+      "$and": [
+        { "$fn": ["eq", { "$var": "row" }, { "$var": "startRank" }] },
+        { "$var": "fwd1Ok" },
         { "$fn": ["isNull", { "$var": "board", "$get": { "$var": "fwd2Idx" } }] },
       ],
     },
@@ -228,7 +210,7 @@
             },
           },
           "$return": {
-            "$if": { "$fn": ["and", { "$var": "cOk" }, { "$var": "isEnemy" }] },
+            "$if": { "$and": [{ "$var": "cOk" }, { "$var": "isEnemy" }] },
             "$then": [{ "$var": "cIdx" }],
             "$else": [],
           },
@@ -269,7 +251,7 @@
             },
           },
           "$return": {
-            "$if": { "$fn": ["and", { "$var": "ok" }, { "$fn": ["not", { "$var": "blocked" }] }] },
+            "$if": { "$and": [{ "$var": "ok" }, { "$fn": ["not", { "$var": "blocked" }] }] },
             "$then": [{ "$var": "tIdx" }],
             "$else": [],
           },
@@ -317,7 +299,7 @@
             },
           },
           "$return": {
-            "$if": { "$fn": ["and", { "$var": "ok" }, { "$fn": ["not", { "$var": "blocked" }] }] },
+            "$if": { "$and": [{ "$var": "ok" }, { "$fn": ["not", { "$var": "blocked" }] }] },
             "$then": [{ "$var": "tIdx" }],
             "$else": [],
           },
@@ -501,8 +483,7 @@
       "$else": { "$fn": ["add", { "$var": "row" }, 1] },
     },
     "pawnAttL": {
-      "$fn": [
-        "and",
+      "$and": [
         { "$fn": ["inBounds", { "$var": "pawnSrcRow" }, { "$fn": ["sub", { "$var": "col" }, 1] }] },
         {
           "$fn": [
@@ -523,8 +504,7 @@
       ],
     },
     "pawnAttR": {
-      "$fn": [
-        "and",
+      "$and": [
         { "$fn": ["inBounds", { "$var": "pawnSrcRow" }, { "$fn": ["add", { "$var": "col" }, 1] }] },
         {
           "$fn": [
@@ -544,7 +524,7 @@
         },
       ],
     },
-    "pawnAtt": { "$fn": ["or", { "$var": "pawnAttL" }, { "$var": "pawnAttR" }] },
+    "pawnAtt": { "$or": [{ "$var": "pawnAttL" }, { "$var": "pawnAttR" }] },
 
     // Knight attacks
     "knightAtt": {
@@ -555,8 +535,7 @@
           "r": { "$fn": ["add", { "$var": "row" }, { "$var": "off", "$get": 0 }] },
           "c": { "$fn": ["add", { "$var": "col" }, { "$var": "off", "$get": 1 }] },
           "$return": {
-            "$fn": [
-              "and",
+            "$and": [
               { "$fn": ["inBounds", { "$var": "r" }, { "$var": "c" }] },
               {
                 "$fn": [
@@ -603,8 +582,7 @@
             ],
           },
           "$return": {
-            "$fn": [
-              "or",
+            "$or": [
               { "$fn": ["eq", { "$var": "p" }, { "$var": "eBishop" }] },
               { "$fn": ["eq", { "$var": "p" }, { "$var": "eQueen" }] },
             ],
@@ -638,8 +616,7 @@
             ],
           },
           "$return": {
-            "$fn": [
-              "or",
+            "$or": [
               { "$fn": ["eq", { "$var": "p" }, { "$var": "eRook" }] },
               { "$fn": ["eq", { "$var": "p" }, { "$var": "eQueen" }] },
             ],
@@ -665,8 +642,7 @@
           "r": { "$fn": ["add", { "$var": "row" }, { "$var": "off", "$get": 0 }] },
           "c": { "$fn": ["add", { "$var": "col" }, { "$var": "off", "$get": 1 }] },
           "$return": {
-            "$fn": [
-              "and",
+            "$and": [
               { "$fn": ["inBounds", { "$var": "r" }, { "$var": "c" }] },
               {
                 "$fn": [
@@ -696,15 +672,14 @@
       ],
     },
 
-    // Short-circuit via $cond: first truthy check wins.
+    // Short-circuit: first truthy check wins.
     "$return": {
-      "$cond": [
-        [{ "$var": "pawnAtt" }, true],
-        [{ "$var": "knightAtt" }, true],
-        [{ "$var": "diagAtt" }, true],
-        [{ "$var": "straightAtt" }, true],
-        [{ "$var": "kingAtt" }, true],
-        [true, false],
+      "$or": [
+        { "$var": "pawnAtt" },
+        { "$var": "knightAtt" },
+        { "$var": "diagAtt" },
+        { "$var": "straightAtt" },
+        { "$var": "kingAtt" },
       ],
     },
   },
@@ -760,12 +735,10 @@
     "type": { "$fn": ["pieceType", { "$var": "piece" }] },
     "toRow": { "$fn": ["rowOf", { "$var": "to" }] },
     "isPromotion": {
-      "$fn": [
-        "and",
+      "$and": [
         { "$fn": ["eq", { "$var": "type" }, "P"] },
         {
-          "$fn": [
-            "or",
+          "$or": [
             { "$fn": ["eq", { "$var": "toRow" }, 7] },
             { "$fn": ["eq", { "$var": "toRow" }, 0] },
           ],
@@ -801,9 +774,9 @@
     "newBoard": { "$fn": ["applyMove", { "$var": "board" }, { "$var": "from" }, { "$var": "to" }] },
     "leavesCheck": { "$fn": ["isInCheck", { "$var": "newBoard" }, { "$var": "turn" }] },
     "$return": {
-      "$if": { "$fn": ["and", { "$var": "hasPiece" }, { "$var": "rightColor" }] },
+      "$if": { "$and": [{ "$var": "hasPiece" }, { "$var": "rightColor" }] },
       "$then": {
-        "$fn": ["and", { "$var": "inMoves" }, { "$fn": ["not", { "$var": "leavesCheck" }] }],
+        "$and": [{ "$var": "inMoves" }, { "$fn": ["not", { "$var": "leavesCheck" }] }],
       },
       "$else": false,
     },
@@ -886,9 +859,7 @@
       ],
     },
     "canMove": {
-      "$if": { "$var": "stillPlaying" },
-      "$then": { "$var": "legal" },
-      "$else": false,
+      "$and": [{ "$var": "stillPlaying" }, { "$var": "legal" }],
     },
     "newBoard": { "$fn": ["applyMove", { "$var": "board" }, { "$var": "from" }, { "$var": "to" }] },
     "nextTurn": { "$fn": ["otherColor", { "$var": "turn" }] },

@@ -283,6 +283,97 @@
         }
       },
       "expected": "always this"
+    },
+    {
+      "description": "$and: all truthy returns last value",
+      "body": {
+        "$return": { "$and": [1, "hello", true] }
+      },
+      "expected": true
+    },
+    {
+      "description": "$and: short-circuits on first falsy",
+      "body": {
+        "$return": { "$and": [1, 0, { "$fn": ["div", 1, 0] }] }
+      },
+      "expected": 0
+    },
+    {
+      "description": "$and: empty array returns true",
+      "body": {
+        "$return": { "$and": [] }
+      },
+      "expected": true
+    },
+    {
+      "description": "$and: single falsy element",
+      "body": {
+        "$return": { "$and": [null] }
+      },
+      "expected": null
+    },
+    {
+      "description": "$and: single truthy element",
+      "body": {
+        "$return": { "$and": ["yes"] }
+      },
+      "expected": "yes"
+    },
+    {
+      "description": "$and: returns the falsy value, not boolean",
+      "body": {
+        "$return": { "$and": [true, "", "unreached"] }
+      },
+      "expected": ""
+    },
+    {
+      "description": "$or: all falsy returns last value",
+      "body": {
+        "$return": { "$or": [false, 0, null] }
+      },
+      "expected": null
+    },
+    {
+      "description": "$or: short-circuits on first truthy",
+      "body": {
+        "$return": { "$or": [false, "found", { "$fn": ["div", 1, 0] }] }
+      },
+      "expected": "found"
+    },
+    {
+      "description": "$or: empty array returns false",
+      "body": {
+        "$return": { "$or": [] }
+      },
+      "expected": false
+    },
+    {
+      "description": "$or: single truthy element",
+      "body": {
+        "$return": { "$or": [42] }
+      },
+      "expected": 42
+    },
+    {
+      "description": "$or: returns the truthy value, not boolean",
+      "body": {
+        "$return": { "$or": [null, 0, "winner", "unreached"] }
+      },
+      "expected": "winner"
+    },
+    {
+      "description": "$and/$or: nested composition",
+      "body": {
+        "$params": ["x"],
+        "$return": {
+          "$and": [
+            { "$fn": ["gt", { "$var": "x" }, 0] },
+            { "$or": [{ "$fn": ["eq", { "$var": "x" }, 42] }, "positive"] }
+          ]
+        }
+      },
+      "args": [10],
+      "expected": "positive"
     }
   ]
 }
