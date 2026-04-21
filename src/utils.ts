@@ -37,6 +37,19 @@ export function isBuiltin(fn: unknown): fn is BuiltinFunction {
   return typeof fn === "function" && BUILTIN_MARKER in fn;
 }
 
+export function raw(value: JSONType): JSONType {
+  if (typeof value === "object" && value !== null) {
+    _rawValues.add(value as object);
+  }
+  return value;
+}
+
+export function isRaw(value: unknown): boolean {
+  return typeof value === "object" && value !== null && _rawValues.has(value as object);
+}
+
+const _rawValues = new WeakSet<object>();
+
 export function getArity(fn: unknown, registry?: FunctionRegistry): number | null {
   if (typeof fn === "object" && fn !== null && !Array.isArray(fn) && "$return" in fn) {
     const params = (fn as any).$params as string[] | undefined;

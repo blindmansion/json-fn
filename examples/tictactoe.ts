@@ -6,7 +6,7 @@
 // property access, conditionals, and lazy variable evaluation.
 // ---------------------------------------------------------------------------
 
-import { callFunction, createStdlib, type JSONType } from "../src";
+import { callFunction, createStdlib, enablePerf, disablePerf, type JSONType } from "../src";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -99,16 +99,18 @@ functions.checkLine = {
 // The some callback closes over `board` and `player`.
 functions.checkWin = {
   $params: ["board", "player"],
-  lines: [
-    [0, 1, 2],
-    [3, 4, 5],
-    [6, 7, 8], // rows
-    [0, 3, 6],
-    [1, 4, 7],
-    [2, 5, 8], // cols
-    [0, 4, 8],
-    [2, 4, 6], // diagonals
-  ],
+  lines: {
+    $literal: [
+      [0, 1, 2],
+      [3, 4, 5],
+      [6, 7, 8], // rows
+      [0, 3, 6],
+      [1, 4, 7],
+      [2, 5, 8], // cols
+      [0, 4, 8],
+      [2, 4, 6], // diagonals
+    ],
+  },
   $return: {
     $fn: "some",
     $args: [
@@ -442,12 +444,16 @@ console.log("Board state (O to move):");
 console.log(formatBoard(aiBoard as JSONType[]));
 
 console.log("\nFinding best move for O...");
+const perfStats = enablePerf();
 const t0 = performance.now();
 const bestPos = run("  bestMove(board, O)", {
   $return: { $fn: "bestMove", $args: [aiBoard, "O"] },
 });
 const elapsed = (performance.now() - t0).toFixed(0);
+disablePerf();
 console.log(`  (computed in ${elapsed}ms)`);
+console.log(`  evaluateExpression: ${perfStats.evaluateExpression.toLocaleString()}`);
+console.log(`  rawSkips:           ${perfStats.rawSkips.toLocaleString()}`);
 
 const afterAI = callFunction(functions.makeMove, [aiBoard, bestPos, "O"], functions);
 console.log(`\n  O plays position ${bestPos}:`);
@@ -463,7 +469,7 @@ console.log("\n═══ 6. AI vs AI (from mid-game) ═══\n");
 // ───┼───┼───
 //  · │ · │ O
 let aiState: any = {
-  board: ["X", null, null, null, "X", null, null, null, "O"],
+  board: ["X", null, null, null, "X", null, null, null, "O"] as JSONType,
   turn: "O",
   status: "playing",
 };

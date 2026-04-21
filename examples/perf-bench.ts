@@ -38,6 +38,7 @@ function printPerfStats(stats: PerfStats) {
   console.log(`  replaceVars:          ${stats.replaceVars.toLocaleString()}`);
   console.log(`  cloneIfNeeded:        ${stats.cloneIfNeeded.toLocaleString()}`);
   console.log(`  structuredClones:     ${stats.structuredClones.toLocaleString()}`);
+  console.log(`  rawSkips:             ${stats.rawSkips.toLocaleString()}`);
   console.log(`  maxCallDepth:         ${stats.maxCallDepth}`);
 
   const sortedTypes = Object.entries(stats.exprTypeCounts).sort((a, b) => b[1] - a[1]);
@@ -325,16 +326,18 @@ functions.checkLine = {
 
 functions.checkWin = {
   $params: ["board", "player"],
-  lines: [
-    [0, 1, 2],
-    [3, 4, 5],
-    [6, 7, 8],
-    [0, 3, 6],
-    [1, 4, 7],
-    [2, 5, 8],
-    [0, 4, 8],
-    [2, 4, 6],
-  ],
+  lines: {
+    $literal: [
+      [0, 1, 2],
+      [3, 4, 5],
+      [6, 7, 8],
+      [0, 3, 6],
+      [1, 4, 7],
+      [2, 5, 8],
+      [0, 4, 8],
+      [2, 4, 6],
+    ],
+  },
   $return: {
     $fn: "some",
     $args: [
@@ -476,7 +479,7 @@ functions.bestMove = {
           $else: { $var: "acc" },
         },
       },
-      { score: -100, pos: -1 },
+      { $literal: { score: -100, pos: -1 } },
       { $var: "emptyPos" },
     ],
   },

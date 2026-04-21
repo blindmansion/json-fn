@@ -8,6 +8,7 @@ enum ExpressionType {
   Conditional,
   Cond,
   PropertyAccess,
+  Literal,
   Object,
   Array,
   String,

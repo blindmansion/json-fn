@@ -13,7 +13,7 @@ import type {
   EvaluatedFunctionCall,
 } from "./types";
 import { ExpressionType } from "./types";
-import { exprError, objectKeyCount, isPure, isBuiltin } from "./utils";
+import { exprError, objectKeyCount, isPure, isBuiltin, isRaw, raw } from "./utils";
 
 export type PerfStats = {
   evaluateExpression: number;
@@ -24,6 +24,7 @@ export type PerfStats = {
   replaceVars: number;
   cloneIfNeeded: number;
   structuredClones: number;
+  rawSkips: number;
   exprTypeCounts: Record<string, number>;
   functionCallCounts: Record<string, number>;
   maxCallDepth: number;
@@ -43,6 +44,7 @@ export function enablePerf(): PerfStats {
     replaceVars: 0,
     cloneIfNeeded: 0,
     structuredClones: 0,
+    rawSkips: 0,
     exprTypeCounts: {},
     functionCallCounts: {},
     maxCallDepth: 0,
@@ -84,6 +86,7 @@ function callFunctionInternal(
   }
   try {
     const { functions } = context;
+    let result: JSONType;
     if (typeof fn === "string") {
       if (_perf) {
         _perf.functionCallCounts[fn] = (_perf.functionCallCounts[fn] ?? 0) + 1;
@@ -97,19 +100,21 @@ function callFunctionInternal(
         if (isBuiltin(entry)) {
           const call = (f: JSONType, a: JSONType[]) =>
             callFunctionInternal(f as FunctionDeclaration, a, context);
-          return entry(args, call, functions);
+          result = entry(args, call, functions);
         } else {
-          return callExternalFunction(entry, args, fn);
+          result = callExternalFunction(entry, args, fn);
         }
       } else {
-        return callJSONFunction(entry as FunctionBody, args, { functions });
+        result = callJSONFunction(entry as FunctionBody, args, { functions });
       }
     } else {
       if (_perf) {
         _perf.functionCallCounts["<inline>"] = (_perf.functionCallCounts["<inline>"] ?? 0) + 1;
       }
-      return callJSONFunction(fn as FunctionBody, args, context);
+      result = callJSONFunction(fn as FunctionBody, args, context);
     }
+    raw(result);
+    return result;
   } finally {
     if (_perf) _callDepth--;
   }
@@ -177,6 +182,7 @@ function callJSONFunction(fn: FunctionBody, args: JSONType[], context: Evaluatio
 
 function evaluateExpression(expression: JSONType, context: EvaluationContext): JSONType {
   if (_perf) _perf.evaluateExpression++;
+
   const { functions, getVar } = context;
   const expressionType = getExpressionType(expression);
   if (_perf) {
@@ -290,12 +296,25 @@ function evaluateExpression(expression: JSONType, context: EvaluationContext): J
         )}`,
       );
 
+    case ExpressionType.Literal:
+      const literalValue = (expression as { $literal: JSONType }).$literal;
+      raw(literalValue);
+      return literalValue;
+
     case ExpressionType.Array:
       const array = expression as JSONType[];
+      if (isRaw(array)) {
+        if (_perf) _perf.rawSkips++;
+        return array;
+      }
       return array.map((item) => evaluateExpression(item, context));
 
     case ExpressionType.Object:
       const object = expression as { [key: string]: JSONType };
+      if (isRaw(object)) {
+        if (_perf) _perf.rawSkips++;
+        return object;
+      }
       const evaluatedObject: Record<string, JSONType> = {};
       for (const [key, value] of Object.entries(object)) {
         evaluatedObject[key] = evaluateExpression(value, context);
@@ -319,6 +338,10 @@ function replaceVars(
   getVar: (name: string) => JSONType | undefined,
 ): JSONType {
   if (_perf) _perf.replaceVars++;
+  if (typeof expression === "object" && expression !== null && isRaw(expression)) {
+    if (_perf) _perf.rawSkips++;
+    return expression;
+  }
   if (Array.isArray(expression)) {
     return expression.map((item) => replaceVars(item, getVar));
   }
@@ -559,6 +582,13 @@ function getExpressionType(json: JSONType): ExpressionType {
         }
       }
       return ExpressionType.Cond;
+    }
+
+    if ("$literal" in json) {
+      if (objectKeyCount(json) > 1) {
+        exprError(json, "$literal expressions cannot have other properties.");
+      }
+      return ExpressionType.Literal;
     }
 
     return ExpressionType.Object;
