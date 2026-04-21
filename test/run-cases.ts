@@ -1,6 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import { callFunction, createStdlib } from "../src";
-import type { JSONType, FunctionRegistry } from "../src";
+import type { JSONType, FunctionRegistry, ExecutionLimits } from "../src";
 import { readdirSync, readFileSync } from "fs";
 import { join } from "path";
 
@@ -11,6 +11,7 @@ interface TestCase {
   body: JSONType;
   args?: JSONType[];
   functions?: Record<string, FunctionBody>;
+  limits?: ExecutionLimits;
   expected?: JSONType;
   error?: string;
 }
@@ -30,9 +31,9 @@ function runCase(tc: TestCase, suiteFunctions: Record<string, FunctionBody> = {}
   const args = tc.args ?? [];
 
   if (tc.error !== undefined) {
-    expect(() => callFunction(tc.body as any, args, functions)).toThrow(tc.error);
+    expect(() => callFunction(tc.body as any, args, functions, tc.limits)).toThrow(tc.error);
   } else {
-    const result = callFunction(tc.body as any, args, functions);
+    const result = callFunction(tc.body as any, args, functions, tc.limits);
     expect(result).toEqual(tc.expected!);
   }
 }

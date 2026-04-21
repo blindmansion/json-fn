@@ -4,6 +4,7 @@ import type {
   FunctionReference,
   FunctionDeclaration,
   EvaluationContext,
+  ExecutionLimits,
   FunctionBody,
   FunctionRegistry,
   VariableReference,
@@ -66,12 +67,19 @@ function cloneIfNeeded(value: JSONType): JSONType {
   return structuredClone(value);
 }
 
+const DEFAULT_MAX_CALL_DEPTH = 256;
+
 export function callFunction(
   fn: FunctionDeclaration,
   args: JSONType[],
   functions: FunctionRegistry,
+  limits?: ExecutionLimits,
 ): JSONType {
-  return callFunctionInternal(fn, args, { functions });
+  return callFunctionInternal(fn, args, {
+    functions,
+    maxCallDepth: limits?.maxCallDepth ?? DEFAULT_MAX_CALL_DEPTH,
+    callState: { depth: 0 },
+  });
 }
 
 function callFunctionInternal(
@@ -84,7 +92,11 @@ function callFunctionInternal(
     _callDepth++;
     if (_callDepth > _perf.maxCallDepth) _perf.maxCallDepth = _callDepth;
   }
+  context.callState.depth++;
   try {
+    if (context.callState.depth > context.maxCallDepth) {
+      throw new Error(`Maximum call depth of ${context.maxCallDepth} exceeded`);
+    }
     const { functions } = context;
     let result: JSONType;
     if (typeof fn === "string") {
@@ -105,7 +117,11 @@ function callFunctionInternal(
           result = callExternalFunction(entry, args, fn);
         }
       } else {
-        result = callJSONFunction(entry as FunctionBody, args, { functions });
+        result = callJSONFunction(entry as FunctionBody, args, {
+          functions,
+          maxCallDepth: context.maxCallDepth,
+          callState: context.callState,
+        });
       }
     } else {
       if (_perf) {
@@ -116,6 +132,7 @@ function callFunctionInternal(
     raw(result);
     return result;
   } finally {
+    context.callState.depth--;
     if (_perf) _callDepth--;
   }
 }
@@ -140,7 +157,7 @@ function callExternalFunction(fn: Function, args: JSONType[], name: string): JSO
 
 function callJSONFunction(fn: FunctionBody, args: JSONType[], context: EvaluationContext) {
   if (_perf) _perf.callJSONFunction++;
-  const { functions, getVar: getVarParent } = context;
+  const { functions, getVar: getVarParent, maxCallDepth, callState } = context;
 
   const localFnKeys: string[] = [];
   let scopedFunctions = functions;
@@ -168,19 +185,33 @@ function callJSONFunction(fn: FunctionBody, args: JSONType[], context: Evaluatio
     }
   }
 
+  const resolvingVars: string[] = [];
+
   const getVar = (name: string): JSONType | undefined => {
     if (name in evaluatedVars) {
       return evaluatedVars[name];
     }
 
+    if (resolvingVars.includes(name)) {
+      const cycle = [...resolvingVars.slice(resolvingVars.indexOf(name)), name];
+      throw new Error(`Circular variable dependency detected: ${cycle.join(" -> ")}`);
+    }
+
     const expression = fn[name];
     if (expression !== undefined) {
-      const evaluated = evaluateExpression(expression, {
-        functions: scopedFunctions,
-        getVar,
-      });
-      evaluatedVars[name] = evaluated;
-      return evaluated;
+      resolvingVars.push(name);
+      try {
+        const evaluated = evaluateExpression(expression, {
+          functions: scopedFunctions,
+          getVar,
+          maxCallDepth,
+          callState,
+        });
+        evaluatedVars[name] = evaluated;
+        return evaluated;
+      } finally {
+        resolvingVars.pop();
+      }
     }
 
     if (getVarParent) {
@@ -196,13 +227,18 @@ function callJSONFunction(fn: FunctionBody, args: JSONType[], context: Evaluatio
     }
   }
 
-  return evaluateExpression(fn.$return, { functions: scopedFunctions, getVar });
+  return evaluateExpression(fn.$return, {
+    functions: scopedFunctions,
+    getVar,
+    maxCallDepth,
+    callState,
+  });
 }
 
 function evaluateExpression(expression: JSONType, context: EvaluationContext): JSONType {
   if (_perf) _perf.evaluateExpression++;
 
-  const { functions, getVar } = context;
+  const { getVar } = context;
   const expressionType = getExpressionType(expression);
   if (_perf) {
     const name = ExpressionType[expressionType] ?? String(expressionType);
@@ -214,10 +250,11 @@ function evaluateExpression(expression: JSONType, context: EvaluationContext): J
       const fnCall = expression as FunctionCall;
       const evaluatedFunctionCall = evaluateFunctionCall(fnCall, context);
 
-      return callFunctionInternal(evaluatedFunctionCall.fnDeclaration, evaluatedFunctionCall.args, {
-        functions,
-        getVar,
-      });
+      return callFunctionInternal(
+        evaluatedFunctionCall.fnDeclaration,
+        evaluatedFunctionCall.args,
+        context,
+      );
 
     case ExpressionType.FunctionReference:
       const fnRef = expression as FunctionReference;

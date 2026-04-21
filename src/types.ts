@@ -70,9 +70,15 @@ type EvaluatedFunctionCall = {
   args: JSONType[];
 };
 
+type ExecutionLimits = {
+  maxCallDepth?: number;
+};
+
 type EvaluationContext = {
   functions: FunctionRegistry;
   getVar?: (name: string) => JSONType | undefined;
+  maxCallDepth: number;
+  callState: { depth: number };
 };
 
 export type {
@@ -83,6 +89,7 @@ export type {
   FunctionRegistry,
   FunctionDeclaration,
   EvaluationContext,
+  ExecutionLimits,
   FunctionBody,
   VariableReference,
   Conditional,
