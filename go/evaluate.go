@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"strings"
 )
 
@@ -743,8 +744,6 @@ func getObjectExpressionType(obj map[string]any) (ExpressionType, error) {
 
 func copyRegistry(src FunctionRegistry) FunctionRegistry {
 	dst := make(FunctionRegistry, len(src))
-	for k, v := range src {
-		dst[k] = v
-	}
+	maps.Copy(dst, src)
 	return dst
 }
