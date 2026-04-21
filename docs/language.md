@@ -56,6 +56,36 @@ Resolves a variable by name.
 { "$var": "x" }
 ```
 
+Dot/bracket notation accesses nested properties inline:
+
+```json
+{ "$var": "person.name" }
+{ "$var": "items[0]" }
+{ "$var": "data.items[1].name" }
+```
+
+`.key` accesses a string property, `[N]` accesses a numeric index (for arrays), and `[key]` accesses a string key when the key is non-numeric. The first segment before any `.` or `[` is the variable name. Missing keys or path traversal into non-object values returns `null`.
+
+For dynamic or computed keys, add `$get`. It evaluates to a string key, numeric index, or array path, and applies after any dot-notation path resolves:
+
+```json
+{ "$var": "person", "$get": "name" }
+{ "$var": "items", "$get": 1 }
+{ "$var": "person", "$get": ["address", "city"] }
+{ "$var": "data.people[0]", "$get": "city" }
+{ "$var": "data", "$get": { "$var": "fieldName" } }
+```
+
+**Variable name restriction**: Variable names (in `$params` and as local keys) must not contain `.` or `[`.
+
+#### `{ $get, $from }` — Property Access on Expressions
+
+For accessing properties on non-variable expressions (e.g. function results or literals), use `$get`/`$from`. `$from` evaluates to the target object/array.
+
+```json
+{ "$get": 0, "$from": { "$fn": ["concat", [10], [20]] } }
+```
+
 ### Function Body — `{ $return, ... }`
 
 Defines a function. Required key: `$return` (the expression to evaluate when called). Optional key: `$params` (array of strings). All other keys are **lazy local variables** — evaluated on first access.
@@ -94,40 +124,6 @@ Array of `[condition, result]` pairs. First truthy condition wins. Must include 
     [true, "positive"]
   ]
 }
-```
-
-### Property Access — `{ $var, $get }`
-
-Access a property on a variable's value. `$var` names the variable, `$get` evaluates to a string key, numeric index, or array path. Missing keys return `null`.
-
-```json
-{ "$var": "person", "$get": "name" }
-```
-
-Numeric index:
-
-```json
-{ "$var": "items", "$get": 1 }
-```
-
-Path (nested access):
-
-```json
-{ "$var": "person", "$get": ["address", "city"] }
-```
-
-Dynamic key (from variable or function result):
-
-```json
-{ "$var": "data", "$get": { "$var": "fieldName" } }
-```
-
-#### `{ $get, $from }` (alternative form)
-
-For accessing properties on non-variable expressions (e.g. function results or literals), use `$get`/`$from`. `$from` evaluates to the target object/array.
-
-```json
-{ "$get": 0, "$from": { "$fn": ["concat", [10], [20]] } }
 ```
 
 ### Literal — `{ $literal }`
@@ -507,7 +503,8 @@ Use `entries` -> HOF -> `fromEntries` to transform objects:
 
 ## Constraints
 
-- `$var` must be the sole key, or paired only with `$get` for property access.
+- `$var` must be the sole key, or paired only with `$get` for property access. The `$var` string may include dot/bracket path notation (e.g. `"person.name"`, `"items[0]"`).
+- Variable names (in `$params` and as local keys in function bodies) must not contain `.` or `[`.
 - `$get`/`$from` must be the only two keys (alternative property access form).
 - `$if`/`$then`/`$else` must all be present, exactly three keys.
 - `$cond` must be the sole key; each entry must be a two-element array.

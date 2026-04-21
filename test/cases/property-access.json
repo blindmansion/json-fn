@@ -211,6 +211,267 @@
         }
       ],
       "expected": 20
+    },
+    {
+      "description": "dot notation: single property access",
+      "body": {
+        "person": {
+          "name": "Ada",
+          "age": 36
+        },
+        "$return": { "$var": "person.name" }
+      },
+      "expected": "Ada"
+    },
+    {
+      "description": "dot notation: nested property access",
+      "body": {
+        "person": {
+          "address": {
+            "city": "London",
+            "zip": "SW1"
+          }
+        },
+        "$return": { "$var": "person.address.city" }
+      },
+      "expected": "London"
+    },
+    {
+      "description": "dot notation: bracket index on array",
+      "body": {
+        "items": ["a", "b", "c"],
+        "$return": { "$var": "items[1]" }
+      },
+      "expected": "b"
+    },
+    {
+      "description": "dot notation: mixed dots and brackets",
+      "body": {
+        "data": {
+          "items": [{ "name": "first" }, { "name": "second" }]
+        },
+        "$return": { "$var": "data.items[1].name" }
+      },
+      "expected": "second"
+    },
+    {
+      "description": "dot notation: bracket then dot",
+      "body": {
+        "rows": [
+          { "x": 10, "y": 20 },
+          { "x": 30, "y": 40 }
+        ],
+        "$return": { "$var": "rows[0].y" }
+      },
+      "expected": 20
+    },
+    {
+      "description": "dot notation: deeply nested path",
+      "body": {
+        "a": { "b": { "c": { "d": 42 } } },
+        "$return": { "$var": "a.b.c.d" }
+      },
+      "expected": 42
+    },
+    {
+      "description": "dot notation: missing key returns null",
+      "body": {
+        "obj": { "a": 1 },
+        "$return": { "$var": "obj.z" }
+      },
+      "expected": null
+    },
+    {
+      "description": "dot notation: missing intermediate returns null",
+      "body": {
+        "obj": { "a": { "b": 1 } },
+        "$return": { "$var": "obj.missing.deep" }
+      },
+      "expected": null
+    },
+    {
+      "description": "dot notation: path into non-object returns null",
+      "body": {
+        "obj": { "a": 42 },
+        "$return": { "$var": "obj.a.b" }
+      },
+      "expected": null
+    },
+    {
+      "description": "dot notation: out-of-bounds index returns null",
+      "body": {
+        "items": [1, 2, 3],
+        "$return": { "$var": "items[99]" }
+      },
+      "expected": null
+    },
+    {
+      "description": "dot notation combined with $get",
+      "body": {
+        "data": {
+          "people": [
+            { "name": "Ada", "city": "London" },
+            { "name": "Bob", "city": "Paris" }
+          ]
+        },
+        "$return": {
+          "$var": "data.people[0]",
+          "$get": "city"
+        }
+      },
+      "expected": "London"
+    },
+    {
+      "description": "dot notation with $get dynamic key",
+      "body": {
+        "data": {
+          "record": { "x": 100, "y": 200 }
+        },
+        "field": "y",
+        "$return": {
+          "$var": "data.record",
+          "$get": { "$var": "field" }
+        }
+      },
+      "expected": 200
+    },
+    {
+      "description": "dot notation: non-numeric bracket is string key",
+      "body": {
+        "data": { "my-key": 99 },
+        "$return": { "$var": "data[my-key]" }
+      },
+      "expected": 99
+    },
+    {
+      "description": "dot notation: used in function argument",
+      "body": {
+        "person": { "name": "ada" },
+        "$return": {
+          "$fn": ["upper", { "$var": "person.name" }]
+        }
+      },
+      "expected": "ADA"
+    },
+    {
+      "description": "dot notation: used with $params",
+      "body": {
+        "$params": ["data"],
+        "$return": { "$var": "data.name" }
+      },
+      "args": [{ "name": "Ada", "age": 36 }],
+      "expected": "Ada"
+    },
+    {
+      "description": "dot notation: closure captures variable used with dot path",
+      "body": {
+        "$params": ["person"],
+        "$return": {
+          "$params": ["unused"],
+          "$return": { "$var": "person.name" }
+        }
+      },
+      "args": [{ "name": "Ada", "age": 36 }],
+      "expected": {
+        "$params": ["unused"],
+        "$return": {
+          "$get": "name",
+          "$from": { "name": "Ada", "age": 36 }
+        }
+      }
+    },
+    {
+      "description": "dot notation: closure-returned function with dot path works end-to-end",
+      "body": {
+        "$params": ["person"],
+        "getter": {
+          "$params": ["unused"],
+          "$return": { "$var": "person.name" }
+        },
+        "$return": { "$fn": [{ "$var": "getter" }, null] }
+      },
+      "args": [{ "name": "Ada", "age": 36 }],
+      "expected": "Ada"
+    },
+    {
+      "description": "dot notation: closure with dot path and $get",
+      "body": {
+        "$params": ["data"],
+        "$return": {
+          "$params": ["key"],
+          "$return": {
+            "$var": "data.nested",
+            "$get": { "$var": "key" }
+          }
+        }
+      },
+      "args": [{ "nested": { "x": 10, "y": 20 } }],
+      "expected": {
+        "$params": ["key"],
+        "$return": {
+          "$get": { "$var": "key" },
+          "$from": {
+            "$get": "nested",
+            "$from": { "nested": { "x": 10, "y": 20 } }
+          }
+        }
+      }
+    },
+    {
+      "description": "dot notation: closure with dot path and $get end-to-end",
+      "body": {
+        "$params": ["data"],
+        "accessor": {
+          "$params": ["key"],
+          "$return": {
+            "$var": "data.nested",
+            "$get": { "$var": "key" }
+          }
+        },
+        "$return": { "$fn": [{ "$var": "accessor" }, "y"] }
+      },
+      "args": [{ "nested": { "x": 10, "y": 20 } }],
+      "expected": 20
+    },
+    {
+      "description": "dot notation: error on trailing dot",
+      "body": {
+        "obj": { "a": 1 },
+        "$return": { "$var": "obj." }
+      },
+      "error": "empty segment"
+    },
+    {
+      "description": "dot notation: error on unclosed bracket",
+      "body": {
+        "obj": { "a": 1 },
+        "$return": { "$var": "obj[0" }
+      },
+      "error": "unclosed"
+    },
+    {
+      "description": "dot notation: error on empty brackets",
+      "body": {
+        "obj": { "a": 1 },
+        "$return": { "$var": "obj[]" }
+      },
+      "error": "empty"
+    },
+    {
+      "description": "param name with dot is rejected",
+      "body": {
+        "$params": ["a.b"],
+        "$return": 1
+      },
+      "error": "must not contain"
+    },
+    {
+      "description": "param name with bracket is rejected",
+      "body": {
+        "$params": ["a[0]"],
+        "$return": 1
+      },
+      "error": "must not contain"
     }
   ]
 }

@@ -68,6 +68,85 @@ function cloneIfNeeded(value: JSONType): JSONType {
   return structuredClone(value);
 }
 
+type ParsedPath = { variable: string; path: (string | number)[] };
+const _pathCache = new Map<string, ParsedPath>();
+
+function parsePath(str: string): ParsedPath {
+  const cached = _pathCache.get(str);
+  if (cached) return cached;
+
+  const dotIdx = str.indexOf(".");
+  const bracketIdx = str.indexOf("[");
+
+  if (dotIdx === -1 && bracketIdx === -1) {
+    const result: ParsedPath = { variable: str, path: [] };
+    _pathCache.set(str, result);
+    return result;
+  }
+
+  let splitIdx: number;
+  if (dotIdx === -1) splitIdx = bracketIdx;
+  else if (bracketIdx === -1) splitIdx = dotIdx;
+  else splitIdx = Math.min(dotIdx, bracketIdx);
+
+  const variable = str.slice(0, splitIdx);
+  if (variable === "") {
+    throw new Error(`Invalid $var path: variable name cannot be empty in "${str}"`);
+  }
+
+  const path: (string | number)[] = [];
+  let i = splitIdx;
+
+  while (i < str.length) {
+    const ch = str[i];
+    if (ch === ".") {
+      i++;
+      let end = i;
+      while (end < str.length && str[end] !== "." && str[end] !== "[") {
+        end++;
+      }
+      if (end === i) {
+        throw new Error(`Invalid $var path: empty segment after "." in "${str}"`);
+      }
+      path.push(str.slice(i, end));
+      i = end;
+    } else if (ch === "[") {
+      i++;
+      const closeIdx = str.indexOf("]", i);
+      if (closeIdx === -1) {
+        throw new Error(`Invalid $var path: unclosed "[" in "${str}"`);
+      }
+      const inner = str.slice(i, closeIdx);
+      if (inner === "") {
+        throw new Error(`Invalid $var path: empty "[]" in "${str}"`);
+      }
+      const num = Number(inner);
+      path.push(Number.isInteger(num) && String(num) === inner ? num : inner);
+      i = closeIdx + 1;
+    } else {
+      throw new Error(`Invalid $var path: unexpected character "${ch}" in "${str}"`);
+    }
+  }
+
+  const result: ParsedPath = { variable, path };
+  _pathCache.set(str, result);
+  return result;
+}
+
+function walkPath(value: JSONType, path: (string | number)[]): JSONType {
+  let current = value;
+  for (const segment of path) {
+    if (current === null || typeof current !== "object") {
+      return null;
+    }
+    current = (current as any)[segment];
+    if (current === undefined) {
+      return null;
+    }
+  }
+  return current;
+}
+
 const DEFAULT_MAX_CALL_DEPTH = 256;
 
 export function callFunction(
@@ -183,8 +262,19 @@ function callJSONFunction(fn: FunctionBody, args: JSONType[], context: Evaluatio
     for (let i = 0; i < params.length; i++) {
       const name = params[i]!;
       if (name.startsWith("...")) {
-        evaluatedVars[name.slice(3)] = args.slice(i);
+        const restName = name.slice(3);
+        if (restName.includes(".") || restName.includes("[")) {
+          throw new Error(
+            `Parameter name "${restName}" must not contain "." or "[". Use simple identifiers.`,
+          );
+        }
+        evaluatedVars[restName] = args.slice(i);
         break;
+      }
+      if (name.includes(".") || name.includes("[")) {
+        throw new Error(
+          `Parameter name "${name}" must not contain "." or "[". Use simple identifiers.`,
+        );
       }
       evaluatedVars[name] = args[i] ?? null;
     }
@@ -290,9 +380,13 @@ function evaluateExpression(expression: JSONType, context: EvaluationContext): J
       if (!getVar) {
         exprError(expression, "getVar is not defined.");
       }
-      const value = getVar(varRef.$var);
+      const parsedVar = parsePath(varRef.$var);
+      const value = getVar(parsedVar.variable);
       if (value === undefined) {
-        exprError(expression, `Variable ${varRef.$var} not found.`);
+        exprError(expression, `Variable ${parsedVar.variable} not found.`);
+      }
+      if (parsedVar.path.length > 0) {
+        return walkPath(value, parsedVar.path);
       }
       return value;
 
@@ -330,11 +424,13 @@ function evaluateExpression(expression: JSONType, context: EvaluationContext): J
         if (!getVar) {
           exprError(expression, "getVar is not defined.");
         }
-        const varValue = getVar(propExpr.$var);
+        const parsedProp = parsePath(propExpr.$var);
+        const varValue = getVar(parsedProp.variable);
         if (varValue === undefined) {
-          exprError(expression, `Variable ${propExpr.$var} not found.`);
+          exprError(expression, `Variable ${parsedProp.variable} not found.`);
         }
-        evaluatedTarget = varValue;
+        evaluatedTarget =
+          parsedProp.path.length > 0 ? walkPath(varValue, parsedProp.path) : varValue;
       } else {
         evaluatedTarget = evaluateExpression(propExpr.$from, context);
       }
@@ -426,17 +522,26 @@ function replaceVars(
 
   if (typeof expression === "object" && expression !== null) {
     if ("$var" in expression && typeof expression.$var === "string") {
+      const parsed = parsePath(expression.$var);
       if ("$get" in expression) {
-        const varValue = getVar(expression.$var);
+        const varValue = getVar(parsed.variable);
         const replacedKey = replaceVars(expression.$get, getVar);
         if (varValue !== undefined) {
+          if (parsed.path.length > 0) {
+            const pathKey: JSONType = parsed.path.length === 1 ? parsed.path[0]! : parsed.path;
+            return { $get: replacedKey, $from: { $get: pathKey, $from: varValue } };
+          }
           return { $get: replacedKey, $from: varValue };
         }
         return { $var: expression.$var, $get: replacedKey };
       }
-      const varValue = getVar(expression.$var);
+      const varValue = getVar(parsed.variable);
       if (varValue === undefined) {
         return expression;
+      }
+      if (parsed.path.length > 0) {
+        const pathKey: JSONType = parsed.path.length === 1 ? parsed.path[0]! : parsed.path;
+        return { $get: pathKey, $from: varValue };
       }
       return varValue;
     }
@@ -556,6 +661,15 @@ function getExpressionType(json: JSONType): ExpressionType {
         const params = json.$params;
         if (!Array.isArray(params) || !params.every((p) => typeof p === "string")) {
           exprError(json, "$params must be an array of strings.");
+        }
+        for (const p of params) {
+          const name = (p as string).startsWith("...") ? (p as string).slice(3) : (p as string);
+          if (name.includes(".") || name.includes("[")) {
+            exprError(
+              json,
+              `Parameter name "${name}" must not contain "." or "[". Use simple identifiers.`,
+            );
+          }
         }
       }
       return ExpressionType.FunctionBody;
