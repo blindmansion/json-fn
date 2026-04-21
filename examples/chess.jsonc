@@ -1,0 +1,906 @@
+// chess.jsonc — Chess game logic in json-fn
+//
+// All chess rules (move generation, check detection, checkmate/stalemate)
+// expressed entirely as JSON function definitions.
+//
+// Board: flat 64-element array, index = rank*8 + file.
+//   rank 0 = row 1 (white's back rank), file 0 = a-file.
+//   Index 0 = a1, 7 = h1, 8 = a2, ..., 63 = h8.
+//
+// Pieces: single characters.
+//   Uppercase = white: P N B R Q K
+//   Lowercase = black: p n b r q k
+//   null = empty square.
+//
+// Game state: { board: [...64], turn: "w"|"b", status: "playing"|"checkmate"|"stalemate" }
+//
+// Scope: all piece movement, captures, check, checkmate, stalemate, pawn
+// double-move, and auto-promotion to queen. No castling, en passant, or
+// draw rules.
+{
+  // =========================================================================
+  // Layer 1 — Coordinate Utilities
+  // =========================================================================
+
+  // pieceColor(piece) → null | "w" | "b"
+  "pieceColor": {
+    "$params": ["piece"],
+    "$return": {
+      "$if": { "$fn": ["isNull", { "$var": "piece" }] },
+      "$then": null,
+      "$else": {
+        "$if": { "$fn": ["eq", { "$var": "piece" }, { "$fn": ["upper", { "$var": "piece" }] }] },
+        "$then": "w",
+        "$else": "b",
+      },
+    },
+  },
+
+  // pieceType(piece) → "P"|"N"|"B"|"R"|"Q"|"K" (always uppercase)
+  "pieceType": {
+    "$params": ["piece"],
+    "$return": { "$fn": ["upper", { "$var": "piece" }] },
+  },
+
+  // otherColor(color) → "w" ↔ "b"
+  "otherColor": {
+    "$params": ["color"],
+    "$return": {
+      "$if": { "$fn": ["eq", { "$var": "color" }, "w"] },
+      "$then": "b",
+      "$else": "w",
+    },
+  },
+
+  "rowOf": {
+    "$params": ["idx"],
+    "$return": { "$fn": ["floor", { "$fn": ["div", { "$var": "idx" }, 8] }] },
+  },
+
+  "colOf": {
+    "$params": ["idx"],
+    "$return": { "$fn": ["mod", { "$var": "idx" }, 8] },
+  },
+
+  "toIdx": {
+    "$params": ["row", "col"],
+    "$return": { "$fn": ["add", { "$fn": ["mul", { "$var": "row" }, 8] }, { "$var": "col" }] },
+  },
+
+  // inBounds(row, col) → both in [0, 7]
+  "inBounds": {
+    "$params": ["row", "col"],
+    "$return": {
+      "$fn": [
+        "and",
+        {
+          "$fn": [
+            "and",
+            { "$fn": ["gte", { "$var": "row" }, 0] },
+            { "$fn": ["lte", { "$var": "row" }, 7] },
+          ],
+        },
+        {
+          "$fn": [
+            "and",
+            { "$fn": ["gte", { "$var": "col" }, 0] },
+            { "$fn": ["lte", { "$var": "col" }, 7] },
+          ],
+        },
+      ],
+    },
+  },
+
+  // makePiece(color, type) → uppercase if "w", lowercase if "b"
+  "makePiece": {
+    "$params": ["color", "type"],
+    "$return": {
+      "$if": { "$fn": ["eq", { "$var": "color" }, "w"] },
+      "$then": { "$var": "type" },
+      "$else": { "$fn": ["lower", { "$var": "type" }] },
+    },
+  },
+
+  // =========================================================================
+  // Layer 2 — Pseudo-Legal Move Generation
+  // =========================================================================
+
+  // slideDir(board, row, col, dr, dc, color) → [targetIdx...]
+  // Recursive: walk one direction collecting valid target squares.
+  // Stops on board edge, own piece (exclusive), or enemy piece (inclusive).
+  "slideDir": {
+    "$params": ["board", "row", "col", "dr", "dc", "color"],
+    "nr": { "$fn": ["add", { "$var": "row" }, { "$var": "dr" }] },
+    "nc": { "$fn": ["add", { "$var": "col" }, { "$var": "dc" }] },
+    "ok": { "$fn": ["inBounds", { "$var": "nr" }, { "$var": "nc" }] },
+    "tIdx": { "$fn": ["toIdx", { "$var": "nr" }, { "$var": "nc" }] },
+    "target": { "$var": "board", "$get": { "$var": "tIdx" } },
+    "empty": { "$fn": ["isNull", { "$var": "target" }] },
+    "ally": { "$fn": ["eq", { "$fn": ["pieceColor", { "$var": "target" }] }, { "$var": "color" }] },
+    "rest": {
+      "$fn": [
+        "slideDir",
+        { "$var": "board" },
+        { "$var": "nr" },
+        { "$var": "nc" },
+        { "$var": "dr" },
+        { "$var": "dc" },
+        { "$var": "color" },
+      ],
+    },
+    "$return": {
+      "$cond": [
+        [{ "$fn": ["not", { "$var": "ok" }] }, []],
+        [{ "$var": "empty" }, { "$fn": ["concat", [{ "$var": "tIdx" }], { "$var": "rest" }] }],
+        [{ "$var": "ally" }, []],
+        [true, [{ "$var": "tIdx" }]],
+      ],
+    },
+  },
+
+  // slideMoves(board, idx, color, dirs) → [targetIdx...]
+  // Calls slideDir for each direction, flattens results.
+  "slideMoves": {
+    "$params": ["board", "idx", "color", "dirs"],
+    "row": { "$fn": ["rowOf", { "$var": "idx" }] },
+    "col": { "$fn": ["colOf", { "$var": "idx" }] },
+    "$return": {
+      "$fn": [
+        "flatMap",
+        {
+          "$params": ["d"],
+          "$return": {
+            "$fn": [
+              "slideDir",
+              { "$var": "board" },
+              { "$var": "row" },
+              { "$var": "col" },
+              { "$var": "d", "$get": 0 },
+              { "$var": "d", "$get": 1 },
+              { "$var": "color" },
+            ],
+          },
+        },
+        { "$var": "dirs" },
+      ],
+    },
+  },
+
+  // pawnMoves(board, idx, color) → [targetIdx...]
+  // Forward 1, forward 2 from start rank, diagonal captures.
+  "pawnMoves": {
+    "$params": ["board", "idx", "color"],
+    "row": { "$fn": ["rowOf", { "$var": "idx" }] },
+    "col": { "$fn": ["colOf", { "$var": "idx" }] },
+    "dir": { "$if": { "$fn": ["eq", { "$var": "color" }, "w"] }, "$then": 1, "$else": -1 },
+    "startRank": { "$if": { "$fn": ["eq", { "$var": "color" }, "w"] }, "$then": 1, "$else": 6 },
+
+    // Forward 1
+    "fwd1Row": { "$fn": ["add", { "$var": "row" }, { "$var": "dir" }] },
+    "fwd1Idx": { "$fn": ["toIdx", { "$var": "fwd1Row" }, { "$var": "col" }] },
+    "fwd1Ok": {
+      "$fn": [
+        "and",
+        { "$fn": ["inBounds", { "$var": "fwd1Row" }, { "$var": "col" }] },
+        { "$fn": ["isNull", { "$var": "board", "$get": { "$var": "fwd1Idx" } }] },
+      ],
+    },
+    "fwd1": { "$if": { "$var": "fwd1Ok" }, "$then": [{ "$var": "fwd1Idx" }], "$else": [] },
+
+    // Forward 2 from start rank
+    "fwd2Row": { "$fn": ["add", { "$var": "row" }, { "$fn": ["mul", { "$var": "dir" }, 2] }] },
+    "fwd2Idx": { "$fn": ["toIdx", { "$var": "fwd2Row" }, { "$var": "col" }] },
+    "fwd2Ok": {
+      "$fn": [
+        "and",
+        {
+          "$fn": [
+            "and",
+            { "$fn": ["eq", { "$var": "row" }, { "$var": "startRank" }] },
+            { "$var": "fwd1Ok" },
+          ],
+        },
+        { "$fn": ["isNull", { "$var": "board", "$get": { "$var": "fwd2Idx" } }] },
+      ],
+    },
+    "fwd2": { "$if": { "$var": "fwd2Ok" }, "$then": [{ "$var": "fwd2Idx" }], "$else": [] },
+
+    // Diagonal captures via flatMap over [-1, 1] column offsets
+    "captures": {
+      "$fn": [
+        "flatMap",
+        {
+          "$params": ["dc"],
+          "cr": { "$var": "fwd1Row" },
+          "cc": { "$fn": ["add", { "$var": "col" }, { "$var": "dc" }] },
+          "cOk": { "$fn": ["inBounds", { "$var": "cr" }, { "$var": "cc" }] },
+          "cIdx": { "$fn": ["toIdx", { "$var": "cr" }, { "$var": "cc" }] },
+          "cTarget": {
+            "$if": { "$var": "cOk" },
+            "$then": { "$var": "board", "$get": { "$var": "cIdx" } },
+            "$else": null,
+          },
+          "isEnemy": {
+            "$if": { "$fn": ["isNull", { "$var": "cTarget" }] },
+            "$then": false,
+            "$else": {
+              "$fn": ["neq", { "$fn": ["pieceColor", { "$var": "cTarget" }] }, { "$var": "color" }],
+            },
+          },
+          "$return": {
+            "$if": { "$fn": ["and", { "$var": "cOk" }, { "$var": "isEnemy" }] },
+            "$then": [{ "$var": "cIdx" }],
+            "$else": [],
+          },
+        },
+        [-1, 1],
+      ],
+    },
+
+    "$return": {
+      "$fn": ["flatten", [{ "$var": "fwd1" }, { "$var": "fwd2" }, { "$var": "captures" }]],
+    },
+  },
+
+  // knightMoves(board, idx, color) → [targetIdx...]
+  "knightMoves": {
+    "$params": ["board", "idx", "color"],
+    "row": { "$fn": ["rowOf", { "$var": "idx" }] },
+    "col": { "$fn": ["colOf", { "$var": "idx" }] },
+    "$return": {
+      "$fn": [
+        "flatMap",
+        {
+          "$params": ["off"],
+          "r": { "$fn": ["add", { "$var": "row" }, { "$var": "off", "$get": 0 }] },
+          "c": { "$fn": ["add", { "$var": "col" }, { "$var": "off", "$get": 1 }] },
+          "ok": { "$fn": ["inBounds", { "$var": "r" }, { "$var": "c" }] },
+          "tIdx": { "$fn": ["toIdx", { "$var": "r" }, { "$var": "c" }] },
+          "target": {
+            "$if": { "$var": "ok" },
+            "$then": { "$var": "board", "$get": { "$var": "tIdx" } },
+            "$else": null,
+          },
+          "blocked": {
+            "$if": { "$fn": ["isNull", { "$var": "target" }] },
+            "$then": false,
+            "$else": {
+              "$fn": ["eq", { "$fn": ["pieceColor", { "$var": "target" }] }, { "$var": "color" }],
+            },
+          },
+          "$return": {
+            "$if": { "$fn": ["and", { "$var": "ok" }, { "$fn": ["not", { "$var": "blocked" }] }] },
+            "$then": [{ "$var": "tIdx" }],
+            "$else": [],
+          },
+        },
+        {
+          "$literal": [
+            [-2, -1],
+            [-2, 1],
+            [-1, -2],
+            [-1, 2],
+            [1, -2],
+            [1, 2],
+            [2, -1],
+            [2, 1],
+          ],
+        },
+      ],
+    },
+  },
+
+  // kingMoves(board, idx, color) → [targetIdx...]
+  "kingMoves": {
+    "$params": ["board", "idx", "color"],
+    "row": { "$fn": ["rowOf", { "$var": "idx" }] },
+    "col": { "$fn": ["colOf", { "$var": "idx" }] },
+    "$return": {
+      "$fn": [
+        "flatMap",
+        {
+          "$params": ["off"],
+          "r": { "$fn": ["add", { "$var": "row" }, { "$var": "off", "$get": 0 }] },
+          "c": { "$fn": ["add", { "$var": "col" }, { "$var": "off", "$get": 1 }] },
+          "ok": { "$fn": ["inBounds", { "$var": "r" }, { "$var": "c" }] },
+          "tIdx": { "$fn": ["toIdx", { "$var": "r" }, { "$var": "c" }] },
+          "target": {
+            "$if": { "$var": "ok" },
+            "$then": { "$var": "board", "$get": { "$var": "tIdx" } },
+            "$else": null,
+          },
+          "blocked": {
+            "$if": { "$fn": ["isNull", { "$var": "target" }] },
+            "$then": false,
+            "$else": {
+              "$fn": ["eq", { "$fn": ["pieceColor", { "$var": "target" }] }, { "$var": "color" }],
+            },
+          },
+          "$return": {
+            "$if": { "$fn": ["and", { "$var": "ok" }, { "$fn": ["not", { "$var": "blocked" }] }] },
+            "$then": [{ "$var": "tIdx" }],
+            "$else": [],
+          },
+        },
+        {
+          "$literal": [
+            [-1, -1],
+            [-1, 0],
+            [-1, 1],
+            [0, -1],
+            [0, 1],
+            [1, -1],
+            [1, 0],
+            [1, 1],
+          ],
+        },
+      ],
+    },
+  },
+
+  "bishopMoves": {
+    "$params": ["board", "idx", "color"],
+    "$return": {
+      "$fn": [
+        "slideMoves",
+        { "$var": "board" },
+        { "$var": "idx" },
+        { "$var": "color" },
+        {
+          "$literal": [
+            [-1, -1],
+            [-1, 1],
+            [1, -1],
+            [1, 1],
+          ],
+        },
+      ],
+    },
+  },
+
+  "rookMoves": {
+    "$params": ["board", "idx", "color"],
+    "$return": {
+      "$fn": [
+        "slideMoves",
+        { "$var": "board" },
+        { "$var": "idx" },
+        { "$var": "color" },
+        {
+          "$literal": [
+            [-1, 0],
+            [1, 0],
+            [0, -1],
+            [0, 1],
+          ],
+        },
+      ],
+    },
+  },
+
+  "queenMoves": {
+    "$params": ["board", "idx", "color"],
+    "$return": {
+      "$fn": [
+        "slideMoves",
+        { "$var": "board" },
+        { "$var": "idx" },
+        { "$var": "color" },
+        {
+          "$literal": [
+            [-1, -1],
+            [-1, 0],
+            [-1, 1],
+            [0, -1],
+            [0, 1],
+            [1, -1],
+            [1, 0],
+            [1, 1],
+          ],
+        },
+      ],
+    },
+  },
+
+  // pieceMoves(board, idx) → [targetIdx...]
+  // Dispatches to the appropriate move generator based on piece type.
+  "pieceMoves": {
+    "$params": ["board", "idx"],
+    "piece": { "$var": "board", "$get": { "$var": "idx" } },
+    "color": { "$fn": ["pieceColor", { "$var": "piece" }] },
+    "type": { "$fn": ["pieceType", { "$var": "piece" }] },
+    "$return": {
+      "$if": { "$fn": ["isNull", { "$var": "piece" }] },
+      "$then": [],
+      "$else": {
+        "$cond": [
+          [
+            { "$fn": ["eq", { "$var": "type" }, "P"] },
+            { "$fn": ["pawnMoves", { "$var": "board" }, { "$var": "idx" }, { "$var": "color" }] },
+          ],
+          [
+            { "$fn": ["eq", { "$var": "type" }, "N"] },
+            { "$fn": ["knightMoves", { "$var": "board" }, { "$var": "idx" }, { "$var": "color" }] },
+          ],
+          [
+            { "$fn": ["eq", { "$var": "type" }, "B"] },
+            { "$fn": ["bishopMoves", { "$var": "board" }, { "$var": "idx" }, { "$var": "color" }] },
+          ],
+          [
+            { "$fn": ["eq", { "$var": "type" }, "R"] },
+            { "$fn": ["rookMoves", { "$var": "board" }, { "$var": "idx" }, { "$var": "color" }] },
+          ],
+          [
+            { "$fn": ["eq", { "$var": "type" }, "Q"] },
+            { "$fn": ["queenMoves", { "$var": "board" }, { "$var": "idx" }, { "$var": "color" }] },
+          ],
+          [
+            { "$fn": ["eq", { "$var": "type" }, "K"] },
+            { "$fn": ["kingMoves", { "$var": "board" }, { "$var": "idx" }, { "$var": "color" }] },
+          ],
+          [true, []],
+        ],
+      },
+    },
+  },
+
+  // =========================================================================
+  // Layer 3 — Check Detection
+  //
+  // Uses the "look from the target square" strategy: from the square in
+  // question, look outward in all attack patterns to find enemy pieces.
+  // =========================================================================
+
+  // slideCheck(board, row, col, dr, dc) → piece | null
+  // Walk one direction and return the first piece found, or null.
+  "slideCheck": {
+    "$params": ["board", "row", "col", "dr", "dc"],
+    "nr": { "$fn": ["add", { "$var": "row" }, { "$var": "dr" }] },
+    "nc": { "$fn": ["add", { "$var": "col" }, { "$var": "dc" }] },
+    "ok": { "$fn": ["inBounds", { "$var": "nr" }, { "$var": "nc" }] },
+    "tIdx": { "$fn": ["toIdx", { "$var": "nr" }, { "$var": "nc" }] },
+    "target": { "$var": "board", "$get": { "$var": "tIdx" } },
+    "$return": {
+      "$cond": [
+        [{ "$fn": ["not", { "$var": "ok" }] }, null],
+        [{ "$fn": ["not", { "$fn": ["isNull", { "$var": "target" }] }] }, { "$var": "target" }],
+        [
+          true,
+          {
+            "$fn": [
+              "slideCheck",
+              { "$var": "board" },
+              { "$var": "nr" },
+              { "$var": "nc" },
+              { "$var": "dr" },
+              { "$var": "dc" },
+            ],
+          },
+        ],
+      ],
+    },
+  },
+
+  // isAttacked(board, idx, byColor) → boolean
+  // Is the square at idx attacked by any piece of byColor?
+  "isAttacked": {
+    "$params": ["board", "idx", "byColor"],
+    "row": { "$fn": ["rowOf", { "$var": "idx" }] },
+    "col": { "$fn": ["colOf", { "$var": "idx" }] },
+    "ePawn": { "$fn": ["makePiece", { "$var": "byColor" }, "P"] },
+    "eKnight": { "$fn": ["makePiece", { "$var": "byColor" }, "N"] },
+    "eBishop": { "$fn": ["makePiece", { "$var": "byColor" }, "B"] },
+    "eRook": { "$fn": ["makePiece", { "$var": "byColor" }, "R"] },
+    "eQueen": { "$fn": ["makePiece", { "$var": "byColor" }, "Q"] },
+    "eKing": { "$fn": ["makePiece", { "$var": "byColor" }, "K"] },
+
+    // Pawn attacks: white pawns attack from row-1, black from row+1
+    "pawnSrcRow": {
+      "$if": { "$fn": ["eq", { "$var": "byColor" }, "w"] },
+      "$then": { "$fn": ["sub", { "$var": "row" }, 1] },
+      "$else": { "$fn": ["add", { "$var": "row" }, 1] },
+    },
+    "pawnAttL": {
+      "$fn": [
+        "and",
+        { "$fn": ["inBounds", { "$var": "pawnSrcRow" }, { "$fn": ["sub", { "$var": "col" }, 1] }] },
+        {
+          "$fn": [
+            "eq",
+            {
+              "$var": "board",
+              "$get": {
+                "$fn": [
+                  "toIdx",
+                  { "$var": "pawnSrcRow" },
+                  { "$fn": ["sub", { "$var": "col" }, 1] },
+                ],
+              },
+            },
+            { "$var": "ePawn" },
+          ],
+        },
+      ],
+    },
+    "pawnAttR": {
+      "$fn": [
+        "and",
+        { "$fn": ["inBounds", { "$var": "pawnSrcRow" }, { "$fn": ["add", { "$var": "col" }, 1] }] },
+        {
+          "$fn": [
+            "eq",
+            {
+              "$var": "board",
+              "$get": {
+                "$fn": [
+                  "toIdx",
+                  { "$var": "pawnSrcRow" },
+                  { "$fn": ["add", { "$var": "col" }, 1] },
+                ],
+              },
+            },
+            { "$var": "ePawn" },
+          ],
+        },
+      ],
+    },
+    "pawnAtt": { "$fn": ["or", { "$var": "pawnAttL" }, { "$var": "pawnAttR" }] },
+
+    // Knight attacks
+    "knightAtt": {
+      "$fn": [
+        "some",
+        {
+          "$params": ["off"],
+          "r": { "$fn": ["add", { "$var": "row" }, { "$var": "off", "$get": 0 }] },
+          "c": { "$fn": ["add", { "$var": "col" }, { "$var": "off", "$get": 1 }] },
+          "$return": {
+            "$fn": [
+              "and",
+              { "$fn": ["inBounds", { "$var": "r" }, { "$var": "c" }] },
+              {
+                "$fn": [
+                  "eq",
+                  {
+                    "$var": "board",
+                    "$get": { "$fn": ["toIdx", { "$var": "r" }, { "$var": "c" }] },
+                  },
+                  { "$var": "eKnight" },
+                ],
+              },
+            ],
+          },
+        },
+        {
+          "$literal": [
+            [-2, -1],
+            [-2, 1],
+            [-1, -2],
+            [-1, 2],
+            [1, -2],
+            [1, 2],
+            [2, -1],
+            [2, 1],
+          ],
+        },
+      ],
+    },
+
+    // Diagonal slider attacks (bishop or queen)
+    "diagAtt": {
+      "$fn": [
+        "some",
+        {
+          "$params": ["d"],
+          "p": {
+            "$fn": [
+              "slideCheck",
+              { "$var": "board" },
+              { "$var": "row" },
+              { "$var": "col" },
+              { "$var": "d", "$get": 0 },
+              { "$var": "d", "$get": 1 },
+            ],
+          },
+          "$return": {
+            "$fn": [
+              "or",
+              { "$fn": ["eq", { "$var": "p" }, { "$var": "eBishop" }] },
+              { "$fn": ["eq", { "$var": "p" }, { "$var": "eQueen" }] },
+            ],
+          },
+        },
+        {
+          "$literal": [
+            [-1, -1],
+            [-1, 1],
+            [1, -1],
+            [1, 1],
+          ],
+        },
+      ],
+    },
+
+    // Straight slider attacks (rook or queen)
+    "straightAtt": {
+      "$fn": [
+        "some",
+        {
+          "$params": ["d"],
+          "p": {
+            "$fn": [
+              "slideCheck",
+              { "$var": "board" },
+              { "$var": "row" },
+              { "$var": "col" },
+              { "$var": "d", "$get": 0 },
+              { "$var": "d", "$get": 1 },
+            ],
+          },
+          "$return": {
+            "$fn": [
+              "or",
+              { "$fn": ["eq", { "$var": "p" }, { "$var": "eRook" }] },
+              { "$fn": ["eq", { "$var": "p" }, { "$var": "eQueen" }] },
+            ],
+          },
+        },
+        {
+          "$literal": [
+            [-1, 0],
+            [1, 0],
+            [0, -1],
+            [0, 1],
+          ],
+        },
+      ],
+    },
+
+    // King attacks (adjacent squares)
+    "kingAtt": {
+      "$fn": [
+        "some",
+        {
+          "$params": ["off"],
+          "r": { "$fn": ["add", { "$var": "row" }, { "$var": "off", "$get": 0 }] },
+          "c": { "$fn": ["add", { "$var": "col" }, { "$var": "off", "$get": 1 }] },
+          "$return": {
+            "$fn": [
+              "and",
+              { "$fn": ["inBounds", { "$var": "r" }, { "$var": "c" }] },
+              {
+                "$fn": [
+                  "eq",
+                  {
+                    "$var": "board",
+                    "$get": { "$fn": ["toIdx", { "$var": "r" }, { "$var": "c" }] },
+                  },
+                  { "$var": "eKing" },
+                ],
+              },
+            ],
+          },
+        },
+        {
+          "$literal": [
+            [-1, -1],
+            [-1, 0],
+            [-1, 1],
+            [0, -1],
+            [0, 1],
+            [1, -1],
+            [1, 0],
+            [1, 1],
+          ],
+        },
+      ],
+    },
+
+    // Short-circuit via $cond: first truthy check wins.
+    "$return": {
+      "$cond": [
+        [{ "$var": "pawnAtt" }, true],
+        [{ "$var": "knightAtt" }, true],
+        [{ "$var": "diagAtt" }, true],
+        [{ "$var": "straightAtt" }, true],
+        [{ "$var": "kingAtt" }, true],
+        [true, false],
+      ],
+    },
+  },
+
+  // findKing(board, color) → index of king, or -1
+  "findKing": {
+    "$params": ["board", "color"],
+    "king": {
+      "$if": { "$fn": ["eq", { "$var": "color" }, "w"] },
+      "$then": "K",
+      "$else": "k",
+    },
+    "$return": {
+      "$fn": [
+        "findIndex",
+        {
+          "$params": ["cell"],
+          "$return": { "$fn": ["eq", { "$var": "cell" }, { "$var": "king" }] },
+        },
+        { "$var": "board" },
+      ],
+    },
+  },
+
+  // isInCheck(board, color) → boolean
+  "isInCheck": {
+    "$params": ["board", "color"],
+    "kingPos": { "$fn": ["findKing", { "$var": "board" }, { "$var": "color" }] },
+    "$return": {
+      "$if": { "$fn": ["eq", { "$var": "kingPos" }, -1] },
+      "$then": false,
+      "$else": {
+        "$fn": [
+          "isAttacked",
+          { "$var": "board" },
+          { "$var": "kingPos" },
+          { "$fn": ["otherColor", { "$var": "color" }] },
+        ],
+      },
+    },
+  },
+
+  // =========================================================================
+  // Layer 4 — Legal Moves and Game Status
+  // =========================================================================
+
+  // applyMove(board, from, to) → new board
+  // Moves the piece, clears the source, handles auto-promotion to queen.
+  "applyMove": {
+    "$params": ["board", "from", "to"],
+    "piece": { "$var": "board", "$get": { "$var": "from" } },
+    "color": { "$fn": ["pieceColor", { "$var": "piece" }] },
+    "type": { "$fn": ["pieceType", { "$var": "piece" }] },
+    "toRow": { "$fn": ["rowOf", { "$var": "to" }] },
+    "isPromotion": {
+      "$fn": [
+        "and",
+        { "$fn": ["eq", { "$var": "type" }, "P"] },
+        {
+          "$fn": [
+            "or",
+            { "$fn": ["eq", { "$var": "toRow" }, 7] },
+            { "$fn": ["eq", { "$var": "toRow" }, 0] },
+          ],
+        },
+      ],
+    },
+    "placedPiece": {
+      "$if": { "$var": "isPromotion" },
+      "$then": { "$fn": ["makePiece", { "$var": "color" }, "Q"] },
+      "$else": { "$var": "piece" },
+    },
+    "$return": {
+      "$fn": [
+        "setAt",
+        { "$fn": ["setAt", { "$var": "board" }, { "$var": "to" }, { "$var": "placedPiece" }] },
+        { "$var": "from" },
+        null,
+      ],
+    },
+  },
+
+  // isLegalMove(board, from, to, turn) → boolean
+  // Validates ownership, pseudo-legality, and that the king is not left in check.
+  "isLegalMove": {
+    "$params": ["board", "from", "to", "turn"],
+    "piece": { "$var": "board", "$get": { "$var": "from" } },
+    "hasPiece": { "$fn": ["not", { "$fn": ["isNull", { "$var": "piece" }] }] },
+    "rightColor": {
+      "$fn": ["eq", { "$fn": ["pieceColor", { "$var": "piece" }] }, { "$var": "turn" }],
+    },
+    "moves": { "$fn": ["pieceMoves", { "$var": "board" }, { "$var": "from" }] },
+    "inMoves": { "$fn": ["includes", { "$var": "moves" }, { "$var": "to" }] },
+    "newBoard": { "$fn": ["applyMove", { "$var": "board" }, { "$var": "from" }, { "$var": "to" }] },
+    "leavesCheck": { "$fn": ["isInCheck", { "$var": "newBoard" }, { "$var": "turn" }] },
+    "$return": {
+      "$if": { "$fn": ["and", { "$var": "hasPiece" }, { "$var": "rightColor" }] },
+      "$then": {
+        "$fn": ["and", { "$var": "inMoves" }, { "$fn": ["not", { "$var": "leavesCheck" }] }],
+      },
+      "$else": false,
+    },
+  },
+
+  // hasAnyLegalMove(board, color) → boolean
+  // Checks whether the side to move has at least one legal move.
+  "hasAnyLegalMove": {
+    "$params": ["board", "color"],
+    "$return": {
+      "$fn": [
+        "some",
+        {
+          "$params": ["from"],
+          "piece": { "$var": "board", "$get": { "$var": "from" } },
+          "isPiece": {
+            "$fn": ["eq", { "$fn": ["pieceColor", { "$var": "piece" }] }, { "$var": "color" }],
+          },
+          "moves": { "$fn": ["pieceMoves", { "$var": "board" }, { "$var": "from" }] },
+          "hasLegal": {
+            "$fn": [
+              "some",
+              {
+                "$params": ["to"],
+                "nb": {
+                  "$fn": ["applyMove", { "$var": "board" }, { "$var": "from" }, { "$var": "to" }],
+                },
+                "$return": {
+                  "$fn": ["not", { "$fn": ["isInCheck", { "$var": "nb" }, { "$var": "color" }] }],
+                },
+              },
+              { "$var": "moves" },
+            ],
+          },
+          "$return": {
+            "$if": { "$var": "isPiece" },
+            "$then": { "$var": "hasLegal" },
+            "$else": false,
+          },
+        },
+        { "$fn": ["range", 64] },
+      ],
+    },
+  },
+
+  // getStatus(board, turn) → "playing" | "checkmate" | "stalemate"
+  "getStatus": {
+    "$params": ["board", "turn"],
+    "hasLegal": { "$fn": ["hasAnyLegalMove", { "$var": "board" }, { "$var": "turn" }] },
+    "inCheck": { "$fn": ["isInCheck", { "$var": "board" }, { "$var": "turn" }] },
+    "$return": {
+      "$cond": [
+        [{ "$var": "hasLegal" }, "playing"],
+        [{ "$var": "inCheck" }, "checkmate"],
+        [true, "stalemate"],
+      ],
+    },
+  },
+
+  // =========================================================================
+  // Layer 5 — Top-Level Entry Point
+  // =========================================================================
+
+  // playMove(state, from, to) → new state
+  // Validates the game is still active and the move is legal.
+  // Returns the updated state on success, or the original state unchanged.
+  "playMove": {
+    "$params": ["state", "from", "to"],
+    "board": { "$var": "state.board" },
+    "turn": { "$var": "state.turn" },
+    "status": { "$var": "state.status" },
+    "stillPlaying": { "$fn": ["eq", { "$var": "status" }, "playing"] },
+    "legal": {
+      "$fn": [
+        "isLegalMove",
+        { "$var": "board" },
+        { "$var": "from" },
+        { "$var": "to" },
+        { "$var": "turn" },
+      ],
+    },
+    "canMove": {
+      "$if": { "$var": "stillPlaying" },
+      "$then": { "$var": "legal" },
+      "$else": false,
+    },
+    "newBoard": { "$fn": ["applyMove", { "$var": "board" }, { "$var": "from" }, { "$var": "to" }] },
+    "nextTurn": { "$fn": ["otherColor", { "$var": "turn" }] },
+    "newStatus": { "$fn": ["getStatus", { "$var": "newBoard" }, { "$var": "nextTurn" }] },
+    "$return": {
+      "$if": { "$var": "canMove" },
+      "$then": {
+        "board": { "$var": "newBoard" },
+        "turn": { "$var": "nextTurn" },
+        "status": { "$var": "newStatus" },
+      },
+      "$else": { "$var": "state" },
+    },
+  },
+}

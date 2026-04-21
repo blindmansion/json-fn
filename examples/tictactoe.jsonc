@@ -47,36 +47,19 @@
     },
   },
   // makeMove(board, pos, player) — return a new board with player's mark at pos.
-  // Uses map: for each (cell, index), if index === pos return player, else cell.
   "makeMove": {
     "$params": ["board", "pos", "player"],
     "$return": {
       "$fn": [
-        "map",
-        {
-          "$params": ["cell", "idx"],
-          "$return": {
-            "$if": {
-              "$fn": [
-                "eq",
-                {
-                  "$var": "idx",
-                },
-                {
-                  "$var": "pos",
-                },
-              ],
-            },
-            "$then": {
-              "$var": "player",
-            },
-            "$else": {
-              "$var": "cell",
-            },
-          },
-        },
+        "setAt",
         {
           "$var": "board",
+        },
+        {
+          "$var": "pos",
+        },
+        {
+          "$var": "player",
         },
       ],
     },

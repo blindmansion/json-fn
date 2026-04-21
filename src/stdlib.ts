@@ -102,6 +102,13 @@ export function createStdlib(): FunctionRegistry {
     includes: pure((arr: any[] | string, value: any) => arr.includes(value)),
     indexOf: pure((arr: any[] | string, value: any) => (arr as any[]).indexOf(value)),
     flatten: pure((arr: any[]) => arr.flat()),
+    setAt: pure((arr: any[], idx: number, value: any) => {
+      if (idx < 0 || idx >= arr.length)
+        throw new Error(`setAt: index ${idx} out of bounds for array of length ${arr.length}`);
+      const result = arr.slice();
+      result[idx] = value;
+      return result;
+    }),
 
     // Strings
     upper: pure((s: string) => s.toUpperCase()),

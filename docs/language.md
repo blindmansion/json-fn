@@ -327,19 +327,20 @@ All functions listed below are available in the standard library.
 
 ### Arrays
 
-| Function   | Args                 | Description                       |
-| ---------- | -------------------- | --------------------------------- |
-| `length`   | `(arr)`              | length (works on strings too)     |
-| `head`     | `(arr)`              | first element                     |
-| `last`     | `(arr)`              | last element (null if empty)      |
-| `tail`     | `(arr)`              | all but first                     |
-| `concat`   | `(a, b)`             | concatenate two arrays            |
-| `range`    | `(n)`                | `[0, 1, ..., n-1]`                |
-| `slice`    | `(arr, start, end?)` | slice                             |
-| `reverse`  | `(arr)`              | reversed copy                     |
-| `includes` | `(arr, value)`       | contains check (works on strings) |
-| `indexOf`  | `(arr, value)`       | index of value (-1 if missing)    |
-| `flatten`  | `(arr)`              | flatten one level                 |
+| Function   | Args                 | Description                            |
+| ---------- | -------------------- | -------------------------------------- |
+| `length`   | `(arr)`              | length (works on strings too)          |
+| `head`     | `(arr)`              | first element                          |
+| `last`     | `(arr)`              | last element (null if empty)           |
+| `tail`     | `(arr)`              | all but first                          |
+| `concat`   | `(a, b)`             | concatenate two arrays                 |
+| `range`    | `(n)`                | `[0, 1, ..., n-1]`                     |
+| `slice`    | `(arr, start, end?)` | slice                                  |
+| `reverse`  | `(arr)`              | reversed copy                          |
+| `includes` | `(arr, value)`       | contains check (works on strings)      |
+| `indexOf`  | `(arr, value)`       | index of value (-1 if missing)         |
+| `flatten`  | `(arr)`              | flatten one level                      |
+| `setAt`    | `(arr, idx, value)`  | new array with element at idx replaced |
 
 ### Strings
 
