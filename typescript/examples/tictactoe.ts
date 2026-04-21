@@ -7,7 +7,7 @@
 // ---------------------------------------------------------------------------
 
 import { callFunction, createStdlib, enablePerf, disablePerf, type JSONType } from "../src";
-import gameFunctions from "./tictactoe.jsonc";
+import gameFunctions from "../../examples/tictactoe.jsonc";
 
 // ---------------------------------------------------------------------------
 // Helpers

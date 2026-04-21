@@ -1,5 +1,5 @@
 import { callFunction, createStdlib, type JSONType } from "../src";
-import gameFunctions from "./chess.jsonc";
+import gameFunctions from "../../examples/chess.jsonc";
 import { existsSync, readFileSync, writeFileSync, unlinkSync } from "fs";
 import { join } from "path";
 
@@ -194,7 +194,7 @@ if (arg === "help") {
   console.log(`
   Chess — json-fn edition
 
-  Usage:  bun run examples/chess.ts <command>
+  Usage:  bun run typescript/examples/chess.ts <command>
 
   Commands:
     e2e4 / e2 e4    Make a move (algebraic notation)

@@ -1,15 +1,26 @@
 # json-fn
 
-To install dependencies:
+json-fn is a pure JSON expression language — programs are plain JSON values evaluated by a tree-walking interpreter. Every expression is valid JSON, making programs trivially serializable, inspectable, and portable across languages.
 
-```bash
-bun install
-```
+## Language
 
-To run:
+See [docs/language.md](docs/language.md) for the full language reference.
 
-```bash
-bun run index.ts
-```
+## Conformance Tests
 
-This project was created using `bun init` in bun v1.3.7. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.
+The [spec/cases/](spec/cases/) directory contains language-agnostic test suites as JSON files. Each file defines a suite of test cases with inputs and expected outputs. Every implementation should pass all of these.
+
+## Examples
+
+The [examples/](examples/) directory contains complete programs written in json-fn (`.jsonc` files), including a tic-tac-toe game with minimax AI and a chess engine.
+
+## Implementations
+
+| Language | Directory | Package | Status |
+|----------|-----------|---------|--------|
+| TypeScript | [typescript/](typescript/) | `json-fn` (npm) | Complete |
+| Go | `go/` | — | Planned |
+| Python | `python/` | — | Planned |
+| Rust | `rust/` | — | Planned |
+
+Each implementation lives in its own directory with its own build config and can be published independently.
