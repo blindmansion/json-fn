@@ -10,6 +10,15 @@ import (
 	"strings"
 )
 
+func sortedObjectKeys(obj map[string]any) []string {
+	keys := make([]string, 0, len(obj))
+	for k := range obj {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
 // CreateStdlib returns a FunctionRegistry populated with the standard library
 // functions: arithmetic, comparison, logic, type checks, coercion, arrays,
 // strings, objects, higher-order functions, and regex operations.
@@ -518,8 +527,9 @@ func CreateStdlib() FunctionRegistry {
 			if !ok {
 				return nil, fmt.Errorf("keys: argument must be an object")
 			}
-			keys := make([]any, 0, len(obj))
-			for k := range obj {
+			objectKeys := sortedObjectKeys(obj)
+			keys := make([]any, 0, len(objectKeys))
+			for _, k := range objectKeys {
 				keys = append(keys, k)
 			}
 			return keys, nil
@@ -529,9 +539,10 @@ func CreateStdlib() FunctionRegistry {
 			if !ok {
 				return nil, fmt.Errorf("values: argument must be an object")
 			}
-			vals := make([]any, 0, len(obj))
-			for _, v := range obj {
-				vals = append(vals, v)
+			objectKeys := sortedObjectKeys(obj)
+			vals := make([]any, 0, len(objectKeys))
+			for _, k := range objectKeys {
+				vals = append(vals, obj[k])
 			}
 			return vals, nil
 		}},
@@ -540,9 +551,10 @@ func CreateStdlib() FunctionRegistry {
 			if !ok {
 				return nil, fmt.Errorf("entries: argument must be an object")
 			}
-			entries := make([]any, 0, len(obj))
-			for k, v := range obj {
-				entries = append(entries, []any{k, v})
+			objectKeys := sortedObjectKeys(obj)
+			entries := make([]any, 0, len(objectKeys))
+			for _, k := range objectKeys {
+				entries = append(entries, []any{k, obj[k]})
 			}
 			return entries, nil
 		}},
