@@ -10,6 +10,11 @@ __pycache__/
 *.pyc
 *.egg-info/
 dist/
+.venv/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.benchmarks/
 
 # --- Rust ---
 /rust/target/

@@ -20,7 +20,7 @@ The [examples/](examples/) directory contains complete programs written in json-
 |----------|-----------|---------|--------|
 | TypeScript | [typescript/](typescript/) | `json-fn` (npm) | Complete |
 | Go | `go/` | — | Complete |
-| Python | `python/` | — | Planned |
+| Python | [python/](python/) | `json-fn` (PyPI) | Complete |
 | Rust | [rust/](rust/) | `jsonfn` (crates.io) | Complete |
 
 Each implementation lives in its own directory with its own build config and can be published independently.
