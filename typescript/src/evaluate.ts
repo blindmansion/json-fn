@@ -639,16 +639,20 @@ function evaluateFunctionCall(
   const fnArray = fnCall.$fn;
   const fnExpr = fnArray[0]!;
 
-  const evaluatedFn = evaluateExpression(fnExpr, context);
-
-  if (!isFnDeclaration(evaluatedFn)) {
-    exprError(
-      fnCall,
-      `Evaluated function references must be strings or function bodies. Got ${typeof evaluatedFn}.`,
-    );
+  let fnDeclaration: FunctionDeclaration;
+  if (typeof fnExpr === "string") {
+    fnDeclaration = fnExpr;
+  } else {
+    const evaluatedFn = evaluateExpression(fnExpr, context);
+    if (!isFnDeclaration(evaluatedFn)) {
+      exprError(
+        fnCall,
+        `Evaluated function references must be strings or function bodies. Got ${typeof evaluatedFn}.`,
+      );
+    }
+    fnDeclaration = evaluatedFn as FunctionDeclaration;
   }
 
-  const fnDeclaration = evaluatedFn as FunctionDeclaration;
   const args: JSONType[] = [];
   for (let i = 1; i < fnArray.length; i++) {
     args.push(evaluateExpression(fnArray[i]!, context));
@@ -657,17 +661,30 @@ function evaluateFunctionCall(
   return { fnDeclaration, args };
 }
 
+const _typeCache = new WeakMap<object, ExpressionType>();
+
 function getExpressionType(json: JSONType): ExpressionType {
   if (_perf) _perf.getExpressionType++;
-  if (Array.isArray(json)) return ExpressionType.Array;
-  if (typeof json === "string") return ExpressionType.String;
-  if (typeof json === "number") {
-    return Number.isInteger(json) ? ExpressionType.Integer : ExpressionType.Number;
-  }
-  if (typeof json === "boolean") return ExpressionType.Boolean;
   if (json === null) return ExpressionType.Null;
+  const t = typeof json;
+  if (t === "string") return ExpressionType.String;
+  if (t === "number") {
+    return Number.isInteger(json as number) ? ExpressionType.Integer : ExpressionType.Number;
+  }
+  if (t === "boolean") return ExpressionType.Boolean;
 
-  if (typeof json === "object") {
+  const cached = _typeCache.get(json as object);
+  if (cached !== undefined) return cached;
+
+  const computed = classifyExpressionType(json);
+  _typeCache.set(json as object, computed);
+  return computed;
+}
+
+function classifyExpressionType(json: JSONType): ExpressionType {
+  if (Array.isArray(json)) return ExpressionType.Array;
+
+  if (typeof json === "object" && json !== null) {
     if ("$var" in json) {
       if (typeof json.$var !== "string") {
         exprError(json, "Variable references must have a string $var property.");
