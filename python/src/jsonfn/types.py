@@ -104,6 +104,7 @@ class ExpressionType(Enum):
     FUNCTION_BODY = auto()
     CONDITIONAL = auto()
     COND = auto()
+    MATCH = auto()
     AND = auto()
     OR = auto()
     COMPARISON = auto()

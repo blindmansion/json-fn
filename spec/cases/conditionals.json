@@ -285,6 +285,162 @@
       "expected": "always this"
     },
     {
+      "description": "$cond: $else returns fallback when no branch matches",
+      "body": {
+        "$return": {
+          "$cond": [
+            [false, "no"],
+            [0, "also no"]
+          ],
+          "$else": "fallback"
+        }
+      },
+      "expected": "fallback"
+    },
+    {
+      "description": "$cond: matched branch skips $else",
+      "body": {
+        "$return": {
+          "$cond": [[true, "matched"]],
+          "$else": { "$fn": ["div", 1, 0] }
+        }
+      },
+      "expected": "matched"
+    },
+    {
+      "description": "$cond: no match without $else errors",
+      "body": {
+        "$return": {
+          "$cond": [[false, "no"]]
+        }
+      },
+      "error": "No $cond branch matched"
+    },
+    {
+      "description": "$cond: rejects non-array branches",
+      "body": {
+        "$return": {
+          "$cond": true,
+          "$else": "fallback"
+        }
+      },
+      "error": "$cond must be an array of [condition, result] pairs"
+    },
+    {
+      "description": "$cond: rejects malformed branches",
+      "body": {
+        "$return": {
+          "$cond": [[true, "yes", "extra"]],
+          "$else": "fallback"
+        }
+      },
+      "error": "Each $cond branch must be a [condition, result] pair"
+    },
+    {
+      "description": "$match: returns result for first strict-equal case",
+      "body": {
+        "$params": ["cmd"],
+        "$return": {
+          "$match": { "$var": "cmd" },
+          "$cases": [
+            ["show", "display"],
+            ["reset", "resetting"],
+            ["help", "help text"]
+          ],
+          "$else": "move"
+        }
+      },
+      "args": ["reset"],
+      "expected": "resetting"
+    },
+    {
+      "description": "$match: $else returns fallback when no case matches",
+      "body": {
+        "$params": ["cmd"],
+        "$return": {
+          "$match": { "$var": "cmd" },
+          "$cases": [["show", "display"]],
+          "$else": "move"
+        }
+      },
+      "args": ["e2e4"],
+      "expected": "move"
+    },
+    {
+      "description": "$match: cases use strict equality",
+      "body": {
+        "$params": ["value"],
+        "$return": {
+          "$match": { "$var": "value" },
+          "$cases": [[1, "number"]],
+          "$else": "not number"
+        }
+      },
+      "args": ["1"],
+      "expected": "not number"
+    },
+    {
+      "description": "$match: evaluates case values and only matched result",
+      "body": {
+        "$params": ["value"],
+        "$return": {
+          "$match": { "$var": "value" },
+          "$cases": [
+            ["b", { "$fn": ["div", 1, 0] }],
+            [{ "$fn": ["strcat", "a", ""] }, "matched"]
+          ],
+          "$else": { "$fn": ["div", 1, 0] }
+        }
+      },
+      "args": ["a"],
+      "expected": "matched"
+    },
+    {
+      "description": "$match: stops after first matching case",
+      "body": {
+        "$return": {
+          "$match": "a",
+          "$cases": [
+            ["a", "first"],
+            [{ "$fn": ["div", 1, 0] }, "second"]
+          ],
+          "$else": { "$fn": ["div", 1, 0] }
+        }
+      },
+      "expected": "first"
+    },
+    {
+      "description": "$match: requires $else",
+      "body": {
+        "$return": {
+          "$match": "missing",
+          "$cases": [["show", "display"]]
+        }
+      },
+      "error": "$match expressions must have $match, $cases, and $else properties"
+    },
+    {
+      "description": "$match: requires $cases",
+      "body": {
+        "$return": {
+          "$match": "show",
+          "$else": "fallback"
+        }
+      },
+      "error": "$match expressions must have $match, $cases, and $else properties"
+    },
+    {
+      "description": "$match: rejects malformed cases",
+      "body": {
+        "$return": {
+          "$match": "show",
+          "$cases": [["show", "display", "extra"]],
+          "$else": "fallback"
+        }
+      },
+      "error": "Each $match case must be a [value, result] pair"
+    },
+    {
       "description": "$and: all truthy returns last value",
       "body": {
         "$return": { "$and": [1, "hello", true] }

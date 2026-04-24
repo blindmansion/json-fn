@@ -10,6 +10,7 @@ import type {
   VariableReference,
   Conditional,
   Cond,
+  Match,
   ComparisonExpression,
   ComparisonOperator,
   NotExpression,
@@ -434,7 +435,21 @@ function evaluateExpression(expression: JSONType, context: EvaluationContext): J
           return evaluateExpression(result, context);
         }
       }
-      exprError(expression, "No $cond branch matched (add a [true, ...] catch-all).");
+      if ("$else" in cond) {
+        return evaluateExpression(cond.$else!, context);
+      }
+      exprError(expression, "No $cond branch matched (add $else or a [true, ...] catch-all).");
+
+    case ExpressionType.Match:
+      const match = expression as Match;
+      const matchedValue = evaluateExpression(match.$match, context);
+      for (const [candidate, result] of match.$cases) {
+        const evaluatedCandidate = evaluateExpression(candidate, context);
+        if (evaluatedCandidate === matchedValue) {
+          return evaluateExpression(result, context);
+        }
+      }
+      return evaluateExpression(match.$else, context);
 
     case ExpressionType.And:
       const andExprs = (expression as { $and: JSONType[] }).$and;
@@ -789,6 +804,44 @@ function classifyExpressionType(json: JSONType): ExpressionType {
       }
     }
 
+    if ("$cond" in json) {
+      if (expressionKeyCount(json) > ("$else" in json ? 2 : 1)) {
+        exprError(json, "$cond expressions can only have $cond and optional $else properties.");
+      }
+      const pairs = json.$cond;
+      if (!Array.isArray(pairs)) {
+        exprError(json, "$cond must be an array of [condition, result] pairs.");
+      }
+      for (const pair of pairs) {
+        if (!Array.isArray(pair) || pair.length !== 2) {
+          exprError(json, "Each $cond branch must be a [condition, result] pair.");
+        }
+      }
+      return ExpressionType.Cond;
+    }
+
+    const hasMatch = "$match" in json;
+    const hasCases = "$cases" in json;
+    const hasMatchElse = "$else" in json;
+    if (hasMatch || hasCases) {
+      if (!(hasMatch && hasCases && hasMatchElse)) {
+        exprError(json, "$match expressions must have $match, $cases, and $else properties.");
+      }
+      if (expressionKeyCount(json) > 3) {
+        exprError(json, "$match expressions can only have $match, $cases, and $else properties.");
+      }
+      const pairs = json.$cases;
+      if (!Array.isArray(pairs)) {
+        exprError(json, "$cases must be an array of [value, result] pairs.");
+      }
+      for (const pair of pairs) {
+        if (!Array.isArray(pair) || pair.length !== 2) {
+          exprError(json, "Each $match case must be a [value, result] pair.");
+        }
+      }
+      return ExpressionType.Match;
+    }
+
     const hasIf = "$if" in json;
     const hasThen = "$then" in json;
     const hasElse = "$else" in json;
@@ -803,22 +856,6 @@ function classifyExpressionType(json: JSONType): ExpressionType {
         exprError(json, "Conditional expressions cannot have more than three properties.");
       }
       return ExpressionType.Conditional;
-    }
-
-    if ("$cond" in json) {
-      if (expressionKeyCount(json) > 1) {
-        exprError(json, "$cond expressions cannot have other properties.");
-      }
-      const pairs = json.$cond;
-      if (!Array.isArray(pairs)) {
-        exprError(json, "$cond must be an array of [condition, result] pairs.");
-      }
-      for (const pair of pairs) {
-        if (!Array.isArray(pair) || pair.length !== 2) {
-          exprError(json, "Each $cond branch must be a [condition, result] pair.");
-        }
-      }
-      return ExpressionType.Cond;
     }
 
     if ("$and" in json) {

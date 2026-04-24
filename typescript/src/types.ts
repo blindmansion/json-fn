@@ -7,6 +7,7 @@ enum ExpressionType {
   FunctionBody,
   Conditional,
   Cond,
+  Match,
   And,
   Or,
   Comparison,
@@ -49,6 +50,13 @@ type Conditional = {
 
 type Cond = {
   $cond: [JSONType, JSONType][];
+  $else?: JSONType;
+};
+
+type Match = {
+  $match: JSONType;
+  $cases: [JSONType, JSONType][];
+  $else: JSONType;
 };
 
 type ComparisonOperator = "$eq" | "$neq" | "$lt" | "$lte" | "$gt" | "$gte";
@@ -145,6 +153,7 @@ export type {
   VariableReference,
   Conditional,
   Cond,
+  Match,
   ComparisonOperator,
   ComparisonExpression,
   NotExpression,

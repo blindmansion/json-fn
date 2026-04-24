@@ -88,6 +88,20 @@
       "expected": "zero"
     },
     {
+      "description": "$comment alongside $match is ignored",
+      "body": {
+        "$params": ["cmd"],
+        "$return": {
+          "$comment": "route command",
+          "$match": { "$var": "cmd" },
+          "$cases": [["show", "display"]],
+          "$else": "move"
+        }
+      },
+      "args": ["show"],
+      "expected": "display"
+    },
+    {
       "description": "$comment alongside $and is ignored",
       "body": {
         "$return": {

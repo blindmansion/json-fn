@@ -122,8 +122,8 @@
         [{ "$not": { "$var": "ok" } }, []],
         [{ "$var": "empty" }, { "$fn": ["concat", [{ "$var": "tIdx" }], { "$var": "rest" }] }],
         [{ "$var": "ally" }, []],
-        [true, [{ "$var": "tIdx" }]],
       ],
+      "$else": [{ "$var": "tIdx" }],
     },
   },
 
@@ -395,33 +395,16 @@
       "$if": { "$fn": ["isNull", { "$var": "piece" }] },
       "$then": [],
       "$else": {
-        "$cond": [
-          [
-            { "$eq": [{ "$var": "type" }, "P"] },
-            { "$fn": ["pawnMoves", { "$var": "board" }, { "$var": "idx" }, { "$var": "color" }] },
-          ],
-          [
-            { "$eq": [{ "$var": "type" }, "N"] },
-            { "$fn": ["knightMoves", { "$var": "board" }, { "$var": "idx" }, { "$var": "color" }] },
-          ],
-          [
-            { "$eq": [{ "$var": "type" }, "B"] },
-            { "$fn": ["bishopMoves", { "$var": "board" }, { "$var": "idx" }, { "$var": "color" }] },
-          ],
-          [
-            { "$eq": [{ "$var": "type" }, "R"] },
-            { "$fn": ["rookMoves", { "$var": "board" }, { "$var": "idx" }, { "$var": "color" }] },
-          ],
-          [
-            { "$eq": [{ "$var": "type" }, "Q"] },
-            { "$fn": ["queenMoves", { "$var": "board" }, { "$var": "idx" }, { "$var": "color" }] },
-          ],
-          [
-            { "$eq": [{ "$var": "type" }, "K"] },
-            { "$fn": ["kingMoves", { "$var": "board" }, { "$var": "idx" }, { "$var": "color" }] },
-          ],
-          [true, []],
+        "$match": { "$var": "type" },
+        "$cases": [
+          ["P", { "$fn": ["pawnMoves", { "$var": "board" }, { "$var": "idx" }, { "$var": "color" }] }],
+          ["N", { "$fn": ["knightMoves", { "$var": "board" }, { "$var": "idx" }, { "$var": "color" }] }],
+          ["B", { "$fn": ["bishopMoves", { "$var": "board" }, { "$var": "idx" }, { "$var": "color" }] }],
+          ["R", { "$fn": ["rookMoves", { "$var": "board" }, { "$var": "idx" }, { "$var": "color" }] }],
+          ["Q", { "$fn": ["queenMoves", { "$var": "board" }, { "$var": "idx" }, { "$var": "color" }] }],
+          ["K", { "$fn": ["kingMoves", { "$var": "board" }, { "$var": "idx" }, { "$var": "color" }] }],
         ],
+        "$else": [],
       },
     },
   },
@@ -446,20 +429,17 @@
       "$cond": [
         [{ "$not": { "$var": "ok" } }, null],
         [{ "$not": { "$fn": ["isNull", { "$var": "target" }] } }, { "$var": "target" }],
-        [
-          true,
-          {
-            "$fn": [
-              "slideCheck",
-              { "$var": "board" },
-              { "$var": "nr" },
-              { "$var": "nc" },
-              { "$var": "dr" },
-              { "$var": "dc" },
-            ],
-          },
-        ],
       ],
+      "$else": {
+        "$fn": [
+          "slideCheck",
+          { "$var": "board" },
+          { "$var": "nr" },
+          { "$var": "nc" },
+          { "$var": "dr" },
+          { "$var": "dc" },
+        ],
+      },
     },
   },
 
@@ -827,8 +807,8 @@
       "$cond": [
         [{ "$var": "hasLegal" }, "playing"],
         [{ "$var": "inCheck" }, "checkmate"],
-        [true, "stalemate"],
       ],
+      "$else": "stalemate",
     },
   },
 
@@ -961,8 +941,8 @@
       "$cond": [
         [{ "$var": "is4" }, { "$fn": ["slice", { "$var": "t" }, 2, 4] }],
         [{ "$var": "is5" }, { "$fn": ["slice", { "$var": "t" }, 3, 5] }],
-        [true, null],
       ],
+      "$else": null,
     },
     "from": { "$fn": ["parseSquare", { "$var": "fromStr" }] },
     "to": { "$fn": ["parseSquare", { "$var": "toStr" }] },
@@ -1087,11 +1067,8 @@
             ],
           },
         ],
-        [
-          true,
-          { "$fn": ["strcat", "  ", { "$fn": ["strcat", { "$var": "label" }, " to move"] }] },
-        ],
       ],
+      "$else": { "$fn": ["strcat", "  ", { "$fn": ["strcat", { "$var": "label" }, " to move"] }] },
     },
   },
 
@@ -1272,17 +1249,14 @@
             "exitCode": 1,
           },
         ],
-        [
-          true,
-          {
-            "output": { "$var": "successOutput" },
-            "stderr": "",
-            "newState": { "$var": "nextState" },
-            "reset": false,
-            "exitCode": 0,
-          },
-        ],
       ],
+      "$else": {
+        "output": { "$var": "successOutput" },
+        "stderr": "",
+        "newState": { "$var": "nextState" },
+        "reset": false,
+        "exitCode": 0,
+      },
     },
   },
 
@@ -1300,15 +1274,13 @@
       "$else": { "$var": "argv", "$get": 0 },
     },
     "$return": {
-      "$cond": [
-        [
-          { "$eq": [{ "$var": "cmd" }, "show"] },
-          { "$fn": ["showResult", { "$var": "state" }] },
-        ],
-        [{ "$eq": [{ "$var": "cmd" }, "reset"] }, { "$fn": ["resetResult"] }],
-        [{ "$eq": [{ "$var": "cmd" }, "help"] }, { "$fn": ["helpResult"] }],
-        [true, { "$fn": ["moveResult", { "$var": "state" }, { "$var": "argv" }] }],
+      "$match": { "$var": "cmd" },
+      "$cases": [
+        ["show", { "$fn": ["showResult", { "$var": "state" }] }],
+        ["reset", { "$fn": ["resetResult"] }],
+        ["help", { "$fn": ["helpResult"] }],
       ],
+      "$else": { "$fn": ["moveResult", { "$var": "state" }, { "$var": "argv" }] },
     },
   },
 }

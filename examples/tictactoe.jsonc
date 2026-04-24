@@ -196,8 +196,8 @@
           },
           "draw",
         ],
-        [true, "playing"],
       ],
+      "$else": "playing",
     },
   },
   // playMove(state, pos) — apply a move and return the new game state.
@@ -506,13 +506,10 @@
             "$var": "maxScore",
           },
         ],
-        [
-          true,
-          {
-            "$var": "minScore",
-          },
-        ],
       ],
+      "$else": {
+        "$var": "minScore",
+      },
     },
   },
   // bestMove(board, aiPlayer) → position index (0–8)

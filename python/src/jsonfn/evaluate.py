@@ -411,6 +411,71 @@ class Interpreter:
                     return expr
                 return self._replace_vars(expr, get_var)
 
+            if "$cond" in expr:
+                if _expr_key_count(expr) > (2 if "$else" in expr else 1):
+                    raise EvaluationError(
+                        _expr_error(
+                            expr, "$cond expressions can only have $cond and optional $else properties."
+                        )
+                    )
+                pairs = expr["$cond"]
+                if not isinstance(pairs, list):
+                    raise EvaluationError(
+                        _expr_error(expr, "$cond must be an array of [condition, result] pairs.")
+                    )
+                for pair in pairs:
+                    if not isinstance(pair, list) or len(pair) != 2:
+                        raise EvaluationError(
+                            _expr_error(
+                                expr, "Each $cond branch must be a [condition, result] pair."
+                            )
+                        )
+                for pair in pairs:
+                    if _truthy(self._evaluate(pair[0], get_var)):
+                        return self._evaluate(pair[1], get_var)
+                if "$else" in expr:
+                    return self._evaluate(expr["$else"], get_var)
+                raise EvaluationError(
+                    _expr_error(
+                        expr,
+                        "No $cond branch matched (add $else or a [true, ...] catch-all).",
+                    )
+                )
+
+            if "$match" in expr or "$cases" in expr:
+                has_match = "$match" in expr
+                has_cases = "$cases" in expr
+                has_else = "$else" in expr
+                if not (has_match and has_cases and has_else):
+                    raise EvaluationError(
+                        _expr_error(
+                            expr, "$match expressions must have $match, $cases, and $else properties."
+                        )
+                    )
+                if _expr_key_count(expr) > 3:
+                    raise EvaluationError(
+                        _expr_error(
+                            expr, "$match expressions can only have $match, $cases, and $else properties."
+                        )
+                    )
+                pairs = expr["$cases"]
+                if not isinstance(pairs, list):
+                    raise EvaluationError(
+                        _expr_error(expr, "$cases must be an array of [value, result] pairs.")
+                    )
+                for pair in pairs:
+                    if not isinstance(pair, list) or len(pair) != 2:
+                        raise EvaluationError(
+                            _expr_error(
+                                expr, "Each $match case must be a [value, result] pair."
+                            )
+                        )
+                matched_value = self._evaluate(expr["$match"], get_var)
+                for pair in pairs:
+                    if _strict_equal(self._evaluate(pair[0], get_var), matched_value):
+                        return self._evaluate(pair[1], get_var)
+                return self._evaluate(expr["$else"], get_var)
+
             if "$if" in expr:
                 if "$then" not in expr or "$else" not in expr:
                     raise EvaluationError(
@@ -430,29 +495,6 @@ class Interpreter:
                 cond = self._evaluate(expr["$if"], get_var)
                 branch = expr["$then"] if _truthy(cond) else expr["$else"]
                 return self._evaluate(branch, get_var)
-
-            if "$cond" in expr:
-                if _expr_key_count(expr) != 1:
-                    raise EvaluationError(
-                        _expr_error(expr, "$cond expressions cannot have other properties.")
-                    )
-                pairs = expr["$cond"]
-                if not isinstance(pairs, list):
-                    raise EvaluationError(
-                        _expr_error(expr, "$cond must be an array of [condition, result] pairs.")
-                    )
-                for pair in pairs:
-                    if not isinstance(pair, list) or len(pair) != 2:
-                        raise EvaluationError(
-                            _expr_error(
-                                expr, "Each $cond branch must be a [condition, result] pair."
-                            )
-                        )
-                    if _truthy(self._evaluate(pair[0], get_var)):
-                        return self._evaluate(pair[1], get_var)
-                raise EvaluationError(
-                    _expr_error(expr, "No $cond branch matched (add a [true, ...] catch-all).")
-                )
 
             if "$and" in expr:
                 if _expr_key_count(expr) != 1:
@@ -960,6 +1002,47 @@ def _classify_object(obj: dict[str, Any]) -> ExpressionType:
                 )
             return ExpressionType.FUNCTION_REFERENCE
 
+    if "$cond" in obj:
+        if n > (2 if "$else" in obj else 1):
+            raise EvaluationError(
+                _expr_error(obj, "$cond expressions can only have $cond and optional $else properties.")
+            )
+        pairs = obj["$cond"]
+        if not isinstance(pairs, list):
+            raise EvaluationError(
+                _expr_error(obj, "$cond must be an array of [condition, result] pairs.")
+            )
+        for pair in pairs:
+            if not isinstance(pair, list) or len(pair) != 2:
+                raise EvaluationError(
+                    _expr_error(obj, "Each $cond branch must be a [condition, result] pair.")
+                )
+        return ExpressionType.COND
+
+    has_match = "$match" in obj
+    has_cases = "$cases" in obj
+    has_match_else = "$else" in obj
+    if has_match or has_cases:
+        if not (has_match and has_cases and has_match_else):
+            raise EvaluationError(
+                _expr_error(obj, "$match expressions must have $match, $cases, and $else properties.")
+            )
+        if n > 3:
+            raise EvaluationError(
+                _expr_error(obj, "$match expressions can only have $match, $cases, and $else properties.")
+            )
+        pairs = obj["$cases"]
+        if not isinstance(pairs, list):
+            raise EvaluationError(
+                _expr_error(obj, "$cases must be an array of [value, result] pairs.")
+            )
+        for pair in pairs:
+            if not isinstance(pair, list) or len(pair) != 2:
+                raise EvaluationError(
+                    _expr_error(obj, "Each $match case must be a [value, result] pair.")
+                )
+        return ExpressionType.MATCH
+
     has_if = "$if" in obj
     has_then = "$then" in obj
     has_else = "$else" in obj
@@ -976,23 +1059,6 @@ def _classify_object(obj: dict[str, Any]) -> ExpressionType:
                 _expr_error(obj, "Conditional expressions cannot have more than three properties.")
             )
         return ExpressionType.CONDITIONAL
-
-    if "$cond" in obj:
-        if n > 1:
-            raise EvaluationError(
-                _expr_error(obj, "$cond expressions cannot have other properties.")
-            )
-        pairs = obj["$cond"]
-        if not isinstance(pairs, list):
-            raise EvaluationError(
-                _expr_error(obj, "$cond must be an array of [condition, result] pairs.")
-            )
-        for pair in pairs:
-            if not isinstance(pair, list) or len(pair) != 2:
-                raise EvaluationError(
-                    _expr_error(obj, "Each $cond branch must be a [condition, result] pair.")
-                )
-        return ExpressionType.COND
 
     if "$and" in obj:
         if n > 1:

@@ -412,6 +412,7 @@ enum ExprKind {
     FunctionBody,
     Conditional,
     Cond,
+    Match,
     And,
     Or,
     Comparison,
@@ -544,30 +545,12 @@ fn classify_object(obj: &Map<String, Value>, expr: &Value) -> Result<ExprKind, E
         }
     }
 
-    let has_if = obj.contains_key("$if");
-    let has_then = obj.contains_key("$then");
-    let has_else = obj.contains_key("$else");
-    if has_if || has_then || has_else {
-        if !(has_if && has_then && has_else) {
-            return Err(expr_error(
-                expr,
-                "Conditional expressions must have all three properties: $if, $then, $else.",
-            ));
-        }
-        if expression_key_count(obj) > 3 {
-            return Err(expr_error(
-                expr,
-                "Conditional expressions cannot have more than three properties.",
-            ));
-        }
-        return Ok(ExprKind::Conditional);
-    }
-
     if let Some(cond) = obj.get("$cond") {
-        if expression_key_count(obj) > 1 {
+        let max_keys = if obj.contains_key("$else") { 2 } else { 1 };
+        if expression_key_count(obj) > max_keys {
             return Err(expr_error(
                 expr,
-                "$cond expressions cannot have other properties.",
+                "$cond expressions can only have $cond and optional $else properties.",
             ));
         }
         let arr = cond.as_array().ok_or_else(|| {
@@ -588,6 +571,58 @@ fn classify_object(obj: &Map<String, Value>, expr: &Value) -> Result<ExprKind, E
             }
         }
         return Ok(ExprKind::Cond);
+    }
+
+    let has_match = obj.contains_key("$match");
+    let has_cases = obj.contains_key("$cases");
+    let has_match_else = obj.contains_key("$else");
+    if has_match || has_cases {
+        if !(has_match && has_cases && has_match_else) {
+            return Err(expr_error(
+                expr,
+                "$match expressions must have $match, $cases, and $else properties.",
+            ));
+        }
+        if expression_key_count(obj) > 3 {
+            return Err(expr_error(
+                expr,
+                "$match expressions can only have $match, $cases, and $else properties.",
+            ));
+        }
+        let cases = obj["$cases"]
+            .as_array()
+            .ok_or_else(|| expr_error(expr, "$cases must be an array of [value, result] pairs."))?;
+        for pair in cases {
+            let pa = pair.as_array().ok_or_else(|| {
+                expr_error(expr, "Each $match case must be a [value, result] pair.")
+            })?;
+            if pa.len() != 2 {
+                return Err(expr_error(
+                    expr,
+                    "Each $match case must be a [value, result] pair.",
+                ));
+            }
+        }
+        return Ok(ExprKind::Match);
+    }
+
+    let has_if = obj.contains_key("$if");
+    let has_then = obj.contains_key("$then");
+    let has_else = obj.contains_key("$else");
+    if has_if || has_then || has_else {
+        if !(has_if && has_then && has_else) {
+            return Err(expr_error(
+                expr,
+                "Conditional expressions must have all three properties: $if, $then, $else.",
+            ));
+        }
+        if expression_key_count(obj) > 3 {
+            return Err(expr_error(
+                expr,
+                "Conditional expressions cannot have more than three properties.",
+            ));
+        }
+        return Ok(ExprKind::Conditional);
     }
 
     if let Some(and) = obj.get("$and") {
@@ -790,10 +825,26 @@ fn evaluate_expression(expr: &Value, ctx: &mut EvalCtx) -> Result<Value, EvalErr
                     return evaluate_expression(&branch[1], ctx);
                 }
             }
+            if let Some(else_expr) = obj.get("$else") {
+                return evaluate_expression(else_expr, ctx);
+            }
             Err(expr_error(
                 expr,
-                "No $cond branch matched (add a [true, ...] catch-all).",
+                "No $cond branch matched (add $else or a [true, ...] catch-all).",
             ))
+        }
+        ExprKind::Match => {
+            let obj = expr.as_object().unwrap();
+            let matched_value = evaluate_expression(&obj["$match"], ctx)?;
+            let cases = obj["$cases"].as_array().unwrap();
+            for pair in cases {
+                let branch = pair.as_array().unwrap();
+                let candidate = evaluate_expression(&branch[0], ctx)?;
+                if strict_equal(&candidate, &matched_value) {
+                    return evaluate_expression(&branch[1], ctx);
+                }
+            }
+            evaluate_expression(&obj["$else"], ctx)
         }
         ExprKind::And => {
             let obj = expr.as_object().unwrap();

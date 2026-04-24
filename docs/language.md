@@ -114,15 +114,33 @@ All three keys are required. `$if` is evaluated; if truthy, `$then` is evaluated
 
 ### Multi-branch Conditional — `{ $cond }`
 
-Array of `[condition, result]` pairs. First truthy condition wins. Must include a catch-all (use `[true, ...]` as the last branch) or the interpreter errors.
+Array of `[condition, result]` pairs. First truthy condition wins. If no condition matches, optional `$else` is evaluated and returned; without `$else`, the interpreter errors. Only the matched result or `$else` is evaluated.
 
 ```json
 {
   "$cond": [
     [{ "$fn": ["lt", { "$var": "n" }, 0] }, "negative"],
-    [{ "$fn": ["eq", { "$var": "n" }, 0] }, "zero"],
-    [true, "positive"]
-  ]
+    [{ "$fn": ["eq", { "$var": "n" }, 0] }, "zero"]
+  ],
+  "$else": "positive"
+}
+```
+
+`[true, ...]` still works as an explicit catch-all branch when you prefer to keep all branches inside the `$cond` array.
+
+### Value Match — `{ $match, $cases, $else }`
+
+Evaluates `$match`, then checks `$cases` left-to-right. Each case is a `[value, result]` pair; the first case value that is strictly equal (`===`) to the matched value wins. `$else` is required and is evaluated only if no case matches.
+
+```json
+{
+  "$match": { "$var": "cmd" },
+  "$cases": [
+    ["show", { "$fn": ["showResult", { "$var": "state" }] }],
+    ["reset", { "$fn": ["resetResult"] }],
+    ["help", { "$fn": ["helpResult"] }]
+  ],
+  "$else": { "$fn": ["moveResult", { "$var": "state" }, { "$var": "argv" }] }
 }
 ```
 

@@ -21,6 +21,7 @@ const (
 	ExprFunctionBody
 	ExprConditional
 	ExprCond
+	ExprMatch
 	ExprAnd
 	ExprOr
 	ExprComparison
@@ -42,6 +43,7 @@ var exprTypeNames = map[ExpressionType]string{
 	ExprFunctionBody:      "FunctionBody",
 	ExprConditional:       "Conditional",
 	ExprCond:              "Cond",
+	ExprMatch:             "Match",
 	ExprAnd:               "And",
 	ExprOr:                "Or",
 	ExprComparison:        "Comparison",

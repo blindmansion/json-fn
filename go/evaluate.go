@@ -304,7 +304,29 @@ func evaluateExpression(expression any, ctx *evaluationContext) (any, error) {
 				return evaluateExpression(branch[1], ctx)
 			}
 		}
-		return nil, exprError(expression, `No $cond branch matched (add a [true, ...] catch-all).`)
+		if elseExpr, ok := obj["$else"]; ok {
+			return evaluateExpression(elseExpr, ctx)
+		}
+		return nil, exprError(expression, `No $cond branch matched (add $else or a [true, ...] catch-all).`)
+
+	case ExprMatch:
+		obj := expression.(map[string]any)
+		matchedValue, err := evaluateExpression(obj["$match"], ctx)
+		if err != nil {
+			return nil, err
+		}
+		pairs := obj["$cases"].([]any)
+		for _, pair := range pairs {
+			branch := pair.([]any)
+			candidate, err := evaluateExpression(branch[0], ctx)
+			if err != nil {
+				return nil, err
+			}
+			if strictEqual(candidate, matchedValue) {
+				return evaluateExpression(branch[1], ctx)
+			}
+		}
+		return evaluateExpression(obj["$else"], ctx)
 
 	case ExprAnd:
 		obj := expression.(map[string]any)
@@ -795,22 +817,13 @@ func getObjectExpressionType(obj map[string]any) (ExpressionType, error) {
 		}
 	}
 
-	_, hasIf := obj["$if"]
-	_, hasThen := obj["$then"]
-	_, hasElse := obj["$else"]
-	if hasIf || hasThen || hasElse {
-		if !(hasIf && hasThen && hasElse) {
-			return 0, exprError(obj, "Conditional expressions must have all three properties: $if, $then, $else.")
-		}
-		if expressionKeyCount(obj) > 3 {
-			return 0, exprError(obj, "Conditional expressions cannot have more than three properties.")
-		}
-		return ExprConditional, nil
-	}
-
 	if condVal, hasCond := obj["$cond"]; hasCond {
-		if expressionKeyCount(obj) > 1 {
-			return 0, exprError(obj, "$cond expressions cannot have other properties.")
+		maxKeys := 1
+		if _, hasElse := obj["$else"]; hasElse {
+			maxKeys = 2
+		}
+		if expressionKeyCount(obj) > maxKeys {
+			return 0, exprError(obj, "$cond expressions can only have $cond and optional $else properties.")
 		}
 		pairs, ok := condVal.([]any)
 		if !ok {
@@ -823,6 +836,42 @@ func getObjectExpressionType(obj map[string]any) (ExpressionType, error) {
 			}
 		}
 		return ExprCond, nil
+	}
+
+	_, hasMatch := obj["$match"]
+	casesVal, hasCases := obj["$cases"]
+	_, hasMatchElse := obj["$else"]
+	if hasMatch || hasCases {
+		if !(hasMatch && hasCases && hasMatchElse) {
+			return 0, exprError(obj, "$match expressions must have $match, $cases, and $else properties.")
+		}
+		if expressionKeyCount(obj) > 3 {
+			return 0, exprError(obj, "$match expressions can only have $match, $cases, and $else properties.")
+		}
+		pairs, ok := casesVal.([]any)
+		if !ok {
+			return 0, exprError(obj, "$cases must be an array of [value, result] pairs.")
+		}
+		for _, pair := range pairs {
+			pairArr, ok := pair.([]any)
+			if !ok || len(pairArr) != 2 {
+				return 0, exprError(obj, "Each $match case must be a [value, result] pair.")
+			}
+		}
+		return ExprMatch, nil
+	}
+
+	_, hasIf := obj["$if"]
+	_, hasThen := obj["$then"]
+	_, hasElse := obj["$else"]
+	if hasIf || hasThen || hasElse {
+		if !(hasIf && hasThen && hasElse) {
+			return 0, exprError(obj, "Conditional expressions must have all three properties: $if, $then, $else.")
+		}
+		if expressionKeyCount(obj) > 3 {
+			return 0, exprError(obj, "Conditional expressions cannot have more than three properties.")
+		}
+		return ExprConditional, nil
 	}
 
 	if andVal, hasAnd := obj["$and"]; hasAnd {
