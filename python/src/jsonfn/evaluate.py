@@ -59,7 +59,16 @@ class Interpreter:
     registry slot are mutated in place).
     """
 
-    __slots__ = ("_depth", "_operations", "limits", "registry")
+    __slots__ = (
+        "_cancel",
+        "_check_limits",
+        "_depth",
+        "_max_call_depth",
+        "_max_ops",
+        "_operations",
+        "limits",
+        "registry",
+    )
 
     def __init__(
         self,
@@ -70,6 +79,12 @@ class Interpreter:
         self.limits: ExecutionLimits = limits or ExecutionLimits()
         self._depth: int = 0
         self._operations: int = 0
+        # Hoist limits to plain ivars so the per-evaluate hot path can do a
+        # single attribute lookup (and short-circuit when nothing is configured).
+        self._max_call_depth: int = self.limits.max_call_depth
+        self._max_ops: int | None = self.limits.max_operations
+        self._cancel: Any = self.limits.cancel
+        self._check_limits: bool = self._max_ops is not None or self._cancel is not None
 
     # -- public --------------------------------------------------------------
 
@@ -87,22 +102,21 @@ class Interpreter:
         :meth:`_call_json_function` so inline function bodies inherit the
         evaluation-time scope chain (matching Go and TypeScript).
         """
-        self._depth += 1
-        if self._depth > self.limits.max_call_depth:
-            self._depth -= 1
-            raise LimitExceededError(f"Maximum call depth of {self.limits.max_call_depth} exceeded")
+        depth = self._depth + 1
+        if depth > self._max_call_depth:
+            raise LimitExceededError(f"Maximum call depth of {self._max_call_depth} exceeded")
+        self._depth = depth
         try:
-            if isinstance(fn, str):
+            if type(fn) is str:
                 entry = self.registry.get(fn)
                 if entry is None:
                     raise EvaluationError(f"Function {fn} not found")
                 if isinstance(entry, _PureEntry):
                     # Match Go semantics: pure functions silently ignore extra
-                    # args beyond their declared arity. This matters when a
-                    # pure function (e.g. `add`) is used as a callback to a
-                    # builtin (e.g. `reduce`) that supplies more positional
-                    # args than the function consumes.
-                    call_args = args if entry.arity < 0 else args[: entry.arity]
+                    # args beyond their declared arity. Skip the slice when the
+                    # arg count already matches (the dominant case).
+                    arity = entry.arity
+                    call_args = args[:arity] if arity >= 0 and len(args) != arity else args
                     try:
                         return entry.fn(*call_args)
                     except JsonFnError:
@@ -125,7 +139,7 @@ class Interpreter:
                 return self._call_json_function(fn, args, parent_get_var)
             raise EvaluationError(f"cannot call non-function value of type {type(fn).__name__}")
         finally:
-            self._depth -= 1
+            self._depth = depth - 1
 
     # -- json function bodies ------------------------------------------------
 
@@ -135,41 +149,68 @@ class Interpreter:
         args: list[JsonValue],
         parent_get_var: Any,
     ) -> JsonValue:
-        # 1. Discover sibling-defined function bodies (locals whose value is
-        #    itself a function body). These get registered into a scoped
-        #    registry overlay so they can be called by name from within
-        #    $return — including recursively and mutually.
-        local_fn_keys: list[str] = []
-        for key, val in body.items():
-            if key in ("$return", "$params"):
-                continue
-            if isinstance(val, dict) and "$return" in val:
-                local_fn_keys.append(key)
-
-        scoped_registry: FunctionRegistry | None = None
-        if local_fn_keys:
-            scoped_registry = dict(self.registry)
-            for key in local_fn_keys:
-                scoped_registry[key] = body[key]
-
-        # 2. Bind $params positionally into the eager-evaluated bindings.
+        # 1. Bind $params positionally into the eager-evaluated bindings.
         evaluated_vars: dict[str, JsonValue] = {}
         params = body.get("$params")
-        if isinstance(params, list):
+        if params is not None and params.__class__ is list:
+            n_args = len(args)
             for i, p in enumerate(params):
-                if not isinstance(p, str) or not p:
+                if p.__class__ is not str or not p:
                     continue
-                if p.startswith("..."):
+                if p[:3] == "...":
                     rest_name = p[3:]
                     _validate_param_name(rest_name)
                     evaluated_vars[rest_name] = list(args[i:])
                     break
                 _validate_param_name(p)
-                evaluated_vars[p] = args[i] if i < len(args) else None
+                evaluated_vars[p] = args[i] if i < n_args else None
 
-        # 3. Build the per-frame get_var closure. Locals are evaluated lazily
-        #    on first access and cached. We detect cycles by maintaining a
-        #    list of names currently being resolved.
+        # 2. Determine whether this body has any body-level locals (vars or
+        #    sibling-defined function bodies). The hot path — recursive user
+        #    functions like `fib` whose body is just $params/$return — has
+        #    none, so we use a much cheaper closure for them.
+        has_body_locals = False
+        local_fn_keys: list[str] | None = None
+        for key, val in body.items():
+            if key == "$return" or key == "$params":
+                continue
+            has_body_locals = True
+            if val.__class__ is dict and "$return" in val:
+                if local_fn_keys is None:
+                    local_fn_keys = [key]
+                else:
+                    local_fn_keys.append(key)
+
+        # ----- Fast path: $params + $return only --------------------------------
+        if not has_body_locals:
+            if parent_get_var is None:
+
+                def get_var_fast(
+                    name: str, _ev: dict[str, JsonValue] = evaluated_vars
+                ) -> JsonValue:
+                    return _ev.get(name, _MISSING)
+
+                return self._evaluate(body["$return"], get_var_fast)
+
+            def get_var_fast2(
+                name: str,
+                _ev: dict[str, JsonValue] = evaluated_vars,
+                _parent: Any = parent_get_var,
+            ) -> JsonValue:
+                v = _ev.get(name, _MISSING)
+                if v is _MISSING:
+                    return _parent(name)
+                return v
+
+            return self._evaluate(body["$return"], get_var_fast2)
+
+        # ----- Slow path: body-level locals (lazy + cycle detection) ------------
+        scoped_registry: FunctionRegistry | None = None
+        if local_fn_keys is not None:
+            scoped_registry = dict(self.registry)
+            for key in local_fn_keys:
+                scoped_registry[key] = body[key]
+
         resolving: list[str] = []
 
         def get_var(name: str) -> JsonValue:
@@ -199,17 +240,12 @@ class Interpreter:
                 return parent_get_var(name)
             return _MISSING
 
-        # 4. For local-function bodies, substitute outer variables now so the
-        #    callable form captures its lexical scope (matching closure
-        #    semantics). The scoped registry's entry is replaced with the
-        #    rewritten body.
-        if scoped_registry is not None:
+        if scoped_registry is not None and local_fn_keys is not None:
             for key in local_fn_keys:
                 rewritten = self._replace_vars(body[key], get_var)
                 if isinstance(rewritten, dict):
                     scoped_registry[key] = rewritten
 
-        # 5. Evaluate $return under the (possibly scoped) registry.
         if scoped_registry is not None:
             prev = self.registry
             self.registry = scoped_registry
@@ -223,52 +259,95 @@ class Interpreter:
 
     def _evaluate(self, expr: Any, get_var: Any) -> JsonValue:
         # Cancellation + operations cap (parallels Go's evaluateExpression
-        # preamble). Counted per expression visit, not per call.
-        if self.limits.cancel is not None and self.limits.cancel.is_set():
-            raise LimitExceededError("Execution aborted")
-        if self.limits.max_operations is not None:
-            self._operations += 1
-            if self._operations > self.limits.max_operations:
-                raise LimitExceededError(
-                    f"Maximum operations limit of {self.limits.max_operations} exceeded"
-                )
+        # preamble). Hoisted behind a single flag so the common case of
+        # "no limits configured" hits no extra branches.
+        if self._check_limits:
+            cancel = self._cancel
+            if cancel is not None and cancel.is_set():
+                raise LimitExceededError("Execution aborted")
+            max_ops = self._max_ops
+            if max_ops is not None:
+                self._operations += 1
+                if self._operations > max_ops:
+                    raise LimitExceededError(f"Maximum operations limit of {max_ops} exceeded")
 
-        kind = self._classify(expr)
-
-        match kind:
-            case (
-                ExpressionType.STRING
-                | ExpressionType.NUMBER
-                | ExpressionType.BOOLEAN
-                | ExpressionType.NULL
-            ):
-                return expr
-
-            case ExpressionType.ARRAY:
-                return [self._evaluate(item, get_var) for item in expr]
-
-            case ExpressionType.OBJECT:
-                return {k: self._evaluate(v, get_var) for k, v in expr.items()}
-
-            case ExpressionType.LITERAL:
-                return expr["$literal"]
-
-            case ExpressionType.FUNCTION_CALL:
+        # Inline type-based dispatch. The `_classify` method is still used for
+        # validation paths (and in case anyone subclasses), but the hot path
+        # avoids it because every cycle counts when an interpreter visits
+        # millions of expressions per second.
+        t = expr.__class__
+        if t is dict:
+            # Fast key dispatch: most expressions have a single special key,
+            # so a chain of `key in dict` is faster than calling _classify
+            # which does a fixed sweep over many keys.
+            if "$fn" in expr:
                 fn_arr = expr["$fn"]
-                fn_decl = self._evaluate(fn_arr[0], get_var)
-                if not _is_fn_declaration(fn_decl):
-                    raise EvaluationError(
-                        _expr_error(
-                            expr,
-                            f"Evaluated function references must be strings or "
-                            f"function bodies. Got {_type_label(fn_decl)}.",
+                if fn_arr.__class__ is list:
+                    if len(expr) != 1:
+                        raise EvaluationError(
+                            _expr_error(expr, "Function calls cannot have other properties.")
                         )
+                    head = fn_arr[0]
+                    # Hot path: literal-string function name with a stdlib pure
+                    # entry. Inline the entire dispatch so we save a Python
+                    # call frame per invocation (and most $fn calls in real
+                    # programs are exactly this shape: `["add", x, y]`).
+                    if head.__class__ is str:
+                        entry = self.registry.get(head)
+                        if entry is None:
+                            raise EvaluationError(f"Function {head} not found")
+                        if isinstance(entry, _PureEntry):
+                            # Evaluate args FIRST (matches Interpreter.call
+                            # semantics: only the dispatch itself counts as a
+                            # call-depth increment, not the argument evaluation
+                            # — otherwise the counter would balloon past
+                            # max_call_depth on recursive expression trees).
+                            eval_args = [self._evaluate(a, get_var) for a in fn_arr[1:]]
+                            depth = self._depth + 1
+                            if depth > self._max_call_depth:
+                                raise LimitExceededError(
+                                    f"Maximum call depth of {self._max_call_depth} exceeded"
+                                )
+                            self._depth = depth
+                            try:
+                                arity = entry.arity
+                                if arity >= 0 and len(eval_args) != arity:
+                                    eval_args = eval_args[:arity]
+                                try:
+                                    return entry.fn(*eval_args)
+                                except JsonFnError:
+                                    raise
+                                except Exception as e:
+                                    raise EvaluationError(
+                                        f"Error calling external function {head}: {e}"
+                                    ) from e
+                            finally:
+                                self._depth = depth - 1
+                        # Fall through to the general dispatch for builtins
+                        # and JSON-body functions (depth tracking + ctx setup
+                        # is non-trivial enough to keep in one place).
+                        eval_args = [self._evaluate(a, get_var) for a in fn_arr[1:]]
+                        return self.call(head, eval_args, parent_get_var=get_var)
+                    # Computed callee (e.g. `[{"$var":"f"}, ...]`).
+                    fn_decl = self._evaluate(head, get_var)
+                    if not _is_fn_declaration(fn_decl):
+                        raise EvaluationError(
+                            _expr_error(
+                                expr,
+                                f"Evaluated function references must be strings or "
+                                f"function bodies. Got {_type_label(fn_decl)}.",
+                            )
+                        )
+                    eval_args = [self._evaluate(a, get_var) for a in fn_arr[1:]]
+                    return self.call(fn_decl, eval_args, parent_get_var=get_var)
+                # FUNCTION_REFERENCE: $fn is a string or dict
+                if not isinstance(fn_arr, (str, dict)):
+                    raise EvaluationError(_expr_error(expr, "Unrecognized expression type."))
+                if len(expr) != 1:
+                    raise EvaluationError(
+                        _expr_error(expr, "Function references cannot have other properties.")
                     )
-                eval_args = [self._evaluate(a, get_var) for a in fn_arr[1:]]
-                return self.call(fn_decl, eval_args, parent_get_var=get_var)
-
-            case ExpressionType.FUNCTION_REFERENCE:
-                ref = self._evaluate(expr["$fn"], get_var)
+                ref = self._evaluate(fn_arr, get_var)
                 if not _is_fn_declaration(ref):
                     raise EvaluationError(
                         _expr_error(
@@ -279,53 +358,160 @@ class Interpreter:
                     )
                 return ref
 
-            case ExpressionType.VARIABLE_REFERENCE:
+            if "$var" in expr:
+                var_path = expr["$var"]
+                if var_path.__class__ is not str:
+                    raise EvaluationError(
+                        _expr_error(expr, "Variable references must have a string $var property.")
+                    )
+                if "$get" in expr:
+                    if len(expr) > 2:
+                        raise EvaluationError(
+                            _expr_error(
+                                expr, "$var/$get property access cannot have other properties."
+                            )
+                        )
+                    return self._evaluate_property_access(expr, get_var)
+                if len(expr) > 1:
+                    raise EvaluationError(
+                        _expr_error(expr, "Variable references cannot have other properties.")
+                    )
                 if get_var is None:
                     raise EvaluationError(_expr_error(expr, "getVar is not defined."))
-                return self._resolve_var(expr["$var"], get_var, expr)
+                # Inlined _resolve_var fast path: skip parse_path for plain names.
+                if "." not in var_path and "[" not in var_path:
+                    value = get_var(var_path)
+                    if value is _MISSING:
+                        raise EvaluationError(_expr_error(expr, f"Variable {var_path} not found."))
+                    return value
+                return self._resolve_var(var_path, get_var, expr)
 
-            case ExpressionType.FUNCTION_BODY:
+            if "$return" in expr:
+                if "$fn" in expr:
+                    raise EvaluationError(
+                        _expr_error(expr, "Function bodies cannot have other keyword properties.")
+                    )
+                if "$params" in expr:
+                    params = expr["$params"]
+                    if not isinstance(params, list) or not all(isinstance(p, str) for p in params):
+                        raise EvaluationError(
+                            _expr_error(expr, "$params must be an array of strings.")
+                        )
+                    for p in params:
+                        name = p[3:] if p.startswith("...") else p
+                        _validate_param_name(name)
                 if get_var is None:
                     return expr
                 return self._replace_vars(expr, get_var)
 
-            case ExpressionType.CONDITIONAL:
+            if "$if" in expr:
+                if "$then" not in expr or "$else" not in expr:
+                    raise EvaluationError(
+                        _expr_error(
+                            expr,
+                            "Conditional expressions must have all three properties: "
+                            "$if, $then, $else.",
+                        )
+                    )
+                if len(expr) > 3:
+                    raise EvaluationError(
+                        _expr_error(
+                            expr,
+                            "Conditional expressions cannot have more than three properties.",
+                        )
+                    )
                 cond = self._evaluate(expr["$if"], get_var)
                 branch = expr["$then"] if _truthy(cond) else expr["$else"]
                 return self._evaluate(branch, get_var)
 
-            case ExpressionType.COND:
-                for pair in expr["$cond"]:
+            if "$cond" in expr:
+                if len(expr) != 1:
+                    raise EvaluationError(
+                        _expr_error(expr, "$cond expressions cannot have other properties.")
+                    )
+                pairs = expr["$cond"]
+                if not isinstance(pairs, list):
+                    raise EvaluationError(
+                        _expr_error(expr, "$cond must be an array of [condition, result] pairs.")
+                    )
+                for pair in pairs:
+                    if not isinstance(pair, list) or len(pair) != 2:
+                        raise EvaluationError(
+                            _expr_error(
+                                expr, "Each $cond branch must be a [condition, result] pair."
+                            )
+                        )
                     if _truthy(self._evaluate(pair[0], get_var)):
                         return self._evaluate(pair[1], get_var)
                 raise EvaluationError(
-                    _expr_error(
-                        expr,
-                        "No $cond branch matched (add a [true, ...] catch-all).",
-                    )
+                    _expr_error(expr, "No $cond branch matched (add a [true, ...] catch-all).")
                 )
 
-            case ExpressionType.AND:
+            if "$and" in expr:
+                if len(expr) != 1:
+                    raise EvaluationError(
+                        _expr_error(expr, "$and expressions cannot have other properties.")
+                    )
+                items = expr["$and"]
+                if not isinstance(items, list):
+                    raise EvaluationError(
+                        _expr_error(expr, "$and must be an array of expressions.")
+                    )
                 result: JsonValue = True
-                for sub in expr["$and"]:
+                for sub in items:
                     result = self._evaluate(sub, get_var)
                     if not _truthy(result):
                         return result
                 return result
 
-            case ExpressionType.OR:
+            if "$or" in expr:
+                if len(expr) != 1:
+                    raise EvaluationError(
+                        _expr_error(expr, "$or expressions cannot have other properties.")
+                    )
+                items = expr["$or"]
+                if not isinstance(items, list):
+                    raise EvaluationError(_expr_error(expr, "$or must be an array of expressions."))
                 result_or: JsonValue = False
-                for sub in expr["$or"]:
+                for sub in items:
                     result_or = self._evaluate(sub, get_var)
                     if _truthy(result_or):
                         return result_or
                 return result_or
 
-            case ExpressionType.PROPERTY_ACCESS:
+            if "$literal" in expr:
+                if len(expr) != 1:
+                    raise EvaluationError(
+                        _expr_error(expr, "$literal expressions cannot have other properties.")
+                    )
+                return expr["$literal"]
+
+            if "$get" in expr or "$from" in expr:
+                if "$get" not in expr or "$from" not in expr:
+                    raise EvaluationError(
+                        _expr_error(
+                            expr, "Property access expressions must have both $get and $from."
+                        )
+                    )
+                if len(expr) > 2:
+                    raise EvaluationError(
+                        _expr_error(
+                            expr,
+                            "Property access expressions cannot have more than two properties.",
+                        )
+                    )
                 return self._evaluate_property_access(expr, get_var)
 
-        # Unreachable in well-formed input; _classify raises on bad shapes.
-        raise EvaluationError(_expr_error(expr, "Unrecognized expression type."))
+            # Plain object literal — recursively evaluate values.
+            return {k: self._evaluate(v, get_var) for k, v in expr.items()}
+
+        if t is list:
+            return [self._evaluate(item, get_var) for item in expr]
+
+        # Primitives (str, int, float, bool, None) evaluate to themselves.
+        # We accept anything else as well; _classify would have raised, but in
+        # practice values reaching _evaluate from JSON are always JSON-shaped.
+        return expr
 
     def _resolve_var(
         self,
@@ -333,6 +519,13 @@ class Interpreter:
         get_var: Any,
         expression: Any,
     ) -> JsonValue:
+        # Fast path: plain variable name (no path syntax). Avoids the cost of
+        # the cached parse_path call entirely.
+        if "." not in var_path and "[" not in var_path:
+            value = get_var(var_path)
+            if value is _MISSING:
+                raise EvaluationError(_expr_error(expression, f"Variable {var_path} not found."))
+            return value
         variable, segments = parse_path(var_path)
         value = get_var(variable)
         if value is _MISSING:
@@ -483,13 +676,14 @@ def _truthy(v: Any) -> bool:
     ``""`` are falsy. Empty list/dict are TRUTHY (unlike Python's natural
     semantics) — matches JavaScript-style truthiness used by the spec.
     """
-    if v is None:
+    if v is None or v is False:
         return False
-    if isinstance(v, bool):
-        return v
-    if isinstance(v, (int, float)):
+    t = type(v)
+    if t is bool:
+        return v  # only True remains
+    if t is int or t is float:
         return v != 0
-    if isinstance(v, str):
+    if t is str:
         return v != ""
     return True
 

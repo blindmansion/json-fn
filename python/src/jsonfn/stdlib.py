@@ -80,20 +80,29 @@ def _truthy(v: Any) -> bool:
 def _is_number(v: object) -> TypeGuard[int | float]:
     """True for ints and floats but explicitly NOT bools (which are ints in
     Python). Mirrors Go's ``float64`` discrimination. Acts as a ``TypeGuard``
-    so callers can use the value as a number after the check."""
-    return isinstance(v, (int, float)) and not isinstance(v, bool)
+    so callers can use the value as a number after the check.
+
+    Uses ``type(v) is X`` rather than ``isinstance`` for speed: this is on the
+    hot path of every arithmetic/comparison call. ``type() is int`` already
+    excludes ``bool`` (since ``type(True) is bool``, not ``int``).
+    """
+    t = type(v)
+    return t is int or t is float
 
 
 def _as_number(v: Any, fn_name: str) -> int | float:
-    if not _is_number(v):
-        raise EvaluationError(f"{fn_name}: argument must be a number")
-    return v
+    t = type(v)
+    if t is int or t is float:
+        return v
+    raise EvaluationError(f"{fn_name}: argument must be a number")
 
 
 def _two_numbers(a: Any, b: Any, fn_name: str) -> tuple[int | float, int | float]:
-    if not (_is_number(a) and _is_number(b)):
-        raise EvaluationError(f"{fn_name}: arguments must be numbers")
-    return a, b
+    ta = type(a)
+    tb = type(b)
+    if (ta is int or ta is float) and (tb is int or tb is float):
+        return a, b
+    raise EvaluationError(f"{fn_name}: arguments must be numbers")
 
 
 def _json_equal(a: Any, b: Any) -> bool:
