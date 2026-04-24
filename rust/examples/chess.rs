@@ -10,9 +10,7 @@ use std::env;
 use std::fs;
 use std::path::PathBuf;
 
-use jsonfn::{
-    FnEntry, FunctionRegistry, Value, call_function, create_stdlib, strip_jsonc,
-};
+use jsonfn::{FnEntry, FunctionRegistry, Value, call_function, create_stdlib, strip_jsonc};
 use serde_json::Map;
 
 fn main() {
@@ -47,7 +45,10 @@ fn main() {
     let output = result.get("output").and_then(Value::as_str).unwrap_or("");
     let stderr = result.get("stderr").and_then(Value::as_str).unwrap_or("");
     let new_state = result.get("newState").cloned().unwrap_or(Value::Null);
-    let reset = result.get("reset").and_then(Value::as_bool).unwrap_or(false);
+    let reset = result
+        .get("reset")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
     let exit_code = result.get("exitCode").and_then(Value::as_i64).unwrap_or(0);
 
     if reset && state_file.exists() {

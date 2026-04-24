@@ -59,9 +59,9 @@ type parsedPath struct {
 }
 
 var (
-	pathCacheMu   sync.RWMutex
-	pathCache     = make(map[string]parsedPath)
-	pathCacheMax  = 1024
+	pathCacheMu  sync.RWMutex
+	pathCache    = make(map[string]parsedPath)
+	pathCacheMax = 1024
 )
 
 func parsePath(str string) (parsedPath, error) {

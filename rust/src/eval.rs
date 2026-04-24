@@ -161,7 +161,10 @@ pub fn call_function(
             .and_then(|l| l.max_call_depth)
             .filter(|n| *n > 0)
             .unwrap_or(DEFAULT_MAX_CALL_DEPTH),
-        max_operations: limits.and_then(|l| l.max_operations).filter(|n| *n > 0).unwrap_or(0),
+        max_operations: limits
+            .and_then(|l| l.max_operations)
+            .filter(|n| *n > 0)
+            .unwrap_or(0),
         cancel: limits.and_then(|l| l.cancel.clone()),
     };
 
@@ -192,9 +195,9 @@ fn call_function_internal(
         match fn_decl {
             Value::String(name) => {
                 let registry = ctx.current_functions();
-                let entry = registry.get(name.as_str()).ok_or_else(|| {
-                    EvalError(format!("Function {name} not found"))
-                })?;
+                let entry = registry
+                    .get(name.as_str())
+                    .ok_or_else(|| EvalError(format!("Function {name} not found")))?;
                 // Pure: f doesn't re-enter the interpreter, so we can call it
                 // directly without cloning the entry or dropping the registry
                 // borrow. Saves two atomic ops per Pure call (i.e. every call
@@ -314,11 +317,7 @@ fn call_json_function_meta(
     eval_with_frame(body_obj.get("$return").unwrap_or(&Value::Null), frame, ctx)
 }
 
-fn eval_with_frame(
-    expr: &Value,
-    frame: Rc<Frame>,
-    ctx: &mut EvalCtx,
-) -> Result<Value, EvalError> {
+fn eval_with_frame(expr: &Value, frame: Rc<Frame>, ctx: &mut EvalCtx) -> Result<Value, EvalError> {
     let saved = ctx.frame.take();
     ctx.frame = Some(frame);
     let result = evaluate_expression(expr, ctx);
@@ -392,8 +391,12 @@ fn current_get_var(name: &str, ctx: &mut EvalCtx) -> Result<Option<Value>, EvalE
 
 fn resolve_var(var_path: &str, ctx: &mut EvalCtx, expression: &Value) -> Result<Value, EvalError> {
     let parsed = parse_path(var_path)?;
-    let value = current_get_var(&parsed.variable, ctx)?
-        .ok_or_else(|| expr_error(expression, &format!("Variable {} not found.", parsed.variable)))?;
+    let value = current_get_var(&parsed.variable, ctx)?.ok_or_else(|| {
+        expr_error(
+            expression,
+            &format!("Variable {} not found.", parsed.variable),
+        )
+    })?;
     if parsed.path.is_empty() {
         Ok(value)
     } else {
@@ -456,17 +459,26 @@ fn strict_equal(a: &Value, b: &Value) -> bool {
 fn classify_object(obj: &Map<String, Value>, expr: &Value) -> Result<ExprKind, EvalError> {
     if let Some(v) = obj.get("$var") {
         if !v.is_string() {
-            return Err(expr_error(expr, "Variable references must have a string $var property."));
+            return Err(expr_error(
+                expr,
+                "Variable references must have a string $var property.",
+            ));
         }
         let key_count = expression_key_count(obj);
         if obj.contains_key("$get") {
             if key_count > 2 {
-                return Err(expr_error(expr, "$var/$get property access cannot have other properties."));
+                return Err(expr_error(
+                    expr,
+                    "$var/$get property access cannot have other properties.",
+                ));
             }
             return Ok(ExprKind::PropertyAccess);
         }
         if key_count > 1 {
-            return Err(expr_error(expr, "Variable references cannot have other properties."));
+            return Err(expr_error(
+                expr,
+                "Variable references cannot have other properties.",
+            ));
         }
         return Ok(ExprKind::VariableReference);
     }
@@ -475,17 +487,26 @@ fn classify_object(obj: &Map<String, Value>, expr: &Value) -> Result<ExprKind, E
     let has_from = obj.contains_key("$from");
     if has_get || has_from {
         if !(has_get && has_from) {
-            return Err(expr_error(expr, "Property access expressions must have both $get and $from."));
+            return Err(expr_error(
+                expr,
+                "Property access expressions must have both $get and $from.",
+            ));
         }
         if expression_key_count(obj) > 2 {
-            return Err(expr_error(expr, "Property access expressions cannot have more than two properties."));
+            return Err(expr_error(
+                expr,
+                "Property access expressions cannot have more than two properties.",
+            ));
         }
         return Ok(ExprKind::PropertyAccess);
     }
 
     if obj.contains_key("$return") {
         if obj.contains_key("$fn") {
-            return Err(expr_error(expr, "Function bodies cannot have other keyword properties."));
+            return Err(expr_error(
+                expr,
+                "Function bodies cannot have other keyword properties.",
+            ));
         }
         if let Some(params) = obj.get("$params") {
             let arr = params
@@ -505,13 +526,19 @@ fn classify_object(obj: &Map<String, Value>, expr: &Value) -> Result<ExprKind, E
     if let Some(fn_val) = obj.get("$fn") {
         if fn_val.is_array() {
             if expression_key_count(obj) > 1 {
-                return Err(expr_error(expr, "Function calls cannot have other properties."));
+                return Err(expr_error(
+                    expr,
+                    "Function calls cannot have other properties.",
+                ));
             }
             return Ok(ExprKind::FunctionCall);
         }
         if matches!(fn_val, Value::String(_) | Value::Object(_)) {
             if expression_key_count(obj) > 1 {
-                return Err(expr_error(expr, "Function references cannot have other properties."));
+                return Err(expr_error(
+                    expr,
+                    "Function references cannot have other properties.",
+                ));
             }
             return Ok(ExprKind::FunctionReference);
         }
@@ -528,24 +555,36 @@ fn classify_object(obj: &Map<String, Value>, expr: &Value) -> Result<ExprKind, E
             ));
         }
         if expression_key_count(obj) > 3 {
-            return Err(expr_error(expr, "Conditional expressions cannot have more than three properties."));
+            return Err(expr_error(
+                expr,
+                "Conditional expressions cannot have more than three properties.",
+            ));
         }
         return Ok(ExprKind::Conditional);
     }
 
     if let Some(cond) = obj.get("$cond") {
         if expression_key_count(obj) > 1 {
-            return Err(expr_error(expr, "$cond expressions cannot have other properties."));
+            return Err(expr_error(
+                expr,
+                "$cond expressions cannot have other properties.",
+            ));
         }
-        let arr = cond
-            .as_array()
-            .ok_or_else(|| expr_error(expr, "$cond must be an array of [condition, result] pairs."))?;
+        let arr = cond.as_array().ok_or_else(|| {
+            expr_error(expr, "$cond must be an array of [condition, result] pairs.")
+        })?;
         for pair in arr {
-            let pa = pair
-                .as_array()
-                .ok_or_else(|| expr_error(expr, "Each $cond branch must be a [condition, result] pair."))?;
+            let pa = pair.as_array().ok_or_else(|| {
+                expr_error(
+                    expr,
+                    "Each $cond branch must be a [condition, result] pair.",
+                )
+            })?;
             if pa.len() != 2 {
-                return Err(expr_error(expr, "Each $cond branch must be a [condition, result] pair."));
+                return Err(expr_error(
+                    expr,
+                    "Each $cond branch must be a [condition, result] pair.",
+                ));
             }
         }
         return Ok(ExprKind::Cond);
@@ -553,7 +592,10 @@ fn classify_object(obj: &Map<String, Value>, expr: &Value) -> Result<ExprKind, E
 
     if let Some(and) = obj.get("$and") {
         if expression_key_count(obj) > 1 {
-            return Err(expr_error(expr, "$and expressions cannot have other properties."));
+            return Err(expr_error(
+                expr,
+                "$and expressions cannot have other properties.",
+            ));
         }
         if !and.is_array() {
             return Err(expr_error(expr, "$and must be an array of expressions."));
@@ -563,7 +605,10 @@ fn classify_object(obj: &Map<String, Value>, expr: &Value) -> Result<ExprKind, E
 
     if let Some(or) = obj.get("$or") {
         if expression_key_count(obj) > 1 {
-            return Err(expr_error(expr, "$or expressions cannot have other properties."));
+            return Err(expr_error(
+                expr,
+                "$or expressions cannot have other properties.",
+            ));
         }
         if !or.is_array() {
             return Err(expr_error(expr, "$or must be an array of expressions."));
@@ -573,27 +618,42 @@ fn classify_object(obj: &Map<String, Value>, expr: &Value) -> Result<ExprKind, E
 
     if let Some(comparison_operator) = get_comparison_operator(obj) {
         if expression_key_count(obj) > 1 {
-            return Err(expr_error(expr, &format!("{comparison_operator} expressions cannot have other properties.")));
+            return Err(expr_error(
+                expr,
+                &format!("{comparison_operator} expressions cannot have other properties."),
+            ));
         }
-        let args = obj[comparison_operator]
-            .as_array()
-            .ok_or_else(|| expr_error(expr, &format!("{comparison_operator} must be an array of two expressions.")))?;
+        let args = obj[comparison_operator].as_array().ok_or_else(|| {
+            expr_error(
+                expr,
+                &format!("{comparison_operator} must be an array of two expressions."),
+            )
+        })?;
         if args.len() != 2 {
-            return Err(expr_error(expr, &format!("{comparison_operator} must be an array of two expressions.")));
+            return Err(expr_error(
+                expr,
+                &format!("{comparison_operator} must be an array of two expressions."),
+            ));
         }
         return Ok(ExprKind::Comparison);
     }
 
     if obj.contains_key("$not") {
         if expression_key_count(obj) > 1 {
-            return Err(expr_error(expr, "$not expressions cannot have other properties."));
+            return Err(expr_error(
+                expr,
+                "$not expressions cannot have other properties.",
+            ));
         }
         return Ok(ExprKind::Not);
     }
 
     if obj.contains_key("$literal") {
         if expression_key_count(obj) > 1 {
-            return Err(expr_error(expr, "$literal expressions cannot have other properties."));
+            return Err(expr_error(
+                expr,
+                "$literal expressions cannot have other properties.",
+            ));
         }
         return Ok(ExprKind::Literal);
     }
@@ -612,8 +672,10 @@ fn evaluate_comparison_expression(expr: &Value, ctx: &mut EvalCtx) -> Result<Val
         "$eq" => strict_equal(&left, &right),
         "$neq" => !strict_equal(&left, &right),
         "$lt" | "$lte" | "$gt" | "$gte" => {
-            let left_num = to_f64(&left).ok_or_else(|| EvalError(format!("{}: arguments must be numbers", &op[1..])))?;
-            let right_num = to_f64(&right).ok_or_else(|| EvalError(format!("{}: arguments must be numbers", &op[1..])))?;
+            let left_num = to_f64(&left)
+                .ok_or_else(|| EvalError(format!("{}: arguments must be numbers", &op[1..])))?;
+            let right_num = to_f64(&right)
+                .ok_or_else(|| EvalError(format!("{}: arguments must be numbers", &op[1..])))?;
             match op {
                 "$lt" => left_num < right_num,
                 "$lte" => left_num <= right_num,
@@ -728,7 +790,10 @@ fn evaluate_expression(expr: &Value, ctx: &mut EvalCtx) -> Result<Value, EvalErr
                     return evaluate_expression(&branch[1], ctx);
                 }
             }
-            Err(expr_error(expr, "No $cond branch matched (add a [true, ...] catch-all)."))
+            Err(expr_error(
+                expr,
+                "No $cond branch matched (add a [true, ...] catch-all).",
+            ))
         }
         ExprKind::And => {
             let obj = expr.as_object().unwrap();
@@ -913,11 +978,7 @@ fn property_lookup(target: &Value, key: &Value) -> Result<Value, EvalError> {
 /// Lookups use the same lazy resolution as runtime `$var` evaluation so that
 /// closures over body-local variables (e.g. `allArgs` in `curryApply`) get
 /// correctly baked in. Mirrors Go's `replaceVars`.
-fn replace_vars(
-    expr: &Value,
-    ctx: &mut EvalCtx,
-    mask: &[String],
-) -> Result<Value, EvalError> {
+fn replace_vars(expr: &Value, ctx: &mut EvalCtx, mask: &[String]) -> Result<Value, EvalError> {
     match expr {
         Value::Array(arr) => {
             let mut out = Vec::with_capacity(arr.len());

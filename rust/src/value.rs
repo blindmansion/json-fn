@@ -44,16 +44,17 @@ impl BodyMeta {
                         return None;
                     }
                     match v {
-                        Value::Object(inner) if inner.contains_key("$return") => {
-                            Some(k.clone())
-                        }
+                        Value::Object(inner) if inner.contains_key("$return") => Some(k.clone()),
                         _ => None,
                     }
                 })
                 .collect(),
             _ => Vec::new(),
         };
-        BodyMeta { body, local_fn_keys }
+        BodyMeta {
+            body,
+            local_fn_keys,
+        }
     }
 }
 
@@ -75,14 +76,23 @@ impl FnEntry {
     where
         F: Fn(&[Value]) -> Result<Value, EvalError> + Send + Sync + 'static,
     {
-        FnEntry::Pure { arity, f: Arc::new(f) }
+        FnEntry::Pure {
+            arity,
+            f: Arc::new(f),
+        }
     }
 
     pub fn builtin<F>(arity: i32, f: F) -> Self
     where
-        F: Fn(&[Value], &mut crate::eval::EvalCtx) -> Result<Value, EvalError> + Send + Sync + 'static,
+        F: Fn(&[Value], &mut crate::eval::EvalCtx) -> Result<Value, EvalError>
+            + Send
+            + Sync
+            + 'static,
     {
-        FnEntry::Builtin { arity, f: Arc::new(f) }
+        FnEntry::Builtin {
+            arity,
+            f: Arc::new(f),
+        }
     }
 
     /// Convenience constructor for a json-fn function body.
@@ -115,7 +125,11 @@ pub fn get_arity(fn_decl: &Value, registry: &FunctionRegistry) -> Option<i32> {
             let entry = registry.get(s)?;
             match entry {
                 FnEntry::Pure { arity, .. } | FnEntry::Builtin { arity, .. } => {
-                    if *arity < 0 { None } else { Some(*arity) }
+                    if *arity < 0 {
+                        None
+                    } else {
+                        Some(*arity)
+                    }
                 }
                 FnEntry::Body(meta) => get_arity(&meta.body, registry),
             }
@@ -195,7 +209,11 @@ pub fn has_string_comment(obj: &Map<String, Value>) -> bool {
 /// Number of keys in ``obj`` for the purposes of expression-shape validation.
 /// A ``$comment`` key with a string value does not count.
 pub fn expression_key_count(obj: &Map<String, Value>) -> usize {
-    if has_string_comment(obj) { obj.len() - 1 } else { obj.len() }
+    if has_string_comment(obj) {
+        obj.len() - 1
+    } else {
+        obj.len()
+    }
 }
 
 /// Returns `true` when the value is a function declaration: a string name or

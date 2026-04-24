@@ -4,9 +4,7 @@
 use std::fs;
 use std::path::PathBuf;
 
-use jsonfn::{
-    FnEntry, FunctionRegistry, Value, call_function, create_stdlib, strip_jsonc,
-};
+use jsonfn::{FnEntry, FunctionRegistry, Value, call_function, create_stdlib, strip_jsonc};
 use serde_json::{Map, json};
 
 fn load_chess_functions() -> FunctionRegistry {
@@ -16,8 +14,8 @@ fn load_chess_functions() -> FunctionRegistry {
         .join("chess.jsonc");
     let raw = fs::read_to_string(&path).unwrap_or_else(|e| panic!("read {path:?}: {e}"));
     let cleaned = strip_jsonc(&raw);
-    let game_functions: Map<String, Value> = serde_json::from_str(&cleaned)
-        .unwrap_or_else(|e| panic!("parse chess.jsonc: {e}"));
+    let game_functions: Map<String, Value> =
+        serde_json::from_str(&cleaned).unwrap_or_else(|e| panic!("parse chess.jsonc: {e}"));
     let mut fns = create_stdlib();
     for (k, v) in game_functions {
         fns.insert(k, FnEntry::body(v));
@@ -54,13 +52,38 @@ fn chess_load_functions() {
     let fns = load_chess_functions();
     for name in [
         // engine
-        "pieceColor", "pieceType", "otherColor", "rowOf", "colOf", "toIdx",
-        "inBounds", "pieceMoves", "isAttacked", "findKing", "isInCheck",
-        "applyMove", "isLegalMove", "hasAnyLegalMove", "getStatus", "playMove",
+        "pieceColor",
+        "pieceType",
+        "otherColor",
+        "rowOf",
+        "colOf",
+        "toIdx",
+        "inBounds",
+        "pieceMoves",
+        "isAttacked",
+        "findKing",
+        "isInCheck",
+        "applyMove",
+        "isLegalMove",
+        "hasAnyLegalMove",
+        "getStatus",
+        "playMove",
         // CLI / parsing / display layer
-        "newGame", "parseSquare", "squareName", "parseMove", "pieceGlyph",
-        "formatRank", "formatBoard", "turnLabel", "statusLine", "boardSection",
-        "showResult", "resetResult", "helpResult", "moveResult", "handleCommand",
+        "newGame",
+        "parseSquare",
+        "squareName",
+        "parseMove",
+        "pieceGlyph",
+        "formatRank",
+        "formatBoard",
+        "turnLabel",
+        "statusLine",
+        "boardSection",
+        "showResult",
+        "resetResult",
+        "helpResult",
+        "moveResult",
+        "handleCommand",
     ] {
         assert!(fns.contains_key(name), "missing function: {name}");
     }
@@ -87,10 +110,22 @@ fn chess_initial_position() {
     let state = new_game_state(&fns);
     let board = state["board"].clone();
 
-    assert_eq!(call_chess(&fns, "isInCheck", &[board.clone(), json!("w")]), json!(false));
-    assert_eq!(call_chess(&fns, "isInCheck", &[board.clone(), json!("b")]), json!(false));
-    assert_eq!(call_chess(&fns, "getStatus", &[board.clone(), json!("w")]), json!("playing"));
-    assert_eq!(call_chess(&fns, "hasAnyLegalMove", &[board, json!("w")]), json!(true));
+    assert_eq!(
+        call_chess(&fns, "isInCheck", &[board.clone(), json!("w")]),
+        json!(false)
+    );
+    assert_eq!(
+        call_chess(&fns, "isInCheck", &[board.clone(), json!("b")]),
+        json!(false)
+    );
+    assert_eq!(
+        call_chess(&fns, "getStatus", &[board.clone(), json!("w")]),
+        json!("playing")
+    );
+    assert_eq!(
+        call_chess(&fns, "hasAnyLegalMove", &[board, json!("w")]),
+        json!(true)
+    );
 }
 
 #[test]
@@ -138,13 +173,19 @@ fn chess_check_and_checkmate() {
     board[sq("a1") as usize] = json!("K");
     board[sq("e8") as usize] = json!("k");
     board[sq("e7") as usize] = json!("Q");
-    assert_eq!(call_chess(&fns, "isInCheck", &[Value::Array(board), json!("b")]), json!(true));
+    assert_eq!(
+        call_chess(&fns, "isInCheck", &[Value::Array(board), json!("b")]),
+        json!(true)
+    );
 
     let mut board = empty_board();
     board[sq("a8") as usize] = json!("k");
     board[sq("b7") as usize] = json!("Q");
     board[sq("c6") as usize] = json!("K");
-    assert_eq!(call_chess(&fns, "getStatus", &[Value::Array(board), json!("b")]), json!("checkmate"));
+    assert_eq!(
+        call_chess(&fns, "getStatus", &[Value::Array(board), json!("b")]),
+        json!("checkmate")
+    );
 }
 
 #[test]
@@ -154,8 +195,18 @@ fn chess_stalemate() {
     board[sq("a8") as usize] = json!("k");
     board[sq("b6") as usize] = json!("Q");
     board[sq("c1") as usize] = json!("K");
-    assert_eq!(call_chess(&fns, "isInCheck", &[Value::Array(board.clone()), json!("b")]), json!(false));
-    assert_eq!(call_chess(&fns, "getStatus", &[Value::Array(board), json!("b")]), json!("stalemate"));
+    assert_eq!(
+        call_chess(
+            &fns,
+            "isInCheck",
+            &[Value::Array(board.clone()), json!("b")]
+        ),
+        json!(false)
+    );
+    assert_eq!(
+        call_chess(&fns, "getStatus", &[Value::Array(board), json!("b")]),
+        json!("stalemate")
+    );
 }
 
 #[test]
@@ -166,7 +217,11 @@ fn chess_pawn_promotion() {
     board[sq("a8") as usize] = json!("k");
     board[sq("e7") as usize] = json!("P");
 
-    let new_board = call_chess(&fns, "applyMove", &[Value::Array(board), sq_v("e7"), sq_v("e8")]);
+    let new_board = call_chess(
+        &fns,
+        "applyMove",
+        &[Value::Array(board), sq_v("e7"), sq_v("e8")],
+    );
     let arr = new_board.as_array().unwrap();
     assert_eq!(arr[sq("e8") as usize], json!("Q"));
     assert_eq!(arr[sq("e7") as usize], Value::Null);
@@ -201,7 +256,10 @@ fn chess_fools_mate() {
     for (from, to) in moves {
         let prev_turn = state["turn"].clone();
         state = call_chess(&fns, "playMove", &[state.clone(), sq_v(from), sq_v(to)]);
-        assert_ne!(state["turn"], prev_turn, "move {from}{to} should have been legal");
+        assert_ne!(
+            state["turn"], prev_turn,
+            "move {from}{to} should have been legal"
+        );
     }
     assert_eq!(state["status"], json!("checkmate"));
 }

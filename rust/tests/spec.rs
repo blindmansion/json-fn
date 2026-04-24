@@ -43,7 +43,10 @@ struct TestSuite {
 }
 
 fn spec_dir() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..").join("spec").join("cases")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
+        .join("spec")
+        .join("cases")
 }
 
 #[test]
@@ -62,8 +65,8 @@ fn spec_conformance() {
 
     for path in entries {
         let data = fs::read(&path).unwrap_or_else(|e| panic!("read {path:?}: {e}"));
-        let suite: TestSuite = serde_json::from_slice(&data)
-            .unwrap_or_else(|e| panic!("parse {path:?}: {e}"));
+        let suite: TestSuite =
+            serde_json::from_slice(&data).unwrap_or_else(|e| panic!("parse {path:?}: {e}"));
 
         for case in suite.cases {
             total += 1;
@@ -118,7 +121,9 @@ fn run_case(
             if actual.contains(expected_msg) {
                 Ok(())
             } else {
-                Err(format!("Expected error containing {expected_msg:?}, got: {actual:?}"))
+                Err(format!(
+                    "Expected error containing {expected_msg:?}, got: {actual:?}"
+                ))
             }
         }
         (Some(expected_msg), Ok(v)) => Err(format!(
@@ -132,7 +137,9 @@ fn run_case(
             } else {
                 let got = serde_json::to_string_pretty(&v).unwrap_or_default();
                 let want = serde_json::to_string_pretty(&expected).unwrap_or_default();
-                Err(format!("Result mismatch.\n      Got:      {got}\n      Expected: {want}"))
+                Err(format!(
+                    "Result mismatch.\n      Got:      {got}\n      Expected: {want}"
+                ))
             }
         }
     }

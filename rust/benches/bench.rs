@@ -10,9 +10,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use criterion::{Criterion, criterion_group, criterion_main};
-use jsonfn::{
-    FnEntry, FunctionRegistry, Value, call_function, create_stdlib, strip_jsonc,
-};
+use jsonfn::{FnEntry, FunctionRegistry, Value, call_function, create_stdlib, strip_jsonc};
 use serde_json::{Map, json};
 
 fn make_deep_add(depth: usize) -> Value {
@@ -29,9 +27,7 @@ fn bench_deep_arithmetic(c: &mut Criterion) {
         let program = make_deep_add(depth);
         let stdlib = create_stdlib();
         group.bench_function(format!("depth={depth}"), |b| {
-            b.iter(|| {
-                call_function(std::hint::black_box(&program), &[], &stdlib, None).unwrap()
-            })
+            b.iter(|| call_function(std::hint::black_box(&program), &[], &stdlib, None).unwrap())
         });
     }
     group.finish();
@@ -122,7 +118,10 @@ fn make_many_vars(num_vars: usize) -> Value {
             json!({ "$fn": ["add", { "$var": format!("v{}", i - 1) }, 1] }),
         );
     }
-    body.insert("$return".into(), json!({ "$var": format!("v{}", num_vars - 1) }));
+    body.insert(
+        "$return".into(),
+        json!({ "$var": format!("v{}", num_vars - 1) }),
+    );
     Value::Object(body)
 }
 
@@ -186,7 +185,13 @@ fn make_closure_stress(captured_vars: usize, array_size: usize) -> Value {
 
 fn bench_closure_capture(c: &mut Criterion) {
     let mut group = c.benchmark_group("closure_capture");
-    for &(vars, size) in &[(5usize, 1000usize), (50, 1000), (200, 1000), (5, 10000), (50, 10000)] {
+    for &(vars, size) in &[
+        (5usize, 1000usize),
+        (50, 1000),
+        (200, 1000),
+        (5, 10000),
+        (50, 10000),
+    ] {
         let program = make_closure_stress(vars, size);
         let stdlib = create_stdlib();
         group.bench_function(format!("vars={vars}_arr={size}"), |b| {

@@ -42,7 +42,10 @@ pub fn parse_path(s: &str) -> Result<ParsedPath, EvalError> {
     let bracket = bytes.iter().position(|&b| b == b'[');
 
     if dot.is_none() && bracket.is_none() {
-        let parsed = ParsedPath { variable: s.to_string(), path: Vec::new() };
+        let parsed = ParsedPath {
+            variable: s.to_string(),
+            path: Vec::new(),
+        };
         cache_put(s, parsed.clone());
         return Ok(parsed);
     }
@@ -112,7 +115,10 @@ pub fn parse_path(s: &str) -> Result<ParsedPath, EvalError> {
         }
     }
 
-    let parsed = ParsedPath { variable: variable.to_string(), path };
+    let parsed = ParsedPath {
+        variable: variable.to_string(),
+        path,
+    };
     cache_put(s, parsed.clone());
     Ok(parsed)
 }

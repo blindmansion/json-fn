@@ -11,13 +11,13 @@ import (
 )
 
 type testCase struct {
-	Description string            `json:"description"`
-	Body        any               `json:"body"`
-	Args        []any             `json:"args"`
-	Functions   map[string]any    `json:"functions"`
-	Limits      *ExecutionLimits  `json:"limits"`
-	Expected    any               `json:"expected"`
-	Error       *string           `json:"error"`
+	Description string           `json:"description"`
+	Body        any              `json:"body"`
+	Args        []any            `json:"args"`
+	Functions   map[string]any   `json:"functions"`
+	Limits      *ExecutionLimits `json:"limits"`
+	Expected    any              `json:"expected"`
+	Error       *string          `json:"error"`
 }
 
 type testSuite struct {
