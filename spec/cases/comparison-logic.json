@@ -210,6 +210,53 @@
       "expected": true
     },
     {
+      "description": "jsonEq: true for structurally equal arrays",
+      "body": {
+        "$return": { "$fn": ["jsonEq", [1, { "x": [true, null] }], [1, { "x": [true, null] }]] }
+      },
+      "expected": true
+    },
+    {
+      "description": "jsonEq: true for structurally equal objects regardless of key order",
+      "body": {
+        "$return": { "$fn": ["jsonEq", { "a": 1, "b": [2, 3] }, { "b": [2, 3], "a": 1 }] }
+      },
+      "expected": true
+    },
+    {
+      "description": "jsonEq: false when array order differs",
+      "body": {
+        "$return": { "$fn": ["jsonEq", [1, 2, 3], [3, 2, 1]] }
+      },
+      "expected": false
+    },
+    {
+      "description": "jsonEq: false for boolean vs number",
+      "body": {
+        "$return": { "$fn": ["jsonEq", true, 1] }
+      },
+      "expected": false
+    },
+    {
+      "description": "jsonEq: false for number vs string",
+      "body": {
+        "$return": { "$fn": ["jsonEq", 1, "1"] }
+      },
+      "expected": false
+    },
+    {
+      "description": "jsonNeq: negates jsonEq",
+      "body": {
+        "$return": {
+          "$and": [
+            { "$fn": ["jsonNeq", { "x": 1 }, { "x": 2 }] },
+            { "$not": { "$fn": ["jsonNeq", { "x": [1] }, { "x": [1] }] } }
+          ]
+        }
+      },
+      "expected": true
+    },
+    {
       "description": "$eq: rejects non-array operands",
       "body": {
         "$return": { "$eq": 1 }

@@ -377,14 +377,18 @@ All functions listed below are available in the standard library.
 
 ### Comparison
 
-| Function | Args     | Description       |
-| -------- | -------- | ----------------- |
-| `eq`     | `(a, b)` | strict equality   |
-| `neq`    | `(a, b)` | strict inequality |
-| `gt`     | `(a, b)` | `a > b`           |
-| `gte`    | `(a, b)` | `a >= b`          |
-| `lt`     | `(a, b)` | `a < b`           |
-| `lte`    | `(a, b)` | `a <= b`          |
+| Function  | Args     | Description                  |
+| --------- | -------- | ---------------------------- |
+| `eq`      | `(a, b)` | strict equality              |
+| `neq`     | `(a, b)` | strict inequality            |
+| `jsonEq`  | `(a, b)` | structural JSON equality     |
+| `jsonNeq` | `(a, b)` | structural JSON inequality   |
+| `gt`      | `(a, b)` | `a > b`                      |
+| `gte`     | `(a, b)` | `a >= b`                     |
+| `lt`      | `(a, b)` | `a < b`                      |
+| `lte`     | `(a, b)` | `a <= b`                     |
+
+`jsonEq` and `jsonNeq` compare arrays and objects recursively; object key order does not matter. They do not coerce types, so `true` is not `1` and `"1"` is not `1`.
 
 ### Logic
 

@@ -5,7 +5,7 @@ use serde_json::{Map, Number, Value};
 
 use crate::error::EvalError;
 use crate::value::{
-    FnEntry, FunctionRegistry, get_arity, is_truthy, json_less, scalar_equal, to_f64,
+    FnEntry, FunctionRegistry, get_arity, is_truthy, json_equal, json_less, scalar_equal, to_f64,
 };
 
 fn one_float(args: &[Value], name: &str) -> Result<f64, EvalError> {
@@ -155,6 +155,14 @@ pub fn create_stdlib() -> FunctionRegistry {
     r.insert(
         "neq".into(),
         FnEntry::pure(2, |a| Ok(Value::Bool(!scalar_equal(&a[0], &a[1])))),
+    );
+    r.insert(
+        "jsonEq".into(),
+        FnEntry::pure(2, |a| Ok(Value::Bool(json_equal(&a[0], &a[1])))),
+    );
+    r.insert(
+        "jsonNeq".into(),
+        FnEntry::pure(2, |a| Ok(Value::Bool(!json_equal(&a[0], &a[1])))),
     );
     r.insert(
         "gt".into(),

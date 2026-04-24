@@ -51,6 +51,28 @@ function buildMatchResult(m: RegExpExecArray): Record<string, any> {
   return { match: m[0], index: m.index, groups, named };
 }
 
+function jsonEqual(a: JSONType, b: JSONType): boolean {
+  if (a === null || b === null) return a === b;
+  if (typeof a === "boolean" || typeof b === "boolean") return typeof b === "boolean" && a === b;
+  if (typeof a === "number" || typeof b === "number") return typeof b === "number" && a === b;
+  if (typeof a === "string" || typeof b === "string") return typeof b === "string" && a === b;
+  if (Array.isArray(a) || Array.isArray(b)) {
+    return (
+      Array.isArray(a) &&
+      Array.isArray(b) &&
+      a.length === b.length &&
+      a.every((v, i) => jsonEqual(v, b[i]!))
+    );
+  }
+
+  const aEntries = Object.entries(a);
+  const bObj = b as Record<string, JSONType>;
+  return (
+    aEntries.length === Object.keys(bObj).length &&
+    aEntries.every(([k, v]) => Object.hasOwn(bObj, k) && jsonEqual(v, bObj[k]!))
+  );
+}
+
 export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
   const log = options.logger ?? defaultLogger;
   return {
@@ -80,6 +102,8 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
     // Comparison
     eq: pure((a: any, b: any) => a === b),
     neq: pure((a: any, b: any) => a !== b),
+    jsonEq: pure((a: JSONType, b: JSONType) => jsonEqual(a, b)),
+    jsonNeq: pure((a: JSONType, b: JSONType) => !jsonEqual(a, b)),
     gt: pure((a: number, b: number) => a > b),
     gte: pure((a: number, b: number) => a >= b),
     lt: pure((a: number, b: number) => a < b),
