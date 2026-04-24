@@ -38,6 +38,20 @@ fn sorted_keys(obj: &Map<String, Value>) -> Vec<&String> {
     keys
 }
 
+fn format_log_value(value: &Value) -> String {
+    if let Value::String(s) = value {
+        return s.clone();
+    }
+    serde_json::to_string_pretty(value).unwrap_or_else(|_| value.to_string())
+}
+
+fn format_log_label(label: &Value) -> String {
+    if let Value::String(s) = label {
+        return s.clone();
+    }
+    serde_json::to_string(label).unwrap_or_else(|_| label.to_string())
+}
+
 /// Constructs the standard library used by the conformance tests and the
 /// chess example. Mirrors Go's `CreateStdlib`.
 pub fn create_stdlib() -> FunctionRegistry {
@@ -1087,6 +1101,20 @@ pub fn create_stdlib() -> FunctionRegistry {
                 Some(n) => Ok(num(n as f64)),
                 None => Ok(Value::Null),
             }
+        }),
+    );
+
+    // -- Debugging ----------------------------------------------------------
+    r.insert(
+        "log".into(),
+        FnEntry::pure(2, |a| {
+            let formatted = format_log_value(&a[0]);
+            if let Some(label) = a.get(1) {
+                println!("[{}] {}", format_log_label(label), formatted);
+            } else {
+                println!("{formatted}");
+            }
+            Ok(a[0].clone())
         }),
     );
 

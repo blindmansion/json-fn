@@ -70,8 +70,8 @@ func (e ExpressionType) String() string {
 type CallFunc func(fn any, args []any) (any, error)
 
 // PureFunc is a native Go function that operates only on its arguments and
-// produces no side effects. The interpreter does not clone arguments or
-// results for pure functions.
+// does not call back into the interpreter. The interpreter does not clone
+// arguments or results for pure functions.
 type PureFunc struct {
 	Fn    func(args []any) (any, error)
 	Arity int

@@ -157,6 +157,23 @@ def _json_dump(v: Any) -> str:
         return repr(v)
 
 
+def _json_dump_pretty(v: Any) -> str:
+    """Human-readable JSON serialization used by ``log``."""
+    try:
+        return json.dumps(v, indent=2)
+    except (TypeError, ValueError):
+        return repr(v)
+
+
+def _log_label(v: Any) -> str:
+    if isinstance(v, str):
+        return v
+    return _json_dump(v)
+
+
+_MISSING = object()
+
+
 # --- regex helpers ----------------------------------------------------------
 
 _INLINE_FLAGS_RE = re.compile(r"^\(\?([imsu]*)\)")
@@ -908,6 +925,17 @@ def create_stdlib() -> FunctionRegistry:
     def _(fn: Any, *, ctx: BuiltinContext) -> JsonValue:
         a = _arity_of(fn, ctx.registry)
         return None if a < 0 else a
+
+    # --- debugging ---------------------------------------------------------
+
+    @r.pure("log", arity=2)
+    def _(value: Any, label: Any = _MISSING) -> JsonValue:
+        formatted = value if isinstance(value, str) else _json_dump_pretty(value)
+        if label is not _MISSING:
+            print(f"[{_log_label(label)}] {formatted}")
+        else:
+            print(formatted)
+        return value
 
     return r.build()
 

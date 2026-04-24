@@ -1,0 +1,69 @@
+{
+  "description": "debug log",
+  "cases": [
+    {
+      "description": "log returns a number unchanged",
+      "body": {
+        "$return": {
+          "$fn": ["log", 42]
+        }
+      },
+      "expected": 42
+    },
+    {
+      "description": "log returns a string unchanged with a label",
+      "body": {
+        "$return": {
+          "$fn": ["log", "hello", "greeting"]
+        }
+      },
+      "expected": "hello"
+    },
+    {
+      "description": "log returns an object unchanged with a label",
+      "body": {
+        "$return": {
+          "$fn": [
+            "log",
+            {
+              "answer": 42,
+              "ok": true
+            },
+            "debug"
+          ]
+        }
+      },
+      "expected": {
+        "answer": 42,
+        "ok": true
+      }
+    },
+    {
+      "description": "log returns an array unchanged",
+      "body": {
+        "$return": {
+          "$fn": ["log", [1, { "two": 2 }, null]]
+        }
+      },
+      "expected": [1, { "two": 2 }, null]
+    },
+    {
+      "description": "log works inside higher-order callbacks",
+      "body": {
+        "$return": {
+          "$fn": [
+            "map",
+            {
+              "$params": ["x"],
+              "$return": {
+                "$fn": ["log", { "$var": "x" }, "item"]
+              }
+            },
+            [1, 2, 3]
+          ]
+        }
+      },
+      "expected": [1, 2, 3]
+    }
+  ]
+}

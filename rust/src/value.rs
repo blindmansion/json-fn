@@ -8,7 +8,8 @@ use crate::error::EvalError;
 /// JSON value type used throughout the interpreter.
 pub type Value = SerdeValue;
 
-/// Native function that operates on its arguments only and returns a value.
+/// Native function that operates on its arguments without calling back into
+/// the interpreter.
 /// Mirrors Go's `PureFunc`.
 pub type PureFn = Arc<dyn Fn(&[Value]) -> Result<Value, EvalError> + Send + Sync>;
 
@@ -60,7 +61,7 @@ impl BodyMeta {
 
 /// One entry in the function registry.
 ///
-/// - `Pure`: side-effect-free Rust function.
+/// - `Pure`: Rust function that does not call back into the interpreter.
 /// - `Builtin`: Rust function that can call back into the interpreter (map, reduce, ...).
 /// - `Body`: a json-fn function body — a JSON object containing `$return`,
 ///   shared by `Arc` so cloning the entry is just an atomic refcount bump.

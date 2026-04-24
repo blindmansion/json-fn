@@ -19,6 +19,28 @@ func sortedObjectKeys(obj map[string]any) []string {
 	return keys
 }
 
+func formatLogValue(value any) string {
+	if s, ok := value.(string); ok {
+		return s
+	}
+	b, err := json.MarshalIndent(value, "", "  ")
+	if err != nil {
+		return fmt.Sprint(value)
+	}
+	return string(b)
+}
+
+func formatLogLabel(label any) string {
+	if s, ok := label.(string); ok {
+		return s
+	}
+	b, err := json.Marshal(label)
+	if err != nil {
+		return fmt.Sprint(label)
+	}
+	return string(b)
+}
+
 // CreateStdlib returns a FunctionRegistry populated with the standard library
 // functions: arithmetic, comparison, logic, type checks, coercion, arrays,
 // strings, objects, higher-order functions, and regex operations.
@@ -1075,6 +1097,17 @@ func CreateStdlib() FunctionRegistry {
 				return float64(a), nil
 			},
 		},
+
+		// Debugging
+		"log": &PureFunc{Arity: 2, Fn: func(args []any) (any, error) {
+			formatted := formatLogValue(args[0])
+			if len(args) > 1 {
+				fmt.Printf("[%s] %s\n", formatLogLabel(args[1]), formatted)
+			} else {
+				fmt.Println(formatted)
+			}
+			return args[0], nil
+		}},
 	}
 }
 

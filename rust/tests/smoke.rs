@@ -26,3 +26,15 @@ fn smoke_higher_order() {
     let result = call_function(&body, &[], &stdlib, None).expect("eval");
     assert_eq!(result, json!([2, 4, 6, 8]));
 }
+
+#[test]
+fn smoke_log_returns_value() {
+    let stdlib = create_stdlib();
+    let body = json!({
+        "$return": {
+            "$fn": ["log", { "answer": 42, "ok": true }, "debug"]
+        }
+    });
+    let result = call_function(&body, &[], &stdlib, None).expect("eval");
+    assert_eq!(result, json!({ "answer": 42, "ok": true }));
+}
