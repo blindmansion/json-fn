@@ -80,12 +80,28 @@ type ExecutionLimits = {
   maxCallDepth?: number;
   maxOperations?: number;
   signal?: AbortSignal;
+  perf?: PerfStats;
 };
 
 type ResolvedLimits = {
   maxCallDepth: number;
   maxOperations: number;
   signal?: AbortSignal;
+};
+
+type PerfStats = {
+  evaluateExpression: number;
+  getExpressionType: number;
+  callFunctionInternal: number;
+  callJSONFunction: number;
+  callExternalFunction: number;
+  replaceVars: number;
+  cloneIfNeeded: number;
+  structuredClones: number;
+  rawSkips: number;
+  exprTypeCounts: Record<string, number>;
+  functionCallCounts: Record<string, number>;
+  maxCallDepth: number;
 };
 
 type CallState = {
@@ -98,6 +114,7 @@ type EvaluationContext = {
   getVar?: (name: string) => JSONType | undefined;
   limits: ResolvedLimits;
   state: CallState;
+  perf?: PerfStats;
 };
 
 export type {
@@ -109,6 +126,7 @@ export type {
   FunctionDeclaration,
   EvaluationContext,
   ExecutionLimits,
+  PerfStats,
   ResolvedLimits,
   CallState,
   FunctionBody,

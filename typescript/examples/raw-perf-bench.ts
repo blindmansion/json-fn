@@ -1,8 +1,7 @@
 import {
   callFunction,
   createStdlib,
-  enablePerf,
-  disablePerf,
+  createPerfStats,
   raw,
   type JSONType,
   type PerfStats,
@@ -85,20 +84,23 @@ for (const size of [100, 500, 1000]) {
   const data = generateRecords(size);
 
   console.log(`  --- size=${size}, without raw() ---`);
-  let stats = enablePerf();
-  bench(`plain`, () => callFunction(closureCapture as FunctionDeclaration, [data], functions), 5);
-  disablePerf();
+  let stats = createPerfStats();
+  bench(
+    `plain`,
+    () => callFunction(closureCapture as FunctionDeclaration, [data], functions, { perf: stats }),
+    5,
+  );
   printPerfStats(stats);
 
   const rawData = raw(structuredClone(data)) as JSONType[];
   console.log(`  --- size=${size}, with raw() ---`);
-  stats = enablePerf();
+  stats = createPerfStats();
   bench(
     `raw()`,
-    () => callFunction(closureCapture as FunctionDeclaration, [rawData], functions),
+    () =>
+      callFunction(closureCapture as FunctionDeclaration, [rawData], functions, { perf: stats }),
     5,
   );
-  disablePerf();
   printPerfStats(stats);
 
   console.log();
@@ -148,24 +150,26 @@ for (const size of [100, 500, 1000]) {
   const data = generateRecords(size);
 
   console.log(`  --- size=${size}, without raw() ---`);
-  let stats = enablePerf();
+  let stats = createPerfStats();
   bench(
     `plain`,
-    () => callFunction({ $return: { $fn: ["pipelineProcess", data] } }, [], functions),
+    () =>
+      callFunction({ $return: { $fn: ["pipelineProcess", data] } }, [], functions, { perf: stats }),
     5,
   );
-  disablePerf();
   printPerfStats(stats);
 
   const rawData = raw(structuredClone(data)) as JSONType[];
   console.log(`  --- size=${size}, with raw() ---`);
-  stats = enablePerf();
+  stats = createPerfStats();
   bench(
     `raw()`,
-    () => callFunction({ $return: { $fn: ["pipelineProcess", rawData] } }, [], functions),
+    () =>
+      callFunction({ $return: { $fn: ["pipelineProcess", rawData] } }, [], functions, {
+        perf: stats,
+      }),
     5,
   );
-  disablePerf();
   printPerfStats(stats);
 
   console.log();
@@ -211,16 +215,22 @@ for (const size of [50, 200, 500]) {
   const data = generateRecords(size);
 
   console.log(`  --- size=${size} (${size * 3} inner iterations), without raw() ---`);
-  let stats = enablePerf();
-  bench(`plain`, () => callFunction(nestedCapture as FunctionDeclaration, [data], functions), 3);
-  disablePerf();
+  let stats = createPerfStats();
+  bench(
+    `plain`,
+    () => callFunction(nestedCapture as FunctionDeclaration, [data], functions, { perf: stats }),
+    3,
+  );
   printPerfStats(stats);
 
   const rawData = raw(structuredClone(data)) as JSONType[];
   console.log(`  --- size=${size} (${size * 3} inner iterations), with raw() ---`);
-  stats = enablePerf();
-  bench(`raw()`, () => callFunction(nestedCapture as FunctionDeclaration, [rawData], functions), 3);
-  disablePerf();
+  stats = createPerfStats();
+  bench(
+    `raw()`,
+    () => callFunction(nestedCapture as FunctionDeclaration, [rawData], functions, { perf: stats }),
+    3,
+  );
   printPerfStats(stats);
 
   console.log();
@@ -270,15 +280,21 @@ console.log("═══ 4. $literal (JSON-level escape) ═══\n");
   };
 
   console.log(`  --- size=${size}, without $literal ---`);
-  let stats = enablePerf();
-  bench(`plain`, () => callFunction(withoutLiteral as FunctionDeclaration, [], functions), 5);
-  disablePerf();
+  let stats = createPerfStats();
+  bench(
+    `plain`,
+    () => callFunction(withoutLiteral as FunctionDeclaration, [], functions, { perf: stats }),
+    5,
+  );
   printPerfStats(stats);
 
   console.log(`  --- size=${size}, with $literal ---`);
-  stats = enablePerf();
-  bench(`$literal`, () => callFunction(withLiteral as FunctionDeclaration, [], functions), 5);
-  disablePerf();
+  stats = createPerfStats();
+  bench(
+    `$literal`,
+    () => callFunction(withLiteral as FunctionDeclaration, [], functions, { perf: stats }),
+    5,
+  );
   printPerfStats(stats);
 }
 

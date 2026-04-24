@@ -6,7 +6,7 @@
 // property access, conditionals, and lazy variable evaluation.
 // ---------------------------------------------------------------------------
 
-import { callFunction, createStdlib, enablePerf, disablePerf, type JSONType } from "../src";
+import { callFunction, createPerfStats, createStdlib, type JSONType } from "../src";
 import gameFunctions from "../../examples/tictactoe.jsonc";
 
 // ---------------------------------------------------------------------------
@@ -131,11 +131,13 @@ console.log("Board state (O to move):");
 console.log(formatBoard(aiBoard as JSONType[]));
 
 console.log("\nFinding best move for O...");
-const perfStats = enablePerf();
+const perfStats = createPerfStats();
 const t0 = performance.now();
-const bestPos = log("  bestMove(board, O)", call("bestMove", aiBoard, "O"));
+const bestPos = log(
+  "  bestMove(board, O)",
+  callFunction(functions.bestMove, [aiBoard, "O"], functions, { perf: perfStats }),
+);
 const elapsed = (performance.now() - t0).toFixed(0);
-disablePerf();
 console.log(`  (computed in ${elapsed}ms)`);
 console.log(`  evaluateExpression: ${perfStats.evaluateExpression.toLocaleString()}`);
 console.log(`  rawSkips:           ${perfStats.rawSkips.toLocaleString()}`);

@@ -13,6 +13,7 @@ import type {
   PropertyAccess,
   VarPropertyAccess,
   EvaluatedFunctionCall,
+  PerfStats,
 } from "./types";
 import { ExpressionType } from "./types";
 import {
@@ -25,27 +26,8 @@ import {
   raw,
 } from "./utils";
 
-export type PerfStats = {
-  evaluateExpression: number;
-  getExpressionType: number;
-  callFunctionInternal: number;
-  callJSONFunction: number;
-  callExternalFunction: number;
-  replaceVars: number;
-  cloneIfNeeded: number;
-  structuredClones: number;
-  rawSkips: number;
-  exprTypeCounts: Record<string, number>;
-  functionCallCounts: Record<string, number>;
-  maxCallDepth: number;
-};
-
-let _perf: PerfStats | null = null;
-let _callDepth = 0;
-
-export function enablePerf(): PerfStats {
-  _callDepth = 0;
-  _perf = {
+export function createPerfStats(): PerfStats {
+  return {
     evaluateExpression: 0,
     getExpressionType: 0,
     callFunctionInternal: 0,
@@ -59,20 +41,12 @@ export function enablePerf(): PerfStats {
     functionCallCounts: {},
     maxCallDepth: 0,
   };
-  return _perf;
 }
 
-export function disablePerf(): PerfStats | null {
-  const stats = _perf;
-  _perf = null;
-  _callDepth = 0;
-  return stats;
-}
-
-function cloneIfNeeded(value: JSONType): JSONType {
-  if (_perf) _perf.cloneIfNeeded++;
+function cloneIfNeeded(value: JSONType, perf?: PerfStats): JSONType {
+  if (perf) perf.cloneIfNeeded++;
   if (value === null || typeof value !== "object") return value;
-  if (_perf) _perf.structuredClones++;
+  if (perf) perf.structuredClones++;
   return structuredClone(value);
 }
 
@@ -212,6 +186,7 @@ export function callFunction(
       signal: limits?.signal,
     },
     state: { depth: 0, operations: 0 },
+    perf: limits?.perf,
   });
 }
 
@@ -220,21 +195,19 @@ function callFunctionInternal(
   args: JSONType[],
   context: EvaluationContext,
 ): JSONType {
-  if (_perf) {
-    _perf.callFunctionInternal++;
-    _callDepth++;
-    if (_callDepth > _perf.maxCallDepth) _perf.maxCallDepth = _callDepth;
-  }
+  const { perf } = context;
+  if (perf) perf.callFunctionInternal++;
   context.state.depth++;
   try {
     if (context.state.depth > context.limits.maxCallDepth) {
       throw new Error(`Maximum call depth of ${context.limits.maxCallDepth} exceeded`);
     }
+    if (perf && context.state.depth > perf.maxCallDepth) perf.maxCallDepth = context.state.depth;
     const { functions } = context;
     let result: JSONType;
     if (typeof fn === "string") {
-      if (_perf) {
-        _perf.functionCallCounts[fn] = (_perf.functionCallCounts[fn] ?? 0) + 1;
+      if (perf) {
+        perf.functionCallCounts[fn] = (perf.functionCallCounts[fn] ?? 0) + 1;
       }
       const entry = functions[fn];
       if (entry === undefined) {
@@ -247,18 +220,19 @@ function callFunctionInternal(
             callFunctionInternal(f as FunctionDeclaration, a, context);
           result = entry(args, call, functions);
         } else {
-          result = callExternalFunction(entry, args, fn);
+          result = callExternalFunction(entry, args, fn, context);
         }
       } else {
         result = callJSONFunction(entry as FunctionBody, args, {
           functions,
           limits: context.limits,
           state: context.state,
+          perf,
         });
       }
     } else {
-      if (_perf) {
-        _perf.functionCallCounts["<inline>"] = (_perf.functionCallCounts["<inline>"] ?? 0) + 1;
+      if (perf) {
+        perf.functionCallCounts["<inline>"] = (perf.functionCallCounts["<inline>"] ?? 0) + 1;
       }
       result = callJSONFunction(fn as FunctionBody, args, context);
     }
@@ -266,12 +240,17 @@ function callFunctionInternal(
     return result;
   } finally {
     context.state.depth--;
-    if (_perf) _callDepth--;
   }
 }
 
-function callExternalFunction(fn: Function, args: JSONType[], name: string): JSONType {
-  if (_perf) _perf.callExternalFunction++;
+function callExternalFunction(
+  fn: Function,
+  args: JSONType[],
+  name: string,
+  context: EvaluationContext,
+): JSONType {
+  const { perf } = context;
+  if (perf) perf.callExternalFunction++;
   if (isPure(fn)) {
     try {
       return fn(...args);
@@ -279,17 +258,18 @@ function callExternalFunction(fn: Function, args: JSONType[], name: string): JSO
       throw new Error(`Error calling external function ${name}: ${e}`);
     }
   }
-  const safeArgs = args.map((a) => cloneIfNeeded(a));
+  const safeArgs = args.map((a) => cloneIfNeeded(a, perf));
   try {
     const result = fn(...safeArgs);
-    return cloneIfNeeded(result);
+    return cloneIfNeeded(result, perf);
   } catch (e) {
     throw new Error(`Error calling external function ${name}: ${e}`);
   }
 }
 
 function callJSONFunction(fn: FunctionBody, args: JSONType[], context: EvaluationContext) {
-  if (_perf) _perf.callJSONFunction++;
+  const { perf } = context;
+  if (perf) perf.callJSONFunction++;
   const { functions, getVar: getVarParent, limits, state } = context;
 
   const localFnKeys: string[] = [];
@@ -360,15 +340,22 @@ function callJSONFunction(fn: FunctionBody, args: JSONType[], context: Evaluatio
 
   if (localFnKeys.length > 0) {
     for (const key of localFnKeys) {
-      scopedFunctions[key] = replaceVars(fn[key]!, getVar) as FunctionBody;
+      scopedFunctions[key] = replaceVars(fn[key]!, getVar, perf) as FunctionBody;
     }
   }
 
-  return evaluateExpression(fn.$return, { functions: scopedFunctions, getVar, limits, state });
+  return evaluateExpression(fn.$return, {
+    functions: scopedFunctions,
+    getVar,
+    limits,
+    state,
+    perf,
+  });
 }
 
 function evaluateExpression(expression: JSONType, context: EvaluationContext): JSONType {
-  if (_perf) _perf.evaluateExpression++;
+  const { perf } = context;
+  if (perf) perf.evaluateExpression++;
 
   if (context.limits.signal?.aborted) {
     throw new Error("Execution aborted");
@@ -381,10 +368,10 @@ function evaluateExpression(expression: JSONType, context: EvaluationContext): J
   }
 
   const { getVar } = context;
-  const expressionType = getExpressionType(expression);
-  if (_perf) {
+  const expressionType = getExpressionType(expression, perf);
+  if (perf) {
     const name = ExpressionType[expressionType] ?? String(expressionType);
-    _perf.exprTypeCounts[name] = (_perf.exprTypeCounts[name] ?? 0) + 1;
+    perf.exprTypeCounts[name] = (perf.exprTypeCounts[name] ?? 0) + 1;
   }
 
   switch (expressionType) {
@@ -422,7 +409,7 @@ function evaluateExpression(expression: JSONType, context: EvaluationContext): J
       if (!getVar) {
         return expression;
       }
-      return replaceVars(expression, getVar);
+      return replaceVars(expression, getVar, perf);
 
     case ExpressionType.Conditional:
       const conditional = expression as Conditional;
@@ -473,7 +460,7 @@ function evaluateExpression(expression: JSONType, context: EvaluationContext): J
     case ExpressionType.Array:
       const array = expression as JSONType[];
       if (isRaw(array)) {
-        if (_perf) _perf.rawSkips++;
+        if (perf) perf.rawSkips++;
         return array;
       }
       return array.map((item) => evaluateExpression(item, context));
@@ -481,7 +468,7 @@ function evaluateExpression(expression: JSONType, context: EvaluationContext): J
     case ExpressionType.Object:
       const object = expression as { [key: string]: JSONType };
       if (isRaw(object)) {
-        if (_perf) _perf.rawSkips++;
+        if (perf) perf.rawSkips++;
         return object;
       }
       const stripComment = isCommentKey(object);
@@ -507,14 +494,15 @@ function evaluateExpression(expression: JSONType, context: EvaluationContext): J
 function replaceVars(
   expression: JSONType,
   getVar: (name: string) => JSONType | undefined,
+  perf?: PerfStats,
 ): JSONType {
-  if (_perf) _perf.replaceVars++;
+  if (perf) perf.replaceVars++;
   if (typeof expression === "object" && expression !== null && isRaw(expression)) {
-    if (_perf) _perf.rawSkips++;
+    if (perf) perf.rawSkips++;
     return expression;
   }
   if (Array.isArray(expression)) {
-    return expression.map((item) => replaceVars(item, getVar));
+    return expression.map((item) => replaceVars(item, getVar, perf));
   }
 
   if (typeof expression === "object" && expression !== null) {
@@ -522,7 +510,7 @@ function replaceVars(
       const parsed = parsePath(expression.$var);
       if ("$get" in expression) {
         const varValue = getVar(parsed.variable);
-        const replacedKey = replaceVars(expression.$get, getVar);
+        const replacedKey = replaceVars(expression.$get, getVar, perf);
         if (varValue !== undefined) {
           if (parsed.path.length > 0) {
             const pathKey: JSONType = parsed.path.length === 1 ? parsed.path[0]! : parsed.path;
@@ -569,14 +557,14 @@ function replaceVars(
 
       const newObject: Record<string, JSONType> = {};
       for (const [key, value] of Object.entries(expression)) {
-        newObject[key] = replaceVars(value, maskedGetVar);
+        newObject[key] = replaceVars(value, maskedGetVar, perf);
       }
       return newObject;
     }
 
     const newObject: Record<string, JSONType> = {};
     for (const [key, value] of Object.entries(expression)) {
-      newObject[key] = replaceVars(value, getVar);
+      newObject[key] = replaceVars(value, getVar, perf);
     }
     return newObject;
   }
@@ -677,10 +665,8 @@ function evaluateFunctionCall(
   return { fnDeclaration, args };
 }
 
-const _typeCache = new WeakMap<object, ExpressionType>();
-
-function getExpressionType(json: JSONType): ExpressionType {
-  if (_perf) _perf.getExpressionType++;
+function getExpressionType(json: JSONType, perf?: PerfStats): ExpressionType {
+  if (perf) perf.getExpressionType++;
   if (json === null) return ExpressionType.Null;
   const t = typeof json;
   if (t === "string") return ExpressionType.String;
@@ -689,12 +675,7 @@ function getExpressionType(json: JSONType): ExpressionType {
   }
   if (t === "boolean") return ExpressionType.Boolean;
 
-  const cached = _typeCache.get(json as object);
-  if (cached !== undefined) return cached;
-
-  const computed = classifyExpressionType(json);
-  _typeCache.set(json as object, computed);
-  return computed;
+  return classifyExpressionType(json);
 }
 
 function classifyExpressionType(json: JSONType): ExpressionType {

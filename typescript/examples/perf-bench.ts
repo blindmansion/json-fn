@@ -1,11 +1,4 @@
-import {
-  callFunction,
-  createStdlib,
-  enablePerf,
-  disablePerf,
-  type JSONType,
-  type PerfStats,
-} from "../src";
+import { callFunction, createStdlib, createPerfStats, type JSONType, type PerfStats } from "../src";
 import type { FunctionDeclaration } from "../src/types";
 
 const functions: Record<string, any> = createStdlib();
@@ -70,9 +63,12 @@ function makeDeepAdd(depth: number): JSONType {
 
 for (const depth of [100, 500, 1000, 5000]) {
   const program = makeDeepAdd(depth);
-  const stats = enablePerf();
-  bench(`depth=${depth}`, () => callFunction(program as FunctionDeclaration, [], functions), 50);
-  disablePerf();
+  const stats = createPerfStats();
+  bench(
+    `depth=${depth}`,
+    () => callFunction(program as FunctionDeclaration, [], functions, { perf: stats }),
+    50,
+  );
   if (depth === 5000) printPerfStats(stats);
 }
 
@@ -90,13 +86,12 @@ const mapProgram: JSONType = {
 
 for (const size of [100, 1000, 5000, 10000]) {
   const arr = Array.from({ length: size }, (_, i) => i);
-  const stats = enablePerf();
+  const stats = createPerfStats();
   bench(
     `size=${size}`,
-    () => callFunction(mapProgram as FunctionDeclaration, [arr], functions),
+    () => callFunction(mapProgram as FunctionDeclaration, [arr], functions, { perf: stats }),
     10,
   );
-  disablePerf();
   if (size === 10000) printPerfStats(stats);
 }
 
@@ -129,13 +124,12 @@ const nestedMapProgram: JSONType = {
 
 for (const size of [10, 50, 100]) {
   const grid = Array.from({ length: size }, () => Array.from({ length: size }, (_, i) => i));
-  const stats = enablePerf();
+  const stats = createPerfStats();
   bench(
     `${size}x${size}`,
-    () => callFunction(nestedMapProgram as FunctionDeclaration, [grid], functions),
+    () => callFunction(nestedMapProgram as FunctionDeclaration, [grid], functions, { perf: stats }),
     5,
   );
-  disablePerf();
   if (size === 100) printPerfStats(stats);
 }
 
@@ -161,13 +155,12 @@ const sumProgram: JSONType = {
 
 for (const size of [100, 1000, 5000, 10000]) {
   const arr = Array.from({ length: size }, (_, i) => i);
-  const stats = enablePerf();
+  const stats = createPerfStats();
   bench(
     `size=${size}`,
-    () => callFunction(sumProgram as FunctionDeclaration, [arr], functions),
+    () => callFunction(sumProgram as FunctionDeclaration, [arr], functions, { perf: stats }),
     10,
   );
-  disablePerf();
   if (size === 10000) printPerfStats(stats);
 }
 
@@ -188,9 +181,12 @@ function makeManyVarsProgram(numVars: number): JSONType {
 
 for (const numVars of [10, 50, 100, 500]) {
   const program = makeManyVarsProgram(numVars);
-  const stats = enablePerf();
-  bench(`vars=${numVars}`, () => callFunction(program as FunctionDeclaration, [0], functions), 100);
-  disablePerf();
+  const stats = createPerfStats();
+  bench(
+    `vars=${numVars}`,
+    () => callFunction(program as FunctionDeclaration, [0], functions, { perf: stats }),
+    100,
+  );
   if (numVars === 500) printPerfStats(stats);
 }
 
@@ -215,11 +211,10 @@ functions.fib = {
 };
 
 for (const n of [10, 15, 20, 22]) {
-  const stats = enablePerf();
+  const stats = createPerfStats();
   const t0 = performance.now();
-  const result = callFunction({ $return: { $fn: ["fib", n] } }, [], functions);
+  const result = callFunction({ $return: { $fn: ["fib", n] } }, [], functions, { perf: stats });
   const elapsed = performance.now() - t0;
-  disablePerf();
   console.log(`  fib(${n}) = ${result}  (${elapsed.toFixed(1)}ms)`);
   if (n === 20) printPerfStats(stats);
 }
@@ -252,13 +247,12 @@ for (const [vars, size] of [
   [50, 10000],
 ] as [number, number][]) {
   const program = makeClosureStress(vars, size);
-  const stats = enablePerf();
+  const stats = createPerfStats();
   bench(
     `vars=${vars}, arr=${size}`,
-    () => callFunction(program as FunctionDeclaration, [], functions),
+    () => callFunction(program as FunctionDeclaration, [], functions, { perf: stats }),
     10,
   );
-  disablePerf();
   if (vars === 50 && size === 10000) printPerfStats(stats);
 }
 
@@ -475,11 +469,12 @@ functions.bestMove = {
 const aiBoard5: JSONType = ["O", null, "X", null, "X", null, "O", null, null];
 console.log("  Board with 5 empty cells:");
 {
-  const stats = enablePerf();
+  const stats = createPerfStats();
   bench("bestMove (5 empty)", () => {
-    callFunction({ $return: { $fn: ["bestMove", aiBoard5, "O"] } }, [], functions);
+    callFunction({ $return: { $fn: ["bestMove", aiBoard5, "O"] } }, [], functions, {
+      perf: stats,
+    });
   }, 3);
-  disablePerf();
   printPerfStats(stats);
 }
 
@@ -487,11 +482,12 @@ console.log("  Board with 5 empty cells:");
 const aiBoard7: JSONType = ["X", null, null, null, null, null, null, null, "O"];
 console.log("\n  Board with 7 empty cells:");
 {
-  const stats = enablePerf();
+  const stats = createPerfStats();
   bench("bestMove (7 empty)", () => {
-    callFunction({ $return: { $fn: ["bestMove", aiBoard7, "O"] } }, [], functions);
+    callFunction({ $return: { $fn: ["bestMove", aiBoard7, "O"] } }, [], functions, {
+      perf: stats,
+    });
   }, 1);
-  disablePerf();
   printPerfStats(stats);
 }
 
@@ -516,13 +512,12 @@ console.log("\n═══ 9. getExpressionType overhead (isolated) ═══");
     },
   };
   const smallArr = Array.from({ length: 100 }, () => bigObject);
-  const stats = enablePerf();
+  const stats = createPerfStats();
   bench(
     "map over 100 large objects",
-    () => callFunction(program as FunctionDeclaration, [smallArr], functions),
+    () => callFunction(program as FunctionDeclaration, [smallArr], functions, { perf: stats }),
     100,
   );
-  disablePerf();
   printPerfStats(stats);
 }
 
