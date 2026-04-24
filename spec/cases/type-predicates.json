@@ -28,12 +28,16 @@
     },
     {
       "description": "isBool: false for array",
-      "body": { "$return": { "$fn": ["isBool", [1, 2]] } },
+      "body": {
+        "$return": { "$fn": ["isBool", [1, 2]] }
+      },
       "expected": false
     },
     {
       "description": "isBool: false for object",
-      "body": { "$return": { "$fn": ["isBool", { "a": 1 }] } },
+      "body": {
+        "$return": { "$fn": ["isBool", { "a": 1 }] }
+      },
       "expected": false
     },
     {
@@ -98,22 +102,30 @@
     },
     {
       "description": "isString: false for array",
-      "body": { "$return": { "$fn": ["isString", ["a", "b"]] } },
+      "body": {
+        "$return": { "$fn": ["isString", ["a", "b"]] }
+      },
       "expected": false
     },
     {
       "description": "isArray: true for non-empty array",
-      "body": { "$return": { "$fn": ["isArray", [1, 2, 3]] } },
+      "body": {
+        "$return": { "$fn": ["isArray", [1, 2, 3]] }
+      },
       "expected": true
     },
     {
       "description": "isArray: true for empty array",
-      "body": { "$return": { "$fn": ["isArray", []] } },
+      "body": {
+        "$return": { "$fn": ["isArray", []] }
+      },
       "expected": true
     },
     {
       "description": "isArray: false for object",
-      "body": { "$return": { "$fn": ["isArray", { "a": 1 }] } },
+      "body": {
+        "$return": { "$fn": ["isArray", { "a": 1 }] }
+      },
       "expected": false
     },
     {

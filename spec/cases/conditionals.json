@@ -5,30 +5,8 @@
       "$params": ["n"],
       "$return": {
         "$cond": [
-          [
-            {
-              "$fn": [
-                "lt",
-                {
-                  "$var": "n"
-                },
-                0
-              ]
-            },
-            "negative"
-          ],
-          [
-            {
-              "$fn": [
-                "eq",
-                {
-                  "$var": "n"
-                },
-                0
-              ]
-            },
-            "zero"
-          ],
+          [{ "$fn": ["lt", { "$var": "n" }, 0] }, "negative"],
+          [{ "$fn": ["eq", { "$var": "n" }, 0] }, "zero"],
           [true, "positive"]
         ]
       }
@@ -36,72 +14,18 @@
     "fizzbuzz": {
       "$params": ["n"],
       "divBy3": {
-        "$fn": [
-          "eq",
-          {
-            "$fn": [
-              "mod",
-              {
-                "$var": "n"
-              },
-              3
-            ]
-          },
-          0
-        ]
+        "$fn": ["eq", { "$fn": ["mod", { "$var": "n" }, 3] }, 0]
       },
       "divBy5": {
-        "$fn": [
-          "eq",
-          {
-            "$fn": [
-              "mod",
-              {
-                "$var": "n"
-              },
-              5
-            ]
-          },
-          0
-        ]
+        "$fn": ["eq", { "$fn": ["mod", { "$var": "n" }, 5] }, 0]
       },
-      "divBy15": {
-        "$fn": [
-          "and",
-          {
-            "$var": "divBy3"
-          },
-          {
-            "$var": "divBy5"
-          }
-        ]
-      },
+      "divBy15": { "$fn": ["and", { "$var": "divBy3" }, { "$var": "divBy5" }] },
       "$return": {
         "$cond": [
-          [
-            {
-              "$var": "divBy15"
-            },
-            "FizzBuzz"
-          ],
-          [
-            {
-              "$var": "divBy3"
-            },
-            "Fizz"
-          ],
-          [
-            {
-              "$var": "divBy5"
-            },
-            "Buzz"
-          ],
-          [
-            true,
-            {
-              "$var": "n"
-            }
-          ]
+          [{ "$var": "divBy15" }, "FizzBuzz"],
+          [{ "$var": "divBy3" }, "Fizz"],
+          [{ "$var": "divBy5" }, "Buzz"],
+          [true, { "$var": "n" }]
         ]
       }
     }
@@ -111,9 +35,7 @@
       "description": "$if: truthy condition returns $then",
       "body": {
         "$return": {
-          "$if": {
-            "$fn": ["gt", 10, 5]
-          },
+          "$if": { "$fn": ["gt", 10, 5] },
           "$then": "ten is greater",
           "$else": "five is greater"
         }
@@ -124,9 +46,7 @@
       "description": "$if: falsy condition returns $else",
       "body": {
         "$return": {
-          "$if": {
-            "$fn": ["gt", 3, 5]
-          },
+          "$if": { "$fn": ["gt", 3, 5] },
           "$then": "three is greater",
           "$else": "five is greater"
         }
@@ -135,65 +55,37 @@
     },
     {
       "description": "$cond: classify negative",
-      "body": {
-        "$return": {
-          "$fn": ["classify", -5]
-        }
-      },
+      "body": { "$return": { "$fn": ["classify", -5] } },
       "expected": "negative"
     },
     {
       "description": "$cond: classify zero",
-      "body": {
-        "$return": {
-          "$fn": ["classify", 0]
-        }
-      },
+      "body": { "$return": { "$fn": ["classify", 0] } },
       "expected": "zero"
     },
     {
       "description": "$cond: classify positive",
-      "body": {
-        "$return": {
-          "$fn": ["classify", 42]
-        }
-      },
+      "body": { "$return": { "$fn": ["classify", 42] } },
       "expected": "positive"
     },
     {
       "description": "$cond: fizzbuzz(15) → FizzBuzz",
-      "body": {
-        "$return": {
-          "$fn": ["fizzbuzz", 15]
-        }
-      },
+      "body": { "$return": { "$fn": ["fizzbuzz", 15] } },
       "expected": "FizzBuzz"
     },
     {
       "description": "$cond: fizzbuzz(9) → Fizz",
-      "body": {
-        "$return": {
-          "$fn": ["fizzbuzz", 9]
-        }
-      },
+      "body": { "$return": { "$fn": ["fizzbuzz", 9] } },
       "expected": "Fizz"
     },
     {
       "description": "$cond: fizzbuzz(10) → Buzz",
-      "body": {
-        "$return": {
-          "$fn": ["fizzbuzz", 10]
-        }
-      },
+      "body": { "$return": { "$fn": ["fizzbuzz", 10] } },
       "expected": "Buzz"
     },
     {
       "description": "$cond: fizzbuzz(7) → 7 (number passthrough)",
-      "body": {
-        "$return": {
-          "$fn": ["fizzbuzz", 7]
-        }
-      },
+      "body": { "$return": { "$fn": ["fizzbuzz", 7] } },
       "expected": 7
     },
     {
@@ -202,54 +94,10 @@
         "$params": ["score"],
         "$return": {
           "$cond": [
-            [
-              {
-                "$fn": [
-                  "gte",
-                  {
-                    "$var": "score"
-                  },
-                  90
-                ]
-              },
-              "A"
-            ],
-            [
-              {
-                "$fn": [
-                  "gte",
-                  {
-                    "$var": "score"
-                  },
-                  80
-                ]
-              },
-              "B"
-            ],
-            [
-              {
-                "$fn": [
-                  "gte",
-                  {
-                    "$var": "score"
-                  },
-                  70
-                ]
-              },
-              "C"
-            ],
-            [
-              {
-                "$fn": [
-                  "gte",
-                  {
-                    "$var": "score"
-                  },
-                  60
-                ]
-              },
-              "D"
-            ],
+            [{ "$fn": ["gte", { "$var": "score" }, 90] }, "A"],
+            [{ "$fn": ["gte", { "$var": "score" }, 80] }, "B"],
+            [{ "$fn": ["gte", { "$var": "score" }, 70] }, "C"],
+            [{ "$fn": ["gte", { "$var": "score" }, 60] }, "D"],
             [true, "F"]
           ]
         }
@@ -262,12 +110,7 @@
       "body": {
         "$return": {
           "$cond": [
-            [
-              false,
-              {
-                "$fn": ["add", 1, 2]
-              }
-            ],
+            [false, { "$fn": ["add", 1, 2] }],
             [true, "matched second"],
             [true, "never reached"]
           ]
@@ -278,9 +121,7 @@
     {
       "description": "$cond: single pair works as a guard",
       "body": {
-        "$return": {
-          "$cond": [[true, "always this"]]
-        }
+        "$return": { "$cond": [[true, "always this"]] }
       },
       "expected": "always this"
     },
@@ -300,39 +141,26 @@
     {
       "description": "$cond: matched branch skips $else",
       "body": {
-        "$return": {
-          "$cond": [[true, "matched"]],
-          "$else": { "$fn": ["div", 1, 0] }
-        }
+        "$return": { "$cond": [[true, "matched"]], "$else": { "$fn": ["div", 1, 0] } }
       },
       "expected": "matched"
     },
     {
       "description": "$cond: no match without $else errors",
       "body": {
-        "$return": {
-          "$cond": [[false, "no"]]
-        }
+        "$return": { "$cond": [[false, "no"]] }
       },
       "error": "No $cond branch matched"
     },
     {
       "description": "$cond: rejects non-array branches",
-      "body": {
-        "$return": {
-          "$cond": true,
-          "$else": "fallback"
-        }
-      },
+      "body": { "$return": { "$cond": true, "$else": "fallback" } },
       "error": "$cond must be an array of [condition, result] pairs"
     },
     {
       "description": "$cond: rejects malformed branches",
       "body": {
-        "$return": {
-          "$cond": [[true, "yes", "extra"]],
-          "$else": "fallback"
-        }
+        "$return": { "$cond": [[true, "yes", "extra"]], "$else": "fallback" }
       },
       "error": "Each $cond branch must be a [condition, result] pair"
     },
@@ -357,11 +185,7 @@
       "description": "$match: $else returns fallback when no case matches",
       "body": {
         "$params": ["cmd"],
-        "$return": {
-          "$match": { "$var": "cmd" },
-          "$cases": [["show", "display"]],
-          "$else": "move"
-        }
+        "$return": { "$match": { "$var": "cmd" }, "$cases": [["show", "display"]], "$else": "move" }
       },
       "args": ["e2e4"],
       "expected": "move"
@@ -434,21 +258,13 @@
     {
       "description": "$match: requires $else",
       "body": {
-        "$return": {
-          "$match": "missing",
-          "$cases": [["show", "display"]]
-        }
+        "$return": { "$match": "missing", "$cases": [["show", "display"]] }
       },
       "error": "$match expressions must have $match, $cases, and $else properties"
     },
     {
       "description": "$match: requires $cases",
-      "body": {
-        "$return": {
-          "$match": "show",
-          "$else": "fallback"
-        }
-      },
+      "body": { "$return": { "$match": "show", "$else": "fallback" } },
       "error": "$match expressions must have $match, $cases, and $else properties"
     },
     {
@@ -464,79 +280,65 @@
     },
     {
       "description": "$and: all truthy returns last value",
-      "body": {
-        "$return": { "$and": [1, "hello", true] }
-      },
+      "body": { "$return": { "$and": [1, "hello", true] } },
       "expected": true
     },
     {
       "description": "$and: short-circuits on first falsy",
       "body": {
-        "$return": { "$and": [1, 0, { "$fn": ["div", 1, 0] }] }
+        "$return": {
+          "$and": [1, 0, { "$fn": ["div", 1, 0] }]
+        }
       },
       "expected": 0
     },
     {
       "description": "$and: empty array returns true",
-      "body": {
-        "$return": { "$and": [] }
-      },
+      "body": { "$return": { "$and": [] } },
       "expected": true
     },
     {
       "description": "$and: single falsy element",
-      "body": {
-        "$return": { "$and": [null] }
-      },
+      "body": { "$return": { "$and": [null] } },
       "expected": null
     },
     {
       "description": "$and: single truthy element",
-      "body": {
-        "$return": { "$and": ["yes"] }
-      },
+      "body": { "$return": { "$and": ["yes"] } },
       "expected": "yes"
     },
     {
       "description": "$and: returns the falsy value, not boolean",
-      "body": {
-        "$return": { "$and": [true, "", "unreached"] }
-      },
+      "body": { "$return": { "$and": [true, "", "unreached"] } },
       "expected": ""
     },
     {
       "description": "$or: all falsy returns last value",
-      "body": {
-        "$return": { "$or": [false, 0, null] }
-      },
+      "body": { "$return": { "$or": [false, 0, null] } },
       "expected": null
     },
     {
       "description": "$or: short-circuits on first truthy",
       "body": {
-        "$return": { "$or": [false, "found", { "$fn": ["div", 1, 0] }] }
+        "$return": {
+          "$or": [false, "found", { "$fn": ["div", 1, 0] }]
+        }
       },
       "expected": "found"
     },
     {
       "description": "$or: empty array returns false",
-      "body": {
-        "$return": { "$or": [] }
-      },
+      "body": { "$return": { "$or": [] } },
       "expected": false
     },
     {
       "description": "$or: single truthy element",
-      "body": {
-        "$return": { "$or": [42] }
-      },
+      "body": { "$return": { "$or": [42] } },
       "expected": 42
     },
     {
       "description": "$or: returns the truthy value, not boolean",
-      "body": {
-        "$return": { "$or": [null, 0, "winner", "unreached"] }
-      },
+      "body": { "$return": { "$or": [null, 0, "winner", "unreached"] } },
       "expected": "winner"
     },
     {
@@ -546,7 +348,9 @@
         "$return": {
           "$and": [
             { "$fn": ["gt", { "$var": "x" }, 0] },
-            { "$or": [{ "$fn": ["eq", { "$var": "x" }, 42] }, "positive"] }
+            {
+              "$or": [{ "$fn": ["eq", { "$var": "x" }, 42] }, "positive"]
+            }
           ]
         }
       },

@@ -108,16 +108,12 @@
     },
     {
       "description": "slice: works on strings",
-      "body": {
-        "$return": { "$fn": ["slice", "hello world", 6] }
-      },
+      "body": { "$return": { "$fn": ["slice", "hello world", 6] } },
       "expected": "world"
     },
     {
       "description": "slice: string with start and end",
-      "body": {
-        "$return": { "$fn": ["slice", "hello world", 0, 5] }
-      },
+      "body": { "$return": { "$fn": ["slice", "hello world", 0, 5] } },
       "expected": "hello"
     },
     {
@@ -172,29 +168,29 @@
     {
       "description": "indexOf: does not use structural equality for arrays",
       "body": {
-        "$return": { "$fn": ["indexOf", [[1]], [1]] }
+        "$return": {
+          "$fn": ["indexOf", [[1]], [1]]
+        }
       },
       "expected": -1
     },
     {
       "description": "indexOf: does not use structural equality for objects",
       "body": {
-        "$return": { "$fn": ["indexOf", [{ "x": 1 }], { "x": 1 }] }
+        "$return": {
+          "$fn": ["indexOf", [{ "x": 1 }], { "x": 1 }]
+        }
       },
       "expected": -1
     },
     {
       "description": "indexOf: found in string",
-      "body": {
-        "$return": { "$fn": ["indexOf", "hello world", "world"] }
-      },
+      "body": { "$return": { "$fn": ["indexOf", "hello world", "world"] } },
       "expected": 6
     },
     {
       "description": "indexOf: not found in string returns -1",
-      "body": {
-        "$return": { "$fn": ["indexOf", "hello", "xyz"] }
-      },
+      "body": { "$return": { "$fn": ["indexOf", "hello", "xyz"] } },
       "expected": -1
     },
     {
@@ -214,29 +210,29 @@
     {
       "description": "includes: does not use structural equality for arrays",
       "body": {
-        "$return": { "$fn": ["includes", [[1]], [1]] }
+        "$return": {
+          "$fn": ["includes", [[1]], [1]]
+        }
       },
       "expected": false
     },
     {
       "description": "includes: does not use structural equality for objects",
       "body": {
-        "$return": { "$fn": ["includes", [{ "x": 1 }], { "x": 1 }] }
+        "$return": {
+          "$fn": ["includes", [{ "x": 1 }], { "x": 1 }]
+        }
       },
       "expected": false
     },
     {
       "description": "includes: true when substring exists",
-      "body": {
-        "$return": { "$fn": ["includes", "hello world", "world"] }
-      },
+      "body": { "$return": { "$fn": ["includes", "hello world", "world"] } },
       "expected": true
     },
     {
       "description": "includes: false when substring missing",
-      "body": {
-        "$return": { "$fn": ["includes", "hello", "xyz"] }
-      },
+      "body": { "$return": { "$fn": ["includes", "hello", "xyz"] } },
       "expected": false
     },
     {

@@ -53,14 +53,7 @@
       "description": "find: empty array returns null",
       "body": {
         "$return": {
-          "$fn": [
-            "find",
-            {
-              "$params": ["x"],
-              "$return": true
-            },
-            []
-          ]
+          "$fn": ["find", { "$params": ["x"], "$return": true }, []]
         }
       },
       "expected": null
@@ -73,9 +66,7 @@
             "find",
             {
               "$params": ["item"],
-              "$return": {
-                "$fn": ["gt", { "$var": "item", "$get": "age" }, 30]
-              }
+              "$return": { "$fn": ["gt", { "$var": "item", "$get": "age" }, 30] }
             },
             [
               { "name": "alice", "age": 25 },
@@ -123,14 +114,7 @@
       "description": "findIndex: empty array returns -1",
       "body": {
         "$return": {
-          "$fn": [
-            "findIndex",
-            {
-              "$params": ["x"],
-              "$return": true
-            },
-            []
-          ]
+          "$fn": ["findIndex", { "$params": ["x"], "$return": true }, []]
         }
       },
       "expected": -1
@@ -187,14 +171,7 @@
       "description": "some: false for empty array",
       "body": {
         "$return": {
-          "$fn": [
-            "some",
-            {
-              "$params": ["x"],
-              "$return": true
-            },
-            []
-          ]
+          "$fn": ["some", { "$params": ["x"], "$return": true }, []]
         }
       },
       "expected": false
@@ -235,14 +212,7 @@
       "description": "every: true for empty array (vacuous truth)",
       "body": {
         "$return": {
-          "$fn": [
-            "every",
-            {
-              "$params": ["x"],
-              "$return": false
-            },
-            []
-          ]
+          "$fn": ["every", { "$params": ["x"], "$return": false }, []]
         }
       },
       "expected": true
@@ -255,9 +225,7 @@
             "sort",
             {
               "$params": ["a", "b"],
-              "$return": {
-                "$fn": ["sub", { "$var": "a" }, { "$var": "b" }]
-              }
+              "$return": { "$fn": ["sub", { "$var": "a" }, { "$var": "b" }] }
             },
             [3, 1, 4, 1, 5, 9, 2, 6]
           ]
@@ -273,9 +241,7 @@
             "sort",
             {
               "$params": ["a", "b"],
-              "$return": {
-                "$fn": ["sub", { "$var": "b" }, { "$var": "a" }]
-              }
+              "$return": { "$fn": ["sub", { "$var": "b" }, { "$var": "a" }] }
             },
             [3, 1, 4, 1, 5]
           ]
@@ -353,20 +319,8 @@
           "$params": ["x"],
           "$return": { "$fn": ["gte", { "$var": "x" }, 30] }
         },
-        "found": {
-          "$fn": [
-            "find",
-            { "$var": "pred" },
-            { "$var": "arr" }
-          ]
-        },
-        "idx": {
-          "$fn": [
-            "findIndex",
-            { "$var": "pred" },
-            { "$var": "arr" }
-          ]
-        },
+        "found": { "$fn": ["find", { "$var": "pred" }, { "$var": "arr" }] },
+        "idx": { "$fn": ["findIndex", { "$var": "pred" }, { "$var": "arr" }] },
         "$return": [{ "$var": "found" }, { "$var": "idx" }]
       },
       "expected": [30, 2]

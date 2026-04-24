@@ -8,48 +8,20 @@
         "fact": {
           "$params": ["x"],
           "$return": {
-            "$if": {
-              "$fn": [
-                "lte",
-                {
-                  "$var": "x"
-                },
-                1
-              ]
-            },
+            "$if": { "$fn": ["lte", { "$var": "x" }, 1] },
             "$then": 1,
             "$else": {
               "$fn": [
                 "mul",
+                { "$var": "x" },
                 {
-                  "$var": "x"
-                },
-                {
-                  "$fn": [
-                    "fact",
-                    {
-                      "$fn": [
-                        "sub",
-                        {
-                          "$var": "x"
-                        },
-                        1
-                      ]
-                    }
-                  ]
+                  "$fn": ["fact", { "$fn": ["sub", { "$var": "x" }, 1] }]
                 }
               ]
             }
           }
         },
-        "$return": {
-          "$fn": [
-            "fact",
-            {
-              "$var": "n"
-            }
-          ]
-        }
+        "$return": { "$fn": ["fact", { "$var": "n" }] }
       },
       "args": [5],
       "expected": 120
@@ -61,61 +33,22 @@
         "fib": {
           "$params": ["x"],
           "$return": {
-            "$if": {
-              "$fn": [
-                "lte",
-                {
-                  "$var": "x"
-                },
-                1
-              ]
-            },
-            "$then": {
-              "$var": "x"
-            },
+            "$if": { "$fn": ["lte", { "$var": "x" }, 1] },
+            "$then": { "$var": "x" },
             "$else": {
               "$fn": [
                 "add",
                 {
-                  "$fn": [
-                    "fib",
-                    {
-                      "$fn": [
-                        "sub",
-                        {
-                          "$var": "x"
-                        },
-                        1
-                      ]
-                    }
-                  ]
+                  "$fn": ["fib", { "$fn": ["sub", { "$var": "x" }, 1] }]
                 },
                 {
-                  "$fn": [
-                    "fib",
-                    {
-                      "$fn": [
-                        "sub",
-                        {
-                          "$var": "x"
-                        },
-                        2
-                      ]
-                    }
-                  ]
+                  "$fn": ["fib", { "$fn": ["sub", { "$var": "x" }, 2] }]
                 }
               ]
             }
           }
         },
-        "$return": {
-          "$fn": [
-            "fib",
-            {
-              "$var": "n"
-            }
-          ]
-        }
+        "$return": { "$fn": ["fib", { "$var": "n" }] }
       },
       "args": [10],
       "expected": 55
@@ -126,43 +59,20 @@
         "fact": {
           "$params": ["n"],
           "$return": {
-            "$if": {
-              "$fn": [
-                "lte",
-                {
-                  "$var": "n"
-                },
-                1
-              ]
-            },
+            "$if": { "$fn": ["lte", { "$var": "n" }, 1] },
             "$then": 1,
             "$else": {
               "$fn": [
                 "mul",
+                { "$var": "n" },
                 {
-                  "$var": "n"
-                },
-                {
-                  "$fn": [
-                    "fact",
-                    {
-                      "$fn": [
-                        "sub",
-                        {
-                          "$var": "n"
-                        },
-                        1
-                      ]
-                    }
-                  ]
+                  "$fn": ["fact", { "$fn": ["sub", { "$var": "n" }, 1] }]
                 }
               ]
             }
           }
         },
-        "$return": {
-          "$fn": ["fact", 0]
-        }
+        "$return": { "$fn": ["fact", 0] }
       },
       "expected": 1
     },
@@ -173,78 +83,26 @@
         "myIsEven": {
           "$params": ["x"],
           "$return": {
-            "$if": {
-              "$fn": [
-                "eq",
-                {
-                  "$var": "x"
-                },
-                0
-              ]
-            },
+            "$if": { "$fn": ["eq", { "$var": "x" }, 0] },
             "$then": true,
             "$else": {
-              "$fn": [
-                "myIsOdd",
-                {
-                  "$fn": [
-                    "sub",
-                    {
-                      "$var": "x"
-                    },
-                    1
-                  ]
-                }
-              ]
+              "$fn": ["myIsOdd", { "$fn": ["sub", { "$var": "x" }, 1] }]
             }
           }
         },
         "myIsOdd": {
           "$params": ["x"],
           "$return": {
-            "$if": {
-              "$fn": [
-                "eq",
-                {
-                  "$var": "x"
-                },
-                0
-              ]
-            },
+            "$if": { "$fn": ["eq", { "$var": "x" }, 0] },
             "$then": false,
             "$else": {
-              "$fn": [
-                "myIsEven",
-                {
-                  "$fn": [
-                    "sub",
-                    {
-                      "$var": "x"
-                    },
-                    1
-                  ]
-                }
-              ]
+              "$fn": ["myIsEven", { "$fn": ["sub", { "$var": "x" }, 1] }]
             }
           }
         },
         "$return": [
-          {
-            "$fn": [
-              "myIsEven",
-              {
-                "$var": "n"
-              }
-            ]
-          },
-          {
-            "$fn": [
-              "myIsOdd",
-              {
-                "$var": "n"
-              }
-            ]
-          }
+          { "$fn": ["myIsEven", { "$var": "n" }] },
+          { "$fn": ["myIsOdd", { "$var": "n" }] }
         ]
       },
       "args": [4],
@@ -257,78 +115,26 @@
         "myIsEven": {
           "$params": ["x"],
           "$return": {
-            "$if": {
-              "$fn": [
-                "eq",
-                {
-                  "$var": "x"
-                },
-                0
-              ]
-            },
+            "$if": { "$fn": ["eq", { "$var": "x" }, 0] },
             "$then": true,
             "$else": {
-              "$fn": [
-                "myIsOdd",
-                {
-                  "$fn": [
-                    "sub",
-                    {
-                      "$var": "x"
-                    },
-                    1
-                  ]
-                }
-              ]
+              "$fn": ["myIsOdd", { "$fn": ["sub", { "$var": "x" }, 1] }]
             }
           }
         },
         "myIsOdd": {
           "$params": ["x"],
           "$return": {
-            "$if": {
-              "$fn": [
-                "eq",
-                {
-                  "$var": "x"
-                },
-                0
-              ]
-            },
+            "$if": { "$fn": ["eq", { "$var": "x" }, 0] },
             "$then": false,
             "$else": {
-              "$fn": [
-                "myIsEven",
-                {
-                  "$fn": [
-                    "sub",
-                    {
-                      "$var": "x"
-                    },
-                    1
-                  ]
-                }
-              ]
+              "$fn": ["myIsEven", { "$fn": ["sub", { "$var": "x" }, 1] }]
             }
           }
         },
         "$return": [
-          {
-            "$fn": [
-              "myIsEven",
-              {
-                "$var": "n"
-              }
-            ]
-          },
-          {
-            "$fn": [
-              "myIsOdd",
-              {
-                "$var": "n"
-              }
-            ]
-          }
+          { "$fn": ["myIsEven", { "$var": "n" }] },
+          { "$fn": ["myIsOdd", { "$var": "n" }] }
         ]
       },
       "args": [5],
@@ -340,43 +146,20 @@
         "sumTo": {
           "$params": ["n"],
           "$return": {
-            "$if": {
-              "$fn": [
-                "lte",
-                {
-                  "$var": "n"
-                },
-                0
-              ]
-            },
+            "$if": { "$fn": ["lte", { "$var": "n" }, 0] },
             "$then": 0,
             "$else": {
               "$fn": [
                 "add",
+                { "$var": "n" },
                 {
-                  "$var": "n"
-                },
-                {
-                  "$fn": [
-                    "sumTo",
-                    {
-                      "$fn": [
-                        "sub",
-                        {
-                          "$var": "n"
-                        },
-                        1
-                      ]
-                    }
-                  ]
+                  "$fn": ["sumTo", { "$fn": ["sub", { "$var": "n" }, 1] }]
                 }
               ]
             }
           }
         },
-        "$return": {
-          "$fn": ["sumTo", 10]
-        }
+        "$return": { "$fn": ["sumTo", 10] }
       },
       "expected": 55
     },
@@ -388,50 +171,20 @@
         "fact": {
           "$params": ["x"],
           "$return": {
-            "$if": {
-              "$fn": [
-                "lte",
-                {
-                  "$var": "x"
-                },
-                {
-                  "$var": "threshold"
-                }
-              ]
-            },
+            "$if": { "$fn": ["lte", { "$var": "x" }, { "$var": "threshold" }] },
             "$then": 1,
             "$else": {
               "$fn": [
                 "mul",
+                { "$var": "x" },
                 {
-                  "$var": "x"
-                },
-                {
-                  "$fn": [
-                    "fact",
-                    {
-                      "$fn": [
-                        "sub",
-                        {
-                          "$var": "x"
-                        },
-                        1
-                      ]
-                    }
-                  ]
+                  "$fn": ["fact", { "$fn": ["sub", { "$var": "x" }, 1] }]
                 }
               ]
             }
           }
         },
-        "$return": {
-          "$fn": [
-            "fact",
-            {
-              "$var": "n"
-            }
-          ]
-        }
+        "$return": { "$fn": ["fact", { "$var": "n" }] }
       },
       "args": [5],
       "expected": 120
@@ -442,52 +195,23 @@
         "fact": {
           "$params": ["n"],
           "$return": {
-            "$if": {
-              "$fn": [
-                "lte",
-                {
-                  "$var": "n"
-                },
-                1
-              ]
-            },
+            "$if": { "$fn": ["lte", { "$var": "n" }, 1] },
             "$then": 1,
             "$else": {
               "$fn": [
                 "mul",
+                { "$var": "n" },
                 {
-                  "$var": "n"
-                },
-                {
-                  "$fn": [
-                    "fact",
-                    {
-                      "$fn": [
-                        "sub",
-                        {
-                          "$var": "n"
-                        },
-                        1
-                      ]
-                    }
-                  ]
+                  "$fn": ["fact", { "$fn": ["sub", { "$var": "n" }, 1] }]
                 }
               ]
             }
           }
         },
         "doubleFactorial": {
-          "$fn": [
-            "mul",
-            {
-              "$fn": ["fact", 5]
-            },
-            2
-          ]
+          "$fn": ["mul", { "$fn": ["fact", 5] }, 2]
         },
-        "$return": {
-          "$var": "doubleFactorial"
-        }
+        "$return": { "$var": "doubleFactorial" }
       },
       "expected": 240
     },
@@ -496,32 +220,14 @@
       "body": {
         "double": {
           "$params": ["x"],
-          "$return": {
-            "$fn": [
-              "mul",
-              {
-                "$var": "x"
-              },
-              3
-            ]
-          }
+          "$return": { "$fn": ["mul", { "$var": "x" }, 3] }
         },
-        "$return": {
-          "$fn": ["double", 5]
-        }
+        "$return": { "$fn": ["double", 5] }
       },
       "functions": {
         "double": {
           "$params": ["x"],
-          "$return": {
-            "$fn": [
-              "mul",
-              {
-                "$var": "x"
-              },
-              2
-            ]
-          }
+          "$return": { "$fn": ["mul", { "$var": "x" }, 2] }
         }
       },
       "expected": 15
@@ -532,49 +238,20 @@
         "fact": {
           "$params": ["n"],
           "$return": {
-            "$if": {
-              "$fn": [
-                "lte",
-                {
-                  "$var": "n"
-                },
-                1
-              ]
-            },
+            "$if": { "$fn": ["lte", { "$var": "n" }, 1] },
             "$then": 1,
             "$else": {
               "$fn": [
                 "mul",
+                { "$var": "n" },
                 {
-                  "$var": "n"
-                },
-                {
-                  "$fn": [
-                    "fact",
-                    {
-                      "$fn": [
-                        "sub",
-                        {
-                          "$var": "n"
-                        },
-                        1
-                      ]
-                    }
-                  ]
+                  "$fn": ["fact", { "$fn": ["sub", { "$var": "n" }, 1] }]
                 }
               ]
             }
           }
         },
-        "$return": {
-          "$fn": [
-            "map",
-            {
-              "$fn": "fact"
-            },
-            [1, 2, 3, 4, 5]
-          ]
-        }
+        "$return": { "$fn": ["map", { "$fn": "fact" }, [1, 2, 3, 4, 5]] }
       },
       "expected": [1, 2, 6, 24, 120]
     },
@@ -584,43 +261,20 @@
         "fact": {
           "$params": ["n"],
           "$return": {
-            "$if": {
-              "$fn": [
-                "lte",
-                {
-                  "$var": "n"
-                },
-                1
-              ]
-            },
+            "$if": { "$fn": ["lte", { "$var": "n" }, 1] },
             "$then": 1,
             "$else": {
               "$fn": [
                 "mul",
+                { "$var": "n" },
                 {
-                  "$var": "n"
-                },
-                {
-                  "$fn": [
-                    "fact",
-                    {
-                      "$fn": [
-                        "sub",
-                        {
-                          "$var": "n"
-                        },
-                        1
-                      ]
-                    }
-                  ]
+                  "$fn": ["fact", { "$fn": ["sub", { "$var": "n" }, 1] }]
                 }
               ]
             }
           }
         },
-        "$return": {
-          "$fn": ["fact", 6]
-        }
+        "$return": { "$fn": ["fact", 6] }
       },
       "expected": 720
     },
@@ -631,44 +285,19 @@
           "$params": ["first", "...rest"],
           "$return": {
             "$if": {
-              "$fn": [
-                "eq",
-                {
-                  "$fn": [
-                    "length",
-                    {
-                      "$var": "rest"
-                    }
-                  ]
-                },
-                0
-              ]
+              "$fn": ["eq", { "$fn": ["length", { "$var": "rest" }] }, 0]
             },
-            "$then": {
-              "$var": "first"
-            },
+            "$then": { "$var": "first" },
             "$else": {
               "$fn": [
                 "add",
-                {
-                  "$var": "first"
-                },
-                {
-                  "$fn": [
-                    "apply",
-                    "sumAll",
-                    {
-                      "$var": "rest"
-                    }
-                  ]
-                }
+                { "$var": "first" },
+                { "$fn": ["apply", "sumAll", { "$var": "rest" }] }
               ]
             }
           }
         },
-        "$return": {
-          "$fn": ["sumAll", 1, 2, 3, 4, 5]
-        }
+        "$return": { "$fn": ["sumAll", 1, 2, 3, 4, 5] }
       },
       "expected": 15
     },
@@ -682,48 +311,20 @@
               "fact": {
                 "$params": ["x"],
                 "$return": {
-                  "$if": {
-                    "$fn": [
-                      "lte",
-                      {
-                        "$var": "x"
-                      },
-                      1
-                    ]
-                  },
+                  "$if": { "$fn": ["lte", { "$var": "x" }, 1] },
                   "$then": 1,
                   "$else": {
                     "$fn": [
                       "mul",
+                      { "$var": "x" },
                       {
-                        "$var": "x"
-                      },
-                      {
-                        "$fn": [
-                          "fact",
-                          {
-                            "$fn": [
-                              "sub",
-                              {
-                                "$var": "x"
-                              },
-                              1
-                            ]
-                          }
-                        ]
+                        "$fn": ["fact", { "$fn": ["sub", { "$var": "x" }, 1] }]
                       }
                     ]
                   }
                 }
               },
-              "$return": {
-                "$fn": [
-                  "fact",
-                  {
-                    "$var": "n"
-                  }
-                ]
-              }
+              "$return": { "$fn": ["fact", { "$var": "n" }] }
             }
           ]
         }
@@ -738,47 +339,22 @@
           "fact": {
             "$params": ["n"],
             "$return": {
-              "$if": {
-                "$fn": [
-                  "lte",
-                  {
-                    "$var": "n"
-                  },
-                  1
-                ]
-              },
+              "$if": { "$fn": ["lte", { "$var": "n" }, 1] },
               "$then": 1,
               "$else": {
                 "$fn": [
                   "mul",
+                  { "$var": "n" },
                   {
-                    "$var": "n"
-                  },
-                  {
-                    "$fn": [
-                      "fact",
-                      {
-                        "$fn": [
-                          "sub",
-                          {
-                            "$var": "n"
-                          },
-                          1
-                        ]
-                      }
-                    ]
+                    "$fn": ["fact", { "$fn": ["sub", { "$var": "n" }, 1] }]
                   }
                 ]
               }
             }
           },
-          "$return": {
-            "$fn": ["fact", 5]
-          }
+          "$return": { "$fn": ["fact", 5] }
         },
-        "$return": {
-          "$fn": ["fact", 3]
-        }
+        "$return": { "$fn": ["fact", 3] }
       },
       "error": "Function fact not found"
     },
@@ -790,38 +366,16 @@
             {
               "helper": {
                 "$params": ["x"],
-                "$return": {
-                  "$fn": [
-                    "mul",
-                    {
-                      "$var": "x"
-                    },
-                    2
-                  ]
-                }
+                "$return": { "$fn": ["mul", { "$var": "x" }, 2] }
               },
               "$return": {
                 "$params": ["y"],
-                "$return": {
-                  "$fn": [
-                    "helper",
-                    {
-                      "$var": "y"
-                    }
-                  ]
-                }
+                "$return": { "$fn": ["helper", { "$var": "y" }] }
               }
             }
           ]
         },
-        "$return": {
-          "$fn": [
-            {
-              "$var": "closure"
-            },
-            5
-          ]
-        }
+        "$return": { "$fn": [{ "$var": "closure" }, 5] }
       },
       "error": "Function helper not found"
     }

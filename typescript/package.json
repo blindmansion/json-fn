@@ -3,8 +3,11 @@
   "type": "module",
   "module": "index.ts",
   "scripts": {
-    "check": "bunx tsc --noEmit && oxlint && oxfmt --check",
-    "fix": "bunx tsc --noEmit && oxlint --fix && oxfmt"
+    "check": "bunx tsc --noEmit && oxlint && oxfmt --check && bun run format:spec-cases:check",
+    "fix": "bun run fix:typescript && bun run format:spec-cases",
+    "fix:typescript": "bunx tsc --noEmit && oxlint --fix && oxfmt",
+    "format:spec-cases": "cd .. && ./typescript/node_modules/.bin/oxfmt 'spec/cases/*.json'",
+    "format:spec-cases:check": "cd .. && ./typescript/node_modules/.bin/oxfmt --check 'spec/cases/*.json'"
   },
   "devDependencies": {
     "@types/bun": "latest",

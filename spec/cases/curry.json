@@ -5,117 +5,40 @@
       "$params": ["a"],
       "$return": {
         "$params": ["b"],
-        "$return": {
-          "$fn": [
-            "add",
-            {
-              "$var": "a"
-            },
-            {
-              "$var": "b"
-            }
-          ]
-        }
+        "$return": { "$fn": ["add", { "$var": "a" }, { "$var": "b" }] }
       }
     },
     "accum": {
       "$params": ["...initial"],
       "$return": {
         "$params": ["...more"],
-        "$return": {
-          "$fn": [
-            "concat",
-            {
-              "$var": "initial"
-            },
-            {
-              "$var": "more"
-            }
-          ]
-        }
+        "$return": { "$fn": ["concat", { "$var": "initial" }, { "$var": "more" }] }
       }
     },
     "curriedAdd": {
       "$params": ["a"],
       "$return": {
         "$params": ["b"],
-        "$return": {
-          "$fn": [
-            "add",
-            {
-              "$var": "a"
-            },
-            {
-              "$var": "b"
-            }
-          ]
-        }
+        "$return": { "$fn": ["add", { "$var": "a" }, { "$var": "b" }] }
       }
     },
     "curryApply": {
       "$params": ["targetFn", "arity", "accumulated", "newArgs"],
-      "allArgs": {
-        "$fn": [
-          "concat",
-          {
-            "$var": "accumulated"
-          },
-          {
-            "$var": "newArgs"
-          }
-        ]
-      },
-      "numArgs": {
-        "$fn": [
-          "length",
-          {
-            "$var": "allArgs"
-          }
-        ]
-      },
-      "enough": {
-        "$fn": [
-          "gte",
-          {
-            "$var": "numArgs"
-          },
-          {
-            "$var": "arity"
-          }
-        ]
-      },
+      "allArgs": { "$fn": ["concat", { "$var": "accumulated" }, { "$var": "newArgs" }] },
+      "numArgs": { "$fn": ["length", { "$var": "allArgs" }] },
+      "enough": { "$fn": ["gte", { "$var": "numArgs" }, { "$var": "arity" }] },
       "$return": {
-        "$if": {
-          "$var": "enough"
-        },
-        "$then": {
-          "$fn": [
-            "apply",
-            {
-              "$var": "targetFn"
-            },
-            {
-              "$var": "allArgs"
-            }
-          ]
-        },
+        "$if": { "$var": "enough" },
+        "$then": { "$fn": ["apply", { "$var": "targetFn" }, { "$var": "allArgs" }] },
         "$else": {
           "$params": ["...nextArgs"],
           "$return": {
             "$fn": [
               "curryApply",
-              {
-                "$var": "targetFn"
-              },
-              {
-                "$var": "arity"
-              },
-              {
-                "$var": "allArgs"
-              },
-              {
-                "$var": "nextArgs"
-              }
+              { "$var": "targetFn" },
+              { "$var": "arity" },
+              { "$var": "allArgs" },
+              { "$var": "nextArgs" }
             ]
           }
         }
@@ -128,45 +51,26 @@
         "$return": {
           "$fn": [
             "curryApply",
-            {
-              "$var": "targetFn"
-            },
-            {
-              "$var": "arity"
-            },
+            { "$var": "targetFn" },
+            { "$var": "arity" },
             [],
-            {
-              "$var": "newArgs"
-            }
+            { "$var": "newArgs" }
           ]
         }
       }
     },
     "autoCurry": {
       "$params": ["targetFn"],
-      "detectedArity": {
-        "$fn": [
-          "arity",
-          {
-            "$var": "targetFn"
-          }
-        ]
-      },
+      "detectedArity": { "$fn": ["arity", { "$var": "targetFn" }] },
       "$return": {
         "$params": ["...newArgs"],
         "$return": {
           "$fn": [
             "curryApply",
-            {
-              "$var": "targetFn"
-            },
-            {
-              "$var": "detectedArity"
-            },
+            { "$var": "targetFn" },
+            { "$var": "detectedArity" },
             [],
-            {
-              "$var": "newArgs"
-            }
+            { "$var": "newArgs" }
           ]
         }
       }
@@ -174,23 +78,7 @@
     "add3": {
       "$params": ["a", "b", "c"],
       "$return": {
-        "$fn": [
-          "add",
-          {
-            "$var": "a"
-          },
-          {
-            "$fn": [
-              "add",
-              {
-                "$var": "b"
-              },
-              {
-                "$var": "c"
-              }
-            ]
-          }
-        ]
+        "$fn": ["add", { "$var": "a" }, { "$fn": ["add", { "$var": "b" }, { "$var": "c" }] }]
       }
     }
   },
@@ -201,31 +89,13 @@
         "$params": ["x"],
         "$return": {
           "$params": ["y"],
-          "$return": {
-            "$fn": [
-              "add",
-              {
-                "$var": "x"
-              },
-              {
-                "$var": "y"
-              }
-            ]
-          }
+          "$return": { "$fn": ["add", { "$var": "x" }, { "$var": "y" }] }
         }
       },
       "args": [10],
       "expected": {
         "$params": ["y"],
-        "$return": {
-          "$fn": [
-            "add",
-            10,
-            {
-              "$var": "y"
-            }
-          ]
-        }
+        "$return": { "$fn": ["add", 10, { "$var": "y" }] }
       }
     },
     {
@@ -237,41 +107,19 @@
               "$params": ["x"],
               "$return": {
                 "$params": ["y"],
-                "$return": {
-                  "$fn": [
-                    "add",
-                    {
-                      "$var": "x"
-                    },
-                    {
-                      "$var": "y"
-                    }
-                  ]
-                }
+                "$return": { "$fn": ["add", { "$var": "x" }, { "$var": "y" }] }
               }
             },
             10
           ]
         },
-        "$return": {
-          "$fn": [
-            {
-              "$var": "adder"
-            },
-            5
-          ]
-        }
+        "$return": { "$fn": [{ "$var": "adder" }, 5] }
       },
       "expected": 15
     },
     {
       "description": "variadic: capture all args with ...rest",
-      "body": {
-        "$params": ["...allArgs"],
-        "$return": {
-          "$var": "allArgs"
-        }
-      },
+      "body": { "$params": ["...allArgs"], "$return": { "$var": "allArgs" } },
       "args": [10, 20, 30],
       "expected": [10, 20, 30]
     },
@@ -279,15 +127,7 @@
       "description": "dynamic dispatch: call function by name from args (add)",
       "body": {
         "$params": ["fnName"],
-        "$return": {
-          "$fn": [
-            {
-              "$var": "fnName"
-            },
-            3,
-            4
-          ]
-        }
+        "$return": { "$fn": [{ "$var": "fnName" }, 3, 4] }
       },
       "args": ["add"],
       "expected": 7
@@ -296,71 +136,32 @@
       "description": "dynamic dispatch: call function by name from args (mul)",
       "body": {
         "$params": ["fnName"],
-        "$return": {
-          "$fn": [
-            {
-              "$var": "fnName"
-            },
-            3,
-            4
-          ]
-        }
+        "$return": { "$fn": [{ "$var": "fnName" }, 3, 4] }
       },
       "args": ["mul"],
       "expected": 12
     },
     {
       "description": "partialAdd(10) returns a function",
-      "body": {
-        "$return": {
-          "$fn": ["partialAdd", 10]
-        }
-      },
+      "body": { "$return": { "$fn": ["partialAdd", 10] } },
       "expected": {
         "$params": ["b"],
-        "$return": {
-          "$fn": [
-            "add",
-            10,
-            {
-              "$var": "b"
-            }
-          ]
-        }
+        "$return": { "$fn": ["add", 10, { "$var": "b" }] }
       }
     },
     {
       "description": "partialAdd(10)(7) = 17",
       "body": {
-        "partial": {
-          "$fn": ["partialAdd", 10]
-        },
-        "$return": {
-          "$fn": [
-            {
-              "$var": "partial"
-            },
-            7
-          ]
-        }
+        "partial": { "$fn": ["partialAdd", 10] },
+        "$return": { "$fn": [{ "$var": "partial" }, 7] }
       },
       "expected": 17
     },
     {
       "description": "accum(1,2)(3,4) concatenates args",
       "body": {
-        "step1": {
-          "$fn": ["accum", 1, 2]
-        },
-        "$return": {
-          "$fn": [
-            {
-              "$var": "step1"
-            },
-            3,
-            4
-          ]
-        }
+        "step1": { "$fn": ["accum", 1, 2] },
+        "$return": { "$fn": [{ "$var": "step1" }, 3, 4] }
       },
       "expected": [1, 2, 3, 4]
     },
@@ -368,26 +169,9 @@
       "description": "arity check: length([1,2,3]) >= 3 is true",
       "body": {
         "args": [1, 2, 3],
-        "numArgs": {
-          "$fn": [
-            "length",
-            {
-              "$var": "args"
-            }
-          ]
-        },
-        "enough": {
-          "$fn": [
-            "gte",
-            {
-              "$var": "numArgs"
-            },
-            3
-          ]
-        },
-        "$return": {
-          "$var": "enough"
-        }
+        "numArgs": { "$fn": ["length", { "$var": "args" }] },
+        "enough": { "$fn": ["gte", { "$var": "numArgs" }, 3] },
+        "$return": { "$var": "enough" }
       },
       "expected": true
     },
@@ -395,273 +179,99 @@
       "description": "arity check: length([1,2]) >= 3 is false",
       "body": {
         "args": [1, 2],
-        "numArgs": {
-          "$fn": [
-            "length",
-            {
-              "$var": "args"
-            }
-          ]
-        },
-        "enough": {
-          "$fn": [
-            "gte",
-            {
-              "$var": "numArgs"
-            },
-            3
-          ]
-        },
-        "$return": {
-          "$var": "enough"
-        }
+        "numArgs": { "$fn": ["length", { "$var": "args" }] },
+        "enough": { "$fn": ["gte", { "$var": "numArgs" }, 3] },
+        "$return": { "$var": "enough" }
       },
       "expected": false
     },
     {
       "description": "curriedAdd(10)(32) = 42",
       "body": {
-        "step1": {
-          "$fn": ["curriedAdd", 10]
-        },
-        "$return": {
-          "$fn": [
-            {
-              "$var": "step1"
-            },
-            32
-          ]
-        }
+        "step1": { "$fn": ["curriedAdd", 10] },
+        "$return": { "$fn": [{ "$var": "step1" }, 32] }
       },
       "expected": 42
     },
     {
       "description": "curry('add', 2) returns a function",
-      "body": {
-        "$return": {
-          "$fn": ["curry", "add", 2]
-        }
-      },
+      "body": { "$return": { "$fn": ["curry", "add", 2] } },
       "expected": {
         "$params": ["...newArgs"],
-        "$return": {
-          "$fn": [
-            "curryApply",
-            "add",
-            2,
-            [],
-            {
-              "$var": "newArgs"
-            }
-          ]
-        }
+        "$return": { "$fn": ["curryApply", "add", 2, [], { "$var": "newArgs" }] }
       }
     },
     {
       "description": "curry('add', 2)(10) returns another function",
       "body": {
-        "curriedAdd": {
-          "$fn": ["curry", "add", 2]
-        },
-        "$return": {
-          "$fn": [
-            {
-              "$var": "curriedAdd"
-            },
-            10
-          ]
-        }
+        "curriedAdd": { "$fn": ["curry", "add", 2] },
+        "$return": { "$fn": [{ "$var": "curriedAdd" }, 10] }
       },
       "expected": {
         "$params": ["...nextArgs"],
-        "$return": {
-          "$fn": [
-            "curryApply",
-            "add",
-            2,
-            [10],
-            {
-              "$var": "nextArgs"
-            }
-          ]
-        }
+        "$return": { "$fn": ["curryApply", "add", 2, [10], { "$var": "nextArgs" }] }
       }
     },
     {
       "description": "curry('add', 2)(10)(32) = 42",
       "body": {
-        "step1": {
-          "$fn": ["curry", "add", 2]
-        },
-        "step2": {
-          "$fn": [
-            {
-              "$var": "step1"
-            },
-            10
-          ]
-        },
-        "$return": {
-          "$fn": [
-            {
-              "$var": "step2"
-            },
-            32
-          ]
-        }
+        "step1": { "$fn": ["curry", "add", 2] },
+        "step2": { "$fn": [{ "$var": "step1" }, 10] },
+        "$return": { "$fn": [{ "$var": "step2" }, 32] }
       },
       "expected": 42
     },
     {
       "description": "curry('add', 2)(10, 32) — all args at once",
       "body": {
-        "curriedAdd": {
-          "$fn": ["curry", "add", 2]
-        },
-        "$return": {
-          "$fn": [
-            {
-              "$var": "curriedAdd"
-            },
-            10,
-            32
-          ]
-        }
+        "curriedAdd": { "$fn": ["curry", "add", 2] },
+        "$return": { "$fn": [{ "$var": "curriedAdd" }, 10, 32] }
       },
       "expected": 42
     },
     {
       "description": "curry('add3', 3)(1)(2)(3) = 6",
       "body": {
-        "step1": {
-          "$fn": ["curry", "add3", 3]
-        },
-        "step2": {
-          "$fn": [
-            {
-              "$var": "step1"
-            },
-            1
-          ]
-        },
-        "step3": {
-          "$fn": [
-            {
-              "$var": "step2"
-            },
-            2
-          ]
-        },
-        "$return": {
-          "$fn": [
-            {
-              "$var": "step3"
-            },
-            3
-          ]
-        }
+        "step1": { "$fn": ["curry", "add3", 3] },
+        "step2": { "$fn": [{ "$var": "step1" }, 1] },
+        "step3": { "$fn": [{ "$var": "step2" }, 2] },
+        "$return": { "$fn": [{ "$var": "step3" }, 3] }
       },
       "expected": 6
     },
     {
       "description": "curry('add3', 3)(1, 2)(3) = 6",
       "body": {
-        "step1": {
-          "$fn": ["curry", "add3", 3]
-        },
-        "step2": {
-          "$fn": [
-            {
-              "$var": "step1"
-            },
-            1,
-            2
-          ]
-        },
-        "$return": {
-          "$fn": [
-            {
-              "$var": "step2"
-            },
-            3
-          ]
-        }
+        "step1": { "$fn": ["curry", "add3", 3] },
+        "step2": { "$fn": [{ "$var": "step1" }, 1, 2] },
+        "$return": { "$fn": [{ "$var": "step2" }, 3] }
       },
       "expected": 6
     },
     {
       "description": "autoCurry('add')(10)(32) = 42",
       "body": {
-        "step1": {
-          "$fn": ["autoCurry", "add"]
-        },
-        "step2": {
-          "$fn": [
-            {
-              "$var": "step1"
-            },
-            10
-          ]
-        },
-        "$return": {
-          "$fn": [
-            {
-              "$var": "step2"
-            },
-            32
-          ]
-        }
+        "step1": { "$fn": ["autoCurry", "add"] },
+        "step2": { "$fn": [{ "$var": "step1" }, 10] },
+        "$return": { "$fn": [{ "$var": "step2" }, 32] }
       },
       "expected": 42
     },
     {
       "description": "autoCurry('add')(10, 32) — all args at once",
       "body": {
-        "curriedAdd": {
-          "$fn": ["autoCurry", "add"]
-        },
-        "$return": {
-          "$fn": [
-            {
-              "$var": "curriedAdd"
-            },
-            10,
-            32
-          ]
-        }
+        "curriedAdd": { "$fn": ["autoCurry", "add"] },
+        "$return": { "$fn": [{ "$var": "curriedAdd" }, 10, 32] }
       },
       "expected": 42
     },
     {
       "description": "autoCurry with a JSON function (add3)",
       "body": {
-        "step1": {
-          "$fn": ["autoCurry", "add3"]
-        },
-        "step2": {
-          "$fn": [
-            {
-              "$var": "step1"
-            },
-            1
-          ]
-        },
-        "step3": {
-          "$fn": [
-            {
-              "$var": "step2"
-            },
-            2
-          ]
-        },
-        "$return": {
-          "$fn": [
-            {
-              "$var": "step3"
-            },
-            3
-          ]
-        }
+        "step1": { "$fn": ["autoCurry", "add3"] },
+        "step2": { "$fn": [{ "$var": "step1" }, 1] },
+        "step3": { "$fn": [{ "$var": "step2" }, 2] },
+        "$return": { "$fn": [{ "$var": "step3" }, 3] }
       },
       "expected": 6
     }

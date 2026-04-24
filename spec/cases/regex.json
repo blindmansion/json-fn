@@ -3,133 +3,69 @@
   "cases": [
     {
       "description": "reTest: simple match returns true",
-      "body": {
-        "$return": {
-          "$fn": ["reTest", "\\d+", "abc123"]
-        }
-      },
+      "body": { "$return": { "$fn": ["reTest", "\\d+", "abc123"] } },
       "expected": true
     },
     {
       "description": "reTest: no match returns false",
-      "body": {
-        "$return": {
-          "$fn": ["reTest", "\\d+", "abcdef"]
-        }
-      },
+      "body": { "$return": { "$fn": ["reTest", "\\d+", "abcdef"] } },
       "expected": false
     },
     {
       "description": "reTest: case-insensitive flag",
-      "body": {
-        "$return": {
-          "$fn": ["reTest", "(?i)hello", "Hello World"]
-        }
-      },
+      "body": { "$return": { "$fn": ["reTest", "(?i)hello", "Hello World"] } },
       "expected": true
     },
     {
       "description": "reTest: case-sensitive by default",
-      "body": {
-        "$return": {
-          "$fn": ["reTest", "hello", "Hello World"]
-        }
-      },
+      "body": { "$return": { "$fn": ["reTest", "hello", "Hello World"] } },
       "expected": false
     },
     {
       "description": "reTest: anchored pattern",
-      "body": {
-        "$return": {
-          "$fn": ["reTest", "^abc$", "abc"]
-        }
-      },
+      "body": { "$return": { "$fn": ["reTest", "^abc$", "abc"] } },
       "expected": true
     },
     {
       "description": "reTest: anchored pattern no match",
-      "body": {
-        "$return": {
-          "$fn": ["reTest", "^abc$", "xabc"]
-        }
-      },
+      "body": { "$return": { "$fn": ["reTest", "^abc$", "xabc"] } },
       "expected": false
     },
     {
       "description": "reMatch: first match with groups",
-      "body": {
-        "$return": {
-          "$fn": ["reMatch", "(\\w+)@(\\w+)", "user@host.com"]
-        }
-      },
-      "expected": {
-        "match": "user@host",
-        "index": 0,
-        "groups": ["user", "host"],
-        "named": {}
-      }
+      "body": { "$return": { "$fn": ["reMatch", "(\\w+)@(\\w+)", "user@host.com"] } },
+      "expected": { "match": "user@host", "index": 0, "groups": ["user", "host"], "named": {} }
     },
     {
       "description": "reMatch: no match returns null",
-      "body": {
-        "$return": {
-          "$fn": ["reMatch", "\\d+", "abcdef"]
-        }
-      },
+      "body": { "$return": { "$fn": ["reMatch", "\\d+", "abcdef"] } },
       "expected": null
     },
     {
       "description": "reMatch: no groups",
-      "body": {
-        "$return": {
-          "$fn": ["reMatch", "\\d+", "abc123def"]
-        }
-      },
-      "expected": {
-        "match": "123",
-        "index": 3,
-        "groups": [],
-        "named": {}
-      }
+      "body": { "$return": { "$fn": ["reMatch", "\\d+", "abc123def"] } },
+      "expected": { "match": "123", "index": 3, "groups": [], "named": {} }
     },
     {
       "description": "reMatch: named capture groups",
       "body": {
-        "$return": {
-          "$fn": ["reMatch", "(?<year>\\d{4})-(?<month>\\d{2})", "date: 2024-07-15"]
-        }
+        "$return": { "$fn": ["reMatch", "(?<year>\\d{4})-(?<month>\\d{2})", "date: 2024-07-15"] }
       },
       "expected": {
         "match": "2024-07",
         "index": 6,
         "groups": ["2024", "07"],
-        "named": {
-          "year": "2024",
-          "month": "07"
-        }
+        "named": { "year": "2024", "month": "07" }
       }
     },
     {
       "description": "reMatch: optional group that doesn't match yields null in groups",
-      "body": {
-        "$return": {
-          "$fn": ["reMatch", "(a)(b)?(c)", "ac"]
-        }
-      },
-      "expected": {
-        "match": "ac",
-        "index": 0,
-        "groups": ["a", null, "c"],
-        "named": {}
-      }
+      "body": { "$return": { "$fn": ["reMatch", "(a)(b)?(c)", "ac"] } },
+      "expected": { "match": "ac", "index": 0, "groups": ["a", null, "c"], "named": {} }
     },
     {
       "description": "reMatch: case-insensitive flag",
-      "body": {
-        "$return": {
-          "$fn": ["reMatch", "(?i)(hello) (world)", "Hello World"]
-        }
-      },
+      "body": { "$return": { "$fn": ["reMatch", "(?i)(hello) (world)", "Hello World"] } },
       "expected": {
         "match": "Hello World",
         "index": 0,
@@ -139,124 +75,59 @@
     },
     {
       "description": "reMatchAll: find all digits",
-      "body": {
-        "$return": {
-          "$fn": ["reMatchAll", "\\d+", "a1b22c333"]
-        }
-      },
+      "body": { "$return": { "$fn": ["reMatchAll", "\\d+", "a1b22c333"] } },
       "expected": [
-        {
-          "match": "1",
-          "index": 1,
-          "groups": [],
-          "named": {}
-        },
-        {
-          "match": "22",
-          "index": 3,
-          "groups": [],
-          "named": {}
-        },
-        {
-          "match": "333",
-          "index": 6,
-          "groups": [],
-          "named": {}
-        }
+        { "match": "1", "index": 1, "groups": [], "named": {} },
+        { "match": "22", "index": 3, "groups": [], "named": {} },
+        { "match": "333", "index": 6, "groups": [], "named": {} }
       ]
     },
     {
       "description": "reMatchAll: no matches returns empty array",
-      "body": {
-        "$return": {
-          "$fn": ["reMatchAll", "\\d+", "abcdef"]
-        }
-      },
+      "body": { "$return": { "$fn": ["reMatchAll", "\\d+", "abcdef"] } },
       "expected": []
     },
     {
       "description": "reMatchAll: with capture groups",
-      "body": {
-        "$return": {
-          "$fn": ["reMatchAll", "(\\w+)=(\\w+)", "a=1 b=2"]
-        }
-      },
+      "body": { "$return": { "$fn": ["reMatchAll", "(\\w+)=(\\w+)", "a=1 b=2"] } },
       "expected": [
-        {
-          "match": "a=1",
-          "index": 0,
-          "groups": ["a", "1"],
-          "named": {}
-        },
-        {
-          "match": "b=2",
-          "index": 4,
-          "groups": ["b", "2"],
-          "named": {}
-        }
+        { "match": "a=1", "index": 0, "groups": ["a", "1"], "named": {} },
+        { "match": "b=2", "index": 4, "groups": ["b", "2"], "named": {} }
       ]
     },
     {
       "description": "reReplace: replace all digits",
-      "body": {
-        "$return": {
-          "$fn": ["reReplace", "\\d", "X", "a1b2c3"]
-        }
-      },
+      "body": { "$return": { "$fn": ["reReplace", "\\d", "X", "a1b2c3"] } },
       "expected": "aXbXcX"
     },
     {
       "description": "reReplace: group reference in replacement",
-      "body": {
-        "$return": {
-          "$fn": ["reReplace", "(\\w+)@(\\w+)", "$2@$1", "user@host"]
-        }
-      },
+      "body": { "$return": { "$fn": ["reReplace", "(\\w+)@(\\w+)", "$2@$1", "user@host"] } },
       "expected": "host@user"
     },
     {
       "description": "reReplace: no match leaves string unchanged",
-      "body": {
-        "$return": {
-          "$fn": ["reReplace", "\\d+", "X", "abcdef"]
-        }
-      },
+      "body": { "$return": { "$fn": ["reReplace", "\\d+", "X", "abcdef"] } },
       "expected": "abcdef"
     },
     {
       "description": "reReplace: case-insensitive flag",
-      "body": {
-        "$return": {
-          "$fn": ["reReplace", "(?i)hello", "hi", "Hello hello HELLO"]
-        }
-      },
+      "body": { "$return": { "$fn": ["reReplace", "(?i)hello", "hi", "Hello hello HELLO"] } },
       "expected": "hi hi hi"
     },
     {
       "description": "reSplit: split by whitespace pattern",
-      "body": {
-        "$return": {
-          "$fn": ["reSplit", "\\s+", "one  two   three"]
-        }
-      },
+      "body": { "$return": { "$fn": ["reSplit", "\\s+", "one  two   three"] } },
       "expected": ["one", "two", "three"]
     },
     {
       "description": "reSplit: split by comma with optional whitespace",
-      "body": {
-        "$return": {
-          "$fn": ["reSplit", "\\s*,\\s*", "a, b ,c , d"]
-        }
-      },
+      "body": { "$return": { "$fn": ["reSplit", "\\s*,\\s*", "a, b ,c , d"] } },
       "expected": ["a", "b", "c", "d"]
     },
     {
       "description": "reSplit: no match returns single-element array",
-      "body": {
-        "$return": {
-          "$fn": ["reSplit", "\\d+", "abcdef"]
-        }
-      },
+      "body": { "$return": { "$fn": ["reSplit", "\\d+", "abcdef"] } },
       "expected": ["abcdef"]
     },
     {
@@ -268,15 +139,7 @@
             "\\w+",
             {
               "$params": ["m"],
-              "$return": {
-                "$fn": [
-                  "upper",
-                  {
-                    "$var": "m",
-                    "$get": "match"
-                  }
-                ]
-              }
+              "$return": { "$fn": ["upper", { "$var": "m", "$get": "match" }] }
             },
             "hello world"
           ]
@@ -293,30 +156,10 @@
             "(\\w+)=(\\w+)",
             {
               "$params": ["m"],
-              "key": {
-                "$var": "m",
-                "$get": ["groups", 0]
-              },
-              "val": {
-                "$var": "m",
-                "$get": ["groups", 1]
-              },
+              "key": { "$var": "m", "$get": ["groups", 0] },
+              "val": { "$var": "m", "$get": ["groups", 1] },
               "$return": {
-                "$fn": [
-                  "strcat",
-                  {
-                    "$fn": [
-                      "strcat",
-                      {
-                        "$var": "val"
-                      },
-                      "="
-                    ]
-                  },
-                  {
-                    "$var": "key"
-                  }
-                ]
+                "$fn": ["strcat", { "$fn": ["strcat", { "$var": "val" }, "="] }, { "$var": "key" }]
               }
             },
             "a=1 b=2"
@@ -329,15 +172,7 @@
       "description": "reReplaceWith: no match leaves string unchanged",
       "body": {
         "$return": {
-          "$fn": [
-            "reReplaceWith",
-            "\\d+",
-            {
-              "$params": ["m"],
-              "$return": "X"
-            },
-            "abcdef"
-          ]
+          "$fn": ["reReplaceWith", "\\d+", { "$params": ["m"], "$return": "X" }, "abcdef"]
         }
       },
       "expected": "abcdef"
@@ -345,23 +180,11 @@
     {
       "description": "reMatch result used with property access",
       "body": {
-        "m": {
-          "$fn": ["reMatch", "(\\d+)-(\\d+)", "foo-123-456-bar"]
-        },
+        "m": { "$fn": ["reMatch", "(\\d+)-(\\d+)", "foo-123-456-bar"] },
         "$return": {
-          "$if": {
-            "$fn": [
-              "isNull",
-              {
-                "$var": "m"
-              }
-            ]
-          },
+          "$if": { "$fn": ["isNull", { "$var": "m" }] },
           "$then": null,
-          "$else": {
-            "$var": "m",
-            "$get": "match"
-          }
+          "$else": { "$var": "m", "$get": "match" }
         }
       },
       "expected": "123-456"
@@ -369,27 +192,15 @@
     {
       "description": "pipeline: extract all numbers from text",
       "body": {
-        "matches": {
-          "$fn": ["reMatchAll", "\\d+", "I have 3 cats and 12 dogs"]
-        },
+        "matches": { "$fn": ["reMatchAll", "\\d+", "I have 3 cats and 12 dogs"] },
         "$return": {
           "$fn": [
             "map",
             {
               "$params": ["m"],
-              "$return": {
-                "$fn": [
-                  "num",
-                  {
-                    "$var": "m",
-                    "$get": "match"
-                  }
-                ]
-              }
+              "$return": { "$fn": ["num", { "$var": "m", "$get": "match" }] }
             },
-            {
-              "$var": "matches"
-            }
+            { "$var": "matches" }
           ]
         }
       },
@@ -397,53 +208,28 @@
     },
     {
       "description": "dotall flag: dot matches newline",
-      "body": {
-        "$return": {
-          "$fn": ["reTest", "(?s)hello.world", "hello\nworld"]
-        }
-      },
+      "body": { "$return": { "$fn": ["reTest", "(?s)hello.world", "hello\nworld"] } },
       "expected": true
     },
     {
       "description": "without dotall: dot does not match newline",
-      "body": {
-        "$return": {
-          "$fn": ["reTest", "hello.world", "hello\nworld"]
-        }
-      },
+      "body": { "$return": { "$fn": ["reTest", "hello.world", "hello\nworld"] } },
       "expected": false
     },
     {
       "description": "multiline flag: ^ matches line start",
-      "body": {
-        "$return": {
-          "$fn": ["reTest", "(?m)^world", "hello\nworld"]
-        }
-      },
+      "body": { "$return": { "$fn": ["reTest", "(?m)^world", "hello\nworld"] } },
       "expected": true
     },
     {
       "description": "without multiline: ^ only matches string start",
-      "body": {
-        "$return": {
-          "$fn": ["reTest", "^world", "hello\nworld"]
-        }
-      },
+      "body": { "$return": { "$fn": ["reTest", "^world", "hello\nworld"] } },
       "expected": false
     },
     {
       "description": "combined flags: case-insensitive + multiline",
-      "body": {
-        "$return": {
-          "$fn": ["reMatch", "(?im)^hello", "first\nHELLO world"]
-        }
-      },
-      "expected": {
-        "match": "HELLO",
-        "index": 6,
-        "groups": [],
-        "named": {}
-      }
+      "body": { "$return": { "$fn": ["reMatch", "(?im)^hello", "first\nHELLO world"] } },
+      "expected": { "match": "HELLO", "index": 6, "groups": [], "named": {} }
     }
   ]
 }

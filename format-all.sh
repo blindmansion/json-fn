@@ -12,7 +12,8 @@ run() {
   (cd "$dir" && "$@")
 }
 
-run "TypeScript typecheck, lint fix, and format" "$ROOT_DIR/typescript" bun run fix
+run "TypeScript typecheck, lint fix, and format" "$ROOT_DIR/typescript" bun run fix:typescript
+run "Spec case JSON format" "$ROOT_DIR/typescript" bun run format:spec-cases
 run "Python lint fix" "$ROOT_DIR/python" uv run ruff check --fix .
 run "Python format" "$ROOT_DIR/python" uv run ruff format .
 run "Go format" "$ROOT_DIR/go" gofmt -w .

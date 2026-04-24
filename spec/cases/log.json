@@ -3,40 +3,20 @@
   "cases": [
     {
       "description": "log returns a number unchanged",
-      "body": {
-        "$return": {
-          "$fn": ["log", 42]
-        }
-      },
+      "body": { "$return": { "$fn": ["log", 42] } },
       "expected": 42
     },
     {
       "description": "log returns a string unchanged with a label",
-      "body": {
-        "$return": {
-          "$fn": ["log", "hello", "greeting"]
-        }
-      },
+      "body": { "$return": { "$fn": ["log", "hello", "greeting"] } },
       "expected": "hello"
     },
     {
       "description": "log returns an object unchanged with a label",
       "body": {
-        "$return": {
-          "$fn": [
-            "log",
-            {
-              "answer": 42,
-              "ok": true
-            },
-            "debug"
-          ]
-        }
+        "$return": { "$fn": ["log", { "answer": 42, "ok": true }, "debug"] }
       },
-      "expected": {
-        "answer": 42,
-        "ok": true
-      }
+      "expected": { "answer": 42, "ok": true }
     },
     {
       "description": "log returns an array unchanged",
@@ -55,9 +35,7 @@
             "map",
             {
               "$params": ["x"],
-              "$return": {
-                "$fn": ["log", { "$var": "x" }, "item"]
-              }
+              "$return": { "$fn": ["log", { "$var": "x" }, "item"] }
             },
             [1, 2, 3]
           ]

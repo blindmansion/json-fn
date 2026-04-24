@@ -3,33 +3,17 @@
   "cases": [
     {
       "description": "$comment alongside $fn call is ignored",
-      "body": {
-        "$return": {
-          "$comment": "add 2 + 3",
-          "$fn": ["add", 2, 3]
-        }
-      },
+      "body": { "$return": { "$comment": "add 2 + 3", "$fn": ["add", 2, 3] } },
       "expected": 5
     },
     {
       "description": "$comment alongside $fn reference is ignored",
-      "body": {
-        "$return": {
-          "$comment": "function reference",
-          "$fn": "add"
-        }
-      },
+      "body": { "$return": { "$comment": "function reference", "$fn": "add" } },
       "expected": "add"
     },
     {
       "description": "$comment alongside $var is ignored",
-      "body": {
-        "$params": ["x"],
-        "$return": {
-          "$comment": "the input value",
-          "$var": "x"
-        }
-      },
+      "body": { "$params": ["x"], "$return": { "$comment": "the input value", "$var": "x" } },
       "args": [42],
       "expected": 42
     },
@@ -37,24 +21,14 @@
       "description": "$comment alongside $var with $get is ignored",
       "body": {
         "$params": ["obj"],
-        "$return": {
-          "$comment": "look up the name",
-          "$var": "obj",
-          "$get": "name"
-        }
+        "$return": { "$comment": "look up the name", "$var": "obj", "$get": "name" }
       },
       "args": [{ "name": "alice" }],
       "expected": "alice"
     },
     {
       "description": "$comment alongside $get/$from is ignored",
-      "body": {
-        "$return": {
-          "$comment": "first element",
-          "$get": 0,
-          "$from": [10, 20, 30]
-        }
-      },
+      "body": { "$return": { "$comment": "first element", "$get": 0, "$from": [10, 20, 30] } },
       "expected": 10
     },
     {
@@ -103,41 +77,22 @@
     },
     {
       "description": "$comment alongside $and is ignored",
-      "body": {
-        "$return": {
-          "$comment": "all truthy",
-          "$and": [1, 2, "three"]
-        }
-      },
+      "body": { "$return": { "$comment": "all truthy", "$and": [1, 2, "three"] } },
       "expected": "three"
     },
     {
       "description": "$comment alongside $or is ignored",
-      "body": {
-        "$return": {
-          "$comment": "first truthy",
-          "$or": [null, 0, "winner"]
-        }
-      },
+      "body": { "$return": { "$comment": "first truthy", "$or": [null, 0, "winner"] } },
       "expected": "winner"
     },
     {
       "description": "$comment alongside $literal is ignored, value preserved",
-      "body": {
-        "$return": {
-          "$comment": "constant data",
-          "$literal": [1, 2, 3]
-        }
-      },
+      "body": { "$return": { "$comment": "constant data", "$literal": [1, 2, 3] } },
       "expected": [1, 2, 3]
     },
     {
       "description": "$comment inside $literal is preserved (literal data)",
-      "body": {
-        "$return": {
-          "$literal": { "$comment": "preserved", "x": 1 }
-        }
-      },
+      "body": { "$return": { "$literal": { "$comment": "preserved", "x": 1 } } },
       "expected": { "$comment": "preserved", "x": 1 }
     },
     {
@@ -163,39 +118,22 @@
     },
     {
       "description": "$comment in plain data object is stripped from output",
-      "body": {
-        "$return": {
-          "$comment": "metadata",
-          "name": "alice",
-          "age": 30
-        }
-      },
+      "body": { "$return": { "$comment": "metadata", "name": "alice", "age": 30 } },
       "expected": { "name": "alice", "age": 30 }
     },
     {
       "description": "$comment alone in plain object yields empty object",
-      "body": {
-        "$return": { "$comment": "nothing here" }
-      },
+      "body": { "$return": { "$comment": "nothing here" } },
       "expected": {}
     },
     {
       "description": "non-string $comment is not recognized as a comment (errors as extra property on $fn)",
-      "body": {
-        "$return": {
-          "$comment": 42,
-          "$fn": ["add", 1, 2]
-        }
-      },
+      "body": { "$return": { "$comment": 42, "$fn": ["add", 1, 2] } },
       "error": "Function calls cannot have other properties"
     },
     {
       "description": "non-string $comment inside $literal is preserved verbatim",
-      "body": {
-        "$return": {
-          "$literal": { "$comment": 42 }
-        }
-      },
+      "body": { "$return": { "$literal": { "$comment": 42 } } },
       "expected": { "$comment": 42 }
     },
     {
@@ -215,9 +153,7 @@
     },
     {
       "description": "$comment in array element is preserved as data (not stripped from arrays)",
-      "body": {
-        "$return": [1, { "$comment": "middle" }, 3]
-      },
+      "body": { "$return": [1, { "$comment": "middle" }, 3] },
       "expected": [1, {}, 3]
     },
     {
