@@ -222,7 +222,7 @@ Called with args `[1, 2, 3]`: `first` = `1`, `rest` = `[2, 3]`.
 
 ### Lazy Local Variables
 
-Any key other than `$return` and `$params` defines a local variable. Locals are evaluated lazily (on first `$var` access) and can reference each other and `$params`.
+Any key other than `$return` and `$params` defines a local variable. Locals are evaluated lazily (on first `$var` access) and can reference each other and `$params`. Key order within a function body does not affect evaluation — locals form a dependency graph resolved on demand, so the body behaves identically regardless of how a JSON parser orders the keys.
 
 ```json
 {
