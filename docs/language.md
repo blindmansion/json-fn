@@ -94,7 +94,7 @@ Defines a function. Required key: `$return` (the expression to evaluate when cal
 {
   "$params": ["n"],
   "remainder": { "$fn": ["mod", { "$var": "n" }, 2] },
-  "$return": { "$fn": ["eq", { "$var": "remainder" }, 0] }
+  "$return": { "$eq": [{ "$var": "remainder" }, 0] }
 }
 ```
 
@@ -106,7 +106,7 @@ All three keys are required. `$if` is evaluated; if truthy, `$then` is evaluated
 
 ```json
 {
-  "$if": { "$fn": ["gt", { "$var": "x" }, 0] },
+  "$if": { "$gt": [{ "$var": "x" }, 0] },
   "$then": "positive",
   "$else": "non-positive"
 }
@@ -119,8 +119,8 @@ Array of `[condition, result]` pairs. First truthy condition wins. If no conditi
 ```json
 {
   "$cond": [
-    [{ "$fn": ["lt", { "$var": "n" }, 0] }, "negative"],
-    [{ "$fn": ["eq", { "$var": "n" }, 0] }, "zero"]
+    [{ "$lt": [{ "$var": "n" }, 0] }, "negative"],
+    [{ "$eq": [{ "$var": "n" }, 0] }, "zero"]
   ],
   "$else": "positive"
 }
@@ -151,8 +151,8 @@ Array of expressions evaluated left-to-right. Returns the first falsy value, or 
 ```json
 {
   "$and": [
-    { "$fn": ["gt", { "$var": "x" }, 0] },
-    { "$fn": ["lt", { "$var": "x" }, 100] },
+    { "$gt": [{ "$var": "x" }, 0] },
+    { "$lt": [{ "$var": "x" }, 100] },
     "in range"
   ]
 }
@@ -211,8 +211,8 @@ A `$comment` key with a string value is ignored everywhere it appears as a sibli
   "$params": ["n"],
   "$return": {
     "$cond": [
-      [{ "$fn": ["lt", { "$var": "n" }, 0] }, "negative"],
-      [{ "$fn": ["eq", { "$var": "n" }, 0] }, "zero"],
+      [{ "$lt": [{ "$var": "n" }, 0] }, "negative"],
+      [{ "$eq": [{ "$var": "n" }, 0] }, "zero"],
       [true, "positive"]
     ]
   }
@@ -309,7 +309,7 @@ Functions can call themselves by name if registered in the function registry.
 {
   "$params": ["n"],
   "$return": {
-    "$if": { "$fn": ["lte", { "$var": "n" }, 1] },
+    "$if": { "$lte": [{ "$var": "n" }, 1] },
     "$then": 1,
     "$else": {
       "$fn": ["mul", { "$var": "n" }, { "$fn": ["fact", { "$fn": ["sub", { "$var": "n" }, 1] }] }]
@@ -328,7 +328,7 @@ Local variables whose values are function bodies (have a `$return` key) can be c
   "fact": {
     "$params": ["x"],
     "$return": {
-      "$if": { "$fn": ["lte", { "$var": "x" }, 1] },
+      "$if": { "$lte": [{ "$var": "x" }, 1] },
       "$then": 1,
       "$else": {
         "$fn": ["mul", { "$var": "x" }, { "$fn": ["fact", { "$fn": ["sub", { "$var": "x" }, 1] }] }]
@@ -602,7 +602,7 @@ Use `entries` -> HOF -> `fromEntries` to transform objects:
       "filter",
       {
         "$params": ["pair"],
-        "$return": { "$fn": ["gt", { "$var": "pair", "$get": 1 }, 3] }
+        "$return": { "$gt": [{ "$var": "pair", "$get": 1 }, 3] }
       },
       { "$var": "pairs" }
     ]
