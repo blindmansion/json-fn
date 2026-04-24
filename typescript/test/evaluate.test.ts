@@ -28,3 +28,41 @@ describe("evaluation state", () => {
     expect(unusedStats.evaluateExpression).toBe(0);
   });
 });
+
+describe("stdlib log", () => {
+  test("returns the value without logging by default", () => {
+    const originalLog = console.log;
+    const calls: unknown[][] = [];
+    console.log = (...args: unknown[]) => {
+      calls.push(args);
+    };
+    try {
+      const result = callFunction(
+        { $return: { $fn: ["log", { answer: 42, ok: true }, "debug"] } },
+        [],
+        createStdlib(),
+      );
+
+      expect(result).toEqual({ answer: 42, ok: true });
+      expect(calls).toEqual([]);
+    } finally {
+      console.log = originalLog;
+    }
+  });
+
+  test("calls the configured logger", () => {
+    const calls: unknown[][] = [];
+    const result = callFunction(
+      { $return: { $fn: ["log", { answer: 42, ok: true }, "debug"] } },
+      [],
+      createStdlib({
+        logger: (value, label) => {
+          calls.push([value, label]);
+        },
+      }),
+    );
+
+    expect(result).toEqual({ answer: 42, ok: true });
+    expect(calls).toEqual([[{ answer: 42, ok: true }, "debug"]]);
+  });
+});

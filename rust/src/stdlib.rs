@@ -1,4 +1,4 @@
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 
 use regex::{Captures, Regex};
 use serde_json::{Map, Number, Value};
@@ -38,23 +38,24 @@ fn sorted_keys(obj: &Map<String, Value>) -> Vec<&String> {
     keys
 }
 
-fn format_log_value(value: &Value) -> String {
-    if let Value::String(s) = value {
-        return s.clone();
-    }
-    serde_json::to_string_pretty(value).unwrap_or_else(|_| value.to_string())
-}
+/// Host-provided sink used by the `log` stdlib function.
+pub type LogFn = dyn Fn(&Value, Option<&Value>) + Send + Sync + 'static;
 
-fn format_log_label(label: &Value) -> String {
-    if let Value::String(s) = label {
-        return s.clone();
-    }
-    serde_json::to_string(label).unwrap_or_else(|_| label.to_string())
+/// Options for constructing the standard library.
+#[derive(Clone, Default)]
+pub struct StdlibOptions {
+    /// Optional sink used by `log`. When absent, `log` is a no-op tap.
+    pub logger: Option<Arc<LogFn>>,
 }
 
 /// Constructs the standard library used by the conformance tests and the
 /// chess example. Mirrors Go's `CreateStdlib`.
 pub fn create_stdlib() -> FunctionRegistry {
+    create_stdlib_with_options(StdlibOptions::default())
+}
+
+/// Constructs the standard library with host-provided options.
+pub fn create_stdlib_with_options(options: StdlibOptions) -> FunctionRegistry {
     let mut r = FunctionRegistry::new();
 
     // -- Arithmetic ---------------------------------------------------------
@@ -1107,14 +1108,14 @@ pub fn create_stdlib() -> FunctionRegistry {
     // -- Debugging ----------------------------------------------------------
     r.insert(
         "log".into(),
-        FnEntry::pure(2, |a| {
-            let formatted = format_log_value(&a[0]);
-            if let Some(label) = a.get(1) {
-                println!("[{}] {}", format_log_label(label), formatted);
-            } else {
-                println!("{formatted}");
+        FnEntry::pure(2, {
+            let logger = options.logger.clone();
+            move |a| {
+                if let Some(logger) = &logger {
+                    logger(&a[0], a.get(1));
+                }
+                Ok(a[0].clone())
             }
-            Ok(a[0].clone())
         }),
     );
 

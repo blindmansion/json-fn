@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 import math
 import re
+from collections.abc import Callable
 from functools import cmp_to_key
 from typing import Any, TypeGuard
 
@@ -157,20 +158,6 @@ def _json_dump(v: Any) -> str:
         return repr(v)
 
 
-def _json_dump_pretty(v: Any) -> str:
-    """Human-readable JSON serialization used by ``log``."""
-    try:
-        return json.dumps(v, indent=2)
-    except (TypeError, ValueError):
-        return repr(v)
-
-
-def _log_label(v: Any) -> str:
-    if isinstance(v, str):
-        return v
-    return _json_dump(v)
-
-
 _MISSING = object()
 
 
@@ -270,7 +257,10 @@ def _arity_of(fn: Any, registry: FunctionRegistry) -> int:
 # === stdlib construction =====================================================
 
 
-def create_stdlib() -> FunctionRegistry:
+LogFn = Callable[..., None]
+
+
+def create_stdlib(logger: LogFn | None = None) -> FunctionRegistry:
     """Build the standard-library :data:`FunctionRegistry`."""
     r = _Registry()
 
@@ -930,11 +920,11 @@ def create_stdlib() -> FunctionRegistry:
 
     @r.pure("log", arity=2)
     def _(value: Any, label: Any = _MISSING) -> JsonValue:
-        formatted = value if isinstance(value, str) else _json_dump_pretty(value)
-        if label is not _MISSING:
-            print(f"[{_log_label(label)}] {formatted}")
-        else:
-            print(formatted)
+        if logger is not None:
+            if label is not _MISSING:
+                logger(value, label)
+            else:
+                logger(value)
         return value
 
     return r.build()

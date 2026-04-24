@@ -503,21 +503,20 @@ Higher-order functions can invoke json-fn callbacks. The callback argument can b
 
 ### Debugging
 
-| Function | Args              | Description                                                          |
-| -------- | ----------------- | -------------------------------------------------------------------- |
-| `log`    | `(value, label?)` | logs `value` (with optional `label` prefix) and returns it unchanged |
+| Function | Args              | Description                                                                                 |
+| -------- | ----------------- | ------------------------------------------------------------------------------------------- |
+| `log`    | `(value, label?)` | passes `value` and optional `label` to the host-configured logger, then returns `value`      |
 
-`log` is the only function in the standard library with an observable side effect. It is intended for tap-style debugging:
+`log` is a tap-style debugging helper:
 
 ```json
 { "$fn": ["map", { "$params": ["x"], "$return": { "$fn": ["log", { "$var": "x" }, "item"] } }, [1, 2, 3]] }
 ```
 
-The output destination and format are **implementation-defined**. Host integrations may expose a hook to redirect logs (for example, to capture them into a buffer instead of writing to stdout).
+By default, `log` is inert and produces no output. Host integrations may pass a logger when constructing the standard library to capture or emit logs. The output destination and format are host-defined.
 
 > **Note: lazy locals.** Because non-`$return` keys in a function body are [lazy](#lazy-local-variables), a `log` call placed in an unreferenced local is never evaluated. To log inside a function body, either put the `log` call in the path of `$return`, or reference the debug local from `$return` so it actually runs.
 >
-> **Implementation status.** Currently available in the TypeScript implementation only.
 
 ## HOF Argument Order
 

@@ -1,12 +1,8 @@
 package jsonfn
 
-import (
-	"io"
-	"os"
-	"testing"
-)
+import "testing"
 
-func TestLogReturnsValueAndPrints(t *testing.T) {
+func TestLogReturnsValueWithoutPrintingByDefault(t *testing.T) {
 	stdlib := CreateStdlib()
 	body := map[string]any{
 		"$return": map[string]any{
@@ -18,20 +14,7 @@ func TestLogReturnsValueAndPrints(t *testing.T) {
 		},
 	}
 
-	oldStdout := os.Stdout
-	readPipe, writePipe, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("os.Pipe: %v", err)
-	}
-	defer func() {
-		os.Stdout = oldStdout
-		readPipe.Close()
-	}()
-	os.Stdout = writePipe
-
 	result, err := CallFunction(body, []any{}, stdlib, nil)
-	writePipe.Close()
-	os.Stdout = oldStdout
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -39,12 +22,35 @@ func TestLogReturnsValueAndPrints(t *testing.T) {
 	if !jsonEqual(result, map[string]any{"answer": float64(42), "ok": true}) {
 		t.Fatalf("Unexpected result: %#v", result)
 	}
-	output, err := io.ReadAll(readPipe)
-	if err != nil {
-		t.Fatalf("ReadAll: %v", err)
+}
+
+func TestLogCallsConfiguredLogger(t *testing.T) {
+	var calls [][]any
+	stdlib := CreateStdlib(StdlibOptions{
+		Logger: func(value any, label ...any) {
+			calls = append(calls, append([]any{value}, label...))
+		},
+	})
+	body := map[string]any{
+		"$return": map[string]any{
+			"$fn": []any{
+				"log",
+				map[string]any{"answer": float64(42), "ok": true},
+				"debug",
+			},
+		},
 	}
-	expected := "[debug] {\n  \"answer\": 42,\n  \"ok\": true\n}\n"
-	if string(output) != expected {
-		t.Fatalf("Unexpected log output.\nGot:  %q\nWant: %q", string(output), expected)
+
+	result, err := CallFunction(body, []any{}, stdlib, nil)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if !jsonEqual(result, map[string]any{"answer": float64(42), "ok": true}) {
+		t.Fatalf("Unexpected result: %#v", result)
+	}
+	if len(calls) != 1 ||
+		!jsonEqual(calls[0][0], map[string]any{"answer": float64(42), "ok": true}) ||
+		calls[0][1] != "debug" {
+		t.Fatalf("Unexpected logger calls: %#v", calls)
 	}
 }

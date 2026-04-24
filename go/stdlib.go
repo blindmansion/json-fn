@@ -19,32 +19,24 @@ func sortedObjectKeys(obj map[string]any) []string {
 	return keys
 }
 
-func formatLogValue(value any) string {
-	if s, ok := value.(string); ok {
-		return s
-	}
-	b, err := json.MarshalIndent(value, "", "  ")
-	if err != nil {
-		return fmt.Sprint(value)
-	}
-	return string(b)
-}
+// LogFn is the host-provided sink used by the log stdlib function.
+type LogFn func(value any, label ...any)
 
-func formatLogLabel(label any) string {
-	if s, ok := label.(string); ok {
-		return s
-	}
-	b, err := json.Marshal(label)
-	if err != nil {
-		return fmt.Sprint(label)
-	}
-	return string(b)
+// StdlibOptions controls host-provided stdlib capabilities.
+type StdlibOptions struct {
+	// Logger receives log calls. When nil, log is a no-op tap.
+	Logger LogFn
 }
 
 // CreateStdlib returns a FunctionRegistry populated with the standard library
 // functions: arithmetic, comparison, logic, type checks, coercion, arrays,
 // strings, objects, higher-order functions, and regex operations.
-func CreateStdlib() FunctionRegistry {
+func CreateStdlib(options ...StdlibOptions) FunctionRegistry {
+	var logger LogFn
+	if len(options) > 0 {
+		logger = options[0].Logger
+	}
+
 	return FunctionRegistry{
 		// Arithmetic
 		"add": &PureFunc{Arity: 2, Fn: func(args []any) (any, error) {
@@ -1100,11 +1092,12 @@ func CreateStdlib() FunctionRegistry {
 
 		// Debugging
 		"log": &PureFunc{Arity: 2, Fn: func(args []any) (any, error) {
-			formatted := formatLogValue(args[0])
-			if len(args) > 1 {
-				fmt.Printf("[%s] %s\n", formatLogLabel(args[1]), formatted)
-			} else {
-				fmt.Println(formatted)
+			if logger != nil {
+				if len(args) > 1 {
+					logger(args[0], args[1])
+				} else {
+					logger(args[0])
+				}
 			}
 			return args[0], nil
 		}},

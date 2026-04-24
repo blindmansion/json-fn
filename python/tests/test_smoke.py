@@ -36,7 +36,7 @@ def test_basic_call_with_params() -> None:
     assert call_function(body, [2, 3], create_stdlib()) == 5
 
 
-def test_log_returns_value_and_prints(capsys: pytest.CaptureFixture[str]) -> None:
+def test_log_returns_value_without_printing_by_default(capsys: pytest.CaptureFixture[str]) -> None:
     body = {
         "$return": {
             "$fn": [
@@ -47,7 +47,26 @@ def test_log_returns_value_and_prints(capsys: pytest.CaptureFixture[str]) -> Non
         }
     }
     assert call_function(body, [], create_stdlib()) == {"answer": 42, "ok": True}
-    assert capsys.readouterr().out == '[debug] {\n  "answer": 42,\n  "ok": true\n}\n'
+    assert capsys.readouterr().out == ""
+
+
+def test_log_calls_configured_logger() -> None:
+    calls: list[tuple[object, ...]] = []
+    body = {
+        "$return": {
+            "$fn": [
+                "log",
+                {"answer": 42, "ok": True},
+                "debug",
+            ]
+        }
+    }
+
+    assert call_function(body, [], create_stdlib(logger=lambda *args: calls.append(args))) == {
+        "answer": 42,
+        "ok": True,
+    }
+    assert calls == [({"answer": 42, "ok": True}, "debug")]
 
 
 def test_higher_order_map_filter_reduce() -> None:

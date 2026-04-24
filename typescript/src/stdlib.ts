@@ -6,19 +6,12 @@ export type LogFn = (value: JSONType, label?: string) => void;
 export type StdlibOptions = {
   /**
    * Override the function used by `log`. Receives the value and an
-   * optional label. Defaults to printing pretty-stringified JSON to `console.log`.
+   * optional label. Defaults to a no-op.
    */
   logger?: LogFn;
 };
 
-const defaultLogger: LogFn = (value, label) => {
-  const formatted = typeof value === "string" ? value : JSON.stringify(value, null, 2);
-  if (label !== undefined) {
-    console.log(`[${label}]`, formatted);
-  } else {
-    console.log(formatted);
-  }
-};
+const noopLogger: LogFn = () => {};
 
 const INLINE_FLAGS_RE = /^\(\?([imsu]*)\)/;
 const VALID_FLAGS = new Set(["i", "m", "s", "u"]);
@@ -74,7 +67,7 @@ function jsonEqual(a: JSONType, b: JSONType): boolean {
 }
 
 export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
-  const log = options.logger ?? defaultLogger;
+  const log = options.logger ?? noopLogger;
   return {
     // Arithmetic
     add: pure((a: number, b: number) => a + b),
