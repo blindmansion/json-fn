@@ -19,7 +19,7 @@ const state: JSONType = existsSync(STATE_FILE)
 const result = callFunction(functions.handleCommand, [state, process.argv.slice(2)], functions) as {
   output: string;
   stderr: string;
-  newState: JSONType | null;
+  newState: JSONType;
   reset: boolean;
   exitCode: number;
 };
