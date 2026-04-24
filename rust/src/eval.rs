@@ -13,6 +13,7 @@ use crate::value::{
 };
 
 const DEFAULT_MAX_CALL_DEPTH: usize = 256;
+const COMPARISON_OPERATORS: [&str; 6] = ["$eq", "$neq", "$lt", "$lte", "$gt", "$gte"];
 
 /// Caller-supplied evaluation limits.
 #[derive(Default, Clone)]
@@ -410,6 +411,8 @@ enum ExprKind {
     Cond,
     And,
     Or,
+    Comparison,
+    Not,
     PropertyAccess,
     Literal,
     Object,
@@ -428,6 +431,25 @@ fn classify(expr: &Value) -> Result<ExprKind, EvalError> {
         Value::String(_) => Ok(ExprKind::String),
         Value::Array(_) => Ok(ExprKind::Array),
         Value::Object(obj) => classify_object(obj, expr),
+    }
+}
+
+fn get_comparison_operator(obj: &Map<String, Value>) -> Option<&str> {
+    obj.keys()
+        .find(|key| COMPARISON_OPERATORS.contains(&key.as_str()))
+        .map(String::as_str)
+}
+
+fn strict_equal(a: &Value, b: &Value) -> bool {
+    match (a, b) {
+        (Value::Null, Value::Null) => true,
+        (Value::Bool(x), Value::Bool(y)) => x == y,
+        (Value::Number(x), Value::Number(y)) => match (x.as_f64(), y.as_f64()) {
+            (Some(xf), Some(yf)) => xf == yf,
+            _ => false,
+        },
+        (Value::String(x), Value::String(y)) => x == y,
+        _ => false,
     }
 }
 
@@ -549,6 +571,26 @@ fn classify_object(obj: &Map<String, Value>, expr: &Value) -> Result<ExprKind, E
         return Ok(ExprKind::Or);
     }
 
+    if let Some(comparison_operator) = get_comparison_operator(obj) {
+        if expression_key_count(obj) > 1 {
+            return Err(expr_error(expr, &format!("{comparison_operator} expressions cannot have other properties.")));
+        }
+        let args = obj[comparison_operator]
+            .as_array()
+            .ok_or_else(|| expr_error(expr, &format!("{comparison_operator} must be an array of two expressions.")))?;
+        if args.len() != 2 {
+            return Err(expr_error(expr, &format!("{comparison_operator} must be an array of two expressions.")));
+        }
+        return Ok(ExprKind::Comparison);
+    }
+
+    if obj.contains_key("$not") {
+        if expression_key_count(obj) > 1 {
+            return Err(expr_error(expr, "$not expressions cannot have other properties."));
+        }
+        return Ok(ExprKind::Not);
+    }
+
     if obj.contains_key("$literal") {
         if expression_key_count(obj) > 1 {
             return Err(expr_error(expr, "$literal expressions cannot have other properties."));
@@ -557,6 +599,32 @@ fn classify_object(obj: &Map<String, Value>, expr: &Value) -> Result<ExprKind, E
     }
 
     Ok(ExprKind::Object)
+}
+
+fn evaluate_comparison_expression(expr: &Value, ctx: &mut EvalCtx) -> Result<Value, EvalError> {
+    let obj = expr.as_object().unwrap();
+    let op = get_comparison_operator(obj).unwrap();
+    let args = obj[op].as_array().unwrap();
+    let left = evaluate_expression(&args[0], ctx)?;
+    let right = evaluate_expression(&args[1], ctx)?;
+
+    let result = match op {
+        "$eq" => strict_equal(&left, &right),
+        "$neq" => !strict_equal(&left, &right),
+        "$lt" | "$lte" | "$gt" | "$gte" => {
+            let left_num = to_f64(&left).ok_or_else(|| EvalError(format!("{}: arguments must be numbers", &op[1..])))?;
+            let right_num = to_f64(&right).ok_or_else(|| EvalError(format!("{}: arguments must be numbers", &op[1..])))?;
+            match op {
+                "$lt" => left_num < right_num,
+                "$lte" => left_num <= right_num,
+                "$gt" => left_num > right_num,
+                "$gte" => left_num >= right_num,
+                _ => unreachable!(),
+            }
+        }
+        _ => unreachable!(),
+    };
+    Ok(Value::Bool(result))
 }
 
 fn evaluate_expression(expr: &Value, ctx: &mut EvalCtx) -> Result<Value, EvalError> {
@@ -685,6 +753,12 @@ fn evaluate_expression(expr: &Value, ctx: &mut EvalCtx) -> Result<Value, EvalErr
                 }
             }
             Ok(result)
+        }
+        ExprKind::Comparison => evaluate_comparison_expression(expr, ctx),
+        ExprKind::Not => {
+            let obj = expr.as_object().unwrap();
+            let result = evaluate_expression(&obj["$not"], ctx)?;
+            Ok(Value::Bool(!is_truthy(&result)))
         }
         ExprKind::PropertyAccess => evaluate_property_access(expr, ctx),
         ExprKind::Literal => {

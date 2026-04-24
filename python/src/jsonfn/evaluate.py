@@ -33,6 +33,8 @@ from .types import (
     _PureEntry,
 )
 
+_COMPARISON_OPERATORS = ("$eq", "$neq", "$lt", "$lte", "$gt", "$gte")
+
 
 def call_function(
     fn: Any,
@@ -484,6 +486,30 @@ class Interpreter:
                         return result_or
                 return result_or
 
+            comparison_operator = _get_comparison_operator(expr)
+            if comparison_operator is not None:
+                if _expr_key_count(expr) != 1:
+                    raise EvaluationError(
+                        _expr_error(
+                            expr, f"{comparison_operator} expressions cannot have other properties."
+                        )
+                    )
+                operands = expr[comparison_operator]
+                if not isinstance(operands, list) or len(operands) != 2:
+                    raise EvaluationError(
+                        _expr_error(
+                            expr, f"{comparison_operator} must be an array of two expressions."
+                        )
+                    )
+                return self._evaluate_comparison(comparison_operator, operands, get_var)
+
+            if "$not" in expr:
+                if _expr_key_count(expr) != 1:
+                    raise EvaluationError(
+                        _expr_error(expr, "$not expressions cannot have other properties.")
+                    )
+                return not _truthy(self._evaluate(expr["$not"], get_var))
+
             if "$literal" in expr:
                 if _expr_key_count(expr) != 1:
                     raise EvaluationError(
@@ -510,9 +536,7 @@ class Interpreter:
             # Plain object literal — recursively evaluate values. A
             # string-valued ``$comment`` key is stripped from the output.
             if _has_string_comment(expr):
-                return {
-                    k: self._evaluate(v, get_var) for k, v in expr.items() if k != "$comment"
-                }
+                return {k: self._evaluate(v, get_var) for k, v in expr.items() if k != "$comment"}
             return {k: self._evaluate(v, get_var) for k, v in expr.items()}
 
         if t is list:
@@ -522,6 +546,29 @@ class Interpreter:
         # We accept anything else as well; _classify would have raised, but in
         # practice values reaching _evaluate from JSON are always JSON-shaped.
         return expr
+
+    def _evaluate_comparison(
+        self,
+        operator: str,
+        operands: list[Any],
+        get_var: Any,
+    ) -> bool:
+        left = self._evaluate(operands[0], get_var)
+        right = self._evaluate(operands[1], get_var)
+
+        if operator == "$eq":
+            return _strict_equal(left, right)
+        if operator == "$neq":
+            return not _strict_equal(left, right)
+        if operator == "$lt":
+            return left < right  # type: ignore[operator]
+        if operator == "$lte":
+            return left <= right  # type: ignore[operator]
+        if operator == "$gt":
+            return left > right  # type: ignore[operator]
+        if operator == "$gte":
+            return left >= right  # type: ignore[operator]
+        raise AssertionError(f"unknown comparison operator: {operator}")
 
     def _resolve_var(
         self,
@@ -605,8 +652,7 @@ class Interpreter:
             local_names: set[str] = {
                 k
                 for k, v in expression.items()
-                if k not in ("$return", "$params")
-                and not (k == "$comment" and v.__class__ is str)
+                if k not in ("$return", "$params") and not (k == "$comment" and v.__class__ is str)
             }
             params = expression.get("$params")
             if isinstance(params, list):
@@ -749,6 +795,25 @@ def _expr_error(expr: Any, message: str) -> str:
     except (TypeError, ValueError):
         rendered = repr(expr)
     return f"Invalid JSON expression: {rendered}. {message}"
+
+
+def _get_comparison_operator(obj: dict[str, Any]) -> str | None:
+    for key in obj:
+        if key in _COMPARISON_OPERATORS:
+            return key
+    return None
+
+
+def _strict_equal(a: Any, b: Any) -> bool:
+    if a is None or b is None:
+        return a is None and b is None
+    if isinstance(a, bool) or isinstance(b, bool):
+        return isinstance(a, bool) and isinstance(b, bool) and a == b
+    if isinstance(a, (int, float)) and not isinstance(a, bool):
+        return isinstance(b, (int, float)) and not isinstance(b, bool) and a == b
+    if isinstance(a, str):
+        return isinstance(b, str) and a == b
+    return False
 
 
 def _type_label(value: Any) -> str:
@@ -944,6 +1009,26 @@ def _classify_object(obj: dict[str, Any]) -> ExpressionType:
         if not isinstance(obj["$or"], list):
             raise EvaluationError(_expr_error(obj, "$or must be an array of expressions."))
         return ExpressionType.OR
+
+    comparison_operator = _get_comparison_operator(obj)
+    if comparison_operator is not None:
+        if n > 1:
+            raise EvaluationError(
+                _expr_error(obj, f"{comparison_operator} expressions cannot have other properties.")
+            )
+        operands = obj[comparison_operator]
+        if not isinstance(operands, list) or len(operands) != 2:
+            raise EvaluationError(
+                _expr_error(obj, f"{comparison_operator} must be an array of two expressions.")
+            )
+        return ExpressionType.COMPARISON
+
+    if "$not" in obj:
+        if n > 1:
+            raise EvaluationError(
+                _expr_error(obj, "$not expressions cannot have other properties.")
+            )
+        return ExpressionType.NOT
 
     if "$literal" in obj:
         if n > 1:

@@ -106,6 +106,8 @@ class ExpressionType(Enum):
     COND = auto()
     AND = auto()
     OR = auto()
+    COMPARISON = auto()
+    NOT = auto()
     PROPERTY_ACCESS = auto()
     LITERAL = auto()
     OBJECT = auto()

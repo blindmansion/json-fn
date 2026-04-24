@@ -150,6 +150,25 @@ Array of expressions evaluated left-to-right. Returns the first truthy value, or
 { "$or": [{ "$var": "cached" }, { "$fn": ["compute", { "$var": "x" }] }] }
 ```
 
+### Comparison Shorthands — `{ $eq }`, `{ $neq }`, `{ $lt }`, `{ $lte }`, `{ $gt }`, `{ $gte }`
+
+Each comparison shorthand takes an array of exactly two expressions, evaluates both, and returns a boolean. They are concise equivalents of the stdlib comparison functions.
+
+```json
+{ "$eq": [{ "$var": "status" }, "playing"] }
+{ "$gte": [{ "$var": "score" }, 10] }
+```
+
+`$eq` and `$neq` use strict equality, not deep structural equality.
+
+### Not Shorthand — `{ $not }`
+
+Evaluates the expression and returns its logical negation using normal json-fn truthiness.
+
+```json
+{ "$not": { "$eq": [{ "$var": "status" }, "playing"] } }
+```
+
 ### Literal — `{ $literal }`
 
 Returns the value as-is without evaluating nested expressions. Use for constant data in hot paths or to prevent keyword collisions (data that happens to contain `$fn`, `$var`, etc. keys).
@@ -185,7 +204,7 @@ A `$comment` key with a string value is ignored everywhere it appears as a sibli
 Rules:
 
 - The value **must be a string** to be recognized as a comment. Non-string values are treated as normal keys (and will typically cause "expression cannot have other properties" errors in expression forms).
-- Allowed as a sibling key in any expression form (`$fn`, `$var`, `$if`/`$then`/`$else`, `$cond`, `$and`, `$or`, `$literal`, `$get`/`$from`, `$return`/`$params`/locals).
+- Allowed as a sibling key in any expression form (`$fn`, `$var`, `$if`/`$then`/`$else`, `$cond`, `$and`, `$or`, comparison shorthands, `$not`, `$literal`, `$get`/`$from`, `$return`/`$params`/locals).
 - In plain data objects, `$comment` is stripped from the output. To preserve a literal `$comment` key in data, wrap with `$literal`.
 - Inside `$literal`, the entire value is returned verbatim — `$comment` is preserved.
 - Closures preserve `$comment` when a function body is returned as a value.
@@ -579,6 +598,8 @@ Use `entries` -> HOF -> `fromEntries` to transform objects:
 - `$cond` must be the sole key; each entry must be a two-element array.
 - `$and` must be the sole key; value must be an array of expressions.
 - `$or` must be the sole key; value must be an array of expressions.
+- `$eq`, `$neq`, `$lt`, `$lte`, `$gt`, and `$gte` must be the sole key; value must be an array of exactly two expressions.
+- `$not` must be the sole key.
 - `$literal` must be the sole key.
 - `$fn` as an array (function call) must be the sole key. `$fn` as a non-array (reference) must also be the sole key.
 - `$return` cannot coexist with `$fn`.

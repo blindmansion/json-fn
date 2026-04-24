@@ -10,6 +10,9 @@ import type {
   VariableReference,
   Conditional,
   Cond,
+  ComparisonExpression,
+  ComparisonOperator,
+  NotExpression,
   PropertyAccess,
   VarPropertyAccess,
   EvaluatedFunctionCall,
@@ -42,6 +45,8 @@ export function createPerfStats(): PerfStats {
     maxCallDepth: 0,
   };
 }
+
+const COMPARISON_OPERATORS: ComparisonOperator[] = ["$eq", "$neq", "$lt", "$lte", "$gt", "$gte"];
 
 function cloneIfNeeded(value: JSONType, perf?: PerfStats): JSONType {
   if (perf) perf.cloneIfNeeded++;
@@ -449,6 +454,12 @@ function evaluateExpression(expression: JSONType, context: EvaluationContext): J
       }
       return orResult;
 
+    case ExpressionType.Comparison:
+      return evaluateComparisonExpression(expression as ComparisonExpression, context);
+
+    case ExpressionType.Not:
+      return !evaluateExpression((expression as NotExpression).$not, context);
+
     case ExpressionType.PropertyAccess:
       return evaluatePropertyAccess(expression as PropertyAccess | VarPropertyAccess, context);
 
@@ -570,6 +581,40 @@ function replaceVars(
   }
 
   return expression;
+}
+
+function getComparisonOperator(json: Record<string, JSONType>): ComparisonOperator | undefined {
+  for (const key of Object.keys(json)) {
+    if (COMPARISON_OPERATORS.includes(key as ComparisonOperator)) {
+      return key as ComparisonOperator;
+    }
+  }
+  return undefined;
+}
+
+function evaluateComparisonExpression(
+  expression: ComparisonExpression,
+  context: EvaluationContext,
+): boolean {
+  const op = getComparisonOperator(expression as Record<string, JSONType>)!;
+  const args = expression[op]!;
+  const left = evaluateExpression(args[0]!, context);
+  const right = evaluateExpression(args[1]!, context);
+
+  switch (op) {
+    case "$eq":
+      return left === right;
+    case "$neq":
+      return left !== right;
+    case "$lt":
+      return (left as number) < (right as number);
+    case "$lte":
+      return (left as number) <= (right as number);
+    case "$gt":
+      return (left as number) > (right as number);
+    case "$gte":
+      return (left as number) >= (right as number);
+  }
 }
 
 function evaluatePropertyAccess(
@@ -794,6 +839,25 @@ function classifyExpressionType(json: JSONType): ExpressionType {
         exprError(json, "$or must be an array of expressions.");
       }
       return ExpressionType.Or;
+    }
+
+    const comparisonOperator = getComparisonOperator(json as Record<string, JSONType>);
+    if (comparisonOperator) {
+      if (expressionKeyCount(json) > 1) {
+        exprError(json, `${comparisonOperator} expressions cannot have other properties.`);
+      }
+      const args = json[comparisonOperator];
+      if (!Array.isArray(args) || args.length !== 2) {
+        exprError(json, `${comparisonOperator} must be an array of two expressions.`);
+      }
+      return ExpressionType.Comparison;
+    }
+
+    if ("$not" in json) {
+      if (expressionKeyCount(json) > 1) {
+        exprError(json, "$not expressions cannot have other properties.");
+      }
+      return ExpressionType.Not;
     }
 
     if ("$literal" in json) {

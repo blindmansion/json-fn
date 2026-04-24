@@ -23,6 +23,8 @@ const (
 	ExprCond
 	ExprAnd
 	ExprOr
+	ExprComparison
+	ExprNot
 	ExprPropertyAccess
 	ExprLiteral
 	ExprObject
@@ -42,6 +44,8 @@ var exprTypeNames = map[ExpressionType]string{
 	ExprCond:              "Cond",
 	ExprAnd:               "And",
 	ExprOr:                "Or",
+	ExprComparison:        "Comparison",
+	ExprNot:               "Not",
 	ExprPropertyAccess:    "PropertyAccess",
 	ExprLiteral:           "Literal",
 	ExprObject:            "Object",

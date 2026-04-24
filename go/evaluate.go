@@ -10,6 +10,8 @@ import (
 
 const defaultMaxCallDepth = 256
 
+var comparisonOperators = []string{"$eq", "$neq", "$gt", "$gte", "$lt", "$lte"}
+
 // CallFunction is the main entry point for evaluating a json-fn program.
 // fn must be a function name (string) or a JSON function body (map with "$return").
 // Returns the evaluated result or an error.
@@ -334,6 +336,17 @@ func evaluateExpression(expression any, ctx *evaluationContext) (any, error) {
 		}
 		return result, nil
 
+	case ExprComparison:
+		return evaluateComparisonExpression(expression.(map[string]any), ctx)
+
+	case ExprNot:
+		obj := expression.(map[string]any)
+		result, err := evaluateExpression(obj["$not"], ctx)
+		if err != nil {
+			return nil, err
+		}
+		return !isTruthy(result), nil
+
 	case ExprPropertyAccess:
 		return evaluatePropertyAccess(expression.(map[string]any), ctx)
 
@@ -634,6 +647,79 @@ func getExpressionType(json any) (ExpressionType, error) {
 	}
 }
 
+func getComparisonOperator(obj map[string]any) (string, bool) {
+	for _, op := range comparisonOperators {
+		if _, ok := obj[op]; ok {
+			return op, true
+		}
+	}
+	return "", false
+}
+
+func strictEqual(a, b any) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	switch av := a.(type) {
+	case bool:
+		bv, ok := b.(bool)
+		return ok && av == bv
+	case float64:
+		bv, ok := b.(float64)
+		return ok && av == bv
+	case int:
+		switch bv := b.(type) {
+		case int:
+			return av == bv
+		case float64:
+			return float64(av) == bv
+		default:
+			return false
+		}
+	case string:
+		bv, ok := b.(string)
+		return ok && av == bv
+	default:
+		return false
+	}
+}
+
+func evaluateComparisonExpression(expr map[string]any, ctx *evaluationContext) (any, error) {
+	op, _ := getComparisonOperator(expr)
+	args := expr[op].([]any)
+	left, err := evaluateExpression(args[0], ctx)
+	if err != nil {
+		return nil, err
+	}
+	right, err := evaluateExpression(args[1], ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	switch op {
+	case "$eq":
+		return strictEqual(left, right), nil
+	case "$neq":
+		return !strictEqual(left, right), nil
+	case "$lt", "$lte", "$gt", "$gte":
+		a, b, err := twoFloats([]any{left, right}, op[1:])
+		if err != nil {
+			return nil, err
+		}
+		switch op {
+		case "$lt":
+			return a < b, nil
+		case "$lte":
+			return a <= b, nil
+		case "$gt":
+			return a > b, nil
+		case "$gte":
+			return a >= b, nil
+		}
+	}
+	return nil, fmt.Errorf("unknown comparison operator: %s", op)
+}
+
 func getObjectExpressionType(obj map[string]any) (ExpressionType, error) {
 	if _, hasVar := obj["$var"]; hasVar {
 		varVal, ok := obj["$var"].(string)
@@ -757,6 +843,24 @@ func getObjectExpressionType(obj map[string]any) (ExpressionType, error) {
 			return 0, exprError(obj, "$or must be an array of expressions.")
 		}
 		return ExprOr, nil
+	}
+
+	if comparisonOperator, ok := getComparisonOperator(obj); ok {
+		if expressionKeyCount(obj) > 1 {
+			return 0, exprError(obj, fmt.Sprintf("%s expressions cannot have other properties.", comparisonOperator))
+		}
+		args, ok := obj[comparisonOperator].([]any)
+		if !ok || len(args) != 2 {
+			return 0, exprError(obj, fmt.Sprintf("%s must be an array of two expressions.", comparisonOperator))
+		}
+		return ExprComparison, nil
+	}
+
+	if _, hasNot := obj["$not"]; hasNot {
+		if expressionKeyCount(obj) > 1 {
+			return 0, exprError(obj, "$not expressions cannot have other properties.")
+		}
+		return ExprNot, nil
 	}
 
 	if _, hasLiteral := obj["$literal"]; hasLiteral {

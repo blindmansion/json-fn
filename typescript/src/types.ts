@@ -9,6 +9,8 @@ enum ExpressionType {
   Cond,
   And,
   Or,
+  Comparison,
+  Not,
   PropertyAccess,
   Literal,
   Object,
@@ -47,6 +49,16 @@ type Conditional = {
 
 type Cond = {
   $cond: [JSONType, JSONType][];
+};
+
+type ComparisonOperator = "$eq" | "$neq" | "$lt" | "$lte" | "$gt" | "$gte";
+
+type ComparisonExpression = {
+  [K in ComparisonOperator]?: JSONType[];
+};
+
+type NotExpression = {
+  $not: JSONType;
 };
 
 type PropertyAccess = {
@@ -133,6 +145,9 @@ export type {
   VariableReference,
   Conditional,
   Cond,
+  ComparisonOperator,
+  ComparisonExpression,
+  NotExpression,
   PropertyAccess,
   VarPropertyAccess,
   EvaluatedFunctionCall,

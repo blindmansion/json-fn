@@ -103,6 +103,104 @@
         }
       },
       "expected": [1, 2, 3]
+    },
+    {
+      "description": "$eq: true for equal evaluated values",
+      "body": {
+        "$return": { "$eq": [{ "$fn": ["add", 1, 1] }, 2] }
+      },
+      "expected": true
+    },
+    {
+      "description": "$neq: true for unequal evaluated values",
+      "body": {
+        "$return": { "$neq": [{ "$fn": ["str", 1] }, 1] }
+      },
+      "expected": true
+    },
+    {
+      "description": "$lt/$lte/$gt/$gte: comparison shorthands",
+      "body": {
+        "$return": {
+          "$and": [
+            { "$lt": [1, 2] },
+            { "$lte": [2, 2] },
+            { "$gt": [3, 2] },
+            { "$gte": [3, 3] }
+          ]
+        }
+      },
+      "expected": true
+    },
+    {
+      "description": "$not: negates truthy/falsy expression results",
+      "body": {
+        "$return": {
+          "$and": [
+            { "$not": false },
+            { "$not": null },
+            { "$not": 0 },
+            { "$not": "" },
+            { "$not": { "$eq": [1, 2] } }
+          ]
+        }
+      },
+      "expected": true
+    },
+    {
+      "description": "$not: false for truthy values",
+      "body": {
+        "$return": { "$not": "value" }
+      },
+      "expected": false
+    },
+    {
+      "description": "$eq: can be used directly in conditionals",
+      "body": {
+        "$params": ["cmd"],
+        "$return": {
+          "$if": { "$eq": [{ "$var": "cmd" }, "show"] },
+          "$then": "display",
+          "$else": "move"
+        }
+      },
+      "args": ["show"],
+      "expected": "display"
+    },
+    {
+      "description": "$eq: only uses JavaScript strict equality",
+      "body": {
+        "$return": { "$eq": [[1], [1]] }
+      },
+      "expected": false
+    },
+    {
+      "description": "$eq: rejects non-array operands",
+      "body": {
+        "$return": { "$eq": 1 }
+      },
+      "error": "$eq must be an array of two expressions"
+    },
+    {
+      "description": "$eq: rejects wrong arity",
+      "body": {
+        "$return": { "$eq": [1, 1, 1] }
+      },
+      "error": "$eq must be an array of two expressions"
+    },
+    {
+      "description": "$gt: rejects sibling expression properties",
+      "body": {
+        "$return": { "$gt": [2, 1], "$lt": [1, 2] }
+      },
+      "error": "$gt expressions cannot have other properties"
+    },
+    {
+      "description": "$not: rejects sibling expression properties",
+      "body": {
+        "$return": { "$not": true, "$eq": [1, 1] }
+      },
+      "error": "$eq expressions cannot have other properties"
     }
   ]
 }
