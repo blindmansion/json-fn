@@ -30,28 +30,8 @@ fn call_chess(fns: &FunctionRegistry, name: &str, args: &[Value]) -> Value {
         .unwrap_or_else(|e| panic!("call {name}: {e}"))
 }
 
-fn initial_board() -> Vec<Value> {
-    let template: [Option<&str>; 64] = [
-        Some("R"), Some("N"), Some("B"), Some("Q"), Some("K"), Some("B"), Some("N"), Some("R"),
-        Some("P"), Some("P"), Some("P"), Some("P"), Some("P"), Some("P"), Some("P"), Some("P"),
-        None, None, None, None, None, None, None, None,
-        None, None, None, None, None, None, None, None,
-        None, None, None, None, None, None, None, None,
-        None, None, None, None, None, None, None, None,
-        Some("p"), Some("p"), Some("p"), Some("p"), Some("p"), Some("p"), Some("p"), Some("p"),
-        Some("r"), Some("n"), Some("b"), Some("q"), Some("k"), Some("b"), Some("n"), Some("r"),
-    ];
-    template
-        .iter()
-        .map(|p| match p {
-            Some(s) => Value::String((*s).into()),
-            None => Value::Null,
-        })
-        .collect()
-}
-
-fn new_game_state() -> Value {
-    json!({ "board": initial_board(), "turn": "w", "status": "playing" })
+fn new_game_state(fns: &FunctionRegistry) -> Value {
+    call_chess(fns, "newGame", &[])
 }
 
 fn empty_board() -> Vec<Value> {
@@ -73,9 +53,14 @@ fn sq_v(s: &str) -> Value {
 fn chess_load_functions() {
     let fns = load_chess_functions();
     for name in [
+        // engine
         "pieceColor", "pieceType", "otherColor", "rowOf", "colOf", "toIdx",
         "inBounds", "pieceMoves", "isAttacked", "findKing", "isInCheck",
         "applyMove", "isLegalMove", "hasAnyLegalMove", "getStatus", "playMove",
+        // CLI / parsing / display layer
+        "newGame", "parseSquare", "squareName", "parseMove", "pieceGlyph",
+        "formatRank", "formatBoard", "turnLabel", "statusLine", "boardSection",
+        "showResult", "resetResult", "helpResult", "moveResult", "handleCommand",
     ] {
         assert!(fns.contains_key(name), "missing function: {name}");
     }
@@ -99,7 +84,7 @@ fn chess_helpers() {
 #[test]
 fn chess_initial_position() {
     let fns = load_chess_functions();
-    let state = new_game_state();
+    let state = new_game_state(&fns);
     let board = state["board"].clone();
 
     assert_eq!(call_chess(&fns, "isInCheck", &[board.clone(), json!("w")]), json!(false));
@@ -111,7 +96,7 @@ fn chess_initial_position() {
 #[test]
 fn chess_e2e4_opening() {
     let fns = load_chess_functions();
-    let state = new_game_state();
+    let state = new_game_state(&fns);
     let result = call_chess(&fns, "playMove", &[state, sq_v("e2"), sq_v("e4")]);
     assert_eq!(result["turn"], json!("b"));
     assert_eq!(result["status"], json!("playing"));
@@ -123,7 +108,7 @@ fn chess_e2e4_opening() {
 #[test]
 fn chess_illegal_move_unchanged() {
     let fns = load_chess_functions();
-    let state = new_game_state();
+    let state = new_game_state(&fns);
     let result = call_chess(&fns, "playMove", &[state, sq_v("e2"), sq_v("e5")]);
     assert_eq!(result["turn"], json!("w"));
 }
@@ -211,7 +196,7 @@ fn chess_knight_moves() {
 #[test]
 fn chess_fools_mate() {
     let fns = load_chess_functions();
-    let mut state = new_game_state();
+    let mut state = new_game_state(&fns);
     let moves = [("f2", "f3"), ("e7", "e5"), ("g2", "g4"), ("d8", "h4")];
     for (from, to) in moves {
         let prev_turn = state["turn"].clone();

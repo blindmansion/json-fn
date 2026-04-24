@@ -39,21 +39,9 @@ func callChess(t *testing.T, fns FunctionRegistry, name string, args ...any) any
 	return result
 }
 
-var initialBoard = []any{
-	"R", "N", "B", "Q", "K", "B", "N", "R",
-	"P", "P", "P", "P", "P", "P", "P", "P",
-	nil, nil, nil, nil, nil, nil, nil, nil,
-	nil, nil, nil, nil, nil, nil, nil, nil,
-	nil, nil, nil, nil, nil, nil, nil, nil,
-	nil, nil, nil, nil, nil, nil, nil, nil,
-	"p", "p", "p", "p", "p", "p", "p", "p",
-	"r", "n", "b", "q", "k", "b", "n", "r",
-}
-
-func newGameState() map[string]any {
-	board := make([]any, 64)
-	copy(board, initialBoard)
-	return map[string]any{"board": board, "turn": "w", "status": "playing"}
+func newGameState(t *testing.T, fns FunctionRegistry) map[string]any {
+	t.Helper()
+	return callChess(t, fns, "newGame").(map[string]any)
 }
 
 // sq converts algebraic notation (e.g. "e2") to a board index.
@@ -66,9 +54,14 @@ func sq(s string) float64 {
 func TestChessLoadFunctions(t *testing.T) {
 	fns := loadChessFunctions(t)
 	for _, name := range []string{
+		// engine
 		"pieceColor", "pieceType", "otherColor", "rowOf", "colOf", "toIdx",
 		"inBounds", "pieceMoves", "isAttacked", "findKing", "isInCheck",
 		"applyMove", "isLegalMove", "hasAnyLegalMove", "getStatus", "playMove",
+		// CLI / parsing / display layer
+		"newGame", "parseSquare", "squareName", "parseMove", "pieceGlyph",
+		"formatRank", "formatBoard", "turnLabel", "statusLine", "boardSection",
+		"showResult", "resetResult", "helpResult", "moveResult", "handleCommand",
 	} {
 		if _, ok := fns[name]; !ok {
 			t.Errorf("Expected function %s to be loaded", name)
@@ -118,7 +111,7 @@ func TestChessHelpers(t *testing.T) {
 
 func TestChessInitialPosition(t *testing.T) {
 	fns := loadChessFunctions(t)
-	state := newGameState()
+	state := newGameState(t, fns)
 	board := state["board"].([]any)
 
 	t.Run("not in check at start", func(t *testing.T) {
@@ -151,7 +144,7 @@ func TestChessPlayMoves(t *testing.T) {
 	fns := loadChessFunctions(t)
 
 	t.Run("e2e4 opening", func(t *testing.T) {
-		state := newGameState()
+		state := newGameState(t, fns)
 		result := callChess(t, fns, "playMove", state, sq("e2"), sq("e4"))
 		newState := result.(map[string]any)
 		if newState["turn"] != "b" {
@@ -170,7 +163,7 @@ func TestChessPlayMoves(t *testing.T) {
 	})
 
 	t.Run("illegal move returns unchanged state", func(t *testing.T) {
-		state := newGameState()
+		state := newGameState(t, fns)
 		result := callChess(t, fns, "playMove", state, sq("e2"), sq("e5"))
 		newState := result.(map[string]any)
 		if newState["turn"] != "w" {
@@ -179,7 +172,7 @@ func TestChessPlayMoves(t *testing.T) {
 	})
 
 	t.Run("sequence of moves", func(t *testing.T) {
-		state := newGameState()
+		state := newGameState(t, fns)
 		moves := [][2]string{
 			{"e2", "e4"}, // white
 			{"e7", "e5"}, // black
@@ -339,7 +332,7 @@ func TestChessFoolsMate(t *testing.T) {
 	fns := loadChessFunctions(t)
 
 	// Fool's mate: 1. f3 e5 2. g4 Qh4#
-	state := newGameState()
+	state := newGameState(t, fns)
 	moves := [][2]string{
 		{"f2", "f3"},
 		{"e7", "e5"},

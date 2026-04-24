@@ -874,4 +874,445 @@
       "$else": { "$var": "state" },
     },
   },
+
+  // =========================================================================
+  // Layer 6 — CLI, Parsing, and Display
+  //
+  // Everything below here exists so the host program can be a thin shell
+  // that only handles process I/O (argv in, stdout/stderr out, state file
+  // persistence). All parsing, rendering, and user-facing messaging lives
+  // in json-fn.
+  // =========================================================================
+
+  // newGame() → initial game state.
+  "newGame": {
+    "$return": {
+      "board": {
+        "$literal": [
+          "R", "N", "B", "Q", "K", "B", "N", "R",
+          "P", "P", "P", "P", "P", "P", "P", "P",
+          null, null, null, null, null, null, null, null,
+          null, null, null, null, null, null, null, null,
+          null, null, null, null, null, null, null, null,
+          null, null, null, null, null, null, null, null,
+          "p", "p", "p", "p", "p", "p", "p", "p",
+          "r", "n", "b", "q", "k", "b", "n", "r",
+        ],
+      },
+      "turn": "w",
+      "status": "playing",
+    },
+  },
+
+  // parseSquare("e2") → 12, or null if invalid.
+  // Uses indexOf on the file/rank alphabets in lieu of charCodeAt.
+  "parseSquare": {
+    "$params": ["s"],
+    "len": { "$fn": ["length", { "$var": "s" }] },
+    "fileChar": { "$fn": ["slice", { "$var": "s" }, 0, 1] },
+    "rankChar": { "$fn": ["slice", { "$var": "s" }, 1, 2] },
+    "file": { "$fn": ["indexOf", "abcdefgh", { "$var": "fileChar" }] },
+    "rank": { "$fn": ["indexOf", "12345678", { "$var": "rankChar" }] },
+    "$return": {
+      "$if": {
+        "$and": [
+          { "$fn": ["eq", { "$var": "len" }, 2] },
+          { "$fn": ["gte", { "$var": "file" }, 0] },
+          { "$fn": ["gte", { "$var": "rank" }, 0] },
+        ],
+      },
+      "$then": { "$fn": ["add", { "$fn": ["mul", { "$var": "rank" }, 8] }, { "$var": "file" }] },
+      "$else": null,
+    },
+  },
+
+  // squareName(12) → "e2".
+  "squareName": {
+    "$params": ["idx"],
+    "file": { "$fn": ["mod", { "$var": "idx" }, 8] },
+    "rank": { "$fn": ["floor", { "$fn": ["div", { "$var": "idx" }, 8] }] },
+    "fileChar": {
+      "$fn": ["slice", "abcdefgh", { "$var": "file" }, { "$fn": ["add", { "$var": "file" }, 1] }],
+    },
+    "rankChar": { "$fn": ["str", { "$fn": ["add", { "$var": "rank" }, 1] }] },
+    "$return": { "$fn": ["strcat", { "$var": "fileChar" }, { "$var": "rankChar" }] },
+  },
+
+  // parseMove("e2e4") or parseMove("e2 e4") → { "from": 12, "to": 28 }, or null.
+  "parseMove": {
+    "$params": ["s"],
+    "t": { "$fn": ["lower", { "$fn": ["trim", { "$var": "s" }] }] },
+    "len": { "$fn": ["length", { "$var": "t" }] },
+    "is4": { "$fn": ["eq", { "$var": "len" }, 4] },
+    "is5": { "$fn": ["eq", { "$var": "len" }, 5] },
+    "shapeOk": {
+      "$or": [
+        { "$var": "is4" },
+        {
+          "$and": [
+            { "$var": "is5" },
+            { "$fn": ["eq", { "$fn": ["slice", { "$var": "t" }, 2, 3] }, " "] },
+          ],
+        },
+      ],
+    },
+    "fromStr": {
+      "$if": { "$var": "shapeOk" },
+      "$then": { "$fn": ["slice", { "$var": "t" }, 0, 2] },
+      "$else": null,
+    },
+    "toStr": {
+      "$cond": [
+        [{ "$var": "is4" }, { "$fn": ["slice", { "$var": "t" }, 2, 4] }],
+        [{ "$var": "is5" }, { "$fn": ["slice", { "$var": "t" }, 3, 5] }],
+        [true, null],
+      ],
+    },
+    "from": { "$fn": ["parseSquare", { "$var": "fromStr" }] },
+    "to": { "$fn": ["parseSquare", { "$var": "toStr" }] },
+    "$return": {
+      "$if": {
+        "$and": [
+          { "$var": "shapeOk" },
+          { "$fn": ["not", { "$fn": ["isNull", { "$var": "from" }] }] },
+          { "$fn": ["not", { "$fn": ["isNull", { "$var": "to" }] }] },
+        ],
+      },
+      "$then": { "from": { "$var": "from" }, "to": { "$var": "to" } },
+      "$else": null,
+    },
+  },
+
+  // pieceGlyph(piece) → unicode chess symbol, or "·" for null.
+  "pieceGlyph": {
+    "$params": ["piece"],
+    "PIECES": {
+      "$literal": {
+        "K": "\u2654", "Q": "\u2655", "R": "\u2656", "B": "\u2657", "N": "\u2658", "P": "\u2659",
+        "k": "\u265A", "q": "\u265B", "r": "\u265C", "b": "\u265D", "n": "\u265E", "p": "\u265F",
+      },
+    },
+    "$return": {
+      "$if": { "$fn": ["isNull", { "$var": "piece" }] },
+      "$then": "\u00b7",
+      "$else": { "$var": "PIECES", "$get": { "$var": "piece" } },
+    },
+  },
+
+  // formatRank(board, rank) → " 2  ♙  ♙  ♙  ♙  ♙  ♙  ♙  ♙"
+  "formatRank": {
+    "$params": ["board", "rank"],
+    "cells": {
+      "$fn": [
+        "map",
+        {
+          "$params": ["file"],
+          "piece": {
+            "$var": "board",
+            "$get": {
+              "$fn": ["add", { "$fn": ["mul", { "$var": "rank" }, 8] }, { "$var": "file" }],
+            },
+          },
+          "$return": { "$fn": ["pieceGlyph", { "$var": "piece" }] },
+        },
+        { "$fn": ["range", 8] },
+      ],
+    },
+    "$return": {
+      "$fn": [
+        "strcat",
+        { "$fn": ["strcat", " ", { "$fn": ["str", { "$fn": ["add", { "$var": "rank" }, 1] }] }] },
+        { "$fn": ["strcat", "  ", { "$fn": ["join", { "$var": "cells" }, "  "] }] },
+      ],
+    },
+  },
+
+  // formatBoard(board) → multi-line rendered board with file labels.
+  "formatBoard": {
+    "$params": ["board"],
+    "rankLines": {
+      "$fn": [
+        "map",
+        {
+          "$params": ["rank"],
+          "$return": { "$fn": ["formatRank", { "$var": "board" }, { "$var": "rank" }] },
+        },
+        { "$fn": ["reverse", { "$fn": ["range", 8] }] },
+      ],
+    },
+    "$return": {
+      "$fn": [
+        "join",
+        { "$fn": ["concat", { "$var": "rankLines" }, ["", "    a  b  c  d  e  f  g  h"]] },
+        "\n",
+      ],
+    },
+  },
+
+  // turnLabel("w") → "White", turnLabel("b") → "Black".
+  "turnLabel": {
+    "$params": ["turn"],
+    "$return": {
+      "$if": { "$fn": ["eq", { "$var": "turn" }, "w"] },
+      "$then": "White",
+      "$else": "Black",
+    },
+  },
+
+  // statusLine(state) → "  White to move", "  White to move  [CHECK]",
+  //                     "  Checkmate — Black wins!", "  Stalemate — draw!".
+  "statusLine": {
+    "$params": ["state"],
+    "turn": { "$var": "state.turn" },
+    "status": { "$var": "state.status" },
+    "label": { "$fn": ["turnLabel", { "$var": "turn" }] },
+    "winnerLabel": { "$fn": ["turnLabel", { "$fn": ["otherColor", { "$var": "turn" }] }] },
+    "inCheck": { "$fn": ["isInCheck", { "$var": "state.board" }, { "$var": "turn" }] },
+    "$return": {
+      "$cond": [
+        [
+          { "$fn": ["eq", { "$var": "status" }, "checkmate"] },
+          {
+            "$fn": [
+              "strcat",
+              "  Checkmate — ",
+              { "$fn": ["strcat", { "$var": "winnerLabel" }, " wins!"] },
+            ],
+          },
+        ],
+        [{ "$fn": ["eq", { "$var": "status" }, "stalemate"] }, "  Stalemate — draw!"],
+        [
+          { "$var": "inCheck" },
+          {
+            "$fn": [
+              "strcat",
+              "  ",
+              { "$fn": ["strcat", { "$var": "label" }, " to move  [CHECK]"] },
+            ],
+          },
+        ],
+        [
+          true,
+          { "$fn": ["strcat", "  ", { "$fn": ["strcat", { "$var": "label" }, " to move"] }] },
+        ],
+      ],
+    },
+  },
+
+  // boardSection(state, header) → "\n[header]\n\n[board]\n\n[status]\n"
+  // header is an optional first line above the board ("" to omit).
+  "boardSection": {
+    "$params": ["state", "header"],
+    "headerPart": {
+      "$if": { "$fn": ["eq", { "$var": "header" }, ""] },
+      "$then": [""],
+      "$else": [{ "$var": "header" }, ""],
+    },
+    "lines": {
+      "$fn": [
+        "concat",
+        { "$var": "headerPart" },
+        [
+          { "$fn": ["formatBoard", { "$var": "state.board" }] },
+          "",
+          { "$fn": ["statusLine", { "$var": "state" }] },
+          "",
+        ],
+      ],
+    },
+    "$return": { "$fn": ["join", { "$var": "lines" }, "\n"] },
+  },
+
+  // showResult(state) → command result for the "show" subcommand.
+  "showResult": {
+    "$params": ["state"],
+    "$return": {
+      "output": { "$fn": ["boardSection", { "$var": "state" }, ""] },
+      "stderr": "",
+      "newState": null,
+      "reset": false,
+      "exitCode": 0,
+    },
+  },
+
+  // resetResult() → command result for "reset". Tells the host to delete
+  // the state file; the next invocation will load newGame() afresh.
+  "resetResult": {
+    "fresh": { "$fn": ["newGame"] },
+    "$return": {
+      "output": { "$fn": ["boardSection", { "$var": "fresh" }, "  New game."] },
+      "stderr": "",
+      "newState": null,
+      "reset": true,
+      "exitCode": 0,
+    },
+  },
+
+  // helpResult() → command result for "help".
+  "helpResult": {
+    "$return": {
+      "output": "\n  Chess — json-fn edition\n\n  Usage:  bun run typescript/examples/chess.ts <command>\n\n  Commands:\n    e2e4 / e2 e4    Make a move (algebraic notation)\n    show             Display the current board (default)\n    reset            Start a new game\n    help             Show this message\n",
+      "stderr": "",
+      "newState": null,
+      "reset": false,
+      "exitCode": 0,
+    },
+  },
+
+  // moveResult(state, argv) → command result for any move-shaped argv.
+  // Validates parse, game-active, and legality; returns the appropriate
+  // result object for each failure mode or the post-move board for success.
+  // The "illegal move" check that used to live in the host is folded in
+  // here via an explicit isLegalMove call.
+  "moveResult": {
+    "$params": ["state", "argv"],
+    "argc": { "$fn": ["length", { "$var": "argv" }] },
+    "moveInput": {
+      "$if": { "$fn": ["gte", { "$var": "argc" }, 2] },
+      "$then": {
+        "$fn": [
+          "strcat",
+          { "$var": "argv", "$get": 0 },
+          { "$fn": ["strcat", " ", { "$var": "argv", "$get": 1 }] },
+        ],
+      },
+      "$else": { "$var": "argv", "$get": 0 },
+    },
+    "move": { "$fn": ["parseMove", { "$var": "moveInput" }] },
+    "status": { "$var": "state.status" },
+    "isPlaying": { "$fn": ["eq", { "$var": "status" }, "playing"] },
+
+    // Legality (only consulted when move parses and game is active).
+    "legal": {
+      "$fn": [
+        "isLegalMove",
+        { "$var": "state.board" },
+        { "$var": "move.from" },
+        { "$var": "move.to" },
+        { "$var": "state.turn" },
+      ],
+    },
+
+    // Error strings.
+    "badParseStderr": {
+      "$fn": [
+        "strcat",
+        "  Invalid move format: \"",
+        {
+          "$fn": [
+            "strcat",
+            { "$var": "moveInput" },
+            "\". Use algebraic notation like 'e2e4' or 'e2 e4'.",
+          ],
+        },
+      ],
+    },
+    "gameOverStderr": {
+      "$fn": [
+        "strcat",
+        "  Game is over (",
+        { "$fn": ["strcat", { "$var": "status" }, "). Run 'reset' to start a new game."] },
+      ],
+    },
+    "moveDesc": {
+      "$fn": [
+        "strcat",
+        { "$fn": ["squareName", { "$var": "move.from" }] },
+        { "$fn": ["strcat", " \u2192 ", { "$fn": ["squareName", { "$var": "move.to" }] }] },
+      ],
+    },
+    "illegalStderr": { "$fn": ["strcat", "  Illegal move: ", { "$var": "moveDesc" }] },
+
+    // Successful move.
+    "nextState": {
+      "$fn": ["playMove", { "$var": "state" }, { "$var": "move.from" }, { "$var": "move.to" }],
+    },
+    "moveLine": {
+      "$fn": [
+        "strcat",
+        "  ",
+        {
+          "$fn": [
+            "strcat",
+            { "$fn": ["turnLabel", { "$var": "state.turn" }] },
+            { "$fn": ["strcat", " plays ", { "$var": "moveDesc" }] },
+          ],
+        },
+      ],
+    },
+    "successOutput": {
+      "$fn": ["boardSection", { "$var": "nextState" }, { "$var": "moveLine" }],
+    },
+
+    "$return": {
+      "$cond": [
+        [
+          { "$fn": ["isNull", { "$var": "move" }] },
+          {
+            "output": "",
+            "stderr": { "$var": "badParseStderr" },
+            "newState": null,
+            "reset": false,
+            "exitCode": 1,
+          },
+        ],
+        [
+          { "$fn": ["not", { "$var": "isPlaying" }] },
+          {
+            "output": "",
+            "stderr": { "$var": "gameOverStderr" },
+            "newState": null,
+            "reset": false,
+            "exitCode": 1,
+          },
+        ],
+        [
+          { "$fn": ["not", { "$var": "legal" }] },
+          {
+            "output": "",
+            "stderr": { "$var": "illegalStderr" },
+            "newState": null,
+            "reset": false,
+            "exitCode": 1,
+          },
+        ],
+        [
+          true,
+          {
+            "output": { "$var": "successOutput" },
+            "stderr": "",
+            "newState": { "$var": "nextState" },
+            "reset": false,
+            "exitCode": 0,
+          },
+        ],
+      ],
+    },
+  },
+
+  // handleCommand(state, argv) → unified command result object:
+  //   { output: string, stderr: string, newState: state|null,
+  //     reset: bool, exitCode: number }
+  // The host's only job is to read state, call this, then act on the
+  // returned fields (write/delete state file, print, exit).
+  "handleCommand": {
+    "$params": ["state", "argv"],
+    "argc": { "$fn": ["length", { "$var": "argv" }] },
+    "cmd": {
+      "$if": { "$fn": ["eq", { "$var": "argc" }, 0] },
+      "$then": "show",
+      "$else": { "$var": "argv", "$get": 0 },
+    },
+    "$return": {
+      "$cond": [
+        [
+          { "$fn": ["eq", { "$var": "cmd" }, "show"] },
+          { "$fn": ["showResult", { "$var": "state" }] },
+        ],
+        [{ "$fn": ["eq", { "$var": "cmd" }, "reset"] }, { "$fn": ["resetResult"] }],
+        [{ "$fn": ["eq", { "$var": "cmd" }, "help"] }, { "$fn": ["helpResult"] }],
+        [true, { "$fn": ["moveResult", { "$var": "state" }, { "$var": "argv" }] }],
+      ],
+    },
+  },
 }
