@@ -174,6 +174,8 @@ class Interpreter:
         for key, val in body.items():
             if key == "$return" or key == "$params":
                 continue
+            if key == "$comment" and val.__class__ is str:
+                continue
             has_body_locals = True
             if val.__class__ is dict and "$return" in val:
                 if local_fn_keys is None:
@@ -221,6 +223,10 @@ class Interpreter:
                 cycle = " -> ".join([*resolving[cycle_start:], name])
                 raise CycleError(f"Circular variable dependency detected: {cycle}")
             if name in body and name not in ("$return", "$params"):
+                if name == "$comment" and body[name].__class__ is str:
+                    if parent_get_var is not None:
+                        return parent_get_var(name)
+                    return _MISSING
                 resolving.append(name)
                 try:
                     if scoped_registry is not None:
@@ -283,7 +289,7 @@ class Interpreter:
             if "$fn" in expr:
                 fn_arr = expr["$fn"]
                 if fn_arr.__class__ is list:
-                    if len(expr) != 1:
+                    if _expr_key_count(expr) != 1:
                         raise EvaluationError(
                             _expr_error(expr, "Function calls cannot have other properties.")
                         )
@@ -340,10 +346,9 @@ class Interpreter:
                         )
                     eval_args = [self._evaluate(a, get_var) for a in fn_arr[1:]]
                     return self.call(fn_decl, eval_args, parent_get_var=get_var)
-                # FUNCTION_REFERENCE: $fn is a string or dict
                 if not isinstance(fn_arr, (str, dict)):
                     raise EvaluationError(_expr_error(expr, "Unrecognized expression type."))
-                if len(expr) != 1:
+                if _expr_key_count(expr) != 1:
                     raise EvaluationError(
                         _expr_error(expr, "Function references cannot have other properties.")
                     )
@@ -365,14 +370,14 @@ class Interpreter:
                         _expr_error(expr, "Variable references must have a string $var property.")
                     )
                 if "$get" in expr:
-                    if len(expr) > 2:
+                    if _expr_key_count(expr) > 2:
                         raise EvaluationError(
                             _expr_error(
                                 expr, "$var/$get property access cannot have other properties."
                             )
                         )
                     return self._evaluate_property_access(expr, get_var)
-                if len(expr) > 1:
+                if _expr_key_count(expr) > 1:
                     raise EvaluationError(
                         _expr_error(expr, "Variable references cannot have other properties.")
                     )
@@ -413,7 +418,7 @@ class Interpreter:
                             "$if, $then, $else.",
                         )
                     )
-                if len(expr) > 3:
+                if _expr_key_count(expr) > 3:
                     raise EvaluationError(
                         _expr_error(
                             expr,
@@ -425,7 +430,7 @@ class Interpreter:
                 return self._evaluate(branch, get_var)
 
             if "$cond" in expr:
-                if len(expr) != 1:
+                if _expr_key_count(expr) != 1:
                     raise EvaluationError(
                         _expr_error(expr, "$cond expressions cannot have other properties.")
                     )
@@ -448,7 +453,7 @@ class Interpreter:
                 )
 
             if "$and" in expr:
-                if len(expr) != 1:
+                if _expr_key_count(expr) != 1:
                     raise EvaluationError(
                         _expr_error(expr, "$and expressions cannot have other properties.")
                     )
@@ -465,7 +470,7 @@ class Interpreter:
                 return result
 
             if "$or" in expr:
-                if len(expr) != 1:
+                if _expr_key_count(expr) != 1:
                     raise EvaluationError(
                         _expr_error(expr, "$or expressions cannot have other properties.")
                     )
@@ -480,7 +485,7 @@ class Interpreter:
                 return result_or
 
             if "$literal" in expr:
-                if len(expr) != 1:
+                if _expr_key_count(expr) != 1:
                     raise EvaluationError(
                         _expr_error(expr, "$literal expressions cannot have other properties.")
                     )
@@ -493,7 +498,7 @@ class Interpreter:
                             expr, "Property access expressions must have both $get and $from."
                         )
                     )
-                if len(expr) > 2:
+                if _expr_key_count(expr) > 2:
                     raise EvaluationError(
                         _expr_error(
                             expr,
@@ -502,7 +507,12 @@ class Interpreter:
                     )
                 return self._evaluate_property_access(expr, get_var)
 
-            # Plain object literal — recursively evaluate values.
+            # Plain object literal — recursively evaluate values. A
+            # string-valued ``$comment`` key is stripped from the output.
+            if _has_string_comment(expr):
+                return {
+                    k: self._evaluate(v, get_var) for k, v in expr.items() if k != "$comment"
+                }
             return {k: self._evaluate(v, get_var) for k, v in expr.items()}
 
         if t is list:
@@ -592,7 +602,12 @@ class Interpreter:
 
         # Function body: mask shadowed names before recursing into children.
         if "$return" in expression:
-            local_names: set[str] = {k for k in expression if k not in ("$return", "$params")}
+            local_names: set[str] = {
+                k
+                for k, v in expression.items()
+                if k not in ("$return", "$params")
+                and not (k == "$comment" and v.__class__ is str)
+            }
             params = expression.get("$params")
             if isinstance(params, list):
                 for p in params:
@@ -669,6 +684,26 @@ class Interpreter:
 _MISSING: Any = object()
 """Sentinel for "variable not found" — distinct from a legitimate ``None``
 value, which is a perfectly valid JSON value."""
+
+
+def _has_string_comment(obj: dict[str, Any]) -> bool:
+    """Return True if ``obj`` contains a ``$comment`` key with a string value.
+
+    Such comments are noise: they don't count toward expression-key validation
+    and are stripped from plain-object output.
+    """
+    v = obj.get("$comment")
+    return v is not None and v.__class__ is str
+
+
+def _expr_key_count(obj: dict[str, Any]) -> int:
+    """Number of keys for expression-shape validation. A ``$comment`` key with
+    a string value does not count.
+    """
+    n = len(obj)
+    if _has_string_comment(obj):
+        n -= 1
+    return n
 
 
 def _truthy(v: Any) -> bool:
@@ -797,7 +832,7 @@ def _classify_object(obj: dict[str, Any]) -> ExpressionType:
     (sole-key constraints, presence/absence of co-required keys) with error
     messages that match the Go reference so the conformance suite passes.
     """
-    n = len(obj)
+    n = _expr_key_count(obj)
 
     if "$var" in obj:
         if not isinstance(obj["$var"], str):

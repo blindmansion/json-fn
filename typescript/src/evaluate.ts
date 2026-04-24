@@ -15,7 +15,15 @@ import type {
   EvaluatedFunctionCall,
 } from "./types";
 import { ExpressionType } from "./types";
-import { exprError, objectKeyCount, isPure, isBuiltin, isRaw, raw } from "./utils";
+import {
+  exprError,
+  expressionKeyCount,
+  isCommentKey,
+  isPure,
+  isBuiltin,
+  isRaw,
+  raw,
+} from "./utils";
 
 export type PerfStats = {
   evaluateExpression: number;
@@ -289,6 +297,7 @@ function callJSONFunction(fn: FunctionBody, args: JSONType[], context: Evaluatio
   for (const key of Object.keys(fn)) {
     if (key === "$return" || key === "$params") continue;
     const val = fn[key];
+    if (key === "$comment" && typeof val === "string") continue;
     if (typeof val === "object" && val !== null && !Array.isArray(val) && "$return" in val) {
       if (scopedFunctions === functions) scopedFunctions = { ...functions };
       scopedFunctions[key] = val as FunctionBody;
@@ -326,7 +335,7 @@ function callJSONFunction(fn: FunctionBody, args: JSONType[], context: Evaluatio
     }
 
     const expression = fn[name];
-    if (expression !== undefined) {
+    if (expression !== undefined && !(name === "$comment" && typeof expression === "string")) {
       resolvingVars.push(name);
       try {
         const evaluated = evaluateExpression(expression, {
@@ -475,8 +484,10 @@ function evaluateExpression(expression: JSONType, context: EvaluationContext): J
         if (_perf) _perf.rawSkips++;
         return object;
       }
+      const stripComment = isCommentKey(object);
       const evaluatedObject: Record<string, JSONType> = {};
       for (const [key, value] of Object.entries(object)) {
+        if (stripComment && key === "$comment") continue;
         evaluatedObject[key] = evaluateExpression(value, context);
       }
       return evaluatedObject;
@@ -534,7 +545,12 @@ function replaceVars(
 
     if ("$return" in expression) {
       const localNames = new Set(
-        Object.keys(expression).filter((k) => k !== "$return" && k !== "$params"),
+        Object.keys(expression).filter((k) => {
+          if (k === "$return" || k === "$params") return false;
+          if (k === "$comment" && typeof (expression as Record<string, JSONType>)[k] === "string")
+            return false;
+          return true;
+        }),
       );
 
       const params = expression.$params;
@@ -689,7 +705,7 @@ function classifyExpressionType(json: JSONType): ExpressionType {
       if (typeof json.$var !== "string") {
         exprError(json, "Variable references must have a string $var property.");
       }
-      const keyCount = objectKeyCount(json);
+      const keyCount = expressionKeyCount(json);
       if ("$get" in json) {
         if (keyCount > 2) {
           exprError(json, "$var/$get property access cannot have other properties.");
@@ -708,7 +724,7 @@ function classifyExpressionType(json: JSONType): ExpressionType {
       if (!(hasGet && hasFrom)) {
         exprError(json, "Property access expressions must have both $get and $from.");
       }
-      if (objectKeyCount(json) > 2) {
+      if (expressionKeyCount(json) > 2) {
         exprError(json, "Property access expressions cannot have more than two properties.");
       }
       return ExpressionType.PropertyAccess;
@@ -733,14 +749,14 @@ function classifyExpressionType(json: JSONType): ExpressionType {
 
     if ("$fn" in json) {
       if (Array.isArray(json.$fn)) {
-        if (objectKeyCount(json) > 1) {
+        if (expressionKeyCount(json) > 1) {
           exprError(json, "Function calls cannot have other properties.");
         }
         return ExpressionType.FunctionCall;
       }
 
       if (typeof json.$fn === "string" || typeof json.$fn === "object") {
-        if (objectKeyCount(json) > 1) {
+        if (expressionKeyCount(json) > 1) {
           exprError(json, "Function references cannot have other properties.");
         }
         return ExpressionType.FunctionReference;
@@ -757,14 +773,14 @@ function classifyExpressionType(json: JSONType): ExpressionType {
           "Conditional expressions must have all three properties: $if, $then, $else.",
         );
       }
-      if (objectKeyCount(json) > 3) {
+      if (expressionKeyCount(json) > 3) {
         exprError(json, "Conditional expressions cannot have more than three properties.");
       }
       return ExpressionType.Conditional;
     }
 
     if ("$cond" in json) {
-      if (objectKeyCount(json) > 1) {
+      if (expressionKeyCount(json) > 1) {
         exprError(json, "$cond expressions cannot have other properties.");
       }
       const pairs = json.$cond;
@@ -780,7 +796,7 @@ function classifyExpressionType(json: JSONType): ExpressionType {
     }
 
     if ("$and" in json) {
-      if (objectKeyCount(json) > 1) {
+      if (expressionKeyCount(json) > 1) {
         exprError(json, "$and expressions cannot have other properties.");
       }
       if (!Array.isArray(json.$and)) {
@@ -790,7 +806,7 @@ function classifyExpressionType(json: JSONType): ExpressionType {
     }
 
     if ("$or" in json) {
-      if (objectKeyCount(json) > 1) {
+      if (expressionKeyCount(json) > 1) {
         exprError(json, "$or expressions cannot have other properties.");
       }
       if (!Array.isArray(json.$or)) {
@@ -800,7 +816,7 @@ function classifyExpressionType(json: JSONType): ExpressionType {
     }
 
     if ("$literal" in json) {
-      if (objectKeyCount(json) > 1) {
+      if (expressionKeyCount(json) > 1) {
         exprError(json, "$literal expressions cannot have other properties.");
       }
       return ExpressionType.Literal;

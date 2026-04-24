@@ -164,6 +164,32 @@ Returns the value as-is without evaluating nested expressions. Use for constant 
 }
 ```
 
+### Comments — `$comment`
+
+A `$comment` key with a string value is ignored everywhere it appears as a sibling key in any expression form, and is stripped from plain-data objects. It survives JSON serialization, so unlike JSONC comments it round-trips through `parse → transform → stringify`.
+
+```json
+{
+  "$comment": "classify a number by sign",
+  "$params": ["n"],
+  "$return": {
+    "$cond": [
+      [{ "$fn": ["lt", { "$var": "n" }, 0] }, "negative"],
+      [{ "$fn": ["eq", { "$var": "n" }, 0] }, "zero"],
+      [true, "positive"]
+    ]
+  }
+}
+```
+
+Rules:
+
+- The value **must be a string** to be recognized as a comment. Non-string values are treated as normal keys (and will typically cause "expression cannot have other properties" errors in expression forms).
+- Allowed as a sibling key in any expression form (`$fn`, `$var`, `$if`/`$then`/`$else`, `$cond`, `$and`, `$or`, `$literal`, `$get`/`$from`, `$return`/`$params`/locals).
+- In plain data objects, `$comment` is stripped from the output. To preserve a literal `$comment` key in data, wrap with `$literal`.
+- Inside `$literal`, the entire value is returned verbatim — `$comment` is preserved.
+- Closures preserve `$comment` when a function body is returned as a value.
+
 ## Function Bodies
 
 A function body has `$return` and optionally `$params`. All other keys are lazy locals.
@@ -556,4 +582,5 @@ Use `entries` -> HOF -> `fromEntries` to transform objects:
 - `$literal` must be the sole key.
 - `$fn` as an array (function call) must be the sole key. `$fn` as a non-array (reference) must also be the sole key.
 - `$return` cannot coexist with `$fn`.
+- `$comment` (with a string value) is allowed as a sibling key in any expression form and does not count toward "sole key" / "exactly N keys" constraints. In plain data objects it is stripped from the output.
 - Truthiness: `0`, `""`, `null`, `false` are falsy; everything else is truthy.

@@ -8,8 +8,8 @@ use serde_json::{Map, Value};
 use crate::error::EvalError;
 use crate::path::{ParsedPath, Segment, parse_path, validate_param_name, walk_path};
 use crate::value::{
-    BodyMeta, FnEntry, FunctionRegistry, expr_error, is_fn_declaration, is_truthy, to_f64,
-    type_name,
+    BodyMeta, FnEntry, FunctionRegistry, expr_error, expression_key_count, has_string_comment,
+    is_fn_declaration, is_truthy, to_f64, type_name,
 };
 
 const DEFAULT_MAX_CALL_DEPTH: usize = 256;
@@ -353,11 +353,13 @@ fn frame_get_var(
         }
     }
 
-    // Lazy: look for a key on this frame's body matching `name`.
+    // Lazy: look for a key on this frame's body matching `name`. A
+    // string-valued ``$comment`` is noise and never resolves as a local.
     if let Value::Object(obj) = &frame.body.body
         && let Some(expr) = obj.get(name).cloned()
         && name != "$return"
         && name != "$params"
+        && !(name == "$comment" && matches!(expr, Value::String(_)))
     {
         frame.resolving.borrow_mut().push(name.to_string());
         let result = (|| {
@@ -434,7 +436,7 @@ fn classify_object(obj: &Map<String, Value>, expr: &Value) -> Result<ExprKind, E
         if !v.is_string() {
             return Err(expr_error(expr, "Variable references must have a string $var property."));
         }
-        let key_count = obj.len();
+        let key_count = expression_key_count(obj);
         if obj.contains_key("$get") {
             if key_count > 2 {
                 return Err(expr_error(expr, "$var/$get property access cannot have other properties."));
@@ -453,7 +455,7 @@ fn classify_object(obj: &Map<String, Value>, expr: &Value) -> Result<ExprKind, E
         if !(has_get && has_from) {
             return Err(expr_error(expr, "Property access expressions must have both $get and $from."));
         }
-        if obj.len() > 2 {
+        if expression_key_count(obj) > 2 {
             return Err(expr_error(expr, "Property access expressions cannot have more than two properties."));
         }
         return Ok(ExprKind::PropertyAccess);
@@ -480,13 +482,13 @@ fn classify_object(obj: &Map<String, Value>, expr: &Value) -> Result<ExprKind, E
 
     if let Some(fn_val) = obj.get("$fn") {
         if fn_val.is_array() {
-            if obj.len() > 1 {
+            if expression_key_count(obj) > 1 {
                 return Err(expr_error(expr, "Function calls cannot have other properties."));
             }
             return Ok(ExprKind::FunctionCall);
         }
         if matches!(fn_val, Value::String(_) | Value::Object(_)) {
-            if obj.len() > 1 {
+            if expression_key_count(obj) > 1 {
                 return Err(expr_error(expr, "Function references cannot have other properties."));
             }
             return Ok(ExprKind::FunctionReference);
@@ -503,14 +505,14 @@ fn classify_object(obj: &Map<String, Value>, expr: &Value) -> Result<ExprKind, E
                 "Conditional expressions must have all three properties: $if, $then, $else.",
             ));
         }
-        if obj.len() > 3 {
+        if expression_key_count(obj) > 3 {
             return Err(expr_error(expr, "Conditional expressions cannot have more than three properties."));
         }
         return Ok(ExprKind::Conditional);
     }
 
     if let Some(cond) = obj.get("$cond") {
-        if obj.len() > 1 {
+        if expression_key_count(obj) > 1 {
             return Err(expr_error(expr, "$cond expressions cannot have other properties."));
         }
         let arr = cond
@@ -528,7 +530,7 @@ fn classify_object(obj: &Map<String, Value>, expr: &Value) -> Result<ExprKind, E
     }
 
     if let Some(and) = obj.get("$and") {
-        if obj.len() > 1 {
+        if expression_key_count(obj) > 1 {
             return Err(expr_error(expr, "$and expressions cannot have other properties."));
         }
         if !and.is_array() {
@@ -538,7 +540,7 @@ fn classify_object(obj: &Map<String, Value>, expr: &Value) -> Result<ExprKind, E
     }
 
     if let Some(or) = obj.get("$or") {
-        if obj.len() > 1 {
+        if expression_key_count(obj) > 1 {
             return Err(expr_error(expr, "$or expressions cannot have other properties."));
         }
         if !or.is_array() {
@@ -548,7 +550,7 @@ fn classify_object(obj: &Map<String, Value>, expr: &Value) -> Result<ExprKind, E
     }
 
     if obj.contains_key("$literal") {
-        if obj.len() > 1 {
+        if expression_key_count(obj) > 1 {
             return Err(expr_error(expr, "$literal expressions cannot have other properties."));
         }
         return Ok(ExprKind::Literal);
@@ -699,8 +701,12 @@ fn evaluate_expression(expr: &Value, ctx: &mut EvalCtx) -> Result<Value, EvalErr
         }
         ExprKind::Object => {
             let obj = expr.as_object().unwrap();
+            let strip_comment = has_string_comment(obj);
             let mut out = Map::new();
             for (k, v) in obj {
+                if strip_comment && k == "$comment" {
+                    continue;
+                }
                 out.insert(k.clone(), evaluate_expression(v, ctx)?);
             }
             Ok(Value::Object(out))
@@ -882,9 +888,18 @@ fn replace_vars(
 
             if obj.contains_key("$return") {
                 let mut local_names: Vec<String> = obj
-                    .keys()
-                    .filter(|k| k.as_str() != "$return" && k.as_str() != "$params")
-                    .cloned()
+                    .iter()
+                    .filter(|(k, v)| {
+                        let k = k.as_str();
+                        if k == "$return" || k == "$params" {
+                            return false;
+                        }
+                        if k == "$comment" && matches!(v, Value::String(_)) {
+                            return false;
+                        }
+                        true
+                    })
+                    .map(|(k, _)| k.clone())
                     .collect();
                 if let Some(Value::Array(params)) = obj.get("$params") {
                     for p in params {

@@ -93,6 +93,11 @@ func callJSONFunction(fn map[string]any, args []any, ctx *evaluationContext) (an
 		if key == "$return" || key == "$params" {
 			continue
 		}
+		if key == "$comment" {
+			if _, isStr := val.(string); isStr {
+				continue
+			}
+		}
 		if body, ok := val.(map[string]any); ok {
 			if _, hasReturn := body["$return"]; hasReturn {
 				if !copied {
@@ -154,6 +159,14 @@ func callJSONFunction(fn map[string]any, args []any, ctx *evaluationContext) (an
 		}
 
 		if expression, ok := fn[name]; ok {
+			if name == "$comment" {
+				if _, isStr := expression.(string); isStr {
+					if parentGetVar != nil {
+						return parentGetVar(name)
+					}
+					return nil, false, nil
+				}
+			}
 			resolvingVars = append(resolvingVars, name)
 			evaluated, err := evaluateExpression(expression, &evaluationContext{
 				functions: scopedFunctions,
@@ -342,8 +355,16 @@ func evaluateExpression(expression any, ctx *evaluationContext) (any, error) {
 
 	case ExprObject:
 		obj := expression.(map[string]any)
-		result := make(map[string]any, len(obj))
+		stripComment := hasStringComment(obj)
+		size := len(obj)
+		if stripComment {
+			size--
+		}
+		result := make(map[string]any, size)
 		for key, value := range obj {
+			if stripComment && key == "$comment" {
+				continue
+			}
 			val, err := evaluateExpression(value, ctx)
 			if err != nil {
 				return nil, err
@@ -536,10 +557,16 @@ func replaceVars(expression any, getVar func(string) (any, bool, error)) (any, e
 
 		if _, hasReturn := expr["$return"]; hasReturn {
 			localNames := make(map[string]bool)
-			for k := range expr {
-				if k != "$return" && k != "$params" {
-					localNames[k] = true
+			for k, v := range expr {
+				if k == "$return" || k == "$params" {
+					continue
 				}
+				if k == "$comment" {
+					if _, isStr := v.(string); isStr {
+						continue
+					}
+				}
+				localNames[k] = true
 			}
 			if params, ok := expr["$params"].([]any); ok {
 				for _, p := range params {
@@ -614,7 +641,7 @@ func getObjectExpressionType(obj map[string]any) (ExpressionType, error) {
 			return 0, exprError(obj, "Variable references must have a string $var property.")
 		}
 		_ = varVal
-		keyCount := objectKeyCount(obj)
+		keyCount := expressionKeyCount(obj)
 		if _, hasGet := obj["$get"]; hasGet {
 			if keyCount > 2 {
 				return 0, exprError(obj, "$var/$get property access cannot have other properties.")
@@ -633,7 +660,7 @@ func getObjectExpressionType(obj map[string]any) (ExpressionType, error) {
 		if !(hasGet && hasFrom) {
 			return 0, exprError(obj, "Property access expressions must have both $get and $from.")
 		}
-		if objectKeyCount(obj) > 2 {
+		if expressionKeyCount(obj) > 2 {
 			return 0, exprError(obj, "Property access expressions cannot have more than two properties.")
 		}
 		return ExprPropertyAccess, nil
@@ -668,14 +695,14 @@ func getObjectExpressionType(obj map[string]any) (ExpressionType, error) {
 	if fnVal, hasFn := obj["$fn"]; hasFn {
 		if fnArr, ok := fnVal.([]any); ok {
 			_ = fnArr
-			if objectKeyCount(obj) > 1 {
+			if expressionKeyCount(obj) > 1 {
 				return 0, exprError(obj, "Function calls cannot have other properties.")
 			}
 			return ExprFunctionCall, nil
 		}
 		switch fnVal.(type) {
 		case string, map[string]any:
-			if objectKeyCount(obj) > 1 {
+			if expressionKeyCount(obj) > 1 {
 				return 0, exprError(obj, "Function references cannot have other properties.")
 			}
 			return ExprFunctionReference, nil
@@ -689,14 +716,14 @@ func getObjectExpressionType(obj map[string]any) (ExpressionType, error) {
 		if !(hasIf && hasThen && hasElse) {
 			return 0, exprError(obj, "Conditional expressions must have all three properties: $if, $then, $else.")
 		}
-		if objectKeyCount(obj) > 3 {
+		if expressionKeyCount(obj) > 3 {
 			return 0, exprError(obj, "Conditional expressions cannot have more than three properties.")
 		}
 		return ExprConditional, nil
 	}
 
 	if condVal, hasCond := obj["$cond"]; hasCond {
-		if objectKeyCount(obj) > 1 {
+		if expressionKeyCount(obj) > 1 {
 			return 0, exprError(obj, "$cond expressions cannot have other properties.")
 		}
 		pairs, ok := condVal.([]any)
@@ -713,7 +740,7 @@ func getObjectExpressionType(obj map[string]any) (ExpressionType, error) {
 	}
 
 	if andVal, hasAnd := obj["$and"]; hasAnd {
-		if objectKeyCount(obj) > 1 {
+		if expressionKeyCount(obj) > 1 {
 			return 0, exprError(obj, "$and expressions cannot have other properties.")
 		}
 		if _, ok := andVal.([]any); !ok {
@@ -723,7 +750,7 @@ func getObjectExpressionType(obj map[string]any) (ExpressionType, error) {
 	}
 
 	if orVal, hasOr := obj["$or"]; hasOr {
-		if objectKeyCount(obj) > 1 {
+		if expressionKeyCount(obj) > 1 {
 			return 0, exprError(obj, "$or expressions cannot have other properties.")
 		}
 		if _, ok := orVal.([]any); !ok {
@@ -733,7 +760,7 @@ func getObjectExpressionType(obj map[string]any) (ExpressionType, error) {
 	}
 
 	if _, hasLiteral := obj["$literal"]; hasLiteral {
-		if objectKeyCount(obj) > 1 {
+		if expressionKeyCount(obj) > 1 {
 			return 0, exprError(obj, "$literal expressions cannot have other properties.")
 		}
 		return ExprLiteral, nil

@@ -17,6 +17,28 @@ func objectKeyCount(obj map[string]any) int {
 	return len(obj)
 }
 
+// hasStringComment reports whether obj contains a "$comment" key with a string
+// value. Such comments are noise: they don't count toward expression-key
+// validation and are stripped from plain-object output.
+func hasStringComment(obj map[string]any) bool {
+	v, ok := obj["$comment"]
+	if !ok {
+		return false
+	}
+	_, isStr := v.(string)
+	return isStr
+}
+
+// expressionKeyCount returns the number of keys in obj for the purposes of
+// expression-shape validation. A "$comment" key with a string value does not
+// count.
+func expressionKeyCount(obj map[string]any) int {
+	if hasStringComment(obj) {
+		return len(obj) - 1
+	}
+	return len(obj)
+}
+
 func isFnDeclaration(value any) bool {
 	switch v := value.(type) {
 	case string:

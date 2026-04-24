@@ -11,6 +11,14 @@ export function objectKeyCount(obj: Record<string, unknown>): number {
   return n;
 }
 
+export function isCommentKey(obj: Record<string, unknown>): boolean {
+  return typeof (obj as { $comment?: unknown }).$comment === "string";
+}
+
+export function expressionKeyCount(obj: Record<string, unknown>): number {
+  return objectKeyCount(obj) - (isCommentKey(obj) ? 1 : 0);
+}
+
 export function isPure(fn: unknown): boolean {
   return typeof fn === "function" && PURE_MARKER in fn;
 }
