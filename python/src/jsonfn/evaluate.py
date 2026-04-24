@@ -415,7 +415,8 @@ class Interpreter:
                 if _expr_key_count(expr) > (2 if "$else" in expr else 1):
                     raise EvaluationError(
                         _expr_error(
-                            expr, "$cond expressions can only have $cond and optional $else properties."
+                            expr,
+                            "$cond expressions can only have $cond and optional $else properties.",
                         )
                     )
                 pairs = expr["$cond"]
@@ -449,13 +450,15 @@ class Interpreter:
                 if not (has_match and has_cases and has_else):
                     raise EvaluationError(
                         _expr_error(
-                            expr, "$match expressions must have $match, $cases, and $else properties."
+                            expr,
+                            "$match expressions must have $match, $cases, and $else properties.",
                         )
                     )
                 if _expr_key_count(expr) > 3:
                     raise EvaluationError(
                         _expr_error(
-                            expr, "$match expressions can only have $match, $cases, and $else properties."
+                            expr,
+                            "$match expressions can only have $match, $cases, and $else properties.",
                         )
                     )
                 pairs = expr["$cases"]
@@ -466,13 +469,14 @@ class Interpreter:
                 for pair in pairs:
                     if not isinstance(pair, list) or len(pair) != 2:
                         raise EvaluationError(
-                            _expr_error(
-                                expr, "Each $match case must be a [value, result] pair."
-                            )
+                            _expr_error(expr, "Each $match case must be a [value, result] pair.")
                         )
                 matched_value = self._evaluate(expr["$match"], get_var)
+                _assert_match_scalar(matched_value, expr)
                 for pair in pairs:
-                    if _strict_equal(self._evaluate(pair[0], get_var), matched_value):
+                    candidate = self._evaluate(pair[0], get_var)
+                    _assert_match_scalar(candidate, expr)
+                    if _strict_equal(candidate, matched_value):
                         return self._evaluate(pair[1], get_var)
                 return self._evaluate(expr["$else"], get_var)
 
@@ -858,6 +862,17 @@ def _strict_equal(a: Any, b: Any) -> bool:
     return False
 
 
+def _is_match_scalar(value: Any) -> bool:
+    return value is None or isinstance(value, bool | int | float | str)
+
+
+def _assert_match_scalar(value: Any, expr: Any) -> None:
+    if not _is_match_scalar(value):
+        raise EvaluationError(
+            _expr_error(expr, "$match values must be null, boolean, number, or string.")
+        )
+
+
 def _type_label(value: Any) -> str:
     """Human-readable type name for error messages."""
     if value is None:
@@ -1005,7 +1020,9 @@ def _classify_object(obj: dict[str, Any]) -> ExpressionType:
     if "$cond" in obj:
         if n > (2 if "$else" in obj else 1):
             raise EvaluationError(
-                _expr_error(obj, "$cond expressions can only have $cond and optional $else properties.")
+                _expr_error(
+                    obj, "$cond expressions can only have $cond and optional $else properties."
+                )
             )
         pairs = obj["$cond"]
         if not isinstance(pairs, list):
@@ -1025,11 +1042,15 @@ def _classify_object(obj: dict[str, Any]) -> ExpressionType:
     if has_match or has_cases:
         if not (has_match and has_cases and has_match_else):
             raise EvaluationError(
-                _expr_error(obj, "$match expressions must have $match, $cases, and $else properties.")
+                _expr_error(
+                    obj, "$match expressions must have $match, $cases, and $else properties."
+                )
             )
         if n > 3:
             raise EvaluationError(
-                _expr_error(obj, "$match expressions can only have $match, $cases, and $else properties.")
+                _expr_error(
+                    obj, "$match expressions can only have $match, $cases, and $else properties."
+                )
             )
         pairs = obj["$cases"]
         if not isinstance(pairs, list):

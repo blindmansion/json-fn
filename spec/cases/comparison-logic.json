@@ -168,11 +168,46 @@
       "expected": "display"
     },
     {
-      "description": "$eq: only uses JavaScript strict equality",
+      "description": "$eq: only uses strict scalar equality for arrays",
       "body": {
         "$return": { "$eq": [[1], [1]] }
       },
       "expected": false
+    },
+    {
+      "description": "$eq: only uses strict scalar equality for objects",
+      "body": {
+        "$return": { "$eq": [{ "x": 1 }, { "x": 1 }] }
+      },
+      "expected": false
+    },
+    {
+      "description": "eq: only uses strict scalar equality for arrays",
+      "body": {
+        "$return": { "$fn": ["eq", [1], [1]] }
+      },
+      "expected": false
+    },
+    {
+      "description": "neq: true for structurally equal arrays",
+      "body": {
+        "$return": { "$fn": ["neq", [1], [1]] }
+      },
+      "expected": true
+    },
+    {
+      "description": "eq: only uses strict scalar equality for objects",
+      "body": {
+        "$return": { "$fn": ["eq", { "x": 1 }, { "x": 1 }] }
+      },
+      "expected": false
+    },
+    {
+      "description": "neq: true for structurally equal objects",
+      "body": {
+        "$return": { "$fn": ["neq", { "x": 1 }, { "x": 1 }] }
+      },
+      "expected": true
     },
     {
       "description": "$eq: rejects non-array operands",

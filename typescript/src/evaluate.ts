@@ -49,6 +49,21 @@ export function createPerfStats(): PerfStats {
 
 const COMPARISON_OPERATORS: ComparisonOperator[] = ["$eq", "$neq", "$lt", "$lte", "$gt", "$gte"];
 
+function isScalarValue(value: JSONType): boolean {
+  return (
+    value === null ||
+    typeof value === "boolean" ||
+    typeof value === "number" ||
+    typeof value === "string"
+  );
+}
+
+function assertMatchScalar(value: JSONType, expression: JSONType): void {
+  if (!isScalarValue(value)) {
+    exprError(expression, "$match values must be null, boolean, number, or string.");
+  }
+}
+
 function cloneIfNeeded(value: JSONType, perf?: PerfStats): JSONType {
   if (perf) perf.cloneIfNeeded++;
   if (value === null || typeof value !== "object") return value;
@@ -443,8 +458,10 @@ function evaluateExpression(expression: JSONType, context: EvaluationContext): J
     case ExpressionType.Match:
       const match = expression as Match;
       const matchedValue = evaluateExpression(match.$match, context);
+      assertMatchScalar(matchedValue, expression);
       for (const [candidate, result] of match.$cases) {
         const evaluatedCandidate = evaluateExpression(candidate, context);
+        assertMatchScalar(evaluatedCandidate, expression);
         if (evaluatedCandidate === matchedValue) {
           return evaluateExpression(result, context);
         }

@@ -170,6 +170,20 @@
       "expected": 1
     },
     {
+      "description": "indexOf: does not use structural equality for arrays",
+      "body": {
+        "$return": { "$fn": ["indexOf", [[1]], [1]] }
+      },
+      "expected": -1
+    },
+    {
+      "description": "indexOf: does not use structural equality for objects",
+      "body": {
+        "$return": { "$fn": ["indexOf", [{ "x": 1 }], { "x": 1 }] }
+      },
+      "expected": -1
+    },
+    {
       "description": "indexOf: found in string",
       "body": {
         "$return": { "$fn": ["indexOf", "hello world", "world"] }
@@ -194,6 +208,20 @@
       "description": "includes: false when element missing from array",
       "body": {
         "$return": { "$fn": ["includes", [1, 2, 3], 5] }
+      },
+      "expected": false
+    },
+    {
+      "description": "includes: does not use structural equality for arrays",
+      "body": {
+        "$return": { "$fn": ["includes", [[1]], [1]] }
+      },
+      "expected": false
+    },
+    {
+      "description": "includes: does not use structural equality for objects",
+      "body": {
+        "$return": { "$fn": ["includes", [{ "x": 1 }], { "x": 1 }] }
       },
       "expected": false
     },

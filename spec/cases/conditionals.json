@@ -380,6 +380,28 @@
       "expected": "not number"
     },
     {
+      "description": "$match: rejects non-scalar match values",
+      "body": {
+        "$return": {
+          "$match": [1],
+          "$cases": [[[1], "array"]],
+          "$else": "fallback"
+        }
+      },
+      "error": "$match values must be null, boolean, number, or string"
+    },
+    {
+      "description": "$match: rejects non-scalar case values",
+      "body": {
+        "$return": {
+          "$match": "show",
+          "$cases": [[["show"], "array"]],
+          "$else": "fallback"
+        }
+      },
+      "error": "$match values must be null, boolean, number, or string"
+    },
+    {
       "description": "$match: evaluates case values and only matched result",
       "body": {
         "$params": ["value"],

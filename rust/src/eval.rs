@@ -9,7 +9,7 @@ use crate::error::EvalError;
 use crate::path::{ParsedPath, Segment, parse_path, validate_param_name, walk_path};
 use crate::value::{
     BodyMeta, FnEntry, FunctionRegistry, expr_error, expression_key_count, has_string_comment,
-    is_fn_declaration, is_truthy, to_f64, type_name,
+    is_fn_declaration, is_scalar_value, is_truthy, scalar_equal, to_f64, type_name,
 };
 
 const DEFAULT_MAX_CALL_DEPTH: usize = 256;
@@ -444,19 +444,6 @@ fn get_comparison_operator(obj: &Map<String, Value>) -> Option<&str> {
         .map(String::as_str)
 }
 
-fn strict_equal(a: &Value, b: &Value) -> bool {
-    match (a, b) {
-        (Value::Null, Value::Null) => true,
-        (Value::Bool(x), Value::Bool(y)) => x == y,
-        (Value::Number(x), Value::Number(y)) => match (x.as_f64(), y.as_f64()) {
-            (Some(xf), Some(yf)) => xf == yf,
-            _ => false,
-        },
-        (Value::String(x), Value::String(y)) => x == y,
-        _ => false,
-    }
-}
-
 fn classify_object(obj: &Map<String, Value>, expr: &Value) -> Result<ExprKind, EvalError> {
     if let Some(v) = obj.get("$var") {
         if !v.is_string() {
@@ -704,8 +691,8 @@ fn evaluate_comparison_expression(expr: &Value, ctx: &mut EvalCtx) -> Result<Val
     let right = evaluate_expression(&args[1], ctx)?;
 
     let result = match op {
-        "$eq" => strict_equal(&left, &right),
-        "$neq" => !strict_equal(&left, &right),
+        "$eq" => scalar_equal(&left, &right),
+        "$neq" => !scalar_equal(&left, &right),
         "$lt" | "$lte" | "$gt" | "$gte" => {
             let left_num = to_f64(&left)
                 .ok_or_else(|| EvalError(format!("{}: arguments must be numbers", &op[1..])))?;
@@ -836,11 +823,23 @@ fn evaluate_expression(expr: &Value, ctx: &mut EvalCtx) -> Result<Value, EvalErr
         ExprKind::Match => {
             let obj = expr.as_object().unwrap();
             let matched_value = evaluate_expression(&obj["$match"], ctx)?;
+            if !is_scalar_value(&matched_value) {
+                return Err(expr_error(
+                    expr,
+                    "$match values must be null, boolean, number, or string.",
+                ));
+            }
             let cases = obj["$cases"].as_array().unwrap();
             for pair in cases {
                 let branch = pair.as_array().unwrap();
                 let candidate = evaluate_expression(&branch[0], ctx)?;
-                if strict_equal(&candidate, &matched_value) {
+                if !is_scalar_value(&candidate) {
+                    return Err(expr_error(
+                        expr,
+                        "$match values must be null, boolean, number, or string.",
+                    ));
+                }
+                if scalar_equal(&candidate, &matched_value) {
                     return evaluate_expression(&branch[1], ctx);
                 }
             }

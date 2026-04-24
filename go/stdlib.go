@@ -140,8 +140,8 @@ func CreateStdlib() FunctionRegistry {
 		}},
 
 		// Comparison
-		"eq":  &PureFunc{Arity: 2, Fn: func(args []any) (any, error) { return jsonEqual(args[0], args[1]), nil }},
-		"neq": &PureFunc{Arity: 2, Fn: func(args []any) (any, error) { return !jsonEqual(args[0], args[1]), nil }},
+		"eq":  &PureFunc{Arity: 2, Fn: func(args []any) (any, error) { return strictEqual(args[0], args[1]), nil }},
+		"neq": &PureFunc{Arity: 2, Fn: func(args []any) (any, error) { return !strictEqual(args[0], args[1]), nil }},
 		"gt": &PureFunc{Arity: 2, Fn: func(args []any) (any, error) {
 			a, b, err := twoFloats(args, "gt")
 			if err != nil {
@@ -388,7 +388,7 @@ func CreateStdlib() FunctionRegistry {
 			switch v := args[0].(type) {
 			case []any:
 				for _, item := range v {
-					if jsonEqual(item, args[1]) {
+					if strictEqual(item, args[1]) {
 						return true, nil
 					}
 				}
@@ -407,7 +407,7 @@ func CreateStdlib() FunctionRegistry {
 			switch v := args[0].(type) {
 			case []any:
 				for i, item := range v {
-					if jsonEqual(item, args[1]) {
+					if strictEqual(item, args[1]) {
 						return float64(i), nil
 					}
 				}

@@ -5,7 +5,7 @@ use serde_json::{Map, Number, Value};
 
 use crate::error::EvalError;
 use crate::value::{
-    FnEntry, FunctionRegistry, get_arity, is_truthy, json_equal, json_less, to_f64,
+    FnEntry, FunctionRegistry, get_arity, is_truthy, json_less, scalar_equal, to_f64,
 };
 
 fn one_float(args: &[Value], name: &str) -> Result<f64, EvalError> {
@@ -150,11 +150,11 @@ pub fn create_stdlib() -> FunctionRegistry {
     // -- Comparison --------------------------------------------------------
     r.insert(
         "eq".into(),
-        FnEntry::pure(2, |a| Ok(Value::Bool(json_equal(&a[0], &a[1])))),
+        FnEntry::pure(2, |a| Ok(Value::Bool(scalar_equal(&a[0], &a[1])))),
     );
     r.insert(
         "neq".into(),
-        FnEntry::pure(2, |a| Ok(Value::Bool(!json_equal(&a[0], &a[1])))),
+        FnEntry::pure(2, |a| Ok(Value::Bool(!scalar_equal(&a[0], &a[1])))),
     );
     r.insert(
         "gt".into(),
@@ -425,7 +425,7 @@ pub fn create_stdlib() -> FunctionRegistry {
     r.insert(
         "includes".into(),
         FnEntry::pure(2, |a| match &a[0] {
-            Value::Array(arr) => Ok(Value::Bool(arr.iter().any(|x| json_equal(x, &a[1])))),
+            Value::Array(arr) => Ok(Value::Bool(arr.iter().any(|x| scalar_equal(x, &a[1])))),
             Value::String(s) => match a[1].as_str() {
                 Some(sub) => Ok(Value::Bool(s.contains(sub))),
                 None => Ok(Value::Bool(false)),
@@ -440,7 +440,7 @@ pub fn create_stdlib() -> FunctionRegistry {
         FnEntry::pure(2, |a| match &a[0] {
             Value::Array(arr) => {
                 for (i, v) in arr.iter().enumerate() {
-                    if json_equal(v, &a[1]) {
+                    if scalar_equal(v, &a[1]) {
                         return Ok(num(i as f64));
                     }
                 }

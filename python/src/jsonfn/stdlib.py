@@ -105,24 +105,16 @@ def _two_numbers(a: Any, b: Any, fn_name: str) -> tuple[int | float, int | float
     raise EvaluationError(f"{fn_name}: arguments must be numbers")
 
 
-def _json_equal(a: Any, b: Any) -> bool:
-    """Deep JSON equality. Distinguishes bool from int (since Python collapses
-    them by default), treats int/float as comparable when both are numeric.
-    """
-    if a is None and b is None:
-        return True
+def _strict_equal(a: Any, b: Any) -> bool:
+    """Strict scalar equality for JSON values. Containers are not equal."""
     if a is None or b is None:
-        return False
+        return a is None and b is None
     if isinstance(a, bool) or isinstance(b, bool):
         return isinstance(a, bool) and isinstance(b, bool) and a == b
     if _is_number(a) and _is_number(b):
         return a == b
     if isinstance(a, str) and isinstance(b, str):
         return a == b
-    if isinstance(a, list) and isinstance(b, list):
-        return len(a) == len(b) and all(_json_equal(x, y) for x, y in zip(a, b, strict=False))
-    if isinstance(a, dict) and isinstance(b, dict):
-        return a.keys() == b.keys() and all(_json_equal(a[k], b[k]) for k in a)
     return False
 
 
@@ -339,11 +331,11 @@ def create_stdlib() -> FunctionRegistry:
 
     @r.pure("eq", arity=2)
     def _(a: Any, b: Any) -> JsonValue:
-        return _json_equal(a, b)
+        return _strict_equal(a, b)
 
     @r.pure("neq", arity=2)
     def _(a: Any, b: Any) -> JsonValue:
-        return not _json_equal(a, b)
+        return not _strict_equal(a, b)
 
     @r.pure("gt", arity=2)
     def _(a: Any, b: Any) -> JsonValue:
@@ -535,7 +527,7 @@ def create_stdlib() -> FunctionRegistry:
     @r.pure("includes", arity=2)
     def _(target: Any, value: Any) -> JsonValue:
         if isinstance(target, list):
-            return any(_json_equal(item, value) for item in target)
+            return any(_strict_equal(item, value) for item in target)
         if isinstance(target, str):
             if not isinstance(value, str):
                 return False
@@ -546,7 +538,7 @@ def create_stdlib() -> FunctionRegistry:
     def _(target: Any, value: Any) -> JsonValue:
         if isinstance(target, list):
             for i, item in enumerate(target):
-                if _json_equal(item, value):
+                if _strict_equal(item, value):
                     return i
             return -1
         if isinstance(target, str):

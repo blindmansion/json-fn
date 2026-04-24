@@ -315,12 +315,18 @@ func evaluateExpression(expression any, ctx *evaluationContext) (any, error) {
 		if err != nil {
 			return nil, err
 		}
+		if !isScalarValue(matchedValue) {
+			return nil, exprError(expression, "$match values must be null, boolean, number, or string.")
+		}
 		pairs := obj["$cases"].([]any)
 		for _, pair := range pairs {
 			branch := pair.([]any)
 			candidate, err := evaluateExpression(branch[0], ctx)
 			if err != nil {
 				return nil, err
+			}
+			if !isScalarValue(candidate) {
+				return nil, exprError(expression, "$match values must be null, boolean, number, or string.")
 			}
 			if strictEqual(candidate, matchedValue) {
 				return evaluateExpression(branch[1], ctx)
@@ -701,6 +707,18 @@ func strictEqual(a, b any) bool {
 	case string:
 		bv, ok := b.(string)
 		return ok && av == bv
+	default:
+		return false
+	}
+}
+
+func isScalarValue(v any) bool {
+	if v == nil {
+		return true
+	}
+	switch v.(type) {
+	case bool, float64, int, string:
+		return true
 	default:
 		return false
 	}

@@ -185,6 +185,28 @@ pub fn json_equal(a: &Value, b: &Value) -> bool {
     }
 }
 
+/// Strict scalar equality for expression operators and scalar dispatch. Arrays
+/// and objects are never structurally equal here.
+pub fn scalar_equal(a: &Value, b: &Value) -> bool {
+    match (a, b) {
+        (Value::Null, Value::Null) => true,
+        (Value::Bool(x), Value::Bool(y)) => x == y,
+        (Value::Number(x), Value::Number(y)) => match (x.as_f64(), y.as_f64()) {
+            (Some(xf), Some(yf)) => xf == yf,
+            _ => false,
+        },
+        (Value::String(x), Value::String(y)) => x == y,
+        _ => false,
+    }
+}
+
+pub fn is_scalar_value(value: &Value) -> bool {
+    matches!(
+        value,
+        Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_)
+    )
+}
+
 /// Order-relation used by `sortBy`. Compares numbers as `f64`, strings
 /// lexicographically. Other types compare equal (returns `false`). Mirrors
 /// Go's `jsonLess`.

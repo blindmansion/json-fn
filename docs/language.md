@@ -128,9 +128,9 @@ Array of `[condition, result]` pairs. First truthy condition wins. If no conditi
 
 `[true, ...]` still works as an explicit catch-all branch when you prefer to keep all branches inside the `$cond` array.
 
-### Value Match — `{ $match, $cases, $else }`
+### Scalar Value Match — `{ $match, $cases, $else }`
 
-Evaluates `$match`, then checks `$cases` left-to-right. Each case is a `[value, result]` pair; the first case value that is strictly equal (`===`) to the matched value wins. `$else` is required and is evaluated only if no case matches.
+Evaluates `$match`, then checks `$cases` left-to-right. Each case is a `[value, result]` pair; the first case value that is strictly equal to the matched value wins. `$match` and case values must evaluate to scalar JSON values (`null`, boolean, number, or string); arrays and objects are rejected instead of compared structurally. `$else` is required and is evaluated only if no case matches.
 
 ```json
 {
@@ -424,8 +424,8 @@ All functions listed below are available in the standard library.
 | `range`    | `(n)`                | `[0, 1, ..., n-1]`                     |
 | `slice`    | `(arr, start, end?)` | slice                                  |
 | `reverse`  | `(arr)`              | reversed copy                          |
-| `includes` | `(arr, value)`       | contains check (works on strings)      |
-| `indexOf`  | `(arr, value)`       | index of value (-1 if missing)         |
+| `includes` | `(arr, value)`       | strict contains check (works on strings) |
+| `indexOf`  | `(arr, value)`       | strict index of value (-1 if missing)  |
 | `flatten`  | `(arr)`              | flatten one level                      |
 | `setAt`    | `(arr, idx, value)`  | new array with element at idx replaced |
 
@@ -613,7 +613,8 @@ Use `entries` -> HOF -> `fromEntries` to transform objects:
 - Variable names (in `$params` and as local keys in function bodies) must not contain `.` or `[`.
 - `$get`/`$from` must be the only two keys (alternative property access form).
 - `$if`/`$then`/`$else` must all be present, exactly three keys.
-- `$cond` must be the sole key; each entry must be a two-element array.
+- `$cond` may have only `$cond` and optional `$else`; each entry must be a two-element array.
+- `$match` must have `$match`, `$cases`, and `$else`; `$match` and case values must evaluate to scalar JSON values.
 - `$and` must be the sole key; value must be an array of expressions.
 - `$or` must be the sole key; value must be an array of expressions.
 - `$eq`, `$neq`, `$lt`, `$lte`, `$gt`, and `$gte` must be the sole key; value must be an array of exactly two expressions.
