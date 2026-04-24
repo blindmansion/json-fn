@@ -29,7 +29,7 @@
       "$if": { "$fn": ["isNull", { "$var": "piece" }] },
       "$then": null,
       "$else": {
-        "$if": { "$fn": ["eq", { "$var": "piece" }, { "$fn": ["upper", { "$var": "piece" }] }] },
+        "$if": { "$eq": [{ "$var": "piece" }, { "$fn": ["upper", { "$var": "piece" }] }] },
         "$then": "w",
         "$else": "b",
       },
@@ -46,7 +46,7 @@
   "otherColor": {
     "$params": ["color"],
     "$return": {
-      "$if": { "$fn": ["eq", { "$var": "color" }, "w"] },
+      "$if": { "$eq": [{ "$var": "color" }, "w"] },
       "$then": "b",
       "$else": "w",
     },
@@ -72,10 +72,10 @@
     "$params": ["row", "col"],
     "$return": {
       "$and": [
-        { "$fn": ["gte", { "$var": "row" }, 0] },
-        { "$fn": ["lte", { "$var": "row" }, 7] },
-        { "$fn": ["gte", { "$var": "col" }, 0] },
-        { "$fn": ["lte", { "$var": "col" }, 7] },
+        { "$gte": [{ "$var": "row" }, 0] },
+        { "$lte": [{ "$var": "row" }, 7] },
+        { "$gte": [{ "$var": "col" }, 0] },
+        { "$lte": [{ "$var": "col" }, 7] },
       ],
     },
   },
@@ -84,7 +84,7 @@
   "makePiece": {
     "$params": ["color", "type"],
     "$return": {
-      "$if": { "$fn": ["eq", { "$var": "color" }, "w"] },
+      "$if": { "$eq": [{ "$var": "color" }, "w"] },
       "$then": { "$var": "type" },
       "$else": { "$fn": ["lower", { "$var": "type" }] },
     },
@@ -105,7 +105,7 @@
     "tIdx": { "$fn": ["toIdx", { "$var": "nr" }, { "$var": "nc" }] },
     "target": { "$var": "board", "$get": { "$var": "tIdx" } },
     "empty": { "$fn": ["isNull", { "$var": "target" }] },
-    "ally": { "$fn": ["eq", { "$fn": ["pieceColor", { "$var": "target" }] }, { "$var": "color" }] },
+    "ally": { "$eq": [{ "$fn": ["pieceColor", { "$var": "target" }] }, { "$var": "color" }] },
     "rest": {
       "$fn": [
         "slideDir",
@@ -119,7 +119,7 @@
     },
     "$return": {
       "$cond": [
-        [{ "$fn": ["not", { "$var": "ok" }] }, []],
+        [{ "$not": { "$var": "ok" } }, []],
         [{ "$var": "empty" }, { "$fn": ["concat", [{ "$var": "tIdx" }], { "$var": "rest" }] }],
         [{ "$var": "ally" }, []],
         [true, [{ "$var": "tIdx" }]],
@@ -161,8 +161,8 @@
     "$params": ["board", "idx", "color"],
     "row": { "$fn": ["rowOf", { "$var": "idx" }] },
     "col": { "$fn": ["colOf", { "$var": "idx" }] },
-    "dir": { "$if": { "$fn": ["eq", { "$var": "color" }, "w"] }, "$then": 1, "$else": -1 },
-    "startRank": { "$if": { "$fn": ["eq", { "$var": "color" }, "w"] }, "$then": 1, "$else": 6 },
+    "dir": { "$if": { "$eq": [{ "$var": "color" }, "w"] }, "$then": 1, "$else": -1 },
+    "startRank": { "$if": { "$eq": [{ "$var": "color" }, "w"] }, "$then": 1, "$else": 6 },
 
     // Forward 1
     "fwd1Row": { "$fn": ["add", { "$var": "row" }, { "$var": "dir" }] },
@@ -180,7 +180,7 @@
     "fwd2Idx": { "$fn": ["toIdx", { "$var": "fwd2Row" }, { "$var": "col" }] },
     "fwd2Ok": {
       "$and": [
-        { "$fn": ["eq", { "$var": "row" }, { "$var": "startRank" }] },
+        { "$eq": [{ "$var": "row" }, { "$var": "startRank" }] },
         { "$var": "fwd1Ok" },
         { "$fn": ["isNull", { "$var": "board", "$get": { "$var": "fwd2Idx" } }] },
       ],
@@ -206,7 +206,7 @@
             "$if": { "$fn": ["isNull", { "$var": "cTarget" }] },
             "$then": false,
             "$else": {
-              "$fn": ["neq", { "$fn": ["pieceColor", { "$var": "cTarget" }] }, { "$var": "color" }],
+              "$neq": [{ "$fn": ["pieceColor", { "$var": "cTarget" }] }, { "$var": "color" }],
             },
           },
           "$return": {
@@ -247,11 +247,11 @@
             "$if": { "$fn": ["isNull", { "$var": "target" }] },
             "$then": false,
             "$else": {
-              "$fn": ["eq", { "$fn": ["pieceColor", { "$var": "target" }] }, { "$var": "color" }],
+              "$eq": [{ "$fn": ["pieceColor", { "$var": "target" }] }, { "$var": "color" }],
             },
           },
           "$return": {
-            "$if": { "$and": [{ "$var": "ok" }, { "$fn": ["not", { "$var": "blocked" }] }] },
+            "$if": { "$and": [{ "$var": "ok" }, { "$not": { "$var": "blocked" } }] },
             "$then": [{ "$var": "tIdx" }],
             "$else": [],
           },
@@ -295,11 +295,11 @@
             "$if": { "$fn": ["isNull", { "$var": "target" }] },
             "$then": false,
             "$else": {
-              "$fn": ["eq", { "$fn": ["pieceColor", { "$var": "target" }] }, { "$var": "color" }],
+              "$eq": [{ "$fn": ["pieceColor", { "$var": "target" }] }, { "$var": "color" }],
             },
           },
           "$return": {
-            "$if": { "$and": [{ "$var": "ok" }, { "$fn": ["not", { "$var": "blocked" }] }] },
+            "$if": { "$and": [{ "$var": "ok" }, { "$not": { "$var": "blocked" } }] },
             "$then": [{ "$var": "tIdx" }],
             "$else": [],
           },
@@ -397,27 +397,27 @@
       "$else": {
         "$cond": [
           [
-            { "$fn": ["eq", { "$var": "type" }, "P"] },
+            { "$eq": [{ "$var": "type" }, "P"] },
             { "$fn": ["pawnMoves", { "$var": "board" }, { "$var": "idx" }, { "$var": "color" }] },
           ],
           [
-            { "$fn": ["eq", { "$var": "type" }, "N"] },
+            { "$eq": [{ "$var": "type" }, "N"] },
             { "$fn": ["knightMoves", { "$var": "board" }, { "$var": "idx" }, { "$var": "color" }] },
           ],
           [
-            { "$fn": ["eq", { "$var": "type" }, "B"] },
+            { "$eq": [{ "$var": "type" }, "B"] },
             { "$fn": ["bishopMoves", { "$var": "board" }, { "$var": "idx" }, { "$var": "color" }] },
           ],
           [
-            { "$fn": ["eq", { "$var": "type" }, "R"] },
+            { "$eq": [{ "$var": "type" }, "R"] },
             { "$fn": ["rookMoves", { "$var": "board" }, { "$var": "idx" }, { "$var": "color" }] },
           ],
           [
-            { "$fn": ["eq", { "$var": "type" }, "Q"] },
+            { "$eq": [{ "$var": "type" }, "Q"] },
             { "$fn": ["queenMoves", { "$var": "board" }, { "$var": "idx" }, { "$var": "color" }] },
           ],
           [
-            { "$fn": ["eq", { "$var": "type" }, "K"] },
+            { "$eq": [{ "$var": "type" }, "K"] },
             { "$fn": ["kingMoves", { "$var": "board" }, { "$var": "idx" }, { "$var": "color" }] },
           ],
           [true, []],
@@ -444,8 +444,8 @@
     "target": { "$var": "board", "$get": { "$var": "tIdx" } },
     "$return": {
       "$cond": [
-        [{ "$fn": ["not", { "$var": "ok" }] }, null],
-        [{ "$fn": ["not", { "$fn": ["isNull", { "$var": "target" }] }] }, { "$var": "target" }],
+        [{ "$not": { "$var": "ok" } }, null],
+        [{ "$not": { "$fn": ["isNull", { "$var": "target" }] } }, { "$var": "target" }],
         [
           true,
           {
@@ -478,7 +478,7 @@
 
     // Pawn attacks: white pawns attack from row-1, black from row+1
     "pawnSrcRow": {
-      "$if": { "$fn": ["eq", { "$var": "byColor" }, "w"] },
+      "$if": { "$eq": [{ "$var": "byColor" }, "w"] },
       "$then": { "$fn": ["sub", { "$var": "row" }, 1] },
       "$else": { "$fn": ["add", { "$var": "row" }, 1] },
     },
@@ -486,8 +486,7 @@
       "$and": [
         { "$fn": ["inBounds", { "$var": "pawnSrcRow" }, { "$fn": ["sub", { "$var": "col" }, 1] }] },
         {
-          "$fn": [
-            "eq",
+          "$eq": [
             {
               "$var": "board",
               "$get": {
@@ -507,8 +506,7 @@
       "$and": [
         { "$fn": ["inBounds", { "$var": "pawnSrcRow" }, { "$fn": ["add", { "$var": "col" }, 1] }] },
         {
-          "$fn": [
-            "eq",
+          "$eq": [
             {
               "$var": "board",
               "$get": {
@@ -538,8 +536,7 @@
             "$and": [
               { "$fn": ["inBounds", { "$var": "r" }, { "$var": "c" }] },
               {
-                "$fn": [
-                  "eq",
+                "$eq": [
                   {
                     "$var": "board",
                     "$get": { "$fn": ["toIdx", { "$var": "r" }, { "$var": "c" }] },
@@ -583,8 +580,8 @@
           },
           "$return": {
             "$or": [
-              { "$fn": ["eq", { "$var": "p" }, { "$var": "eBishop" }] },
-              { "$fn": ["eq", { "$var": "p" }, { "$var": "eQueen" }] },
+              { "$eq": [{ "$var": "p" }, { "$var": "eBishop" }] },
+              { "$eq": [{ "$var": "p" }, { "$var": "eQueen" }] },
             ],
           },
         },
@@ -617,8 +614,8 @@
           },
           "$return": {
             "$or": [
-              { "$fn": ["eq", { "$var": "p" }, { "$var": "eRook" }] },
-              { "$fn": ["eq", { "$var": "p" }, { "$var": "eQueen" }] },
+              { "$eq": [{ "$var": "p" }, { "$var": "eRook" }] },
+              { "$eq": [{ "$var": "p" }, { "$var": "eQueen" }] },
             ],
           },
         },
@@ -645,8 +642,7 @@
             "$and": [
               { "$fn": ["inBounds", { "$var": "r" }, { "$var": "c" }] },
               {
-                "$fn": [
-                  "eq",
+                "$eq": [
                   {
                     "$var": "board",
                     "$get": { "$fn": ["toIdx", { "$var": "r" }, { "$var": "c" }] },
@@ -688,7 +684,7 @@
   "findKing": {
     "$params": ["board", "color"],
     "king": {
-      "$if": { "$fn": ["eq", { "$var": "color" }, "w"] },
+      "$if": { "$eq": [{ "$var": "color" }, "w"] },
       "$then": "K",
       "$else": "k",
     },
@@ -697,7 +693,7 @@
         "findIndex",
         {
           "$params": ["cell"],
-          "$return": { "$fn": ["eq", { "$var": "cell" }, { "$var": "king" }] },
+          "$return": { "$eq": [{ "$var": "cell" }, { "$var": "king" }] },
         },
         { "$var": "board" },
       ],
@@ -709,7 +705,7 @@
     "$params": ["board", "color"],
     "kingPos": { "$fn": ["findKing", { "$var": "board" }, { "$var": "color" }] },
     "$return": {
-      "$if": { "$fn": ["eq", { "$var": "kingPos" }, -1] },
+      "$if": { "$eq": [{ "$var": "kingPos" }, -1] },
       "$then": false,
       "$else": {
         "$fn": [
@@ -736,11 +732,11 @@
     "toRow": { "$fn": ["rowOf", { "$var": "to" }] },
     "isPromotion": {
       "$and": [
-        { "$fn": ["eq", { "$var": "type" }, "P"] },
+        { "$eq": [{ "$var": "type" }, "P"] },
         {
           "$or": [
-            { "$fn": ["eq", { "$var": "toRow" }, 7] },
-            { "$fn": ["eq", { "$var": "toRow" }, 0] },
+            { "$eq": [{ "$var": "toRow" }, 7] },
+            { "$eq": [{ "$var": "toRow" }, 0] },
           ],
         },
       ],
@@ -765,9 +761,9 @@
   "isLegalMove": {
     "$params": ["board", "from", "to", "turn"],
     "piece": { "$var": "board", "$get": { "$var": "from" } },
-    "hasPiece": { "$fn": ["not", { "$fn": ["isNull", { "$var": "piece" }] }] },
+    "hasPiece": { "$not": { "$fn": ["isNull", { "$var": "piece" }] } },
     "rightColor": {
-      "$fn": ["eq", { "$fn": ["pieceColor", { "$var": "piece" }] }, { "$var": "turn" }],
+      "$eq": [{ "$fn": ["pieceColor", { "$var": "piece" }] }, { "$var": "turn" }],
     },
     "moves": { "$fn": ["pieceMoves", { "$var": "board" }, { "$var": "from" }] },
     "inMoves": { "$fn": ["includes", { "$var": "moves" }, { "$var": "to" }] },
@@ -776,7 +772,7 @@
     "$return": {
       "$if": { "$and": [{ "$var": "hasPiece" }, { "$var": "rightColor" }] },
       "$then": {
-        "$and": [{ "$var": "inMoves" }, { "$fn": ["not", { "$var": "leavesCheck" }] }],
+        "$and": [{ "$var": "inMoves" }, { "$not": { "$var": "leavesCheck" } }],
       },
       "$else": false,
     },
@@ -793,7 +789,7 @@
           "$params": ["from"],
           "piece": { "$var": "board", "$get": { "$var": "from" } },
           "isPiece": {
-            "$fn": ["eq", { "$fn": ["pieceColor", { "$var": "piece" }] }, { "$var": "color" }],
+            "$eq": [{ "$fn": ["pieceColor", { "$var": "piece" }] }, { "$var": "color" }],
           },
           "moves": { "$fn": ["pieceMoves", { "$var": "board" }, { "$var": "from" }] },
           "hasLegal": {
@@ -805,7 +801,7 @@
                   "$fn": ["applyMove", { "$var": "board" }, { "$var": "from" }, { "$var": "to" }],
                 },
                 "$return": {
-                  "$fn": ["not", { "$fn": ["isInCheck", { "$var": "nb" }, { "$var": "color" }] }],
+                  "$not": { "$fn": ["isInCheck", { "$var": "nb" }, { "$var": "color" }] },
                 },
               },
               { "$var": "moves" },
@@ -848,7 +844,7 @@
     "board": { "$var": "state.board" },
     "turn": { "$var": "state.turn" },
     "status": { "$var": "state.status" },
-    "stillPlaying": { "$fn": ["eq", { "$var": "status" }, "playing"] },
+    "stillPlaying": { "$eq": [{ "$var": "status" }, "playing"] },
     "legal": {
       "$fn": [
         "isLegalMove",
@@ -916,9 +912,9 @@
     "$return": {
       "$if": {
         "$and": [
-          { "$fn": ["eq", { "$var": "len" }, 2] },
-          { "$fn": ["gte", { "$var": "file" }, 0] },
-          { "$fn": ["gte", { "$var": "rank" }, 0] },
+          { "$eq": [{ "$var": "len" }, 2] },
+          { "$gte": [{ "$var": "file" }, 0] },
+          { "$gte": [{ "$var": "rank" }, 0] },
         ],
       },
       "$then": { "$fn": ["add", { "$fn": ["mul", { "$var": "rank" }, 8] }, { "$var": "file" }] },
@@ -943,15 +939,15 @@
     "$params": ["s"],
     "t": { "$fn": ["lower", { "$fn": ["trim", { "$var": "s" }] }] },
     "len": { "$fn": ["length", { "$var": "t" }] },
-    "is4": { "$fn": ["eq", { "$var": "len" }, 4] },
-    "is5": { "$fn": ["eq", { "$var": "len" }, 5] },
+    "is4": { "$eq": [{ "$var": "len" }, 4] },
+    "is5": { "$eq": [{ "$var": "len" }, 5] },
     "shapeOk": {
       "$or": [
         { "$var": "is4" },
         {
           "$and": [
             { "$var": "is5" },
-            { "$fn": ["eq", { "$fn": ["slice", { "$var": "t" }, 2, 3] }, " "] },
+            { "$eq": [{ "$fn": ["slice", { "$var": "t" }, 2, 3] }, " "] },
           ],
         },
       ],
@@ -974,8 +970,8 @@
       "$if": {
         "$and": [
           { "$var": "shapeOk" },
-          { "$fn": ["not", { "$fn": ["isNull", { "$var": "from" }] }] },
-          { "$fn": ["not", { "$fn": ["isNull", { "$var": "to" }] }] },
+          { "$not": { "$fn": ["isNull", { "$var": "from" }] } },
+          { "$not": { "$fn": ["isNull", { "$var": "to" }] } },
         ],
       },
       "$then": { "from": { "$var": "from" }, "to": { "$var": "to" } },
@@ -1053,7 +1049,7 @@
   "turnLabel": {
     "$params": ["turn"],
     "$return": {
-      "$if": { "$fn": ["eq", { "$var": "turn" }, "w"] },
+      "$if": { "$eq": [{ "$var": "turn" }, "w"] },
       "$then": "White",
       "$else": "Black",
     },
@@ -1071,7 +1067,7 @@
     "$return": {
       "$cond": [
         [
-          { "$fn": ["eq", { "$var": "status" }, "checkmate"] },
+          { "$eq": [{ "$var": "status" }, "checkmate"] },
           {
             "$fn": [
               "strcat",
@@ -1080,7 +1076,7 @@
             ],
           },
         ],
-        [{ "$fn": ["eq", { "$var": "status" }, "stalemate"] }, "  Stalemate — draw!"],
+        [{ "$eq": [{ "$var": "status" }, "stalemate"] }, "  Stalemate — draw!"],
         [
           { "$var": "inCheck" },
           {
@@ -1104,7 +1100,7 @@
   "boardSection": {
     "$params": ["state", "header"],
     "headerPart": {
-      "$if": { "$fn": ["eq", { "$var": "header" }, ""] },
+      "$if": { "$eq": [{ "$var": "header" }, ""] },
       "$then": [""],
       "$else": [{ "$var": "header" }, ""],
     },
@@ -1168,7 +1164,7 @@
     "$params": ["state", "argv"],
     "argc": { "$fn": ["length", { "$var": "argv" }] },
     "moveInput": {
-      "$if": { "$fn": ["gte", { "$var": "argc" }, 2] },
+      "$if": { "$gte": [{ "$var": "argc" }, 2] },
       "$then": {
         "$fn": [
           "strcat",
@@ -1180,7 +1176,7 @@
     },
     "move": { "$fn": ["parseMove", { "$var": "moveInput" }] },
     "status": { "$var": "state.status" },
-    "isPlaying": { "$fn": ["eq", { "$var": "status" }, "playing"] },
+    "isPlaying": { "$eq": [{ "$var": "status" }, "playing"] },
 
     // Legality (only consulted when move parses and game is active).
     "legal": {
@@ -1257,7 +1253,7 @@
           },
         ],
         [
-          { "$fn": ["not", { "$var": "isPlaying" }] },
+          { "$not": { "$var": "isPlaying" } },
           {
             "output": "",
             "stderr": { "$var": "gameOverStderr" },
@@ -1267,7 +1263,7 @@
           },
         ],
         [
-          { "$fn": ["not", { "$var": "legal" }] },
+          { "$not": { "$var": "legal" } },
           {
             "output": "",
             "stderr": { "$var": "illegalStderr" },
@@ -1299,18 +1295,18 @@
     "$params": ["state", "argv"],
     "argc": { "$fn": ["length", { "$var": "argv" }] },
     "cmd": {
-      "$if": { "$fn": ["eq", { "$var": "argc" }, 0] },
+      "$if": { "$eq": [{ "$var": "argc" }, 0] },
       "$then": "show",
       "$else": { "$var": "argv", "$get": 0 },
     },
     "$return": {
       "$cond": [
         [
-          { "$fn": ["eq", { "$var": "cmd" }, "show"] },
+          { "$eq": [{ "$var": "cmd" }, "show"] },
           { "$fn": ["showResult", { "$var": "state" }] },
         ],
-        [{ "$fn": ["eq", { "$var": "cmd" }, "reset"] }, { "$fn": ["resetResult"] }],
-        [{ "$fn": ["eq", { "$var": "cmd" }, "help"] }, { "$fn": ["helpResult"] }],
+        [{ "$eq": [{ "$var": "cmd" }, "reset"] }, { "$fn": ["resetResult"] }],
+        [{ "$eq": [{ "$var": "cmd" }, "help"] }, { "$fn": ["helpResult"] }],
         [true, { "$fn": ["moveResult", { "$var": "state" }, { "$var": "argv" }] }],
       ],
     },

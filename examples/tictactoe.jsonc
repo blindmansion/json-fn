@@ -19,8 +19,7 @@
     "$params": ["player"],
     "$return": {
       "$if": {
-        "$fn": [
-          "eq",
+        "$eq": [
           {
             "$var": "player",
           },
@@ -73,8 +72,7 @@
         {
           "$params": ["pos"],
           "$return": {
-            "$fn": [
-              "eq",
+            "$eq": [
               {
                 "$var": "board",
                 "$get": {
@@ -138,18 +136,15 @@
   "isBoardFull": {
     "$params": ["board"],
     "$return": {
-      "$fn": [
-        "not",
-        {
-          "$fn": [
-            "includes",
-            {
-              "$var": "board",
-            },
-            null,
-          ],
-        },
-      ],
+      "$not": {
+        "$fn": [
+          "includes",
+          {
+            "$var": "board",
+          },
+          null,
+        ],
+      },
     },
   },
   // getStatus(board) → "X" | "O" | "draw" | "playing"
@@ -221,8 +216,7 @@
       "$var": "state.status",
     },
     "stillPlaying": {
-      "$fn": [
-        "eq",
+      "$eq": [
         {
           "$var": "currentStatus",
         },
@@ -329,8 +323,7 @@
       ],
     },
     "gameOver": {
-      "$fn": [
-        "neq",
+      "$neq": [
         {
           "$var": "status",
         },
@@ -344,8 +337,7 @@
           "$var": "gameOver",
         },
         {
-          "$fn": [
-            "eq",
+          "$eq": [
             {
               "$var": "status",
             },
@@ -363,8 +355,7 @@
           "$var": "gameOver",
         },
         {
-          "$fn": [
-            "eq",
+          "$eq": [
             {
               "$var": "status",
             },
@@ -440,12 +431,9 @@
                 ],
               },
               {
-                "$fn": [
-                  "not",
-                  {
-                    "$var": "isMaximizing",
-                  },
-                ],
+                "$not": {
+                  "$var": "isMaximizing",
+                },
               },
               {
                 "$var": "aiPlayer",
@@ -590,8 +578,7 @@
           },
           "$return": {
             "$if": {
-              "$fn": [
-                "gt",
+              "$gt": [
                 {
                   "$var": "score",
                 },
