@@ -24,3 +24,19 @@ The [examples/](examples/) directory contains complete programs written in json-
 | Rust | [rust/](rust/) | `jsonfn` (crates.io) | Complete |
 
 Each implementation lives in its own directory with its own build config and can be published independently.
+
+## Development
+
+Run formatting and safe auto-fixes for every implementation:
+
+```bash
+./format-all.sh
+```
+
+Run all validation checks and tests for every implementation:
+
+```bash
+./test-all.sh
+```
+
+The validation script runs TypeScript checks/tests, Python lint/tests, Go vet/tests, and Rust clippy/tests.

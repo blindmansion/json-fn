@@ -125,10 +125,10 @@ pub fn parse_path(s: &str) -> Result<ParsedPath, EvalError> {
 
 fn cache_put(key: &str, value: ParsedPath) {
     let mut guard = cache().lock().unwrap();
-    if guard.len() >= PATH_CACHE_MAX {
-        if let Some(any_key) = guard.keys().next().cloned() {
-            guard.remove(&any_key);
-        }
+    if guard.len() >= PATH_CACHE_MAX
+        && let Some(any_key) = guard.keys().next().cloned()
+    {
+        guard.remove(&any_key);
     }
     guard.insert(key.to_string(), value);
 }
@@ -150,12 +150,8 @@ pub fn walk_path(value: &Value, path: &[Segment]) -> Value {
                 Some(v) => current = v,
                 None => return Value::Null,
             },
-            (Value::Array(arr), Segment::Index(i)) => {
-                if *i >= 0 && (*i as usize) < arr.len() {
-                    current = &arr[*i as usize];
-                } else {
-                    return Value::Null;
-                }
+            (Value::Array(arr), Segment::Index(i)) if *i >= 0 && (*i as usize) < arr.len() => {
+                current = &arr[*i as usize];
             }
             _ => return Value::Null,
         }
