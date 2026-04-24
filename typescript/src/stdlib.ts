@@ -1,5 +1,24 @@
 import { builtin, pure, getArity } from "./utils";
-import type { FunctionRegistry } from "./types";
+import type { FunctionRegistry, JSONType } from "./types";
+
+export type LogFn = (value: JSONType, label?: string) => void;
+
+export type StdlibOptions = {
+  /**
+   * Override the function used by `log`. Receives the value and an
+   * optional label. Defaults to printing pretty-stringified JSON to `console.log`.
+   */
+  logger?: LogFn;
+};
+
+const defaultLogger: LogFn = (value, label) => {
+  const formatted = typeof value === "string" ? value : JSON.stringify(value, null, 2);
+  if (label !== undefined) {
+    console.log(`[${label}]`, formatted);
+  } else {
+    console.log(formatted);
+  }
+};
 
 const INLINE_FLAGS_RE = /^\(\?([imsu]*)\)/;
 const VALID_FLAGS = new Set(["i", "m", "s", "u"]);
@@ -32,7 +51,8 @@ function buildMatchResult(m: RegExpExecArray): Record<string, any> {
   return { match: m[0], index: m.index, groups, named };
 }
 
-export function createStdlib(): FunctionRegistry {
+export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
+  const log = options.logger ?? defaultLogger;
   return {
     // Arithmetic
     add: pure((a: number, b: number) => a + b),
@@ -319,5 +339,11 @@ export function createStdlib(): FunctionRegistry {
     arity: builtin((args, _call, functions) => {
       return getArity(args[0], functions) ?? null;
     }, 1),
+
+    // Debugging — logs the value (optionally with a label) and returns it unchanged (tap-style).
+    log: pure((value: JSONType, label?: string) => {
+      log(value, label);
+      return value;
+    }),
   };
 }

@@ -63,7 +63,11 @@ console.log("\n── nested_map ──");
 for (const size of [10, 50, 100]) {
   const grid = Array.from({ length: size }, () => Array.from({ length: size }, (_, i) => i));
   const iters = size === 10 ? 500 : size === 50 ? 100 : 30;
-  bench(`nested_map/${size}x${size}`, () => callFunction(nestedMapProgram, [grid], functions), iters);
+  bench(
+    `nested_map/${size}x${size}`,
+    () => callFunction(nestedMapProgram, [grid], functions),
+    iters,
+  );
 }
 
 const reduceProgram = {

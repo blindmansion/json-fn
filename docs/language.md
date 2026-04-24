@@ -434,6 +434,24 @@ Higher-order functions can invoke json-fn callbacks. The callback argument can b
 | -------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | `arity`  | `(fn)` | returns parameter count. For rest params, excludes the rest param. `null` for unknown functions. Argument is a function name (string) or body. |
 
+### Debugging
+
+| Function | Args              | Description                                                          |
+| -------- | ----------------- | -------------------------------------------------------------------- |
+| `log`    | `(value, label?)` | logs `value` (with optional `label` prefix) and returns it unchanged |
+
+`log` is the only function in the standard library with an observable side effect. It is intended for tap-style debugging:
+
+```json
+{ "$fn": ["map", { "$params": ["x"], "$return": { "$fn": ["log", { "$var": "x" }, "item"] } }, [1, 2, 3]] }
+```
+
+The output destination and format are **implementation-defined**. Host integrations may expose a hook to redirect logs (for example, to capture them into a buffer instead of writing to stdout).
+
+> **Note: lazy locals.** Because non-`$return` keys in a function body are [lazy](#lazy-local-variables), a `log` call placed in an unreferenced local is never evaluated. To log inside a function body, either put the `log` call in the path of `$return`, or reference the debug local from `$return` so it actually runs.
+>
+> **Implementation status.** Currently available in the TypeScript implementation only.
+
 ## HOF Argument Order
 
 Higher-order functions take **callback first, data second**. This is consistent across all HOFs: `map(callback, arr)`, `filter(callback, arr)`, `reduce(callback, init, arr)`, etc.
