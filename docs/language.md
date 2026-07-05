@@ -64,7 +64,7 @@ Dot/bracket notation accesses nested properties inline:
 { "$var": "data.items[1].name" }
 ```
 
-`.key` accesses a string property, `[N]` accesses a numeric index (for arrays), and `[key]` accesses a string key when the key is non-numeric. The first segment before any `.` or `[` is the variable name. Missing keys or path traversal into non-object values returns `null`.
+`.key` accesses a string property, `[N]` accesses a numeric index (into an array, or into a string to get the character at that position), and `[key]` accesses a string key when the key is non-numeric. The first segment before any `.` or `[` is the variable name. Missing keys, out-of-bounds indices, or path traversal into non-object values return `null`.
 
 For dynamic or computed keys, add `$get`. It evaluates to a string key, numeric index, or array path, and applies after any dot-notation path resolves:
 
@@ -85,6 +85,8 @@ For accessing properties on non-variable expressions (e.g. function results or l
 ```json
 { "$get": 0, "$from": { "$fn": ["concat", [10], [20]] } }
 ```
+
+A numeric `$get` on a string returns the character at that index (`null` if out of bounds); a non-numeric `$get` on a string errors.
 
 ### Function Body — `{ $return, ... }`
 
@@ -609,6 +611,40 @@ Use `entries` -> HOF -> `fromEntries` to transform objects:
   "$return": { "$fn": ["fromEntries", { "$var": "filtered" }] }
 }
 ```
+
+## Execution Limits
+
+Implementations enforce safety limits to keep evaluation bounded. Two of these are host-configurable; the third is always active.
+
+### Circular Variable Dependencies
+
+Lazy locals form a dependency graph resolved on demand. If resolving a local requires resolving itself — directly (`{ "x": { "$var": "x" } }`) or through a cycle (`a → b → a`) — evaluation errors instead of looping. The cycle is reported in the message, e.g.:
+
+```
+Circular variable dependency detected: a -> b -> a
+```
+
+This detection is always on and needs no configuration. It reports the first cycle reached, even when the cycle does not start at the first variable.
+
+### Maximum Call Depth
+
+Hosts may configure `maxCallDepth` to bound recursion depth (direct or mutual). Exceeding it errors:
+
+```
+Maximum call depth of 10 exceeded
+```
+
+Recursion that stays within the configured depth runs normally.
+
+### Maximum Operations
+
+Hosts may configure `maxOperations` to bound the total number of evaluation steps, catching expensive computations that are not necessarily deep (e.g. large `map`/`reduce` workloads). Exceeding it errors:
+
+```
+Maximum operations limit of 50 exceeded
+```
+
+When unset, `maxCallDepth` and `maxOperations` fall back to implementation-defined defaults. How limits are supplied is host-defined.
 
 ## Constraints
 
