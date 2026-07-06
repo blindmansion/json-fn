@@ -18,6 +18,8 @@ import type {
   VarPropertyAccess,
   EvaluatedFunctionCall,
   PerfStats,
+  CallState,
+  Meter,
 } from "./types";
 import { ExpressionType } from "./types";
 import {
@@ -199,16 +201,51 @@ export function callFunction(
   functions: FunctionRegistry,
   limits?: ExecutionLimits,
 ): JSONType {
-  return callFunctionInternal(fn, args, {
-    functions,
-    limits: {
-      maxCallDepth: limits?.maxCallDepth ?? DEFAULT_MAX_CALL_DEPTH,
-      maxOperations: limits?.maxOperations ?? Infinity,
-      signal: limits?.signal,
-    },
-    state: { depth: 0, operations: 0 },
-    perf: limits?.perf,
-  });
+  const maxFuel = limits?.maxFuel ?? Infinity;
+  const maxValueSize = limits?.maxValueSize ?? Infinity;
+  const usage = limits?.usage;
+  const state: CallState = { depth: 0, fuel: 0 };
+  try {
+    return callFunctionInternal(fn, args, {
+      functions,
+      limits: {
+        maxCallDepth: limits?.maxCallDepth ?? DEFAULT_MAX_CALL_DEPTH,
+        maxFuel,
+        maxValueSize,
+        trackFuel: maxFuel < Infinity || usage !== undefined,
+        signal: limits?.signal,
+      },
+      state,
+      perf: limits?.perf,
+    });
+  } finally {
+    if (usage) usage.fuel = state.fuel;
+  }
+}
+
+function chargeFuel(context: EvaluationContext, amount: number): void {
+  if (!context.limits.trackFuel) return;
+  context.state.fuel += amount;
+  if (context.state.fuel > context.limits.maxFuel) {
+    throw new Error(`Maximum fuel limit of ${context.limits.maxFuel} exceeded`);
+  }
+}
+
+function guardValueSize(context: EvaluationContext, size: number): void {
+  if (size > context.limits.maxValueSize) {
+    throw new Error(`Maximum value size of ${context.limits.maxValueSize} exceeded`);
+  }
+}
+
+// Charges fuel and enforces the size cap for values produced by host functions,
+// proportional to the length of any produced array or string. This is the
+// chokepoint that keeps size-growing pure builtins (concat, flatten, split,
+// join, ...) honest without each needing to self-meter.
+function accountForResult(context: EvaluationContext, result: JSONType): void {
+  if (typeof result === "string" || Array.isArray(result)) {
+    guardValueSize(context, result.length);
+    chargeFuel(context, result.length);
+  }
 }
 
 function callFunctionInternal(
@@ -218,6 +255,7 @@ function callFunctionInternal(
 ): JSONType {
   const { perf } = context;
   if (perf) perf.callFunctionInternal++;
+  chargeFuel(context, 1);
   context.state.depth++;
   try {
     if (context.state.depth > context.limits.maxCallDepth) {
@@ -239,7 +277,11 @@ function callFunctionInternal(
         if (isBuiltin(entry)) {
           const call = (f: JSONType, a: JSONType[]) =>
             callFunctionInternal(f as FunctionDeclaration, a, context);
-          result = entry(args, call, functions);
+          const meter: Meter = {
+            charge: (amount: number) => chargeFuel(context, amount),
+            guardSize: (size: number) => guardValueSize(context, size),
+          };
+          result = entry(args, call, functions, meter);
         } else {
           result = callExternalFunction(entry, args, fn, context);
         }
@@ -273,19 +315,24 @@ function callExternalFunction(
   const { perf } = context;
   if (perf) perf.callExternalFunction++;
   if (isPure(fn)) {
+    let result: JSONType;
     try {
-      return fn(...args);
+      result = fn(...args);
     } catch (e) {
       throw new Error(`Error calling external function ${name}: ${e}`);
     }
+    accountForResult(context, result);
+    return result;
   }
   const safeArgs = args.map((a) => cloneIfNeeded(a, perf));
+  let result: JSONType;
   try {
-    const result = fn(...safeArgs);
-    return cloneIfNeeded(result, perf);
+    result = cloneIfNeeded(fn(...safeArgs), perf);
   } catch (e) {
     throw new Error(`Error calling external function ${name}: ${e}`);
   }
+  accountForResult(context, result);
+  return result;
 }
 
 function callJSONFunction(fn: FunctionBody, args: JSONType[], context: EvaluationContext) {
@@ -382,11 +429,7 @@ function evaluateExpression(expression: JSONType, context: EvaluationContext): J
     throw new Error("Execution aborted");
   }
 
-  if (context.limits.maxOperations < Infinity) {
-    if (++context.state.operations > context.limits.maxOperations) {
-      throw new Error(`Maximum operations limit of ${context.limits.maxOperations} exceeded`);
-    }
-  }
+  chargeFuel(context, 1);
 
   const { getVar } = context;
   const expressionType = getExpressionType(expression, perf);

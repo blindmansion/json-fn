@@ -143,7 +143,13 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
       }
       return result;
     }),
-    range: pure((n: number) => Array.from({ length: n }, (_, i) => i)),
+    range: builtin((args, _call, _functions, meter) => {
+      const n = args[0];
+      const len = typeof n === "number" && n > 0 ? Math.floor(n) : 0;
+      meter.guardSize(len);
+      meter.charge(len);
+      return Array.from({ length: len }, (_, i) => i);
+    }, 1),
     slice: pure((arr: any[] | string, start: number, end?: number) =>
       end === undefined ? arr.slice(start) : arr.slice(start, end),
     ),
@@ -187,66 +193,80 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
       return result;
     }),
 
-    // Higher-order builtins (interpreter-aware — can invoke JSON callbacks)
-    map: builtin((args, call) => {
+    // Higher-order builtins (interpreter-aware — can invoke JSON callbacks).
+    // Each charges fuel proportional to the number of elements it iterates over;
+    // the per-callback cost is charged separately by the interpreter's call
+    // chokepoint. See docs/execution-limits.md.
+    map: builtin((args, call, _functions, meter) => {
       const [callback, arr] = args;
       if (!Array.isArray(arr)) throw new Error("map: second argument must be an array");
+      meter.charge(arr.length);
       return arr.map((item, i) => call(callback!, [item, i]));
     }, 2),
-    filter: builtin((args, call) => {
+    filter: builtin((args, call, _functions, meter) => {
       const [callback, arr] = args;
       if (!Array.isArray(arr)) throw new Error("filter: second argument must be an array");
+      meter.charge(arr.length);
       return arr.filter((item, i) => call(callback!, [item, i]));
     }, 2),
-    reduce: builtin((args, call) => {
+    reduce: builtin((args, call, _functions, meter) => {
       const [callback, init, arr] = args as [any, any, any];
       if (!Array.isArray(arr)) throw new Error("reduce: third argument must be an array");
+      meter.charge(arr.length);
       return arr.reduce((acc: any, item: any, i: number) => call(callback, [acc, item, i]), init);
     }, 3),
-    find: builtin((args, call) => {
+    find: builtin((args, call, _functions, meter) => {
       const [callback, arr] = args;
       if (!Array.isArray(arr)) throw new Error("find: second argument must be an array");
+      meter.charge(arr.length);
       for (let i = 0; i < arr.length; i++) {
         if (call(callback!, [arr[i]!, i])) return arr[i]!;
       }
       return null;
     }, 2),
-    findIndex: builtin((args, call) => {
+    findIndex: builtin((args, call, _functions, meter) => {
       const [callback, arr] = args;
       if (!Array.isArray(arr)) throw new Error("findIndex: second argument must be an array");
+      meter.charge(arr.length);
       for (let i = 0; i < arr.length; i++) {
         if (call(callback!, [arr[i]!, i])) return i;
       }
       return -1;
     }, 2),
-    some: builtin((args, call) => {
+    some: builtin((args, call, _functions, meter) => {
       const [callback, arr] = args;
       if (!Array.isArray(arr)) throw new Error("some: second argument must be an array");
+      meter.charge(arr.length);
       return arr.some((item, i) => call(callback!, [item, i]));
     }, 2),
-    every: builtin((args, call) => {
+    every: builtin((args, call, _functions, meter) => {
       const [callback, arr] = args;
       if (!Array.isArray(arr)) throw new Error("every: second argument must be an array");
+      meter.charge(arr.length);
       return arr.every((item, i) => call(callback!, [item, i]));
     }, 2),
-    sort: builtin((args, call) => {
+    sort: builtin((args, call, _functions, meter) => {
       const [comparator, arr] = args;
       if (!Array.isArray(arr)) throw new Error("sort: second argument must be an array");
+      meter.charge(arr.length);
       return [...arr].sort((a, b) => call(comparator!, [a, b]) as number);
     }, 2),
-    mapValues: builtin((args, call) => {
+    mapValues: builtin((args, call, _functions, meter) => {
       const [callback, obj] = args;
       if (typeof obj !== "object" || obj === null || Array.isArray(obj))
         throw new Error("mapValues: second argument must be an object");
+      const entries = Object.entries(obj as Record<string, any>);
+      meter.charge(entries.length);
       const result: Record<string, any> = {};
-      for (const [k, v] of Object.entries(obj as Record<string, any>)) {
+      for (const [k, v] of entries) {
         result[k] = call(callback!, [v, k]);
       }
       return result;
     }, 2),
-    flatMap: builtin((args, call) => {
+    flatMap: builtin((args, call, _functions, meter) => {
       const [callback, arr] = args;
       if (!Array.isArray(arr)) throw new Error("flatMap: second argument must be an array");
+      meter.charge(arr.length);
       const result: any[] = [];
       for (let i = 0; i < arr.length; i++) {
         const mapped = call(callback!, [arr[i]!, i]);
@@ -256,11 +276,13 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
           result.push(mapped);
         }
       }
+      meter.guardSize(result.length);
       return result;
     }, 2),
-    groupBy: builtin((args, call) => {
+    groupBy: builtin((args, call, _functions, meter) => {
       const [keyFn, arr] = args;
       if (!Array.isArray(arr)) throw new Error("groupBy: second argument must be an array");
+      meter.charge(arr.length);
       const groups: Record<string, any[]> = {};
       for (let i = 0; i < arr.length; i++) {
         const key = call(keyFn!, [arr[i]!, i]) as string;
@@ -274,9 +296,10 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
       }
       return groups;
     }, 2),
-    sortBy: builtin((args, call) => {
+    sortBy: builtin((args, call, _functions, meter) => {
       const [keyFn, arr] = args;
       if (!Array.isArray(arr)) throw new Error("sortBy: second argument must be an array");
+      meter.charge(arr.length);
       const decorated = arr.map((item, i) => ({
         item,
         key: call(keyFn!, [item, i]) as string | number,
@@ -289,10 +312,11 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
       if (!Array.isArray(argsArray)) throw new Error("apply: second argument must be an array");
       return call(fn!, argsArray);
     }, 2),
-    pipe: builtin((args, call) => {
+    pipe: builtin((args, call, _functions, meter) => {
       const [fns, init] = args;
       if (!Array.isArray(fns))
         throw new Error("pipe: first argument must be an array of functions");
+      meter.charge(fns.length);
       let value = init;
       for (const fn of fns) {
         value = call(fn!, [value!]);
@@ -329,12 +353,13 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
     reSplit: pure((pattern: string, str: string) => {
       return str.split(parsePattern(pattern));
     }),
-    reReplaceWith: builtin((args, call) => {
+    reReplaceWith: builtin((args, call, _functions, meter) => {
       const [pattern, callback, str] = args as [string, any, string];
       if (typeof pattern !== "string")
         throw new Error("reReplaceWith: first argument must be a pattern string");
       if (typeof str !== "string")
         throw new Error("reReplaceWith: third argument must be a string");
+      meter.charge(str.length);
       const re = parsePattern(pattern);
       const global = new RegExp(re.source, re.flags.includes("g") ? re.flags : re.flags + "g");
       const parts: string[] = [];

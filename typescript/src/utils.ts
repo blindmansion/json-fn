@@ -1,4 +1,4 @@
-import type { JSONType, BuiltinFunction, FunctionRegistry } from "./types";
+import type { JSONType, BuiltinFunction, FunctionRegistry, Meter } from "./types";
 import { BUILTIN_MARKER, PURE_MARKER, ARITY_MARKER } from "./types";
 
 export function exprError(expr: JSONType, message: string): never {
@@ -33,6 +33,7 @@ export function builtin(
     args: JSONType[],
     call: (fn: JSONType, args: JSONType[]) => JSONType,
     functions: FunctionRegistry,
+    meter: Meter,
   ) => JSONType,
   arity?: number,
 ): BuiltinFunction {

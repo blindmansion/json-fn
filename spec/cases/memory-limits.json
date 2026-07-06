@@ -1,0 +1,61 @@
+{
+  "description": "Memory limits (maxValueSize)",
+  "comment": "Rejection cases here are RED until a maxValueSize budget bounds produced array/string lengths (see docs/execution-limits.md). Pre-fix, nothing caps allocation, so these programs complete instead of erroring. Sizes are kept modest so the RED cases stay cheap to run when the limit is not yet enforced.",
+  "cases": [
+    {
+      "description": "range exceeding maxValueSize is rejected",
+      "body": {
+        "$return": { "$fn": ["length", { "$fn": ["range", 100000] }] }
+      },
+      "limits": { "maxValueSize": 1000 },
+      "error": "Maximum value size"
+    },
+    {
+      "description": "range within maxValueSize succeeds",
+      "body": {
+        "$return": { "$fn": ["length", { "$fn": ["range", 500] }] }
+      },
+      "limits": { "maxValueSize": 1000 },
+      "expected": 500
+    },
+    {
+      "description": "concat whose output exceeds maxValueSize is rejected",
+      "body": {
+        "$return": {
+          "$fn": [
+            "length",
+            { "$fn": ["concat", { "$fn": ["range", 600] }, { "$fn": ["range", 600] }] }
+          ]
+        }
+      },
+      "limits": { "maxValueSize": 1000 },
+      "error": "Maximum value size"
+    },
+    {
+      "description": "concat whose output fits within maxValueSize succeeds",
+      "body": {
+        "$return": {
+          "$fn": [
+            "length",
+            { "$fn": ["concat", { "$fn": ["range", 100] }, { "$fn": ["range", 100] }] }
+          ]
+        }
+      },
+      "limits": { "maxValueSize": 1000 },
+      "expected": 200
+    },
+    {
+      "description": "flatten whose output exceeds maxValueSize is rejected",
+      "body": {
+        "$return": {
+          "$fn": [
+            "length",
+            { "$fn": ["flatten", [{ "$fn": ["range", 600] }, { "$fn": ["range", 600] }]] }
+          ]
+        }
+      },
+      "limits": { "maxValueSize": 1000 },
+      "error": "Maximum value size"
+    }
+  ]
+}

@@ -86,7 +86,7 @@
       "expected": 6
     },
     {
-      "description": "enforces maximum operations limit",
+      "description": "enforces maximum fuel limit",
       "body": { "$return": { "$fn": ["fib", 10] } },
       "functions": {
         "fib": {
@@ -108,21 +108,21 @@
           }
         }
       },
-      "limits": { "maxOperations": 50 },
-      "error": "Maximum operations limit of 50 exceeded"
+      "limits": { "maxFuel": 50 },
+      "error": "Maximum fuel limit of 50 exceeded"
     },
     {
-      "description": "allows execution within operations limit",
+      "description": "allows execution within fuel limit",
       "body": {
         "$return": {
           "$fn": ["add", { "$fn": ["mul", 3, 4] }, 5]
         }
       },
-      "limits": { "maxOperations": 100 },
+      "limits": { "maxFuel": 100 },
       "expected": 17
     },
     {
-      "description": "operations limit catches expensive non-deep computation",
+      "description": "fuel limit catches expensive non-deep computation",
       "body": {
         "$return": {
           "$fn": [
@@ -142,8 +142,8 @@
           ]
         }
       },
-      "limits": { "maxOperations": 50 },
-      "error": "Maximum operations limit of 50 exceeded"
+      "limits": { "maxFuel": 50 },
+      "error": "Maximum fuel limit of 50 exceeded"
     }
   ]
 }

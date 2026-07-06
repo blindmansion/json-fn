@@ -83,10 +83,19 @@ const BUILTIN_MARKER = Symbol("builtin");
 const PURE_MARKER = Symbol("pure");
 const ARITY_MARKER = Symbol("arity");
 
+// Passed to builtins so they can account for work/size proportional to their
+// inputs (native loops and allocations that don't otherwise flow through the
+// per-node/per-call fuel chokepoints). See docs/execution-limits.md.
+type Meter = {
+  charge: (amount: number) => void;
+  guardSize: (size: number) => void;
+};
+
 type BuiltinFunction = ((
   args: JSONType[],
   call: (fn: JSONType, args: JSONType[]) => JSONType,
   functions: FunctionRegistry,
+  meter: Meter,
 ) => JSONType) & { [BUILTIN_MARKER]: true };
 
 type FunctionRegistry = Record<string, Function | FunctionBody>;
@@ -96,16 +105,30 @@ type EvaluatedFunctionCall = {
   args: JSONType[];
 };
 
+// Filled in by the interpreter so hosts can read how much fuel a run consumed.
+// Fuel only accrues when tracking is enabled (a finite `maxFuel`, or when a
+// `usage` object is supplied to force measurement).
+type ExecutionUsage = {
+  fuel: number;
+};
+
 type ExecutionLimits = {
   maxCallDepth?: number;
-  maxOperations?: number;
+  /** Total work budget. Charged per node, per call, and per unit of builtin work. */
+  maxFuel?: number;
+  /** Max length of any produced array or string. */
+  maxValueSize?: number;
   signal?: AbortSignal;
   perf?: PerfStats;
+  /** If provided, its `fuel` field is set to the fuel consumed by the run. */
+  usage?: ExecutionUsage;
 };
 
 type ResolvedLimits = {
   maxCallDepth: number;
-  maxOperations: number;
+  maxFuel: number;
+  maxValueSize: number;
+  trackFuel: boolean;
   signal?: AbortSignal;
 };
 
@@ -126,7 +149,7 @@ type PerfStats = {
 
 type CallState = {
   depth: number;
-  operations: number;
+  fuel: number;
 };
 
 type EvaluationContext = {
@@ -142,10 +165,12 @@ export type {
   FunctionCall,
   FunctionReference,
   BuiltinFunction,
+  Meter,
   FunctionRegistry,
   FunctionDeclaration,
   EvaluationContext,
   ExecutionLimits,
+  ExecutionUsage,
   PerfStats,
   ResolvedLimits,
   CallState,

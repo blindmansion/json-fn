@@ -1,0 +1,98 @@
+{
+  "description": "Fuel limits (metered work budget)",
+  "comment": "Rejection cases here are RED until fuel is charged at the function-invocation chokepoint (see docs/execution-limits.md). Pre-fix, HOFs route work through host callbacks that never touch the meter, so these programs complete instead of erroring.",
+  "cases": [
+    {
+      "description": "op-bomb via map + pure-builtin callback is rejected at a tight budget",
+      "body": {
+        "$return": { "$fn": ["length", { "$fn": ["map", "neg", { "$fn": ["range", 100000] }] }] }
+      },
+      "limits": { "maxFuel": 1000 },
+      "error": "Maximum fuel"
+    },
+    {
+      "description": "same map program completes under an adequate budget",
+      "body": {
+        "$return": { "$fn": ["length", { "$fn": ["map", "neg", { "$fn": ["range", 100000] }] }] }
+      },
+      "limits": { "maxFuel": 10000000 },
+      "expected": 100000
+    },
+    {
+      "description": "op-bomb via reduce + pure-builtin callback is rejected at a tight budget",
+      "body": {
+        "$return": { "$fn": ["reduce", "add", 0, { "$fn": ["range", 1000] }] }
+      },
+      "limits": { "maxFuel": 1000 },
+      "error": "Maximum fuel"
+    },
+    {
+      "description": "same reduce program completes under an adequate budget",
+      "body": {
+        "$return": { "$fn": ["reduce", "add", 0, { "$fn": ["range", 1000] }] }
+      },
+      "limits": { "maxFuel": 10000000 },
+      "expected": 499500
+    },
+    {
+      "description": "op-bomb via sort + pure-builtin comparator is rejected at a tight budget",
+      "body": {
+        "$return": { "$fn": ["length", { "$fn": ["sort", "sub", { "$fn": ["range", 1000] }] }] }
+      },
+      "limits": { "maxFuel": 1000 },
+      "error": "Maximum fuel"
+    },
+    {
+      "description": "nested-HOF amplification (flatMap of map) is rejected at a tight budget",
+      "body": {
+        "$return": {
+          "$fn": [
+            "length",
+            {
+              "$fn": [
+                "flatMap",
+                {
+                  "$params": ["x"],
+                  "$return": { "$fn": ["map", "neg", { "$fn": ["range", 300] }] }
+                },
+                { "$fn": ["range", 300] }
+              ]
+            }
+          ]
+        }
+      },
+      "limits": { "maxFuel": 1000 },
+      "error": "Maximum fuel"
+    },
+    {
+      "description": "same nested-HOF program completes under an adequate budget",
+      "body": {
+        "$return": {
+          "$fn": [
+            "length",
+            {
+              "$fn": [
+                "flatMap",
+                {
+                  "$params": ["x"],
+                  "$return": { "$fn": ["map", "neg", { "$fn": ["range", 300] }] }
+                },
+                { "$fn": ["range", 300] }
+              ]
+            }
+          ]
+        }
+      },
+      "limits": { "maxFuel": 10000000 },
+      "expected": 90000
+    },
+    {
+      "description": "small program still runs under a modest budget (guards against over-charging)",
+      "body": {
+        "$return": { "$fn": ["map", "neg", [1, 2, 3]] }
+      },
+      "limits": { "maxFuel": 1000 },
+      "expected": [-1, -2, -3]
+    }
+  ]
+}
