@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 use serde_json::{Map, Value};
 
@@ -15,25 +15,54 @@ use crate::value::{
 const DEFAULT_MAX_CALL_DEPTH: usize = 256;
 const COMPARISON_OPERATORS: [&str; 6] = ["$eq", "$neq", "$lt", "$lte", "$gt", "$gte"];
 
+/// Reports how much fuel a run consumed. Attach one via
+/// [`ExecutionLimits::usage`] and read the count back with [`ExecutionUsage::fuel`]
+/// after evaluation returns. The interpreter stores the total consumed fuel
+/// once the run finishes (whether it succeeds or errors).
+#[derive(Default, Debug)]
+pub struct ExecutionUsage {
+    fuel: AtomicUsize,
+}
+
+impl ExecutionUsage {
+    /// Total fuel consumed by the run this usage sink was attached to.
+    pub fn fuel(&self) -> usize {
+        self.fuel.load(Ordering::Relaxed)
+    }
+}
+
 /// Caller-supplied evaluation limits.
+///
+/// See `docs/execution-limits.md` for the fuel/size model. Fuel is charged per
+/// AST node, per function invocation, and proportionally to the work done by
+/// size-sensitive builtins; `max_value_size` bounds produced array/string
+/// lengths.
 #[derive(Default, Clone)]
 pub struct ExecutionLimits {
     pub max_call_depth: Option<usize>,
-    pub max_operations: Option<usize>,
+    /// Total work budget. `None` (or zero) means unlimited.
+    pub max_fuel: Option<usize>,
+    /// Maximum length of any produced array or string. `None` (or zero) means
+    /// unlimited.
+    pub max_value_size: Option<usize>,
     pub cancel: Option<Arc<AtomicBool>>,
+    /// If set, receives the fuel consumed by the run.
+    pub usage: Option<Arc<ExecutionUsage>>,
 }
 
-#[derive(Clone)]
 struct ResolvedLimits {
     max_call_depth: usize,
-    max_operations: usize,
+    /// Valid only when `track_fuel` is true.
+    max_fuel: usize,
+    max_value_size: usize,
+    track_fuel: bool,
     cancel: Option<Arc<AtomicBool>>,
 }
 
 #[derive(Default)]
 struct CallState {
     depth: usize,
-    operations: usize,
+    fuel: usize,
 }
 
 /// One frame on the variable scope chain. Shared by `Rc` so that nested
@@ -84,6 +113,21 @@ impl EvalCtx {
         call_function_internal(fn_decl, args, self)
     }
 
+    /// Consume `amount` fuel from the shared budget, returning an error if the
+    /// budget is exceeded. Size-sensitive builtins call this to account for
+    /// work their native loops perform off the per-node/per-call chokepoints
+    /// (e.g. iterating an input array). Mirrors Go's `Meter.Charge`.
+    pub fn charge(&mut self, amount: usize) -> Result<(), EvalError> {
+        charge_fuel(self, amount)
+    }
+
+    /// Enforce the maximum produced value size, returning an error when `size`
+    /// exceeds `max_value_size`. Builtins that allocate large results call this
+    /// before allocating. Mirrors Go's `Meter.GuardSize`.
+    pub fn guard_size(&mut self, size: usize) -> Result<(), EvalError> {
+        guard_value_size(self, size)
+    }
+
     /// Resolve a function declaration value into a [`PreparedCall`] that can
     /// be invoked many times (via [`EvalCtx::call_prepared`]) without
     /// re-parsing the body on each call. Builtins like `map`/`reduce` use
@@ -108,6 +152,11 @@ impl EvalCtx {
         target: &PreparedCall,
         args: &[Value],
     ) -> Result<Value, EvalError> {
+        // Charge one fuel per invocation. This is the same chokepoint as
+        // `call_function_internal`; charging here is what makes every HOF
+        // callback dispatch (including pure builtins) cost fuel and closes the
+        // op-bomb.
+        charge_fuel(self, 1)?;
         self.state.depth += 1;
         let result = (|| {
             if self.state.depth > self.limits.max_call_depth {
@@ -123,9 +172,11 @@ impl EvalCtx {
                         .get(name.as_str())
                         .ok_or_else(|| EvalError(format!("Function {name} not found")))?;
                     if let FnEntry::Pure { f, .. } = entry {
-                        return f(args).map_err(|e| {
+                        let result = f(args).map_err(|e| {
                             EvalError(format!("Error calling external function {name}: {e}"))
-                        });
+                        })?;
+                        account_for_result(self, &result)?;
+                        return Ok(result);
                     }
                     let entry = entry.clone();
                     drop(registry);
@@ -156,15 +207,20 @@ pub fn call_function(
     functions: &FunctionRegistry,
     limits: Option<&ExecutionLimits>,
 ) -> Result<Value, EvalError> {
+    let max_fuel = limits.and_then(|l| l.max_fuel).filter(|n| *n > 0);
+    let usage = limits.and_then(|l| l.usage.clone());
     let resolved = ResolvedLimits {
         max_call_depth: limits
             .and_then(|l| l.max_call_depth)
             .filter(|n| *n > 0)
             .unwrap_or(DEFAULT_MAX_CALL_DEPTH),
-        max_operations: limits
-            .and_then(|l| l.max_operations)
+        max_fuel: max_fuel.unwrap_or(usize::MAX),
+        max_value_size: limits
+            .and_then(|l| l.max_value_size)
             .filter(|n| *n > 0)
-            .unwrap_or(0),
+            .unwrap_or(usize::MAX),
+        // Track fuel when a budget is set or when a usage sink wants the count.
+        track_fuel: max_fuel.is_some() || usage.is_some(),
         cancel: limits.and_then(|l| l.cancel.clone()),
     };
 
@@ -175,7 +231,53 @@ pub fn call_function(
         state: CallState::default(),
     };
 
-    call_function_internal(fn_decl, args, &mut ctx)
+    let result = call_function_internal(fn_decl, args, &mut ctx);
+    if let Some(usage) = usage {
+        usage.fuel.store(ctx.state.fuel, Ordering::Relaxed);
+    }
+    result
+}
+
+/// Consume `amount` fuel from the shared budget, returning an error when the
+/// budget is exhausted. No-op when fuel tracking is disabled.
+fn charge_fuel(ctx: &mut EvalCtx, amount: usize) -> Result<(), EvalError> {
+    if !ctx.limits.track_fuel {
+        return Ok(());
+    }
+    ctx.state.fuel = ctx.state.fuel.saturating_add(amount);
+    if ctx.state.fuel > ctx.limits.max_fuel {
+        return Err(EvalError(format!(
+            "Maximum fuel limit of {} exceeded",
+            ctx.limits.max_fuel
+        )));
+    }
+    Ok(())
+}
+
+/// Enforce the maximum produced array/string length. Unlike fuel, size is
+/// always enforced (independent of `track_fuel`); the default cap is unlimited.
+fn guard_value_size(ctx: &EvalCtx, size: usize) -> Result<(), EvalError> {
+    if size > ctx.limits.max_value_size {
+        return Err(EvalError(format!(
+            "Maximum value size of {} exceeded",
+            ctx.limits.max_value_size
+        )));
+    }
+    Ok(())
+}
+
+/// Charge fuel and enforce the size cap for values produced by pure host
+/// functions, proportional to the length of any produced array or string. This
+/// keeps size-growing pure builtins (concat, flatten, split, join, ...) honest
+/// without each needing to self-meter.
+fn account_for_result(ctx: &mut EvalCtx, result: &Value) -> Result<(), EvalError> {
+    let size = match result {
+        Value::String(s) => s.len(),
+        Value::Array(a) => a.len(),
+        _ => return Ok(()),
+    };
+    guard_value_size(ctx, size)?;
+    charge_fuel(ctx, size)
 }
 
 fn call_function_internal(
@@ -183,6 +285,10 @@ fn call_function_internal(
     args: &[Value],
     ctx: &mut EvalCtx,
 ) -> Result<Value, EvalError> {
+    // Charge one fuel per invocation. This single charge closes the op-bomb:
+    // every HOF callback dispatch and every pure-builtin call now costs fuel,
+    // regardless of whether it re-enters evaluate_expression.
+    charge_fuel(ctx, 1)?;
     ctx.state.depth += 1;
     let result = (|| {
         if ctx.state.depth > ctx.limits.max_call_depth {
@@ -200,12 +306,14 @@ fn call_function_internal(
                     .ok_or_else(|| EvalError(format!("Function {name} not found")))?;
                 // Pure: f doesn't re-enter the interpreter, so we can call it
                 // directly without cloning the entry or dropping the registry
-                // borrow. Saves two atomic ops per Pure call (i.e. every call
-                // to add/sub/mul/eq/... in arithmetic-heavy code).
+                // borrow. Its result is metered centrally via account_for_result
+                // so size-growing pure builtins stay honest.
                 if let FnEntry::Pure { f, .. } = entry {
-                    return f(args).map_err(|e| {
+                    let result = f(args).map_err(|e| {
                         EvalError(format!("Error calling external function {name}: {e}"))
-                    });
+                    })?;
+                    account_for_result(ctx, &result)?;
+                    return Ok(result);
                 }
                 let entry = entry.clone();
                 drop(registry);
@@ -712,29 +820,21 @@ fn evaluate_comparison_expression(expr: &Value, ctx: &mut EvalCtx) -> Result<Val
 }
 
 fn evaluate_expression(expr: &Value, ctx: &mut EvalCtx) -> Result<Value, EvalError> {
-    // Hot path: scalar literals don't need classification, cancel polling,
-    // or operation accounting (they're O(1) and unconditional return-clones).
-    // This matters a lot for arithmetic-heavy benchmarks where most of the
-    // expression tree is `add(...,1)` style with a literal `1` at the bottom.
-    match expr {
-        Value::Null => return Ok(Value::Null),
-        Value::Bool(_) | Value::Number(_) | Value::String(_) => return Ok(expr.clone()),
-        _ => {}
-    }
-
     if let Some(cancel) = &ctx.limits.cancel
         && cancel.load(Ordering::Relaxed)
     {
         return Err(EvalError("Execution aborted".into()));
     }
-    if ctx.limits.max_operations > 0 {
-        ctx.state.operations += 1;
-        if ctx.state.operations > ctx.limits.max_operations {
-            return Err(EvalError(format!(
-                "Maximum operations limit of {} exceeded",
-                ctx.limits.max_operations
-            )));
-        }
+    // Charge one fuel for every node visited (control-flow cost). This runs
+    // before the scalar fast-path so leaf literals are metered too, keeping
+    // fuel counts identical across all implementations.
+    charge_fuel(ctx, 1)?;
+
+    // Scalar literals don't need classification and are O(1) return-clones.
+    match expr {
+        Value::Null => return Ok(Value::Null),
+        Value::Bool(_) | Value::Number(_) | Value::String(_) => return Ok(expr.clone()),
+        _ => {}
     }
 
     let kind = classify(expr)?;

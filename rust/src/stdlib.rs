@@ -348,12 +348,16 @@ pub fn create_stdlib_with_options(options: StdlibOptions) -> FunctionRegistry {
     );
     r.insert(
         "range".into(),
-        FnEntry::pure(1, |a| {
+        FnEntry::builtin(1, |a, ctx| {
             let n = to_f64(&a[0])
                 .ok_or_else(|| EvalError("range: argument must be a number".into()))?;
-            let len = n as i64;
-            let mut out = Vec::with_capacity(len.max(0) as usize);
-            for i in 0..len {
+            let length = (n as i64).max(0) as usize;
+            // Guard and charge before allocating so an oversized range is
+            // rejected immediately rather than after building the array.
+            ctx.guard_size(length)?;
+            ctx.charge(length)?;
+            let mut out = Vec::with_capacity(length);
+            for i in 0..length {
                 out.push(num(i as f64));
             }
             Ok(Value::Array(out))
@@ -728,6 +732,7 @@ pub fn create_stdlib_with_options(options: StdlibOptions) -> FunctionRegistry {
                 .as_array()
                 .ok_or_else(|| EvalError("map: second argument must be an array".into()))?
                 .clone();
+            ctx.charge(arr.len())?;
             let f = ctx.prepare(&a[0])?;
             let mut out = Vec::with_capacity(arr.len());
             for (i, item) in arr.iter().enumerate() {
@@ -743,6 +748,7 @@ pub fn create_stdlib_with_options(options: StdlibOptions) -> FunctionRegistry {
                 .as_array()
                 .ok_or_else(|| EvalError("filter: second argument must be an array".into()))?
                 .clone();
+            ctx.charge(arr.len())?;
             let f = ctx.prepare(&a[0])?;
             let mut out = Vec::new();
             for (i, item) in arr.iter().enumerate() {
@@ -761,6 +767,7 @@ pub fn create_stdlib_with_options(options: StdlibOptions) -> FunctionRegistry {
                 .as_array()
                 .ok_or_else(|| EvalError("reduce: third argument must be an array".into()))?
                 .clone();
+            ctx.charge(arr.len())?;
             let f = ctx.prepare(&a[0])?;
             let mut acc = a[1].clone();
             for (i, item) in arr.iter().enumerate() {
@@ -776,6 +783,7 @@ pub fn create_stdlib_with_options(options: StdlibOptions) -> FunctionRegistry {
                 .as_array()
                 .ok_or_else(|| EvalError("find: second argument must be an array".into()))?
                 .clone();
+            ctx.charge(arr.len())?;
             let f = ctx.prepare(&a[0])?;
             for (i, item) in arr.iter().enumerate() {
                 let v = ctx.call_prepared(&f, &[item.clone(), num(i as f64)])?;
@@ -793,6 +801,7 @@ pub fn create_stdlib_with_options(options: StdlibOptions) -> FunctionRegistry {
                 .as_array()
                 .ok_or_else(|| EvalError("findIndex: second argument must be an array".into()))?
                 .clone();
+            ctx.charge(arr.len())?;
             let f = ctx.prepare(&a[0])?;
             for (i, item) in arr.iter().enumerate() {
                 let v = ctx.call_prepared(&f, &[item.clone(), num(i as f64)])?;
@@ -810,6 +819,7 @@ pub fn create_stdlib_with_options(options: StdlibOptions) -> FunctionRegistry {
                 .as_array()
                 .ok_or_else(|| EvalError("some: second argument must be an array".into()))?
                 .clone();
+            ctx.charge(arr.len())?;
             let f = ctx.prepare(&a[0])?;
             for (i, item) in arr.iter().enumerate() {
                 let v = ctx.call_prepared(&f, &[item.clone(), num(i as f64)])?;
@@ -827,6 +837,7 @@ pub fn create_stdlib_with_options(options: StdlibOptions) -> FunctionRegistry {
                 .as_array()
                 .ok_or_else(|| EvalError("every: second argument must be an array".into()))?
                 .clone();
+            ctx.charge(arr.len())?;
             let f = ctx.prepare(&a[0])?;
             for (i, item) in arr.iter().enumerate() {
                 let v = ctx.call_prepared(&f, &[item.clone(), num(i as f64)])?;
@@ -844,6 +855,7 @@ pub fn create_stdlib_with_options(options: StdlibOptions) -> FunctionRegistry {
                 .as_array()
                 .ok_or_else(|| EvalError("sort: second argument must be an array".into()))?
                 .clone();
+            ctx.charge(arr.len())?;
             let f = ctx.prepare(&a[0])?;
             // Decorate each item with its original index so the comparator can be
             // invoked through `ctx.call` outside any cmp closure (which forbids
@@ -878,6 +890,7 @@ pub fn create_stdlib_with_options(options: StdlibOptions) -> FunctionRegistry {
                 .as_object()
                 .ok_or_else(|| EvalError("mapValues: second argument must be an object".into()))?
                 .clone();
+            ctx.charge(obj.len())?;
             let f = ctx.prepare(&a[0])?;
             let mut out = Map::new();
             for (k, v) in &obj {
@@ -894,6 +907,7 @@ pub fn create_stdlib_with_options(options: StdlibOptions) -> FunctionRegistry {
                 .as_array()
                 .ok_or_else(|| EvalError("flatMap: second argument must be an array".into()))?
                 .clone();
+            ctx.charge(arr.len())?;
             let f = ctx.prepare(&a[0])?;
             let mut out = Vec::new();
             for (i, item) in arr.iter().enumerate() {
@@ -903,6 +917,8 @@ pub fn create_stdlib_with_options(options: StdlibOptions) -> FunctionRegistry {
                     other => out.push(other),
                 }
             }
+            // The flattened output can be larger than the input, so guard it.
+            ctx.guard_size(out.len())?;
             Ok(Value::Array(out))
         }),
     );
@@ -913,6 +929,7 @@ pub fn create_stdlib_with_options(options: StdlibOptions) -> FunctionRegistry {
                 .as_array()
                 .ok_or_else(|| EvalError("groupBy: second argument must be an array".into()))?
                 .clone();
+            ctx.charge(arr.len())?;
             let f = ctx.prepare(&a[0])?;
             let mut groups: Map<String, Value> = Map::new();
             for (i, item) in arr.iter().enumerate() {
@@ -951,6 +968,7 @@ pub fn create_stdlib_with_options(options: StdlibOptions) -> FunctionRegistry {
                 .as_array()
                 .ok_or_else(|| EvalError("sortBy: second argument must be an array".into()))?
                 .clone();
+            ctx.charge(arr.len())?;
             let f = ctx.prepare(&a[0])?;
             let mut decorated: Vec<(Value, Value)> = Vec::with_capacity(arr.len());
             for (i, item) in arr.iter().enumerate() {
@@ -991,6 +1009,7 @@ pub fn create_stdlib_with_options(options: StdlibOptions) -> FunctionRegistry {
                     EvalError("pipe: first argument must be an array of functions".into())
                 })?
                 .clone();
+            ctx.charge(fns.len())?;
             let prepared: Vec<_> = fns
                 .iter()
                 .map(|f| ctx.prepare(f))
@@ -1075,6 +1094,7 @@ pub fn create_stdlib_with_options(options: StdlibOptions) -> FunctionRegistry {
             })?;
             let callback = a[1].clone();
             let re = parse_pattern(p)?;
+            ctx.charge(s.len())?;
             let mut out = String::with_capacity(s.len());
             let mut last = 0;
             for caps in re.captures_iter(s) {

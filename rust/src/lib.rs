@@ -12,7 +12,7 @@ pub mod stdlib;
 pub mod value;
 
 pub use error::EvalError;
-pub use eval::{ExecutionLimits, PreparedCall, call_function};
+pub use eval::{ExecutionLimits, ExecutionUsage, PreparedCall, call_function};
 pub use jsonc::strip_jsonc;
 pub use stdlib::{LogFn, StdlibOptions, create_stdlib, create_stdlib_with_options};
 pub use value::{

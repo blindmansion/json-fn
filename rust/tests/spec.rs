@@ -3,9 +3,11 @@
 
 use std::fs;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use jsonfn::{
-    ExecutionLimits, FnEntry, FunctionRegistry, call_function, create_stdlib, json_equal,
+    ExecutionLimits, ExecutionUsage, FnEntry, FunctionRegistry, call_function, create_stdlib,
+    json_equal,
 };
 use serde::Deserialize;
 use serde_json::Value;
@@ -24,14 +26,18 @@ struct TestCase {
     expected: Option<Value>,
     #[serde(default)]
     error: Option<String>,
+    #[serde(default, rename = "expectedFuel")]
+    expected_fuel: Option<usize>,
 }
 
 #[derive(Deserialize, Default)]
 struct LimitsSpec {
     #[serde(default, rename = "maxCallDepth")]
     max_call_depth: Option<usize>,
-    #[serde(default, rename = "maxOperations")]
-    max_operations: Option<usize>,
+    #[serde(default, rename = "maxFuel")]
+    max_fuel: Option<usize>,
+    #[serde(default, rename = "maxValueSize")]
+    max_value_size: Option<usize>,
 }
 
 #[derive(Deserialize)]
@@ -107,11 +113,22 @@ fn run_case(
     }
 
     let args: Vec<Value> = case.args.clone().unwrap_or_default();
-    let limits = case.limits.as_ref().map(|l| ExecutionLimits {
-        max_call_depth: l.max_call_depth,
-        max_operations: l.max_operations,
-        cancel: None,
-    });
+
+    // Attach a usage sink when the case asserts an exact fuel count.
+    let usage = case.expected_fuel.map(|_| Arc::new(ExecutionUsage::default()));
+
+    let limits = if case.limits.is_some() || usage.is_some() {
+        let l = case.limits.as_ref();
+        Some(ExecutionLimits {
+            max_call_depth: l.and_then(|l| l.max_call_depth),
+            max_fuel: l.and_then(|l| l.max_fuel),
+            max_value_size: l.and_then(|l| l.max_value_size),
+            cancel: None,
+            usage: usage.clone(),
+        })
+    } else {
+        None
+    };
 
     let result = call_function(&case.body, &args, &registry, limits.as_ref());
 
@@ -132,15 +149,22 @@ fn run_case(
         (None, Err(e)) => Err(format!("Unexpected error: {e}")),
         (None, Ok(v)) => {
             let expected = case.expected.clone().unwrap_or(Value::Null);
-            if json_equal(&v, &expected) {
-                Ok(())
-            } else {
+            if !json_equal(&v, &expected) {
                 let got = serde_json::to_string_pretty(&v).unwrap_or_default();
                 let want = serde_json::to_string_pretty(&expected).unwrap_or_default();
-                Err(format!(
+                return Err(format!(
                     "Result mismatch.\n      Got:      {got}\n      Expected: {want}"
-                ))
+                ));
             }
+            if let (Some(expected_fuel), Some(usage)) = (case.expected_fuel, &usage) {
+                let actual = usage.fuel();
+                if actual != expected_fuel {
+                    return Err(format!(
+                        "Fuel mismatch: expected {expected_fuel}, got {actual}"
+                    ));
+                }
+            }
+            Ok(())
         }
     }
 }

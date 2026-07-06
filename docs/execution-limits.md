@@ -1,6 +1,7 @@
 # Execution Limits Redesign (Plan)
 
-Status: proposal / not yet implemented.
+Status: implemented across all four interpreters (Phases 1–3 done). Phase 4
+(host-only wall-clock deadline) and Phase 5 (doc cleanup) remain.
 
 This document describes the strategy for resource limits in json-fn, the flaws in
 the current design (including a confirmed sandbox-escape "op-bomb"), a redesigned
@@ -329,7 +330,7 @@ The existing `safety-limits.json` cases stay; their limit cases already use
    are green (full TS suite: 506 pass / 0 fail). Note: builtin size surcharges are
    charged atomically, so `usage.fuel` may overshoot `maxFuel` on a *rejected*
    run; completing runs report exact fuel.
-3. **Port to Go, Python, Rust.** Mirror the exact cost model; replace each impl's
+3. **Port to Go, Python, Rust. (DONE)** Mirror the exact cost model; replace each impl's
    `maxOperations`/operation-counter with the fuel model and `maxValueSize`, and
    update each runner to parse the new fields and check `expectedFuel`. All four
    must produce identical fuel counts on the anchor cases.
@@ -357,7 +358,23 @@ The existing `safety-limits.json` cases stay; their limit cases already use
      `ExecutionUsage` sink. All three limit suites are green (516 pass total),
      and the anchor programs produce fuel counts identical to Go/TypeScript
      (e.g. `range(10)` = 14, `map("neg", range(5))` = 22).
-   - **Rust.** Still pending — same mirroring work.
+   - **Rust. (DONE)** `ExecutionLimits` now exposes `max_fuel`,
+     `max_value_size`, and an optional `usage: Option<Arc<ExecutionUsage>>`;
+     `max_operations` is removed. Fuel is charged per node
+     (`evaluate_expression`, before the scalar fast-path so leaf literals are
+     metered too) and per call (`call_function_internal` **and**
+     `call_prepared`, the path HOFs dispatch callbacks through — charging both
+     is what closes the op-bomb); size surcharges are threaded through the
+     `&mut EvalCtx` builtins already receive (`ctx.charge` / `ctx.guard_size`,
+     which double as the `Meter`), HOFs charge `len(input)`, `flatMap` guards
+     its output, and pure-builtin results are charged/guarded centrally via
+     `account_for_result`. `range` became a builtin so it guards + charges
+     before allocating. The `spec.rs` runner parses `maxFuel` / `maxValueSize`
+     (and checks the optional `expectedFuel`) via an `Arc<ExecutionUsage>`
+     sink. All three limit suites are green and the anchor programs produce
+     fuel counts identical to Go/Python/TypeScript (`range(10)` = 14,
+     `map("neg", range(5))` = 22, `add(mul(3,4),5)` = 8,
+     `concat(range(3), range(2))` = 19).
 4. **Add the wall-clock deadline** as a host-only backstop in each impl
    (not spec-tested).
 5. **Cleanup.** Update docs (`docs/language.md`, per-impl READMEs) and the host

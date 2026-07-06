@@ -636,15 +636,23 @@ Maximum call depth of 10 exceeded
 
 Recursion that stays within the configured depth runs normally.
 
-### Maximum Operations
+### Maximum Fuel
 
-Hosts may configure `maxOperations` to bound the total number of evaluation steps, catching expensive computations that are not necessarily deep (e.g. large `map`/`reduce` workloads). Exceeding it errors:
+Hosts may configure `maxFuel` to bound the total work a program may perform, catching expensive computations that are not necessarily deep (e.g. large `map`/`reduce`/`range` workloads). Fuel is charged at every metered chokepoint — once per AST node visited, once per function invocation (so higher-order callbacks and pure-builtin calls all cost fuel), and proportionally to the input/output size of size-sensitive builtins (`range`, `concat`, `map`, `sort`, string and regex ops, …). Exceeding the budget errors:
 
 ```
-Maximum operations limit of 50 exceeded
+Maximum fuel limit of 50 exceeded
 ```
 
-When unset, `maxCallDepth` and `maxOperations` fall back to implementation-defined defaults. How limits are supplied is host-defined.
+### Maximum Value Size
+
+Hosts may configure `maxValueSize` to bound the length of any array or string a program produces, independent of fuel. This stops allocation bombs (e.g. `range(1e9)` or repeated `concat`) that a CPU budget alone cannot. Exceeding it errors:
+
+```
+Maximum value size of 1000 exceeded
+```
+
+When unset, `maxCallDepth` falls back to an implementation-defined default and `maxFuel` / `maxValueSize` are unbounded. How limits are supplied is host-defined. See [`docs/execution-limits.md`](./execution-limits.md) for the normative cost model.
 
 ## Constraints
 
