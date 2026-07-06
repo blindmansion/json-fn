@@ -12,7 +12,8 @@ parametrizes one pytest case per ``cases[]`` entry. A case has either:
 Optional per-case fields:
 
   - ``"functions"``: extra function bodies merged into the stdlib registry.
-  - ``"limits"``: ``{"maxCallDepth": N, "maxOperations": N}``.
+  - ``"limits"``: ``{"maxCallDepth": N, "maxFuel": N, "maxValueSize": N}``.
+  - ``"expectedFuel"``: exact fuel the run must consume (anchor cases).
 """
 
 from __future__ import annotations
@@ -25,6 +26,7 @@ import pytest
 
 from jsonfn import (
     ExecutionLimits,
+    ExecutionUsage,
     JsonFnError,
     call_function,
     create_stdlib,
@@ -94,15 +96,21 @@ def test_spec_case(case: dict[str, Any]) -> None:
         for name, body in case["functions"].items():
             registry[name] = body
 
-    limits = None
+    expects_fuel = "expectedFuel" in case
+    usage = ExecutionUsage() if expects_fuel else None
+
+    kwargs: dict[str, Any] = {}
     if "limits" in case:
         spec_limits = case["limits"]
-        kwargs: dict[str, Any] = {}
         if "maxCallDepth" in spec_limits:
             kwargs["max_call_depth"] = spec_limits["maxCallDepth"]
-        if "maxOperations" in spec_limits:
-            kwargs["max_operations"] = spec_limits["maxOperations"]
-        limits = ExecutionLimits(**kwargs)
+        if "maxFuel" in spec_limits:
+            kwargs["max_fuel"] = spec_limits["maxFuel"]
+        if "maxValueSize" in spec_limits:
+            kwargs["max_value_size"] = spec_limits["maxValueSize"]
+    if usage is not None:
+        kwargs["usage"] = usage
+    limits = ExecutionLimits(**kwargs) if kwargs else None
 
     body = case["body"]
     args = case.get("args", [])
@@ -118,6 +126,11 @@ def test_spec_case(case: dict[str, Any]) -> None:
     result = call_function(body, args, registry, limits)
     expected = case.get("expected")
     assert _json_equal(result, expected), f"Expected {expected!r}, got {result!r}"
+
+    if usage is not None:
+        assert usage.fuel == case["expectedFuel"], (
+            f"Expected {case['expectedFuel']} fuel, consumed {usage.fuel}"
+        )
 
 
 def test_spec_cases_were_discovered() -> None:

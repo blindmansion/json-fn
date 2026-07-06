@@ -1,7 +1,7 @@
 """Tree-walking interpreter for json-fn.
 
 The :class:`Interpreter` class encapsulates the evaluation state (registry,
-limits, depth + operations counters). Per-frame state (variable bindings,
+limits, depth + fuel counters). Per-frame state (variable bindings,
 local function declarations, scoped registry overlay) lives on the call
 stack: ``_call_json_function`` builds a ``get_var`` closure and pushes a
 scoped registry via try/finally.
@@ -26,6 +26,7 @@ from .path import parse_path, walk_path
 from .types import (
     BuiltinContext,
     ExecutionLimits,
+    ExecutionUsage,
     ExpressionType,
     FunctionRegistry,
     JsonValue,
@@ -50,14 +51,18 @@ def call_function(
 
     Raises :class:`JsonFnError` on any evaluation failure.
     """
-    return Interpreter(registry, limits).call(fn, list(args) if args else [])
+    interp = Interpreter(registry, limits)
+    try:
+        return interp.call(fn, list(args) if args else [])
+    finally:
+        interp.report_usage()
 
 
 class Interpreter:
     """A single evaluation context.
 
     Instances are reusable across top-level :meth:`call` invocations as long
-    as you don't share them across threads (depth/operations counters and the
+    as you don't share them across threads (depth/fuel counters and the
     registry slot are mutated in place).
     """
 
@@ -65,9 +70,12 @@ class Interpreter:
         "_cancel",
         "_check_limits",
         "_depth",
+        "_fuel",
         "_max_call_depth",
-        "_max_ops",
-        "_operations",
+        "_max_fuel",
+        "_max_value_size",
+        "_track_fuel",
+        "_usage",
         "limits",
         "registry",
     )
@@ -80,13 +88,53 @@ class Interpreter:
         self.registry: FunctionRegistry = registry
         self.limits: ExecutionLimits = limits or ExecutionLimits()
         self._depth: int = 0
-        self._operations: int = 0
+        self._fuel: int = 0
         # Hoist limits to plain ivars so the per-evaluate hot path can do a
         # single attribute lookup (and short-circuit when nothing is configured).
         self._max_call_depth: int = self.limits.max_call_depth
-        self._max_ops: int | None = self.limits.max_operations
+        self._max_fuel: int | None = self.limits.max_fuel
+        self._max_value_size: int | None = self.limits.max_value_size
         self._cancel: Any = self.limits.cancel
-        self._check_limits: bool = self._max_ops is not None or self._cancel is not None
+        self._usage: ExecutionUsage | None = self.limits.usage
+        # Fuel is metered whenever a budget is set OR a usage sink wants the
+        # total. Size limits are enforced independently (see _guard_value_size).
+        self._track_fuel: bool = self._max_fuel is not None or self._usage is not None
+        self._check_limits: bool = self._track_fuel or self._cancel is not None
+
+    # -- limit metering ------------------------------------------------------
+
+    def _charge_fuel(self, amount: int) -> None:
+        """Decrement the shared fuel budget by ``amount``. No-op when fuel is
+        not metered. Raises :class:`LimitExceededError` on exhaustion."""
+        if not self._track_fuel:
+            return
+        self._fuel += amount
+        if self._max_fuel is not None and self._fuel > self._max_fuel:
+            raise LimitExceededError(f"Maximum fuel limit of {self._max_fuel} exceeded")
+
+    def _guard_value_size(self, size: int) -> None:
+        """Enforce ``max_value_size`` for a produced array/string length.
+        Always enforced (independent of fuel tracking)."""
+        mvs = self._max_value_size
+        if mvs is not None and size > mvs:
+            raise LimitExceededError(f"Maximum value size of {mvs} exceeded")
+
+    def _account_for_result(self, result: Any) -> None:
+        """Charge fuel + enforce the size cap for values produced by pure host
+        functions, proportional to any produced array/string length. Keeps
+        size-growing pure builtins (concat, flatten, split, join, ...) honest
+        without each needing to self-meter."""
+        t = type(result)
+        if t is str or t is list:
+            size = len(result)
+            self._guard_value_size(size)
+            self._charge_fuel(size)
+
+    def report_usage(self) -> None:
+        """Write the consumed fuel into the configured :class:`ExecutionUsage`
+        (if any). Called by :func:`call_function` once evaluation finishes."""
+        if self._usage is not None:
+            self._usage.fuel = self._fuel
 
     # -- public --------------------------------------------------------------
 
@@ -104,6 +152,10 @@ class Interpreter:
         :meth:`_call_json_function` so inline function bodies inherit the
         evaluation-time scope chain (matching Go and TypeScript).
         """
+        # Charge one fuel per invocation. This single charge closes the
+        # op-bomb: every HOF callback dispatch and every pure-builtin call now
+        # costs fuel, regardless of whether it re-enters _evaluate.
+        self._charge_fuel(1)
         depth = self._depth + 1
         if depth > self._max_call_depth:
             raise LimitExceededError(f"Maximum call depth of {self._max_call_depth} exceeded")
@@ -120,11 +172,13 @@ class Interpreter:
                     arity = entry.arity
                     call_args = args[:arity] if arity >= 0 and len(args) != arity else args
                     try:
-                        return entry.fn(*call_args)
+                        result = entry.fn(*call_args)
                     except JsonFnError:
                         raise
                     except Exception as e:
                         raise EvaluationError(f"Error calling external function {fn}: {e}") from e
+                    self._account_for_result(result)
+                    return result
                 if isinstance(entry, _BuiltinEntry):
                     captured_parent = parent_get_var
                     interp = self
@@ -132,7 +186,12 @@ class Interpreter:
                     def _ctx_call(cfn: Any, cargs: list[JsonValue]) -> JsonValue:
                         return interp.call(cfn, cargs, captured_parent)
 
-                    ctx = BuiltinContext(call=_ctx_call, registry=self.registry)
+                    ctx = BuiltinContext(
+                        call=_ctx_call,
+                        registry=self.registry,
+                        charge=self._charge_fuel,
+                        guard_size=self._guard_value_size,
+                    )
                     return entry.fn(*args, ctx=ctx)
                 if isinstance(entry, dict):
                     return self._call_json_function(entry, args, parent_get_var)
@@ -266,18 +325,17 @@ class Interpreter:
     # -- evaluation ----------------------------------------------------------
 
     def _evaluate(self, expr: Any, get_var: Any) -> JsonValue:
-        # Cancellation + operations cap (parallels Go's evaluateExpression
-        # preamble). Hoisted behind a single flag so the common case of
-        # "no limits configured" hits no extra branches.
+        # Cancellation + per-node fuel charge (parallels Go's
+        # evaluateExpression preamble). Hoisted behind a single flag so the
+        # common case of "no limits configured" hits no extra branches.
         if self._check_limits:
             cancel = self._cancel
             if cancel is not None and cancel.is_set():
                 raise LimitExceededError("Execution aborted")
-            max_ops = self._max_ops
-            if max_ops is not None:
-                self._operations += 1
-                if self._operations > max_ops:
-                    raise LimitExceededError(f"Maximum operations limit of {max_ops} exceeded")
+            if self._track_fuel:
+                self._fuel += 1
+                if self._max_fuel is not None and self._fuel > self._max_fuel:
+                    raise LimitExceededError(f"Maximum fuel limit of {self._max_fuel} exceeded")
 
         # Inline type-based dispatch. The `_classify` method is still used for
         # validation paths (and in case anyone subclasses), but the hot path
@@ -311,6 +369,10 @@ class Interpreter:
                             # — otherwise the counter would balloon past
                             # max_call_depth on recursive expression trees).
                             eval_args = [self._evaluate(a, get_var) for a in fn_arr[1:]]
+                            # Per-invocation fuel charge (this inlined path
+                            # bypasses Interpreter.call, so it must charge here
+                            # to keep the meter honest).
+                            self._charge_fuel(1)
                             depth = self._depth + 1
                             if depth > self._max_call_depth:
                                 raise LimitExceededError(
@@ -322,13 +384,15 @@ class Interpreter:
                                 if arity >= 0 and len(eval_args) != arity:
                                     eval_args = eval_args[:arity]
                                 try:
-                                    return entry.fn(*eval_args)
+                                    result = entry.fn(*eval_args)
                                 except JsonFnError:
                                     raise
                                 except Exception as e:
                                     raise EvaluationError(
                                         f"Error calling external function {head}: {e}"
                                     ) from e
+                                self._account_for_result(result)
+                                return result
                             finally:
                                 self._depth = depth - 1
                         # Fall through to the general dispatch for builtins

@@ -163,12 +163,12 @@ def test_call_depth_limit_raises() -> None:
         call_function(body, [], registry, ExecutionLimits(max_call_depth=10))
 
 
-def test_operations_limit_raises() -> None:
+def test_fuel_limit_raises() -> None:
     body = {
         "$return": {"$fn": ["map", {"$params": ["x"], "$return": {"$var": "x"}}, list(range(100))]}
     }
-    with pytest.raises(LimitExceededError, match="Maximum operations"):
-        call_function(body, [], create_stdlib(), ExecutionLimits(max_operations=20))
+    with pytest.raises(LimitExceededError, match="Maximum fuel"):
+        call_function(body, [], create_stdlib(), ExecutionLimits(max_fuel=20))
 
 
 def test_evaluation_error_is_jsonfn_error() -> None:

@@ -34,7 +34,7 @@ See [`docs/language.md`](../docs/language.md) for the full language reference.
 
 - `call_function(fn, args, registry, limits=None)` — main entry point.
 - `create_stdlib()` — builds a `FunctionRegistry` containing the ~60 built-in functions (arithmetic, comparison, logic, arrays, strings, objects, higher-order, regex).
-- `ExecutionLimits(max_call_depth, max_operations, cancel)` — optional limits, where `cancel` is a `threading.Event` that, when set, aborts evaluation.
+- `ExecutionLimits(max_call_depth, max_fuel, max_value_size, cancel, usage)` — optional limits. `max_fuel` bounds total metered work (per node, per call, and proportional to size-sensitive builtins); `max_value_size` caps produced array/string length; `cancel` is a `threading.Event` that, when set, aborts evaluation; `usage` is an optional `ExecutionUsage` that receives the consumed fuel once evaluation finishes.
 - `Interpreter(registry, limits)` — re-usable interpreter object if you want to invoke `call()` multiple times against a shared scope (single-threaded use only).
 - `strip_jsonc(src)` — convert `.jsonc` source (line comments + trailing commas) to strict JSON.
 - `JsonFnError` — base exception. Subclasses: `EvaluationError`, `CycleError`, `PathError`, `LimitExceededError`.

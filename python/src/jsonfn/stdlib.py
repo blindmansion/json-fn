@@ -497,11 +497,18 @@ def create_stdlib(logger: LogFn | None = None) -> FunctionRegistry:
             result.extend(a)
         return result
 
-    @r.pure("range", arity=1)
-    def _(n: Any) -> JsonValue:
+    @r.builtin("range", arity=1)
+    def _(n: Any, *, ctx: BuiltinContext) -> JsonValue:
         if not _is_number(n):
             raise EvaluationError("range: argument must be a number")
-        return list(range(int(n)))
+        length = int(n)
+        if length < 0:
+            length = 0
+        # Guard and charge before allocating so an oversized range is rejected
+        # immediately rather than after building the array.
+        ctx.guard_size(length)
+        ctx.charge(length)
+        return list(range(length))
 
     @r.pure("slice", arity=-1)
     def _(*args: Any) -> JsonValue:
@@ -758,18 +765,21 @@ def create_stdlib(logger: LogFn | None = None) -> FunctionRegistry:
     def _(callback: Any, arr: Any, *, ctx: BuiltinContext) -> JsonValue:
         if not isinstance(arr, list):
             raise EvaluationError("map: second argument must be an array")
+        ctx.charge(len(arr))
         return [ctx.call(callback, [item, i]) for i, item in enumerate(arr)]
 
     @r.builtin("filter", arity=2)
     def _(callback: Any, arr: Any, *, ctx: BuiltinContext) -> JsonValue:
         if not isinstance(arr, list):
             raise EvaluationError("filter: second argument must be an array")
+        ctx.charge(len(arr))
         return [item for i, item in enumerate(arr) if _truthy(ctx.call(callback, [item, i]))]
 
     @r.builtin("reduce", arity=3)
     def _(callback: Any, init: Any, arr: Any, *, ctx: BuiltinContext) -> JsonValue:
         if not isinstance(arr, list):
             raise EvaluationError("reduce: third argument must be an array")
+        ctx.charge(len(arr))
         acc = init
         for i, item in enumerate(arr):
             acc = ctx.call(callback, [acc, item, i])
@@ -779,6 +789,7 @@ def create_stdlib(logger: LogFn | None = None) -> FunctionRegistry:
     def _(callback: Any, arr: Any, *, ctx: BuiltinContext) -> JsonValue:
         if not isinstance(arr, list):
             raise EvaluationError("find: second argument must be an array")
+        ctx.charge(len(arr))
         for i, item in enumerate(arr):
             if _truthy(ctx.call(callback, [item, i])):
                 return item
@@ -788,6 +799,7 @@ def create_stdlib(logger: LogFn | None = None) -> FunctionRegistry:
     def _(callback: Any, arr: Any, *, ctx: BuiltinContext) -> JsonValue:
         if not isinstance(arr, list):
             raise EvaluationError("findIndex: second argument must be an array")
+        ctx.charge(len(arr))
         for i, item in enumerate(arr):
             if _truthy(ctx.call(callback, [item, i])):
                 return i
@@ -797,18 +809,21 @@ def create_stdlib(logger: LogFn | None = None) -> FunctionRegistry:
     def _(callback: Any, arr: Any, *, ctx: BuiltinContext) -> JsonValue:
         if not isinstance(arr, list):
             raise EvaluationError("some: second argument must be an array")
+        ctx.charge(len(arr))
         return any(_truthy(ctx.call(callback, [item, i])) for i, item in enumerate(arr))
 
     @r.builtin("every", arity=2)
     def _(callback: Any, arr: Any, *, ctx: BuiltinContext) -> JsonValue:
         if not isinstance(arr, list):
             raise EvaluationError("every: second argument must be an array")
+        ctx.charge(len(arr))
         return all(_truthy(ctx.call(callback, [item, i])) for i, item in enumerate(arr))
 
     @r.builtin("sort", arity=2)
     def _(comparator: Any, arr: Any, *, ctx: BuiltinContext) -> JsonValue:
         if not isinstance(arr, list):
             raise EvaluationError("sort: second argument must be an array")
+        ctx.charge(len(arr))
 
         def cmp(a: Any, b: Any) -> int:
             v = ctx.call(comparator, [a, b])
@@ -826,6 +841,7 @@ def create_stdlib(logger: LogFn | None = None) -> FunctionRegistry:
     def _(key_fn: Any, arr: Any, *, ctx: BuiltinContext) -> JsonValue:
         if not isinstance(arr, list):
             raise EvaluationError("sortBy: second argument must be an array")
+        ctx.charge(len(arr))
         decorated = [(ctx.call(key_fn, [item, i]), i, item) for i, item in enumerate(arr)]
 
         # `i` in the tuple gives us a stable tiebreaker; the comparator uses
@@ -844,6 +860,7 @@ def create_stdlib(logger: LogFn | None = None) -> FunctionRegistry:
     def _(callback: Any, arr: Any, *, ctx: BuiltinContext) -> JsonValue:
         if not isinstance(arr, list):
             raise EvaluationError("flatMap: second argument must be an array")
+        ctx.charge(len(arr))
         result: list[JsonValue] = []
         for i, item in enumerate(arr):
             mapped = ctx.call(callback, [item, i])
@@ -851,12 +868,14 @@ def create_stdlib(logger: LogFn | None = None) -> FunctionRegistry:
                 result.extend(mapped)
             else:
                 result.append(mapped)
+        ctx.guard_size(len(result))
         return result
 
     @r.builtin("groupBy", arity=2)
     def _(key_fn: Any, arr: Any, *, ctx: BuiltinContext) -> JsonValue:
         if not isinstance(arr, list):
             raise EvaluationError("groupBy: second argument must be an array")
+        ctx.charge(len(arr))
         groups: dict[str, list[JsonValue]] = {}
         for i, item in enumerate(arr):
             key = ctx.call(key_fn, [item, i])
@@ -878,6 +897,7 @@ def create_stdlib(logger: LogFn | None = None) -> FunctionRegistry:
     def _(callback: Any, obj: Any, *, ctx: BuiltinContext) -> JsonValue:
         if not isinstance(obj, dict):
             raise EvaluationError("mapValues: second argument must be an object")
+        ctx.charge(len(obj))
         return {k: ctx.call(callback, [v, k]) for k, v in obj.items()}
 
     @r.builtin("apply", arity=2)
@@ -890,6 +910,7 @@ def create_stdlib(logger: LogFn | None = None) -> FunctionRegistry:
     def _(fns: Any, init: Any, *, ctx: BuiltinContext) -> JsonValue:
         if not isinstance(fns, list):
             raise EvaluationError("pipe: first argument must be an array of functions")
+        ctx.charge(len(fns))
         value = init
         for fn in fns:
             value = ctx.call(fn, [value])
@@ -901,6 +922,7 @@ def create_stdlib(logger: LogFn | None = None) -> FunctionRegistry:
             raise EvaluationError("reReplaceWith: first argument must be a pattern string")
         if not isinstance(s, str):
             raise EvaluationError("reReplaceWith: third argument must be a string")
+        ctx.charge(len(s))
         compiled = _compile_pattern(pattern, "reReplaceWith")
 
         def _replace(m: re.Match[str]) -> str:

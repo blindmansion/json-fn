@@ -344,7 +344,20 @@ The existing `safety-limits.json` cases stay; their limit cases already use
      case-insensitive field matching, the new `maxFuel` / `maxValueSize` spec
      fields map onto the struct with no runner change. All three limit suites
      (fuel, memory, safety) are green and the op-bomb is blocked.
-   - **Python, Rust.** Still pending — same mirroring work.
+   - **Python. (DONE)** `ExecutionLimits` now exposes `max_fuel`,
+     `max_value_size`, and an optional `usage: ExecutionUsage`; `max_operations`
+     is removed. Fuel is charged per node (`Interpreter._evaluate`) and per call
+     (`Interpreter.call`, plus the inlined pure-builtin fast path so it stays
+     honest); size surcharges are threaded through the `BuiltinContext`
+     (`ctx.charge` / `ctx.guard_size`) that HOFs use, `flatMap` guards its
+     output, and pure-builtin results are charged/guarded centrally via
+     `_account_for_result`. `range` became a builtin so it guards + charges
+     before allocating. The `test_spec.py` runner parses `maxFuel` /
+     `maxValueSize` (and checks the optional `expectedFuel`) via an
+     `ExecutionUsage` sink. All three limit suites are green (516 pass total),
+     and the anchor programs produce fuel counts identical to Go/TypeScript
+     (e.g. `range(10)` = 14, `map("neg", range(5))` = 22).
+   - **Rust.** Still pending — same mirroring work.
 4. **Add the wall-clock deadline** as a host-only backstop in each impl
    (not spec-tested).
 5. **Cleanup.** Update docs (`docs/language.md`, per-impl READMEs) and the host
