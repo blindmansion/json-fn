@@ -1,7 +1,10 @@
 # Execution Limits Redesign (Plan)
 
-Status: implemented across all four interpreters (Phases 1–3 done). Phase 4
-(host-only wall-clock deadline) and Phase 5 (doc cleanup) remain.
+Status: fully implemented across all four interpreters (Phases 1–5 done). The
+fuel + value-size cost model is enforced and conformance-tested everywhere; the
+host-only wall-clock deadline and cooperative cancellation are wired at every
+node and invocation chokepoint (not spec-tested, by design); docs reflect the
+model.
 
 This document describes the strategy for resource limits in json-fn, the flaws in
 the current design (including a confirmed sandbox-escape "op-bomb"), a redesigned
@@ -375,10 +378,22 @@ The existing `safety-limits.json` cases stay; their limit cases already use
      fuel counts identical to Go/Python/TypeScript (`range(10)` = 14,
      `map("neg", range(5))` = 22, `add(mul(3,4),5)` = 8,
      `concat(range(3), range(2))` = 19).
-4. **Add the wall-clock deadline** as a host-only backstop in each impl
-   (not spec-tested).
-5. **Cleanup.** Update docs (`docs/language.md`, per-impl READMEs) and the host
-   API docs in the top-level `README.md` to the fuel model.
+4. **Add the wall-clock deadline. (DONE)** Each impl now has a host-only
+   backstop, checked at the same chokepoints as cooperative cancellation —
+   **both** the per-node (`evaluateExpression`) and per-invocation
+   (`callFunctionInternal`, plus Rust's `call_prepared`) paths, so a native
+   higher-order loop over a pure builtin (the op-bomb shape) can be interrupted
+   too. A unified `checkInterrupt` helper checks the cancel source and the
+   deadline; neither charges fuel, so anchor fuel counts are unchanged. The
+   deadline surfaces as `timeoutMs` (TS), a deadline-carrying `context.Context`
+   (Go), `timeout_ms` (Python), and a `timeout: Duration` (Rust), and aborts
+   with `Execution timed out` (distinct from cancellation's `Execution
+   aborted`). Because it is non-deterministic it is **not** in the conformance
+   spec; each impl has its own interrupt/timeout unit tests instead.
+5. **Cleanup. (DONE)** `docs/language.md` gained a "Cancellation and timeout"
+   subsection; the top-level `README.md` links to this doc; and the Python and
+   Rust READMEs document the new `ExecutionLimits` fields (Go/TS expose the
+   knobs directly on their limits types).
 
 ---
 

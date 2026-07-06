@@ -115,7 +115,9 @@ fn run_case(
     let args: Vec<Value> = case.args.clone().unwrap_or_default();
 
     // Attach a usage sink when the case asserts an exact fuel count.
-    let usage = case.expected_fuel.map(|_| Arc::new(ExecutionUsage::default()));
+    let usage = case
+        .expected_fuel
+        .map(|_| Arc::new(ExecutionUsage::default()));
 
     let limits = if case.limits.is_some() || usage.is_some() {
         let l = case.limits.as_ref();
@@ -124,6 +126,7 @@ fn run_case(
             max_fuel: l.and_then(|l| l.max_fuel),
             max_value_size: l.and_then(|l| l.max_value_size),
             cancel: None,
+            timeout: None,
             usage: usage.clone(),
         })
     } else {

@@ -652,6 +652,15 @@ Hosts may configure `maxValueSize` to bound the length of any array or string a 
 Maximum value size of 1000 exceeded
 ```
 
+### Cancellation and timeout
+
+Hosts may also cancel a run cooperatively and set a wall-clock backstop. Both are checked at every node and every function invocation (so even a native higher-order loop over a pure builtin can be interrupted), and neither charges fuel:
+
+- Cancellation aborts with `Execution aborted`. It is wired to each language's idiomatic mechanism (an `AbortSignal` in TypeScript, a `context.Context` in Go, a `threading.Event` in Python, an `Arc<AtomicBool>` in Rust).
+- A timeout aborts with `Execution timed out` once the deadline passes (a `timeoutMs`/`timeout_ms`/`timeout` option, or a deadline-carrying `context.Context` in Go).
+
+Unlike fuel and value-size limits, the wall-clock deadline is inherently non-deterministic, so it is a host-only safety net and is **not** part of the conformance spec.
+
 When unset, `maxCallDepth` falls back to an implementation-defined default and `maxFuel` / `maxValueSize` are unbounded. How limits are supplied is host-defined. See [`docs/execution-limits.md`](./execution-limits.md) for the normative cost model.
 
 ## Constraints

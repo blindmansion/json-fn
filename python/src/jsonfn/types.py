@@ -51,9 +51,17 @@ class ExecutionLimits:
         max_value_size: Maximum length of any produced array or string. Bounds
             allocation bombs (``range``/``concat``/``flatten``/string builtins).
             ``None`` means unlimited. Enforced independently of ``max_fuel``.
-        cancel: Optional event whose ``is_set()`` is checked at the top of
-            every expression evaluation; when set, evaluation aborts with
+        cancel: Optional event whose ``is_set()`` is checked at every node and
+            every function invocation (so native higher-order loops are
+            covered); when set, evaluation aborts with
             :class:`LimitExceededError`. Mirrors Go's ``context.Context``.
+        timeout_ms: Host-only wall-clock backstop, in milliseconds. When set,
+            evaluation aborts with "Execution timed out" once
+            ``time.monotonic()`` passes the deadline (measured from when the
+            :class:`Interpreter` is constructed). Checked at the same
+            chokepoints as ``cancel``. Deliberately non-deterministic and
+            therefore NOT part of the conformance spec — an implementation-level
+            safety net only.
         usage: Optional :class:`ExecutionUsage` that, when provided, receives
             the total fuel consumed once evaluation finishes.
     """
@@ -62,6 +70,7 @@ class ExecutionLimits:
     max_fuel: int | None = None
     max_value_size: int | None = None
     cancel: threading.Event | None = None
+    timeout_ms: float | None = None
     usage: ExecutionUsage | None = None
 
 

@@ -119,6 +119,15 @@ type ExecutionLimits = {
   /** Max length of any produced array or string. */
   maxValueSize?: number;
   signal?: AbortSignal;
+  /**
+   * Host-only wall-clock backstop, in milliseconds. When set, evaluation
+   * aborts with "Execution timed out" once the deadline (start time +
+   * `timeoutMs`) passes. Checked at the same chokepoints as `signal` (every
+   * node and every function invocation, so native higher-order loops are
+   * covered). Deliberately non-deterministic and therefore NOT part of the
+   * conformance spec — it is an implementation-level safety net only.
+   */
+  timeoutMs?: number;
   perf?: PerfStats;
   /** If provided, its `fuel` field is set to the fuel consumed by the run. */
   usage?: ExecutionUsage;
@@ -130,6 +139,8 @@ type ResolvedLimits = {
   maxValueSize: number;
   trackFuel: boolean;
   signal?: AbortSignal;
+  /** Absolute deadline (Date.now() ms) or Infinity when no timeout is set. */
+  deadline: number;
 };
 
 type PerfStats = {

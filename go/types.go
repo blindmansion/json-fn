@@ -131,7 +131,15 @@ type ExecutionLimits struct {
 	// MaxValueSize is the maximum length of any produced array or string.
 	// Zero means unlimited.
 	MaxValueSize int
-	Ctx          context.Context
+	// Ctx carries cooperative cancellation and the optional wall-clock
+	// backstop. Cancel a run with context.WithCancel; bound its wall-clock
+	// time with context.WithTimeout / context.WithDeadline. Its Done channel
+	// is checked at every node and every function invocation (so native
+	// higher-order loops are covered): a cancelled context aborts with
+	// "Execution aborted" and an exceeded deadline with "Execution timed out".
+	// The deadline is non-deterministic and is not part of the conformance
+	// spec (see docs/execution-limits.md §3.4).
+	Ctx context.Context
 	// Usage, if non-nil, has its Fuel field set to the fuel consumed by the run.
 	Usage *ExecutionUsage
 }

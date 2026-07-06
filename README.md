@@ -82,7 +82,7 @@ const square = {
 callFunction(square, [8], functions); // => 64
 ```
 
-You can register your own functions by extending the registry (`{ ...functions, myFn }`) and pass execution limits as an optional argument. The Go, Python, and Rust implementations expose similar APIs.
+You can register your own functions by extending the registry (`{ ...functions, myFn }`) and pass execution limits as an optional argument. Limits cover a call-depth cap, a metered "fuel" work budget, a produced-value size cap, cooperative cancellation, and a host-only wall-clock timeout — see [docs/execution-limits.md](docs/execution-limits.md) for the model and normative cost table. The Go, Python, and Rust implementations expose similar APIs.
 
 ## Language
 

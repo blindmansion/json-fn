@@ -14,6 +14,7 @@ registry via :func:`jsonfn.create_stdlib` and never instantiate an
 from __future__ import annotations
 
 import json
+import time
 from typing import Any
 
 from .errors import (
@@ -68,7 +69,9 @@ class Interpreter:
 
     __slots__ = (
         "_cancel",
+        "_check_interrupt_flag",
         "_check_limits",
+        "_deadline",
         "_depth",
         "_fuel",
         "_max_call_depth",
@@ -96,12 +99,34 @@ class Interpreter:
         self._max_value_size: int | None = self.limits.max_value_size
         self._cancel: Any = self.limits.cancel
         self._usage: ExecutionUsage | None = self.limits.usage
+        # Wall-clock backstop: resolve the timeout to an absolute monotonic
+        # deadline at construction (call_function builds a fresh interpreter
+        # per run, so this coincides with the start of evaluation).
+        timeout_ms = self.limits.timeout_ms
+        self._deadline: float | None = (
+            time.monotonic() + timeout_ms / 1000.0 if timeout_ms is not None else None
+        )
+        # Cancellation + deadline share one cheap "should I check for an
+        # interrupt?" flag so the hot path branches once.
+        self._check_interrupt_flag: bool = self._cancel is not None or self._deadline is not None
         # Fuel is metered whenever a budget is set OR a usage sink wants the
         # total. Size limits are enforced independently (see _guard_value_size).
         self._track_fuel: bool = self._max_fuel is not None or self._usage is not None
-        self._check_limits: bool = self._track_fuel or self._cancel is not None
+        self._check_limits: bool = self._track_fuel or self._check_interrupt_flag
 
     # -- limit metering ------------------------------------------------------
+
+    def _check_interrupt(self) -> None:
+        """Cooperative cancellation + wall-clock backstop. Neither charges
+        fuel, so anchor fuel counts are unaffected. Called at every node and
+        every invocation so native higher-order loops over pure builtins —
+        which never re-enter :meth:`_evaluate` — can still be aborted."""
+        cancel = self._cancel
+        if cancel is not None and cancel.is_set():
+            raise LimitExceededError("Execution aborted")
+        deadline = self._deadline
+        if deadline is not None and time.monotonic() > deadline:
+            raise LimitExceededError("Execution timed out")
 
     def _charge_fuel(self, amount: int) -> None:
         """Decrement the shared fuel budget by ``amount``. No-op when fuel is
@@ -154,7 +179,11 @@ class Interpreter:
         """
         # Charge one fuel per invocation. This single charge closes the
         # op-bomb: every HOF callback dispatch and every pure-builtin call now
-        # costs fuel, regardless of whether it re-enters _evaluate.
+        # costs fuel, regardless of whether it re-enters _evaluate. The same
+        # chokepoint is where we honor cancellation/deadline so native
+        # higher-order loops over pure builtins can still be interrupted.
+        if self._check_interrupt_flag:
+            self._check_interrupt()
         self._charge_fuel(1)
         depth = self._depth + 1
         if depth > self._max_call_depth:
@@ -329,9 +358,8 @@ class Interpreter:
         # evaluateExpression preamble). Hoisted behind a single flag so the
         # common case of "no limits configured" hits no extra branches.
         if self._check_limits:
-            cancel = self._cancel
-            if cancel is not None and cancel.is_set():
-                raise LimitExceededError("Execution aborted")
+            if self._check_interrupt_flag:
+                self._check_interrupt()
             if self._track_fuel:
                 self._fuel += 1
                 if self._max_fuel is not None and self._fuel > self._max_fuel:

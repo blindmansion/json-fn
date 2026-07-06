@@ -204,6 +204,8 @@ export function callFunction(
   const maxFuel = limits?.maxFuel ?? Infinity;
   const maxValueSize = limits?.maxValueSize ?? Infinity;
   const usage = limits?.usage;
+  const timeoutMs = limits?.timeoutMs;
+  const deadline = timeoutMs !== undefined && timeoutMs >= 0 ? Date.now() + timeoutMs : Infinity;
   const state: CallState = { depth: 0, fuel: 0 };
   try {
     return callFunctionInternal(fn, args, {
@@ -214,12 +216,28 @@ export function callFunction(
         maxValueSize,
         trackFuel: maxFuel < Infinity || usage !== undefined,
         signal: limits?.signal,
+        deadline,
       },
       state,
       perf: limits?.perf,
     });
   } finally {
     if (usage) usage.fuel = state.fuel;
+  }
+}
+
+// Cooperative interrupt check: cancellation signal + wall-clock deadline. Both
+// are host-only backstops (never charge fuel, so anchor fuel counts are
+// unaffected). Checked at every node *and* every invocation so native
+// higher-order loops over pure builtins — which never re-enter
+// evaluateExpression — can still be cancelled/timed out.
+function checkInterrupt(context: EvaluationContext): void {
+  const { signal, deadline } = context.limits;
+  if (signal?.aborted) {
+    throw new Error("Execution aborted");
+  }
+  if (deadline !== Infinity && Date.now() > deadline) {
+    throw new Error("Execution timed out");
   }
 }
 
@@ -255,6 +273,7 @@ function callFunctionInternal(
 ): JSONType {
   const { perf } = context;
   if (perf) perf.callFunctionInternal++;
+  checkInterrupt(context);
   chargeFuel(context, 1);
   context.state.depth++;
   try {
@@ -425,9 +444,7 @@ function evaluateExpression(expression: JSONType, context: EvaluationContext): J
   const { perf } = context;
   if (perf) perf.evaluateExpression++;
 
-  if (context.limits.signal?.aborted) {
-    throw new Error("Execution aborted");
-  }
+  checkInterrupt(context);
 
   chargeFuel(context, 1);
 

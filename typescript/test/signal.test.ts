@@ -51,3 +51,57 @@ describe("AbortSignal", () => {
     ).toThrow("Execution aborted");
   });
 });
+
+describe("timeoutMs (wall-clock backstop)", () => {
+  test("zero timeout times out before completing", () => {
+    // A deadline of "now" is already in the past by the time the first node is
+    // visited, so any non-trivial program trips it.
+    expect(() =>
+      callFunction(
+        { $return: { $fn: ["fib", 30] } } as any,
+        [],
+        { ...functions, fib },
+        {
+          timeoutMs: 0,
+        },
+      ),
+    ).toThrow("Execution timed out");
+  });
+
+  test("a generous timeout does not interfere", () => {
+    const result = callFunction(addBody, [], functions, { timeoutMs: 60_000 });
+    expect(result).toBe(3);
+  });
+
+  test("no timeout is fine", () => {
+    const result = callFunction(addBody, [], functions, {});
+    expect(result).toBe(3);
+  });
+
+  test("times out inside a native higher-order loop over a pure builtin", () => {
+    // map("neg", range(N)) dispatches every callback through the invoke
+    // chokepoint without re-entering evaluateExpression; checking there is what
+    // lets the deadline interrupt this loop.
+    const body = {
+      $return: { $fn: ["map", "neg", { $fn: ["range", 2_000_000] }] },
+    } as any;
+    expect(() => callFunction(body, [], functions, { timeoutMs: 0 })).toThrow(
+      "Execution timed out",
+    );
+  });
+});
+
+const fib = {
+  $params: ["n"],
+  $return: {
+    $if: { $fn: ["lte", { $var: "n" }, 1] },
+    $then: { $var: "n" },
+    $else: {
+      $fn: [
+        "add",
+        { $fn: ["fib", { $fn: ["sub", { $var: "n" }, 1] }] },
+        { $fn: ["fib", { $fn: ["sub", { $var: "n" }, 2] }] },
+      ],
+    },
+  },
+};

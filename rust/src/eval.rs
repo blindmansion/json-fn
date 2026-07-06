@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::time::{Duration, Instant};
 
 use serde_json::{Map, Value};
 
@@ -46,6 +47,13 @@ pub struct ExecutionLimits {
     /// unlimited.
     pub max_value_size: Option<usize>,
     pub cancel: Option<Arc<AtomicBool>>,
+    /// Host-only wall-clock backstop. When set, evaluation aborts with
+    /// "Execution timed out" once the deadline (`Instant::now()` at the start
+    /// of the run plus this duration) passes. Checked at the same chokepoints
+    /// as `cancel` (every node and every invocation, so native higher-order
+    /// loops are covered). Deliberately non-deterministic and therefore NOT
+    /// part of the conformance spec — an implementation-level safety net only.
+    pub timeout: Option<Duration>,
     /// If set, receives the fuel consumed by the run.
     pub usage: Option<Arc<ExecutionUsage>>,
 }
@@ -57,6 +65,8 @@ struct ResolvedLimits {
     max_value_size: usize,
     track_fuel: bool,
     cancel: Option<Arc<AtomicBool>>,
+    /// Absolute deadline; `None` when no timeout is configured.
+    deadline: Option<Instant>,
 }
 
 #[derive(Default)]
@@ -152,6 +162,7 @@ impl EvalCtx {
         target: &PreparedCall,
         args: &[Value],
     ) -> Result<Value, EvalError> {
+        check_interrupt(self)?;
         // Charge one fuel per invocation. This is the same chokepoint as
         // `call_function_internal`; charging here is what makes every HOF
         // callback dispatch (including pure builtins) cost fuel and closes the
@@ -222,6 +233,7 @@ pub fn call_function(
         // Track fuel when a budget is set or when a usage sink wants the count.
         track_fuel: max_fuel.is_some() || usage.is_some(),
         cancel: limits.and_then(|l| l.cancel.clone()),
+        deadline: limits.and_then(|l| l.timeout).map(|d| Instant::now() + d),
     };
 
     let mut ctx = EvalCtx {
@@ -236,6 +248,24 @@ pub fn call_function(
         usage.fuel.store(ctx.state.fuel, Ordering::Relaxed);
     }
     result
+}
+
+/// Cooperative cancellation + wall-clock backstop. Neither charges fuel, so
+/// anchor fuel counts are unaffected. Called at every node and every
+/// invocation so native higher-order loops over pure builtins — which never
+/// re-enter `evaluate_expression` — can still be cancelled/timed out.
+fn check_interrupt(ctx: &EvalCtx) -> Result<(), EvalError> {
+    if let Some(cancel) = &ctx.limits.cancel
+        && cancel.load(Ordering::Relaxed)
+    {
+        return Err(EvalError("Execution aborted".into()));
+    }
+    if let Some(deadline) = ctx.limits.deadline
+        && Instant::now() > deadline
+    {
+        return Err(EvalError("Execution timed out".into()));
+    }
+    Ok(())
 }
 
 /// Consume `amount` fuel from the shared budget, returning an error when the
@@ -285,6 +315,7 @@ fn call_function_internal(
     args: &[Value],
     ctx: &mut EvalCtx,
 ) -> Result<Value, EvalError> {
+    check_interrupt(ctx)?;
     // Charge one fuel per invocation. This single charge closes the op-bomb:
     // every HOF callback dispatch and every pure-builtin call now costs fuel,
     // regardless of whether it re-enters evaluate_expression.
@@ -820,11 +851,7 @@ fn evaluate_comparison_expression(expr: &Value, ctx: &mut EvalCtx) -> Result<Val
 }
 
 fn evaluate_expression(expr: &Value, ctx: &mut EvalCtx) -> Result<Value, EvalError> {
-    if let Some(cancel) = &ctx.limits.cancel
-        && cancel.load(Ordering::Relaxed)
-    {
-        return Err(EvalError("Execution aborted".into()));
-    }
+    check_interrupt(ctx)?;
     // Charge one fuel for every node visited (control-flow cost). This runs
     // before the scalar fast-path so leaf literals are metered too, keeping
     // fuel counts identical across all implementations.

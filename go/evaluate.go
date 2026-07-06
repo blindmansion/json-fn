@@ -56,6 +56,30 @@ func CallFunction(fn any, args []any, functions FunctionRegistry, limits *Execut
 	return callFunctionInternal(fn, args, ctx)
 }
 
+// checkInterrupt is the cooperative cancellation + wall-clock backstop. Hosts
+// supply cancellation and/or a deadline through the standard context.Context
+// (e.g. context.WithTimeout / context.WithDeadline / context.WithCancel), so
+// no extra limit field is needed. It never charges fuel, so anchor fuel counts
+// are unaffected. Checked at every node *and* every invocation so native
+// higher-order loops over pure builtins — which never re-enter
+// evaluateExpression — can still be cancelled/timed out. The deadline is
+// intentionally non-deterministic and therefore not part of the conformance
+// spec (see docs/execution-limits.md §3.4).
+func checkInterrupt(ctx *evaluationContext) error {
+	if ctx.limits.ctx == nil {
+		return nil
+	}
+	select {
+	case <-ctx.limits.ctx.Done():
+		if ctx.limits.ctx.Err() == context.DeadlineExceeded {
+			return fmt.Errorf("Execution timed out")
+		}
+		return fmt.Errorf("Execution aborted")
+	default:
+		return nil
+	}
+}
+
 // chargeFuel decrements the shared fuel budget by amount, returning an error
 // when the budget is exhausted. It is a no-op when fuel tracking is disabled.
 func chargeFuel(ctx *evaluationContext, amount int) error {
@@ -99,6 +123,9 @@ func accountForResult(ctx *evaluationContext, result any) error {
 }
 
 func callFunctionInternal(fn any, args []any, ctx *evaluationContext) (any, error) {
+	if err := checkInterrupt(ctx); err != nil {
+		return nil, err
+	}
 	// Charge one fuel per invocation. This single charge closes the op-bomb:
 	// every HOF callback dispatch and every pure-builtin call now costs fuel,
 	// regardless of whether it re-enters evaluateExpression.
@@ -283,12 +310,8 @@ func callJSONFunction(fn map[string]any, args []any, ctx *evaluationContext) (an
 }
 
 func evaluateExpression(expression any, ctx *evaluationContext) (any, error) {
-	if ctx.limits.ctx != nil {
-		select {
-		case <-ctx.limits.ctx.Done():
-			return nil, fmt.Errorf("Execution aborted")
-		default:
-		}
+	if err := checkInterrupt(ctx); err != nil {
+		return nil, err
 	}
 
 	if err := chargeFuel(ctx, 1); err != nil {

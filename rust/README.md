@@ -26,7 +26,7 @@ See [`docs/language.md`](../docs/language.md) for the full language reference.
 
 - `call_function(fn, args, registry, limits)` — main entry point.
 - `create_stdlib()` — builds a `FunctionRegistry` containing the ~60 built-in functions (arithmetic, comparison, logic, arrays, strings, objects, higher-order, regex).
-- `ExecutionLimits { max_call_depth, max_fuel, max_value_size, cancel, usage }` — optional limits. `max_fuel` is the total work budget (charged per AST node, per function invocation, and proportionally to size-sensitive builtins); `max_value_size` bounds produced array/string lengths; supply an `Arc<ExecutionUsage>` in `usage` to read back consumed fuel via `usage.fuel()`.
+- `ExecutionLimits { max_call_depth, max_fuel, max_value_size, cancel, timeout, usage }` — optional limits. `max_fuel` is the total work budget (charged per AST node, per function invocation, and proportionally to size-sensitive builtins); `max_value_size` bounds produced array/string lengths; `cancel` is an `Arc<AtomicBool>` that aborts evaluation once set; `timeout` is a host-only `Duration` wall-clock backstop (aborts with "Execution timed out" once elapsed; non-deterministic, so it is not part of the conformance spec); supply an `Arc<ExecutionUsage>` in `usage` to read back consumed fuel via `usage.fuel()`.
 - `FnEntry::Pure { .. }` / `FnEntry::Builtin { .. }` / `FnEntry::Body(..)` — register your own functions.
 - `strip_jsonc(&str)` — convert `.jsonc` source (line comments + trailing commas) to strict JSON.
 
