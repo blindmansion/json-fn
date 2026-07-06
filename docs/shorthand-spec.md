@@ -1,0 +1,474 @@
+# json-fn Shorthand Specification
+
+A compact, code-first surface syntax for authoring json-fn programs. The
+**canonical form is JSON** — the interpreter only ever sees JSON. Shorthand
+lowers deterministically to canonical json-fn JSON, and canonical JSON
+pretty-prints back to shorthand.
+
+- **Semantics-preserving.** Shorthand is correct only if it lowers to exactly
+  the JSON you would have hand-written.
+- **Code-first.** Identifiers and calls are code by default; literal strings are
+  quoted; inert data is marked with `raw`.
+- **Bijective (by normal form).** One canonical shorthand per JSON node and vice
+  versa. Byte-exact round-tripping of arbitrary hand-written JSON is *not*
+  guaranteed — JSON is normalized to canonical form first (e.g. property-access
+  spellings, see §5).
+
+Read alongside [`language.md`](./language.md) (the target language) and
+[`shorthand-stdlib-changes.md`](./shorthand-stdlib-changes.md) (the two core
+changes this assumes: variadic `strcat`, and `$literal` renamed to `$raw`).
+
+File extension: `.jfn`.
+
+---
+
+## 1. Lexical structure
+
+- **Identifiers:** `[A-Za-z_][A-Za-z0-9_]*`. Used for variables, function names
+  (in call position), parameters, and local names. Must not contain `.` or `[`.
+- **Numbers / booleans / null:** as in JSON (`42`, `-3.5`, `true`, `false`,
+  `null`). A leading `-` on a numeric token is part of the literal.
+- **Strings:** double-quoted, with JSON escape rules (`"\n"`, `"\u2654"`,
+  `"\""`). Quoting is the **sole** signal for a literal string.
+- **Whitespace** is insignificant except as a token separator. Elements in
+  arrays, objects, argument lists, and blocks are comma-separated.
+- **Comments:** `// …` to end of line. 🔴 **TODO(comments):** attachment rules
+  (which node a comment lowers to as `$comment`, group/section comments,
+  comments on non-object targets) are deferred and unspecified.
+
+---
+
+## 2. Expressions overview
+
+Every construct is an expression. Three value "states" from the language are
+made explicit in the surface syntax:
+
+| State                          | Surface           | JSON                       |
+| ------------------------------ | ----------------- | -------------------------- |
+| Evaluated expression           | bare code         | `$fn` / `$var` / forms     |
+| Plain data (values evaluated)  | `[...]` / `{k: v}`| array / object             |
+| Inert (verbatim, un-evaluated) | `raw <json>`      | `{ "$raw": <json> }`       |
+
+---
+
+## 3. Literals and data
+
+### Scalars
+
+```jfn
+42        "hello"        true        null
+```
+
+Lower to themselves.
+
+### Arrays — `[...]`
+
+Elements are **evaluated**.
+
+```jfn
+[1, add(2, 3)]
+```
+
+```json
+[1, { "$fn": ["add", 2, 3] }]
+```
+
+### Data objects — `{ key: value }`
+
+**Values are evaluated; keys are literal data** (never evaluated). Keys may be
+bare identifiers or quoted strings.
+
+```jfn
+{ name: "ada", score: x + 1 }
+```
+
+```json
+{ "name": "ada", "score": { "$fn": ["add", { "$var": "x" }, 1] } }
+```
+
+**`$`-prefixed keys are forbidden** in a data object (they would collide with a
+magic key on lowering). Use `raw` for data containing `$`-keys.
+
+### Inert data — `raw`
+
+`raw` introduces a **verbatim JSON island**; nothing inside is evaluated. It
+lowers to `$raw`. The body is **strict JSON** (quoted keys, no shorthand).
+
+```jfn
+raw [[-2, -1], [-2, 1], [-1, -2]]
+
+raw { "$fn": ["not", "x"] }
+```
+
+```json
+{ "$raw": [[-2, -1], [-2, 1], [-1, -2]] }
+
+{ "$raw": { "$fn": ["not", "x"] } }
+```
+
+`raw` is the **exception**, not the default: reach for it only to (a) protect
+data containing `$`-prefixed keys, or (b) skip evaluation cost for a constant in
+a hot path. Plain constant data (e.g. `[1, 2, 3]`) needs no `raw`.
+
+---
+
+## 4. Function calls and references
+
+In **call position**, a bare identifier is a literal function *name*; a
+parenthesized expression is an *evaluated* callee.
+
+```jfn
+add(3, 4)                 // named call
+f()                       // zero-arg call
+(fnName)(3, 4)            // dynamic dispatch (callee is an expression)
+((x) => x * x)(5)         // inline function literal as callee
+```
+
+```json
+{ "$fn": ["add", 3, 4] }
+{ "$fn": ["f"] }
+{ "$fn": [{ "$var": "fnName" }, 3, 4] }
+{ "$fn": [{ "$params": ["x"], "$return": { "$fn": ["mul", { "$var": "x" }, { "$var": "x" }] } }, 5] }
+```
+
+### Function reference — `&`
+
+Passes a function as a value (the language's non-array `$fn`).
+
+```jfn
+&double                   // by name
+map(&double, nums)
+&(expr)                   // evaluated reference (rare)
+```
+
+```json
+{ "$fn": "double" }
+{ "$fn": ["map", { "$fn": "double" }, { "$var": "nums" }] }
+{ "$fn": <expr> }
+```
+
+---
+
+## 5. Variables and property access
+
+A bare identifier is a variable. Access lowers to `$var` + `$get`; access on a
+non-variable expression lowers to `$get` + `$from`.
+
+```jfn
+x                         // {"$var":"x"}
+a.b                       // {"$var":"a","$get":"b"}
+a.b.c                     // {"$var":"a","$get":["b","c"]}
+a[0]                      // {"$var":"a","$get":0}
+a[i]                      // {"$var":"a","$get":{"$var":"i"}}
+f(x).b                    // {"$get":"b","$from":{"$fn":["f",{"$var":"x"}]}}
+```
+
+Lowering rules:
+
+- Inside `[...]`, an **integer or quoted string** is a **static** key/index; a
+  **bare identifier or any other expression** is a **computed** key.
+- A run of consecutive **static** segments folds into one `$get` (a single
+  string/number, or an array path for multiple): `a.b[0].c` →
+  `{"$var":"a","$get":["b",0,"c"]}`.
+- A **computed** segment cannot join a static array path; it starts a new
+  `$get`/`$from` wrapping the prior result: `a.b[i]` →
+  `{"$get":{"$var":"i"},"$from":{"$var":"a","$get":"b"}}`.
+
+Canonical JSON is always the `$var`/`$get` form (the older `$var` dotted
+path-string form is deprecated; see `shorthand-stdlib-changes.md` if we remove
+it from the interpreters).
+
+---
+
+## 6. Operators and precedence
+
+A closed set of operators. Precedence from highest to lowest:
+
+| Prec | Operators           | Assoc      | Lowers to                                   |
+| ---- | ------------------- | ---------- | ------------------------------------------- |
+| 1    | `!x`  `-x` (unary)  | prefix     | `$not` · `neg(x)`                           |
+| 2    | `*` `/` `%`         | left       | `mul` · `div` · `mod` (stdlib calls)        |
+| 3    | `+` `-`  `++`       | left       | `add` · `sub` · `strcat` (stdlib calls)     |
+| 4    | `== != < <= > >=`   | none       | `$eq $neq $lt $lte $gt $gte`                |
+| 5    | `&&`                | flatten    | `$and` (short-circuit, variadic)            |
+| 6    | `\|\|`              | flatten    | `$or` (short-circuit, variadic)             |
+
+```jfn
+row * 8 + col
+!done
+x > 0 && x < 100
+cached || compute(x)
+```
+
+```json
+{ "$fn": ["add", { "$fn": ["mul", { "$var": "row" }, 8] }, { "$var": "col" }] }
+{ "$not": { "$var": "done" } }
+{ "$and": [{ "$gt": [{ "$var": "x" }, 0] }, { "$lt": [{ "$var": "x" }, 100] }] }
+{ "$or": [{ "$var": "cached" }, { "$fn": ["compute", { "$var": "x" }] }] }
+```
+
+Rules and rationale:
+
+- **Arithmetic and `++`** lower to **stdlib `$fn` calls**; **comparisons, `&&`,
+  `||`, `!`** lower to **language `$`-forms**.
+- `&&`/`||` **flatten**: `a && b && c` → one variadic `$and`. They map to the
+  short-circuit language forms, **never** the eager stdlib `and`/`or` (call those
+  by name: `and(a, b)`).
+- Comparisons are **non-associative** (exactly two operands; no `a < b < c`).
+  `==` is `$eq` (strict); for structural equality call `jsonEq(a, b)`.
+- Only operators with a single unambiguous meaning and universal precedence are
+  elevated. Everything else stays a named call.
+- The call form (`add(a, b)`) remains legal and parses identically, but the
+  **operator form is canonical** on pretty-print.
+
+### Template strings
+
+🔴 **TODO(template-strings):** We intend a template-string form (e.g.
+`` `Illegal move: ${moveDesc}` ``) that lowers to a flat variadic `strcat(...)`.
+The exact syntax, escaping, and canonical lowering/normalization (including how
+it relates to the `++` operator) are **not yet decided**. Until then, use `++`
+or `strcat(...)`.
+
+---
+
+## 7. Control flow
+
+### `if / then / else` → `$if`
+
+All three branches required; only the taken branch is evaluated.
+
+```jfn
+if x > 0 then "positive" else "non-positive"
+```
+
+```json
+{ "$if": { "$gt": [{ "$var": "x" }, 0] }, "$then": "positive", "$else": "non-positive" }
+```
+
+### `cond { … }` → `$cond`
+
+Ordered `condition -> result` arms. `else -> …` supplies the optional `$else`;
+`true -> …` is an explicit catch-all arm inside the array. Only the matched
+result (or `$else`) is evaluated.
+
+```jfn
+cond {
+  n < 0  -> "negative",
+  n == 0 -> "zero",
+  else   -> "positive"
+}
+```
+
+```json
+{
+  "$cond": [
+    [{ "$lt": [{ "$var": "n" }, 0] }, "negative"],
+    [{ "$eq": [{ "$var": "n" }, 0] }, "zero"]
+  ],
+  "$else": "positive"
+}
+```
+
+### `match subject { … }` → `$match`
+
+Like `cond`, but with a leading subject expression; case values must be scalars
+compared by strict equality. `else -> …` is **required**.
+
+```jfn
+match cmd {
+  "show"  -> showResult(state),
+  "reset" -> resetResult(),
+  else    -> moveResult(state, argv)
+}
+```
+
+```json
+{
+  "$match": { "$var": "cmd" },
+  "$cases": [
+    ["show", { "$fn": ["showResult", { "$var": "state" }] }],
+    ["reset", { "$fn": ["resetResult"] }]
+  ],
+  "$else": { "$fn": ["moveResult", { "$var": "state" }, { "$var": "argv" }] }
+}
+```
+
+Arms use `->` (never `=>`, which is reserved for function literals). `cond` is
+distinguished from `match` purely by the absence of a subject after the keyword.
+
+---
+
+## 8. Function literals and local bindings
+
+`(params) => body`. The body is either a single expression, or a `let { … } in
+expr` form introducing **lazy local bindings**.
+
+```jfn
+(a, b) => add(a, b)
+```
+
+```json
+{ "$params": ["a", "b"], "$return": { "$fn": ["add", { "$var": "a" }, { "$var": "b" }] } }
+```
+
+### `let { name: value, … } in expr`
+
+Local bindings use `:` (mirroring the JSON, where locals are literally
+key–value entries on the function-body object). `in` supplies `$return`.
+
+```jfn
+(x, y) => let {
+  sum:     add(x, y),
+  doubled: mul(sum, 2)
+} in doubled
+```
+
+```json
+{
+  "$params": ["x", "y"],
+  "sum": { "$fn": ["add", { "$var": "x" }, { "$var": "y" }] },
+  "doubled": { "$fn": ["mul", { "$var": "sum" }, 2] },
+  "$return": { "$var": "doubled" }
+}
+```
+
+**Semantics (important).** Bindings are **lazy** and **order-independent**: they
+form a dependency graph resolved on demand, and a binding that is never reached
+from `in`/`$return` is **never evaluated**. The `let` form is declarative, not a
+sequence of steps. (E.g. a binding may hold an unconditionally-recursive call
+that only terminates because it is forced solely in the branch that uses it.)
+
+Because `let {` is the only thing that introduces a binding block, a bare
+`{...}` is **always** a data object — including immediately after `=>`:
+
+```jfn
+(state) => { output: boardSection(state, ""), exitCode: 0 }
+```
+
+```json
+{ "$params": ["state"], "$return": { "output": { "$fn": ["boardSection", { "$var": "state" }, ""] }, "exitCode": 0 } }
+```
+
+### Parameters
+
+- **No params:** `() => …` lowers to a body with **no `$params`** key.
+- **Rest param:** `(first, ...rest) => …` → `"$params": ["first", "...rest"]`.
+- Missing arguments default to `null` (language behavior).
+
+### Closures & recursion
+
+No special syntax. A nested function literal is a closure (outer variables are
+captured by substitution when it is returned as a value). Functions call
+themselves by registered name, or a local binding whose value is a function
+literal can recurse by its local name.
+
+```jfn
+(x) => (y) => x + y
+```
+
+```json
+{ "$params": ["x"], "$return": { "$params": ["y"], "$return": { "$fn": ["add", { "$var": "x" }, { "$var": "y" }] } } }
+```
+
+---
+
+## 9. Files and program shape
+
+A `.jfn` file is **one json-fn expression**, and lowers to a single JSON value.
+There is no file-level construct beyond "an expression."
+
+A typical multi-function file is a **data object mapping names to function
+literals** — the registry/module shape used by `examples/chess.jsonc`. Calls
+resolve against those names.
+
+```jfn
+{
+  otherColor: (color) => if color == "w" then "b" else "w",
+  pieceType:  (piece) => upper(piece)
+}
+```
+
+```jfn
+{
+  otherColor: (color) => if color == "w" then "b" else "w",
+  pieceType:  (piece) => upper(piece)
+}
+```
+
+```json
+{
+  "otherColor": { "$params": ["color"], "$return": { "$if": { "$eq": [{ "$var": "color" }, "w"] }, "$then": "b", "$else": "w" } },
+  "pieceType": { "$params": ["piece"], "$return": { "$fn": ["upper", { "$var": "piece" }] } }
+}
+```
+
+**How a file is consumed is a host concern**, unchanged from raw JSON: the host
+may register the resulting object as a function registry and call an entry point
+(as with `chess.jsonc`), or evaluate a file that is a bare expression down to a
+value. The shorthand only guarantees the JSON it produces.
+
+> **Future direction (not specified):** module-level `import` / `export` and a
+> brace-less top-level declaration form (so a file reads as a list of
+> definitions rather than one braced object) are possible supersets. They are
+> intentionally out of scope here.
+
+---
+
+## 10. Grammar (informal EBNF)
+
+```
+program     := expr
+
+expr        := orExpr
+orExpr      := andExpr ( "||" andExpr )*
+andExpr     := cmpExpr ( "&&" cmpExpr )*
+cmpExpr     := addExpr ( ("=="|"!="|"<"|"<="|">"|">=") addExpr )?   // non-assoc
+addExpr     := mulExpr ( ("+"|"-"|"++") mulExpr )*
+mulExpr     := unary ( ("*"|"/"|"%") unary )*
+unary       := ("!"|"-") unary | postfix
+postfix     := primary ( "." ident
+                       | "[" (int | string) "]"      // static
+                       | "[" expr "]"                // computed
+                       | "(" args ")" )*
+primary     := number | string | "true" | "false" | "null"
+             | ident                                 // variable, or fn name if called
+             | "&" ident | "&" "(" expr ")"          // function reference
+             | "(" expr ")"
+             | funcLit
+             | "[" (expr ("," expr)*)? "]"           // array
+             | "{" (dataEntry ("," dataEntry)*)? "}" // data object
+             | "if" expr "then" expr "else" expr
+             | "cond" "{" arm ("," arm)* "}"
+             | "match" expr "{" arm ("," arm)* "}"
+             | "raw" jsonValue
+
+funcLit     := "(" params ")" "=>" body
+body        := expr | "let" "{" binding ("," binding)* "}" "in" expr
+binding     := ident ":" expr
+params      := ( ident ("," ident)* )?               // last may be "...ident"
+dataEntry   := (ident | string) ":" expr
+arm         := (expr | "else") "->" expr
+ident       := [A-Za-z_][A-Za-z0-9_]*
+```
+
+Canonical printing uses newline-and-indent for `let`, `cond`, `match`, and long
+argument/element lists; single-line for short forms. Parsers accept either.
+
+---
+
+## 11. Truthiness
+
+Unchanged from the language: `0`, `""`, `null`, and `false` are falsy;
+everything else is truthy. Used by `if`, `cond`, `match` (subject compare aside),
+`&&`, `||`, `!`.
+
+---
+
+## 12. Open decisions (tracked)
+
+- 🔴 **TODO(template-strings)** — §6: exact template-string syntax, escaping,
+  and lowering; relationship to `++`.
+- 🔴 **TODO(comments)** — §1: how `//` comments attach and lower to `$comment`,
+  including group/section comments and comments on non-object targets.
+
+Everything else in this document is resolved and implementable.
