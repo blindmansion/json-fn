@@ -223,11 +223,32 @@ Rules and rationale:
 
 ### Template strings
 
-🔴 **TODO(template-strings):** We intend a template-string form (e.g.
-`` `Illegal move: ${moveDesc}` ``) that lowers to a flat variadic `strcat(...)`.
-The exact syntax, escaping, and canonical lowering/normalization (including how
-it relates to the `++` operator) are **not yet decided**. Until then, use `++`
-or `strcat(...)`.
+Backtick strings with `${expr}` holes are sugar for string building. Literal
+spans and hole expressions lower to a **flat variadic `strcat(...)`** — the same
+node as `++`.
+
+```jfn
+`Illegal move: ${moveDesc}`
+`${firstName} ${lastName}`
+```
+
+```json
+{ "$fn": ["strcat", "Illegal move: ", { "$var": "moveDesc" }] }
+{ "$fn": ["strcat", { "$var": "firstName" }, " ", { "$var": "lastName" }] }
+```
+
+Rules:
+
+- **Interpolation is strict — no coercion.** `${expr}` requires `expr` to be a
+  string; wrap non-strings explicitly (`${str(n)}`), consistent with `strcat`.
+- **Escaping:** `` \` `` for a literal backtick, `\${` for a literal
+  dollar-brace, `\\` for a backslash. Other JSON escapes (`\n`, `\u2654`) apply
+  inside literal spans.
+- **Canonical printback:** a `strcat` node with any string-literal segment prints
+  as a template; a node of pure expressions prints as `++`; `strcat(...)` stays
+  legal input but is not canonical output.
+- **Degenerate forms normalize:** `` `${x}` `` → `x` (single arg); `` `hello` ``
+  (no holes) → `"hello"`.
 
 ---
 
@@ -430,7 +451,7 @@ postfix     := primary ( "." ident
                        | "[" (int | string) "]"      // static
                        | "[" expr "]"                // computed
                        | "(" args ")" )*
-primary     := number | string | "true" | "false" | "null"
+primary     := number | string | template | "true" | "false" | "null"
              | ident                                 // variable, or fn name if called
              | "&" ident | "&" "(" expr ")"          // function reference
              | "(" expr ")"
@@ -448,6 +469,7 @@ binding     := ident ":" expr
 params      := ( ident ("," ident)* )?               // last may be "...ident"
 dataEntry   := (ident | string) ":" expr
 arm         := (expr | "else") "->" expr
+template    := "`" ( char | "${" expr "}" )* "`"     // strict; no coercion
 ident       := [A-Za-z_][A-Za-z0-9_]*
 ```
 
@@ -466,8 +488,6 @@ everything else is truthy. Used by `if`, `cond`, `match` (subject compare aside)
 
 ## 12. Open decisions (tracked)
 
-- 🔴 **TODO(template-strings)** — §6: exact template-string syntax, escaping,
-  and lowering; relationship to `++`.
 - 🔴 **TODO(comments)** — §1: how `//` comments attach and lower to `$comment`,
   including group/section comments and comments on non-object targets.
 
