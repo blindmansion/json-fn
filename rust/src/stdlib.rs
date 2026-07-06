@@ -553,11 +553,15 @@ pub fn create_stdlib_with_options(options: StdlibOptions) -> FunctionRegistry {
     );
     r.insert(
         "strcat".into(),
-        FnEntry::pure(2, |a| {
-            let (Some(x), Some(y)) = (a[0].as_str(), a[1].as_str()) else {
-                return Err(EvalError("strcat: arguments must be strings".into()));
-            };
-            Ok(Value::String(format!("{x}{y}")))
+        FnEntry::pure(-1, |a| {
+            let mut out = String::new();
+            for v in a {
+                let s = v
+                    .as_str()
+                    .ok_or_else(|| EvalError("strcat: arguments must be strings".into()))?;
+                out.push_str(s);
+            }
+            Ok(Value::String(out))
         }),
     );
     r.insert(

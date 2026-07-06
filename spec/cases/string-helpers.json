@@ -2,6 +2,60 @@
   "description": "string helpers",
   "cases": [
     {
+      "description": "strcat: concatenates two strings",
+      "body": { "$return": { "$fn": ["strcat", "foo", "bar"] } },
+      "expected": "foobar"
+    },
+    {
+      "description": "strcat: concatenates three strings",
+      "body": { "$return": { "$fn": ["strcat", "a", "b", "c"] } },
+      "expected": "abc"
+    },
+    {
+      "description": "strcat: concatenates many strings",
+      "body": { "$return": { "$fn": ["strcat", "a", "b", "c", "d", "e"] } },
+      "expected": "abcde"
+    },
+    {
+      "description": "strcat: single argument returns that string",
+      "body": { "$return": { "$fn": ["strcat", "solo"] } },
+      "expected": "solo"
+    },
+    {
+      "description": "strcat: no arguments returns empty string",
+      "body": { "$return": { "$fn": ["strcat"] } },
+      "expected": ""
+    },
+    {
+      "description": "strcat: empty string arguments contribute nothing",
+      "body": { "$return": { "$fn": ["strcat", "a", "", "b", ""] } },
+      "expected": "ab"
+    },
+    {
+      "description": "strcat: preserves internal whitespace across parts",
+      "body": { "$return": { "$fn": ["strcat", "hello", " ", "world"] } },
+      "expected": "hello world"
+    },
+    {
+      "description": "strcat: composes with variables",
+      "body": {
+        "$params": ["first", "last"],
+        "$return": { "$fn": ["strcat", { "$var": "first" }, " ", { "$var": "last" }] }
+      },
+      "args": ["Ada", "Lovelace"],
+      "expected": "Ada Lovelace"
+    },
+    {
+      "description": "strcat: rejects a non-string argument",
+      "body": { "$return": { "$fn": ["strcat", "a", 1] } },
+      "error": "must be strings"
+    },
+    {
+      "description": "strcat: rejects a non-string argument in a later variadic position",
+      "body": { "$return": { "$fn": ["strcat", "a", "b", true] } },
+      "error": "must be strings"
+    },
+    {
       "description": "trim: removes leading and trailing spaces",
       "body": { "$return": { "$fn": ["trim", "  hello  "] } },
       "expected": "hello"

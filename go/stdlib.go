@@ -508,13 +508,16 @@ func CreateStdlib(options ...StdlibOptions) FunctionRegistry {
 			}
 			return strings.TrimSpace(s), nil
 		}},
-		"strcat": &PureFunc{Arity: 2, Fn: func(args []any) (any, error) {
-			a, ok1 := args[0].(string)
-			b, ok2 := args[1].(string)
-			if !ok1 || !ok2 {
-				return nil, fmt.Errorf("strcat: arguments must be strings")
+		"strcat": &PureFunc{Arity: -1, Fn: func(args []any) (any, error) {
+			var b strings.Builder
+			for _, arg := range args {
+				s, ok := arg.(string)
+				if !ok {
+					return nil, fmt.Errorf("strcat: arguments must be strings")
+				}
+				b.WriteString(s)
 			}
-			return a + b, nil
+			return b.String(), nil
 		}},
 		"split": &PureFunc{Arity: 2, Fn: func(args []any) (any, error) {
 			s, ok1 := args[0].(string)

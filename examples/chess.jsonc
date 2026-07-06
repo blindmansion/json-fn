@@ -997,8 +997,10 @@
     "$return": {
       "$fn": [
         "strcat",
-        { "$fn": ["strcat", " ", { "$fn": ["str", { "$fn": ["add", { "$var": "rank" }, 1] }] }] },
-        { "$fn": ["strcat", "  ", { "$fn": ["join", { "$var": "cells" }, "  "] }] },
+        " ",
+        { "$fn": ["str", { "$fn": ["add", { "$var": "rank" }, 1] }] },
+        "  ",
+        { "$fn": ["join", { "$var": "cells" }, "  "] },
       ],
     },
   },
@@ -1049,26 +1051,18 @@
         [
           { "$eq": [{ "$var": "status" }, "checkmate"] },
           {
-            "$fn": [
-              "strcat",
-              "  Checkmate — ",
-              { "$fn": ["strcat", { "$var": "winnerLabel" }, " wins!"] },
-            ],
+            "$fn": ["strcat", "  Checkmate — ", { "$var": "winnerLabel" }, " wins!"],
           },
         ],
         [{ "$eq": [{ "$var": "status" }, "stalemate"] }, "  Stalemate — draw!"],
         [
           { "$var": "inCheck" },
           {
-            "$fn": [
-              "strcat",
-              "  ",
-              { "$fn": ["strcat", { "$var": "label" }, " to move  [CHECK]"] },
-            ],
+            "$fn": ["strcat", "  ", { "$var": "label" }, " to move  [CHECK]"],
           },
         ],
       ],
-      "$else": { "$fn": ["strcat", "  ", { "$fn": ["strcat", { "$var": "label" }, " to move"] }] },
+      "$else": { "$fn": ["strcat", "  ", { "$var": "label" }, " to move"] },
     },
   },
 
@@ -1146,7 +1140,8 @@
         "$fn": [
           "strcat",
           { "$var": "argv", "$get": 0 },
-          { "$fn": ["strcat", " ", { "$var": "argv", "$get": 1 }] },
+          " ",
+          { "$var": "argv", "$get": 1 },
         ],
       },
       "$else": { "$var": "argv", "$get": 0 },
@@ -1171,27 +1166,24 @@
       "$fn": [
         "strcat",
         "  Invalid move format: \"",
-        {
-          "$fn": [
-            "strcat",
-            { "$var": "moveInput" },
-            "\". Use algebraic notation like 'e2e4' or 'e2 e4'.",
-          ],
-        },
+        { "$var": "moveInput" },
+        "\". Use algebraic notation like 'e2e4' or 'e2 e4'.",
       ],
     },
     "gameOverStderr": {
       "$fn": [
         "strcat",
         "  Game is over (",
-        { "$fn": ["strcat", { "$var": "status" }, "). Run 'reset' to start a new game."] },
+        { "$var": "status" },
+        "). Run 'reset' to start a new game.",
       ],
     },
     "moveDesc": {
       "$fn": [
         "strcat",
         { "$fn": ["squareName", { "$var": "move.from" }] },
-        { "$fn": ["strcat", " \u2192 ", { "$fn": ["squareName", { "$var": "move.to" }] }] },
+        " \u2192 ",
+        { "$fn": ["squareName", { "$var": "move.to" }] },
       ],
     },
     "illegalStderr": { "$fn": ["strcat", "  Illegal move: ", { "$var": "moveDesc" }] },
@@ -1204,13 +1196,9 @@
       "$fn": [
         "strcat",
         "  ",
-        {
-          "$fn": [
-            "strcat",
-            { "$fn": ["turnLabel", { "$var": "state.turn" }] },
-            { "$fn": ["strcat", " plays ", { "$var": "moveDesc" }] },
-          ],
-        },
+        { "$fn": ["turnLabel", { "$var": "state.turn" }] },
+        " plays ",
+        { "$var": "moveDesc" },
       ],
     },
     "successOutput": {

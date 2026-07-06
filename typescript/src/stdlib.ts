@@ -169,7 +169,12 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
     upper: pure((s: string) => s.toUpperCase()),
     lower: pure((s: string) => s.toLowerCase()),
     trim: pure((s: string) => s.trim()),
-    strcat: pure((a: string, b: string) => a + b),
+    strcat: pure((...parts: string[]) => {
+      for (const p of parts) {
+        if (typeof p !== "string") throw new Error("strcat: arguments must be strings");
+      }
+      return parts.join("");
+    }),
     split: pure((s: string, sep: string) => s.split(sep)),
     join: pure((arr: any[], sep: string) => arr.join(sep)),
 

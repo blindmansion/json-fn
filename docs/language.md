@@ -442,7 +442,7 @@ All functions listed below are available in the standard library.
 | `upper`  | `(s)`        | uppercase                 |
 | `lower`  | `(s)`        | lowercase                 |
 | `trim`   | `(s)`        | trim whitespace           |
-| `strcat` | `(a, b)`     | concatenate two strings   |
+| `strcat` | `(...strings)` | concatenate strings       |
 | `split`  | `(s, sep)`   | split string              |
 | `join`   | `(arr, sep)` | join array with separator |
 

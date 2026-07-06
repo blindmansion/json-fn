@@ -5,18 +5,24 @@ layer, but two small changes to the **core language/stdlib** make its lowering
 clean and idiomatic. Both are safe because nothing is locked yet. Each touches
 `docs/language.md`, the TS and Python interpreters, and the examples.
 
-## 1. `strcat` becomes variadic
+## 1. `strcat` becomes variadic — DONE
 
-**Now:** `strcat(a, b)` — strictly binary.
-**Change:** `strcat(...strings)` — variadic, like `concat(...arrays)`.
+**Was:** `strcat(a, b)` — strictly binary.
+**Now:** `strcat(...strings)` — variadic, like `concat(...arrays)`.
 
 Rationale: consistency with the stdlib's existing variadic string/array idioms
 (`concat` is variadic; `join(arr, "")` already concatenates an array), and it
 gives the shorthand's `++` operator and template strings a single flat lowering
 target (`strcat(a, b, c)`) instead of a right-leaning nest of binary calls.
 
-- TS: `strcat: pure((...parts: string[]) => parts.join(""))`.
-- Update `docs/language.md` signature and any tests asserting binary arity.
+Shipped:
+
+- All four interpreters use `arity = -1` and concatenate their args, still
+  rejecting non-string arguments (`"strcat: arguments must be strings"`); no
+  implicit coercion, consistent with the explicit `num`/`str` helpers.
+- `strcat()` with zero args returns `""`; a single arg returns itself.
+- Spec cases in `spec/cases/string-helpers.json` lock down the variadic form.
+- `docs/language.md` signature updated to `(...strings)`.
 - Backward compatible for existing 2-arg call sites.
 
 ## 2. Rename the `$literal` form to `$raw`

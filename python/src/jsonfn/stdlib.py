@@ -633,11 +633,11 @@ def create_stdlib(logger: LogFn | None = None) -> FunctionRegistry:
             raise EvaluationError("trim: argument must be a string")
         return s.strip()
 
-    @r.pure("strcat", arity=2)
-    def _(a: Any, b: Any) -> JsonValue:
-        if not (isinstance(a, str) and isinstance(b, str)):
+    @r.pure("strcat", arity=-1)
+    def _(*parts: Any) -> JsonValue:
+        if not all(isinstance(p, str) for p in parts):
             raise EvaluationError("strcat: arguments must be strings")
-        return a + b
+        return "".join(parts)
 
     @r.pure("split", arity=2)
     def _(s: Any, sep: Any) -> JsonValue:
