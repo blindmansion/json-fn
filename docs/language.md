@@ -614,8 +614,6 @@ Use `entries` -> HOF -> `fromEntries` to transform objects:
 
 ## Execution Limits
 
-Implementations enforce safety limits to keep evaluation bounded. Two of these are host-configurable; the third is always active.
-
 ### Circular Variable Dependencies
 
 Lazy locals form a dependency graph resolved on demand. If resolving a local requires resolving itself — directly (`{ "x": { "$var": "x" } }`) or through a cycle (`a → b → a`) — evaluation errors instead of looping. The cycle is reported in the message, e.g.:
@@ -624,44 +622,18 @@ Lazy locals form a dependency graph resolved on demand. If resolving a local req
 Circular variable dependency detected: a -> b -> a
 ```
 
-This detection is always on and needs no configuration. It reports the first cycle reached, even when the cycle does not start at the first variable.
+This detection is part of the language: it is always on, needs no configuration, and is enforced by every implementation. It reports the first cycle reached, even when the cycle does not start at the first variable.
 
-### Maximum Call Depth
+### Host-configured resource limits
 
-Hosts may configure `maxCallDepth` to bound recursion depth (direct or mutual). Exceeding it errors:
+Beyond the always-on circular check, hosts may cap the resources a program consumes. Two of these caps are **deterministic and part of the conformance spec**, so their observable behavior is guaranteed across implementations:
 
-```
-Maximum call depth of 10 exceeded
-```
+- **Fuel** (`maxFuel`) bounds total metered work; exceeding it errors with `Maximum fuel limit of N exceeded`.
+- **Value size** (`maxValueSize`) bounds the length of any array or string a program produces; exceeding it errors with `Maximum value size of N exceeded`.
 
-Recursion that stays within the configured depth runs normally.
+A third cap, **call depth** (`maxCallDepth`), guards recursion against host stack overflow and uses an implementation-defined default when unset. Hosts may additionally cancel a run cooperatively or impose a wall-clock timeout; those are host-only safety nets and, being non-deterministic, are **not** part of the conformance spec.
 
-### Maximum Fuel
-
-Hosts may configure `maxFuel` to bound the total work a program may perform, catching expensive computations that are not necessarily deep (e.g. large `map`/`reduce`/`range` workloads). Fuel is charged at every metered chokepoint — once per AST node visited, once per function invocation (so higher-order callbacks and pure-builtin calls all cost fuel), and proportionally to the input/output size of size-sensitive builtins (`range`, `concat`, `map`, `sort`, string and regex ops, …). Exceeding the budget errors:
-
-```
-Maximum fuel limit of 50 exceeded
-```
-
-### Maximum Value Size
-
-Hosts may configure `maxValueSize` to bound the length of any array or string a program produces, independent of fuel. This stops allocation bombs (e.g. `range(1e9)` or repeated `concat`) that a CPU budget alone cannot. Exceeding it errors:
-
-```
-Maximum value size of 1000 exceeded
-```
-
-### Cancellation and timeout
-
-Hosts may also cancel a run cooperatively and set a wall-clock backstop. Both are checked at every node and every function invocation (so even a native higher-order loop over a pure builtin can be interrupted), and neither charges fuel:
-
-- Cancellation aborts with `Execution aborted`. It is wired to each language's idiomatic mechanism (an `AbortSignal` in TypeScript, a `context.Context` in Go, a `threading.Event` in Python, an `Arc<AtomicBool>` in Rust).
-- A timeout aborts with `Execution timed out` once the deadline passes (a `timeoutMs`/`timeout_ms`/`timeout` option, or a deadline-carrying `context.Context` in Go).
-
-Unlike fuel and value-size limits, the wall-clock deadline is inherently non-deterministic, so it is a host-only safety net and is **not** part of the conformance spec.
-
-When unset, `maxCallDepth` falls back to an implementation-defined default and `maxFuel` / `maxValueSize` are unbounded. How limits are supplied is host-defined. See [`docs/execution-limits.md`](./execution-limits.md) for the normative cost model.
+How limits are supplied, the per-language cancellation/timeout APIs, and default behavior are host concerns — see [`docs/host-integration.md`](./host-integration.md). For the normative cost model (exactly what each node and builtin charges), see [`docs/execution-limits.md`](./execution-limits.md).
 
 ## Constraints
 
