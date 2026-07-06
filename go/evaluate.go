@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"math"
 	"strings"
 )
 
@@ -17,31 +18,94 @@ var comparisonOperators = []string{"$eq", "$neq", "$gt", "$gte", "$lt", "$lte"}
 // Returns the evaluated result or an error.
 func CallFunction(fn any, args []any, functions FunctionRegistry, limits *ExecutionLimits) (any, error) {
 	resolved := resolvedLimits{
-		maxCallDepth:  defaultMaxCallDepth,
-		maxOperations: 0,
-		ctx:           context.Background(),
+		maxCallDepth: defaultMaxCallDepth,
+		maxFuel:      math.MaxInt,
+		maxValueSize: math.MaxInt,
+		ctx:          context.Background(),
 	}
+	var usage *ExecutionUsage
 	if limits != nil {
 		if limits.MaxCallDepth > 0 {
 			resolved.maxCallDepth = limits.MaxCallDepth
 		}
-		if limits.MaxOperations > 0 {
-			resolved.maxOperations = limits.MaxOperations
+		if limits.MaxFuel > 0 {
+			resolved.maxFuel = limits.MaxFuel
+			resolved.trackFuel = true
+		}
+		if limits.MaxValueSize > 0 {
+			resolved.maxValueSize = limits.MaxValueSize
+		}
+		if limits.Usage != nil {
+			usage = limits.Usage
+			resolved.trackFuel = true
 		}
 		if limits.Ctx != nil {
 			resolved.ctx = limits.Ctx
 		}
 	}
 
+	state := &callState{}
+	if usage != nil {
+		defer func() { usage.Fuel = state.fuel }()
+	}
 	ctx := &evaluationContext{
 		functions: functions,
 		limits:    resolved,
-		state:     &callState{},
+		state:     state,
 	}
 	return callFunctionInternal(fn, args, ctx)
 }
 
+// chargeFuel decrements the shared fuel budget by amount, returning an error
+// when the budget is exhausted. It is a no-op when fuel tracking is disabled.
+func chargeFuel(ctx *evaluationContext, amount int) error {
+	if !ctx.limits.trackFuel {
+		return nil
+	}
+	ctx.state.fuel += amount
+	if ctx.state.fuel > ctx.limits.maxFuel {
+		return fmt.Errorf("Maximum fuel limit of %d exceeded", ctx.limits.maxFuel)
+	}
+	return nil
+}
+
+// guardValueSize enforces the maximum produced array/string length. Unlike
+// fuel, size is always enforced (independent of trackFuel).
+func guardValueSize(ctx *evaluationContext, size int) error {
+	if size > ctx.limits.maxValueSize {
+		return fmt.Errorf("Maximum value size of %d exceeded", ctx.limits.maxValueSize)
+	}
+	return nil
+}
+
+// accountForResult charges fuel and enforces the size cap for values produced
+// by pure host functions, proportional to the length of any produced array or
+// string. This keeps size-growing pure builtins (concat, flatten, split, join,
+// ...) honest without each needing to self-meter.
+func accountForResult(ctx *evaluationContext, result any) error {
+	var size int
+	switch v := result.(type) {
+	case string:
+		size = len(v)
+	case []any:
+		size = len(v)
+	default:
+		return nil
+	}
+	if err := guardValueSize(ctx, size); err != nil {
+		return err
+	}
+	return chargeFuel(ctx, size)
+}
+
 func callFunctionInternal(fn any, args []any, ctx *evaluationContext) (any, error) {
+	// Charge one fuel per invocation. This single charge closes the op-bomb:
+	// every HOF callback dispatch and every pure-builtin call now costs fuel,
+	// regardless of whether it re-enters evaluateExpression.
+	if err := chargeFuel(ctx, 1); err != nil {
+		return nil, err
+	}
+
 	ctx.state.depth++
 	defer func() { ctx.state.depth-- }()
 
@@ -60,9 +124,16 @@ func callFunctionInternal(fn any, args []any, ctx *evaluationContext) (any, erro
 			call := func(cfn any, cargs []any) (any, error) {
 				return callFunctionInternal(cfn, cargs, ctx)
 			}
-			return impl.Fn(args, call, ctx.functions)
+			return impl.Fn(args, call, ctx.functions, &Meter{ctx: ctx})
 		case *PureFunc:
-			return callPureFunction(impl, args, f)
+			result, err := callPureFunction(impl, args, f)
+			if err != nil {
+				return nil, err
+			}
+			if err := accountForResult(ctx, result); err != nil {
+				return nil, err
+			}
+			return result, nil
 		case map[string]any:
 			return callJSONFunction(impl, args, ctx)
 		default:
@@ -220,11 +291,8 @@ func evaluateExpression(expression any, ctx *evaluationContext) (any, error) {
 		}
 	}
 
-	if ctx.limits.maxOperations > 0 {
-		ctx.state.operations++
-		if ctx.state.operations > ctx.limits.maxOperations {
-			return nil, fmt.Errorf("Maximum operations limit of %d exceeded", ctx.limits.maxOperations)
-		}
+	if err := chargeFuel(ctx, 1); err != nil {
+		return nil, err
 	}
 
 	exprType, err := getExpressionType(expression)
@@ -236,13 +304,18 @@ func evaluateExpression(expression any, ctx *evaluationContext) (any, error) {
 	case ExprFunctionCall:
 		obj := expression.(map[string]any)
 		fnArray := obj["$fn"].([]any)
-		evaluatedFn, err := evaluateExpression(fnArray[0], ctx)
-		if err != nil {
-			return nil, err
-		}
-		if !isFnDeclaration(evaluatedFn) {
-			return nil, exprError(expression,
-				fmt.Sprintf("Evaluated function references must be strings or function bodies. Got %T.", evaluatedFn))
+		var evaluatedFn any
+		if name, ok := fnArray[0].(string); ok {
+			evaluatedFn = name
+		} else {
+			evaluatedFn, err = evaluateExpression(fnArray[0], ctx)
+			if err != nil {
+				return nil, err
+			}
+			if !isFnDeclaration(evaluatedFn) {
+				return nil, exprError(expression,
+					fmt.Sprintf("Evaluated function references must be strings or function bodies. Got %T.", evaluatedFn))
+			}
 		}
 		args := make([]any, 0, len(fnArray)-1)
 		for i := 1; i < len(fnArray); i++ {

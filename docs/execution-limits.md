@@ -333,6 +333,18 @@ The existing `safety-limits.json` cases stay; their limit cases already use
    `maxOperations`/operation-counter with the fuel model and `maxValueSize`, and
    update each runner to parse the new fields and check `expectedFuel`. All four
    must produce identical fuel counts on the anchor cases.
+   - **Go. (DONE)** `ExecutionLimits` now exposes `MaxFuel`, `MaxValueSize`, and
+     an optional `Usage *ExecutionUsage`; `MaxOperations` is removed. Fuel is
+     charged per node (`evaluateExpression`) and per call
+     (`callFunctionInternal`); size surcharges are threaded through a `*Meter`
+     passed to builtins (HOFs charge `len(input)`, `flatMap` guards its output),
+     and pure-builtin results are charged/guarded centrally via
+     `accountForResult`. `range` became a builtin so it guards + charges before
+     allocating. Because the Go runner reads limits from JSON with
+     case-insensitive field matching, the new `maxFuel` / `maxValueSize` spec
+     fields map onto the struct with no runner change. All three limit suites
+     (fuel, memory, safety) are green and the op-bomb is blocked.
+   - **Python, Rust.** Still pending — same mirroring work.
 4. **Add the wall-clock deadline** as a host-only backstop in each impl
    (not spec-tested).
 5. **Cleanup.** Update docs (`docs/language.md`, per-impl READMEs) and the host

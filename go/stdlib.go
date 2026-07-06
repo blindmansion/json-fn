@@ -306,18 +306,32 @@ func CreateStdlib(options ...StdlibOptions) FunctionRegistry {
 			}
 			return result, nil
 		}},
-		"range": &PureFunc{Arity: 1, Fn: func(args []any) (any, error) {
-			n, ok := toFloat64(args[0])
-			if !ok {
-				return nil, fmt.Errorf("range: argument must be a number")
-			}
-			length := int(n)
-			result := make([]any, length)
-			for i := 0; i < length; i++ {
-				result[i] = float64(i)
-			}
-			return result, nil
-		}},
+		"range": &BuiltinFunc{
+			Arity: 1,
+			Fn: func(args []any, call CallFunc, fns FunctionRegistry, meter *Meter) (any, error) {
+				n, ok := toFloat64(args[0])
+				if !ok {
+					return nil, fmt.Errorf("range: argument must be a number")
+				}
+				length := int(n)
+				if length < 0 {
+					length = 0
+				}
+				// Guard and charge before allocating so an oversized range is
+				// rejected immediately rather than after building the array.
+				if err := meter.GuardSize(length); err != nil {
+					return nil, err
+				}
+				if err := meter.Charge(length); err != nil {
+					return nil, err
+				}
+				result := make([]any, length)
+				for i := 0; i < length; i++ {
+					result[i] = float64(i)
+				}
+				return result, nil
+			},
+		},
 		"slice": &PureFunc{Arity: -1, Fn: func(args []any) (any, error) {
 			start, ok := toFloat64(args[1])
 			if !ok {
@@ -672,10 +686,13 @@ func CreateStdlib(options ...StdlibOptions) FunctionRegistry {
 		// Higher-order builtins
 		"map": &BuiltinFunc{
 			Arity: 2,
-			Fn: func(args []any, call CallFunc, fns FunctionRegistry) (any, error) {
+			Fn: func(args []any, call CallFunc, fns FunctionRegistry, meter *Meter) (any, error) {
 				arr, ok := args[1].([]any)
 				if !ok {
 					return nil, fmt.Errorf("map: second argument must be an array")
+				}
+				if err := meter.Charge(len(arr)); err != nil {
+					return nil, err
 				}
 				result := make([]any, len(arr))
 				for i, item := range arr {
@@ -690,10 +707,13 @@ func CreateStdlib(options ...StdlibOptions) FunctionRegistry {
 		},
 		"filter": &BuiltinFunc{
 			Arity: 2,
-			Fn: func(args []any, call CallFunc, fns FunctionRegistry) (any, error) {
+			Fn: func(args []any, call CallFunc, fns FunctionRegistry, meter *Meter) (any, error) {
 				arr, ok := args[1].([]any)
 				if !ok {
 					return nil, fmt.Errorf("filter: second argument must be an array")
+				}
+				if err := meter.Charge(len(arr)); err != nil {
+					return nil, err
 				}
 				var result []any
 				for i, item := range arr {
@@ -713,10 +733,13 @@ func CreateStdlib(options ...StdlibOptions) FunctionRegistry {
 		},
 		"reduce": &BuiltinFunc{
 			Arity: 3,
-			Fn: func(args []any, call CallFunc, fns FunctionRegistry) (any, error) {
+			Fn: func(args []any, call CallFunc, fns FunctionRegistry, meter *Meter) (any, error) {
 				arr, ok := args[2].([]any)
 				if !ok {
 					return nil, fmt.Errorf("reduce: third argument must be an array")
+				}
+				if err := meter.Charge(len(arr)); err != nil {
+					return nil, err
 				}
 				acc := args[1]
 				for i, item := range arr {
@@ -731,10 +754,13 @@ func CreateStdlib(options ...StdlibOptions) FunctionRegistry {
 		},
 		"find": &BuiltinFunc{
 			Arity: 2,
-			Fn: func(args []any, call CallFunc, fns FunctionRegistry) (any, error) {
+			Fn: func(args []any, call CallFunc, fns FunctionRegistry, meter *Meter) (any, error) {
 				arr, ok := args[1].([]any)
 				if !ok {
 					return nil, fmt.Errorf("find: second argument must be an array")
+				}
+				if err := meter.Charge(len(arr)); err != nil {
+					return nil, err
 				}
 				for i, item := range arr {
 					val, err := call(args[0], []any{item, float64(i)})
@@ -750,10 +776,13 @@ func CreateStdlib(options ...StdlibOptions) FunctionRegistry {
 		},
 		"findIndex": &BuiltinFunc{
 			Arity: 2,
-			Fn: func(args []any, call CallFunc, fns FunctionRegistry) (any, error) {
+			Fn: func(args []any, call CallFunc, fns FunctionRegistry, meter *Meter) (any, error) {
 				arr, ok := args[1].([]any)
 				if !ok {
 					return nil, fmt.Errorf("findIndex: second argument must be an array")
+				}
+				if err := meter.Charge(len(arr)); err != nil {
+					return nil, err
 				}
 				for i, item := range arr {
 					val, err := call(args[0], []any{item, float64(i)})
@@ -769,10 +798,13 @@ func CreateStdlib(options ...StdlibOptions) FunctionRegistry {
 		},
 		"some": &BuiltinFunc{
 			Arity: 2,
-			Fn: func(args []any, call CallFunc, fns FunctionRegistry) (any, error) {
+			Fn: func(args []any, call CallFunc, fns FunctionRegistry, meter *Meter) (any, error) {
 				arr, ok := args[1].([]any)
 				if !ok {
 					return nil, fmt.Errorf("some: second argument must be an array")
+				}
+				if err := meter.Charge(len(arr)); err != nil {
+					return nil, err
 				}
 				for i, item := range arr {
 					val, err := call(args[0], []any{item, float64(i)})
@@ -788,10 +820,13 @@ func CreateStdlib(options ...StdlibOptions) FunctionRegistry {
 		},
 		"every": &BuiltinFunc{
 			Arity: 2,
-			Fn: func(args []any, call CallFunc, fns FunctionRegistry) (any, error) {
+			Fn: func(args []any, call CallFunc, fns FunctionRegistry, meter *Meter) (any, error) {
 				arr, ok := args[1].([]any)
 				if !ok {
 					return nil, fmt.Errorf("every: second argument must be an array")
+				}
+				if err := meter.Charge(len(arr)); err != nil {
+					return nil, err
 				}
 				for i, item := range arr {
 					val, err := call(args[0], []any{item, float64(i)})
@@ -807,10 +842,13 @@ func CreateStdlib(options ...StdlibOptions) FunctionRegistry {
 		},
 		"sort": &BuiltinFunc{
 			Arity: 2,
-			Fn: func(args []any, call CallFunc, fns FunctionRegistry) (any, error) {
+			Fn: func(args []any, call CallFunc, fns FunctionRegistry, meter *Meter) (any, error) {
 				arr, ok := args[1].([]any)
 				if !ok {
 					return nil, fmt.Errorf("sort: second argument must be an array")
+				}
+				if err := meter.Charge(len(arr)); err != nil {
+					return nil, err
 				}
 				sorted := make([]any, len(arr))
 				copy(sorted, arr)
@@ -835,10 +873,13 @@ func CreateStdlib(options ...StdlibOptions) FunctionRegistry {
 		},
 		"mapValues": &BuiltinFunc{
 			Arity: 2,
-			Fn: func(args []any, call CallFunc, fns FunctionRegistry) (any, error) {
+			Fn: func(args []any, call CallFunc, fns FunctionRegistry, meter *Meter) (any, error) {
 				obj, ok := args[1].(map[string]any)
 				if !ok {
 					return nil, fmt.Errorf("mapValues: second argument must be an object")
+				}
+				if err := meter.Charge(len(obj)); err != nil {
+					return nil, err
 				}
 				result := make(map[string]any, len(obj))
 				for k, v := range obj {
@@ -853,10 +894,13 @@ func CreateStdlib(options ...StdlibOptions) FunctionRegistry {
 		},
 		"flatMap": &BuiltinFunc{
 			Arity: 2,
-			Fn: func(args []any, call CallFunc, fns FunctionRegistry) (any, error) {
+			Fn: func(args []any, call CallFunc, fns FunctionRegistry, meter *Meter) (any, error) {
 				arr, ok := args[1].([]any)
 				if !ok {
 					return nil, fmt.Errorf("flatMap: second argument must be an array")
+				}
+				if err := meter.Charge(len(arr)); err != nil {
+					return nil, err
 				}
 				var result []any
 				for i, item := range arr {
@@ -870,15 +914,21 @@ func CreateStdlib(options ...StdlibOptions) FunctionRegistry {
 						result = append(result, val)
 					}
 				}
+				if err := meter.GuardSize(len(result)); err != nil {
+					return nil, err
+				}
 				return result, nil
 			},
 		},
 		"groupBy": &BuiltinFunc{
 			Arity: 2,
-			Fn: func(args []any, call CallFunc, fns FunctionRegistry) (any, error) {
+			Fn: func(args []any, call CallFunc, fns FunctionRegistry, meter *Meter) (any, error) {
 				arr, ok := args[1].([]any)
 				if !ok {
 					return nil, fmt.Errorf("groupBy: second argument must be an array")
+				}
+				if err := meter.Charge(len(arr)); err != nil {
+					return nil, err
 				}
 				groups := make(map[string]any)
 				for i, item := range arr {
@@ -906,10 +956,13 @@ func CreateStdlib(options ...StdlibOptions) FunctionRegistry {
 		},
 		"sortBy": &BuiltinFunc{
 			Arity: 2,
-			Fn: func(args []any, call CallFunc, fns FunctionRegistry) (any, error) {
+			Fn: func(args []any, call CallFunc, fns FunctionRegistry, meter *Meter) (any, error) {
 				arr, ok := args[1].([]any)
 				if !ok {
 					return nil, fmt.Errorf("sortBy: second argument must be an array")
+				}
+				if err := meter.Charge(len(arr)); err != nil {
+					return nil, err
 				}
 				type decorated struct {
 					item any
@@ -935,7 +988,7 @@ func CreateStdlib(options ...StdlibOptions) FunctionRegistry {
 		},
 		"apply": &BuiltinFunc{
 			Arity: 2,
-			Fn: func(args []any, call CallFunc, fns FunctionRegistry) (any, error) {
+			Fn: func(args []any, call CallFunc, fns FunctionRegistry, meter *Meter) (any, error) {
 				argsArray, ok := args[1].([]any)
 				if !ok {
 					return nil, fmt.Errorf("apply: second argument must be an array")
@@ -945,10 +998,13 @@ func CreateStdlib(options ...StdlibOptions) FunctionRegistry {
 		},
 		"pipe": &BuiltinFunc{
 			Arity: 2,
-			Fn: func(args []any, call CallFunc, fns FunctionRegistry) (any, error) {
+			Fn: func(args []any, call CallFunc, fns FunctionRegistry, meter *Meter) (any, error) {
 				fnsArr, ok := args[0].([]any)
 				if !ok {
 					return nil, fmt.Errorf("pipe: first argument must be an array of functions")
+				}
+				if err := meter.Charge(len(fnsArr)); err != nil {
+					return nil, err
 				}
 				value := args[1]
 				for _, fn := range fnsArr {
@@ -1042,7 +1098,7 @@ func CreateStdlib(options ...StdlibOptions) FunctionRegistry {
 		}},
 		"reReplaceWith": &BuiltinFunc{
 			Arity: 3,
-			Fn: func(args []any, call CallFunc, fns FunctionRegistry) (any, error) {
+			Fn: func(args []any, call CallFunc, fns FunctionRegistry, meter *Meter) (any, error) {
 				pattern, ok1 := args[0].(string)
 				callback := args[1]
 				str, ok3 := args[2].(string)
@@ -1051,6 +1107,9 @@ func CreateStdlib(options ...StdlibOptions) FunctionRegistry {
 				}
 				if !ok3 {
 					return nil, fmt.Errorf("reReplaceWith: third argument must be a string")
+				}
+				if err := meter.Charge(len(str)); err != nil {
+					return nil, err
 				}
 				re, err := parsePattern(pattern)
 				if err != nil {
@@ -1081,7 +1140,7 @@ func CreateStdlib(options ...StdlibOptions) FunctionRegistry {
 		// Introspection
 		"arity": &BuiltinFunc{
 			Arity: 1,
-			Fn: func(args []any, call CallFunc, fns FunctionRegistry) (any, error) {
+			Fn: func(args []any, call CallFunc, fns FunctionRegistry, meter *Meter) (any, error) {
 				a := GetArity(args[0], fns)
 				if a < 0 {
 					return nil, nil
