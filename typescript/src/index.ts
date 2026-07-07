@@ -1,4 +1,4 @@
-export { callFunction, createPerfStats } from "./evaluate";
+export { callFunction, callProgram, createPerfStats } from "./evaluate";
 export { builtin, pure, raw, getArity } from "./utils";
 export type {
   JSONType,

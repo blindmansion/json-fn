@@ -7,6 +7,7 @@ import type {
   ExecutionLimits,
   FunctionBody,
   FunctionRegistry,
+  ResolvedLimits,
   VariableReference,
   Conditional,
   Cond,
@@ -226,6 +227,75 @@ export function callFunction(
   }
 }
 
+// Run a program: treat the module (an object mapping names to expressions) as
+// the outermost lexical `letrec` frame, layered over the host-supplied
+// `baseRegistry` (stdlib + native builtins) as its parent frame, then invoke a
+// chosen entry point within that scope. This makes top-level names — constants
+// *and* functions — visible via `$var` and `$fn` throughout the module, the
+// same semantics function bodies already have for their locals.
+export function callProgram(
+  module: Record<string, JSONType>,
+  entry: string,
+  args: JSONType[],
+  baseRegistry: FunctionRegistry,
+  limits?: ExecutionLimits,
+): JSONType {
+  const maxFuel = limits?.maxFuel ?? Infinity;
+  const maxValueSize = limits?.maxValueSize ?? Infinity;
+  const usage = limits?.usage;
+  const timeoutMs = limits?.timeoutMs;
+  const deadline = timeoutMs !== undefined && timeoutMs >= 0 ? Date.now() + timeoutMs : Infinity;
+  const state: CallState = { depth: 0, fuel: 0 };
+  const resolved: ResolvedLimits = {
+    maxCallDepth: limits?.maxCallDepth ?? DEFAULT_MAX_CALL_DEPTH,
+    maxFuel,
+    maxValueSize,
+    trackFuel: maxFuel < Infinity || usage !== undefined,
+    signal: limits?.signal,
+    deadline,
+  };
+  const perf = limits?.perf;
+  try {
+    // The module is a function body with no `$params` and no `$return`.
+    const { getVar, scopedFunctions } = buildScope(module as unknown as FunctionBody, [], {
+      functions: baseRegistry,
+      limits: resolved,
+      state,
+      perf,
+    });
+
+    // Fail fast: the entry must be a function *defined by the module*. Check the
+    // module's own keys (not the merged `scopedFunctions`, which layers stdlib
+    // underneath) so a typo or a missing entry that collides with a stdlib name
+    // (e.g. "map") errors instead of silently invoking the builtin, and a
+    // non-function constant can't be handed to the caller as if callable.
+    const moduleEntry = Object.prototype.hasOwnProperty.call(module, entry)
+      ? module[entry]
+      : undefined;
+    const isModuleFunction =
+      typeof moduleEntry === "object" &&
+      moduleEntry !== null &&
+      !Array.isArray(moduleEntry) &&
+      "$return" in moduleEntry;
+    if (!isModuleFunction) {
+      throw new Error(`Program entry "${entry}" is not a function defined by the module`);
+    }
+
+    // Each captured module function already had its free `$var`s substituted
+    // against the module scope, so `scopedFunctions[entry]` is the closed-over
+    // version. Pass `getVar` as its parent frame for consistency with locals.
+    return callFunctionInternal(scopedFunctions[entry] as FunctionDeclaration, args, {
+      functions: scopedFunctions,
+      getVar,
+      limits: resolved,
+      state,
+      perf,
+    });
+  } finally {
+    if (usage) usage.fuel = state.fuel;
+  }
+}
+
 // Cooperative interrupt check: cancellation signal + wall-clock deadline. Both
 // are host-only backstops (never charge fuel, so anchor fuel counts are
 // unaffected). Checked at every node *and* every invocation so native
@@ -354,9 +424,20 @@ function callExternalFunction(
   return result;
 }
 
-function callJSONFunction(fn: FunctionBody, args: JSONType[], context: EvaluationContext) {
+// Construct the lazy, mutually-recursive `letrec` scope shared by every
+// object-of-bindings — a function body's locals today, and (via `callProgram`)
+// the top-level module. Registers function-valued siblings into a
+// `scopedFunctions` table (callable via `$fn`), binds params, exposes every
+// binding as a lazily-evaluated, memoized, cycle-checked `$var` through
+// `getVar`, and closes the local functions over that scope with `replaceVars`.
+// The caller decides what to do with the resulting scope (evaluate a `$return`,
+// or invoke a chosen entry point).
+function buildScope(
+  fn: FunctionBody,
+  args: JSONType[],
+  context: EvaluationContext,
+): { getVar: (name: string) => JSONType | undefined; scopedFunctions: FunctionRegistry } {
   const { perf } = context;
-  if (perf) perf.callJSONFunction++;
   const { functions, getVar: getVarParent, limits, state } = context;
 
   const localFnKeys: string[] = [];
@@ -430,6 +511,16 @@ function callJSONFunction(fn: FunctionBody, args: JSONType[], context: Evaluatio
       scopedFunctions[key] = replaceVars(fn[key]!, getVar, perf) as FunctionBody;
     }
   }
+
+  return { getVar, scopedFunctions };
+}
+
+function callJSONFunction(fn: FunctionBody, args: JSONType[], context: EvaluationContext) {
+  const { perf } = context;
+  if (perf) perf.callJSONFunction++;
+  const { limits, state } = context;
+
+  const { getVar, scopedFunctions } = buildScope(fn, args, context);
 
   return evaluateExpression(fn.$return, {
     functions: scopedFunctions,
