@@ -1,0 +1,52 @@
+{
+  "description": "literals and data (shorthand spec section 3)",
+  "cases": [
+    { "description": "scalar: integer", "source": "42", "expected": 42 },
+    { "description": "scalar: negative float", "source": "-3.5", "expected": -3.5 },
+    { "description": "scalar: string", "source": "\"hello\"", "expected": "hello" },
+    { "description": "scalar: true", "source": "true", "expected": true },
+    { "description": "scalar: false", "source": "false", "expected": false },
+    { "description": "scalar: null", "source": "null", "expected": null },
+    {
+      "description": "arrays evaluate elements",
+      "source": "[1, add(2, 3)]",
+      "expected": [1, { "$fn": ["add", 2, 3] }]
+    },
+    {
+      "description": "data objects",
+      "source": "{ name: \"ada\", score: x + 1 }",
+      "expected": { "name": "ada", "score": { "$fn": ["add", { "$var": "x" }, 1] } }
+    },
+    {
+      "description": "data-object $-key (bare) is rejected",
+      "source": "{ $fn: 1 }",
+      "error": true
+    },
+    {
+      "description": "data-object $-key (quoted) is rejected",
+      "source": "{ \"$fn\": 1 }",
+      "error": true
+    },
+    {
+      "description": "raw island: nested array",
+      "source": "raw [[-2, -1], [-2, 1], [-1, -2]]",
+      "expected": {
+        "$raw": [
+          [-2, -1],
+          [-2, 1],
+          [-1, -2]
+        ]
+      }
+    },
+    {
+      "description": "raw island: object",
+      "source": "raw { \"$fn\": [\"not\", \"x\"] }",
+      "expected": { "$raw": { "$fn": ["not", "x"] } }
+    },
+    {
+      "description": "raw object requires quoted keys",
+      "source": "raw { fn: 1 }",
+      "error": true
+    }
+  ]
+}

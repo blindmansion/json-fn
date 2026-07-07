@@ -1,0 +1,55 @@
+{
+  "description": "function literals and local bindings (shorthand spec section 8)",
+  "cases": [
+    {
+      "description": "simple function literal",
+      "source": "(a, b) => add(a, b)",
+      "expected": {
+        "$params": ["a", "b"],
+        "$return": { "$fn": ["add", { "$var": "a" }, { "$var": "b" }] }
+      }
+    },
+    {
+      "description": "let bindings",
+      "source": "(x, y) => let {\n  sum:     add(x, y),\n  doubled: mul(sum, 2)\n} in doubled",
+      "expected": {
+        "$params": ["x", "y"],
+        "sum": { "$fn": ["add", { "$var": "x" }, { "$var": "y" }] },
+        "doubled": { "$fn": ["mul", { "$var": "sum" }, 2] },
+        "$return": { "$var": "doubled" }
+      }
+    },
+    {
+      "description": "brace after arrow is a data object",
+      "source": "(state) => { output: boardSection(state, \"\"), exitCode: 0 }",
+      "expected": {
+        "$params": ["state"],
+        "$return": {
+          "output": { "$fn": ["boardSection", { "$var": "state" }, ""] },
+          "exitCode": 0
+        }
+      }
+    },
+    {
+      "description": "no params",
+      "source": "() => 1",
+      "expected": { "$return": 1 }
+    },
+    {
+      "description": "rest params",
+      "source": "(first, ...rest) => rest",
+      "expected": { "$params": ["first", "...rest"], "$return": { "$var": "rest" } }
+    },
+    {
+      "description": "nested closure",
+      "source": "(x) => (y) => x + y",
+      "expected": {
+        "$params": ["x"],
+        "$return": {
+          "$params": ["y"],
+          "$return": { "$fn": ["add", { "$var": "x" }, { "$var": "y" }] }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "description": "calls and references (shorthand spec section 4)",
+  "cases": [
+    {
+      "description": "named call",
+      "source": "add(3, 4)",
+      "expected": { "$fn": ["add", 3, 4] }
+    },
+    {
+      "description": "nullary call",
+      "source": "f()",
+      "expected": { "$fn": ["f"] }
+    },
+    {
+      "description": "call target from parenthesized variable",
+      "source": "(fnName)(3, 4)",
+      "expected": { "$fn": [{ "$var": "fnName" }, 3, 4] }
+    },
+    {
+      "description": "immediately-invoked function literal",
+      "source": "((x) => x * x)(5)",
+      "expected": {
+        "$fn": [
+          { "$params": ["x"], "$return": { "$fn": ["mul", { "$var": "x" }, { "$var": "x" }] } },
+          5
+        ]
+      }
+    },
+    {
+      "description": "function reference by name",
+      "source": "&double",
+      "expected": { "$fn": "double" }
+    },
+    {
+      "description": "function reference as argument",
+      "source": "map(&double, nums)",
+      "expected": { "$fn": ["map", { "$fn": "double" }, { "$var": "nums" }] }
+    },
+    {
+      "description": "function reference from parenthesized expression",
+      "source": "&(expr)",
+      "expected": { "$fn": { "$var": "expr" } }
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "description": "control flow (shorthand spec section 7)",
+  "cases": [
+    {
+      "description": "if / then / else",
+      "source": "if x > 0 then \"positive\" else \"non-positive\"",
+      "expected": {
+        "$if": { "$gt": [{ "$var": "x" }, 0] },
+        "$then": "positive",
+        "$else": "non-positive"
+      }
+    },
+    {
+      "description": "cond form",
+      "source": "cond {\n  n < 0  -> \"negative\",\n  n == 0 -> \"zero\",\n  else   -> \"positive\"\n}",
+      "expected": {
+        "$cond": [
+          [{ "$lt": [{ "$var": "n" }, 0] }, "negative"],
+          [{ "$eq": [{ "$var": "n" }, 0] }, "zero"]
+        ],
+        "$else": "positive"
+      }
+    },
+    {
+      "description": "match form",
+      "source": "match cmd {\n  \"show\"  -> showResult(state),\n  \"reset\" -> resetResult(),\n  else    -> moveResult(state, argv)\n}",
+      "expected": {
+        "$match": { "$var": "cmd" },
+        "$cases": [
+          ["show", { "$fn": ["showResult", { "$var": "state" }] }],
+          ["reset", { "$fn": ["resetResult"] }]
+        ],
+        "$else": { "$fn": ["moveResult", { "$var": "state" }, { "$var": "argv" }] }
+      }
+    }
+  ]
+}
