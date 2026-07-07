@@ -8,10 +8,12 @@ pub mod error;
 pub mod eval;
 pub mod jsonc;
 pub mod path;
+pub mod shorthand;
 pub mod stdlib;
 pub mod value;
 
 pub use error::EvalError;
+pub use shorthand::{ParseError, parse as parse_shorthand};
 pub use eval::{ExecutionLimits, ExecutionUsage, PreparedCall, call_function};
 pub use jsonc::strip_jsonc;
 pub use stdlib::{LogFn, StdlibOptions, create_stdlib, create_stdlib_with_options};
