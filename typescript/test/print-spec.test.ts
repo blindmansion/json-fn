@@ -1,0 +1,83 @@
+import { describe, test, expect } from "bun:test";
+import { parse, print } from "../src/shorthand";
+import type { JSONType } from "../src/types";
+import { readdirSync, readFileSync } from "fs";
+import { join } from "path";
+
+// The core guarantee of the printer is "bijective by normal form": for any
+// canonical JSON, lowering the printed shorthand must reproduce that JSON
+// exactly. Every `expected` value in the parse-case fixtures is canonical JSON,
+// so it doubles as a printer round-trip corpus.
+
+interface ParseCase {
+  description: string;
+  source: string;
+  expected?: JSONType;
+  error?: JSONType;
+}
+
+interface ParseSuite {
+  description: string;
+  cases: ParseCase[];
+}
+
+const CASES_DIR = join(import.meta.dir, "../../spec/parse-cases");
+
+function roundTrips(json: JSONType): void {
+  expect(parse(print(json))).toEqual(json);
+}
+
+describe("printer round-trips canonical JSON (parse ∘ print = id)", () => {
+  const files = readdirSync(CASES_DIR)
+    .filter((f) => f.endsWith(".json"))
+    .sort();
+  for (const file of files) {
+    const suite: ParseSuite = JSON.parse(readFileSync(join(CASES_DIR, file), "utf-8"));
+    describe(suite.description, () => {
+      for (const tc of suite.cases) {
+        // Skip cases that assert a parse *failure* — there is no canonical JSON.
+        if (tc.error !== undefined) continue;
+        test(tc.description, () => roundTrips(tc.expected ?? null));
+      }
+    });
+  }
+});
+
+describe("printer output shape", () => {
+  test("arithmetic prints as operators with correct precedence", () => {
+    expect(print({ $fn: ["add", { $fn: ["mul", { $var: "row" }, 8] }, { $var: "col" }] })).toBe(
+      "row * 8 + col",
+    );
+  });
+
+  test("right operand of a left-assoc op is parenthesized", () => {
+    expect(print({ $fn: ["sub", { $var: "a" }, { $fn: ["sub", { $var: "b" }, { $var: "c" }] }] })).toBe(
+      "a - (b - c)",
+    );
+  });
+
+  test("mixed string/expr strcat prints as a template", () => {
+    expect(print({ $fn: ["strcat", "Illegal move: ", { $var: "moveDesc" }] })).toBe(
+      "`Illegal move: ${moveDesc}`",
+    );
+  });
+
+  test("pure-expression strcat prints as ++", () => {
+    expect(print({ $fn: ["strcat", { $var: "a" }, { $var: "b" }, { $var: "c" }] })).toBe(
+      "a ++ b ++ c",
+    );
+  });
+
+  test("folded property path unfolds to dot/bracket access", () => {
+    expect(print({ $var: "a", $get: ["b", 0, "c"] })).toBe("a.b[0].c");
+  });
+
+  test("function reference and evaluated callee", () => {
+    expect(print({ $fn: ["map", { $fn: "double" }, { $var: "nums" }] })).toBe("map(&double, nums)");
+    expect(print({ $fn: [{ $var: "fnName" }, 3, 4] })).toBe("(fnName)(3, 4)");
+  });
+
+  test("$-keyed object falls back to raw", () => {
+    expect(print({ $raw: { $fn: ["not", "x"] } })).toBe('raw {"$fn":["not","x"]}');
+  });
+});

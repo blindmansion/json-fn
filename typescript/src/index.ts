@@ -11,4 +11,4 @@ export type {
 } from "./types";
 export { createStdlib } from "./stdlib";
 export type { StdlibOptions, LogFn } from "./stdlib";
-export { parse as parseShorthand, ParseError } from "./shorthand";
+export { parse as parseShorthand, print as printShorthand, ParseError } from "./shorthand";
