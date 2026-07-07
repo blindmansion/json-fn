@@ -1,0 +1,35 @@
+{
+  "name": "json-fn",
+  "displayName": "json-fn (shorthand)",
+  "description": "Syntax highlighting for json-fn shorthand (.jfn) files.",
+  "version": "0.1.0",
+  "publisher": "json-fn",
+  "engines": {
+    "vscode": "^1.60.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "jfn",
+        "aliases": [
+          "json-fn",
+          "jfn"
+        ],
+        "extensions": [
+          ".jfn"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "jfn",
+        "scopeName": "source.jfn",
+        "path": "./syntaxes/jfn.tmLanguage.json"
+      }
+    ]
+  }
+}

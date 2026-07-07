@@ -1,0 +1,180 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "json-fn",
+  "scopeName": "source.jfn",
+  "patterns": [
+    { "include": "#comment" },
+    { "include": "#expression" }
+  ],
+  "repository": {
+    "expression": {
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#template" },
+        { "include": "#string" },
+        { "include": "#constant" },
+        { "include": "#keyword" },
+        { "include": "#raw" },
+        { "include": "#number" },
+        { "include": "#arrow" },
+        { "include": "#function-reference" },
+        { "include": "#function-call" },
+        { "include": "#object-key" },
+        { "include": "#property" },
+        { "include": "#rest" },
+        { "include": "#operator" },
+        { "include": "#identifier" },
+        { "include": "#punctuation" }
+      ]
+    },
+
+    "comment": {
+      "name": "comment.line.double-slash.jfn",
+      "begin": "//",
+      "end": "$"
+    },
+
+    "constant": {
+      "name": "constant.language.jfn",
+      "match": "\\b(true|false|null)\\b"
+    },
+
+    "keyword": {
+      "name": "keyword.control.jfn",
+      "match": "\\b(if|then|else|cond|match|where)\\b"
+    },
+
+    "raw": {
+      "name": "storage.modifier.raw.jfn",
+      "match": "\\braw\\b"
+    },
+
+    "number": {
+      "name": "constant.numeric.jfn",
+      "match": "-?\\b(0|[1-9][0-9]*)(\\.[0-9]+)?([eE][+-]?[0-9]+)?\\b"
+    },
+
+    "string": {
+      "name": "string.quoted.double.jfn",
+      "begin": "\"",
+      "beginCaptures": {
+        "0": { "name": "punctuation.definition.string.begin.jfn" }
+      },
+      "end": "\"",
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.string.end.jfn" }
+      },
+      "patterns": [
+        { "include": "#string-escape" }
+      ]
+    },
+
+    "string-escape": {
+      "name": "constant.character.escape.jfn",
+      "match": "\\\\(?:[\"\\\\/bfnrt]|u[0-9a-fA-F]{4})"
+    },
+
+    "template": {
+      "name": "string.template.jfn",
+      "begin": "`",
+      "beginCaptures": {
+        "0": { "name": "punctuation.definition.string.template.begin.jfn" }
+      },
+      "end": "`",
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.string.template.end.jfn" }
+      },
+      "patterns": [
+        {
+          "name": "constant.character.escape.jfn",
+          "match": "\\\\(?:`|\\$\\{|\\\\|[bfnrt/\"]|u[0-9a-fA-F]{4})"
+        },
+        { "include": "#template-interpolation" }
+      ]
+    },
+
+    "template-interpolation": {
+      "name": "meta.template.expression.jfn",
+      "begin": "\\$\\{",
+      "beginCaptures": {
+        "0": { "name": "punctuation.definition.template-expression.begin.jfn" }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.template-expression.end.jfn" }
+      },
+      "contentName": "meta.embedded.line.jfn",
+      "patterns": [
+        { "include": "#expression" }
+      ]
+    },
+
+    "arrow": {
+      "patterns": [
+        {
+          "name": "keyword.operator.arrow.function.jfn",
+          "match": "=>"
+        },
+        {
+          "name": "keyword.operator.arrow.case.jfn",
+          "match": "->"
+        }
+      ]
+    },
+
+    "function-reference": {
+      "match": "(&)\\s*([A-Za-z_][A-Za-z0-9_]*)?",
+      "captures": {
+        "1": { "name": "keyword.operator.reference.jfn" },
+        "2": { "name": "entity.name.function.jfn" }
+      }
+    },
+
+    "function-call": {
+      "match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\s*(?=\\()",
+      "captures": {
+        "1": { "name": "entity.name.function.jfn" }
+      }
+    },
+
+    "object-key": {
+      "match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\s*(?=:)",
+      "captures": {
+        "1": { "name": "variable.other.property.jfn" }
+      }
+    },
+
+    "property": {
+      "match": "(\\.)([A-Za-z_][A-Za-z0-9_]*)",
+      "captures": {
+        "1": { "name": "punctuation.accessor.jfn" },
+        "2": { "name": "variable.other.property.jfn" }
+      }
+    },
+
+    "rest": {
+      "name": "keyword.operator.rest.jfn",
+      "match": "\\.\\.\\."
+    },
+
+    "operator": {
+      "name": "keyword.operator.jfn",
+      "match": "\\+\\+|\\|\\||&&|==|!=|<=|>=|<|>|\\+|-|\\*|/|%|!|="
+    },
+
+    "identifier": {
+      "name": "variable.other.jfn",
+      "match": "\\b[A-Za-z_][A-Za-z0-9_]*\\b"
+    },
+
+    "punctuation": {
+      "patterns": [
+        { "name": "punctuation.section.block.jfn", "match": "[{}]" },
+        { "name": "punctuation.section.array.jfn", "match": "[\\[\\]]" },
+        { "name": "punctuation.section.parens.jfn", "match": "[()]" },
+        { "name": "punctuation.separator.comma.jfn", "match": "," },
+        { "name": "punctuation.separator.colon.jfn", "match": ":" }
+      ]
+    }
+  }
+}
