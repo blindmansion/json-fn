@@ -1,6 +1,6 @@
 # Plan: Module scope (top-level `letrec`)
 
-Status: **proposed** — TypeScript first, then port to Go / Python / Rust.
+Status: **implemented in TypeScript** — Go / Python / Rust ports pending.
 
 ## Summary
 

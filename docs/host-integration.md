@@ -10,6 +10,48 @@ deterministic, spec-tested fuel / value-size behavior), see
 [`docs/language.md`](./language.md). For the normative cost model — exactly what
 each node and builtin charges — see [`docs/execution-limits.md`](./execution-limits.md).
 
+## Running a program
+
+A json-fn program is an **object mapping names to expressions** (constants and
+function literals). The host runs it by treating that object as the outermost
+lexical scope and invoking a named entry point within it. This is the
+`callProgram`-style contract, taking:
+
+- **program** — the module object (parsed json-fn JSON);
+- **entry** — the name of a top-level function to invoke;
+- **args** — the arguments passed to that entry function;
+- **base registry** — the stdlib + native builtins, which become the module's
+  **parent frame** (per the boundary rule in
+  [`docs/language.md`](./language.md#module-scope));
+- **limits** — the optional resource-limit knobs described below.
+
+Within the run, top-level constants and functions are visible via `$var` and
+`$fn` throughout the module (see [Module Scope](./language.md#module-scope)).
+
+```ts
+import { callProgram, createStdlib } from "json-fn";
+
+const result = callProgram(module, "handleCommand", [state, argv], createStdlib());
+```
+
+The entry must be a function **defined by the module itself**: `callProgram`
+fails fast (rather than falling back to stdlib or to an uncaptured value) if the
+name is absent from the module, names a non-function constant, or merely
+collides with a stdlib function.
+
+Notes for hosts:
+
+- **Referenced globals evaluate once per run**, on every code path (including
+  impure ones that call `log`), because every module function is captured up
+  front. Dead globals — those no captured function mentions — never evaluate.
+- **Long-lived hosts should build the module scope once and reuse it** rather
+  than calling `callProgram` per request, since the capture pass walks the whole
+  module on each call. Reuse the captured function table (immutable); do **not**
+  reuse per-run state that tracks fuel/depth.
+
+The per-function `callFunction` API remains available for hosts that only need
+to invoke a single function against a registry.
+
 ## Configuring limits
 
 Limits are optional and supplied by the host at evaluation time; how they are

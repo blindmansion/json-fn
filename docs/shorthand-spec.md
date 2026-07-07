@@ -403,9 +403,13 @@ literal can recurse by its local name.
 A `.jfn` file is **one json-fn expression**, and lowers to a single JSON value.
 There is no file-level construct beyond "an expression."
 
-A typical multi-function file is a **data object mapping names to function
-literals** — the registry/module shape used by `examples/chess.jsonc`. Calls
-resolve against those names.
+A typical multi-function file is an **object mapping names to expressions** —
+constants and function literals — as in `examples/chess.jsonc` and
+`examples/life.jfn`. This object is the **outermost `letrec` scope**: top-level
+names (constants *and* functions) are visible via `$var` throughout the file,
+and functions are callable via `$fn`, with the same lazy, order-independent,
+mutually-recursive semantics a function body gives its locals. The host supplies
+the parent frame (stdlib + native builtins) and picks an entry point to invoke.
 
 ```jfn
 {
@@ -429,9 +433,11 @@ resolve against those names.
 ```
 
 **How a file is consumed is a host concern**, unchanged from raw JSON: the host
-may register the resulting object as a function registry and call an entry point
-(as with `chess.jsonc`), or evaluate a file that is a bare expression down to a
-value. The shorthand only guarantees the JSON it produces.
+may run the resulting object as a program — treating it as the outermost scope
+over the stdlib registry and invoking a named entry point (as with `chess.jsonc`
+and `life.jfn`) — or evaluate a file that is a bare expression down to a value.
+See [`docs/host-integration.md`](./host-integration.md) for the entry-point
+contract. The shorthand only guarantees the JSON it produces.
 
 > **Future direction (not specified):** module-level `import` / `export` and a
 > brace-less top-level declaration form (so a file reads as a list of

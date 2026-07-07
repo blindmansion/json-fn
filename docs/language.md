@@ -343,6 +343,39 @@ Local variables whose values are function bodies (have a `$return` key) can be c
 
 Local function names can shadow global registry functions and do not leak into parent or sibling scopes.
 
+## Module Scope
+
+A whole program is an **object mapping names to expressions** — the same shape as a function body's locals. When a host runs such an object as a program (choosing an entry point to invoke), that object is itself a **recursive, lazy binding scope**, identical in semantics to the locals inside a function body:
+
+- Top-level **constants** (`SIZE`, `OFFSETS`, …) are visible via `$var` throughout the module.
+- Top-level **functions** are callable via `$fn` and, being bindings, are also `$var`-visible as function values (so they can be passed by name to higher-order functions).
+- Bindings are lazy (evaluated on first reference, then memoized), order-independent, mutually recursive, and cycle-checked — exactly like locals.
+
+```json
+{
+  "W": 20,
+  "H": 12,
+  "SIZE": { "$fn": ["mul", { "$var": "W" }, { "$var": "H" }] },
+  "area": { "$return": { "$var": "SIZE" } }
+}
+```
+
+Running this program with entry `area` returns `240`: the top-level constant `SIZE` (itself defined in terms of `W` and `H`) is read as a plain `$var`, no nullary-function workaround required.
+
+### The boundary rule
+
+The module scope composes with the host-supplied registry (stdlib + native builtins) by **one rule**:
+
+> The module object is the **outermost lexical frame**; the host/stdlib registry is its **parent frame**. `$fn` and `$var` resolution are unchanged except that they now walk one additional frame.
+
+Consequences:
+
+- **Shadowing.** A module binding shadows a same-named registry entry (stdlib is the parent frame).
+- **Inner binders still win.** A function's `$params` or locals shadow a module constant of the same name, at any nesting depth — module scope is just the outermost link in the same chain described under [Scoping Rules](#scoping-rules).
+- **Lisp-2 asymmetry (by syntax, not runtime type).** Only a binding whose value is *literally* a function body (has a `$return` key) becomes `$fn`-callable. So a module *constant* named `map` shadows `$var map` but **not** `$fn map` (which still resolves the stdlib `map`), even if that constant happens to evaluate to a function; a module *function* named `map` shadows **both**.
+
+This is a single outermost frame, not a module *system*: there is no `import` / `export`, no multiple modules, and no re-exports.
+
 ## Dynamic Dispatch
 
 The first element of `$fn` can be a `$var` reference or any expression that evaluates to a function name or body.
