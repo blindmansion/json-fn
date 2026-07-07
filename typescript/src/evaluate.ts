@@ -21,6 +21,7 @@ import type {
   PerfStats,
   CallState,
   Meter,
+  Param,
 } from "./types";
 import { ExpressionType } from "./types";
 import {
@@ -499,18 +500,30 @@ function buildScope(
 
   const evaluatedVars: Record<string, JSONType> = {};
 
-  const params = (fn as any).$params as string[] | undefined;
+  const params = (fn as any).$params as Param[] | undefined;
   if (params) {
     for (let i = 0; i < params.length; i++) {
-      const name = params[i]!;
-      if (name.startsWith("...")) {
-        const restName = name.slice(3);
-        validateParamName(restName);
-        evaluatedVars[restName] = args.slice(i);
-        break;
+      const slot = params[i]!;
+      if (typeof slot === "string") {
+        if (slot.startsWith("...")) {
+          const restName = slot.slice(3);
+          validateParamName(restName);
+          evaluatedVars[restName] = args.slice(i);
+          break;
+        }
+        validateParamName(slot);
+        evaluatedVars[slot] = args[i] ?? null;
+      } else {
+        // Object pattern: destructure the i-th positional argument into named
+        // locals. Lenient — a missing/null/non-object/array argument binds
+        // every field to null (mirrors positional params defaulting to null).
+        const v = args[i] ?? null;
+        const isPlainObject = typeof v === "object" && v !== null && !Array.isArray(v);
+        for (const field of slot.$fields) {
+          validateParamName(field);
+          evaluatedVars[field] = isPlainObject ? ((v as any)[field] ?? null) : null;
+        }
       }
-      validateParamName(name);
-      evaluatedVars[name] = args[i] ?? null;
     }
   }
 
@@ -787,6 +800,8 @@ function replaceVars(
         for (const p of params) {
           if (typeof p === "string") {
             localNames.add(p.startsWith("...") ? p.slice(3) : p);
+          } else if (p && typeof p === "object" && Array.isArray((p as any).$fields)) {
+            for (const f of (p as any).$fields as string[]) localNames.add(f);
           }
         }
       }
@@ -1018,12 +1033,25 @@ function classifyExpressionType(json: JSONType): ExpressionType {
       }
       if ("$params" in json) {
         const params = json.$params;
-        if (!Array.isArray(params) || !params.every((p) => typeof p === "string")) {
-          exprError(json, "$params must be an array of strings.");
+        if (!Array.isArray(params)) {
+          exprError(json, "$params must be an array.");
         }
         for (const p of params) {
-          const name = (p as string).startsWith("...") ? (p as string).slice(3) : (p as string);
-          validateParamName(name);
+          if (typeof p === "string") {
+            validateParamName(p.startsWith("...") ? p.slice(3) : p);
+          } else if (p !== null && typeof p === "object" && !Array.isArray(p) && "$fields" in p) {
+            const fields = (p as { $fields: JSONType }).$fields;
+            if (
+              !Array.isArray(fields) ||
+              fields.length === 0 ||
+              !fields.every((f) => typeof f === "string")
+            ) {
+              exprError(json, "$fields must be a non-empty array of strings.");
+            }
+            for (const f of fields as string[]) validateParamName(f);
+          } else {
+            exprError(json, "$params entries must be strings or { $fields: [...] } patterns.");
+          }
         }
       }
       return ExpressionType.FunctionBody;

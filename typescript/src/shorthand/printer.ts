@@ -269,11 +269,11 @@ function renderComparison(key: string, operands: JSONType, indent: string): Rend
 // ----- function bodies & where bindings (spec §8) -----
 
 function renderFunctionBody(node: { [k: string]: JSONType }, indent: string): Rendered {
-  const params = Array.isArray(node.$params) ? (node.$params as string[]) : [];
+  const params = Array.isArray(node.$params) ? (node.$params as JSONType[]) : [];
   // Locals are the non-`$` keys, in source (insertion) order. Other `$` keys
   // (e.g. `$comment`) have no canonical surface form and are dropped.
   const locals = Object.keys(node).filter((k) => !k.startsWith("$"));
-  const header = `(${params.join(", ")}) =>`;
+  const header = `(${params.map(renderParam).join(", ")}) =>`;
 
   if (locals.length === 0) {
     return { text: `${header} ${emit(node.$return!, P_BLOCK, indent)}`, prec: P_BLOCK };
@@ -283,6 +283,15 @@ function renderFunctionBody(node: { [k: string]: JSONType }, indent: string): Re
   const bindings = locals.map((k) => `${inner}${k}: ${emit(node[k]!, P_BLOCK, inner)}`);
   const body = `${ret} where {\n${bindings.join(",\n")}\n${indent}}`;
   return { text: `${header} ${body}`, prec: P_BLOCK };
+}
+
+/** Render one `$params` slot: a plain name, a `...rest` collector, or an object
+ * pattern `{ f1, f2 }` (space inside braces, `, ` between — purely aesthetic;
+ * the reparsed `$fields` array is identical). */
+function renderParam(p: JSONType): string {
+  if (typeof p === "string") return p;
+  const fields = (p as { $fields: string[] }).$fields;
+  return `{ ${fields.join(", ")} }`;
 }
 
 // ----- data (spec §3) -----

@@ -5,7 +5,7 @@
  * `docs/shorthand-spec.md` are applied inline.
  */
 
-import type { JSONType } from "../types";
+import type { JSONType, Param, FieldPattern } from "../types";
 import { ParseError } from "./error";
 import { lex } from "./lexer";
 import type { TemplatePart, Tok, TokPunct, Token } from "./lexer";
@@ -430,7 +430,7 @@ class Parser {
   /** Assemble a scope map (`$params`? + locals + `$return`) shared by function
    * literals and expression-level `where` (spec section 8). */
   private buildScope(
-    params: string[],
+    params: Param[],
     locals: [string, JSONType][],
     ret: JSONType,
   ): Record<string, JSONType> {
@@ -460,9 +460,9 @@ class Parser {
     return { $fn: [this.buildScope([], locals, expr)] };
   }
 
-  private parseParams(): string[] {
+  private parseParams(): Param[] {
     this.expect("lparen", "'('");
-    const params: string[] = [];
+    const params: Param[] = [];
     if (this.peekType() === "rparen") {
       this.advance();
       return params;
@@ -470,7 +470,10 @@ class Parser {
     for (;;) {
       if (this.peekType() === "dotdotdot") {
         this.advance();
+        // A rest pattern `...{ x }` is unsupported: expectIdent rejects `{`.
         params.push(`...${this.expectIdent("rest parameter name")}`);
+      } else if (this.peekType() === "lbrace") {
+        params.push(this.parseFieldPattern());
       } else {
         params.push(this.expectIdent("parameter name"));
       }
@@ -485,6 +488,37 @@ class Parser {
       }
     }
     return params;
+  }
+
+  /** Parse an object-pattern parameter `{ f1, f2, }` into `{ $fields: [...] }`.
+   * Rename (`{ from: f }`), nesting (`{ a: { b } }`), empty (`{}`), and
+   * non-identifier fields are rejected — reserved for later (spec §3). */
+  private parseFieldPattern(): FieldPattern {
+    this.expect("lbrace", "'{' to begin object pattern");
+    if (this.peekType() === "rbrace") {
+      throw this.err("empty object pattern '{}' is not supported");
+    }
+    const fields: string[] = [];
+    for (;;) {
+      fields.push(this.expectIdent("field name in object pattern"));
+      if (this.peekType() === "colon") {
+        throw this.err("field rename/nesting in object patterns is not supported");
+      }
+      const type = this.peekType();
+      if (type === "comma") {
+        this.advance();
+        if (this.peekType() === "rbrace") {
+          this.advance();
+          break;
+        }
+      } else if (type === "rbrace") {
+        this.advance();
+        break;
+      } else {
+        throw this.err("expected ',' or '}' in object pattern");
+      }
+    }
+    return { $fields: fields };
   }
 
   /** Parse the `{ name: value, ... }` block of a `where` clause (`where`

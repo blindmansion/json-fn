@@ -33,6 +33,12 @@ type FunctionReference = {
 
 type FunctionDeclaration = string | FunctionBody;
 
+// A `$params` slot is a positional parameter name, a `"...rest"` collector, or
+// an object pattern destructuring one positional object argument into named
+// locals. See plans/destructured-params.md.
+type FieldPattern = { $fields: string[] };
+type Param = string | FieldPattern;
+
 type VariableReference = {
   $var: string;
 };
@@ -186,6 +192,8 @@ export type {
   Meter,
   FunctionRegistry,
   FunctionDeclaration,
+  FieldPattern,
+  Param,
   EvaluationContext,
   ExecutionLimits,
   ExecutionUsage,

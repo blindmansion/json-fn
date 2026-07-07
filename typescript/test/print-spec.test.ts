@@ -80,4 +80,41 @@ describe("printer output shape", () => {
   test("$-keyed object falls back to raw", () => {
     expect(print({ $raw: { $fn: ["not", "x"] } })).toBe('raw {"$fn":["not","x"]}');
   });
+
+  test("object-pattern param prints as { f1, f2 } with spaces", () => {
+    expect(
+      print({
+        $params: [{ $fields: ["from", "to"] }],
+        $return: { $fn: ["sub", { $var: "to" }, { $var: "from" }] },
+      }),
+    ).toBe("({ from, to }) => to - from");
+  });
+
+  test("single-field pattern prints with braces", () => {
+    expect(print({ $params: [{ $fields: ["x"] }], $return: { $var: "x" } })).toBe("({ x }) => x");
+  });
+
+  test("positional param mixes with a pattern slot", () => {
+    expect(
+      print({
+        $params: ["label", { $fields: ["x", "y"] }],
+        $return: { $fn: ["add", { $var: "x" }, { $var: "y" }] },
+      }),
+    ).toBe("(label, { x, y }) => x + y");
+  });
+
+  test("pattern slot followed by a rest parameter", () => {
+    expect(print({ $params: [{ $fields: ["x"] }, "...rest"], $return: { $var: "rest" } })).toBe(
+      "({ x }, ...rest) => rest",
+    );
+  });
+
+  test("multiple pattern slots", () => {
+    expect(
+      print({
+        $params: [{ $fields: ["a"] }, { $fields: ["b"] }],
+        $return: { $fn: ["add", { $var: "a" }, { $var: "b" }] },
+      }),
+    ).toBe("({ a }, { b }) => a + b");
+  });
 });

@@ -61,10 +61,11 @@ const _rawValues = new WeakSet<object>();
 
 export function getArity(fn: unknown, registry?: FunctionRegistry): number | null {
   if (typeof fn === "object" && fn !== null && !Array.isArray(fn) && "$return" in fn) {
-    const params = (fn as any).$params as string[] | undefined;
+    const params = (fn as any).$params as (string | { $fields: string[] })[] | undefined;
     if (!params || params.length === 0) return 0;
     const last = params[params.length - 1]!;
-    return last.startsWith("...") ? params.length - 1 : params.length;
+    const hasRest = typeof last === "string" && last.startsWith("...");
+    return hasRest ? params.length - 1 : params.length;
   }
 
   if (typeof fn === "string" && registry) {
