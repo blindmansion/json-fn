@@ -275,7 +275,7 @@ class Parser {
         }
         this.advance();
         {
-          const e = this.parseExpr();
+          const e = this.parseBody();
           this.expect("rparen", "')'");
           return { value: e, name: null };
         }
