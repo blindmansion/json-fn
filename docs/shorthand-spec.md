@@ -321,8 +321,8 @@ distinguished from `match` purely by the absence of a subject after the keyword.
 
 ## 8. Function literals and local bindings
 
-`(params) => body`. The body is either a single expression, or a `let { … } in
-expr` form introducing **lazy local bindings**.
+`(params) => body`. The body is a single expression, optionally followed by a
+`where { … }` clause introducing **lazy local bindings**.
 
 ```jfn
 (a, b) => add(a, b)
@@ -332,16 +332,17 @@ expr` form introducing **lazy local bindings**.
 { "$params": ["a", "b"], "$return": { "$fn": ["add", { "$var": "a" }, { "$var": "b" }] } }
 ```
 
-### `let { name: value, … } in expr`
+### `expr where { name: value, … }`
 
-Local bindings use `:` (mirroring the JSON, where locals are literally
-key–value entries on the function-body object). `in` supplies `$return`.
+The return expression comes first; the trailing `where { … }` clause supplies
+the locals. Bindings use `:` (mirroring the JSON, where locals are literally
+key–value entries on the function-body object).
 
 ```jfn
-(x, y) => let {
+(x, y) => doubled where {
   sum:     add(x, y),
   doubled: mul(sum, 2)
-} in doubled
+}
 ```
 
 ```json
@@ -355,12 +356,16 @@ key–value entries on the function-body object). `in` supplies `$return`.
 
 **Semantics (important).** Bindings are **lazy** and **order-independent**: they
 form a dependency graph resolved on demand, and a binding that is never reached
-from `in`/`$return` is **never evaluated**. The `let` form is declarative, not a
+from `$return` is **never evaluated**. The `where` form is declarative, not a
 sequence of steps. (E.g. a binding may hold an unconditionally-recursive call
 that only terminates because it is forced solely in the branch that uses it.)
+Placing the answer first and its supporting locals after mirrors how these
+functions read: headline, then the details that back it up.
 
-Because `let {` is the only thing that introduces a binding block, a bare
-`{...}` is **always** a data object — including immediately after `=>`:
+`where` is not an operator — `parseExpr` stops before it — so it is only valid
+as a postfix clause on a function body, not inside arbitrary expressions.
+
+A bare `{...}` is **always** a data object — including immediately after `=>`:
 
 ```jfn
 (state) => { output: boardSection(state, ""), exitCode: 0 }
@@ -464,7 +469,7 @@ primary     := number | string | template | "true" | "false" | "null"
              | "raw" jsonValue
 
 funcLit     := "(" params ")" "=>" body
-body        := expr | "let" "{" binding ("," binding)* "}" "in" expr
+body        := expr ( "where" "{" binding ("," binding)* "}" )?
 binding     := ident ":" expr
 params      := ( ident ("," ident)* )?               // last may be "...ident"
 dataEntry   := (ident | string) ":" expr
@@ -473,7 +478,7 @@ template    := "`" ( char | "${" expr "}" )* "`"     // strict; no coercion
 ident       := [A-Za-z_][A-Za-z0-9_]*
 ```
 
-Canonical printing uses newline-and-indent for `let`, `cond`, `match`, and long
+Canonical printing uses newline-and-indent for `where`, `cond`, `match`, and long
 argument/element lists; single-line for short forms. Parsers accept either.
 
 ---
