@@ -166,6 +166,13 @@ type CallState = {
 type EvaluationContext = {
   functions: FunctionRegistry;
   getVar?: (name: string) => JSONType | undefined;
+  // P4/Site 2: names of scoped local *function* declarations, accumulated down
+  // the scope chain. `replaceVars` uses this to decide whether a free callee is
+  // capturable: a callee that is not a local function name but resolves via
+  // `getVar` to a function declaration (i.e. a shadowing parameter/local) is
+  // inlined into an escaping closure, while local function names stay literal so
+  // they keep dispatching through the registry (recursion is preserved).
+  localFns?: ReadonlySet<string>;
   limits: ResolvedLimits;
   state: CallState;
   perf?: PerfStats;

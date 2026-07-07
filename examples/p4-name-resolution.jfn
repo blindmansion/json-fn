@@ -1,0 +1,72 @@
+// p4-name-resolution.jfn — exercises unified, lexical-first name resolution.
+//
+// One rule, applied everywhere a name is resolved: resolve against the lexical
+// scope chain first; if it is a *function* binding, use it (shadowing a
+// same-named stdlib/host global); otherwise fall through to the registry. A
+// bare registry name in value position resolves to its `&`-free reference.
+//
+// Run with: bun run typescript/examples/p4-name-resolution.ts
+
+{
+  // ---- shared helpers (top-level module bindings) ----
+  inc: (n) => n + 1,
+  dbl: (n) => n * 2,
+
+  // 1. A function-valued PARAM shadows an operator. `x + 1` desugars to
+  //    add(x, 1); here the param `add` is the passed function. `sub` is handed
+  //    over as a *bare* registry reference (no `&` needed).
+  applyAdd: (add, x) => x + 1,
+  paramShadowsOperator: () => applyAdd(sub, 10),          // sub(10, 1) = 9
+
+  // 2. A param named like a stdlib function shadows it in a direct call.
+  usePassedMap: (map) => map(2),
+  paramShadowsStdlibCall: () => usePassedMap((x) => x * 10),  // 20 (not stdlib map)
+
+  // 3. A where-local *function* shadows a stdlib name (`length`).
+  localShadowsLength: (xs) => length(xs) where {
+    length: (v) => 999
+  },                                                      // always 999
+
+  // 4. A NON-function local named like a builtin does NOT hijack the operator:
+  //    `add: 5` is a value, so `x + 1` falls through to stdlib add.
+  nonFnLocalNoHijack: (x) => (x + 1) where {
+    add: 5
+  },                                                      // x + 1
+
+  // 5. A bare registry name in value position is its function reference (no `&`).
+  bareNameValue: () => length,                            // "length"
+  bareNameAsArg: (xss) => map(length, xss),               // map(&length, xss)
+
+  // 6. A local binding shadows the stdlib name even in value position.
+  localShadowsValue: () => length where {
+    length: 42
+  },                                                      // 42
+
+  // 7. A shadowing param survives an *escaping* closure (captured by value).
+  makeMapper: (map) => (x) => map(x),
+  escapingShadow: () => makeMapper((n) => n * 10)(5),     // 50
+
+  // 8. Local recursion keeps dispatching through the registry.
+  factorial: (n) => if n <= 1 then 1 else n * factorial(n - 1),
+  fact5: () => factorial(5),                              // 120
+
+  // 9. Mutual recursion via where-locals.
+  parity: (n) => isEven(n) where {
+    isEven: (k) => if k == 0 then true else isOdd(k - 1),
+    isOdd: (k) => if k == 0 then false else isEven(k - 1)
+  },
+  isTenEven: () => parity(10),                            // true
+
+  // 10. Operator consistency: a param shadows `*` (mul) just like `+`.
+  applyMul: (mul, a, b) => a * b,
+  paramShadowsStar: () => applyMul(add, 6, 7),            // add(6, 7) = 13
+
+  // 11. A combinator returning a closure captures BOTH function args, including
+  //     a param whose name collides with a stdlib builtin (`add`).
+  compose: (add, g) => (x) => add(g(x)),
+  composedShadow: () => compose((n) => n * 10, inc)(5),   // (5+1)*10 = 60
+
+  // 12. A module-level function binding shadows a stdlib name (`sum`).
+  sum: (xs) => "module-sum-shadow",
+  moduleShadow: () => sum([1, 2, 3])                      // "module-sum-shadow"
+}

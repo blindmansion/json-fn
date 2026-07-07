@@ -422,6 +422,18 @@ class Parser {
     // `parseExpr` stops before it and we consume the clause here.
     const ret = this.parseExpr();
     const locals = this.eatKeyword("where") ? this.parseWhereBindings() : [];
+    // A function body inlines its `where` locals directly (params + locals +
+    // $return); no IIFE needed since this scope already exists.
+    return this.buildScope(params, locals, ret);
+  }
+
+  /** Assemble a scope map (`$params`? + locals + `$return`) shared by function
+   * literals and expression-level `where` (spec section 8). */
+  private buildScope(
+    params: string[],
+    locals: [string, JSONType][],
+    ret: JSONType,
+  ): Record<string, JSONType> {
     const map: Record<string, JSONType> = {};
     if (params.length > 0) {
       map.$params = params;
@@ -431,6 +443,21 @@ class Parser {
     }
     map.$return = ret;
     return map;
+  }
+
+  /** Parse an expression that may carry a trailing `expr where { ... }` clause.
+   * With a `where`, the expression lowers to a zero-arg IIFE over a scope so the
+   * existing `buildScope`/`callJSONFunction` machinery evaluates the locals —
+   * no evaluator changes (spec section 8). Used wherever a trailing `where`
+   * should attach: `where`-binding values, `cond`/`match` arm results, and
+   * `if/then/else` branches. */
+  private parseBody(): JSONType {
+    const expr = this.parseExpr();
+    if (!this.eatKeyword("where")) {
+      return expr;
+    }
+    const locals = this.parseWhereBindings();
+    return { $fn: [this.buildScope([], locals, expr)] };
   }
 
   private parseParams(): string[] {
@@ -469,7 +496,7 @@ class Parser {
       for (;;) {
         const name = this.expectIdent("binding name");
         this.expect("colon", "':' after binding name");
-        locals.push([name, this.parseExpr()]);
+        locals.push([name, this.parseBody()]);
         const type = this.peekType();
         if (type === "comma") {
           this.advance();
@@ -490,9 +517,9 @@ class Parser {
   private parseIf(): JSONType {
     const cond = this.parseExpr();
     this.expectKeyword("then");
-    const then = this.parseExpr();
+    const then = this.parseBody();
     this.expectKeyword("else");
-    const els = this.parseExpr();
+    const els = this.parseBody();
     return { $if: cond, $then: then, $else: els };
   }
 
@@ -534,11 +561,11 @@ class Parser {
     for (;;) {
       if (this.eatKeyword("else")) {
         this.expect("arrow", "'->' after 'else'");
-        elseVal = this.parseExpr();
+        elseVal = this.parseBody();
       } else {
         const c = this.parseExpr();
         this.expect("arrow", "'->' in arm");
-        arms.push([c, this.parseExpr()]);
+        arms.push([c, this.parseBody()]);
       }
       const type = this.peekType();
       if (type === "comma") {

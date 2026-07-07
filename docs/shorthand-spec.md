@@ -117,6 +117,17 @@ a hot path. Plain constant data (e.g. `[1, 2, 3]`) needs no `raw`.
 In **call position**, a bare identifier is a literal function *name*; a
 parenthesized expression is an *evaluated* callee.
 
+**Name resolution is lexical-first, registry-second — uniformly.** A name in
+call position (a direct call `f(x)`, an operator that desugars to a named call
+like `+`→`add`, or a bare reference used as a value) resolves against the
+enclosing lexical scope chain first. If it resolves to a *function declaration*
+— a parameter, a `where`-local, or a module binding whose value is a function —
+that binding is used, **shadowing** any same-named stdlib/host builtin. If the
+lexical binding is *not* a function (e.g. `add: 5`), or there is no lexical
+binding, resolution falls through to the function registry (scoped local
+functions + stdlib/host). Only if both miss is it an error. This makes operator
+desugaring, direct calls, and bare references agree on shadowing.
+
 ```jfn
 add(3, 4)                 // named call
 f()                       // zero-arg call
@@ -147,12 +158,25 @@ map(&double, nums)
 { "$fn": <expr> }
 ```
 
+**`&` is optional for a bare name.** Because a bare identifier in value position
+falls through to the registry (§5), a registered function name resolves to its
+reference without `&`: `map(length, xs)` == `map(&length, xs)`. Use `&` when you
+want to be explicit, and reserve it for the computed `&(expr)` form, which has no
+bare equivalent. A lexical binding still wins over the registry, so a local named
+`length` shadows the builtin in value position too.
+
 ---
 
 ## 5. Variables and property access
 
 A bare identifier is a variable. Access lowers to `$var` + `$get`; access on a
 non-variable expression lowers to `$get` + `$from`.
+
+A bare identifier that is **not** a lexical binding but **is** a registered
+function resolves to that function *reference* (i.e. `&`-free; see §4). The
+fallback only applies to a plain name: a name with a trailing path (`length.foo`)
+that has no lexical binding is an error rather than resolving the reference and
+then walking into it.
 
 ```jfn
 x                         // {"$var":"x"}

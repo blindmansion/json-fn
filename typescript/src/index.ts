@@ -4,6 +4,7 @@ export type {
   JSONType,
   BuiltinFunction,
   Meter,
+  FunctionDeclaration,
   FunctionRegistry,
   ExecutionLimits,
   ExecutionUsage,

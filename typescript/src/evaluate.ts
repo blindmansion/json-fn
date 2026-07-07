@@ -144,6 +144,8 @@ function parsePath(str: string): ParsedPath {
   return cachePath(str, result);
 }
 
+const EMPTY_LOCAL_FNS: ReadonlySet<string> = new Set();
+
 function isFnDeclaration(value: JSONType): value is FunctionDeclaration {
   return (
     typeof value === "string" ||
@@ -176,11 +178,19 @@ function walkPath(value: JSONType, path: (string | number)[]): JSONType {
 function resolveVar(
   varPath: string,
   getVar: (name: string) => JSONType | undefined,
+  functions: FunctionRegistry,
   expression: JSONType,
 ): JSONType {
   const parsed = parsePath(varPath);
   const value = getVar(parsed.variable);
   if (value === undefined) {
+    // P4: a bare identifier that isn't a lexical binding but *is* a registered
+    // function resolves to its name reference (i.e. `map(length, xs)` ==
+    // `map(&length, xs)`), so `&` is optional. The path guard keeps `length.foo`
+    // an error rather than resolving the ref then walking into it.
+    if (parsed.path.length === 0 && functions[parsed.variable] !== undefined) {
+      return parsed.variable;
+    }
     exprError(expression, `Variable ${parsed.variable} not found.`);
   }
   return parsed.path.length > 0 ? walkPath(value, parsed.path) : value;
@@ -257,12 +267,16 @@ export function callProgram(
   const perf = limits?.perf;
   try {
     // The module is a function body with no `$params` and no `$return`.
-    const { getVar, scopedFunctions } = buildScope(module as unknown as FunctionBody, [], {
-      functions: baseRegistry,
-      limits: resolved,
-      state,
-      perf,
-    });
+    const { getVar, scopedFunctions, localFns } = buildScope(
+      module as unknown as FunctionBody,
+      [],
+      {
+        functions: baseRegistry,
+        limits: resolved,
+        state,
+        perf,
+      },
+    );
 
     // Fail fast: the entry must be a function *defined by the module*. Check the
     // module's own keys (not the merged `scopedFunctions`, which layers stdlib
@@ -287,6 +301,7 @@ export function callProgram(
     return callFunctionInternal(scopedFunctions[entry] as FunctionDeclaration, args, {
       functions: scopedFunctions,
       getVar,
+      localFns,
       limits: resolved,
       state,
       perf,
@@ -356,6 +371,21 @@ function callFunctionInternal(
     if (typeof fn === "string") {
       if (perf) {
         perf.functionCallCounts[fn] = (perf.functionCallCounts[fn] ?? 0) + 1;
+      }
+      // P4: lexical-first name resolution. A function-valued parameter or local
+      // shadows a same-named global (stdlib/host builtin), *consistently* whether
+      // the name is reached via operator desugaring (`+`→`add`), a direct call
+      // `f(x)`, or a bare reference. Registry-dispatched local functions are
+      // invoked *without* a getVar parent (see the JSON-function branch below),
+      // so a local function's self/sibling references miss here and fall through
+      // to the registry — local recursion is preserved. A non-function lexical
+      // binding (e.g. `add: 5`) does not hijack a call position; resolution falls
+      // through to the registry below.
+      const lexical = context.getVar?.(fn);
+      if (lexical !== undefined && isFnDeclaration(lexical)) {
+        result = callFunctionInternal(lexical, args, context);
+        raw(result);
+        return result;
       }
       const entry = functions[fn];
       if (entry === undefined) {
@@ -436,7 +466,11 @@ function buildScope(
   fn: FunctionBody,
   args: JSONType[],
   context: EvaluationContext,
-): { getVar: (name: string) => JSONType | undefined; scopedFunctions: FunctionRegistry } {
+): {
+  getVar: (name: string) => JSONType | undefined;
+  scopedFunctions: FunctionRegistry;
+  localFns: ReadonlySet<string>;
+} {
   const { perf } = context;
   const { functions, getVar: getVarParent, limits, state } = context;
 
@@ -451,6 +485,16 @@ function buildScope(
       scopedFunctions[key] = val as FunctionBody;
       localFnKeys.push(key);
     }
+  }
+
+  // Accumulate this scope's local function names onto the parent chain. Only
+  // allocate a new set when this scope actually introduces local functions.
+  const parentLocalFns = context.localFns ?? EMPTY_LOCAL_FNS;
+  let localFns = parentLocalFns;
+  if (localFnKeys.length > 0) {
+    const merged = new Set(parentLocalFns);
+    for (const key of localFnKeys) merged.add(key);
+    localFns = merged;
   }
 
   const evaluatedVars: Record<string, JSONType> = {};
@@ -489,6 +533,7 @@ function buildScope(
         const evaluated = evaluateExpression(expression, {
           functions: scopedFunctions,
           getVar,
+          localFns,
           limits,
           state,
         });
@@ -508,11 +553,11 @@ function buildScope(
 
   if (localFnKeys.length > 0) {
     for (const key of localFnKeys) {
-      scopedFunctions[key] = replaceVars(fn[key]!, getVar, perf) as FunctionBody;
+      scopedFunctions[key] = replaceVars(fn[key]!, getVar, localFns, perf) as FunctionBody;
     }
   }
 
-  return { getVar, scopedFunctions };
+  return { getVar, scopedFunctions, localFns };
 }
 
 function callJSONFunction(fn: FunctionBody, args: JSONType[], context: EvaluationContext) {
@@ -520,11 +565,12 @@ function callJSONFunction(fn: FunctionBody, args: JSONType[], context: Evaluatio
   if (perf) perf.callJSONFunction++;
   const { limits, state } = context;
 
-  const { getVar, scopedFunctions } = buildScope(fn, args, context);
+  const { getVar, scopedFunctions, localFns } = buildScope(fn, args, context);
 
   return evaluateExpression(fn.$return, {
     functions: scopedFunctions,
     getVar,
+    localFns,
     limits,
     state,
     perf,
@@ -575,13 +621,13 @@ function evaluateExpression(expression: JSONType, context: EvaluationContext): J
       if (!getVar) {
         exprError(expression, "getVar is not defined.");
       }
-      return resolveVar(varRef.$var, getVar, expression);
+      return resolveVar(varRef.$var, getVar, context.functions, expression);
 
     case ExpressionType.FunctionBody:
       if (!getVar) {
         return expression;
       }
-      return replaceVars(expression, getVar, perf);
+      return replaceVars(expression, getVar, context.localFns ?? EMPTY_LOCAL_FNS, perf);
 
     case ExpressionType.Conditional:
       const conditional = expression as Conditional;
@@ -688,6 +734,7 @@ function evaluateExpression(expression: JSONType, context: EvaluationContext): J
 function replaceVars(
   expression: JSONType,
   getVar: (name: string) => JSONType | undefined,
+  localFns: ReadonlySet<string>,
   perf?: PerfStats,
 ): JSONType {
   if (perf) perf.replaceVars++;
@@ -696,7 +743,7 @@ function replaceVars(
     return expression;
   }
   if (Array.isArray(expression)) {
-    return expression.map((item) => replaceVars(item, getVar, perf));
+    return expression.map((item) => replaceVars(item, getVar, localFns, perf));
   }
 
   if (typeof expression === "object" && expression !== null) {
@@ -704,7 +751,7 @@ function replaceVars(
       const parsed = parsePath(expression.$var);
       if ("$get" in expression) {
         const varValue = getVar(parsed.variable);
-        const replacedKey = replaceVars(expression.$get, getVar, perf);
+        const replacedKey = replaceVars(expression.$get, getVar, localFns, perf);
         if (varValue !== undefined) {
           if (parsed.path.length > 0) {
             const pathKey: JSONType = parsed.path.length === 1 ? parsed.path[0]! : parsed.path;
@@ -751,14 +798,40 @@ function replaceVars(
 
       const newObject: Record<string, JSONType> = {};
       for (const [key, value] of Object.entries(expression)) {
-        newObject[key] = replaceVars(value, maskedGetVar, perf);
+        newObject[key] = replaceVars(value, maskedGetVar, localFns, perf);
       }
       return newObject;
     }
 
+    // FunctionCall: capture a free callee identifier into the closure, mirroring
+    // $var capture above. A bare-identifier callee lowers to a literal registry
+    // name, so a combinator's function argument (e.g. `f` in `twice`/`compose`)
+    // or a shadowing parameter (a param named like a stdlib builtin) would be
+    // lost once the inner lambda escapes the defining scope.
+    //
+    // P4/Site 2 (Option A): capture when the callee resolves via `getVar` to a
+    // function declaration *and* it is not a scoped local function name. Local
+    // function names stay literal so they keep dispatching through the registry
+    // (recursion/mutual-recursion are preserved). The current body's own
+    // params/locals are masked out of `getVar` upstream, so only free lexical
+    // bindings of *enclosing* scopes are captured — which is exactly what lets a
+    // shadowing parameter survive an escaping closure (`{ f:(map)=> (x)=> map(x) }`).
+    const fnArr = (expression as Record<string, JSONType>).$fn;
+    if (Array.isArray(fnArr)) {
+      const callee = fnArr[0];
+      const newArr = fnArr.map((item, idx) => {
+        if (idx === 0 && typeof callee === "string" && !localFns.has(callee)) {
+          const captured = getVar(callee);
+          return captured !== undefined && isFnDeclaration(captured) ? captured : item;
+        }
+        return replaceVars(item, getVar, localFns, perf);
+      });
+      return { ...expression, $fn: newArr };
+    }
+
     const newObject: Record<string, JSONType> = {};
     for (const [key, value] of Object.entries(expression)) {
-      newObject[key] = replaceVars(value, getVar, perf);
+      newObject[key] = replaceVars(value, getVar, localFns, perf);
     }
     return newObject;
   }
@@ -811,7 +884,7 @@ function evaluatePropertyAccess(
     if (!getVar) {
       exprError(expression, "getVar is not defined.");
     }
-    evaluatedTarget = resolveVar(expression.$var, getVar, expression);
+    evaluatedTarget = resolveVar(expression.$var, getVar, context.functions, expression);
   } else {
     evaluatedTarget = evaluateExpression(expression.$from, context);
   }
