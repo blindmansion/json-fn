@@ -347,7 +347,12 @@ impl Parser {
                     self.advance();
                     Ok((self.parse_raw()?, None))
                 }
-                "let" => Err(self.err("'let' is only valid as a function body after '=>'")),
+                "let" => Err(self.err(
+                    "the 'let { ... } in expr' form is replaced by 'expr where { ... }'",
+                )),
+                "where" => Err(
+                    self.err("'where { ... }' is only valid immediately after a function body"),
+                ),
                 _ => {
                     self.advance();
                     Ok((obj(vec![("$var", Value::String(name.clone()))]), Some(name)))
@@ -444,7 +449,7 @@ impl Parser {
         Ok(Value::Object(map))
     }
 
-    // ----- function literals & let-bindings (spec section 8) -----
+    // ----- function literals & where-bindings (spec section 8) -----
 
     /// Peek whether the `(` at the cursor begins `( params ) =>`.
     fn looks_like_func_lit(&self) -> bool {
@@ -473,10 +478,14 @@ impl Parser {
     fn parse_func_lit(&mut self) -> Result<Value, ParseError> {
         let params = self.parse_params()?;
         self.expect(Tok::FatArrow, "'=>'")?;
-        let (locals, ret) = if self.is_keyword("let") {
-            self.parse_let_body()?
+        // Body is `expr` optionally followed by a `where { ... }` clause
+        // supplying the (lazy, order-independent) locals. `where` is not an
+        // operator, so `parse_expr` stops before it and we consume it here.
+        let ret = self.parse_expr()?;
+        let locals = if self.eat_keyword("where") {
+            self.parse_where_bindings()?
         } else {
-            (Vec::new(), self.parse_expr()?)
+            Vec::new()
         };
         let mut map = Map::new();
         if !params.is_empty() {
@@ -522,11 +531,10 @@ impl Parser {
         Ok(params)
     }
 
-    /// Parse `let { name: value, ... } in expr`, returning the locals (in
-    /// source order) and the `$return` expression.
-    fn parse_let_body(&mut self) -> Result<(Vec<(String, Value)>, Value), ParseError> {
-        self.expect_keyword("let")?;
-        self.expect(Tok::LBrace, "'{' after 'let'")?;
+    /// Parse the `{ name: value, ... }` block of a `where` clause (`where`
+    /// already consumed), returning the locals in source order.
+    fn parse_where_bindings(&mut self) -> Result<Vec<(String, Value)>, ParseError> {
+        self.expect(Tok::LBrace, "'{' after 'where'")?;
         let mut locals = Vec::new();
         if *self.peek() != Tok::RBrace {
             loop {
@@ -542,14 +550,12 @@ impl Parser {
                         }
                     }
                     Tok::RBrace => break,
-                    _ => return Err(self.err("expected ',' or '}' in let-bindings")),
+                    _ => return Err(self.err("expected ',' or '}' in where-bindings")),
                 }
             }
         }
         self.expect(Tok::RBrace, "'}'")?;
-        self.expect_keyword("in")?;
-        let ret = self.parse_expr()?;
-        Ok((locals, ret))
+        Ok(locals)
     }
 
     // ----- control flow (spec section 7) -----
