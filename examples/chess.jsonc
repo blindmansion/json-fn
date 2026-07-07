@@ -155,6 +155,42 @@
     },
   },
 
+  // steppingMoves(board, idx, color, offsets) → [targetIdx...]
+  // Non-sliding pieces (knight, king): each offset is a single candidate step,
+  // kept when in bounds and not blocked by a friendly piece.
+  "steppingMoves": {
+    "$params": ["board", "idx", "color", "offsets"],
+    "row": { "$fn": ["rowOf", { "$var": "idx" }] },
+    "col": { "$fn": ["colOf", { "$var": "idx" }] },
+    "tryOff": {
+      "$params": ["off"],
+      "r": { "$fn": ["add", { "$var": "row" }, { "$var": "off", "$get": 0 }] },
+      "c": { "$fn": ["add", { "$var": "col" }, { "$var": "off", "$get": 1 }] },
+      "ok": { "$fn": ["inBounds", { "$var": "r" }, { "$var": "c" }] },
+      "tIdx": { "$fn": ["toIdx", { "$var": "r" }, { "$var": "c" }] },
+      "target": {
+        "$if": { "$var": "ok" },
+        "$then": { "$var": "board", "$get": { "$var": "tIdx" } },
+        "$else": null,
+      },
+      "blocked": {
+        "$if": { "$fn": ["isNull", { "$var": "target" }] },
+        "$then": false,
+        "$else": {
+          "$eq": [{ "$fn": ["pieceColor", { "$var": "target" }] }, { "$var": "color" }],
+        },
+      },
+      "$return": {
+        "$if": { "$and": [{ "$var": "ok" }, { "$not": { "$var": "blocked" } }] },
+        "$then": [{ "$var": "tIdx" }],
+        "$else": [],
+      },
+    },
+    "$return": {
+      "$fn": ["flatMap", { "$var": "tryOff" }, { "$var": "offsets" }],
+    },
+  },
+
   // pawnMoves(board, idx, color) → [targetIdx...]
   // Forward 1, forward 2 from start rank, diagonal captures.
   "pawnMoves": {
@@ -227,35 +263,12 @@
   // knightMoves(board, idx, color) → [targetIdx...]
   "knightMoves": {
     "$params": ["board", "idx", "color"],
-    "row": { "$fn": ["rowOf", { "$var": "idx" }] },
-    "col": { "$fn": ["colOf", { "$var": "idx" }] },
     "$return": {
       "$fn": [
-        "flatMap",
-        {
-          "$params": ["off"],
-          "r": { "$fn": ["add", { "$var": "row" }, { "$var": "off", "$get": 0 }] },
-          "c": { "$fn": ["add", { "$var": "col" }, { "$var": "off", "$get": 1 }] },
-          "ok": { "$fn": ["inBounds", { "$var": "r" }, { "$var": "c" }] },
-          "tIdx": { "$fn": ["toIdx", { "$var": "r" }, { "$var": "c" }] },
-          "target": {
-            "$if": { "$var": "ok" },
-            "$then": { "$var": "board", "$get": { "$var": "tIdx" } },
-            "$else": null,
-          },
-          "blocked": {
-            "$if": { "$fn": ["isNull", { "$var": "target" }] },
-            "$then": false,
-            "$else": {
-              "$eq": [{ "$fn": ["pieceColor", { "$var": "target" }] }, { "$var": "color" }],
-            },
-          },
-          "$return": {
-            "$if": { "$and": [{ "$var": "ok" }, { "$not": { "$var": "blocked" } }] },
-            "$then": [{ "$var": "tIdx" }],
-            "$else": [],
-          },
-        },
+        "steppingMoves",
+        { "$var": "board" },
+        { "$var": "idx" },
+        { "$var": "color" },
         {
           "$literal": [
             [-2, -1],
@@ -275,35 +288,12 @@
   // kingMoves(board, idx, color) → [targetIdx...]
   "kingMoves": {
     "$params": ["board", "idx", "color"],
-    "row": { "$fn": ["rowOf", { "$var": "idx" }] },
-    "col": { "$fn": ["colOf", { "$var": "idx" }] },
     "$return": {
       "$fn": [
-        "flatMap",
-        {
-          "$params": ["off"],
-          "r": { "$fn": ["add", { "$var": "row" }, { "$var": "off", "$get": 0 }] },
-          "c": { "$fn": ["add", { "$var": "col" }, { "$var": "off", "$get": 1 }] },
-          "ok": { "$fn": ["inBounds", { "$var": "r" }, { "$var": "c" }] },
-          "tIdx": { "$fn": ["toIdx", { "$var": "r" }, { "$var": "c" }] },
-          "target": {
-            "$if": { "$var": "ok" },
-            "$then": { "$var": "board", "$get": { "$var": "tIdx" } },
-            "$else": null,
-          },
-          "blocked": {
-            "$if": { "$fn": ["isNull", { "$var": "target" }] },
-            "$then": false,
-            "$else": {
-              "$eq": [{ "$fn": ["pieceColor", { "$var": "target" }] }, { "$var": "color" }],
-            },
-          },
-          "$return": {
-            "$if": { "$and": [{ "$var": "ok" }, { "$not": { "$var": "blocked" } }] },
-            "$then": [{ "$var": "tIdx" }],
-            "$else": [],
-          },
-        },
+        "steppingMoves",
+        { "$var": "board" },
+        { "$var": "idx" },
+        { "$var": "color" },
         {
           "$literal": [
             [-1, -1],

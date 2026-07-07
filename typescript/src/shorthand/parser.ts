@@ -303,7 +303,9 @@ class Parser {
             this.advance();
             return { value: this.parseRaw(), name: null };
           case "let":
-            throw this.err("'let' is only valid as a function body after '=>'");
+            throw this.err("the 'let { ... } in expr' form is replaced by 'expr where { ... }'");
+          case "where":
+            throw this.err("'where { ... }' is only valid immediately after a function body");
           default:
             this.advance();
             return { value: { $var: t.value }, name: t.value };
@@ -415,13 +417,11 @@ class Parser {
   private parseFuncLit(): JSONType {
     const params = this.parseParams();
     this.expect("fatarrow", "'=>'");
-    let locals: [string, JSONType][] = [];
-    let ret: JSONType;
-    if (this.isKeyword("let")) {
-      [locals, ret] = this.parseLetBody();
-    } else {
-      ret = this.parseExpr();
-    }
+    // Body is `expr` optionally followed by a `where { ... }` clause supplying
+    // the (lazy, order-independent) locals. `where` is not an operator, so
+    // `parseExpr` stops before it and we consume the clause here.
+    const ret = this.parseExpr();
+    const locals = this.eatKeyword("where") ? this.parseWhereBindings() : [];
     const map: Record<string, JSONType> = {};
     if (params.length > 0) {
       map.$params = params;
@@ -460,11 +460,10 @@ class Parser {
     return params;
   }
 
-  /** Parse `let { name: value, ... } in expr`, returning the locals (in source
-   * order) and the `$return` expression. */
-  private parseLetBody(): [[string, JSONType][], JSONType] {
-    this.expectKeyword("let");
-    this.expect("lbrace", "'{' after 'let'");
+  /** Parse the `{ name: value, ... }` block of a `where` clause (`where`
+   * already consumed), returning the locals in source order. */
+  private parseWhereBindings(): [string, JSONType][] {
+    this.expect("lbrace", "'{' after 'where'");
     const locals: [string, JSONType][] = [];
     if (this.peekType() !== "rbrace") {
       for (;;) {
@@ -478,13 +477,12 @@ class Parser {
         } else if (type === "rbrace") {
           break;
         } else {
-          throw this.err("expected ',' or '}' in let-bindings");
+          throw this.err("expected ',' or '}' in where-bindings");
         }
       }
     }
     this.expect("rbrace", "'}'");
-    this.expectKeyword("in");
-    return [locals, this.parseExpr()];
+    return locals;
   }
 
   // ----- control flow (spec section 7) -----

@@ -1,0 +1,314 @@
+{
+  pieceColor: (piece) => if isNull(piece) then null else if piece == upper(piece) then "w" else "b",
+  pieceType: (piece) => upper(piece),
+  otherColor: (color) => if color == "w" then "b" else "w",
+  rowOf: (idx) => floor(idx / 8),
+  colOf: (idx) => idx % 8,
+  toIdx: (row, col) => row * 8 + col,
+  inBounds: (row, col) => row >= 0 && row <= 7 && col >= 0 && col <= 7,
+  makePiece: (color, type) => if color == "w" then type else lower(type),
+  slideDir: (board, row, col, dr, dc, color) => cond {
+    !ok -> [],
+    empty -> concat([tIdx], rest),
+    ally -> [],
+    else -> [tIdx]
+  } where {
+    nr: row + dr,
+    nc: col + dc,
+    ok: inBounds(nr, nc),
+    tIdx: toIdx(nr, nc),
+    target: board[tIdx],
+    empty: isNull(target),
+    ally: pieceColor(target) == color,
+    rest: slideDir(board, nr, nc, dr, dc, color)
+  },
+  slideMoves: (board, idx, color, dirs) => flatMap((d) => slideDir(board, row, col, d[0], d[1], color), dirs) where {
+    row: rowOf(idx),
+    col: colOf(idx)
+  },
+  steppingMoves: (board, idx, color, offsets) => flatMap(tryOff, offsets) where {
+    row: rowOf(idx),
+    col: colOf(idx),
+    tryOff: (off) => if ok && !blocked then [tIdx] else [] where {
+      r: row + off[0],
+      c: col + off[1],
+      ok: inBounds(r, c),
+      tIdx: toIdx(r, c),
+      target: if ok then board[tIdx] else null,
+      blocked: if isNull(target) then false else pieceColor(target) == color
+    }
+  },
+  pawnMoves: (board, idx, color) => concat(fwd1, fwd2, captures) where {
+    row: rowOf(idx),
+    col: colOf(idx),
+    dir: if color == "w" then 1 else -1,
+    startRank: if color == "w" then 1 else 6,
+    fwd1Row: row + dir,
+    fwd1Idx: toIdx(fwd1Row, col),
+    fwd1Ok: inBounds(fwd1Row, col) && isNull(board[fwd1Idx]),
+    fwd1: if fwd1Ok then [fwd1Idx] else [],
+    fwd2Row: row + dir * 2,
+    fwd2Idx: toIdx(fwd2Row, col),
+    fwd2Ok: row == startRank && fwd1Ok && isNull(board[fwd2Idx]),
+    fwd2: if fwd2Ok then [fwd2Idx] else [],
+    captures: flatMap((dc) => if cOk && isEnemy then [cIdx] else [] where {
+      cr: fwd1Row,
+      cc: col + dc,
+      cOk: inBounds(cr, cc),
+      cIdx: toIdx(cr, cc),
+      cTarget: if cOk then board[cIdx] else null,
+      isEnemy: if isNull(cTarget) then false else pieceColor(cTarget) != color
+    }, [-1, 1])
+  },
+  knightMoves: (board, idx, color) => steppingMoves(board, idx, color, raw [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]]),
+  kingMoves: (board, idx, color) => steppingMoves(board, idx, color, raw [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]]),
+  bishopMoves: (board, idx, color) => slideMoves(board, idx, color, raw [[-1,-1],[-1,1],[1,-1],[1,1]]),
+  rookMoves: (board, idx, color) => slideMoves(board, idx, color, raw [[-1,0],[1,0],[0,-1],[0,1]]),
+  queenMoves: (board, idx, color) => slideMoves(board, idx, color, raw [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]]),
+  pieceMoves: (board, idx) => if isNull(piece) then [] else match type {
+    "P" -> pawnMoves(board, idx, color),
+    "N" -> knightMoves(board, idx, color),
+    "B" -> bishopMoves(board, idx, color),
+    "R" -> rookMoves(board, idx, color),
+    "Q" -> queenMoves(board, idx, color),
+    "K" -> kingMoves(board, idx, color),
+    else -> []
+  } where {
+    piece: board[idx],
+    color: pieceColor(piece),
+    type: pieceType(piece)
+  },
+  slideCheck: (board, row, col, dr, dc) => cond {
+    !ok -> null,
+    !isNull(target) -> target,
+    else -> slideCheck(board, nr, nc, dr, dc)
+  } where {
+    nr: row + dr,
+    nc: col + dc,
+    ok: inBounds(nr, nc),
+    tIdx: toIdx(nr, nc),
+    target: board[tIdx]
+  },
+  isAttacked: (board, idx, byColor) => pawnAtt || knightAtt || diagAtt || straightAtt || kingAtt where {
+    row: rowOf(idx),
+    col: colOf(idx),
+    ePawn: makePiece(byColor, "P"),
+    eKnight: makePiece(byColor, "N"),
+    eBishop: makePiece(byColor, "B"),
+    eRook: makePiece(byColor, "R"),
+    eQueen: makePiece(byColor, "Q"),
+    eKing: makePiece(byColor, "K"),
+    pawnSrcRow: if byColor == "w" then row - 1 else row + 1,
+    pawnAttL: inBounds(pawnSrcRow, col - 1) && board[toIdx(pawnSrcRow, col - 1)] == ePawn,
+    pawnAttR: inBounds(pawnSrcRow, col + 1) && board[toIdx(pawnSrcRow, col + 1)] == ePawn,
+    pawnAtt: pawnAttL || pawnAttR,
+    knightAtt: some((off) => inBounds(r, c) && board[toIdx(r, c)] == eKnight where {
+      r: row + off[0],
+      c: col + off[1]
+    }, raw [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]]),
+    diagAtt: some((d) => p == eBishop || p == eQueen where {
+      p: slideCheck(board, row, col, d[0], d[1])
+    }, raw [[-1,-1],[-1,1],[1,-1],[1,1]]),
+    straightAtt: some((d) => p == eRook || p == eQueen where {
+      p: slideCheck(board, row, col, d[0], d[1])
+    }, raw [[-1,0],[1,0],[0,-1],[0,1]]),
+    kingAtt: some((off) => inBounds(r, c) && board[toIdx(r, c)] == eKing where {
+      r: row + off[0],
+      c: col + off[1]
+    }, raw [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]])
+  },
+  findKing: (board, color) => findIndex((cell) => cell == king, board) where {
+    king: if color == "w" then "K" else "k"
+  },
+  isInCheck: (board, color) => if kingPos == -1 then false else isAttacked(board, kingPos, otherColor(color)) where {
+    kingPos: findKing(board, color)
+  },
+  applyMove: (board, from, to) => setAt(setAt(board, to, placedPiece), from, null) where {
+    piece: board[from],
+    color: pieceColor(piece),
+    type: pieceType(piece),
+    toRow: rowOf(to),
+    isPromotion: type == "P" && (toRow == 7 || toRow == 0),
+    placedPiece: if isPromotion then makePiece(color, "Q") else piece
+  },
+  isLegalMove: (board, from, to, turn) => if hasPiece && rightColor then inMoves && !leavesCheck else false where {
+    piece: board[from],
+    hasPiece: !isNull(piece),
+    rightColor: pieceColor(piece) == turn,
+    moves: pieceMoves(board, from),
+    inMoves: includes(moves, to),
+    newBoard: applyMove(board, from, to),
+    leavesCheck: isInCheck(newBoard, turn)
+  },
+  hasAnyLegalMove: (board, color) => some((from) => if isPiece then hasLegal else false where {
+    piece: board[from],
+    isPiece: pieceColor(piece) == color,
+    moves: pieceMoves(board, from),
+    hasLegal: some((to) => !isInCheck(nb, color) where {
+      nb: applyMove(board, from, to)
+    }, moves)
+  }, range(64)),
+  getStatus: (board, turn) => cond {
+    hasLegal -> "playing",
+    inCheck -> "checkmate",
+    else -> "stalemate"
+  } where {
+    hasLegal: hasAnyLegalMove(board, turn),
+    inCheck: isInCheck(board, turn)
+  },
+  playMove: (state, from, to) => if canMove then {
+    board: newBoard,
+    turn: nextTurn,
+    status: newStatus
+  } else state where {
+    board: state.board,
+    turn: state.turn,
+    status: state.status,
+    stillPlaying: status == "playing",
+    legal: isLegalMove(board, from, to, turn),
+    canMove: stillPlaying && legal,
+    newBoard: applyMove(board, from, to),
+    nextTurn: otherColor(turn),
+    newStatus: getStatus(newBoard, nextTurn)
+  },
+  newGame: () => {
+    board: raw ["R","N","B","Q","K","B","N","R","P","P","P","P","P","P","P","P",null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,"p","p","p","p","p","p","p","p","r","n","b","q","k","b","n","r"],
+    turn: "w",
+    status: "playing"
+  },
+  parseSquare: (s) => if len == 2 && file >= 0 && rank >= 0 then rank * 8 + file else null where {
+    len: length(s),
+    fileChar: slice(s, 0, 1),
+    rankChar: slice(s, 1, 2),
+    file: indexOf("abcdefgh", fileChar),
+    rank: indexOf("12345678", rankChar)
+  },
+  squareName: (idx) => fileChar ++ rankChar where {
+    file: idx % 8,
+    rank: floor(idx / 8),
+    fileChar: slice("abcdefgh", file, file + 1),
+    rankChar: str(rank + 1)
+  },
+  parseMove: (s) => if shapeOk && !isNull(from) && !isNull(to) then {
+    from: from,
+    to: to
+  } else null where {
+    t: lower(trim(s)),
+    len: length(t),
+    is4: len == 4,
+    is5: len == 5,
+    shapeOk: is4 || is5 && slice(t, 2, 3) == " ",
+    fromStr: if shapeOk then slice(t, 0, 2) else null,
+    toStr: cond {
+      is4 -> slice(t, 2, 4),
+      is5 -> slice(t, 3, 5),
+      else -> null
+    },
+    from: parseSquare(fromStr),
+    to: parseSquare(toStr)
+  },
+  pieceGlyph: (piece) => if isNull(piece) then "·" else PIECES[piece] where {
+    PIECES: raw {"K":"♔","Q":"♕","R":"♖","B":"♗","N":"♘","P":"♙","k":"♚","q":"♛","r":"♜","b":"♝","n":"♞","p":"♟"}
+  },
+  formatRank: (board, rank) => ` ${str(rank + 1)}  ${join(cells, "  ")}` where {
+    cells: map((file) => pieceGlyph(piece) where {
+      piece: board[rank * 8 + file]
+    }, range(8))
+  },
+  formatBoard: (board) => join(concat(rankLines, ["", "    a  b  c  d  e  f  g  h"]), "\n") where {
+    rankLines: map((rank) => formatRank(board, rank), reverse(range(8)))
+  },
+  turnLabel: (turn) => if turn == "w" then "White" else "Black",
+  statusLine: (state) => cond {
+    status == "checkmate" -> `  Checkmate — ${winnerLabel} wins!`,
+    status == "stalemate" -> "  Stalemate — draw!",
+    inCheck -> `  ${label} to move  [CHECK]`,
+    else -> `  ${label} to move`
+  } where {
+    turn: state.turn,
+    status: state.status,
+    label: turnLabel(turn),
+    winnerLabel: turnLabel(otherColor(turn)),
+    inCheck: isInCheck(state.board, turn)
+  },
+  boardSection: (state, header) => join(lines, "\n") where {
+    headerPart: if header == "" then [""] else [header, ""],
+    lines: concat(headerPart, [formatBoard(state.board), "", statusLine(state), ""])
+  },
+  showResult: (state) => {
+    output: boardSection(state, ""),
+    stderr: "",
+    newState: null,
+    reset: false,
+    exitCode: 0
+  },
+  resetResult: () => {
+    output: boardSection(fresh, "  New game."),
+    stderr: "",
+    newState: null,
+    reset: true,
+    exitCode: 0
+  } where {
+    fresh: newGame()
+  },
+  helpResult: () => {
+    output: "\n  Chess — json-fn edition\n\n  Usage:  bun run typescript/examples/chess.ts <command>\n\n  Commands:\n    e2e4 / e2 e4    Make a move (algebraic notation)\n    show             Display the current board (default)\n    reset            Start a new game\n    help             Show this message\n",
+    stderr: "",
+    newState: null,
+    reset: false,
+    exitCode: 0
+  },
+  moveResult: (state, argv) => cond {
+    isNull(move) -> {
+      output: "",
+      stderr: badParseStderr,
+      newState: null,
+      reset: false,
+      exitCode: 1
+    },
+    !isPlaying -> {
+      output: "",
+      stderr: gameOverStderr,
+      newState: null,
+      reset: false,
+      exitCode: 1
+    },
+    !legal -> {
+      output: "",
+      stderr: illegalStderr,
+      newState: null,
+      reset: false,
+      exitCode: 1
+    },
+    else -> {
+      output: successOutput,
+      stderr: "",
+      newState: nextState,
+      reset: false,
+      exitCode: 0
+    }
+  } where {
+    argc: length(argv),
+    moveInput: if argc >= 2 then `${argv[0]} ${argv[1]}` else argv[0],
+    move: parseMove(moveInput),
+    status: state.status,
+    isPlaying: status == "playing",
+    legal: isLegalMove(state.board, move.from, move.to, state.turn),
+    badParseStderr: `  Invalid move format: "${moveInput}". Use algebraic notation like 'e2e4' or 'e2 e4'.`,
+    gameOverStderr: `  Game is over (${status}). Run 'reset' to start a new game.`,
+    moveDesc: `${squareName(move.from)} → ${squareName(move.to)}`,
+    illegalStderr: `  Illegal move: ${moveDesc}`,
+    nextState: playMove(state, move.from, move.to),
+    moveLine: `  ${turnLabel(state.turn)} plays ${moveDesc}`,
+    successOutput: boardSection(nextState, moveLine)
+  },
+  handleCommand: (state, argv) => match cmd {
+    "show" -> showResult(state),
+    "reset" -> resetResult(),
+    "help" -> helpResult(),
+    else -> moveResult(state, argv)
+  } where {
+    argc: length(argv),
+    cmd: if argc == 0 then "show" else argv[0]
+  }
+}

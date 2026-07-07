@@ -266,7 +266,7 @@ function renderComparison(key: string, operands: JSONType, indent: string): Rend
   return { text: `${left} ${COMPARISONS[key]} ${right}`, prec: P_CMP };
 }
 
-// ----- function bodies & let bindings (spec §8) -----
+// ----- function bodies & where bindings (spec §8) -----
 
 function renderFunctionBody(node: { [k: string]: JSONType }, indent: string): Rendered {
   const params = Array.isArray(node.$params) ? (node.$params as string[]) : [];
@@ -279,8 +279,9 @@ function renderFunctionBody(node: { [k: string]: JSONType }, indent: string): Re
     return { text: `${header} ${emit(node.$return!, P_BLOCK, indent)}`, prec: P_BLOCK };
   }
   const inner = indent + "  ";
+  const ret = emit(node.$return!, P_BLOCK, indent);
   const bindings = locals.map((k) => `${inner}${k}: ${emit(node[k]!, P_BLOCK, inner)}`);
-  const body = `let {\n${bindings.join(",\n")}\n${indent}} in ${emit(node.$return!, P_BLOCK, indent)}`;
+  const body = `${ret} where {\n${bindings.join(",\n")}\n${indent}}`;
   return { text: `${header} ${body}`, prec: P_BLOCK };
 }
 

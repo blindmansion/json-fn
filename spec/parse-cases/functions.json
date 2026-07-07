@@ -10,8 +10,8 @@
       }
     },
     {
-      "description": "let bindings",
-      "source": "(x, y) => let {\n  sum:     add(x, y),\n  doubled: mul(sum, 2)\n} in doubled",
+      "description": "where bindings",
+      "source": "(x, y) => doubled where {\n  sum:     add(x, y),\n  doubled: mul(sum, 2)\n}",
       "expected": {
         "$params": ["x", "y"],
         "sum": { "$fn": ["add", { "$var": "x" }, { "$var": "y" }] },

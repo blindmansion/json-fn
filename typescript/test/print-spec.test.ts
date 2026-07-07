@@ -51,9 +51,9 @@ describe("printer output shape", () => {
   });
 
   test("right operand of a left-assoc op is parenthesized", () => {
-    expect(print({ $fn: ["sub", { $var: "a" }, { $fn: ["sub", { $var: "b" }, { $var: "c" }] }] })).toBe(
-      "a - (b - c)",
-    );
+    expect(
+      print({ $fn: ["sub", { $var: "a" }, { $fn: ["sub", { $var: "b" }, { $var: "c" }] }] }),
+    ).toBe("a - (b - c)");
   });
 
   test("mixed string/expr strcat prints as a template", () => {
