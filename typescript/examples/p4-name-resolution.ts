@@ -10,17 +10,6 @@ import { callProgram, createStdlib, parseShorthand, type JSONType } from "../src
 import { readFileSync } from "fs";
 import { join } from "path";
 
-function rawToLiteral(node: JSONType): JSONType {
-  if (Array.isArray(node)) return node.map(rawToLiteral);
-  if (node !== null && typeof node === "object") {
-    if ("$raw" in node) return { $literal: (node as Record<string, JSONType>).$raw! };
-    const out: Record<string, JSONType> = {};
-    for (const [k, v] of Object.entries(node)) out[k] = rawToLiteral(v);
-    return out;
-  }
-  return node;
-}
-
 const source = readFileSync(
   join(import.meta.dir, "../../examples/p4-name-resolution.jfn"),
   "utf-8",
@@ -28,7 +17,7 @@ const source = readFileSync(
 
 let module: Record<string, JSONType>;
 try {
-  module = rawToLiteral(parseShorthand(source)) as Record<string, JSONType>;
+  module = parseShorthand(source) as Record<string, JSONType>;
 } catch (e) {
   console.error("PARSE FAILED for the whole file:");
   console.error(String(e));

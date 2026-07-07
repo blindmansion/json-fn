@@ -30,7 +30,7 @@ database effect that the host will interpret.
 The two ingredients that are expensive in other runtimes already exist here:
 
 1. **Inert JSON is a first-class concept.** The `raw()` WeakSet marking plus
-   `$literal`/`$raw` is exactly the mechanism effect trees need. Crucially,
+   `$raw` is exactly the mechanism effect trees need. Crucially,
    `callFunctionInternal` already raw-marks every function _result_ — so a
    tagged record built by a constructor function is automatically inert.
    Effect nodes need **no new expression type**.
@@ -214,7 +214,7 @@ None of this blocks shipping the untyped semantics first.
    `$return` closures would be re-walked by `replaceVars` on re-entry (mostly
    harmless since they're closed, but not principled). For the
    serialize/replay superpower, define a canonical `serializeTask` /
-   `hydrateTask` pair (e.g. durable `$literal` wrapping). Decide early.
+   `hydrateTask` pair (e.g. durable `$raw` wrapping). Decide early.
 2. **Tag choice** (§2): must be invisible to `classifyExpressionType` and
    compatible with the shorthand `$`-key rule.
 3. **Conformance is the real budget.** Four implementations + normative spec:

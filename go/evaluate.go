@@ -474,9 +474,9 @@ func evaluateExpression(expression any, ctx *evaluationContext) (any, error) {
 	case ExprPropertyAccess:
 		return evaluatePropertyAccess(expression.(map[string]any), ctx)
 
-	case ExprLiteral:
+	case ExprRaw:
 		obj := expression.(map[string]any)
-		return obj["$literal"], nil
+		return obj["$raw"], nil
 
 	case ExprArray:
 		arr := expression.([]any)
@@ -1026,11 +1026,11 @@ func getObjectExpressionType(obj map[string]any) (ExpressionType, error) {
 		return ExprNot, nil
 	}
 
-	if _, hasLiteral := obj["$literal"]; hasLiteral {
+	if _, hasRaw := obj["$raw"]; hasRaw {
 		if expressionKeyCount(obj) > 1 {
-			return 0, exprError(obj, "$literal expressions cannot have other properties.")
+			return 0, exprError(obj, "$raw expressions cannot have other properties.")
 		}
-		return ExprLiteral, nil
+		return ExprRaw, nil
 	}
 
 	return ExprObject, nil

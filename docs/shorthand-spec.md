@@ -10,13 +10,9 @@ pretty-prints back to shorthand.
 - **Code-first.** Identifiers and calls are code by default; literal strings are
   quoted; inert data is marked with `raw`.
 - **Bijective (by normal form).** One canonical shorthand per JSON node and vice
-  versa. Byte-exact round-tripping of arbitrary hand-written JSON is *not*
+  versa. Byte-exact round-tripping of arbitrary hand-written JSON is _not_
   guaranteed — JSON is normalized to canonical form first (e.g. property-access
   spellings, see §5).
-
-Read alongside [`language.md`](./language.md) (the target language) and
-[`shorthand-stdlib-changes.md`](./shorthand-stdlib-changes.md) (the two core
-changes this assumes: variadic `strcat`, and `$literal` renamed to `$raw`).
 
 File extension: `.jfn`.
 
@@ -43,11 +39,11 @@ File extension: `.jfn`.
 Every construct is an expression. Three value "states" from the language are
 made explicit in the surface syntax:
 
-| State                          | Surface           | JSON                       |
-| ------------------------------ | ----------------- | -------------------------- |
-| Evaluated expression           | bare code         | `$fn` / `$var` / forms     |
-| Plain data (values evaluated)  | `[...]` / `{k: v}`| array / object             |
-| Inert (verbatim, un-evaluated) | `raw <json>`      | `{ "$raw": <json> }`       |
+| State                          | Surface            | JSON                   |
+| ------------------------------ | ------------------ | ---------------------- |
+| Evaluated expression           | bare code          | `$fn` / `$var` / forms |
+| Plain data (values evaluated)  | `[...]` / `{k: v}` | array / object         |
+| Inert (verbatim, un-evaluated) | `raw <json>`       | `{ "$raw": <json> }`   |
 
 ---
 
@@ -114,16 +110,16 @@ a hot path. Plain constant data (e.g. `[1, 2, 3]`) needs no `raw`.
 
 ## 4. Function calls and references
 
-In **call position**, a bare identifier is a literal function *name*; a
-parenthesized expression is an *evaluated* callee.
+In **call position**, a bare identifier is a literal function _name_; a
+parenthesized expression is an _evaluated_ callee.
 
 **Name resolution is lexical-first, registry-second — uniformly.** A name in
 call position (a direct call `f(x)`, an operator that desugars to a named call
 like `+`→`add`, or a bare reference used as a value) resolves against the
-enclosing lexical scope chain first. If it resolves to a *function declaration*
+enclosing lexical scope chain first. If it resolves to a _function declaration_
 — a parameter, a `where`-local, or a module binding whose value is a function —
 that binding is used, **shadowing** any same-named stdlib/host builtin. If the
-lexical binding is *not* a function (e.g. `add: 5`), or there is no lexical
+lexical binding is _not_ a function (e.g. `add: 5`), or there is no lexical
 binding, resolution falls through to the function registry (scoped local
 functions + stdlib/host). Only if both miss is it an error. This makes operator
 desugaring, direct calls, and bare references agree on shadowing.
@@ -173,7 +169,7 @@ A bare identifier is a variable. Access lowers to `$var` + `$get`; access on a
 non-variable expression lowers to `$get` + `$from`.
 
 A bare identifier that is **not** a lexical binding but **is** a registered
-function resolves to that function *reference* (i.e. `&`-free; see §4). The
+function resolves to that function _reference_ (i.e. `&`-free; see §4). The
 fallback only applies to a plain name: a name with a trailing path (`length.foo`)
 that has no lexical binding is an error rather than resolving the reference and
 then walking into it.
@@ -208,14 +204,14 @@ it from the interpreters).
 
 A closed set of operators. Precedence from highest to lowest:
 
-| Prec | Operators           | Assoc      | Lowers to                                   |
-| ---- | ------------------- | ---------- | ------------------------------------------- |
-| 1    | `!x`  `-x` (unary)  | prefix     | `$not` · `neg(x)`                           |
-| 2    | `*` `/` `%`         | left       | `mul` · `div` · `mod` (stdlib calls)        |
-| 3    | `+` `-`  `++`       | left       | `add` · `sub` · `strcat` (stdlib calls)     |
-| 4    | `== != < <= > >=`   | none       | `$eq $neq $lt $lte $gt $gte`                |
-| 5    | `&&`                | flatten    | `$and` (short-circuit, variadic)            |
-| 6    | `\|\|`              | flatten    | `$or` (short-circuit, variadic)             |
+| Prec | Operators         | Assoc   | Lowers to                               |
+| ---- | ----------------- | ------- | --------------------------------------- |
+| 1    | `!x` `-x` (unary) | prefix  | `$not` · `neg(x)`                       |
+| 2    | `*` `/` `%`       | left    | `mul` · `div` · `mod` (stdlib calls)    |
+| 3    | `+` `-` `++`      | left    | `add` · `sub` · `strcat` (stdlib calls) |
+| 4    | `== != < <= > >=` | none    | `$eq $neq $lt $lte $gt $gte`            |
+| 5    | `&&`              | flatten | `$and` (short-circuit, variadic)        |
+| 6    | `\|\|`            | flatten | `$or` (short-circuit, variadic)         |
 
 ```jfn
 row * 8 + col
@@ -396,7 +392,10 @@ A bare `{...}` is **always** a data object — including immediately after `=>`:
 ```
 
 ```json
-{ "$params": ["state"], "$return": { "output": { "$fn": ["boardSection", { "$var": "state" }, ""] }, "exitCode": 0 } }
+{
+  "$params": ["state"],
+  "$return": { "output": { "$fn": ["boardSection", { "$var": "state" }, ""] }, "exitCode": 0 }
+}
 ```
 
 ### Parameters
@@ -417,7 +416,10 @@ literal can recurse by its local name.
 ```
 
 ```json
-{ "$params": ["x"], "$return": { "$params": ["y"], "$return": { "$fn": ["add", { "$var": "x" }, { "$var": "y" }] } } }
+{
+  "$params": ["x"],
+  "$return": { "$params": ["y"], "$return": { "$fn": ["add", { "$var": "x" }, { "$var": "y" }] } }
+}
 ```
 
 ---
@@ -430,7 +432,7 @@ There is no file-level construct beyond "an expression."
 A typical multi-function file is an **object mapping names to expressions** —
 constants and function literals — as in `examples/chess.jsonc` and
 `examples/life.jfn`. This object is the **outermost `letrec` scope**: top-level
-names (constants *and* functions) are visible via `$var` throughout the file,
+names (constants _and_ functions) are visible via `$var` throughout the file,
 and functions are callable via `$fn`, with the same lazy, order-independent,
 mutually-recursive semantics a function body gives its locals. The host supplies
 the parent frame (stdlib + native builtins) and picks an entry point to invoke.
@@ -451,7 +453,10 @@ the parent frame (stdlib + native builtins) and picks an entry point to invoke.
 
 ```json
 {
-  "otherColor": { "$params": ["color"], "$return": { "$if": { "$eq": [{ "$var": "color" }, "w"] }, "$then": "b", "$else": "w" } },
+  "otherColor": {
+    "$params": ["color"],
+    "$return": { "$if": { "$eq": [{ "$var": "color" }, "w"] }, "$then": "b", "$else": "w" }
+  },
   "pieceType": { "$params": ["piece"], "$return": { "$fn": ["upper", { "$var": "piece" }] } }
 }
 ```

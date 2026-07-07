@@ -237,15 +237,15 @@ for (const size of [50, 200, 500]) {
 }
 
 // ===========================================================================
-// 4. $literal in JSON — same as test 1 but using $literal instead of raw()
+// 4. $raw in JSON — same as test 1 but using $raw instead of raw()
 // ===========================================================================
-console.log("═══ 4. $literal (JSON-level escape) ═══\n");
+console.log("═══ 4. $raw (JSON-level escape) ═══\n");
 
 {
   const size = 500;
   const data = generateRecords(size);
 
-  const withoutLiteral: JSONType = {
+  const withoutRaw: JSONType = {
     $return: {
       $fn: [
         "map",
@@ -262,7 +262,7 @@ console.log("═══ 4. $literal (JSON-level escape) ═══\n");
     records: data,
   };
 
-  const withLiteral: JSONType = {
+  const withRaw: JSONType = {
     $return: {
       $fn: [
         "map",
@@ -276,23 +276,23 @@ console.log("═══ 4. $literal (JSON-level escape) ═══\n");
         { $var: "records" },
       ],
     },
-    records: { $literal: data },
+    records: { $raw: data },
   };
 
-  console.log(`  --- size=${size}, without $literal ---`);
+  console.log(`  --- size=${size}, without $raw ---`);
   let stats = createPerfStats();
   bench(
     `plain`,
-    () => callFunction(withoutLiteral as FunctionDeclaration, [], functions, { perf: stats }),
+    () => callFunction(withoutRaw as FunctionDeclaration, [], functions, { perf: stats }),
     5,
   );
   printPerfStats(stats);
 
-  console.log(`  --- size=${size}, with $literal ---`);
+  console.log(`  --- size=${size}, with $raw ---`);
   stats = createPerfStats();
   bench(
-    `$literal`,
-    () => callFunction(withLiteral as FunctionDeclaration, [], functions, { perf: stats }),
+    `$raw`,
+    () => callFunction(withRaw as FunctionDeclaration, [], functions, { perf: stats }),
     5,
   );
   printPerfStats(stats);

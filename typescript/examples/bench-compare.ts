@@ -246,7 +246,7 @@ functions.checkLine = {
 functions.checkWin = {
   $params: ["board", "player"],
   lines: {
-    $literal: [
+    $raw: [
       [0, 1, 2],
       [3, 4, 5],
       [6, 7, 8],
@@ -368,7 +368,7 @@ functions.bestMove = {
           $else: { $var: "acc" },
         },
       },
-      { $literal: { score: -100, pos: -1 } },
+      { $raw: { score: -100, pos: -1 } },
       { $var: "emptyPos" },
     ],
   },

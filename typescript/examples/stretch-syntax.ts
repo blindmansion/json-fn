@@ -7,17 +7,6 @@
 
 import { callProgram, createStdlib, parseShorthand, type JSONType } from "../src";
 
-function rawToLiteral(node: JSONType): JSONType {
-  if (Array.isArray(node)) return node.map(rawToLiteral);
-  if (node !== null && typeof node === "object") {
-    if ("$raw" in node) return { $literal: (node as Record<string, JSONType>).$raw! };
-    const out: Record<string, JSONType> = {};
-    for (const [k, v] of Object.entries(node)) out[k] = rawToLiteral(v);
-    return out;
-  }
-  return node;
-}
-
 const stdlib = createStdlib();
 
 type Probe = { name: string; src: string; entry: string; args: JSONType[]; note: string };
@@ -172,7 +161,8 @@ const probes: Probe[] = [
 ];
 
 function show(v: JSONType): string {
-  if (v !== null && typeof v === "object" && !Array.isArray(v) && "$return" in v) return "<function>";
+  if (v !== null && typeof v === "object" && !Array.isArray(v) && "$return" in v)
+    return "<function>";
   const s = JSON.stringify(v);
   return s.length > 30 ? s.slice(0, 27) + "..." : s;
 }
@@ -181,12 +171,14 @@ const rows: string[] = [];
 for (const probe of probes) {
   let stage = "parse";
   try {
-    const module = rawToLiteral(parseShorthand(probe.src)) as Record<string, JSONType>;
+    const module = parseShorthand(probe.src) as Record<string, JSONType>;
     stage = "run";
     const result = callProgram(module, probe.entry, probe.args, stdlib);
     rows.push(`  OK    ${probe.name.padEnd(18)} => ${show(result).padEnd(20)} [${probe.note}]`);
   } catch (e) {
-    const msg = String(e).replace(/^(ParseError|Error):\s*/, "").split("\n")[0]!;
+    const msg = String(e)
+      .replace(/^(ParseError|Error):\s*/, "")
+      .split("\n")[0]!;
     const tag = stage === "parse" ? "PARSE " : "RUN   ";
     rows.push(`  ${tag}${probe.name.padEnd(18)} !! ${msg}`);
   }

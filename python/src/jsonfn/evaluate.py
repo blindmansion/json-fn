@@ -648,12 +648,12 @@ class Interpreter:
                     )
                 return not _truthy(self._evaluate(expr["$not"], get_var))
 
-            if "$literal" in expr:
+            if "$raw" in expr:
                 if _expr_key_count(expr) != 1:
                     raise EvaluationError(
-                        _expr_error(expr, "$literal expressions cannot have other properties.")
+                        _expr_error(expr, "$raw expressions cannot have other properties.")
                     )
-                return expr["$literal"]
+                return expr["$raw"]
 
             if "$get" in expr or "$from" in expr:
                 if "$get" not in expr or "$from" not in expr:
@@ -1209,11 +1209,11 @@ def _classify_object(obj: dict[str, Any]) -> ExpressionType:
             )
         return ExpressionType.NOT
 
-    if "$literal" in obj:
+    if "$raw" in obj:
         if n > 1:
             raise EvaluationError(
-                _expr_error(obj, "$literal expressions cannot have other properties.")
+                _expr_error(obj, "$raw expressions cannot have other properties.")
             )
-        return ExpressionType.LITERAL
+        return ExpressionType.RAW
 
     return ExpressionType.OBJECT

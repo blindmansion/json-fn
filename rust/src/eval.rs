@@ -557,7 +557,7 @@ enum ExprKind {
     Comparison,
     Not,
     PropertyAccess,
-    Literal,
+    Raw,
     Object,
     Array,
     String,
@@ -809,14 +809,14 @@ fn classify_object(obj: &Map<String, Value>, expr: &Value) -> Result<ExprKind, E
         return Ok(ExprKind::Not);
     }
 
-    if obj.contains_key("$literal") {
+    if obj.contains_key("$raw") {
         if expression_key_count(obj) > 1 {
             return Err(expr_error(
                 expr,
-                "$literal expressions cannot have other properties.",
+                "$raw expressions cannot have other properties.",
             ));
         }
-        return Ok(ExprKind::Literal);
+        return Ok(ExprKind::Raw);
     }
 
     Ok(ExprKind::Object)
@@ -1003,9 +1003,9 @@ fn evaluate_expression(expr: &Value, ctx: &mut EvalCtx) -> Result<Value, EvalErr
             Ok(Value::Bool(!is_truthy(&result)))
         }
         ExprKind::PropertyAccess => evaluate_property_access(expr, ctx),
-        ExprKind::Literal => {
+        ExprKind::Raw => {
             let obj = expr.as_object().unwrap();
-            Ok(obj["$literal"].clone())
+            Ok(obj["$raw"].clone())
         }
         ExprKind::Array => {
             let arr = expr.as_array().unwrap();

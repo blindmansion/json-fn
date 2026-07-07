@@ -152,11 +152,7 @@ Array of expressions evaluated left-to-right. Returns the first falsy value, or 
 
 ```json
 {
-  "$and": [
-    { "$gt": [{ "$var": "x" }, 0] },
-    { "$lt": [{ "$var": "x" }, 100] },
-    "in range"
-  ]
+  "$and": [{ "$gt": [{ "$var": "x" }, 0] }, { "$lt": [{ "$var": "x" }, 100] }, "in range"]
 }
 ```
 
@@ -189,13 +185,13 @@ Evaluates the expression and returns its logical negation using normal json-fn t
 { "$not": { "$eq": [{ "$var": "status" }, "playing"] } }
 ```
 
-### Literal — `{ $literal }`
+### Raw — `{ $raw }`
 
 Returns the value as-is without evaluating nested expressions. Use for constant data in hot paths or to prevent keyword collisions (data that happens to contain `$fn`, `$var`, etc. keys).
 
 ```json
 {
-  "$literal": [
+  "$raw": [
     [0, 1, 2],
     [3, 4, 5],
     [6, 7, 8]
@@ -224,9 +220,9 @@ A `$comment` key with a string value is ignored everywhere it appears as a sibli
 Rules:
 
 - The value **must be a string** to be recognized as a comment. Non-string values are treated as normal keys (and will typically cause "expression cannot have other properties" errors in expression forms).
-- Allowed as a sibling key in any expression form (`$fn`, `$var`, `$if`/`$then`/`$else`, `$cond`, `$and`, `$or`, comparison shorthands, `$not`, `$literal`, `$get`/`$from`, `$return`/`$params`/locals).
-- In plain data objects, `$comment` is stripped from the output. To preserve a literal `$comment` key in data, wrap with `$literal`.
-- Inside `$literal`, the entire value is returned verbatim — `$comment` is preserved.
+- Allowed as a sibling key in any expression form (`$fn`, `$var`, `$if`/`$then`/`$else`, `$cond`, `$and`, `$or`, comparison shorthands, `$not`, `$raw`, `$get`/`$from`, `$return`/`$params`/locals).
+- In plain data objects, `$comment` is stripped from the output. To preserve a literal `$comment` key in data, wrap with `$raw`.
+- Inside `$raw`, the entire value is returned verbatim — `$comment` is preserved.
 - Closures preserve `$comment` when a function body is returned as a value.
 
 ## Function Bodies
@@ -372,9 +368,9 @@ Consequences:
 
 - **Shadowing.** A module binding shadows a same-named registry entry (stdlib is the parent frame).
 - **Inner binders still win.** A function's `$params` or locals shadow a module constant of the same name, at any nesting depth — module scope is just the outermost link in the same chain described under [Scoping Rules](#scoping-rules).
-- **Lisp-2 asymmetry (by syntax, not runtime type).** Only a binding whose value is *literally* a function body (has a `$return` key) becomes `$fn`-callable. So a module *constant* named `map` shadows `$var map` but **not** `$fn map` (which still resolves the stdlib `map`), even if that constant happens to evaluate to a function; a module *function* named `map` shadows **both**.
+- **Lisp-2 asymmetry (by syntax, not runtime type).** Only a binding whose value is _literally_ a function body (has a `$return` key) becomes `$fn`-callable. So a module _constant_ named `map` shadows `$var map` but **not** `$fn map` (which still resolves the stdlib `map`), even if that constant happens to evaluate to a function; a module _function_ named `map` shadows **both**.
 
-This is a single outermost frame, not a module *system*: there is no `import` / `export`, no multiple modules, and no re-exports.
+This is a single outermost frame, not a module _system_: there is no `import` / `export`, no multiple modules, and no re-exports.
 
 ## Dynamic Dispatch
 
@@ -412,16 +408,16 @@ All functions listed below are available in the standard library.
 
 ### Comparison
 
-| Function  | Args     | Description                  |
-| --------- | -------- | ---------------------------- |
-| `eq`      | `(a, b)` | strict equality              |
-| `neq`     | `(a, b)` | strict inequality            |
-| `jsonEq`  | `(a, b)` | structural JSON equality     |
-| `jsonNeq` | `(a, b)` | structural JSON inequality   |
-| `gt`      | `(a, b)` | `a > b`                      |
-| `gte`     | `(a, b)` | `a >= b`                     |
-| `lt`      | `(a, b)` | `a < b`                      |
-| `lte`     | `(a, b)` | `a <= b`                     |
+| Function  | Args     | Description                |
+| --------- | -------- | -------------------------- |
+| `eq`      | `(a, b)` | strict equality            |
+| `neq`     | `(a, b)` | strict inequality          |
+| `jsonEq`  | `(a, b)` | structural JSON equality   |
+| `jsonNeq` | `(a, b)` | structural JSON inequality |
+| `gt`      | `(a, b)` | `a > b`                    |
+| `gte`     | `(a, b)` | `a >= b`                   |
+| `lt`      | `(a, b)` | `a < b`                    |
+| `lte`     | `(a, b)` | `a <= b`                   |
 
 `jsonEq` and `jsonNeq` compare arrays and objects recursively; object key order does not matter. They do not coerce types, so `true` is not `1` and `"1"` is not `1`.
 
@@ -453,31 +449,31 @@ All functions listed below are available in the standard library.
 
 ### Arrays
 
-| Function   | Args                 | Description                            |
-| ---------- | -------------------- | -------------------------------------- |
-| `length`   | `(arr)`              | length (works on strings too)          |
-| `head`     | `(arr)`              | first element                          |
-| `last`     | `(arr)`              | last element (null if empty)           |
-| `tail`     | `(arr)`              | all but first                          |
-| `concat`   | `(...arrays)`        | concatenate arrays (variadic)          |
-| `range`    | `(n)`                | `[0, 1, ..., n-1]`                     |
-| `slice`    | `(arr, start, end?)` | slice                                  |
-| `reverse`  | `(arr)`              | reversed copy                          |
+| Function   | Args                 | Description                              |
+| ---------- | -------------------- | ---------------------------------------- |
+| `length`   | `(arr)`              | length (works on strings too)            |
+| `head`     | `(arr)`              | first element                            |
+| `last`     | `(arr)`              | last element (null if empty)             |
+| `tail`     | `(arr)`              | all but first                            |
+| `concat`   | `(...arrays)`        | concatenate arrays (variadic)            |
+| `range`    | `(n)`                | `[0, 1, ..., n-1]`                       |
+| `slice`    | `(arr, start, end?)` | slice                                    |
+| `reverse`  | `(arr)`              | reversed copy                            |
 | `includes` | `(arr, value)`       | strict contains check (works on strings) |
-| `indexOf`  | `(arr, value)`       | strict index of value (-1 if missing)  |
-| `flatten`  | `(arr)`              | flatten one level                      |
-| `setAt`    | `(arr, idx, value)`  | new array with element at idx replaced |
+| `indexOf`  | `(arr, value)`       | strict index of value (-1 if missing)    |
+| `flatten`  | `(arr)`              | flatten one level                        |
+| `setAt`    | `(arr, idx, value)`  | new array with element at idx replaced   |
 
 ### Strings
 
-| Function | Args         | Description               |
-| -------- | ------------ | ------------------------- |
-| `upper`  | `(s)`        | uppercase                 |
-| `lower`  | `(s)`        | lowercase                 |
-| `trim`   | `(s)`        | trim whitespace           |
+| Function | Args           | Description               |
+| -------- | -------------- | ------------------------- |
+| `upper`  | `(s)`          | uppercase                 |
+| `lower`  | `(s)`          | lowercase                 |
+| `trim`   | `(s)`          | trim whitespace           |
 | `strcat` | `(...strings)` | concatenate strings       |
-| `split`  | `(s, sep)`   | split string              |
-| `join`   | `(arr, sep)` | join array with separator |
+| `split`  | `(s, sep)`     | split string              |
+| `join`   | `(arr, sep)`   | join array with separator |
 
 ### Regex
 
@@ -538,20 +534,25 @@ Higher-order functions can invoke json-fn callbacks. The callback argument can b
 
 ### Debugging
 
-| Function | Args              | Description                                                                                 |
-| -------- | ----------------- | ------------------------------------------------------------------------------------------- |
-| `log`    | `(value, label?)` | passes `value` and optional `label` to the host-configured logger, then returns `value`      |
+| Function | Args              | Description                                                                             |
+| -------- | ----------------- | --------------------------------------------------------------------------------------- |
+| `log`    | `(value, label?)` | passes `value` and optional `label` to the host-configured logger, then returns `value` |
 
 `log` is a tap-style debugging helper:
 
 ```json
-{ "$fn": ["map", { "$params": ["x"], "$return": { "$fn": ["log", { "$var": "x" }, "item"] } }, [1, 2, 3]] }
+{
+  "$fn": [
+    "map",
+    { "$params": ["x"], "$return": { "$fn": ["log", { "$var": "x" }, "item"] } },
+    [1, 2, 3]
+  ]
+}
 ```
 
 By default, `log` is inert and produces no output. Host integrations may pass a logger when constructing the standard library to capture or emit logs. The output destination and format are host-defined.
 
 > **Note: lazy locals.** Because non-`$return` keys in a function body are [lazy](#lazy-local-variables), a `log` call placed in an unreferenced local is never evaluated. To log inside a function body, either put the `log` call in the path of `$return`, or reference the debug local from `$return` so it actually runs.
->
 
 ## HOF Argument Order
 
@@ -680,7 +681,7 @@ How limits are supplied, the per-language cancellation/timeout APIs, and default
 - `$or` must be the sole key; value must be an array of expressions.
 - `$eq`, `$neq`, `$lt`, `$lte`, `$gt`, and `$gte` must be the sole key; value must be an array of exactly two expressions.
 - `$not` must be the sole key.
-- `$literal` must be the sole key.
+- `$raw` must be the sole key.
 - `$fn` as an array (function call) must be the sole key. `$fn` as a non-array (reference) must also be the sole key.
 - `$return` cannot coexist with `$fn`.
 - `$comment` (with a string value) is allowed as a sibling key in any expression form and does not count toward "sole key" / "exactly N keys" constraints. In plain data objects it is stripped from the output.

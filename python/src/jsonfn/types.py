@@ -147,7 +147,7 @@ class ExpressionType(Enum):
     COMPARISON = auto()
     NOT = auto()
     PROPERTY_ACCESS = auto()
-    LITERAL = auto()
+    RAW = auto()
     OBJECT = auto()
     ARRAY = auto()
     STRING = auto()

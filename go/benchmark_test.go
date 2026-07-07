@@ -285,7 +285,7 @@ func buildTicTacToeStdlib() FunctionRegistry {
 	stdlib["checkWin"] = map[string]any{
 		"$params": []any{"board", "player"},
 		"lines": map[string]any{
-			"$literal": []any{
+			"$raw": []any{
 				[]any{float64(0), float64(1), float64(2)},
 				[]any{float64(3), float64(4), float64(5)},
 				[]any{float64(6), float64(7), float64(8)},
@@ -428,7 +428,7 @@ func buildTicTacToeStdlib() FunctionRegistry {
 						"$else": map[string]any{"$var": "acc"},
 					},
 				},
-				map[string]any{"$literal": map[string]any{"score": float64(-100), "pos": float64(-1)}},
+				map[string]any{"$raw": map[string]any{"score": float64(-100), "pos": float64(-1)}},
 				map[string]any{"$var": "emptyPos"},
 			},
 		},

@@ -10,22 +10,11 @@ import { callProgram, createStdlib, parseShorthand, type JSONType } from "../src
 import { readFileSync } from "fs";
 import { join } from "path";
 
-function rawToLiteral(node: JSONType): JSONType {
-  if (Array.isArray(node)) return node.map(rawToLiteral);
-  if (node !== null && typeof node === "object") {
-    if ("$raw" in node) return { $literal: (node as Record<string, JSONType>).$raw! };
-    const out: Record<string, JSONType> = {};
-    for (const [k, v] of Object.entries(node)) out[k] = rawToLiteral(v);
-    return out;
-  }
-  return node;
-}
-
 const source = readFileSync(join(import.meta.dir, "../../examples/stretch.jfn"), "utf-8");
 
 let module: Record<string, JSONType>;
 try {
-  module = rawToLiteral(parseShorthand(source)) as Record<string, JSONType>;
+  module = parseShorthand(source) as Record<string, JSONType>;
 } catch (e) {
   console.error("PARSE FAILED for the whole file:");
   console.error(String(e));
@@ -64,7 +53,14 @@ const probes: Probe[] = [
   { name: "sortByAge", args: [[{ age: 3 }, { age: 1 }]], note: "sortBy" },
   { name: "uniqueOf", args: [[1, 1, 2]], note: "unique" },
   { name: "flattenOf", args: [[[1], [2]]], note: "flatten" },
-  { name: "zipOf", args: [[1, 2], [3, 4]], note: "zip" },
+  {
+    name: "zipOf",
+    args: [
+      [1, 2],
+      [3, 4],
+    ],
+    note: "zip",
+  },
   { name: "takeOf", args: [[1, 2, 3], 2], note: "take" },
   { name: "dropOf", args: [[1, 2, 3], 1], note: "drop" },
   { name: "headOf", args: [[1, 2, 3]], note: "head" },
@@ -88,7 +84,14 @@ const probes: Probe[] = [
   { name: "entriesOf", args: [{ a: 1 }], note: "entries" },
   { name: "dynGet", args: [{ x: 9 }, "x"], note: "obj[var] dynamic index" },
   { name: "missingKey", args: [{ a: 1 }], note: "obj.nope missing key" },
-  { name: "deepEq", args: [[1, 2], [1, 2]], note: "== on arrays (deep?)" },
+  {
+    name: "deepEq",
+    args: [
+      [1, 2],
+      [1, 2],
+    ],
+    note: "== on arrays (deep?)",
+  },
   { name: "sameArr", args: [], note: "[1,2,3] == [1,2,3]" },
 
   // Operators / truthiness
@@ -131,7 +134,9 @@ for (const probe of probes) {
     rows.push(`  ✓  ${label.padEnd(38)} => ${show(result).padEnd(24)}  [${probe.note}]`);
   } catch (e) {
     fail++;
-    const msg = String(e).replace(/^Error:\s*/, "").split("\n")[0]!;
+    const msg = String(e)
+      .replace(/^Error:\s*/, "")
+      .split("\n")[0]!;
     rows.push(`  ✗  ${label.padEnd(38)} !! ${msg.slice(0, 40).padEnd(24)}  [${probe.note}]`);
   }
 }

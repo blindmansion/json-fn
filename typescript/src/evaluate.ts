@@ -692,10 +692,10 @@ function evaluateExpression(expression: JSONType, context: EvaluationContext): J
     case ExpressionType.PropertyAccess:
       return evaluatePropertyAccess(expression as PropertyAccess | VarPropertyAccess, context);
 
-    case ExpressionType.Literal:
-      const literalValue = (expression as { $literal: JSONType }).$literal;
-      raw(literalValue);
-      return literalValue;
+    case ExpressionType.Raw:
+      const rawValue = (expression as { $raw: JSONType }).$raw;
+      raw(rawValue);
+      return rawValue;
 
     case ExpressionType.Array:
       const array = expression as JSONType[];
@@ -1138,11 +1138,11 @@ function classifyExpressionType(json: JSONType): ExpressionType {
       return ExpressionType.Not;
     }
 
-    if ("$literal" in json) {
+    if ("$raw" in json) {
       if (expressionKeyCount(json) > 1) {
-        exprError(json, "$literal expressions cannot have other properties.");
+        exprError(json, "$raw expressions cannot have other properties.");
       }
-      return ExpressionType.Literal;
+      return ExpressionType.Raw;
     }
 
     return ExpressionType.Object;

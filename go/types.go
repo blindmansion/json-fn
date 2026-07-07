@@ -27,7 +27,7 @@ const (
 	ExprComparison
 	ExprNot
 	ExprPropertyAccess
-	ExprLiteral
+	ExprRaw
 	ExprObject
 	ExprArray
 	ExprString
@@ -49,7 +49,7 @@ var exprTypeNames = map[ExpressionType]string{
 	ExprComparison:        "Comparison",
 	ExprNot:               "Not",
 	ExprPropertyAccess:    "PropertyAccess",
-	ExprLiteral:           "Literal",
+	ExprRaw:               "Raw",
 	ExprObject:            "Object",
 	ExprArray:             "Array",
 	ExprString:            "String",

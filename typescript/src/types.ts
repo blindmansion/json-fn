@@ -13,7 +13,7 @@ enum ExpressionType {
   Comparison,
   Not,
   PropertyAccess,
-  Literal,
+  Raw,
   Object,
   Array,
   String,

@@ -31,9 +31,9 @@ recognizes it and returns it immediately without walking its contents.
 **You don't need to do anything to benefit from this.** It handles the most common
 case: data produced by one function flowing into the next.
 
-## When you need `$literal`
+## When you need `$raw`
 
-`$literal` is for **constant data embedded directly in your JSON program**. The
+`$raw` is for **constant data embedded directly in your JSON program**. The
 automatic marking only covers function return values — it can't help with data
 that lives in the expression tree itself, because that data is re-evaluated from
 scratch every time the surrounding expression runs.
@@ -62,33 +62,33 @@ Every time this function is called, the evaluator walks `lines` — 8 subarrays 
 every time. If this function is called 30,000 times (as in a minimax game tree),
 that's ~1 million wasted evaluations.
 
-Wrapping it in `$literal` tells the evaluator to return the value as-is and mark
+Wrapping it in `$raw` tells the evaluator to return the value as-is and mark
 it raw:
 
 ```json
-"lines": { "$literal": [[0,1,2], [3,4,5], [6,7,8], [0,3,6], [1,4,7], [2,5,8], [0,4,8], [2,4,6]] }
+"lines": { "$raw": [[0,1,2], [3,4,5], [6,7,8], [0,3,6], [1,4,7], [2,5,8], [0,4,8], [2,4,6]] }
 ```
 
 Now `lines` is evaluated once (on first access, since local variables are lazy),
 returns the raw-marked array, and every subsequent use — including closure
 captures via `replaceVars` — skips it entirely.
 
-**Use `$literal` when you have:**
+**Use `$raw` when you have:**
 
 - Lookup tables or configuration arrays inside function bodies
 - Large constant objects (schemas, mappings, default values)
 - Any data embedded in a function that's called in a loop or recursion
 
-**Don't bother with `$literal` for:**
+**Don't bother with `$raw` for:**
 
 - Small constants in functions called a handful of times (the overhead of walking
   `{ score: -100, pos: -1 }` twice is negligible)
 - Data that's passed in as a function argument (already handled by auto-marking
   if it came from another function)
 
-`$literal` also serves as an escape hatch for **keyword collisions** — if your
+`$raw` also serves as an escape hatch for **keyword collisions** — if your
 data happens to have keys like `$fn`, `$var`, `$return`, etc., wrapping it in
-`$literal` prevents the evaluator from misinterpreting it as an expression.
+`$raw` prevents the evaluator from misinterpreting it as an expression.
 
 ## When you need `raw()` (JavaScript API)
 
@@ -136,5 +136,5 @@ The cost of checking is a single `WeakSet.has()` call — effectively O(1).
 | Mechanism    | Scope                        | When to use                                      |
 | ------------ | ---------------------------- | ------------------------------------------------ |
 | Auto-marking | Function return values       | Automatic — no action needed                     |
-| `$literal`   | Constants in JSON programs   | Hot-path constants, keyword collision prevention |
+| `$raw`       | Constants in JSON programs   | Hot-path constants, keyword collision prevention |
 | `raw()`      | Host-level JavaScript inputs | Large datasets passed into json-fn               |

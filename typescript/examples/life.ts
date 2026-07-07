@@ -9,21 +9,8 @@ import { callProgram, createStdlib, parseShorthand, type JSONType } from "../src
 import { existsSync, readFileSync, writeFileSync, unlinkSync } from "fs";
 import { join } from "path";
 
-/** Inverse of print-chess.ts's rename: shorthand emits `$raw`, but the
- * interpreter consumes inert data as `$literal`. */
-function rawToLiteral(node: JSONType): JSONType {
-  if (Array.isArray(node)) return node.map(rawToLiteral);
-  if (node !== null && typeof node === "object") {
-    if ("$raw" in node) return { $literal: (node as Record<string, JSONType>).$raw! };
-    const out: Record<string, JSONType> = {};
-    for (const [k, v] of Object.entries(node)) out[k] = rawToLiteral(v);
-    return out;
-  }
-  return node;
-}
-
 const source = readFileSync(join(import.meta.dir, "../../examples/life.jfn"), "utf-8");
-const lifeFunctions = rawToLiteral(parseShorthand(source)) as Record<string, JSONType>;
+const lifeFunctions = parseShorthand(source) as Record<string, JSONType>;
 
 const stdlib = createStdlib();
 const STATE_FILE = join(import.meta.dir, ".life-state.json");
