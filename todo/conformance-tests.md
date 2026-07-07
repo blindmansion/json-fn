@@ -31,21 +31,11 @@ collisions common):
 - entry validation (unknown entry, non-function entry, stdlib-colliding entry).
   Source of the matrix: `plans/module-scope.md` (Testing section).
 
-### P4 name resolution
-
-No spec cases today; coverage is TS-only in
-`typescript/test/p4-name-resolution.test.ts`. Add cases:
-
-- param shadows operator (`{ f:(add,x)=> x+1 }`, `f(sub,10)`);
-- param shadows stdlib in direct call (`{ f:(map)=> map(2) }`);
-- param shadow survives an escaping closure (`{ f:(map)=> (x)=> map(x) }`);
-- `where`-local shadows (`length`, `add`);
-- local recursion / mutual recursion still green (canary);
-- bare registry name value (`{ f:()=> length }` ⇒ `"length"`; `map(length,xss)`);
-- bare-name shadowing (local `length` wins in value position);
-- `length.foo` still errors (path guard);
-- non-function local `add: 5` still uses stdlib `add`.
-  Source of the matrix: `plans/p4-name-resolution.md` §7 / §8 step 4.
+Blocked on a harness change: the current runners only call `callFunction(body,
+args, registry)`, which has no module frame or entry concept and can't represent
+top-level constants. Testing these needs a new case variant, e.g.
+`{ "module": {...}, "entry": "name", "args": [...] }`, that dispatches to
+`callProgram` instead — implemented in all four runners (TS/Rust/Go/Python).
 
 ### New stdlib builtins
 
@@ -56,9 +46,6 @@ alongside the four-impl implementation.
 
 ## Parser cases (`spec/parse-cases/`) — new entries (TS + Rust)
 
-- **Trailing `where`** on `cond`/`match` arms, `if/then/else` branches,
-  `where`-binding values, and inside parenthesized groups — pins the TS parser
-  behavior and flags the Rust gap (parity item 5).
 - **`cond` requires `else ->`** — a negative parse case, once the policy lands
   in both parsers (parity item 6).
 - **Bare reference / `&`-optional** value-position cases, to keep both parsers

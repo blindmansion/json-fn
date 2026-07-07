@@ -1,0 +1,115 @@
+{
+  "description": "trailing `where` in body positions (shorthand spec section 8)",
+  "cases": [
+    {
+      "description": "trailing where on a cond arm result lowers to an IIFE over the locals",
+      "source": "cond {\n  n > 0 -> big(n) where { big: (x) => x * 100 },\n  else   -> 0\n}",
+      "expected": {
+        "$cond": [
+          [
+            { "$gt": [{ "$var": "n" }, 0] },
+            {
+              "$fn": [
+                {
+                  "big": { "$params": ["x"], "$return": { "$fn": ["mul", { "$var": "x" }, 100] } },
+                  "$return": { "$fn": ["big", { "$var": "n" }] }
+                }
+              ]
+            }
+          ]
+        ],
+        "$else": 0
+      }
+    },
+    {
+      "description": "trailing where on a match arm result lowers to an IIFE over the locals",
+      "source": "match cmd {\n  \"go\" -> step(n) where { step: (x) => x + 1 },\n  else -> 0\n}",
+      "expected": {
+        "$match": { "$var": "cmd" },
+        "$cases": [
+          [
+            "go",
+            {
+              "$fn": [
+                {
+                  "step": { "$params": ["x"], "$return": { "$fn": ["add", { "$var": "x" }, 1] } },
+                  "$return": { "$fn": ["step", { "$var": "n" }] }
+                }
+              ]
+            }
+          ]
+        ],
+        "$else": 0
+      }
+    },
+    {
+      "description": "trailing where on an if/then branch attaches to the branch (not the whole if)",
+      "source": "if x > 0 then double(x) where { double: (n) => n * 2 } else 0",
+      "expected": {
+        "$if": { "$gt": [{ "$var": "x" }, 0] },
+        "$then": {
+          "$fn": [
+            {
+              "double": { "$params": ["n"], "$return": { "$fn": ["mul", { "$var": "n" }, 2] } },
+              "$return": { "$fn": ["double", { "$var": "x" }] }
+            }
+          ]
+        },
+        "$else": 0
+      }
+    },
+    {
+      "description": "trailing where on an else branch attaches to the branch",
+      "source": "if x > 0 then 1 else fallback(x) where { fallback: (n) => n - 1 }",
+      "expected": {
+        "$if": { "$gt": [{ "$var": "x" }, 0] },
+        "$then": 1,
+        "$else": {
+          "$fn": [
+            {
+              "fallback": { "$params": ["n"], "$return": { "$fn": ["sub", { "$var": "n" }, 1] } },
+              "$return": { "$fn": ["fallback", { "$var": "x" }] }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "trailing where nested inside a where-binding value",
+      "source": "(n) => total where {\n  total: sq(n) where { sq: (x) => x * x }\n}",
+      "expected": {
+        "$params": ["n"],
+        "total": {
+          "$fn": [
+            {
+              "sq": {
+                "$params": ["x"],
+                "$return": { "$fn": ["mul", { "$var": "x" }, { "$var": "x" }] }
+              },
+              "$return": { "$fn": ["sq", { "$var": "n" }] }
+            }
+          ]
+        },
+        "$return": { "$var": "total" }
+      }
+    },
+    {
+      "description": "trailing where inside a parenthesized group binds within the parens",
+      "source": "(base(n) where { base: (x) => x + 1 }) * 2",
+      "expected": {
+        "$fn": [
+          "mul",
+          {
+            "$fn": [
+              {
+                "base": { "$params": ["x"], "$return": { "$fn": ["add", { "$var": "x" }, 1] } },
+                "$return": { "$fn": ["base", { "$var": "n" }] }
+              }
+            ]
+          },
+          2
+        ]
+      }
+    }
+  ]
+}
