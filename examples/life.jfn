@@ -1,22 +1,22 @@
 {
-  W: () => 20,
-  H: () => 12,
-  SIZE: () => W() * H(),
-  OFFSETS: () => raw [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]],
+  W: 20,
+  H: 12,
+  SIZE: W * H,
+  OFFSETS: raw [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]],
 
   wrap: (v, m) => ((v % m) + m) % m,
-  rowOf: (idx) => floor(idx / W()),
-  colOf: (idx) => idx % W(),
-  toIdx: (row, col) => row * W() + col,
+  rowOf: (idx) => floor(idx / W),
+  colOf: (idx) => idx % W,
+  toIdx: (row, col) => row * W + col,
 
   countTrue: (xs) => length(flatMap((x) => if x then [x] else [], xs)),
 
-  neighborCount: (grid, idx) => countTrue(map(look, OFFSETS())) where {
+  neighborCount: (grid, idx) => countTrue(map(look, OFFSETS)) where {
     row: rowOf(idx),
     col: colOf(idx),
     look: (off) => grid[toIdx(nr, nc)] where {
-      nr: wrap(row + off[0], H()),
-      nc: wrap(col + off[1], W())
+      nr: wrap(row + off[0], H),
+      nc: wrap(col + off[1], W)
     }
   },
 
@@ -25,13 +25,13 @@
     n: neighborCount(grid, idx)
   },
 
-  stepGrid: (grid) => map((i) => nextCell(grid, i), range(SIZE())),
+  stepGrid: (grid) => map((i) => nextCell(grid, i), range(SIZE)),
 
   stepN: (grid, n) => if n == 0 then grid else stepN(stepGrid(grid), n - 1),
 
   population: (grid) => countTrue(grid),
 
-  gridsEqual: (a, b) => !some((i) => a[i] != b[i], range(SIZE())),
+  gridsEqual: (a, b) => !some((i) => a[i] != b[i], range(SIZE)),
 
   classify: (grid) => cond {
     pop == 0 -> "empty",
@@ -56,9 +56,9 @@
     rec: settle(next, limit - 1)
   },
 
-  emptyGrid: () => map((i) => false, range(SIZE())),
+  emptyGrid: () => map((i) => false, range(SIZE)),
 
-  withCells: (grid, coords, value) => map(place, range(SIZE())) where {
+  withCells: (grid, coords, value) => map(place, range(SIZE)) where {
     idxs: map((c) => toIdx(c[1], c[0]), coords),
     place: (i) => if includes(idxs, i) then value else grid[i]
   },
@@ -89,10 +89,10 @@
   cellGlyph: (c) => if c then "█" else "·",
 
   formatRow: (grid, row) => `  ${join(cells, " ")}` where {
-    cells: map((col) => cellGlyph(grid[toIdx(row, col)]), range(W()))
+    cells: map((col) => cellGlyph(grid[toIdx(row, col)]), range(W))
   },
 
-  formatGrid: (grid) => join(map((row) => formatRow(grid, row), range(H())), "\n"),
+  formatGrid: (grid) => join(map((row) => formatRow(grid, row), range(H)), "\n"),
 
   statusLine: (state) => `  gen ${str(state.gen)} · pop ${str(pop)} · ${kind}` where {
     pop: population(state.grid),
@@ -177,13 +177,13 @@
   cellResult: (state, argv, mode) => cond {
     argc < 3 -> errResult(`  Usage: ${mode} x y`),
     isNull(x) || isNull(y) -> errResult(`  Invalid coordinates: "${argv[1]} ${argv[2]}".`),
-    !inGrid -> errResult(`  Out of bounds: (${str(x)}, ${str(y)}). Grid is ${str(W())}×${str(H())}.`),
+    !inGrid -> errResult(`  Out of bounds: (${str(x)}, ${str(y)}). Grid is ${str(W)}×${str(H)}.`),
     else -> okResult(nextState, `  ${mode} (${str(x)}, ${str(y)})`)
   } where {
     argc: length(argv),
     x: parseNat(argv[1]),
     y: parseNat(argv[2]),
-    inGrid: x < W() && y < H(),
+    inGrid: x < W && y < H,
     idx: toIdx(y, x),
     newVal: match mode {
       "set" -> true,

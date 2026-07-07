@@ -5,7 +5,7 @@
 // and runs it. The host only does what JSON cannot: read argv, load/save the
 // state file, and print to stdout/stderr.
 
-import { callFunction, createStdlib, parseShorthand, type JSONType } from "../src";
+import { callProgram, createStdlib, parseShorthand, type JSONType } from "../src";
 import { existsSync, readFileSync, writeFileSync, unlinkSync } from "fs";
 import { join } from "path";
 
@@ -25,14 +25,19 @@ function rawToLiteral(node: JSONType): JSONType {
 const source = readFileSync(join(import.meta.dir, "../../examples/life.jfn"), "utf-8");
 const lifeFunctions = rawToLiteral(parseShorthand(source)) as Record<string, JSONType>;
 
-const functions: Record<string, any> = { ...createStdlib(), ...lifeFunctions };
+const stdlib = createStdlib();
 const STATE_FILE = join(import.meta.dir, ".life-state.json");
 
 const state: JSONType = existsSync(STATE_FILE)
   ? JSON.parse(readFileSync(STATE_FILE, "utf-8"))
-  : (callFunction(functions.newWorld, [], functions) as JSONType);
+  : (callProgram(lifeFunctions, "newWorld", [], stdlib) as JSONType);
 
-const result = callFunction(functions.handleCommand, [state, process.argv.slice(2)], functions) as {
+const result = callProgram(
+  lifeFunctions,
+  "handleCommand",
+  [state, process.argv.slice(2)],
+  stdlib,
+) as {
   output: string;
   stderr: string;
   newState: JSONType;
