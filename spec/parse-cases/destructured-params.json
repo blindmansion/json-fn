@@ -1,0 +1,87 @@
+{
+  "description": "destructured (object-pattern) parameters — $fields (plans/destructured-params.md)",
+  "cases": [
+    {
+      "description": "single field pattern",
+      "source": "({ x }) => x",
+      "expected": {
+        "$params": [{ "$fields": ["x"] }],
+        "$return": { "$var": "x" }
+      }
+    },
+    {
+      "description": "two field pattern",
+      "source": "({ from, to }) => sub(to, from)",
+      "expected": {
+        "$params": [{ "$fields": ["from", "to"] }],
+        "$return": { "$fn": ["sub", { "$var": "to" }, { "$var": "from" }] }
+      }
+    },
+    {
+      "description": "positional param followed by a pattern slot",
+      "source": "(label, { x, y }) => x + y",
+      "expected": {
+        "$params": ["label", { "$fields": ["x", "y"] }],
+        "$return": { "$fn": ["add", { "$var": "x" }, { "$var": "y" }] }
+      }
+    },
+    {
+      "description": "pattern slot followed by a rest parameter",
+      "source": "({ x }, ...rest) => rest",
+      "expected": {
+        "$params": [{ "$fields": ["x"] }, "...rest"],
+        "$return": { "$var": "rest" }
+      }
+    },
+    {
+      "description": "multiple pattern slots",
+      "source": "({ a }, { b }) => a + b",
+      "expected": {
+        "$params": [{ "$fields": ["a"] }, { "$fields": ["b"] }],
+        "$return": { "$fn": ["add", { "$var": "a" }, { "$var": "b" }] }
+      }
+    },
+    {
+      "description": "trailing comma inside a pattern normalizes away",
+      "source": "({ x, y, }) => x",
+      "expected": {
+        "$params": [{ "$fields": ["x", "y"] }],
+        "$return": { "$var": "x" }
+      }
+    },
+    {
+      "description": "pattern with a trailing where clause",
+      "source": "({ n }) => doubled where {\n  doubled: n * 2\n}",
+      "expected": {
+        "$params": [{ "$fields": ["n"] }],
+        "doubled": { "$fn": ["mul", { "$var": "n" }, 2] },
+        "$return": { "$var": "doubled" }
+      }
+    },
+    {
+      "description": "empty pattern is rejected",
+      "source": "({}) => 1",
+      "error": true
+    },
+    {
+      "description": "field rename is not supported",
+      "source": "({ from: f }) => f",
+      "error": true
+    },
+    {
+      "description": "nested pattern is not supported",
+      "source": "({ a: { b } }) => b",
+      "error": true
+    },
+    {
+      "description": "rest pattern is not supported",
+      "source": "(...{ x }) => x",
+      "error": true
+    },
+    {
+      "description": "non-identifier field is rejected",
+      "source": "({ 1 }) => 1",
+      "error": true
+    }
+  ]
+}

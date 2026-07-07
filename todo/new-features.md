@@ -36,10 +36,14 @@ Named/keyword arguments via a destructured object parameter — e.g.
 `({ from, to }) => …` called as `move({ from: 3, to: 7 })`, binding named fields
 to locals instead of relying on positional order. Touches both the shorthand
 (param destructuring syntax) and the calling convention / `$params` shape in the
-evaluator, so it is a language feature, not parser-only sugar. Interacts with the
-type system (`plans/type-sketch.md`) and the current "missing args default to
-`null`, extra args ignored" positional semantics; decide how optional/defaulted
-named fields behave.
+evaluator (the calling convention is unchanged — a pattern slot destructures an
+ordinary positional object argument), so it is a language feature, not
+parser-only sugar. Full implementer-agnostic spec, with the `{ "$fields": [...] }`
+canonical shape, lenient null-defaulting semantics, and conformance cases, in
+`plans/destructured-params.md`. Status: **spec drafted (with cases),
+unimplemented**; first cut is TypeScript-only. Optional/defaulted/renamed named
+fields are deferred there. Interacts with the type system
+(`plans/type-sketch.md`), whose `$sig` runs positionally parallel to `$params`.
 
 ## Core-form simplification (deprecate JSON-authoring conveniences)
 Several core forms exist only to make **hand-authored JSON** terser or more
