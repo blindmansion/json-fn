@@ -79,7 +79,7 @@ All property access uses `$get`/`$from`. `$from` evaluates to the target and `$g
 
 ### Function Body — `{ $return, ... }`
 
-Defines a function. Required key: `$return` (the expression to evaluate when called). Optional key: `$params` (array of strings). All other keys are **lazy local variables** — evaluated on first access.
+Defines a function. Required key: `$return` (the expression to evaluate when called). Optional key: `$params` (an ordered array of parameter **slots** — see [Parameters](#parameters--params)). All other keys are **lazy local variables** — evaluated on first access.
 
 ```json
 {
@@ -220,7 +220,7 @@ A function body has `$return` and optionally `$params`. All other keys are lazy 
 
 ### Parameters — `$params`
 
-Array of strings. Arguments are bound positionally.
+An ordered array of parameter **slots**. Each slot is a name string (a plain positional parameter), a `"...rest"` collector (see [Rest Parameters](#rest-parameters)), or an object pattern (see [Object-Pattern Parameters](#object-pattern-parameters--fields)). Arguments are bound positionally, one per slot.
 
 ```json
 {
@@ -243,6 +243,35 @@ A parameter starting with `...` collects remaining arguments into an array.
 ```
 
 Called with args `[1, 2, 3]`: `first` = `1`, `rest` = `[2, 3]`.
+
+### Object-Pattern Parameters — `$fields`
+
+A `$params` slot may be an **object pattern** instead of a name string: an object of the exact shape `{ "$fields": [...] }`, whose non-empty array lists identifier field names. It destructures a single positional object argument, binding each field to a local of the same name.
+
+```json
+{
+  "$params": [{ "$fields": ["from", "to"] }],
+  "$return": { "$call": "sub", "$args": [{ "$var": "to" }, { "$var": "from" }] }
+}
+```
+
+Called with args `[{ "from": 3, "to": 7 }]`: `from` = `3`, `to` = `7`, result `4`. The **calling convention is unchanged** — this is an ordinary positional call passing one plain-data object; the "named-ness" lives entirely in the parameter.
+
+Binding rules for a pattern slot at position `i`, where `v` is the `i`-th argument (`null` if not supplied):
+
+- If `v` is a plain object (not an array, not `null`): each field binds to `v[field]` when that key is present, otherwise `null`. Extra keys of `v` are ignored.
+- Otherwise (`v` is `null`, a boolean, number, string, or array): every field binds to `null` — lenient, mirroring the "missing args default to `null`" rule (an array is not a plain object).
+
+Field bindings are **eager** (established once at call time, like positional parameters — not lazy locals). Within the body they are visible via `$var` to `$return` and to lazy locals, and they **shadow** same-named outer bindings at any nesting depth.
+
+Additional rules:
+
+- `$fields` must be a **non-empty** array, and each name must not contain `.` or `[`.
+- A `$fields` object is valid only as a `$params` slot; it may not be preceded by `...`.
+- A pattern slot consumes exactly **one** positional argument, so patterns mix freely with ordinary and rest params (`["label", { "$fields": ["x", "y"] }]`, `[{ "$fields": ["x"] }, "...rest"]`).
+- `arity` counts a pattern slot as one parameter.
+
+Rename (`{ "from": f }`), defaults, and nesting are not supported yet; the `$fields` string array is the only form.
 
 ### Lazy Local Variables
 

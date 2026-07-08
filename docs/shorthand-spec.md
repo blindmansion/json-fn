@@ -466,7 +466,43 @@ A bare `{...}` is **always** a data object — including immediately after `=>`:
 
 - **No params:** `() => …` lowers to a body with **no `$params`** key.
 - **Rest param:** `(first, ...rest) => …` → `"$params": ["first", "...rest"]`.
+- **Object-pattern param:** `({ from, to }) => …` — see below.
 - Missing arguments default to `null` (language behavior).
+
+#### Object-pattern parameters
+
+A parameter may be an **object pattern** `{ f1, f2 }` that destructures a single
+object argument into named locals, instead of relying on positional order. It
+lowers to a `{ "$fields": [...] }` slot in `$params`.
+
+```jfn
+({ from, to }) => sub(to, from)
+```
+
+```json
+{
+  "$params": [{ "$fields": ["from", "to"] }],
+  "$return": { "$call": "sub", "$args": [{ "$var": "to" }, { "$var": "from" }] }
+}
+```
+
+The **calling convention is unchanged**: `move({ from: 3, to: 7 })` is an
+ordinary positional call passing one data object — the "named-ness" lives
+entirely in the parameter, which destructures that object. Each field binds to
+the object's same-named key (absent keys, or a non-object argument, bind to
+`null`); extra keys are ignored. This mirrors [shorthand-property punning](#data-objects--key-value):
+a destructured parameter and the record you build to pass it read identically.
+
+- A pattern consumes exactly **one** positional slot, so it mixes freely with
+  ordinary and rest params: `(label, { x, y }) => …`, `({ x }, ...rest) => …`,
+  `({ a }, { b }) => …`.
+- A **trailing comma** inside the pattern is accepted and normalizes away.
+- The printer renders a `$fields` slot as `{ f1, f2 }` (space inside the braces,
+  `", "` between fields) inside the normal `(params) =>` header.
+
+Not accepted in this version (each is a **parse error**, reserving the syntax
+for later): empty pattern `({}) => …`, rename `({ from: f }) => …`, nesting
+`({ a: { b } }) => …`, rest pattern `(...{ x }) => …`, and non-identifier fields.
 
 ### Closures & recursion
 
@@ -572,7 +608,10 @@ primary     := number | string | template | "true" | "false" | "null"
 funcLit     := "(" params ")" "=>" body
 body        := expr ( "where" "{" binding ("," binding)* "}" )?
 binding     := ident ":" expr
-params      := ( ident ("," ident)* )?               // last may be "...ident"
+params      := ( param ("," param)* )?               // last may be "...ident"
+param       := ident
+             | "..." ident                           // rest (last slot only)
+             | "{" ident ("," ident)* ","? "}"        // object pattern → $fields
 dataEntry   := (ident | string) ":" expr
              | ident                                 // punned: { x } == { x: x }
 doEntry     := ident "<-" expr                       // effect binding (§13)
