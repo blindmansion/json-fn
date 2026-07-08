@@ -1,0 +1,179 @@
+// calc.jfn — a tiny arithmetic expression language, written code-first.
+//
+// A little interpreter in four passes:
+//   1. tokenize  — string        -> [token]
+//   2. parse     — [token]        -> AST      (recursive descent)
+//   3. evaluate  — AST            -> number
+//   4. render    — AST            -> string   (canonical, fully-parenthesized)
+//
+// Supported syntax:
+//   numbers (int/decimal), + - * /, parentheses, unary minus,
+//   named constants (pi, e), and calls: abs, floor, min, max, sqrt, pow.
+//
+// AST nodes are plain records tagged by `type`:
+//   { type: "num",   value }
+//   { type: "var",   name }
+//   { type: "neg",   operand }
+//   { type: "binop", op, left, right }
+//   { type: "call",  name, args }
+//
+// Run the demo:
+//   jfn eval --file examples/calc.jfn --entry demo
+// Evaluate one expression:
+//   jfn eval --file examples/calc.jfn --entry calc --args '["2 + 3 * 4"]'
+
+{
+  CONSTANTS: raw { "pi": 3.141592653589793, "e": 2.718281828459045 },
+
+  // ---- 1. Tokenizer ----------------------------------------------------
+  // Surround every operator/paren/comma with spaces, then split on runs of
+  // whitespace. Numbers and identifiers fall out as whole tokens untouched.
+
+  tokenize: (source) => filter((tok) => tok != "", reSplit("\\s+", spaced)) where {
+    spaced: reReplace("([-+*/(),])", " $1 ", source)
+  },
+
+  isDigit: (ch) => indexOf("0123456789", ch) >= 0,
+  isNumberToken: (tok) => isDigit(tok[0]),
+
+  // ---- 2. Parser (recursive descent) -----------------------------------
+  // Grammar (lowest precedence first):
+  //   expr   = term   (("+" | "-") term)*
+  //   term   = factor (("*" | "/") factor)*
+  //   factor = number | name | name "(" args ")" | "(" expr ")" | "-" factor
+  //   args   = ""   |  expr ("," expr)*
+  //
+  // Every parse step returns a cursor record { node, next }: the node it built
+  // and the index of the next unconsumed token. Reading past the end yields
+  // `null` (out-of-bounds index access), which no operator/paren matches, so
+  // the folds below terminate naturally.
+
+  parse: (tokens) => parseExpr(tokens, 0).node,
+
+  parseExpr: (tokens, pos) => parseBinary(tokens, pos, ["+", "-"], parseTerm),
+  parseTerm: (tokens, pos) => parseBinary(tokens, pos, ["*", "/"], parseFactor),
+
+  // A left-associative binary layer, parameterized by its operators and the
+  // tighter-binding sub-parser — the two arithmetic levels are one function.
+  parseBinary: (tokens, pos, ops, parseOperand) => fold(start.node, start.next) where {
+    start: parseOperand(tokens, pos),
+    fold: (left, at) => (if isOp
+      then fold(joined, rhs.next)
+      else { node: left, next: at }) where {
+      op: tokens[at],
+      isOp: includes(ops, op),
+      rhs: parseOperand(tokens, at + 1),
+      joined: { type: "binop", op: op, left: left, right: rhs.node }
+    }
+  },
+
+  parseFactor: (tokens, pos) => cond {
+    tok == "(" -> { node: grouped.node, next: grouped.next + 1 },
+    tok == "-" -> { node: { type: "neg", operand: operand.node }, next: operand.next },
+    isNumberToken(tok) -> { node: { type: "num", value: num(tok) }, next: pos + 1 },
+    isCall -> { node: { type: "call", name: tok, args: call.args }, next: call.next },
+    else -> { node: { type: "var", name: tok }, next: pos + 1 }
+  } where {
+    tok: tokens[pos],
+    grouped: parseExpr(tokens, pos + 1),
+    operand: parseFactor(tokens, pos + 1),
+    isCall: tokens[pos + 1] == "(",
+    call: parseArgs(tokens, pos + 2)
+  },
+
+  // Args start just after "(" and consume through the matching ")".
+  parseArgs: (tokens, pos) => (if empty
+    then { args: [], next: pos + 1 }
+    else collect(pos)) where {
+    empty: tokens[pos] == ")",
+    collect: (at) => (if more
+      then { args: concat([first.node], rest.args), next: rest.next }
+      else { args: [first.node], next: first.next + 1 }) where {
+      first: parseExpr(tokens, at),
+      more: tokens[first.next] == ",",
+      rest: collect(first.next + 1)
+    }
+  },
+
+  // ---- 3. Evaluator ----------------------------------------------------
+
+  evaluate: (node) => match node.type {
+    "num" -> node.value,
+    "var" -> lookupConst(node.name),
+    "neg" -> -evaluate(node.operand),
+    "binop" -> applyOp(node.op, evaluate(node.left), evaluate(node.right)),
+    "call" -> applyFn(node.name, map(&evaluate, node.args)),
+    else -> 0
+  },
+
+  lookupConst: (name) => if hasKey(CONSTANTS, name) then CONSTANTS[name] else 0,
+
+  applyOp: (op, a, b) => match op {
+    "+" -> a + b,
+    "-" -> a - b,
+    "*" -> a * b,
+    "/" -> a / b,
+    else -> 0
+  },
+
+  applyFn: (name, args) => match name {
+    "abs" -> abs(args[0]),
+    "floor" -> floor(args[0]),
+    "min" -> min(args),
+    "max" -> max(args),
+    "sqrt" -> sqrtApprox(args[0]),
+    "pow" -> powInt(args[0], args[1]),
+    else -> 0
+  },
+
+  // sqrt and pow aren't in the stdlib, so the calculator brings its own.
+  // Newton–Raphson: xₙ₊₁ = (xₙ + value/xₙ) / 2, seeded at `value`.
+  sqrtApprox: (value) => (if value <= 0 then 0 else step(value, 20)) where {
+    step: (guess, iters) => if iters == 0
+      then guess
+      else step((guess + value / guess) / 2, iters - 1)
+  },
+
+  // Integer exponent via repeated multiplication.
+  powInt: (base, exp) => if exp <= 0 then 1 else base * powInt(base, exp - 1),
+
+  // ---- 4. Pretty-printer (AST -> canonical, fully-parenthesized) -------
+
+  render: (node) => match node.type {
+    "num" -> str(node.value),
+    "var" -> node.name,
+    "neg" -> `-${render(node.operand)}`,
+    "binop" -> `(${render(node.left)} ${node.op} ${render(node.right)})`,
+    "call" -> `${node.name}(${join(map(&render, node.args), ", ")})`,
+    else -> "?"
+  },
+
+  // ---- Top level -------------------------------------------------------
+
+  // Full report for one source string: how it parsed and what it evaluates to.
+  run: (source) => {
+    source: source,
+    canonical: render(tree),
+    result: evaluate(tree)
+  } where {
+    tree: parse(tokenize(source))
+  },
+
+  // Just the number.
+  calc: (source) => evaluate(parse(tokenize(source))),
+
+  // A gallery of expressions, each shown as source, canonical form, and value.
+  demo: () => map(run, cases) where {
+    cases: [
+      "1 + 2 * 3",
+      "(1 + 2) * 3",
+      "-3 * 4 + 10",
+      "2 * (3 + 4) - 5 / 5",
+      "pow(2, 10)",
+      "sqrt(pow(3, 2) + pow(4, 2))",
+      "max(1, 7, 3) + min(4, 2, 9)",
+      "floor(pi * 100) / 100",
+      "abs(0 - 42)"
+    ]
+  }
+}

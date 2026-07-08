@@ -1,0 +1,128 @@
+// poker.jfn — a five-card poker hand evaluator, written code-first.
+//
+// Where calc.jfn was recursion/parsing-heavy, this one leans on the collection
+// stdlib: groupBy, mapValues, entries, sort, reduce. The shape is a data
+// pipeline, not a tree walk.
+//
+// A card is a two-character string: rank char + suit char.
+//   ranks: 2 3 4 5 6 7 8 9 T J Q K A   (T = ten)
+//   suits: C D H S
+// A hand is five space-separated cards, e.g. "AS KS QS JS TS".
+//
+// evaluate/classify produce a { category, name, tiebreak } record; a hand's
+// full comparison key is `score` = [categoryRank, ...tiebreak], compared
+// lexicographically so `best` can run a showdown across several hands.
+//
+// Demo:
+//   jfn eval --file examples/poker.jfn --entry demo
+// Rank one hand:
+//   jfn eval --file examples/poker.jfn --entry rankHand --args '["KH KD KS 5H 5D"]'
+
+{
+  RANKS: "23456789TJQKA",
+  CATEGORIES: raw [
+    "High Card", "Pair", "Two Pair", "Three of a Kind", "Straight",
+    "Flush", "Full House", "Four of a Kind", "Straight Flush"
+  ],
+
+  // ---- Card + hand basics ----------------------------------------------
+
+  rankValue: (card) => indexOf(RANKS, card[0]) + 2,   // 2..14 (A high)
+  suitOf: (card) => card[1],
+  parseHand: (source) => split(source, " "),
+
+  // { rankValue: countOfThatRank, ... } as a map keyed by rank.
+  rankCounts: (hand) => mapValues(length, groupBy(rankValue, hand)),
+
+  // Just the counts, biggest group first: 4oak -> [4,1], full house -> [3,2].
+  countShape: (hand) => sort((a, b) => b - a, values(rankCounts(hand))),
+
+  // ---- Shape predicates ------------------------------------------------
+
+  isFlush: (hand) => every((card) => suitOf(card) == suitOf(hand[0]), hand),
+
+  // Five distinct ranks spanning exactly four, or the A-2-3-4-5 wheel.
+  isStraight: (hand) => distinct == 5 && (span == 4 || wheel) where {
+    sorted: sort((a, b) => a - b, map(rankValue, hand)),
+    distinct: length(keys(rankCounts(hand))),
+    span: last(sorted) - head(sorted),
+    wheel: jsonEq(sorted, [2, 3, 4, 5, 14])
+  },
+
+  // ---- Classification --------------------------------------------------
+
+  // Category rank, 0 (high card) .. 8 (straight flush) — indexes CATEGORIES.
+  category: (hand) => cond {
+    straight && flush -> 8,
+    shape[0] == 4 -> 7,
+    shape[0] == 3 && shape[1] == 2 -> 6,
+    flush -> 5,
+    straight -> 4,
+    shape[0] == 3 -> 3,
+    shape[0] == 2 && shape[1] == 2 -> 2,
+    shape[0] == 2 -> 1,
+    else -> 0
+  } where {
+    shape: countShape(hand),
+    flush: isFlush(hand),
+    straight: isStraight(hand)
+  },
+
+  // Ranks ordered for tie-breaking: by group size first, then by rank value —
+  // so KKK55 -> [13,5], and a high card -> [14,10,7,5,3].
+  tiebreak: (hand) => map((pair) => pair[0], ordered) where {
+    pairs: map((e) => [num(e[0]), e[1]], entries(rankCounts(hand))),
+    ordered: sort((a, b) => if a[1] != b[1] then b[1] - a[1] else b[0] - a[0], pairs)
+  },
+
+  // Full comparison key: category dominates, tiebreak ranks settle the rest.
+  score: (hand) => concat([category(hand)], tiebreak(hand)),
+
+  name: (hand) => CATEGORIES[category(hand)],
+
+  // ---- Comparison + showdown -------------------------------------------
+
+  // Lexicographic compare of two number arrays: -1, 0, or 1.
+  lexCompare: (a, b) => cond {
+    length(a) == 0 && length(b) == 0 -> 0,
+    length(a) == 0 -> -1,
+    length(b) == 0 -> 1,
+    head(a) != head(b) -> if head(a) > head(b) then 1 else -1,
+    else -> lexCompare(tail(a), tail(b))
+  },
+
+  // Winning hand string among several, by full score.
+  best: (hands) => reduce((winner, hand) => (if better then hand else winner) where {
+    better: lexCompare(score(parseHand(hand)), score(parseHand(winner))) > 0
+  }, head(hands), tail(hands)),
+
+  // ---- Top level -------------------------------------------------------
+
+  rankHand: (source) => name(parseHand(source)),
+
+  evaluate: (source) => {
+    hand: source,
+    category: name(hand),
+    score: score(hand)
+  } where {
+    hand: parseHand(source)
+  },
+
+  demo: () => {
+    ranked: map(evaluate, hands),
+    winner: winning,
+    winnerRank: rankHand(winning)
+  } where {
+    hands: [
+      "AS KS QS JS TS",
+      "AH AD AC AS KD",
+      "KH KD KS 5H 5D",
+      "9C 9D 9H 2S 2C",
+      "AD 5D 9D JD 2D",
+      "6H 5S 4D 3C 2H",
+      "QC QH 7D 7S 3C",
+      "AC KD 9H 4S 2C"
+    ],
+    winning: best(hands)
+  }
+}

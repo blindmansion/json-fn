@@ -1,0 +1,83 @@
+// calendar.jfn — Gregorian calendar math, written code-first.
+//
+// The showcase here is **destructured (named-argument) parameters**: a date is a
+// { year, month, day } record, and functions take it as an object pattern rather
+// than three positional numbers. `dayOfWeek({ year: 2026, month: 7, day: 7 })`
+// reads far better — and is far harder to transpose — than `dayOfWeek(2026, 7, 7)`.
+//
+//   month: 1..12   day: 1..31   weekday: "Sunday".."Saturday"
+//
+// Demo:
+//   jfn eval --file examples/calendar.jfn --entry demo
+// One date:
+//   jfn eval --file examples/calendar.jfn --entry describe --args '[{ "year": 2000, "month": 2, "day": 29 }]'
+
+{
+  MONTHS: raw [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ],
+  MONTH_LENGTHS: raw [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31],
+  // Zeller's congruence numbers the week from Saturday.
+  ZELLER_DAYS: raw [
+    "Saturday", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday"
+  ],
+
+  // ---- Core rules ------------------------------------------------------
+
+  isLeapYear: (year) => (year % 4 == 0 && year % 100 != 0) || year % 400 == 0,
+
+  daysInMonth: ({ year, month }) => if month == 2 && isLeapYear(year)
+    then 29
+    else MONTH_LENGTHS[month - 1],
+
+  // Zeller's congruence for the Gregorian calendar. January and February are
+  // treated as months 13 and 14 of the previous year.
+  dayOfWeek: ({ year, month, day }) => ZELLER_DAYS[h] where {
+    m: if month < 3 then month + 12 else month,
+    y: if month < 3 then year - 1 else year,
+    century: floor(y / 100),
+    yearInCentury: y % 100,
+    h: (day
+        + floor(13 * (m + 1) / 5)
+        + yearInCentury
+        + floor(yearInCentury / 4)
+        + floor(century / 4)
+        + 5 * century) % 7
+  },
+
+  // Ordinal day within the year: Jan 1 -> 1, Dec 31 -> 365 or 366.
+  dayOfYear: ({ year, month, day }) => reduce(
+    (total, m) => total + daysInMonth({ year: year, month: m }),
+    day,
+    priorMonths
+  ) where {
+    priorMonths: map((i) => i + 1, range(month - 1))
+  },
+
+  // ---- Formatting + reporting ------------------------------------------
+
+  formatDate: ({ year, month, day }) => `${weekday}, ${MONTHS[month - 1]} ${str(day)}, ${str(year)}` where {
+    weekday: dayOfWeek({ year: year, month: month, day: day })
+  },
+
+  describe: ({ year, month, day }) => {
+    formatted: formatDate(date),
+    weekday: dayOfWeek(date),
+    dayOfYear: dayOfYear(date),
+    leapYear: isLeapYear(year),
+    daysThisMonth: daysInMonth({ year: year, month: month })
+  } where {
+    date: { year: year, month: month, day: day }
+  },
+
+  demo: () => map(describe, dates) where {
+    dates: [
+      { year: 2026, month: 7, day: 7 },
+      { year: 2000, month: 2, day: 29 },
+      { year: 1969, month: 7, day: 20 },
+      { year: 2024, month: 12, day: 31 },
+      { year: 1900, month: 2, day: 28 }
+    ]
+  }
+}
