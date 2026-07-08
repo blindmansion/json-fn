@@ -41,7 +41,7 @@ made explicit in the surface syntax:
 
 | State                          | Surface            | JSON                   |
 | ------------------------------ | ------------------ | ---------------------- |
-| Evaluated expression           | bare code          | `$fn` / `$var` / forms |
+| Evaluated expression           | bare code          | `$call` / `$fn` / `$var` / forms |
 | Plain data (values evaluated)  | `[...]` / `{k: v}` | array / object         |
 | Inert (verbatim, un-evaluated) | `raw <json>`       | `{ "$raw": <json> }`   |
 
@@ -66,7 +66,7 @@ Elements are **evaluated**.
 ```
 
 ```json
-[1, { "$fn": ["add", 2, 3] }]
+[1, { "$call": "add", "$args": [2, 3] }]
 ```
 
 ### Data objects — `{ key: value }`
@@ -79,7 +79,7 @@ bare identifiers or quoted strings.
 ```
 
 ```json
-{ "name": "ada", "score": { "$fn": ["add", { "$var": "x" }, 1] } }
+{ "name": "ada", "score": { "$call": "add", "$args": [{ "$var": "x" }, 1] } }
 ```
 
 **`$`-prefixed keys are forbidden** in a data object (they would collide with a
@@ -112,13 +112,13 @@ lowers to `$raw`. The body is **strict JSON** (quoted keys, no shorthand).
 ```jfn
 raw [[-2, -1], [-2, 1], [-1, -2]]
 
-raw { "$fn": ["not", "x"] }
+raw { "$call": "not", "$args": ["x"] }
 ```
 
 ```json
 { "$raw": [[-2, -1], [-2, 1], [-1, -2]] }
 
-{ "$raw": { "$fn": ["not", "x"] } }
+{ "$raw": { "$call": "not", "$args": ["x"] } }
 ```
 
 `raw` is the **exception**, not the default: reach for it only to (a) protect
@@ -151,10 +151,10 @@ f()                       // zero-arg call
 ```
 
 ```json
-{ "$fn": ["add", 3, 4] }
-{ "$fn": ["f"] }
-{ "$fn": [{ "$var": "fnName" }, 3, 4] }
-{ "$fn": [{ "$params": ["x"], "$return": { "$fn": ["mul", { "$var": "x" }, { "$var": "x" }] } }, 5] }
+{ "$call": "add", "$args": [3, 4] }
+{ "$call": "f", "$args": [] }
+{ "$call": { "$var": "fnName" }, "$args": [3, 4] }
+{ "$call": { "$params": ["x"], "$return": { "$call": "mul", "$args": [{ "$var": "x" }, { "$var": "x" }] } }, "$args": [5] }
 ```
 
 ### Method calls and chained application
@@ -166,7 +166,7 @@ access/call is performed first and its result is applied. This is the
 "method-call" surface: it dispatches through a record of closures (the pattern
 capabilities use — see `plans/effects-implementation.md`), with no distinct
 `$` form. A bare name is still the only thing that means a literal function
-_name_ (`f(x)` → `{ "$fn": ["f", …] }`); the moment a `.`, `[…]`, or a prior
+_name_ (`f(x)` → `{ "$call": "f", "$args": [ … ] }`); the moment a `.`, `[…]`, or a prior
 `(…)` intervenes, the callee is evaluated.
 
 ```jfn
@@ -178,16 +178,16 @@ makeCountdown(42)(3)      // chained application (call the returned closure)
 ```
 
 ```json
-{ "$fn": [{ "$get": ["db", "query"], "$from": { "$var": "caps" } }, { "$var": "sql" }] }
-{ "$fn": [{ "$get": "readLine", "$from": { "$var": "io" } }] }
-{ "$fn": [{ "$get": { "$var": "name" }, "$from": { "$var": "caps" } }, { "$var": "x" }] }
-{ "$fn": [{ "$get": "method", "$from": { "$fn": ["f", { "$var": "x" }] } }, { "$var": "y" }] }
-{ "$fn": [{ "$fn": ["makeCountdown", 42] }, 3] }
+{ "$call": { "$get": ["db", "query"], "$from": { "$var": "caps" } }, "$args": [{ "$var": "sql" }] }
+{ "$call": { "$get": "readLine", "$from": { "$var": "io" } }, "$args": [] }
+{ "$call": { "$get": { "$var": "name" }, "$from": { "$var": "caps" } }, "$args": [{ "$var": "x" }] }
+{ "$call": { "$get": "method", "$from": { "$call": "f", "$args": [{ "$var": "x" }] } }, "$args": [{ "$var": "y" }] }
+{ "$call": { "$call": "makeCountdown", "$args": [42] }, "$args": [3] }
 ```
 
 The callee lowering is exactly the property-access lowering of §5 (a `$get`/`$from`
-chain rooted at a variable or an arbitrary expression), placed as the first
-element of the `$fn` call array.
+chain rooted at a variable or an arbitrary expression), placed in the `$call`
+position of the call node.
 
 > **Printer note (deferred).** These forms parse and evaluate today, but the
 > canonical pretty-printer currently wraps the callee in parentheses
@@ -200,7 +200,7 @@ element of the `$fn` call array.
 
 ### Function reference — `&`
 
-Passes a function as a value (the language's non-array `$fn`).
+Passes a function as a value (the language's `$fn` reference).
 
 ```jfn
 &double                   // by name
@@ -210,7 +210,7 @@ map(&double, nums)
 
 ```json
 { "$fn": "double" }
-{ "$fn": ["map", { "$fn": "double" }, { "$var": "nums" }] }
+{ "$call": "map", "$args": [{ "$fn": "double" }, { "$var": "nums" }] }
 { "$fn": <expr> }
 ```
 
@@ -241,7 +241,7 @@ a.b                       // {"$get":"b","$from":{"$var":"a"}}
 a.b.c                     // {"$get":["b","c"],"$from":{"$var":"a"}}
 a[0]                      // {"$get":0,"$from":{"$var":"a"}}
 a[i]                      // {"$get":{"$var":"i"},"$from":{"$var":"a"}}
-f(x).b                    // {"$get":"b","$from":{"$fn":["f",{"$var":"x"}]}}
+f(x).b                    // {"$get":"b","$from":{"$call":"f","$args":[{"$var":"x"}]}}
 ```
 
 Lowering rules:
@@ -285,15 +285,15 @@ cached || compute(x)
 ```
 
 ```json
-{ "$fn": ["add", { "$fn": ["mul", { "$var": "row" }, 8] }, { "$var": "col" }] }
+{ "$call": "add", "$args": [{ "$call": "mul", "$args": [{ "$var": "row" }, 8] }, { "$var": "col" }] }
 { "$not": { "$var": "done" } }
 { "$and": [{ "$gt": [{ "$var": "x" }, 0] }, { "$lt": [{ "$var": "x" }, 100] }] }
-{ "$or": [{ "$var": "cached" }, { "$fn": ["compute", { "$var": "x" }] }] }
+{ "$or": [{ "$var": "cached" }, { "$call": "compute", "$args": [{ "$var": "x" }] }] }
 ```
 
 Rules and rationale:
 
-- **Arithmetic and `++`** lower to **stdlib `$fn` calls**; **comparisons, `&&`,
+- **Arithmetic and `++`** lower to **stdlib `$call` calls**; **comparisons, `&&`,
   `||`, `!`** lower to **language `$`-forms**.
 - `&&`/`||` **flatten**: `a && b && c` → one variadic `$and`. They map to the
   short-circuit language forms, **never** the eager stdlib `and`/`or` (call those
@@ -317,8 +317,8 @@ node as `++`.
 ```
 
 ```json
-{ "$fn": ["strcat", "Illegal move: ", { "$var": "moveDesc" }] }
-{ "$fn": ["strcat", { "$var": "firstName" }, " ", { "$var": "lastName" }] }
+{ "$call": "strcat", "$args": ["Illegal move: ", { "$var": "moveDesc" }] }
+{ "$call": "strcat", "$args": [{ "$var": "firstName" }, " ", { "$var": "lastName" }] }
 ```
 
 Rules:
@@ -391,10 +391,10 @@ match cmd {
 {
   "$match": { "$var": "cmd" },
   "$cases": [
-    ["show", { "$fn": ["showResult", { "$var": "state" }] }],
-    ["reset", { "$fn": ["resetResult"] }]
+    ["show", { "$call": "showResult", "$args": [{ "$var": "state" }] }],
+    ["reset", { "$call": "resetResult", "$args": [] }]
   ],
-  "$else": { "$fn": ["moveResult", { "$var": "state" }, { "$var": "argv" }] }
+  "$else": { "$call": "moveResult", "$args": [{ "$var": "state" }, { "$var": "argv" }] }
 }
 ```
 
@@ -413,7 +413,7 @@ distinguished from `match` purely by the absence of a subject after the keyword.
 ```
 
 ```json
-{ "$params": ["a", "b"], "$return": { "$fn": ["add", { "$var": "a" }, { "$var": "b" }] } }
+{ "$params": ["a", "b"], "$return": { "$call": "add", "$args": [{ "$var": "a" }, { "$var": "b" }] } }
 ```
 
 ### `expr where { name: value, … }`
@@ -432,8 +432,8 @@ key–value entries on the function-body object).
 ```json
 {
   "$params": ["x", "y"],
-  "sum": { "$fn": ["add", { "$var": "x" }, { "$var": "y" }] },
-  "doubled": { "$fn": ["mul", { "$var": "sum" }, 2] },
+  "sum": { "$call": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] },
+  "doubled": { "$call": "mul", "$args": [{ "$var": "sum" }, 2] },
   "$return": { "$var": "doubled" }
 }
 ```
@@ -458,7 +458,7 @@ A bare `{...}` is **always** a data object — including immediately after `=>`:
 ```json
 {
   "$params": ["state"],
-  "$return": { "output": { "$fn": ["boardSection", { "$var": "state" }, ""] }, "exitCode": 0 }
+  "$return": { "output": { "$call": "boardSection", "$args": [{ "$var": "state" }, ""] }, "exitCode": 0 }
 }
 ```
 
@@ -482,7 +482,7 @@ literal can recurse by its local name.
 ```json
 {
   "$params": ["x"],
-  "$return": { "$params": ["y"], "$return": { "$fn": ["add", { "$var": "x" }, { "$var": "y" }] } }
+  "$return": { "$params": ["y"], "$return": { "$call": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] } }
 }
 ```
 
@@ -497,7 +497,7 @@ A typical multi-function file is an **object mapping names to expressions** —
 constants and function literals — as in `examples/chess.jsonc` and
 `examples/life.jfn`. This object is the **outermost `letrec` scope**: top-level
 names (constants _and_ functions) are visible via `$var` throughout the file,
-and functions are callable via `$fn`, with the same lazy, order-independent,
+and functions are callable via `$call`, with the same lazy, order-independent,
 mutually-recursive semantics a function body gives its locals. The host supplies
 the parent frame (stdlib + native builtins) and picks an entry point to invoke.
 
@@ -521,7 +521,7 @@ the parent frame (stdlib + native builtins) and picks an entry point to invoke.
     "$params": ["color"],
     "$return": { "$if": { "$eq": [{ "$var": "color" }, "w"] }, "$then": "b", "$else": "w" }
   },
-  "pieceType": { "$params": ["piece"], "$return": { "$fn": ["upper", { "$var": "piece" }] } }
+  "pieceType": { "$params": ["piece"], "$return": { "$call": "upper", "$args": [{ "$var": "piece" }] } }
 }
 ```
 
@@ -614,7 +614,7 @@ Everything else in this document is resolved and implementable.
 Two surface forms lower to the effects kernel (`perform` / `pure` / `bind` /
 `handle`; see the [Tasks & Effects](./language.md#tasks--effects) section of the
 language reference for the runtime semantics). Both are **parser-only sugar** —
-they lower to ordinary `$fn` calls, and the printer folds those exact shapes
+they lower to ordinary `$call` calls, and the printer folds those exact shapes
 back.
 
 `do` and `handle` are **contextual keywords**: in primary position they
@@ -655,17 +655,17 @@ do {
 
 ```json
 {
-  "$fn": [
-    "bind",
-    { "$fn": ["readLine"] },
+  "$call": "bind",
+  "$args": [
+    { "$call": "readLine", "$args": [] },
     {
       "$params": ["name"],
-      "upper": { "$fn": ["upper", { "$var": "name" }] },
+      "upper": { "$call": "upper", "$args": [{ "$var": "name" }] },
       "$return": {
-        "$fn": [
-          "bind",
-          { "$fn": ["print", { "$var": "upper" }] },
-          { "$return": { "$fn": ["pure", { "$var": "upper" }] } }
+        "$call": "bind",
+        "$args": [
+          { "$call": "print", "$args": [{ "$var": "upper" }] },
+          { "$return": { "$call": "pure", "$args": [{ "$var": "upper" }] } }
         ]
       }
     }
@@ -699,12 +699,12 @@ handle greet(io) with {
 
 ```json
 {
-  "$fn": [
-    "handle",
-    { "$fn": ["greet", { "$var": "io" }] },
+  "$call": "handle",
+  "$args": [
+    { "$call": "greet", "$args": [{ "$var": "io" }] },
     {
-      "io.readLine": { "$params": ["resume"], "$return": { "$fn": ["resume", "world"] } },
-      "io.print": { "$params": ["msg", "resume"], "$return": { "$fn": ["resume", null] } }
+      "io.readLine": { "$params": ["resume"], "$return": { "$call": "resume", "$args": ["world"] } },
+      "io.print": { "$params": ["msg", "resume"], "$return": { "$call": "resume", "$args": [null] } }
     }
   ]
 }

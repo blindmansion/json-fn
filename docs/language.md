@@ -12,37 +12,38 @@ Strings, numbers, booleans, and `null` evaluate to themselves.
 
 ### Arrays
 
-Each element is evaluated recursively. `[1, { "$fn": ["add", 2, 3] }]` evaluates to `[1, 5]`.
+Each element is evaluated recursively. `[1, { "$call": "add", "$args": [2, 3] }]` evaluates to `[1, 5]`.
 
 ### Plain Objects
 
-Each value is evaluated recursively (keys are not). `{ "x": { "$fn": ["add", 1, 2] } }` evaluates to `{ "x": 3 }`.
+Each value is evaluated recursively (keys are not). `{ "x": { "$call": "add", "$args": [1, 2] } }` evaluates to `{ "x": 3 }`.
 
-### Function Call — `{ $fn: [...] }`
+### Function Call — `{ $call, $args }`
 
-Calls a function. `$fn` is an array where the first element is the function (a name, body, or expression that resolves to one) and the remaining elements are arguments.
+Calls a function. `$call` is the callee (a name, body, or expression that resolves to one) and `$args` is the array of arguments. Both keys are required; `$args` may be empty.
 
 ```json
-{ "$fn": ["add", 3, 4] }
+{ "$call": "add", "$args": [3, 4] }
 ```
 
 Nested calls — arguments can themselves be calls:
 
 ```json
 {
-  "$fn": ["mul", { "$fn": ["add", 2, 3] }, { "$fn": ["sub", 10, 4] }]
+  "$call": "mul",
+  "$args": [{ "$call": "add", "$args": [2, 3] }, { "$call": "sub", "$args": [10, 4] }]
 }
 ```
 
-Zero-argument calls use a single-element array:
+Zero-argument calls use an empty `$args` array:
 
 ```json
-{ "$fn": ["myFunction"] }
+{ "$call": "myFunction", "$args": [] }
 ```
 
-### Function Reference — `{ $fn }` (non-array)
+### Function Reference — `{ $fn }`
 
-When `$fn` is not an array, it evaluates the value and returns the result (a string name or function body) without calling it. Used to pass functions as values to higher-order functions.
+`$fn` evaluates its value and returns the result (a string name or function body) without calling it. Used to pass functions as values to higher-order functions. `$fn` is never an array — an array `$fn` is a pre-split artifact and is rejected.
 
 ```json
 { "$fn": "double" }
@@ -65,7 +66,7 @@ All property access uses `$get`/`$from`. `$from` evaluates to the target and `$g
 { "$get": 1, "$from": { "$var": "items" } }
 { "$get": ["address", "city"], "$from": { "$var": "person" } }
 { "$get": { "$var": "fieldName" }, "$from": { "$var": "data" } }
-{ "$get": 0, "$from": { "$fn": ["concat", [10], [20]] } }
+{ "$get": 0, "$from": { "$call": "concat", "$args": [[10], [20]] } }
 ```
 
 `$get` evaluates to one of:
@@ -83,7 +84,7 @@ Defines a function. Required key: `$return` (the expression to evaluate when cal
 ```json
 {
   "$params": ["n"],
-  "remainder": { "$fn": ["mod", { "$var": "n" }, 2] },
+  "remainder": { "$call": "mod", "$args": [{ "$var": "n" }, 2] },
   "$return": { "$eq": [{ "$var": "remainder" }, 0] }
 }
 ```
@@ -126,11 +127,11 @@ Evaluates `$match`, then checks `$cases` left-to-right. Each case is a `[value, 
 {
   "$match": { "$var": "cmd" },
   "$cases": [
-    ["show", { "$fn": ["showResult", { "$var": "state" }] }],
-    ["reset", { "$fn": ["resetResult"] }],
-    ["help", { "$fn": ["helpResult"] }]
+    ["show", { "$call": "showResult", "$args": [{ "$var": "state" }] }],
+    ["reset", { "$call": "resetResult", "$args": [] }],
+    ["help", { "$call": "helpResult", "$args": [] }]
   ],
-  "$else": { "$fn": ["moveResult", { "$var": "state" }, { "$var": "argv" }] }
+  "$else": { "$call": "moveResult", "$args": [{ "$var": "state" }, { "$var": "argv" }] }
 }
 ```
 
@@ -151,7 +152,7 @@ Unlike the stdlib `and` function, `$and` does **not** evaluate all its operands 
 Array of expressions evaluated left-to-right. Returns the first truthy value, or the last value if all are falsy. Short-circuits (stops evaluating after the first truthy result).
 
 ```json
-{ "$or": [{ "$var": "cached" }, { "$fn": ["compute", { "$var": "x" }] }] }
+{ "$or": [{ "$var": "cached" }, { "$call": "compute", "$args": [{ "$var": "x" }] }] }
 ```
 
 ### Comparison Shorthands — `{ $eq }`, `{ $neq }`, `{ $lt }`, `{ $lte }`, `{ $gt }`, `{ $gte }`
@@ -208,7 +209,7 @@ A `$comment` key with a string value is ignored everywhere it appears as a sibli
 Rules:
 
 - The value **must be a string** to be recognized as a comment. Non-string values are treated as normal keys (and will typically cause "expression cannot have other properties" errors in expression forms).
-- Allowed as a sibling key in any expression form (`$fn`, `$var`, `$if`/`$then`/`$else`, `$cond`, `$and`, `$or`, comparison shorthands, `$not`, `$raw`, `$get`/`$from`, `$return`/`$params`/locals).
+- Allowed as a sibling key in any expression form (`$call`/`$args`, `$fn`, `$var`, `$if`/`$then`/`$else`, `$cond`, `$and`, `$or`, comparison shorthands, `$not`, `$raw`, `$get`/`$from`, `$return`/`$params`/locals).
 - In plain data objects, `$comment` is stripped from the output. To preserve a literal `$comment` key in data, wrap with `$raw`.
 - Inside `$raw`, the entire value is returned verbatim — `$comment` is preserved.
 - Closures preserve `$comment` when a function body is returned as a value.
@@ -224,7 +225,7 @@ Array of strings. Arguments are bound positionally.
 ```json
 {
   "$params": ["a", "b"],
-  "$return": { "$fn": ["add", { "$var": "a" }, { "$var": "b" }] }
+  "$return": { "$call": "add", "$args": [{ "$var": "a" }, { "$var": "b" }] }
 }
 ```
 
@@ -250,8 +251,8 @@ Any key other than `$return` and `$params` defines a local variable. Locals are 
 ```json
 {
   "$params": ["x", "y"],
-  "sum": { "$fn": ["add", { "$var": "x" }, { "$var": "y" }] },
-  "doubled": { "$fn": ["mul", { "$var": "sum" }, 2] },
+  "sum": { "$call": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] },
+  "doubled": { "$call": "mul", "$args": [{ "$var": "sum" }, 2] },
   "$return": { "$var": "doubled" }
 }
 ```
@@ -265,7 +266,7 @@ When a function body is returned as a value (not called), outer variables are ca
   "$params": ["x"],
   "$return": {
     "$params": ["y"],
-    "$return": { "$fn": ["add", { "$var": "x" }, { "$var": "y" }] }
+    "$return": { "$call": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] }
   }
 }
 ```
@@ -275,7 +276,7 @@ Called with `[10]`, returns:
 ```json
 {
   "$params": ["y"],
-  "$return": { "$fn": ["add", 10, { "$var": "y" }] }
+  "$return": { "$call": "add", "$args": [10, { "$var": "y" }] }
 }
 ```
 
@@ -293,7 +294,7 @@ Capture also keeps an escaping closure **self-contained** when it calls an enclo
     "$return": {
       "$if": { "$lte": [{ "$var": "x" }, 0] },
       "$then": { "$var": "base" },
-      "$else": { "$fn": ["go", { "$fn": ["sub", { "$var": "x" }, 1] }] }
+      "$else": { "$call": "go", "$args": [{ "$call": "sub", "$args": [{ "$var": "x" }, 1] }] }
     }
   },
   "$return": { "$var": "go" }
@@ -310,13 +311,13 @@ Called with `[42]`, returns a body that carries `go` as an attached local so it 
     "$return": {
       "$if": { "$lte": [{ "$var": "x" }, 0] },
       "$then": 42,
-      "$else": { "$fn": ["go", { "$fn": ["sub", { "$var": "x" }, 1] }] }
+      "$else": { "$call": "go", "$args": [{ "$call": "sub", "$args": [{ "$var": "x" }, 1] }] }
     }
   },
   "$return": {
     "$if": { "$lte": [{ "$var": "x" }, 0] },
     "$then": 42,
-    "$else": { "$fn": ["go", { "$fn": ["sub", { "$var": "x" }, 1] }] }
+    "$else": { "$call": "go", "$args": [{ "$call": "sub", "$args": [{ "$var": "x" }, 1] }] }
   }
 }
 ```
@@ -342,7 +343,8 @@ Functions can call themselves by name if registered in the function registry.
     "$if": { "$lte": [{ "$var": "n" }, 1] },
     "$then": 1,
     "$else": {
-      "$fn": ["mul", { "$var": "n" }, { "$fn": ["fact", { "$fn": ["sub", { "$var": "n" }, 1] }] }]
+      "$call": "mul",
+      "$args": [{ "$var": "n" }, { "$call": "fact", "$args": [{ "$call": "sub", "$args": [{ "$var": "n" }, 1] }] }]
     }
   }
 }
@@ -361,11 +363,12 @@ Local variables whose values are function bodies (have a `$return` key) can be c
       "$if": { "$lte": [{ "$var": "x" }, 1] },
       "$then": 1,
       "$else": {
-        "$fn": ["mul", { "$var": "x" }, { "$fn": ["fact", { "$fn": ["sub", { "$var": "x" }, 1] }] }]
+        "$call": "mul",
+        "$args": [{ "$var": "x" }, { "$call": "fact", "$args": [{ "$call": "sub", "$args": [{ "$var": "x" }, 1] }] }]
       }
     }
   },
-  "$return": { "$fn": ["fact", { "$var": "n" }] }
+  "$return": { "$call": "fact", "$args": [{ "$var": "n" }] }
 }
 ```
 
@@ -376,14 +379,14 @@ Local function names can shadow global registry functions and do not leak into p
 A whole program is an **object mapping names to expressions** — the same shape as a function body's locals. When a host runs such an object as a program (choosing an entry point to invoke), that object is itself a **recursive, lazy binding scope**, identical in semantics to the locals inside a function body:
 
 - Top-level **constants** (`SIZE`, `OFFSETS`, …) are visible via `$var` throughout the module.
-- Top-level **functions** are callable via `$fn` and, being bindings, are also `$var`-visible as function values (so they can be passed by name to higher-order functions).
+- Top-level **functions** are callable via `$call` and, being bindings, are also `$var`-visible as function values (so they can be passed by name to higher-order functions).
 - Bindings are lazy (evaluated on first reference, then memoized), order-independent, mutually recursive, and cycle-checked — exactly like locals.
 
 ```json
 {
   "W": 20,
   "H": 12,
-  "SIZE": { "$fn": ["mul", { "$var": "W" }, { "$var": "H" }] },
+  "SIZE": { "$call": "mul", "$args": [{ "$var": "W" }, { "$var": "H" }] },
   "area": { "$return": { "$var": "SIZE" } }
 }
 ```
@@ -394,24 +397,24 @@ Running this program with entry `area` returns `240`: the top-level constant `SI
 
 The module scope composes with the host-supplied registry (stdlib + native builtins) by **one rule**:
 
-> The module object is the **outermost lexical frame**; the host/stdlib registry is its **parent frame**. `$fn` and `$var` resolution are unchanged except that they now walk one additional frame.
+> The module object is the **outermost lexical frame**; the host/stdlib registry is its **parent frame**. Callee (`$call`) and `$var` resolution are unchanged except that they now walk one additional frame.
 
 Consequences:
 
 - **Shadowing.** A module binding shadows a same-named registry entry (stdlib is the parent frame).
 - **Inner binders still win.** A function's `$params` or locals shadow a module constant of the same name, at any nesting depth — module scope is just the outermost link in the same chain described under [Scoping Rules](#scoping-rules).
-- **Lisp-2 asymmetry (by syntax, not runtime type).** Only a binding whose value is _literally_ a function body (has a `$return` key) becomes `$fn`-callable. So a module _constant_ named `map` shadows `$var map` but **not** `$fn map` (which still resolves the stdlib `map`), even if that constant happens to evaluate to a function; a module _function_ named `map` shadows **both**.
+- **Lisp-2 asymmetry (by syntax, not runtime type).** Only a binding whose value is _literally_ a function body (has a `$return` key) becomes callable in `$call` position. So a module _constant_ named `map` shadows `$var map` but **not** a `$call` to `map` (which still resolves the stdlib `map`), even if that constant happens to evaluate to a function; a module _function_ named `map` shadows **both**.
 
 This is a single outermost frame, not a module _system_: there is no `import` / `export`, no multiple modules, and no re-exports.
 
 ## Dynamic Dispatch
 
-The first element of `$fn` can be a `$var` reference or any expression that evaluates to a function name or body.
+The callee `$call` can be a `$var` reference or any expression that evaluates to a function name or body.
 
 ```json
 {
   "$params": ["fnName"],
-  "$return": { "$fn": [{ "$var": "fnName" }, 3, 4] }
+  "$return": { "$call": { "$var": "fnName" }, "$args": [3, 4] }
 }
 ```
 
@@ -430,7 +433,7 @@ A task is a tagged plain object. The tag key is `@task` — deliberately **not**
 ```json
 { "@task": "effect", "name": "http.get", "args": ["https://example.com"] }
 { "@task": "pure", "value": 42 }
-{ "@task": "bind", "task": { "@task": "pure", "value": 1 }, "then": { "$params": ["x"], "$return": { "$fn": ["pure", { "$var": "x" }] } } }
+{ "@task": "bind", "task": { "@task": "pure", "value": 1 }, "then": { "$params": ["x"], "$return": { "$call": "pure", "$args": [{ "$var": "x" }] } } }
 ```
 
 - **`effect`** requests one effect by `name`, carrying its `args`. `raise(err)` is the distinguished effect named `raise`.
@@ -680,9 +683,9 @@ These build and run **tasks** — the effect representation described under [Tas
 
 ```json
 {
-  "$fn": [
-    "map",
-    { "$params": ["x"], "$return": { "$fn": ["log", { "$var": "x" }, "item"] } },
+  "$call": "map",
+  "$args": [
+    { "$params": ["x"], "$return": { "$call": "log", "$args": [{ "$var": "x" }, "item"] } },
     [1, 2, 3]
   ]
 }
@@ -703,22 +706,20 @@ Higher-order functions take **callback first, data second**. This is consistent 
 Register the function body in the function registry, call it by name:
 
 ```json
-{ "$fn": ["myFunction", 1, 2, 3] }
+{ "$call": "myFunction", "$args": [1, 2, 3] }
 ```
 
 ### Inline anonymous function
 
-Use a function body directly as the first element of `$fn`:
+Use a function body directly as the `$call` callee:
 
 ```json
 {
-  "$fn": [
-    {
-      "$params": ["x"],
-      "$return": { "$fn": ["mul", { "$var": "x" }, { "$var": "x" }] }
-    },
-    5
-  ]
+  "$call": {
+    "$params": ["x"],
+    "$return": { "$call": "mul", "$args": [{ "$var": "x" }, { "$var": "x" }] }
+  },
+  "$args": [5]
 }
 ```
 
@@ -729,16 +730,16 @@ Use local variables to chain steps:
 ```json
 {
   "nums": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-  "evens": { "$fn": ["filter", { "$fn": "isEven" }, { "$var": "nums" }] },
-  "doubled": { "$fn": ["map", { "$fn": "double" }, { "$var": "evens" }] },
-  "$return": { "$fn": ["reduce", { "$fn": "add" }, 0, { "$var": "doubled" }] }
+  "evens": { "$call": "filter", "$args": [{ "$fn": "isEven" }, { "$var": "nums" }] },
+  "doubled": { "$call": "map", "$args": [{ "$fn": "double" }, { "$var": "evens" }] },
+  "$return": { "$call": "reduce", "$args": [{ "$fn": "add" }, 0, { "$var": "doubled" }] }
 }
 ```
 
 Or use `pipe`:
 
 ```json
-{ "$fn": ["pipe", [{ "$fn": "neg" }, { "$fn": "abs" }, { "$fn": "str" }], -5] }
+{ "$call": "pipe", "$args": [[{ "$fn": "neg" }, { "$fn": "abs" }, { "$fn": "str" }], -5] }
 ```
 
 ### Currying / Partial Application
@@ -750,7 +751,7 @@ Return a function body from a function to capture arguments:
   "$params": ["a"],
   "$return": {
     "$params": ["b"],
-    "$return": { "$fn": ["add", { "$var": "a" }, { "$var": "b" }] }
+    "$return": { "$call": "add", "$args": [{ "$var": "a" }, { "$var": "b" }] }
   }
 }
 ```
@@ -760,7 +761,7 @@ Return a function body from a function to capture arguments:
 Use `apply` to call a function with a dynamically constructed argument array:
 
 ```json
-{ "$fn": ["apply", { "$var": "targetFn" }, { "$var": "collectedArgs" }] }
+{ "$call": "apply", "$args": [{ "$var": "targetFn" }, { "$var": "collectedArgs" }] }
 ```
 
 ### Object Transformation
@@ -769,10 +770,10 @@ Use `entries` -> HOF -> `fromEntries` to transform objects:
 
 ```json
 {
-  "pairs": { "$fn": ["entries", { "$var": "obj" }] },
+  "pairs": { "$call": "entries", "$args": [{ "$var": "obj" }] },
   "filtered": {
-    "$fn": [
-      "filter",
+    "$call": "filter",
+    "$args": [
       {
         "$params": ["pair"],
         "$return": { "$gt": [{ "$get": 1, "$from": { "$var": "pair" } }, 3] }
@@ -780,7 +781,7 @@ Use `entries` -> HOF -> `fromEntries` to transform objects:
       { "$var": "pairs" }
     ]
   },
-  "$return": { "$fn": ["fromEntries", { "$var": "filtered" }] }
+  "$return": { "$call": "fromEntries", "$args": [{ "$var": "filtered" }] }
 }
 ```
 
@@ -819,7 +820,8 @@ How limits are supplied, the per-language cancellation/timeout APIs, and default
 - `$eq`, `$neq`, `$lt`, `$lte`, `$gt`, and `$gte` must be the sole key; value must be an array of exactly two expressions.
 - `$not` must be the sole key.
 - `$raw` must be the sole key.
-- `$fn` as an array (function call) must be the sole key. `$fn` as a non-array (reference) must also be the sole key.
-- `$return` cannot coexist with `$fn`.
+- A function call has exactly `$call` (the callee) and `$args` (an array of arguments) and no other keys.
+- A function reference has `$fn` as its sole key; `$fn` is never an array.
+- `$return` cannot coexist with `$call` or `$fn`.
 - `$comment` (with a string value) is allowed as a sibling key in any expression form and does not count toward "sole key" / "exactly N keys" constraints. In plain data objects it is stripped from the output.
 - Truthiness: `0`, `""`, `null`, `false` are falsy; everything else is truthy.
