@@ -117,4 +117,48 @@ describe("printer output shape", () => {
       }),
     ).toBe("({ a }, { b }) => a + b");
   });
+
+  // A function body with locals prints its `$return` followed by `where { ... }`.
+  // If the return is an `if` (or a nested lambda), the trailing `where` would
+  // re-parse as attaching to the return's open tail instead of the body, so the
+  // return must be parenthesized.
+  test("if-return with where locals is parenthesized so where binds to the body", () => {
+    const node: JSONType = {
+      $params: ["s"],
+      len: { $fn: ["length", { $var: "s" }] },
+      $return: {
+        $if: { $eq: [{ $var: "len" }, 2] },
+        $then: { $var: "len" },
+        $else: null,
+      },
+    };
+    expect(print(node)).toBe(
+      "(s) => (if len == 2 then len else null) where {\n  len: length(s)\n}",
+    );
+    expect(parse(print(node))).toEqual(node);
+  });
+
+  test("nested-lambda return with where locals is parenthesized", () => {
+    const node: JSONType = {
+      $params: ["p"],
+      k: 1,
+      $return: { $params: ["y"], $return: { $fn: ["add", { $var: "y" }, { $var: "k" }] } },
+    };
+    expect(parse(print(node))).toEqual(node);
+    expect(print(node).startsWith("(p) => ((y) =>")).toBe(true);
+  });
+
+  test("cond return with where locals needs no parens (brace-terminated)", () => {
+    const node: JSONType = {
+      $params: ["n"],
+      big: { $fn: ["gt", { $var: "n" }, 10] },
+      $return: {
+        $cond: [[{ $var: "big" }, "yes"]],
+        $else: "no",
+      },
+    };
+    const out = print(node);
+    expect(out.startsWith("(n) => cond {")).toBe(true);
+    expect(parse(out)).toEqual(node);
+  });
 });

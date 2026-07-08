@@ -94,6 +94,19 @@
       }
     },
     {
+      "description": "parenthesized if-return lets where bind to the function body as locals",
+      "source": "(s) => (if len == 2 then len else null) where { len: length(s) }",
+      "expected": {
+        "$params": ["s"],
+        "len": { "$fn": ["length", { "$var": "s" }] },
+        "$return": {
+          "$if": { "$eq": [{ "$var": "len" }, 2] },
+          "$then": { "$var": "len" },
+          "$else": null
+        }
+      }
+    },
+    {
       "description": "trailing where inside a parenthesized group binds within the parens",
       "source": "(base(n) where { base: (x) => x + 1 }) * 2",
       "expected": {

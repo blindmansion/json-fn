@@ -279,10 +279,28 @@ function renderFunctionBody(node: { [k: string]: JSONType }, indent: string): Re
     return { text: `${header} ${emit(node.$return!, P_BLOCK, indent)}`, prec: P_BLOCK };
   }
   const inner = indent + "  ";
-  const ret = emit(node.$return!, P_BLOCK, indent);
+  // The `where` clause is a postfix on the return expression. If the return's
+  // surface form ends with an *open* expression whose parse would greedily
+  // extend — an `if/then/else` (its `else` tail) or a nested function literal
+  // (its `=>` body) — the trailing `where` would re-attach to that inner tail
+  // instead of this body on re-parse. Parenthesize such returns so the `where`
+  // binds here. Brace-terminated blocks (`cond`/`match`) and every operator/
+  // call/data form stop before `where`, so they need no guard.
+  const retText = emit(node.$return!, P_BLOCK, indent);
+  const ret = returnAbsorbsTrailingWhere(node.$return!) ? `(${retText})` : retText;
   const bindings = locals.map((k) => `${inner}${k}: ${emit(node[k]!, P_BLOCK, inner)}`);
   const body = `${ret} where {\n${bindings.join(",\n")}\n${indent}}`;
   return { text: `${header} ${body}`, prec: P_BLOCK };
+}
+
+/** Whether a function-body `$return`, printed bare, would swallow a following
+ * `where` into a sub-expression rather than the body. True for `if/then/else`
+ * (the `else` branch is an open expression) and nested function literals (the
+ * `=>` body is open). `cond`/`match` close with `}` and all operator/call/data
+ * forms stop before `where`, so they are safe. */
+function returnAbsorbsTrailingWhere(node: JSONType): boolean {
+  if (node === null || typeof node !== "object" || Array.isArray(node)) return false;
+  return "$if" in node || "$return" in node;
 }
 
 /** Render one `$params` slot: a plain name, a `...rest` collector, or an object

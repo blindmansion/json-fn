@@ -29,7 +29,7 @@
   steppingMoves: (board, idx, color, offsets) => flatMap(tryOff, offsets) where {
     row: rowOf(idx),
     col: colOf(idx),
-    tryOff: (off) => if ok && !blocked then [tIdx] else [] where {
+    tryOff: (off) => (if ok && !blocked then [tIdx] else []) where {
       r: row + off[0],
       c: col + off[1],
       ok: inBounds(r, c),
@@ -51,7 +51,7 @@
     fwd2Idx: toIdx(fwd2Row, col),
     fwd2Ok: row == startRank && fwd1Ok && isNull(board[fwd2Idx]),
     fwd2: if fwd2Ok then [fwd2Idx] else [],
-    captures: flatMap((dc) => if cOk && isEnemy then [cIdx] else [] where {
+    captures: flatMap((dc) => (if cOk && isEnemy then [cIdx] else []) where {
       cr: fwd1Row,
       cc: col + dc,
       cOk: inBounds(cr, cc),
@@ -65,7 +65,7 @@
   bishopMoves: (board, idx, color) => slideMoves(board, idx, color, raw [[-1,-1],[-1,1],[1,-1],[1,1]]),
   rookMoves: (board, idx, color) => slideMoves(board, idx, color, raw [[-1,0],[1,0],[0,-1],[0,1]]),
   queenMoves: (board, idx, color) => slideMoves(board, idx, color, raw [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]]),
-  pieceMoves: (board, idx) => if isNull(piece) then [] else match type {
+  pieceMoves: (board, idx) => (if isNull(piece) then [] else match type {
     "P" -> pawnMoves(board, idx, color),
     "N" -> knightMoves(board, idx, color),
     "B" -> bishopMoves(board, idx, color),
@@ -73,7 +73,7 @@
     "Q" -> queenMoves(board, idx, color),
     "K" -> kingMoves(board, idx, color),
     else -> []
-  } where {
+  }) where {
     piece: board[idx],
     color: pieceColor(piece),
     type: pieceType(piece)
@@ -120,7 +120,7 @@
   findKing: (board, color) => findIndex((cell) => cell == king, board) where {
     king: if color == "w" then "K" else "k"
   },
-  isInCheck: (board, color) => if kingPos == -1 then false else isAttacked(board, kingPos, otherColor(color)) where {
+  isInCheck: (board, color) => (if kingPos == -1 then false else isAttacked(board, kingPos, otherColor(color))) where {
     kingPos: findKing(board, color)
   },
   applyMove: (board, from, to) => setAt(setAt(board, to, placedPiece), from, null) where {
@@ -131,7 +131,7 @@
     isPromotion: type == "P" && (toRow == 7 || toRow == 0),
     placedPiece: if isPromotion then makePiece(color, "Q") else piece
   },
-  isLegalMove: (board, from, to, turn) => if hasPiece && rightColor then inMoves && !leavesCheck else false where {
+  isLegalMove: (board, from, to, turn) => (if hasPiece && rightColor then inMoves && !leavesCheck else false) where {
     piece: board[from],
     hasPiece: !isNull(piece),
     rightColor: pieceColor(piece) == turn,
@@ -140,7 +140,7 @@
     newBoard: applyMove(board, from, to),
     leavesCheck: isInCheck(newBoard, turn)
   },
-  hasAnyLegalMove: (board, color) => some((from) => if isPiece then hasLegal else false where {
+  hasAnyLegalMove: (board, color) => some((from) => (if isPiece then hasLegal else false) where {
     piece: board[from],
     isPiece: pieceColor(piece) == color,
     moves: pieceMoves(board, from),
@@ -156,11 +156,11 @@
     hasLegal: hasAnyLegalMove(board, turn),
     inCheck: isInCheck(board, turn)
   },
-  playMove: (state, from, to) => if canMove then {
+  playMove: (state, from, to) => (if canMove then {
     board: newBoard,
     turn: nextTurn,
     status: newStatus
-  } else state where {
+  } else state) where {
     board: state.board,
     turn: state.turn,
     status: state.status,
@@ -176,7 +176,7 @@
     turn: "w",
     status: "playing"
   },
-  parseSquare: (s) => if len == 2 && file >= 0 && rank >= 0 then rank * 8 + file else null where {
+  parseSquare: (s) => (if len == 2 && file >= 0 && rank >= 0 then rank * 8 + file else null) where {
     len: length(s),
     fileChar: slice(s, 0, 1),
     rankChar: slice(s, 1, 2),
@@ -189,10 +189,10 @@
     fileChar: slice("abcdefgh", file, file + 1),
     rankChar: str(rank + 1)
   },
-  parseMove: (s) => if shapeOk && !isNull(from) && !isNull(to) then {
+  parseMove: (s) => (if shapeOk && !isNull(from) && !isNull(to) then {
     from: from,
     to: to
-  } else null where {
+  } else null) where {
     t: lower(trim(s)),
     len: length(t),
     is4: len == 4,
@@ -207,7 +207,7 @@
     from: parseSquare(fromStr),
     to: parseSquare(toStr)
   },
-  pieceGlyph: (piece) => if isNull(piece) then "·" else PIECES[piece] where {
+  pieceGlyph: (piece) => (if isNull(piece) then "·" else PIECES[piece]) where {
     PIECES: raw {"K":"♔","Q":"♕","R":"♖","B":"♗","N":"♘","P":"♙","k":"♚","q":"♛","r":"♜","b":"♝","n":"♞","p":"♟"}
   },
   formatRank: (board, rank) => ` ${str(rank + 1)}  ${join(cells, "  ")}` where {
