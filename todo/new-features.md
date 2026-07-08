@@ -35,17 +35,6 @@ Evaluate demand before adding each; all are pure surface sugar:
   See `plans/shorthand-action-items.md` (Syntax sugar candidates) and the full  
   LLM-probe findings in `plans/shorthand-llm-probes.md`.
 
-## Core-form simplification (deprecate JSON-authoring conveniences)
-
-Several core forms exist only to make **hand-authored JSON** terser or more
-flexible. Now that the shorthand is the authored surface, that redundancy is
-dead weight: the shorthand can lower to a smaller, more orthogonal core, and we
-can strip the concise-but-overlapping node forms from the interpreters. Each
-removal is a breaking change to the JSON layer, so batch and sequence them.
-Candidates (collapse property access onto `$get`/`$from`, drop first-class
-comparator nodes for stdlib functions, split the overloaded call/reference `$fn`
-form) plus what to **keep** and full rationale: `plans/core-form-simplification.md`.
-
 ## Comment attachment (spec gap)
 
 How `//` comments attach and lower to `$comment` — group/section comments,
@@ -114,13 +103,13 @@ name vs. body matrix above, and a decision on whether `{ "$fn": <expr> }`
 Today a runtime evaluator error (bad `$get` key, `Function not found`, fuel/depth
 limits, division by zero, …) throws a plain host `Error`. The guest author sees a
 host-language stack trace (frames of `callFunctionInternal`/`evaluateExpression`
-in `typescript/src/evaluate.ts`) and a message with no *guest* context: which
+in `typescript/src/evaluate.ts`) and a message with no _guest_ context: which
 function, which `where`-local, or which sub-expression was being evaluated. For
 straight-line pure code this is survivable; for effectful programs driven through
 `runTask` (see `typescript/examples/dungeon.ts`) a guest bug surfaces as an opaque
 Bun stack dump from inside the trampoline.
 
-We improved the *messages* (richer `$get` diagnostics) and *host presentation*
+We improved the _messages_ (richer `$get` diagnostics) and _host presentation_
 (examples catch non-`TaskRaiseError` evaluator errors and print cleanly). The
 remaining, larger piece is a **guest-level traceback**: thread a lightweight
 frame stack through `EvaluationContext` (function name, and ideally the active
@@ -145,7 +134,7 @@ instead of interpreter internals. Design notes:
   depth, var-not-found, bad key) from in-language `raise`; only the former get a
   traceback. `raise` stays a structured effect payload.
 - Source spans: shorthand parse position isn't currently carried into the core
-  JSON, so a first cut is function/local *names* only. A later pass could thread
+  JSON, so a first cut is function/local _names_ only. A later pass could thread
   `$comment`/position metadata for true source locations.
 - Cross-cutting: mirror in the Go/Python/Rust interpreters for conformance, or
   scope this as a TS-only DX feature and document it as non-normative.
