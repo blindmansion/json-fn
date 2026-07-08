@@ -24,13 +24,15 @@ type Seg =
   | { kind: "static"; value: JSONType } // literal key/index that folds into a `$get` path
   | { kind: "computed"; value: JSONType }; // computed key that breaks a static run
 
+// Comparison operators lower to stdlib function calls (exactly as `+`→`add`),
+// so the core no longer needs first-class comparator nodes.
 const COMPARISON_OPS: Partial<Record<TokPunct, string>> = {
-  eqeq: "$eq",
-  bangeq: "$neq",
-  lt: "$lt",
-  lteq: "$lte",
-  gt: "$gt",
-  gteq: "$gte",
+  eqeq: "eq",
+  bangeq: "neq",
+  lt: "lt",
+  lteq: "lte",
+  gt: "gt",
+  gteq: "gte",
 };
 
 class Parser {
@@ -122,15 +124,15 @@ class Parser {
 
   private parseCmp(): JSONType {
     const left = this.parseAdd();
-    const key = COMPARISON_OPS[this.peekType() as TokPunct];
-    if (key === undefined) return left;
+    const name = COMPARISON_OPS[this.peekType() as TokPunct];
+    if (name === undefined) return left;
     this.advance();
     const right = this.parseAdd();
     // Non-associative: reject `a < b < c`.
     if (COMPARISON_OPS[this.peekType() as TokPunct] !== undefined) {
       throw this.err("comparison operators are non-associative");
     }
-    return { [key]: [left, right] };
+    return fncall(name, [left, right]);
   }
 
   private parseAdd(): JSONType {
@@ -181,7 +183,7 @@ class Parser {
     const type = this.peekType();
     if (type === "bang") {
       this.advance();
-      return { $not: this.parseUnary() };
+      return fncall("not", [this.parseUnary()]);
     }
     if (type === "minus") {
       this.advance();

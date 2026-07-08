@@ -10,8 +10,6 @@ enum ExpressionType {
   Match,
   And,
   Or,
-  Comparison,
-  Not,
   PropertyAccess,
   Raw,
   Object,
@@ -64,16 +62,6 @@ type Match = {
   $match: JSONType;
   $cases: [JSONType, JSONType][];
   $else: JSONType;
-};
-
-type ComparisonOperator = "$eq" | "$neq" | "$lt" | "$lte" | "$gt" | "$gte";
-
-type ComparisonExpression = {
-  [K in ComparisonOperator]?: JSONType[];
-};
-
-type NotExpression = {
-  $not: JSONType;
 };
 
 type PropertyAccess = {
@@ -209,9 +197,6 @@ export type {
   Conditional,
   Cond,
   Match,
-  ComparisonOperator,
-  ComparisonExpression,
-  NotExpression,
   PropertyAccess,
   EvaluatedFunctionCall,
 };

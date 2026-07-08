@@ -135,7 +135,7 @@ describe("printer output shape", () => {
       $params: ["s"],
       len: { $call: "length", $args: [{ $var: "s" }] },
       $return: {
-        $if: { $eq: [{ $var: "len" }, 2] },
+        $if: { $call: "eq", $args: [{ $var: "len" }, 2] },
         $then: { $var: "len" },
         $else: null,
       },

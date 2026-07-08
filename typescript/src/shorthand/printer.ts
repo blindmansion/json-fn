@@ -44,15 +44,6 @@ const P_MUL = 5;
 const P_UNARY = 6;
 const P_ATOM = 7;
 
-const COMPARISONS: Record<string, string> = {
-  $eq: "==",
-  $neq: "!=",
-  $lt: "<",
-  $lte: "<=",
-  $gt: ">",
-  $gte: ">=",
-};
-
 /** Binary stdlib functions that print as operators, with their precedence. */
 const BINARY_OPS: Record<string, { op: string; prec: number }> = {
   add: { op: "+", prec: P_ADD },
@@ -60,6 +51,19 @@ const BINARY_OPS: Record<string, { op: string; prec: number }> = {
   mul: { op: "*", prec: P_MUL },
   div: { op: "/", prec: P_MUL },
   mod: { op: "%", prec: P_MUL },
+};
+
+// Comparison stdlib functions render as (non-associative) infix operators.
+// Kept separate from `BINARY_OPS` because both operands must bind strictly
+// tighter than the compare (see `renderComparison`), unlike the left-assoc
+// arithmetic operators.
+const COMPARISON_OPS: Record<string, string> = {
+  eq: "==",
+  neq: "!=",
+  lt: "<",
+  lte: "<=",
+  gt: ">",
+  gte: ">=",
 };
 
 const IDENT_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
@@ -110,10 +114,6 @@ function renderObject(node: { [k: string]: JSONType }, indent: string): Rendered
   if ("$match" in node) return renderMatch(node, indent);
   if ("$and" in node) return renderVariadicLogic(node.$and!, "&&", P_AND, indent);
   if ("$or" in node) return renderVariadicLogic(node.$or!, "||", P_OR, indent);
-  for (const key of Object.keys(COMPARISONS)) {
-    if (key in node) return renderComparison(key, node[key]!, indent);
-  }
-  if ("$not" in node) return { text: `!${emit(node.$not!, P_UNARY, indent)}`, prec: P_UNARY };
   if ("$raw" in node) return atom(`raw ${JSON.stringify(node.$raw)}`);
   if ("$return" in node) return renderFunctionBody(node, indent);
   return atom(renderDataObject(node, indent));
@@ -143,6 +143,10 @@ function renderCall(head: JSONType, args: JSONType[], indent: string): Rendered 
     if (head === "neg" && args.length === 1 && typeof args[0] !== "number") {
       return { text: `-${emit(args[0]!, P_UNARY, indent)}`, prec: P_UNARY };
     }
+    // Logical negation: `!x`.
+    if (head === "not" && args.length === 1) {
+      return { text: `!${emit(args[0]!, P_UNARY, indent)}`, prec: P_UNARY };
+    }
     if (head === "strcat") {
       const concat = renderStrcat(args, indent);
       if (concat !== null) return concat;
@@ -152,6 +156,10 @@ function renderCall(head: JSONType, args: JSONType[], indent: string): Rendered 
       const left = emit(args[0]!, bin.prec, indent);
       const right = emit(args[1]!, bin.prec + 1, indent);
       return { text: `${left} ${bin.op} ${right}`, prec: bin.prec };
+    }
+    const cmp = COMPARISON_OPS[head];
+    if (cmp !== undefined && args.length === 2) {
+      return renderComparison(cmp, args[0]!, args[1]!, indent);
     }
     return atom(`${head}(${renderArgs(args, indent)})`);
   }
@@ -380,12 +388,11 @@ function renderVariadicLogic(
   return { text: parts.join(` ${op} `), prec };
 }
 
-function renderComparison(key: string, operands: JSONType, indent: string): Rendered {
-  const [a, b] = operands as [JSONType, JSONType];
+function renderComparison(op: string, a: JSONType, b: JSONType, indent: string): Rendered {
   // Non-associative: both operands must bind strictly tighter than the compare.
   const left = emit(a, P_CMP + 1, indent);
   const right = emit(b, P_CMP + 1, indent);
-  return { text: `${left} ${COMPARISONS[key]} ${right}`, prec: P_CMP };
+  return { text: `${left} ${op} ${right}`, prec: P_CMP };
 }
 
 // ----- function bodies & where bindings (spec §8) -----
