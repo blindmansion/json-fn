@@ -320,7 +320,9 @@ function renderArray(arr: JSONType[], indent: string): string {
 }
 
 function renderDataObject(node: { [k: string]: JSONType }, indent: string): string {
-  const keys = Object.keys(node);
+  // `$comment` has no canonical shorthand surface form, so we ignore it for now
+  // rather than letting it force the whole object into a `raw` island.
+  const keys = Object.keys(node).filter((k) => k !== "$comment");
   // A data object cannot carry `$`-prefixed keys (the parser forbids them), so
   // such an object is only expressible as an inert `raw` island.
   if (keys.some((k) => k.startsWith("$"))) return `raw ${JSON.stringify(node)}`;
