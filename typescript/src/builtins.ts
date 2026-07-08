@@ -8,7 +8,7 @@
 
 import { readFileSync } from "fs";
 import { join } from "path";
-import type { BuiltinTable } from "./check";
+import type { BuiltinTable } from "./check/builtin-types";
 
 const DEFAULT_PATH = join(import.meta.dir, "../../spec/builtins.json");
 

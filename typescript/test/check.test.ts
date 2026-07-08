@@ -1,17 +1,13 @@
 import { describe, expect, test } from "bun:test";
-import {
-  checkExpr,
-  checkModule,
-  classifySchema,
-  isSubschema,
-  nodeKind,
-  SchemaKind,
-  synth,
-  valueSatisfies,
-} from "../src/check";
-import type { CheckContext, Defs, Schema } from "../src/check";
 import { loadBuiltinTable } from "../src/builtins";
 import type { JSONType } from "../src/types";
+import { classifySchema, SchemaKind, type Defs, type Schema } from "../src/check/schema";
+import { isSubschema } from "../src/check/subsumption";
+import { valueSatisfies } from "../src/check/values";
+import { nodeKind } from "../src/check/ast";
+import { checkExpr, checkModule } from "../src/check/module";
+import { synth } from "../src/check/checker";
+import type { CheckContext } from "../src/check/context";
 
 // ---------------------------------------------------------------------------
 // Section B — classification

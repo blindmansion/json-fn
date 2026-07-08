@@ -1,0 +1,105 @@
+// The type-system counterpart to the runtime's `EvaluationContext`: one bag of
+// state threaded through the walk. Unlike the evaluator, the checker
+// *accumulates* diagnostics (recover-and-continue, assigning `any` on error)
+// rather than failing fast, and it is structured for bidirectional checking
+// (a `synth` mode and a `check`-against-expected mode).
+
+import type { BuiltinEntry } from "./builtin-types";
+import type { JSONType } from "../types";
+import { type Schema, type Defs, type FnTypeShape, isSchemaObject } from "./schema";
+
+// The tier of a diagnostic. A `warning` marks a mismatch the checker cannot
+// *prove* wrong statically but that is checkable at runtime — the §5.5 stand-in
+// for flow narrowing: a value like `Piece | null` used where `string` is wanted
+// is a hard error only if the two are disjoint; if they overlap, a guard could
+// make it pass, so we downgrade to a runtime-checked warning (§6) instead of a
+// false positive.
+type Severity = "error" | "warning";
+
+// A single type diagnostic, with a JSON-ish path to its location (§6).
+type Diagnostic = {
+  path: string[];
+  message: string;
+  severity: Severity;
+  expected?: Schema;
+  actual?: Schema;
+};
+
+// The term scope Γ: term name → type. A flat lookup with a parent chain,
+// mirroring the evaluator's `getVar`.
+type TypeEnv = { lookupType: (name: string) => Schema | undefined };
+
+type CheckContext = {
+  // The module `$types` pool ($defs), resolving `$ref`. The type-NAME scope.
+  defs: Defs;
+  // The term scope (Γ) — mirrors the evaluator's `buildScope`/`getVar`.
+  env: TypeEnv;
+  // Accumulate; never throw.
+  diagnostics: Diagnostic[];
+  // Current location, for messages.
+  path: string[];
+  // The polymorphic builtin layer (§5.3), loaded from `spec/builtins.json`.
+  // Absent → builtins degrade to `any` (the pre-Section-F behavior).
+  builtins?: Record<string, BuiltinEntry>;
+  // Flow-narrowing facts in scope (§5.5): var name → the type it has been
+  // refined to by a dominating guard, already intersected with its declared
+  // type. Present only inside a guarded control-flow arm; `synth`'s `"var"`
+  // case consults it before the term scope. Absent ⇒ no narrowing active.
+  narrowings?: Record<string, Schema>;
+};
+
+// A function signature — the shape shared by a body's `$sig` and the inner of
+// a `$fnType` node (§2.8, §3.1). Reuses `FnTypeShape`.
+type Sig = FnTypeShape;
+
+const EMPTY_ENV: TypeEnv = { lookupType: () => undefined };
+
+// Diagnostics helper: push a diagnostic at the current path. Severity defaults
+// to `error`; callers pass `severity: "warning"` (via `extra`) for the §5.5
+// runtime-checkable downgrade.
+function report(ctx: CheckContext, message: string, extra?: Partial<Diagnostic>): void {
+  ctx.diagnostics.push({ path: [...ctx.path], message, severity: "error", ...extra });
+}
+
+// A child context at a nested path segment (used when descending into args,
+// branches, elements, ...). Cheap object spread — same "thread the bag"
+// discipline as the evaluator's context.
+function at(ctx: CheckContext, segment: string): CheckContext {
+  return { ...ctx, path: [...ctx.path, segment] };
+}
+
+function isBody(v: JSONType): v is Record<string, JSONType> {
+  return isSchemaObject(v) && "$return" in v;
+}
+
+// The declared signature of a function body, or null when unannotated.
+function sigOf(body: Record<string, JSONType>): Sig | null {
+  const sig = body.$sig;
+  if (!isSchemaObject(sig)) return null;
+  return {
+    params: Array.isArray(sig.params) ? (sig.params as Schema[]) : [],
+    rest: "rest" in sig ? sig.rest : undefined,
+    returns: "returns" in sig ? sig.returns! : true,
+  };
+}
+
+// The *type* of a function body as a value: its `$fnType` node, or `any` when
+// the body carries no `$sig` (unannotated — inferring it needs the contextual
+// typing deferred to a later milestone).
+function bodyFnTypeSchema(body: Record<string, JSONType>): Schema {
+  const sig = body.$sig;
+  return isSchemaObject(sig) ? { $fnType: sig } : true;
+}
+
+// Keys of an object-of-bindings that name a local binding (mirrors the
+// evaluator's filter in `buildScope`), excluding the reserved keys.
+function bindingKeys(body: Record<string, JSONType>): string[] {
+  return Object.keys(body).filter((k) => {
+    if (k === "$return" || k === "$params" || k === "$sig") return false;
+    if (k === "$comment" && typeof body[k] === "string") return false;
+    return true;
+  });
+}
+
+export type { CheckContext, TypeEnv, Diagnostic, Severity, Sig };
+export { EMPTY_ENV, report, at, isBody, sigOf, bodyFnTypeSchema, bindingKeys };
