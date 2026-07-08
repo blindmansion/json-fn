@@ -174,14 +174,14 @@ export function requiredCapabilities(node: JSONType): RequiredCapabilities {
     }
 
     // `perform(name, args)` / `raise(err)` calls.
-    const fn = value.$fn;
-    if (Array.isArray(fn) && fn.length > 0) {
-      const head = fn[0];
-      if (head === "perform") {
-        const name = fn[1];
+    const callee = value.$call;
+    const callArgs = value.$args;
+    if (typeof callee === "string" && Array.isArray(callArgs)) {
+      if (callee === "perform") {
+        const name = callArgs[0];
         if (typeof name === "string") names.add(name);
         else dynamic = true;
-      } else if (head === "raise") {
+      } else if (callee === "raise") {
         names.add("raise");
       }
     }

@@ -5,7 +5,7 @@ import type { JSONType } from "../src";
 const stdlib = createStdlib();
 
 // A canonical inline function that adds 1, for feeding to stdlib higher-order fns.
-const addOne = { $params: ["x"], $return: { $fn: ["add", { $var: "x" }, 1] } };
+const addOne = { $params: ["x"], $return: { $call: "add", $args: [{ $var: "x" }, 1] } };
 
 describe("callProgram — module scope", () => {
   test("top-level constant read via $var", () => {
@@ -19,7 +19,7 @@ describe("callProgram — module scope", () => {
   test("top-level function reads a top-level constant", () => {
     const module: Record<string, JSONType> = {
       W: 20,
-      double: { $return: { $fn: ["mul", { $var: "W" }, 2] } },
+      double: { $return: { $call: "mul", $args: [{ $var: "W" }, 2] } },
     };
     expect(callProgram(module, "double", [], stdlib)).toBe(40);
   });
@@ -28,7 +28,7 @@ describe("callProgram — module scope", () => {
     const module: Record<string, JSONType> = {
       W: 20,
       H: 12,
-      SIZE: { $fn: ["mul", { $var: "W" }, { $var: "H" }] },
+      SIZE: { $call: "mul", $args: [{ $var: "W" }, { $var: "H" }] },
       readSize: { $return: { $var: "SIZE" } },
     };
     expect(callProgram(module, "readSize", [], stdlib)).toBe(240);
@@ -58,7 +58,7 @@ describe("callProgram — module scope", () => {
       add: { $params: ["a", "b"], $return: 999 },
       entry: {
         $params: ["x", "y"],
-        $return: { $fn: ["add", { $var: "x" }, { $var: "y" }] },
+        $return: { $call: "add", $args: [{ $var: "x" }, { $var: "y" }] },
       },
     };
     expect(callProgram(module, "entry", [1, 2], stdlib)).toBe(999);
@@ -78,7 +78,7 @@ describe("callProgram — inner binders shadow module constants", () => {
     const module: Record<string, JSONType> = {
       W: 20,
       outer: {
-        $return: { $fn: ["inner", 5] },
+        $return: { $call: "inner", $args: [5] },
         inner: { $params: ["W"], $return: { $var: "W" } },
       },
     };
@@ -93,7 +93,7 @@ describe("callProgram — Lisp-2 asymmetry", () => {
       readVar: { $return: { $var: "map" } },
       callStdlib: {
         $params: ["xs"],
-        $return: { $fn: ["map", addOne, { $var: "xs" }] },
+        $return: { $call: "map", $args: [addOne, { $var: "xs" }] },
       },
     };
     expect(callProgram(module, "readVar", [], stdlib)).toBe(42);
@@ -106,7 +106,7 @@ describe("callProgram — Lisp-2 asymmetry", () => {
       readVar: { $return: { $var: "map" } },
       callFn: {
         $params: ["xs"],
-        $return: { $fn: ["map", addOne, { $var: "xs" }] },
+        $return: { $call: "map", $args: [addOne, { $var: "xs" }] },
       },
     };
     // $var map resolves to the (captured) module function value.
@@ -124,12 +124,12 @@ describe("callProgram — module function passed as a value", () => {
     // $var form: bare reference resolves to the captured function value.
     renderVar: {
       $params: ["row"],
-      $return: { $fn: ["map", { $var: "cellGlyph" }, { $var: "row" }] },
+      $return: { $call: "map", $args: [{ $var: "cellGlyph" }, { $var: "row" }] },
     },
     // &-reference form: non-array $fn resolves the name against the function table.
     renderRef: {
       $params: ["row"],
-      $return: { $fn: ["map", { $fn: "cellGlyph" }, { $var: "row" }] },
+      $return: { $call: "map", $args: [{ $fn: "cellGlyph" }, { $var: "row" }] },
     },
   };
 

@@ -45,25 +45,31 @@ describe("printer round-trips canonical JSON (parse ∘ print = id)", () => {
 
 describe("printer output shape", () => {
   test("arithmetic prints as operators with correct precedence", () => {
-    expect(print({ $fn: ["add", { $fn: ["mul", { $var: "row" }, 8] }, { $var: "col" }] })).toBe(
-      "row * 8 + col",
-    );
+    expect(
+      print({
+        $call: "add",
+        $args: [{ $call: "mul", $args: [{ $var: "row" }, 8] }, { $var: "col" }],
+      }),
+    ).toBe("row * 8 + col");
   });
 
   test("right operand of a left-assoc op is parenthesized", () => {
     expect(
-      print({ $fn: ["sub", { $var: "a" }, { $fn: ["sub", { $var: "b" }, { $var: "c" }] }] }),
+      print({
+        $call: "sub",
+        $args: [{ $var: "a" }, { $call: "sub", $args: [{ $var: "b" }, { $var: "c" }] }],
+      }),
     ).toBe("a - (b - c)");
   });
 
   test("mixed string/expr strcat prints as a template", () => {
-    expect(print({ $fn: ["strcat", "Illegal move: ", { $var: "moveDesc" }] })).toBe(
+    expect(print({ $call: "strcat", $args: ["Illegal move: ", { $var: "moveDesc" }] })).toBe(
       "`Illegal move: ${moveDesc}`",
     );
   });
 
   test("pure-expression strcat prints as ++", () => {
-    expect(print({ $fn: ["strcat", { $var: "a" }, { $var: "b" }, { $var: "c" }] })).toBe(
+    expect(print({ $call: "strcat", $args: [{ $var: "a" }, { $var: "b" }, { $var: "c" }] })).toBe(
       "a ++ b ++ c",
     );
   });
@@ -73,8 +79,10 @@ describe("printer output shape", () => {
   });
 
   test("function reference and evaluated callee", () => {
-    expect(print({ $fn: ["map", { $fn: "double" }, { $var: "nums" }] })).toBe("map(&double, nums)");
-    expect(print({ $fn: [{ $var: "fnName" }, 3, 4] })).toBe("(fnName)(3, 4)");
+    expect(print({ $call: "map", $args: [{ $fn: "double" }, { $var: "nums" }] })).toBe(
+      "map(&double, nums)",
+    );
+    expect(print({ $call: { $var: "fnName" }, $args: [3, 4] })).toBe("(fnName)(3, 4)");
   });
 
   test("$-keyed object falls back to raw", () => {
@@ -85,7 +93,7 @@ describe("printer output shape", () => {
     expect(
       print({
         $params: [{ $fields: ["from", "to"] }],
-        $return: { $fn: ["sub", { $var: "to" }, { $var: "from" }] },
+        $return: { $call: "sub", $args: [{ $var: "to" }, { $var: "from" }] },
       }),
     ).toBe("({ from, to }) => to - from");
   });
@@ -98,7 +106,7 @@ describe("printer output shape", () => {
     expect(
       print({
         $params: ["label", { $fields: ["x", "y"] }],
-        $return: { $fn: ["add", { $var: "x" }, { $var: "y" }] },
+        $return: { $call: "add", $args: [{ $var: "x" }, { $var: "y" }] },
       }),
     ).toBe("(label, { x, y }) => x + y");
   });
@@ -113,7 +121,7 @@ describe("printer output shape", () => {
     expect(
       print({
         $params: [{ $fields: ["a"] }, { $fields: ["b"] }],
-        $return: { $fn: ["add", { $var: "a" }, { $var: "b" }] },
+        $return: { $call: "add", $args: [{ $var: "a" }, { $var: "b" }] },
       }),
     ).toBe("({ a }, { b }) => a + b");
   });
@@ -125,7 +133,7 @@ describe("printer output shape", () => {
   test("if-return with where locals is parenthesized so where binds to the body", () => {
     const node: JSONType = {
       $params: ["s"],
-      len: { $fn: ["length", { $var: "s" }] },
+      len: { $call: "length", $args: [{ $var: "s" }] },
       $return: {
         $if: { $eq: [{ $var: "len" }, 2] },
         $then: { $var: "len" },
@@ -142,7 +150,7 @@ describe("printer output shape", () => {
     const node: JSONType = {
       $params: ["p"],
       k: 1,
-      $return: { $params: ["y"], $return: { $fn: ["add", { $var: "y" }, { $var: "k" }] } },
+      $return: { $params: ["y"], $return: { $call: "add", $args: [{ $var: "y" }, { $var: "k" }] } },
     };
     expect(parse(print(node))).toEqual(node);
     expect(print(node).startsWith("(p) => ((y) =>")).toBe(true);
@@ -168,7 +176,7 @@ describe("printer output shape", () => {
   test("cond return with where locals needs no parens (brace-terminated)", () => {
     const node: JSONType = {
       $params: ["n"],
-      big: { $fn: ["gt", { $var: "n" }, 10] },
+      big: { $call: "gt", $args: [{ $var: "n" }, 10] },
       $return: {
         $cond: [[{ $var: "big" }, "yes"]],
         $else: "no",

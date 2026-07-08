@@ -202,7 +202,7 @@ class Parser {
         const callee: JSONType = name !== null ? name : val;
         this.advance();
         const args = this.parseCallArgs();
-        val = { $fn: [callee, ...args] };
+        val = { $call: callee, $args: args };
         name = null;
       } else if (type === "dot" || type === "lbracket") {
         const segs = this.gatherAccess();
@@ -468,7 +468,7 @@ class Parser {
       return expr;
     }
     const locals = this.parseWhereBindings();
-    return { $fn: [this.buildScope([], locals, expr)] };
+    return { $call: this.buildScope([], locals, expr), $args: [] };
   }
 
   private parseParams(): Param[] {
@@ -709,7 +709,7 @@ class Parser {
     const [leading, restIdx] = collectDoPures(entries, 0);
     const chain = this.buildDoChain(entries, restIdx);
     if (leading.length > 0) {
-      return { $fn: [this.buildScope([], leading, chain)] };
+      return { $call: this.buildScope([], leading, chain), $args: [] };
     }
     return chain;
   }
@@ -729,7 +729,7 @@ class Parser {
     const contBody = this.buildDoChain(entries, nextIdx);
     const params: Param[] = entry.kind === "effect" ? [entry.name] : [];
     const k = this.buildScope(params, pures, contBody);
-    return { $fn: ["bind", entry.value, k] };
+    return { $call: "bind", $args: [entry.value, k] };
   }
 
   /** `handle <task> with { "name": clause, ... }` → `handle(task, clauses)`.
@@ -741,7 +741,7 @@ class Parser {
     this.expectKeyword("with");
     this.expect("lbrace", "'{' after 'with'");
     const handlers = this.parseDataObject();
-    return { $fn: ["handle", task, handlers] };
+    return { $call: "handle", $args: [task, handlers] };
   }
 
   // ----- raw JSON islands (spec section 3) -----
@@ -910,15 +910,15 @@ function collectDoPures(entries: DoEntry[], i: number): [[string, JSONType][], n
 }
 
 function fncall(name: string, args: JSONType[]): JSONType {
-  return { $fn: [name, ...args] };
+  return { $call: name, $args: args };
 }
 
-/** Append an argument to an existing `{ "$fn": [name, ...] }` call node. Used to
- * flatten a run of `++` into one variadic `strcat`. */
+/** Append an argument to an existing `{ "$call": name, "$args": [...] }` call
+ * node. Used to flatten a run of `++` into one variadic `strcat`. */
 function pushArg(call: JSONType, arg: JSONType): void {
   if (call !== null && typeof call === "object" && !Array.isArray(call)) {
-    const fn = (call as Record<string, JSONType>).$fn;
-    if (Array.isArray(fn)) fn.push(arg);
+    const args = (call as Record<string, JSONType>).$args;
+    if (Array.isArray(args)) args.push(arg);
   }
 }
 

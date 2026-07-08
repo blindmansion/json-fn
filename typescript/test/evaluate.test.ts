@@ -11,7 +11,8 @@ describe("evaluation state", () => {
     expect(callFunction({ $return: expression }, [], functions)).toEqual({ value: 1 });
 
     delete expression.value;
-    expression.$fn = ["add", 1, 2];
+    expression.$call = "add";
+    expression.$args = [1, 2];
 
     expect(callFunction({ $return: expression }, [], functions)).toBe(3);
   });
@@ -20,9 +21,9 @@ describe("evaluation state", () => {
     const unusedStats = createPerfStats();
     const stats = createPerfStats();
 
-    expect(callFunction({ $return: { $fn: ["add", 1, 2] } }, [], functions, { perf: stats })).toBe(
-      3,
-    );
+    expect(
+      callFunction({ $return: { $call: "add", $args: [1, 2] } }, [], functions, { perf: stats }),
+    ).toBe(3);
 
     expect(stats.evaluateExpression).toBeGreaterThan(0);
     expect(unusedStats.evaluateExpression).toBe(0);
@@ -38,7 +39,7 @@ describe("stdlib log", () => {
     };
     try {
       const result = callFunction(
-        { $return: { $fn: ["log", { answer: 42, ok: true }, "debug"] } },
+        { $return: { $call: "log", $args: [{ answer: 42, ok: true }, "debug"] } },
         [],
         createStdlib(),
       );
@@ -53,7 +54,7 @@ describe("stdlib log", () => {
   test("calls the configured logger", () => {
     const calls: unknown[][] = [];
     const result = callFunction(
-      { $return: { $fn: ["log", { answer: 42, ok: true }, "debug"] } },
+      { $return: { $call: "log", $args: [{ answer: 42, ok: true }, "debug"] } },
       [],
       createStdlib({
         logger: (value, label) => {

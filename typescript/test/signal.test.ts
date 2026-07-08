@@ -4,7 +4,7 @@ import type { FunctionRegistry } from "../src";
 
 const functions: FunctionRegistry = createStdlib();
 
-const addBody = { $return: { $fn: ["add", 1, 2] } } as any;
+const addBody = { $return: { $call: "add", $args: [1, 2] } } as any;
 
 describe("AbortSignal", () => {
   test("pre-aborted signal throws immediately", () => {
@@ -30,18 +30,18 @@ describe("AbortSignal", () => {
     const controller = new AbortController();
     controller.abort();
     const expensiveBody = {
-      $return: { $fn: ["fib", 30] },
+      $return: { $call: "fib", $args: [30] },
     } as any;
     const fib = {
       $params: ["n"],
       $return: {
-        $if: { $fn: ["lte", { $var: "n" }, 1] },
+        $if: { $call: "lte", $args: [{ $var: "n" }, 1] },
         $then: { $var: "n" },
         $else: {
-          $fn: [
-            "add",
-            { $fn: ["fib", { $fn: ["sub", { $var: "n" }, 1] }] },
-            { $fn: ["fib", { $fn: ["sub", { $var: "n" }, 2] }] },
+          $call: "add",
+          $args: [
+            { $call: "fib", $args: [{ $call: "sub", $args: [{ $var: "n" }, 1] }] },
+            { $call: "fib", $args: [{ $call: "sub", $args: [{ $var: "n" }, 2] }] },
           ],
         },
       },
@@ -58,7 +58,7 @@ describe("timeoutMs (wall-clock backstop)", () => {
     // visited, so any non-trivial program trips it.
     expect(() =>
       callFunction(
-        { $return: { $fn: ["fib", 30] } } as any,
+        { $return: { $call: "fib", $args: [30] } } as any,
         [],
         { ...functions, fib },
         {
@@ -83,7 +83,7 @@ describe("timeoutMs (wall-clock backstop)", () => {
     // chokepoint without re-entering evaluateExpression; checking there is what
     // lets the deadline interrupt this loop.
     const body = {
-      $return: { $fn: ["map", "neg", { $fn: ["range", 2_000_000] }] },
+      $return: { $call: "map", $args: ["neg", { $call: "range", $args: [2_000_000] }] },
     } as any;
     expect(() => callFunction(body, [], functions, { timeoutMs: 0 })).toThrow(
       "Execution timed out",
@@ -94,13 +94,13 @@ describe("timeoutMs (wall-clock backstop)", () => {
 const fib = {
   $params: ["n"],
   $return: {
-    $if: { $fn: ["lte", { $var: "n" }, 1] },
+    $if: { $call: "lte", $args: [{ $var: "n" }, 1] },
     $then: { $var: "n" },
     $else: {
-      $fn: [
-        "add",
-        { $fn: ["fib", { $fn: ["sub", { $var: "n" }, 1] }] },
-        { $fn: ["fib", { $fn: ["sub", { $var: "n" }, 2] }] },
+      $call: "add",
+      $args: [
+        { $call: "fib", $args: [{ $call: "sub", $args: [{ $var: "n" }, 1] }] },
+        { $call: "fib", $args: [{ $call: "sub", $args: [{ $var: "n" }, 2] }] },
       ],
     },
   },

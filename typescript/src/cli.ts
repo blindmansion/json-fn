@@ -48,7 +48,7 @@ eval options:
 
 Examples:
   jfn to-json '1 + 2 * 3'
-  echo '{ "$fn": ["add", 1, 2] }' | jfn to-shorthand
+  echo '{ "$call": "add", "$args": [1, 2] }' | jfn to-shorthand
   jfn eval '(x) => x * x' --args '[9]'
   jfn eval 'map((n) => n + 1, [1, 2, 3])' --shorthand
   printf '{ inc: (n) => n + 1, main: () => inc(41) }' | jfn eval --entry main

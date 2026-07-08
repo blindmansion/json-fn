@@ -93,15 +93,16 @@ function render(node: JSONType, indent: string): Rendered {
 }
 
 function renderObject(node: { [k: string]: JSONType }, indent: string): Rendered {
-  if ("$fn" in node) {
+  if ("$call" in node) {
     // Effects sugar (shorthand-spec §13): a `bind` spine folds back to a
     // `do { … }` block and a `handle` call to `handle … with { … }`. Both are
     // exact inverses of the parser desugar, so the round-trip is preserved; any
     // shape that is not an exact desugar falls through to a plain call.
     const asDo = tryRenderDo(node, indent);
     if (asDo !== null) return asDo;
-    return renderFn(node.$fn!, indent);
+    return renderCall(node.$call!, (node.$args as JSONType[]) ?? [], indent);
   }
+  if ("$fn" in node) return renderRef(node.$fn!, indent);
   if ("$var" in node) return atom(node.$var as string);
   if ("$get" in node && "$from" in node) return atom(renderFromAccess(node, indent));
   if ("$if" in node) return renderIf(node, indent);
@@ -120,15 +121,15 @@ function renderObject(node: { [k: string]: JSONType }, indent: string): Rendered
 
 // ----- calls, operators, references (spec §4, §6) -----
 
-function renderFn(fn: JSONType, indent: string): Rendered {
-  // Non-array `$fn` is a function *reference* (`&name` / `&(expr)`).
-  if (!Array.isArray(fn)) {
-    if (typeof fn === "string") return atom(`&${fn}`);
-    return atom(`&(${emit(fn, P_BLOCK, indent)})`);
-  }
-  const head = fn[0];
-  const args = fn.slice(1);
+/** A function *reference* (`{ $fn: … }`) prints as `&name` / `&(expr)`. */
+function renderRef(fn: JSONType, indent: string): Rendered {
+  if (typeof fn === "string") return atom(`&${fn}`);
+  return atom(`&(${emit(fn, P_BLOCK, indent)})`);
+}
 
+/** A function *call* (`{ $call, $args }`) prints as an operator, sugar, or a
+ * `callee(args)` application. */
+function renderCall(head: JSONType, args: JSONType[], indent: string): Rendered {
   if (typeof head === "string") {
     // `handle(task, { …clauses… })` prints as `handle task with { … }` (spec
     // §13). `handle` is a contextual keyword, so it can never print as a bare
@@ -220,12 +221,12 @@ type DoEntry =
  * `bind` spine — the latter carries the pure bindings that preceded the first
  * effect. */
 function tryRenderDo(node: { [k: string]: JSONType }, indent: string): Rendered | null {
-  const fn = node.$fn;
-  if (!Array.isArray(fn)) return null;
+  const args = node.$args;
+  if (!Array.isArray(args)) return null;
 
-  // Leading-pures IIFE: `{ $fn: [ { …pures, $return: <bind-spine> } ] }`.
-  if (fn.length === 1) {
-    const scope = fn[0];
+  // Leading-pures IIFE: `{ $call: { …pures, $return: <bind-spine> }, $args: [] }`.
+  if (args.length === 0) {
+    const scope = node.$call;
     if (isPlainObject(scope!) && !("$params" in scope) && "$return" in scope) {
       const inner = collectDo(scope.$return!);
       if (inner === null) return null;
@@ -248,10 +249,10 @@ function tryRenderDo(node: { [k: string]: JSONType }, indent: string): Rendered 
  * the final result expression. */
 function collectDo(node: JSONType): DoEntry[] | null {
   if (!isPlainObject(node)) return null;
-  const fn = node.$fn;
-  if (!Array.isArray(fn) || fn.length !== 3 || fn[0] !== "bind") return null;
+  const args = node.$args;
+  if (node.$call !== "bind" || !Array.isArray(args) || args.length !== 2) return null;
 
-  const k = fn[2]!;
+  const k = args[1]!;
   if (!isPlainObject(k) || !("$return" in k)) return null;
   const params = k.$params;
   // A zero-param continuation (no `$params`, or an empty list) is a discard:
@@ -259,12 +260,12 @@ function collectDo(node: JSONType): DoEntry[] | null {
   const isDiscard = params === undefined || (Array.isArray(params) && params.length === 0);
   let head: DoEntry;
   if (isDiscard) {
-    head = { kind: "expr", value: fn[1]! };
+    head = { kind: "expr", value: args[0]! };
   } else {
     if (!Array.isArray(params) || params.length !== 1 || typeof params[0] !== "string") return null;
     const name = params[0];
     if (!IDENT_RE.test(name)) return null;
-    head = { kind: "effect", name, value: fn[1]! };
+    head = { kind: "effect", name, value: args[0]! };
   }
   const locals = objectLocals(k);
   if (locals === null) return null;

@@ -875,17 +875,22 @@ function replaceVars(
     // params/locals are masked out of `getVar` upstream, so only free lexical
     // bindings of *enclosing* scopes are captured — which is exactly what lets a
     // shadowing parameter survive an escaping closure (`{ f:(map)=> (x)=> map(x) }`).
-    const fnArr = (expression as Record<string, JSONType>).$fn;
-    if (Array.isArray(fnArr)) {
-      const callee = fnArr[0];
-      const newArr = fnArr.map((item, idx) => {
-        if (idx === 0 && typeof callee === "string" && !localFns.has(callee)) {
+    if ("$call" in expression) {
+      const callee = (expression as Record<string, JSONType>).$call!;
+      let newCallee: JSONType = callee;
+      if (typeof callee === "string") {
+        if (!localFns.has(callee)) {
           const captured = getVar(callee);
-          return captured !== undefined && isFnDeclaration(captured) ? captured : item;
+          if (captured !== undefined && isFnDeclaration(captured)) newCallee = captured;
         }
-        return replaceVars(item, getVar, localFns, attachFns, localFnDefs, context);
-      });
-      return { ...expression, $fn: newArr };
+      } else {
+        newCallee = replaceVars(callee, getVar, localFns, attachFns, localFnDefs, context);
+      }
+      const args = (expression as Record<string, JSONType>).$args;
+      const newArgs = Array.isArray(args)
+        ? args.map((item) => replaceVars(item, getVar, localFns, attachFns, localFnDefs, context))
+        : args!;
+      return { ...expression, $call: newCallee, $args: newArgs };
     }
 
     const newObject: Record<string, JSONType> = {};
@@ -899,7 +904,7 @@ function replaceVars(
 }
 
 // Collect names in `attachFns` referenced by `node` at its own scope level, in
-// call position (`{ $fn: ["name", ...] }`) or as a function reference
+// call position (`{ $call: "name", $args: [...] }`) or as a function reference
 // (`{ $fn: "name" }`). Nested function bodies are scope boundaries: they are
 // skipped here because they re-attach their own free local functions when they
 // are themselves captured. `$var`-position references to local functions are
@@ -917,13 +922,17 @@ function collectLocalFnRefs(
   }
   if ("$return" in node) return;
 
-  const fnVal = (node as Record<string, JSONType>).$fn;
-  if (Array.isArray(fnVal)) {
-    const callee = fnVal[0];
+  if ("$call" in node) {
+    const callee = (node as Record<string, JSONType>).$call!;
     if (typeof callee === "string" && attachFns.has(callee)) out.add(callee);
-    for (const item of fnVal) collectLocalFnRefs(item, attachFns, out);
+    else collectLocalFnRefs(callee, attachFns, out);
+    const args = (node as Record<string, JSONType>).$args;
+    if (Array.isArray(args)) {
+      for (const item of args) collectLocalFnRefs(item, attachFns, out);
+    }
     return;
   }
+  const fnVal = (node as Record<string, JSONType>).$fn;
   if (typeof fnVal === "string") {
     if (attachFns.has(fnVal)) out.add(fnVal);
     return;
@@ -1150,14 +1159,13 @@ function evaluateFunctionCall(
   fnCall: FunctionCall,
   context: EvaluationContext,
 ): EvaluatedFunctionCall {
-  const fnArray = fnCall.$fn;
-  const fnExpr = fnArray[0]!;
+  const callee = fnCall.$call;
 
   let fnDeclaration: FunctionDeclaration;
-  if (typeof fnExpr === "string") {
-    fnDeclaration = fnExpr;
+  if (typeof callee === "string") {
+    fnDeclaration = callee;
   } else {
-    const evaluatedFn = evaluateExpression(fnExpr, context);
+    const evaluatedFn = evaluateExpression(callee, context);
     if (!isFnDeclaration(evaluatedFn)) {
       exprError(
         fnCall,
@@ -1167,10 +1175,7 @@ function evaluateFunctionCall(
     fnDeclaration = evaluatedFn as FunctionDeclaration;
   }
 
-  const args: JSONType[] = [];
-  for (let i = 1; i < fnArray.length; i++) {
-    args.push(evaluateExpression(fnArray[i]!, context));
-  }
+  const args = fnCall.$args.map((arg) => evaluateExpression(arg, context));
 
   return { fnDeclaration, args };
 }
@@ -1215,7 +1220,7 @@ function classifyExpressionType(json: JSONType): ExpressionType {
     }
 
     if ("$return" in json) {
-      if ("$fn" in json) {
+      if ("$fn" in json || "$call" in json || "$args" in json) {
         exprError(json, "Function bodies cannot have other keyword properties.");
       }
       if ("$params" in json) {
@@ -1242,20 +1247,27 @@ function classifyExpressionType(json: JSONType): ExpressionType {
       return ExpressionType.FunctionBody;
     }
 
+    if ("$call" in json || "$args" in json) {
+      if (!("$call" in json && "$args" in json)) {
+        exprError(json, "Function calls must have both $call and $args.");
+      }
+      if (!Array.isArray(json.$args)) {
+        exprError(json, "Function call $args must be an array.");
+      }
+      if (expressionKeyCount(json) > 2) {
+        exprError(json, "Function calls cannot have other properties.");
+      }
+      return ExpressionType.FunctionCall;
+    }
+
     if ("$fn" in json) {
       if (Array.isArray(json.$fn)) {
-        if (expressionKeyCount(json) > 1) {
-          exprError(json, "Function calls cannot have other properties.");
-        }
-        return ExpressionType.FunctionCall;
+        exprError(json, "Function references ($fn) cannot be arrays; use $call/$args for calls.");
       }
-
-      if (typeof json.$fn === "string" || typeof json.$fn === "object") {
-        if (expressionKeyCount(json) > 1) {
-          exprError(json, "Function references cannot have other properties.");
-        }
-        return ExpressionType.FunctionReference;
+      if (expressionKeyCount(json) > 1) {
+        exprError(json, "Function references cannot have other properties.");
       }
+      return ExpressionType.FunctionReference;
     }
 
     if ("$cond" in json) {

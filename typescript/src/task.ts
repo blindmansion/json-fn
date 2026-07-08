@@ -94,9 +94,9 @@ const RESUME_PARAM = "__v";
  * descend into it during escaping-closure capture.
  */
 function buildStepResume(ks: JSONType[]): JSONType {
-  let expr: JSONType = { $fn: ["pure", { $var: RESUME_PARAM }] };
+  let expr: JSONType = { $call: "pure", $args: [{ $var: RESUME_PARAM }] };
   for (let i = ks.length - 1; i >= 0; i--) {
-    expr = { $fn: ["bind", expr, { $raw: ks[i]! }] };
+    expr = { $call: "bind", $args: [expr, { $raw: ks[i]! }] };
   }
   return raw({ $params: [RESUME_PARAM], $return: expr });
 }
@@ -114,7 +114,8 @@ function wrapResume(stepResume: JSONType, handlers: JSONType): JSONType {
   return raw({
     $params: [RESUME_PARAM],
     $return: {
-      $fn: ["handle", { $fn: [{ $raw: stepResume }, { $var: RESUME_PARAM }] }, { $raw: handlers }],
+      $call: "handle",
+      $args: [{ $call: { $raw: stepResume }, $args: [{ $var: RESUME_PARAM }] }, { $raw: handlers }],
     },
   });
 }
@@ -181,12 +182,13 @@ function bubbleContinuation(stepResume: JSONType, handlers: JSONType): JSONType 
   return raw({
     $params: [RESUME_PARAM],
     __r: {
-      $fn: ["handle", { $fn: [{ $raw: stepResume }, { $var: RESUME_PARAM }] }, { $raw: handlers }],
+      $call: "handle",
+      $args: [{ $call: { $raw: stepResume }, $args: [{ $var: RESUME_PARAM }] }, { $raw: handlers }],
     },
     $return: {
-      $if: { $fn: ["isTask", { $var: "__r" }] },
+      $if: { $call: "isTask", $args: [{ $var: "__r" }] },
       $then: { $var: "__r" },
-      $else: { $fn: ["pure", { $var: "__r" }] },
+      $else: { $call: "pure", $args: [{ $var: "__r" }] },
     },
   });
 }
