@@ -3,137 +3,137 @@
   "cases": [
     {
       "description": "isBool: true for true",
-      "body": { "$return": { "$fn": ["isBool", true] } },
+      "body": { "$return": { "$call": "isBool", "$args": [true] } },
       "expected": true
     },
     {
       "description": "isBool: true for false",
-      "body": { "$return": { "$fn": ["isBool", false] } },
+      "body": { "$return": { "$call": "isBool", "$args": [false] } },
       "expected": true
     },
     {
       "description": "isBool: false for number",
-      "body": { "$return": { "$fn": ["isBool", 42] } },
+      "body": { "$return": { "$call": "isBool", "$args": [42] } },
       "expected": false
     },
     {
       "description": "isBool: false for string",
-      "body": { "$return": { "$fn": ["isBool", "hello"] } },
+      "body": { "$return": { "$call": "isBool", "$args": ["hello"] } },
       "expected": false
     },
     {
       "description": "isBool: false for null",
-      "body": { "$return": { "$fn": ["isBool", null] } },
+      "body": { "$return": { "$call": "isBool", "$args": [null] } },
       "expected": false
     },
     {
       "description": "isBool: false for array",
-      "body": { "$return": { "$fn": ["isBool", [1, 2]] } },
+      "body": { "$return": { "$call": "isBool", "$args": [[1, 2]] } },
       "expected": false
     },
     {
       "description": "isBool: false for object",
-      "body": { "$return": { "$fn": ["isBool", { "a": 1 }] } },
+      "body": { "$return": { "$call": "isBool", "$args": [{ "a": 1 }] } },
       "expected": false
     },
     {
       "description": "isNumber: true for integer",
-      "body": { "$return": { "$fn": ["isNumber", 42] } },
+      "body": { "$return": { "$call": "isNumber", "$args": [42] } },
       "expected": true
     },
     {
       "description": "isNumber: true for decimal",
-      "body": { "$return": { "$fn": ["isNumber", 3.14] } },
+      "body": { "$return": { "$call": "isNumber", "$args": [3.14] } },
       "expected": true
     },
     {
       "description": "isNumber: true for zero",
-      "body": { "$return": { "$fn": ["isNumber", 0] } },
+      "body": { "$return": { "$call": "isNumber", "$args": [0] } },
       "expected": true
     },
     {
       "description": "isNumber: true for negative",
-      "body": { "$return": { "$fn": ["isNumber", -7] } },
+      "body": { "$return": { "$call": "isNumber", "$args": [-7] } },
       "expected": true
     },
     {
       "description": "isNumber: false for string",
-      "body": { "$return": { "$fn": ["isNumber", "42"] } },
+      "body": { "$return": { "$call": "isNumber", "$args": ["42"] } },
       "expected": false
     },
     {
       "description": "isNumber: false for boolean",
-      "body": { "$return": { "$fn": ["isNumber", true] } },
+      "body": { "$return": { "$call": "isNumber", "$args": [true] } },
       "expected": false
     },
     {
       "description": "isNumber: false for null",
-      "body": { "$return": { "$fn": ["isNumber", null] } },
+      "body": { "$return": { "$call": "isNumber", "$args": [null] } },
       "expected": false
     },
     {
       "description": "isString: true for non-empty string",
-      "body": { "$return": { "$fn": ["isString", "hello"] } },
+      "body": { "$return": { "$call": "isString", "$args": ["hello"] } },
       "expected": true
     },
     {
       "description": "isString: true for empty string",
-      "body": { "$return": { "$fn": ["isString", ""] } },
+      "body": { "$return": { "$call": "isString", "$args": [""] } },
       "expected": true
     },
     {
       "description": "isString: false for number",
-      "body": { "$return": { "$fn": ["isString", 42] } },
+      "body": { "$return": { "$call": "isString", "$args": [42] } },
       "expected": false
     },
     {
       "description": "isString: false for boolean",
-      "body": { "$return": { "$fn": ["isString", true] } },
+      "body": { "$return": { "$call": "isString", "$args": [true] } },
       "expected": false
     },
     {
       "description": "isString: false for null",
-      "body": { "$return": { "$fn": ["isString", null] } },
+      "body": { "$return": { "$call": "isString", "$args": [null] } },
       "expected": false
     },
     {
       "description": "isString: false for array",
-      "body": { "$return": { "$fn": ["isString", ["a", "b"]] } },
+      "body": { "$return": { "$call": "isString", "$args": [["a", "b"]] } },
       "expected": false
     },
     {
       "description": "isArray: true for non-empty array",
-      "body": { "$return": { "$fn": ["isArray", [1, 2, 3]] } },
+      "body": { "$return": { "$call": "isArray", "$args": [[1, 2, 3]] } },
       "expected": true
     },
     {
       "description": "isArray: true for empty array",
-      "body": { "$return": { "$fn": ["isArray", []] } },
+      "body": { "$return": { "$call": "isArray", "$args": [[]] } },
       "expected": true
     },
     {
       "description": "isArray: false for object",
-      "body": { "$return": { "$fn": ["isArray", { "a": 1 }] } },
+      "body": { "$return": { "$call": "isArray", "$args": [{ "a": 1 }] } },
       "expected": false
     },
     {
       "description": "isArray: false for string",
-      "body": { "$return": { "$fn": ["isArray", "hello"] } },
+      "body": { "$return": { "$call": "isArray", "$args": ["hello"] } },
       "expected": false
     },
     {
       "description": "isArray: false for number",
-      "body": { "$return": { "$fn": ["isArray", 42] } },
+      "body": { "$return": { "$call": "isArray", "$args": [42] } },
       "expected": false
     },
     {
       "description": "isArray: false for null",
-      "body": { "$return": { "$fn": ["isArray", null] } },
+      "body": { "$return": { "$call": "isArray", "$args": [null] } },
       "expected": false
     },
     {
       "description": "isArray: false for boolean",
-      "body": { "$return": { "$fn": ["isArray", true] } },
+      "body": { "$return": { "$call": "isArray", "$args": [true] } },
       "expected": false
     },
     {
@@ -141,10 +141,10 @@
       "body": {
         "val": 42,
         "$return": {
-          "$if": { "$fn": ["isNumber", { "$var": "val" }] },
+          "$if": { "$call": "isNumber", "$args": [{ "$var": "val" }] },
           "$then": "number",
           "$else": {
-            "$if": { "$fn": ["isString", { "$var": "val" }] },
+            "$if": { "$call": "isString", "$args": [{ "$var": "val" }] },
             "$then": "string",
             "$else": "other"
           }

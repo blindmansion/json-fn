@@ -4,7 +4,7 @@
     {
       "description": "trailing line comment",
       "source": "add(1, 2) // trailing comment",
-      "expected": { "$fn": ["add", 1, 2] }
+      "expected": { "$call": "add", "$args": [1, 2] }
     },
     {
       "description": "leading line comment",

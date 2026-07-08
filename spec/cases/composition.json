@@ -4,33 +4,33 @@
     "fact": {
       "$params": ["n"],
       "$return": {
-        "$if": { "$fn": ["lte", { "$var": "n" }, 1] },
+        "$if": { "$call": "lte", "$args": [{ "$var": "n" }, 1] },
         "$then": 1,
         "$else": {
-          "$fn": [
-            "mul",
+          "$call": "mul",
+          "$args": [
             { "$var": "n" },
-            { "$fn": ["fact", { "$fn": ["sub", { "$var": "n" }, 1] }] }
+            { "$call": "fact", "$args": [{ "$call": "sub", "$args": [{ "$var": "n" }, 1] }] }
           ]
         }
       }
     },
     "isEven": {
       "$params": ["n"],
-      "remainder": { "$fn": ["mod", { "$var": "n" }, 2] },
-      "$return": { "$fn": ["eq", { "$var": "remainder" }, 0] }
+      "remainder": { "$call": "mod", "$args": [{ "$var": "n" }, 2] },
+      "$return": { "$call": "eq", "$args": [{ "$var": "remainder" }, 0] }
     }
   },
   "cases": [
     {
       "description": "isEven(fact(6)) — combines named functions, variables, conditionals",
       "body": {
-        "result": { "$fn": ["fact", 6] },
-        "check": { "$fn": ["isEven", { "$var": "result" }] },
+        "result": { "$call": "fact", "$args": [6] },
+        "check": { "$call": "isEven", "$args": [{ "$var": "result" }] },
         "$return": {
           "$if": { "$var": "check" },
-          "$then": { "$fn": ["strcat", "720 is ", "even"] },
-          "$else": { "$fn": ["strcat", "720 is ", "odd"] }
+          "$then": { "$call": "strcat", "$args": ["720 is ", "even"] },
+          "$else": { "$call": "strcat", "$args": ["720 is ", "odd"] }
         }
       },
       "expected": "720 is even"
@@ -40,9 +40,10 @@
       "body": {
         "$params": ["first", "last"],
         "full": {
-          "$fn": ["strcat", { "$var": "first" }, { "$fn": ["strcat", " ", { "$var": "last" }] }]
+          "$call": "strcat",
+          "$args": [{ "$var": "first" }, { "$call": "strcat", "$args": [" ", { "$var": "last" }] }]
         },
-        "$return": { "$fn": ["strcat", "Hello, ", { "$var": "full" }] }
+        "$return": { "$call": "strcat", "$args": ["Hello, ", { "$var": "full" }] }
       },
       "args": ["Ada", "Lovelace"],
       "expected": "Hello, Ada Lovelace"

@@ -1,22 +1,22 @@
 {
   "description": "named functions and recursion",
   "functions": {
-    "double": { "$params": ["x"], "$return": { "$fn": ["mul", { "$var": "x" }, 2] } },
+    "double": { "$params": ["x"], "$return": { "$call": "mul", "$args": [{ "$var": "x" }, 2] } },
     "isEven": {
       "$params": ["n"],
-      "remainder": { "$fn": ["mod", { "$var": "n" }, 2] },
-      "$return": { "$fn": ["eq", { "$var": "remainder" }, 0] }
+      "remainder": { "$call": "mod", "$args": [{ "$var": "n" }, 2] },
+      "$return": { "$call": "eq", "$args": [{ "$var": "remainder" }, 0] }
     },
     "fact": {
       "$params": ["n"],
       "$return": {
-        "$if": { "$fn": ["lte", { "$var": "n" }, 1] },
+        "$if": { "$call": "lte", "$args": [{ "$var": "n" }, 1] },
         "$then": 1,
         "$else": {
-          "$fn": [
-            "mul",
+          "$call": "mul",
+          "$args": [
             { "$var": "n" },
-            { "$fn": ["fact", { "$fn": ["sub", { "$var": "n" }, 1] }] }
+            { "$call": "fact", "$args": [{ "$call": "sub", "$args": [{ "$var": "n" }, 1] }] }
           ]
         }
       }
@@ -24,13 +24,13 @@
     "fib": {
       "$params": ["n"],
       "$return": {
-        "$if": { "$fn": ["lte", { "$var": "n" }, 1] },
+        "$if": { "$call": "lte", "$args": [{ "$var": "n" }, 1] },
         "$then": { "$var": "n" },
         "$else": {
-          "$fn": [
-            "add",
-            { "$fn": ["fib", { "$fn": ["sub", { "$var": "n" }, 1] }] },
-            { "$fn": ["fib", { "$fn": ["sub", { "$var": "n" }, 2] }] }
+          "$call": "add",
+          "$args": [
+            { "$call": "fib", "$args": [{ "$call": "sub", "$args": [{ "$var": "n" }, 1] }] },
+            { "$call": "fib", "$args": [{ "$call": "sub", "$args": [{ "$var": "n" }, 2] }] }
           ]
         }
       }
@@ -39,29 +39,53 @@
   "cases": [
     {
       "description": "double(21)",
-      "body": { "$return": { "$fn": ["double", 21] } },
+      "body": { "$return": { "$call": "double", "$args": [21] } },
       "expected": 42
     },
     {
       "description": "isEven(4)",
-      "body": { "$return": { "$fn": ["isEven", 4] } },
+      "body": { "$return": { "$call": "isEven", "$args": [4] } },
       "expected": true
     },
     {
       "description": "isEven(7)",
-      "body": { "$return": { "$fn": ["isEven", 7] } },
+      "body": { "$return": { "$call": "isEven", "$args": [7] } },
       "expected": false
     },
-    { "description": "fact(0)", "body": { "$return": { "$fn": ["fact", 0] } }, "expected": 1 },
-    { "description": "fact(1)", "body": { "$return": { "$fn": ["fact", 1] } }, "expected": 1 },
-    { "description": "fact(5)", "body": { "$return": { "$fn": ["fact", 5] } }, "expected": 120 },
+    {
+      "description": "fact(0)",
+      "body": { "$return": { "$call": "fact", "$args": [0] } },
+      "expected": 1
+    },
+    {
+      "description": "fact(1)",
+      "body": { "$return": { "$call": "fact", "$args": [1] } },
+      "expected": 1
+    },
+    {
+      "description": "fact(5)",
+      "body": { "$return": { "$call": "fact", "$args": [5] } },
+      "expected": 120
+    },
     {
       "description": "fact(10)",
-      "body": { "$return": { "$fn": ["fact", 10] } },
+      "body": { "$return": { "$call": "fact", "$args": [10] } },
       "expected": 3628800
     },
-    { "description": "fib(0)", "body": { "$return": { "$fn": ["fib", 0] } }, "expected": 0 },
-    { "description": "fib(1)", "body": { "$return": { "$fn": ["fib", 1] } }, "expected": 1 },
-    { "description": "fib(10)", "body": { "$return": { "$fn": ["fib", 10] } }, "expected": 55 }
+    {
+      "description": "fib(0)",
+      "body": { "$return": { "$call": "fib", "$args": [0] } },
+      "expected": 0
+    },
+    {
+      "description": "fib(1)",
+      "body": { "$return": { "$call": "fib", "$args": [1] } },
+      "expected": 1
+    },
+    {
+      "description": "fib(10)",
+      "body": { "$return": { "$call": "fib", "$args": [10] } },
+      "expected": 55
+    }
   ]
 }

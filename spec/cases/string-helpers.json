@@ -3,121 +3,121 @@
   "cases": [
     {
       "description": "strcat: concatenates two strings",
-      "body": { "$return": { "$fn": ["strcat", "foo", "bar"] } },
+      "body": { "$return": { "$call": "strcat", "$args": ["foo", "bar"] } },
       "expected": "foobar"
     },
     {
       "description": "strcat: concatenates three strings",
-      "body": { "$return": { "$fn": ["strcat", "a", "b", "c"] } },
+      "body": { "$return": { "$call": "strcat", "$args": ["a", "b", "c"] } },
       "expected": "abc"
     },
     {
       "description": "strcat: concatenates many strings",
-      "body": { "$return": { "$fn": ["strcat", "a", "b", "c", "d", "e"] } },
+      "body": { "$return": { "$call": "strcat", "$args": ["a", "b", "c", "d", "e"] } },
       "expected": "abcde"
     },
     {
       "description": "strcat: single argument returns that string",
-      "body": { "$return": { "$fn": ["strcat", "solo"] } },
+      "body": { "$return": { "$call": "strcat", "$args": ["solo"] } },
       "expected": "solo"
     },
     {
       "description": "strcat: no arguments returns empty string",
-      "body": { "$return": { "$fn": ["strcat"] } },
+      "body": { "$return": { "$call": "strcat", "$args": [] } },
       "expected": ""
     },
     {
       "description": "strcat: empty string arguments contribute nothing",
-      "body": { "$return": { "$fn": ["strcat", "a", "", "b", ""] } },
+      "body": { "$return": { "$call": "strcat", "$args": ["a", "", "b", ""] } },
       "expected": "ab"
     },
     {
       "description": "strcat: preserves internal whitespace across parts",
-      "body": { "$return": { "$fn": ["strcat", "hello", " ", "world"] } },
+      "body": { "$return": { "$call": "strcat", "$args": ["hello", " ", "world"] } },
       "expected": "hello world"
     },
     {
       "description": "strcat: composes with variables",
       "body": {
         "$params": ["first", "last"],
-        "$return": { "$fn": ["strcat", { "$var": "first" }, " ", { "$var": "last" }] }
+        "$return": { "$call": "strcat", "$args": [{ "$var": "first" }, " ", { "$var": "last" }] }
       },
       "args": ["Ada", "Lovelace"],
       "expected": "Ada Lovelace"
     },
     {
       "description": "strcat: rejects a non-string argument",
-      "body": { "$return": { "$fn": ["strcat", "a", 1] } },
+      "body": { "$return": { "$call": "strcat", "$args": ["a", 1] } },
       "error": "must be strings"
     },
     {
       "description": "strcat: rejects a non-string argument in a later variadic position",
-      "body": { "$return": { "$fn": ["strcat", "a", "b", true] } },
+      "body": { "$return": { "$call": "strcat", "$args": ["a", "b", true] } },
       "error": "must be strings"
     },
     {
       "description": "trim: removes leading and trailing spaces",
-      "body": { "$return": { "$fn": ["trim", "  hello  "] } },
+      "body": { "$return": { "$call": "trim", "$args": ["  hello  "] } },
       "expected": "hello"
     },
     {
       "description": "trim: removes tabs and newlines",
-      "body": { "$return": { "$fn": ["trim", "\t hello \n"] } },
+      "body": { "$return": { "$call": "trim", "$args": ["\t hello \n"] } },
       "expected": "hello"
     },
     {
       "description": "trim: no-op on already trimmed string",
-      "body": { "$return": { "$fn": ["trim", "hello"] } },
+      "body": { "$return": { "$call": "trim", "$args": ["hello"] } },
       "expected": "hello"
     },
     {
       "description": "trim: empty string stays empty",
-      "body": { "$return": { "$fn": ["trim", ""] } },
+      "body": { "$return": { "$call": "trim", "$args": [""] } },
       "expected": ""
     },
     {
       "description": "trim: all whitespace becomes empty",
-      "body": { "$return": { "$fn": ["trim", "   "] } },
+      "body": { "$return": { "$call": "trim", "$args": ["   "] } },
       "expected": ""
     },
     {
       "description": "trim: preserves internal whitespace",
-      "body": { "$return": { "$fn": ["trim", "  hello world  "] } },
+      "body": { "$return": { "$call": "trim", "$args": ["  hello world  "] } },
       "expected": "hello world"
     },
     {
       "description": "join: joins strings with separator",
-      "body": { "$return": { "$fn": ["join", ["a", "b", "c"], ", "] } },
+      "body": { "$return": { "$call": "join", "$args": [["a", "b", "c"], ", "] } },
       "expected": "a, b, c"
     },
     {
       "description": "join: empty separator concatenates",
-      "body": { "$return": { "$fn": ["join", ["x", "y", "z"], ""] } },
+      "body": { "$return": { "$call": "join", "$args": [["x", "y", "z"], ""] } },
       "expected": "xyz"
     },
     {
       "description": "join: single element array",
-      "body": { "$return": { "$fn": ["join", ["hello"], "-"] } },
+      "body": { "$return": { "$call": "join", "$args": [["hello"], "-"] } },
       "expected": "hello"
     },
     {
       "description": "join: empty array returns empty string",
-      "body": { "$return": { "$fn": ["join", [], ","] } },
+      "body": { "$return": { "$call": "join", "$args": [[], ","] } },
       "expected": ""
     },
     {
       "description": "split and join roundtrip",
       "body": {
-        "parts": { "$fn": ["split", "hello world foo", " "] },
-        "$return": { "$fn": ["join", { "$var": "parts" }, "-"] }
+        "parts": { "$call": "split", "$args": ["hello world foo", " "] },
+        "$return": { "$call": "join", "$args": [{ "$var": "parts" }, "-"] }
       },
       "expected": "hello-world-foo"
     },
     {
       "description": "trim then split pipeline",
       "body": {
-        "trimmed": { "$fn": ["trim", "  one two three  "] },
-        "$return": { "$fn": ["split", { "$var": "trimmed" }, " "] }
+        "trimmed": { "$call": "trim", "$args": ["  one two three  "] },
+        "$return": { "$call": "split", "$args": [{ "$var": "trimmed" }, " "] }
       },
       "expected": ["one", "two", "three"]
     }

@@ -4,13 +4,15 @@
   "cases": [
     {
       "description": "range exceeding maxValueSize is rejected",
-      "body": { "$return": { "$fn": ["length", { "$fn": ["range", 100000] }] } },
+      "body": {
+        "$return": { "$call": "length", "$args": [{ "$call": "range", "$args": [100000] }] }
+      },
       "limits": { "maxValueSize": 1000 },
       "error": "Maximum value size"
     },
     {
       "description": "range within maxValueSize succeeds",
-      "body": { "$return": { "$fn": ["length", { "$fn": ["range", 500] }] } },
+      "body": { "$return": { "$call": "length", "$args": [{ "$call": "range", "$args": [500] }] } },
       "limits": { "maxValueSize": 1000 },
       "expected": 500
     },
@@ -18,9 +20,15 @@
       "description": "concat whose output exceeds maxValueSize is rejected",
       "body": {
         "$return": {
-          "$fn": [
-            "length",
-            { "$fn": ["concat", { "$fn": ["range", 600] }, { "$fn": ["range", 600] }] }
+          "$call": "length",
+          "$args": [
+            {
+              "$call": "concat",
+              "$args": [
+                { "$call": "range", "$args": [600] },
+                { "$call": "range", "$args": [600] }
+              ]
+            }
           ]
         }
       },
@@ -31,9 +39,15 @@
       "description": "concat whose output fits within maxValueSize succeeds",
       "body": {
         "$return": {
-          "$fn": [
-            "length",
-            { "$fn": ["concat", { "$fn": ["range", 100] }, { "$fn": ["range", 100] }] }
+          "$call": "length",
+          "$args": [
+            {
+              "$call": "concat",
+              "$args": [
+                { "$call": "range", "$args": [100] },
+                { "$call": "range", "$args": [100] }
+              ]
+            }
           ]
         }
       },
@@ -44,9 +58,17 @@
       "description": "flatten whose output exceeds maxValueSize is rejected",
       "body": {
         "$return": {
-          "$fn": [
-            "length",
-            { "$fn": ["flatten", [{ "$fn": ["range", 600] }, { "$fn": ["range", 600] }]] }
+          "$call": "length",
+          "$args": [
+            {
+              "$call": "flatten",
+              "$args": [
+                [
+                  { "$call": "range", "$args": [600] },
+                  { "$call": "range", "$args": [600] }
+                ]
+              ]
+            }
           ]
         }
       },

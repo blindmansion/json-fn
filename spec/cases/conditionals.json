@@ -5,17 +5,17 @@
       "$params": ["n"],
       "$return": {
         "$cond": [
-          [{ "$fn": ["lt", { "$var": "n" }, 0] }, "negative"],
-          [{ "$fn": ["eq", { "$var": "n" }, 0] }, "zero"],
+          [{ "$call": "lt", "$args": [{ "$var": "n" }, 0] }, "negative"],
+          [{ "$call": "eq", "$args": [{ "$var": "n" }, 0] }, "zero"],
           [true, "positive"]
         ]
       }
     },
     "fizzbuzz": {
       "$params": ["n"],
-      "divBy3": { "$fn": ["eq", { "$fn": ["mod", { "$var": "n" }, 3] }, 0] },
-      "divBy5": { "$fn": ["eq", { "$fn": ["mod", { "$var": "n" }, 5] }, 0] },
-      "divBy15": { "$fn": ["and", { "$var": "divBy3" }, { "$var": "divBy5" }] },
+      "divBy3": { "$call": "eq", "$args": [{ "$call": "mod", "$args": [{ "$var": "n" }, 3] }, 0] },
+      "divBy5": { "$call": "eq", "$args": [{ "$call": "mod", "$args": [{ "$var": "n" }, 5] }, 0] },
+      "divBy15": { "$call": "and", "$args": [{ "$var": "divBy3" }, { "$var": "divBy5" }] },
       "$return": {
         "$cond": [
           [{ "$var": "divBy15" }, "FizzBuzz"],
@@ -31,7 +31,7 @@
       "description": "$if: truthy condition returns $then",
       "body": {
         "$return": {
-          "$if": { "$fn": ["gt", 10, 5] },
+          "$if": { "$call": "gt", "$args": [10, 5] },
           "$then": "ten is greater",
           "$else": "five is greater"
         }
@@ -42,7 +42,7 @@
       "description": "$if: falsy condition returns $else",
       "body": {
         "$return": {
-          "$if": { "$fn": ["gt", 3, 5] },
+          "$if": { "$call": "gt", "$args": [3, 5] },
           "$then": "three is greater",
           "$else": "five is greater"
         }
@@ -51,37 +51,37 @@
     },
     {
       "description": "$cond: classify negative",
-      "body": { "$return": { "$fn": ["classify", -5] } },
+      "body": { "$return": { "$call": "classify", "$args": [-5] } },
       "expected": "negative"
     },
     {
       "description": "$cond: classify zero",
-      "body": { "$return": { "$fn": ["classify", 0] } },
+      "body": { "$return": { "$call": "classify", "$args": [0] } },
       "expected": "zero"
     },
     {
       "description": "$cond: classify positive",
-      "body": { "$return": { "$fn": ["classify", 42] } },
+      "body": { "$return": { "$call": "classify", "$args": [42] } },
       "expected": "positive"
     },
     {
       "description": "$cond: fizzbuzz(15) → FizzBuzz",
-      "body": { "$return": { "$fn": ["fizzbuzz", 15] } },
+      "body": { "$return": { "$call": "fizzbuzz", "$args": [15] } },
       "expected": "FizzBuzz"
     },
     {
       "description": "$cond: fizzbuzz(9) → Fizz",
-      "body": { "$return": { "$fn": ["fizzbuzz", 9] } },
+      "body": { "$return": { "$call": "fizzbuzz", "$args": [9] } },
       "expected": "Fizz"
     },
     {
       "description": "$cond: fizzbuzz(10) → Buzz",
-      "body": { "$return": { "$fn": ["fizzbuzz", 10] } },
+      "body": { "$return": { "$call": "fizzbuzz", "$args": [10] } },
       "expected": "Buzz"
     },
     {
       "description": "$cond: fizzbuzz(7) → 7 (number passthrough)",
-      "body": { "$return": { "$fn": ["fizzbuzz", 7] } },
+      "body": { "$return": { "$call": "fizzbuzz", "$args": [7] } },
       "expected": 7
     },
     {
@@ -90,10 +90,10 @@
         "$params": ["score"],
         "$return": {
           "$cond": [
-            [{ "$fn": ["gte", { "$var": "score" }, 90] }, "A"],
-            [{ "$fn": ["gte", { "$var": "score" }, 80] }, "B"],
-            [{ "$fn": ["gte", { "$var": "score" }, 70] }, "C"],
-            [{ "$fn": ["gte", { "$var": "score" }, 60] }, "D"],
+            [{ "$call": "gte", "$args": [{ "$var": "score" }, 90] }, "A"],
+            [{ "$call": "gte", "$args": [{ "$var": "score" }, 80] }, "B"],
+            [{ "$call": "gte", "$args": [{ "$var": "score" }, 70] }, "C"],
+            [{ "$call": "gte", "$args": [{ "$var": "score" }, 60] }, "D"],
             [true, "F"]
           ]
         }
@@ -106,7 +106,7 @@
       "body": {
         "$return": {
           "$cond": [
-            [false, { "$fn": ["add", 1, 2] }],
+            [false, { "$call": "add", "$args": [1, 2] }],
             [true, "matched second"],
             [true, "never reached"]
           ]
@@ -134,7 +134,9 @@
     },
     {
       "description": "$cond: matched branch skips $else",
-      "body": { "$return": { "$cond": [[true, "matched"]], "$else": { "$fn": ["div", 1, 0] } } },
+      "body": {
+        "$return": { "$cond": [[true, "matched"]], "$else": { "$call": "div", "$args": [1, 0] } }
+      },
       "expected": "matched"
     },
     {
@@ -210,10 +212,10 @@
         "$return": {
           "$match": { "$var": "value" },
           "$cases": [
-            ["b", { "$fn": ["div", 1, 0] }],
-            [{ "$fn": ["strcat", "a", ""] }, "matched"]
+            ["b", { "$call": "div", "$args": [1, 0] }],
+            [{ "$call": "strcat", "$args": ["a", ""] }, "matched"]
           ],
-          "$else": { "$fn": ["div", 1, 0] }
+          "$else": { "$call": "div", "$args": [1, 0] }
         }
       },
       "args": ["a"],
@@ -226,9 +228,9 @@
           "$match": "a",
           "$cases": [
             ["a", "first"],
-            [{ "$fn": ["div", 1, 0] }, "second"]
+            [{ "$call": "div", "$args": [1, 0] }, "second"]
           ],
-          "$else": { "$fn": ["div", 1, 0] }
+          "$else": { "$call": "div", "$args": [1, 0] }
         }
       },
       "expected": "first"
@@ -261,7 +263,7 @@
     },
     {
       "description": "$and: short-circuits on first falsy",
-      "body": { "$return": { "$and": [1, 0, { "$fn": ["div", 1, 0] }] } },
+      "body": { "$return": { "$and": [1, 0, { "$call": "div", "$args": [1, 0] }] } },
       "expected": 0
     },
     {
@@ -291,7 +293,7 @@
     },
     {
       "description": "$or: short-circuits on first truthy",
-      "body": { "$return": { "$or": [false, "found", { "$fn": ["div", 1, 0] }] } },
+      "body": { "$return": { "$or": [false, "found", { "$call": "div", "$args": [1, 0] }] } },
       "expected": "found"
     },
     {
@@ -315,8 +317,8 @@
         "$params": ["x"],
         "$return": {
           "$and": [
-            { "$fn": ["gt", { "$var": "x" }, 0] },
-            { "$or": [{ "$fn": ["eq", { "$var": "x" }, 42] }, "positive"] }
+            { "$call": "gt", "$args": [{ "$var": "x" }, 0] },
+            { "$or": [{ "$call": "eq", "$args": [{ "$var": "x" }, 42] }, "positive"] }
           ]
         }
       },

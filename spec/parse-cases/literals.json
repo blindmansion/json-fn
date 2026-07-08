@@ -10,12 +10,12 @@
     {
       "description": "arrays evaluate elements",
       "source": "[1, add(2, 3)]",
-      "expected": [1, { "$fn": ["add", 2, 3] }]
+      "expected": [1, { "$call": "add", "$args": [2, 3] }]
     },
     {
       "description": "data objects",
       "source": "{ name: \"ada\", score: x + 1 }",
-      "expected": { "name": "ada", "score": { "$fn": ["add", { "$var": "x" }, 1] } }
+      "expected": { "name": "ada", "score": { "$call": "add", "$args": [{ "$var": "x" }, 1] } }
     },
     {
       "description": "data object with shorthand-property punning",

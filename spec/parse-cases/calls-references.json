@@ -1,21 +1,26 @@
 {
   "description": "calls and references (shorthand spec section 4)",
   "cases": [
-    { "description": "named call", "source": "add(3, 4)", "expected": { "$fn": ["add", 3, 4] } },
-    { "description": "nullary call", "source": "f()", "expected": { "$fn": ["f"] } },
+    {
+      "description": "named call",
+      "source": "add(3, 4)",
+      "expected": { "$call": "add", "$args": [3, 4] }
+    },
+    { "description": "nullary call", "source": "f()", "expected": { "$call": "f", "$args": [] } },
     {
       "description": "call target from parenthesized variable",
       "source": "(fnName)(3, 4)",
-      "expected": { "$fn": [{ "$var": "fnName" }, 3, 4] }
+      "expected": { "$call": { "$var": "fnName" }, "$args": [3, 4] }
     },
     {
       "description": "immediately-invoked function literal",
       "source": "((x) => x * x)(5)",
       "expected": {
-        "$fn": [
-          { "$params": ["x"], "$return": { "$fn": ["mul", { "$var": "x" }, { "$var": "x" }] } },
-          5
-        ]
+        "$call": {
+          "$params": ["x"],
+          "$return": { "$call": "mul", "$args": [{ "$var": "x" }, { "$var": "x" }] }
+        },
+        "$args": [5]
       }
     },
     {
@@ -26,7 +31,7 @@
     {
       "description": "function reference as argument",
       "source": "map(&double, nums)",
-      "expected": { "$fn": ["map", { "$fn": "double" }, { "$var": "nums" }] }
+      "expected": { "$call": "map", "$args": [{ "$fn": "double" }, { "$var": "nums" }] }
     },
     {
       "description": "function reference from parenthesized expression",
@@ -37,37 +42,43 @@
       "description": "method call: access chain in call position is a call on the evaluated callee",
       "source": "caps.db.query(sql)",
       "expected": {
-        "$fn": [{ "$get": ["db", "query"], "$from": { "$var": "caps" } }, { "$var": "sql" }]
+        "$call": { "$get": ["db", "query"], "$from": { "$var": "caps" } },
+        "$args": [{ "$var": "sql" }]
       }
     },
     {
       "description": "zero-arg method call",
       "source": "io.readLine()",
-      "expected": { "$fn": [{ "$get": "readLine", "$from": { "$var": "io" } }] }
+      "expected": { "$call": { "$get": "readLine", "$from": { "$var": "io" } }, "$args": [] }
     },
     {
       "description": "single-dot method call",
       "source": "obj.method(x)",
-      "expected": { "$fn": [{ "$get": "method", "$from": { "$var": "obj" } }, { "$var": "x" }] }
+      "expected": {
+        "$call": { "$get": "method", "$from": { "$var": "obj" } },
+        "$args": [{ "$var": "x" }]
+      }
     },
     {
       "description": "computed-key method call",
       "source": "caps[name](x)",
       "expected": {
-        "$fn": [{ "$get": { "$var": "name" }, "$from": { "$var": "caps" } }, { "$var": "x" }]
+        "$call": { "$get": { "$var": "name" }, "$from": { "$var": "caps" } },
+        "$args": [{ "$var": "x" }]
       }
     },
     {
       "description": "method call on a call result uses $from callee",
       "source": "f(x).method(y)",
       "expected": {
-        "$fn": [{ "$get": "method", "$from": { "$fn": ["f", { "$var": "x" }] } }, { "$var": "y" }]
+        "$call": { "$get": "method", "$from": { "$call": "f", "$args": [{ "$var": "x" }] } },
+        "$args": [{ "$var": "y" }]
       }
     },
     {
       "description": "chained application: a call in call position calls its result",
       "source": "makeCountdown(42)(3)",
-      "expected": { "$fn": [{ "$fn": ["makeCountdown", 42] }, 3] }
+      "expected": { "$call": { "$call": "makeCountdown", "$args": [42] }, "$args": [3] }
     }
   ]
 }

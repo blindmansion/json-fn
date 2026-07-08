@@ -3,7 +3,7 @@
   "functions": {
     "move": {
       "$params": [{ "$fields": ["from", "to"] }],
-      "$return": { "$fn": ["sub", { "$var": "to" }, { "$var": "from" }] }
+      "$return": { "$call": "sub", "$args": [{ "$var": "to" }, { "$var": "from" }] }
     }
   },
   "cases": [
@@ -11,21 +11,21 @@
       "description": "binds named fields from an object argument",
       "body": {
         "$params": [{ "$fields": ["from", "to"] }],
-        "$return": { "$fn": ["sub", { "$var": "to" }, { "$var": "from" }] }
+        "$return": { "$call": "sub", "$args": [{ "$var": "to" }, { "$var": "from" }] }
       },
       "args": [{ "from": 3, "to": 7 }],
       "expected": 4
     },
     {
       "description": "called in-language with a data object is an ordinary positional call",
-      "body": { "$return": { "$fn": ["move", { "from": 3, "to": 7 }] } },
+      "body": { "$return": { "$call": "move", "$args": [{ "from": 3, "to": 7 }] } },
       "expected": 4
     },
     {
       "description": "single field pattern",
       "body": {
         "$params": [{ "$fields": ["x"] }],
-        "$return": { "$fn": ["mul", { "$var": "x" }, 2] }
+        "$return": { "$call": "mul", "$args": [{ "$var": "x" }, 2] }
       },
       "args": [{ "x": 21 }],
       "expected": 42
@@ -40,7 +40,7 @@
       "description": "extra keys are ignored",
       "body": {
         "$params": [{ "$fields": ["from", "to"] }],
-        "$return": { "$fn": ["add", { "$var": "from" }, { "$var": "to" }] }
+        "$return": { "$call": "add", "$args": [{ "$var": "from" }, { "$var": "to" }] }
       },
       "args": [{ "from": 1, "to": 2, "extra": 99 }],
       "expected": 3
@@ -49,7 +49,7 @@
       "description": "non-object argument (number) binds all fields to null",
       "body": {
         "$params": [{ "$fields": ["a"] }],
-        "$return": { "$fn": ["isNull", { "$var": "a" }] }
+        "$return": { "$call": "isNull", "$args": [{ "$var": "a" }] }
       },
       "args": [5],
       "expected": true
@@ -58,7 +58,7 @@
       "description": "missing argument entirely binds all fields to null",
       "body": {
         "$params": [{ "$fields": ["a", "b"] }],
-        "$return": { "$fn": ["isNull", { "$var": "b" }] }
+        "$return": { "$call": "isNull", "$args": [{ "$var": "b" }] }
       },
       "expected": true
     },
@@ -66,7 +66,7 @@
       "description": "null argument binds all fields to null",
       "body": {
         "$params": [{ "$fields": ["a"] }],
-        "$return": { "$fn": ["isNull", { "$var": "a" }] }
+        "$return": { "$call": "isNull", "$args": [{ "$var": "a" }] }
       },
       "args": [null],
       "expected": true
@@ -75,7 +75,7 @@
       "description": "array argument is not a plain object, so fields bind to null",
       "body": {
         "$params": [{ "$fields": ["a"] }],
-        "$return": { "$fn": ["isNull", { "$var": "a" }] }
+        "$return": { "$call": "isNull", "$args": [{ "$var": "a" }] }
       },
       "args": [[1, 2, 3]],
       "expected": true
@@ -86,7 +86,7 @@
         "$params": ["label", { "$fields": ["x", "y"] }],
         "$return": {
           "label": { "$var": "label" },
-          "sum": { "$fn": ["add", { "$var": "x" }, { "$var": "y" }] }
+          "sum": { "$call": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] }
         }
       },
       "args": ["p", { "x": 1, "y": 2 }],
@@ -105,7 +105,7 @@
       "description": "multiple pattern slots each destructure their own argument",
       "body": {
         "$params": [{ "$fields": ["a"] }, { "$fields": ["b"] }],
-        "$return": { "$fn": ["add", { "$var": "a" }, { "$var": "b" }] }
+        "$return": { "$call": "add", "$args": [{ "$var": "a" }, { "$var": "b" }] }
       },
       "args": [{ "a": 1 }, { "b": 2 }],
       "expected": 3
@@ -114,7 +114,7 @@
       "description": "fields are visible to lazy locals",
       "body": {
         "$params": [{ "$fields": ["n"] }],
-        "twice": { "$fn": ["mul", { "$var": "n" }, 2] },
+        "twice": { "$call": "mul", "$args": [{ "$var": "n" }, 2] },
         "$return": { "$var": "twice" }
       },
       "args": [{ "n": 21 }],
@@ -125,10 +125,11 @@
       "body": {
         "$params": [{ "$fields": ["x"] }],
         "$return": {
-          "$fn": [
-            { "$params": ["y"], "$return": { "$fn": ["add", { "$var": "x" }, { "$var": "y" }] } },
-            5
-          ]
+          "$call": {
+            "$params": ["y"],
+            "$return": { "$call": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] }
+          },
+          "$args": [5]
         }
       },
       "args": [{ "x": 10 }],
@@ -138,7 +139,7 @@
       "description": "an inner parameter shadows an outer field of the same name",
       "body": {
         "$params": [{ "$fields": ["x"] }],
-        "$return": { "$fn": [{ "$params": ["x"], "$return": { "$var": "x" } }, 99] }
+        "$return": { "$call": { "$params": ["x"], "$return": { "$var": "x" } }, "$args": [99] }
       },
       "args": [{ "x": 1 }],
       "expected": 99
@@ -146,7 +147,7 @@
     {
       "description": "arity counts a pattern slot as one parameter",
       "body": {
-        "$return": { "$fn": ["arity", { "$var": "fn" }] },
+        "$return": { "$call": "arity", "$args": [{ "$var": "fn" }] },
         "fn": { "$params": [{ "$fields": ["from", "to"] }], "$return": { "$var": "from" } }
       },
       "expected": 1
@@ -154,7 +155,7 @@
     {
       "description": "arity counts positional plus pattern slots",
       "body": {
-        "$return": { "$fn": ["arity", { "$var": "fn" }] },
+        "$return": { "$call": "arity", "$args": [{ "$var": "fn" }] },
         "fn": { "$params": ["a", { "$fields": ["x", "y"] }], "$return": { "$var": "a" } }
       },
       "expected": 2
@@ -162,7 +163,7 @@
     {
       "description": "arity excludes the rest parameter after a pattern slot",
       "body": {
-        "$return": { "$fn": ["arity", { "$var": "fn" }] },
+        "$return": { "$call": "arity", "$args": [{ "$var": "fn" }] },
         "fn": { "$params": [{ "$fields": ["x"] }, "...rest"], "$return": { "$var": "x" } }
       },
       "expected": 1

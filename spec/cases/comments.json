@@ -3,7 +3,7 @@
   "cases": [
     {
       "description": "$comment alongside $fn call is ignored",
-      "body": { "$return": { "$comment": "add 2 + 3", "$fn": ["add", 2, 3] } },
+      "body": { "$return": { "$comment": "add 2 + 3", "$call": "add", "$args": [2, 3] } },
       "expected": 5
     },
     {
@@ -37,7 +37,7 @@
         "$params": ["n"],
         "$return": {
           "$comment": "sign check",
-          "$if": { "$fn": ["gt", { "$var": "n" }, 0] },
+          "$if": { "$call": "gt", "$args": [{ "$var": "n" }, 0] },
           "$then": "positive",
           "$else": "non-positive"
         }
@@ -52,8 +52,8 @@
         "$return": {
           "$comment": "classify by sign",
           "$cond": [
-            [{ "$fn": ["lt", { "$var": "n" }, 0] }, "negative"],
-            [{ "$fn": ["eq", { "$var": "n" }, 0] }, "zero"],
+            [{ "$call": "lt", "$args": [{ "$var": "n" }, 0] }, "negative"],
+            [{ "$call": "eq", "$args": [{ "$var": "n" }, 0] }, "zero"],
             [true, "positive"]
           ]
         }
@@ -100,7 +100,7 @@
       "body": {
         "$comment": "doubles its input",
         "$params": ["n"],
-        "$return": { "$fn": ["mul", { "$var": "n" }, 2] }
+        "$return": { "$call": "mul", "$args": [{ "$var": "n" }, 2] }
       },
       "args": [7],
       "expected": 14
@@ -110,8 +110,8 @@
       "body": {
         "$params": ["n"],
         "$comment": "computes n squared then doubled",
-        "squared": { "$fn": ["mul", { "$var": "n" }, { "$var": "n" }] },
-        "$return": { "$fn": ["mul", { "$var": "squared" }, 2] }
+        "squared": { "$call": "mul", "$args": [{ "$var": "n" }, { "$var": "n" }] },
+        "$return": { "$call": "mul", "$args": [{ "$var": "squared" }, 2] }
       },
       "args": [3],
       "expected": 18
@@ -128,7 +128,7 @@
     },
     {
       "description": "non-string $comment is not recognized as a comment (errors as extra property on $fn)",
-      "body": { "$return": { "$comment": 42, "$fn": ["add", 1, 2] } },
+      "body": { "$return": { "$comment": 42, "$call": "add", "$args": [1, 2] } },
       "error": "Function calls cannot have other properties"
     },
     {
@@ -141,10 +141,14 @@
       "body": {
         "$params": ["x"],
         "$return": {
-          "$fn": [
-            "add",
-            { "$comment": "x squared", "$fn": ["mul", { "$var": "x" }, { "$var": "x" }] },
-            { "$comment": "constant", "$fn": ["add", 1, 2] }
+          "$call": "add",
+          "$args": [
+            {
+              "$comment": "x squared",
+              "$call": "mul",
+              "$args": [{ "$var": "x" }, { "$var": "x" }]
+            },
+            { "$comment": "constant", "$call": "add", "$args": [1, 2] }
           ]
         }
       },
@@ -163,14 +167,14 @@
         "$return": {
           "$comment": "outer comment",
           "$params": ["y"],
-          "$return": { "$fn": ["add", { "$var": "x" }, { "$var": "y" }] }
+          "$return": { "$call": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] }
         }
       },
       "args": [10],
       "expected": {
         "$comment": "outer comment",
         "$params": ["y"],
-        "$return": { "$fn": ["add", 10, { "$var": "y" }] }
+        "$return": { "$call": "add", "$args": [10, { "$var": "y" }] }
       }
     }
   ]

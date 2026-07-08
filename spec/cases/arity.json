@@ -3,27 +3,27 @@
   "cases": [
     {
       "description": "arity of external JS function (by name)",
-      "body": { "$return": { "$fn": ["arity", "add"] } },
+      "body": { "$return": { "$call": "arity", "$args": ["add"] } },
       "expected": 2
     },
     {
       "description": "arity of single-param external function",
-      "body": { "$return": { "$fn": ["arity", "abs"] } },
+      "body": { "$return": { "$call": "arity", "$args": ["abs"] } },
       "expected": 1
     },
     {
       "description": "arity of a builtin (map)",
-      "body": { "$return": { "$fn": ["arity", "map"] } },
+      "body": { "$return": { "$call": "arity", "$args": ["map"] } },
       "expected": 2
     },
     {
       "description": "arity of a builtin (reduce)",
-      "body": { "$return": { "$fn": ["arity", "reduce"] } },
+      "body": { "$return": { "$call": "arity", "$args": ["reduce"] } },
       "expected": 3
     },
     {
       "description": "arity of a JSON function (by name)",
-      "body": { "$return": { "$fn": ["arity", "myFn"] } },
+      "body": { "$return": { "$call": "arity", "$args": ["myFn"] } },
       "functions": { "myFn": { "$params": ["a", "b", "c"], "$return": { "$var": "a" } } },
       "expected": 3
     },
@@ -32,21 +32,21 @@
       "body": {
         "body": {
           "$params": ["x", "y"],
-          "$return": { "$fn": ["add", { "$var": "x" }, { "$var": "y" }] }
+          "$return": { "$call": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] }
         },
-        "$return": { "$fn": ["arity", { "$var": "body" }] }
+        "$return": { "$call": "arity", "$args": [{ "$var": "body" }] }
       },
       "expected": 2
     },
     {
       "description": "arity of a zero-param JSON function",
-      "body": { "$return": { "$fn": ["arity", "noArgs"] } },
+      "body": { "$return": { "$call": "arity", "$args": ["noArgs"] } },
       "functions": { "noArgs": { "$return": 42 } },
       "expected": 0
     },
     {
       "description": "arity of a JSON function with rest params excludes the rest",
-      "body": { "$return": { "$fn": ["arity", "varFn"] } },
+      "body": { "$return": { "$call": "arity", "$args": ["varFn"] } },
       "functions": {
         "varFn": { "$params": ["first", "second", "...rest"], "$return": { "$var": "first" } }
       },
@@ -54,12 +54,12 @@
     },
     {
       "description": "arity of unknown function returns null",
-      "body": { "$return": { "$fn": ["arity", "nonexistent"] } },
+      "body": { "$return": { "$call": "arity", "$args": ["nonexistent"] } },
       "expected": null
     },
     {
       "description": "arity of arity is 1",
-      "body": { "$return": { "$fn": ["arity", "arity"] } },
+      "body": { "$return": { "$call": "arity", "$args": ["arity"] } },
       "expected": 1
     }
   ]

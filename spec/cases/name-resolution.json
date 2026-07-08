@@ -3,14 +3,17 @@
   "cases": [
     {
       "description": "a function-valued param shadows an operator (x + 1 uses the passed `add`)",
-      "body": { "$params": ["add", "x"], "$return": { "$fn": ["add", { "$var": "x" }, 1] } },
+      "body": {
+        "$params": ["add", "x"],
+        "$return": { "$call": "add", "$args": [{ "$var": "x" }, 1] }
+      },
       "args": ["sub", 10],
       "expected": 9
     },
     {
       "description": "a function-valued param shadows a stdlib function in a direct call",
-      "body": { "$params": ["map"], "$return": { "$fn": ["map", 2] } },
-      "args": [{ "$params": ["x"], "$return": { "$fn": ["mul", { "$var": "x" }, 10] } }],
+      "body": { "$params": ["map"], "$return": { "$call": "map", "$args": [2] } },
+      "args": [{ "$params": ["x"], "$return": { "$call": "mul", "$args": [{ "$var": "x" }, 10] } }],
       "expected": 20
     },
     {
@@ -18,20 +21,18 @@
       "functions": {
         "makeMapper": {
           "$params": ["map"],
-          "$return": { "$params": ["x"], "$return": { "$fn": ["map", { "$var": "x" }] } }
+          "$return": { "$params": ["x"], "$return": { "$call": "map", "$args": [{ "$var": "x" }] } }
         }
       },
       "body": {
         "$return": {
-          "$fn": [
-            {
-              "$fn": [
-                "makeMapper",
-                { "$params": ["n"], "$return": { "$fn": ["mul", { "$var": "n" }, 10] } }
-              ]
-            },
-            5
-          ]
+          "$call": {
+            "$call": "makeMapper",
+            "$args": [
+              { "$params": ["n"], "$return": { "$call": "mul", "$args": [{ "$var": "n" }, 10] } }
+            ]
+          },
+          "$args": [5]
         }
       },
       "expected": 50
@@ -43,22 +44,20 @@
           "$params": ["add", "g"],
           "$return": {
             "$params": ["x"],
-            "$return": { "$fn": ["add", { "$fn": ["g", { "$var": "x" }] }] }
+            "$return": { "$call": "add", "$args": [{ "$call": "g", "$args": [{ "$var": "x" }] }] }
           }
         }
       },
       "body": {
         "$return": {
-          "$fn": [
-            {
-              "$fn": [
-                "compose",
-                { "$params": ["n"], "$return": { "$fn": ["mul", { "$var": "n" }, 10] } },
-                { "$params": ["n"], "$return": { "$fn": ["add", { "$var": "n" }, 1] } }
-              ]
-            },
-            5
-          ]
+          "$call": {
+            "$call": "compose",
+            "$args": [
+              { "$params": ["n"], "$return": { "$call": "mul", "$args": [{ "$var": "n" }, 10] } },
+              { "$params": ["n"], "$return": { "$call": "add", "$args": [{ "$var": "n" }, 1] } }
+            ]
+          },
+          "$args": [5]
         }
       },
       "expected": 60
@@ -68,7 +67,7 @@
       "body": {
         "$params": ["x"],
         "length": { "$params": ["v"], "$return": 999 },
-        "$return": { "$fn": ["length", { "$var": "x" }] }
+        "$return": { "$call": "length", "$args": [{ "$var": "x" }] }
       },
       "args": [[1, 2, 3]],
       "expected": 999
@@ -79,9 +78,9 @@
         "$params": ["x"],
         "add": {
           "$params": ["a", "b"],
-          "$return": { "$fn": ["sub", { "$var": "a" }, { "$var": "b" }] }
+          "$return": { "$call": "sub", "$args": [{ "$var": "a" }, { "$var": "b" }] }
         },
-        "$return": { "$fn": ["add", { "$var": "x" }, 1] }
+        "$return": { "$call": "add", "$args": [{ "$var": "x" }, 1] }
       },
       "args": [10],
       "expected": 9
@@ -96,15 +95,15 @@
             "$if": { "$lte": [{ "$var": "m" }, 1] },
             "$then": 1,
             "$else": {
-              "$fn": [
-                "mul",
+              "$call": "mul",
+              "$args": [
                 { "$var": "m" },
-                { "$fn": ["fact", { "$fn": ["sub", { "$var": "m" }, 1] }] }
+                { "$call": "fact", "$args": [{ "$call": "sub", "$args": [{ "$var": "m" }, 1] }] }
               ]
             }
           }
         },
-        "$return": { "$fn": ["fact", { "$var": "n" }] }
+        "$return": { "$call": "fact", "$args": [{ "$var": "n" }] }
       },
       "args": [5],
       "expected": 120
@@ -118,7 +117,10 @@
           "$return": {
             "$if": { "$eq": [{ "$var": "m" }, 0] },
             "$then": true,
-            "$else": { "$fn": ["isOdd", { "$fn": ["sub", { "$var": "m" }, 1] }] }
+            "$else": {
+              "$call": "isOdd",
+              "$args": [{ "$call": "sub", "$args": [{ "$var": "m" }, 1] }]
+            }
           }
         },
         "isOdd": {
@@ -126,10 +128,13 @@
           "$return": {
             "$if": { "$eq": [{ "$var": "m" }, 0] },
             "$then": false,
-            "$else": { "$fn": ["isEven", { "$fn": ["sub", { "$var": "m" }, 1] }] }
+            "$else": {
+              "$call": "isEven",
+              "$args": [{ "$call": "sub", "$args": [{ "$var": "m" }, 1] }]
+            }
           }
         },
-        "$return": { "$fn": ["isEven", { "$var": "n" }] }
+        "$return": { "$call": "isEven", "$args": [{ "$var": "n" }] }
       },
       "args": [10],
       "expected": true
@@ -143,7 +148,10 @@
           "$return": {
             "$if": { "$eq": [{ "$var": "m" }, 0] },
             "$then": true,
-            "$else": { "$fn": ["isOdd", { "$fn": ["sub", { "$var": "m" }, 1] }] }
+            "$else": {
+              "$call": "isOdd",
+              "$args": [{ "$call": "sub", "$args": [{ "$var": "m" }, 1] }]
+            }
           }
         },
         "isOdd": {
@@ -151,10 +159,13 @@
           "$return": {
             "$if": { "$eq": [{ "$var": "m" }, 0] },
             "$then": false,
-            "$else": { "$fn": ["isEven", { "$fn": ["sub", { "$var": "m" }, 1] }] }
+            "$else": {
+              "$call": "isEven",
+              "$args": [{ "$call": "sub", "$args": [{ "$var": "m" }, 1] }]
+            }
           }
         },
-        "$return": { "$fn": ["isEven", { "$var": "n" }] }
+        "$return": { "$call": "isEven", "$args": [{ "$var": "n" }] }
       },
       "args": [7],
       "expected": false
@@ -168,7 +179,7 @@
       "description": "map(length, xss) works without `&` (bare registry name as argument)",
       "body": {
         "$params": ["xss"],
-        "$return": { "$fn": ["map", { "$var": "length" }, { "$var": "xss" }] }
+        "$return": { "$call": "map", "$args": [{ "$var": "length" }, { "$var": "xss" }] }
       },
       "args": [
         [
@@ -191,7 +202,11 @@
     },
     {
       "description": "a non-function local named like a builtin does NOT hijack the operator",
-      "body": { "$params": ["x"], "add": 5, "$return": { "$fn": ["add", { "$var": "x" }, 1] } },
+      "body": {
+        "$params": ["x"],
+        "add": 5,
+        "$return": { "$call": "add", "$args": [{ "$var": "x" }, 1] }
+      },
       "args": [10],
       "expected": 11
     }

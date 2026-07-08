@@ -4,13 +4,16 @@
     {
       "description": "arithmetic precedence (* binds tighter than +)",
       "source": "row * 8 + col",
-      "expected": { "$fn": ["add", { "$fn": ["mul", { "$var": "row" }, 8] }, { "$var": "col" }] }
+      "expected": {
+        "$call": "add",
+        "$args": [{ "$call": "mul", "$args": [{ "$var": "row" }, 8] }, { "$var": "col" }]
+      }
     },
     { "description": "unary not", "source": "!done", "expected": { "$not": { "$var": "done" } } },
     {
       "description": "unary negation of variable",
       "source": "-x",
-      "expected": { "$fn": ["neg", { "$var": "x" }] }
+      "expected": { "$call": "neg", "$args": [{ "$var": "x" }] }
     },
     {
       "description": "unary negation of literal folds to negative number",
@@ -30,23 +33,31 @@
     {
       "description": "logical or",
       "source": "cached || compute(x)",
-      "expected": { "$or": [{ "$var": "cached" }, { "$fn": ["compute", { "$var": "x" }] }] }
+      "expected": {
+        "$or": [{ "$var": "cached" }, { "$call": "compute", "$args": [{ "$var": "x" }] }]
+      }
     },
     { "description": "comparisons are non-associative", "source": "a < b < c", "error": true },
     {
       "description": "concat operator flattens",
       "source": "a ++ b ++ c",
-      "expected": { "$fn": ["strcat", { "$var": "a" }, { "$var": "b" }, { "$var": "c" }] }
+      "expected": {
+        "$call": "strcat",
+        "$args": [{ "$var": "a" }, { "$var": "b" }, { "$var": "c" }]
+      }
     },
     {
       "description": "template with leading text",
       "source": "`Illegal move: ${moveDesc}`",
-      "expected": { "$fn": ["strcat", "Illegal move: ", { "$var": "moveDesc" }] }
+      "expected": { "$call": "strcat", "$args": ["Illegal move: ", { "$var": "moveDesc" }] }
     },
     {
       "description": "template with interleaved literals",
       "source": "`${firstName} ${lastName}`",
-      "expected": { "$fn": ["strcat", { "$var": "firstName" }, " ", { "$var": "lastName" }] }
+      "expected": {
+        "$call": "strcat",
+        "$args": [{ "$var": "firstName" }, " ", { "$var": "lastName" }]
+      }
     },
     {
       "description": "template with single interpolation normalizes away strcat",

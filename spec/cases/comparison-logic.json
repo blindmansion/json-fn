@@ -3,76 +3,76 @@
   "cases": [
     {
       "description": "neq: true for different numbers",
-      "body": { "$return": { "$fn": ["neq", 1, 2] } },
+      "body": { "$return": { "$call": "neq", "$args": [1, 2] } },
       "expected": true
     },
     {
       "description": "neq: false for same numbers",
-      "body": { "$return": { "$fn": ["neq", 42, 42] } },
+      "body": { "$return": { "$call": "neq", "$args": [42, 42] } },
       "expected": false
     },
     {
       "description": "neq: true for different strings",
-      "body": { "$return": { "$fn": ["neq", "hello", "world"] } },
+      "body": { "$return": { "$call": "neq", "$args": ["hello", "world"] } },
       "expected": true
     },
     {
       "description": "neq: false for same strings",
-      "body": { "$return": { "$fn": ["neq", "hello", "hello"] } },
+      "body": { "$return": { "$call": "neq", "$args": ["hello", "hello"] } },
       "expected": false
     },
     {
       "description": "neq: true for different booleans",
-      "body": { "$return": { "$fn": ["neq", true, false] } },
+      "body": { "$return": { "$call": "neq", "$args": [true, false] } },
       "expected": true
     },
     {
       "description": "neq: false for same booleans",
-      "body": { "$return": { "$fn": ["neq", true, true] } },
+      "body": { "$return": { "$call": "neq", "$args": [true, true] } },
       "expected": false
     },
     {
       "description": "neq: false for null vs null",
-      "body": { "$return": { "$fn": ["neq", null, null] } },
+      "body": { "$return": { "$call": "neq", "$args": [null, null] } },
       "expected": false
     },
     {
       "description": "neq: true for null vs zero",
-      "body": { "$return": { "$fn": ["neq", null, 0] } },
+      "body": { "$return": { "$call": "neq", "$args": [null, 0] } },
       "expected": true
     },
     {
       "description": "neq: true for number vs string of same value",
-      "body": { "$return": { "$fn": ["neq", 1, "1"] } },
+      "body": { "$return": { "$call": "neq", "$args": [1, "1"] } },
       "expected": true
     },
     {
       "description": "not: negates true",
-      "body": { "$return": { "$fn": ["not", true] } },
+      "body": { "$return": { "$call": "not", "$args": [true] } },
       "expected": false
     },
     {
       "description": "not: negates false",
-      "body": { "$return": { "$fn": ["not", false] } },
+      "body": { "$return": { "$call": "not", "$args": [false] } },
       "expected": true
     },
     {
       "description": "not: double negation returns original",
-      "body": { "$return": { "$fn": ["not", { "$fn": ["not", true] }] } },
+      "body": { "$return": { "$call": "not", "$args": [{ "$call": "not", "$args": [true] }] } },
       "expected": true
     },
     {
       "description": "not: combined with comparison",
-      "body": { "$return": { "$fn": ["not", { "$fn": ["eq", 1, 2] }] } },
+      "body": { "$return": { "$call": "not", "$args": [{ "$call": "eq", "$args": [1, 2] }] } },
       "expected": true
     },
     {
       "description": "neq: used as filter predicate",
       "body": {
         "$return": {
-          "$fn": [
-            "filter",
-            { "$params": ["x"], "$return": { "$fn": ["neq", { "$var": "x" }, 0] } },
+          "$call": "filter",
+          "$args": [
+            { "$params": ["x"], "$return": { "$call": "neq", "$args": [{ "$var": "x" }, 0] } },
             [0, 1, 0, 2, 0, 3]
           ]
         }
@@ -83,11 +83,14 @@
       "description": "not: used to invert filter logic",
       "body": {
         "$return": {
-          "$fn": [
-            "filter",
+          "$call": "filter",
+          "$args": [
             {
               "$params": ["x"],
-              "$return": { "$fn": ["not", { "$fn": ["gt", { "$var": "x" }, 3] }] }
+              "$return": {
+                "$call": "not",
+                "$args": [{ "$call": "gt", "$args": [{ "$var": "x" }, 3] }]
+              }
             },
             [1, 2, 3, 4, 5]
           ]
@@ -97,12 +100,12 @@
     },
     {
       "description": "$eq: true for equal evaluated values",
-      "body": { "$return": { "$eq": [{ "$fn": ["add", 1, 1] }, 2] } },
+      "body": { "$return": { "$eq": [{ "$call": "add", "$args": [1, 1] }, 2] } },
       "expected": true
     },
     {
       "description": "$neq: true for unequal evaluated values",
-      "body": { "$return": { "$neq": [{ "$fn": ["str", 1] }, 1] } },
+      "body": { "$return": { "$neq": [{ "$call": "str", "$args": [1] }, 1] } },
       "expected": true
     },
     {
@@ -159,51 +162,71 @@
     },
     {
       "description": "eq: only uses strict scalar equality for arrays",
-      "body": { "$return": { "$fn": ["eq", [1], [1]] } },
+      "body": { "$return": { "$call": "eq", "$args": [[1], [1]] } },
       "expected": false
     },
     {
       "description": "neq: true for structurally equal arrays",
-      "body": { "$return": { "$fn": ["neq", [1], [1]] } },
+      "body": { "$return": { "$call": "neq", "$args": [[1], [1]] } },
       "expected": true
     },
     {
       "description": "eq: only uses strict scalar equality for objects",
-      "body": { "$return": { "$fn": ["eq", { "x": 1 }, { "x": 1 }] } },
+      "body": { "$return": { "$call": "eq", "$args": [{ "x": 1 }, { "x": 1 }] } },
       "expected": false
     },
     {
       "description": "neq: true for structurally equal objects",
-      "body": { "$return": { "$fn": ["neq", { "x": 1 }, { "x": 1 }] } },
+      "body": { "$return": { "$call": "neq", "$args": [{ "x": 1 }, { "x": 1 }] } },
       "expected": true
     },
     {
       "description": "jsonEq: true for structurally equal arrays",
       "body": {
-        "$return": { "$fn": ["jsonEq", [1, { "x": [true, null] }], [1, { "x": [true, null] }]] }
+        "$return": {
+          "$call": "jsonEq",
+          "$args": [
+            [1, { "x": [true, null] }],
+            [1, { "x": [true, null] }]
+          ]
+        }
       },
       "expected": true
     },
     {
       "description": "jsonEq: true for structurally equal objects regardless of key order",
       "body": {
-        "$return": { "$fn": ["jsonEq", { "a": 1, "b": [2, 3] }, { "b": [2, 3], "a": 1 }] }
+        "$return": {
+          "$call": "jsonEq",
+          "$args": [
+            { "a": 1, "b": [2, 3] },
+            { "b": [2, 3], "a": 1 }
+          ]
+        }
       },
       "expected": true
     },
     {
       "description": "jsonEq: false when array order differs",
-      "body": { "$return": { "$fn": ["jsonEq", [1, 2, 3], [3, 2, 1]] } },
+      "body": {
+        "$return": {
+          "$call": "jsonEq",
+          "$args": [
+            [1, 2, 3],
+            [3, 2, 1]
+          ]
+        }
+      },
       "expected": false
     },
     {
       "description": "jsonEq: false for boolean vs number",
-      "body": { "$return": { "$fn": ["jsonEq", true, 1] } },
+      "body": { "$return": { "$call": "jsonEq", "$args": [true, 1] } },
       "expected": false
     },
     {
       "description": "jsonEq: false for number vs string",
-      "body": { "$return": { "$fn": ["jsonEq", 1, "1"] } },
+      "body": { "$return": { "$call": "jsonEq", "$args": [1, "1"] } },
       "expected": false
     },
     {
@@ -211,8 +234,8 @@
       "body": {
         "$return": {
           "$and": [
-            { "$fn": ["jsonNeq", { "x": 1 }, { "x": 2 }] },
-            { "$not": { "$fn": ["jsonNeq", { "x": [1] }, { "x": [1] }] } }
+            { "$call": "jsonNeq", "$args": [{ "x": 1 }, { "x": 2 }] },
+            { "$not": { "$call": "jsonNeq", "$args": [{ "x": [1] }, { "x": [1] }] } }
           ]
         }
       },

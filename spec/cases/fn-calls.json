@@ -1,16 +1,26 @@
 {
   "description": "function calls",
   "cases": [
-    { "description": "add(3, 4)", "body": { "$return": { "$fn": ["add", 3, 4] } }, "expected": 7 },
+    {
+      "description": "add(3, 4)",
+      "body": { "$return": { "$call": "add", "$args": [3, 4] } },
+      "expected": 7
+    },
     {
       "description": "upper('hello')",
-      "body": { "$return": { "$fn": ["upper", "hello"] } },
+      "body": { "$return": { "$call": "upper", "$args": ["hello"] } },
       "expected": "HELLO"
     },
     {
       "description": "nested calls: mul(add(2,3), sub(10,4))",
       "body": {
-        "$return": { "$fn": ["mul", { "$fn": ["add", 2, 3] }, { "$fn": ["sub", 10, 4] }] }
+        "$return": {
+          "$call": "mul",
+          "$args": [
+            { "$call": "add", "$args": [2, 3] },
+            { "$call": "sub", "$args": [10, 4] }
+          ]
+        }
       },
       "expected": 30
     },
@@ -18,7 +28,7 @@
       "description": "$params binds arguments by name",
       "body": {
         "$params": ["a", "b"],
-        "$return": { "$fn": ["add", { "$var": "a" }, { "$var": "b" }] }
+        "$return": { "$call": "add", "$args": [{ "$var": "a" }, { "$var": "b" }] }
       },
       "args": [10, 20],
       "expected": 30

@@ -5,17 +5,17 @@
       "description": "named clauses with dotted (quoted) effect names",
       "source": "handle greet(io) with {\n  \"io.readLine\": (resume) => resume(\"world\"),\n  \"io.print\": (msg, resume) => resume(null)\n}",
       "expected": {
-        "$fn": [
-          "handle",
-          { "$fn": ["greet", { "$var": "io" }] },
+        "$call": "handle",
+        "$args": [
+          { "$call": "greet", "$args": [{ "$var": "io" }] },
           {
             "io.readLine": {
               "$params": ["resume"],
-              "$return": { "$fn": ["resume", "world"] }
+              "$return": { "$call": "resume", "$args": ["world"] }
             },
             "io.print": {
               "$params": ["msg", "resume"],
-              "$return": { "$fn": ["resume", null] }
+              "$return": { "$call": "resume", "$args": [null] }
             }
           }
         ]
@@ -25,11 +25,14 @@
       "description": "wildcard and return clauses",
       "source": "handle t with {\n  \"*\": (eff, resume) => resume(null),\n  return: (v) => v\n}",
       "expected": {
-        "$fn": [
-          "handle",
+        "$call": "handle",
+        "$args": [
           { "$var": "t" },
           {
-            "*": { "$params": ["eff", "resume"], "$return": { "$fn": ["resume", null] } },
+            "*": {
+              "$params": ["eff", "resume"],
+              "$return": { "$call": "resume", "$args": [null] }
+            },
             "return": { "$params": ["v"], "$return": { "$var": "v" } }
           }
         ]
@@ -39,16 +42,16 @@
       "description": "a do block as the handled task",
       "source": "handle do {\n  x <- get(),\n  pure(x)\n} with {\n  \"get\": (resume) => resume(1)\n}",
       "expected": {
-        "$fn": [
-          "handle",
+        "$call": "handle",
+        "$args": [
           {
-            "$fn": [
-              "bind",
-              { "$fn": ["get"] },
-              { "$params": ["x"], "$return": { "$fn": ["pure", { "$var": "x" }] } }
+            "$call": "bind",
+            "$args": [
+              { "$call": "get", "$args": [] },
+              { "$params": ["x"], "$return": { "$call": "pure", "$args": [{ "$var": "x" }] } }
             ]
           },
-          { "get": { "$params": ["resume"], "$return": { "$fn": ["resume", 1] } } }
+          { "get": { "$params": ["resume"], "$return": { "$call": "resume", "$args": [1] } } }
         ]
       }
     }

@@ -35,7 +35,10 @@
       "description": "dynamic key from function result",
       "body": {
         "data": { "hello": "world" },
-        "$return": { "$get": { "$fn": ["strcat", "hel", "lo"] }, "$from": { "$var": "data" } }
+        "$return": {
+          "$get": { "$call": "strcat", "$args": ["hel", "lo"] },
+          "$from": { "$var": "data" }
+        }
       },
       "expected": "world"
     },
@@ -62,7 +65,7 @@
     },
     {
       "description": "$get from function call result",
-      "body": { "$return": { "$get": 0, "$from": { "$fn": ["concat", [10], [20]] } } },
+      "body": { "$return": { "$get": 0, "$from": { "$call": "concat", "$args": [[10], [20]] } } },
       "expected": 10
     },
     {
@@ -70,7 +73,7 @@
       "body": {
         "person": { "name": "ada", "age": 36 },
         "name": { "$get": "name", "$from": { "$var": "person" } },
-        "$return": { "$fn": ["upper", { "$var": "name" }] }
+        "$return": { "$call": "upper", "$args": [{ "$var": "name" }] }
       },
       "expected": "ADA"
     },
@@ -97,7 +100,7 @@
           "$params": ["key"],
           "$return": { "$get": { "$var": "key" }, "$from": { "$var": "data" } }
         },
-        "$return": { "$fn": [{ "$var": "accessor" }, "y"] }
+        "$return": { "$call": { "$var": "accessor" }, "$args": ["y"] }
       },
       "args": [{ "x": 10, "y": 20 }],
       "expected": 20
@@ -213,7 +216,10 @@
       "description": "dot notation: used in function argument",
       "body": {
         "person": { "name": "ada" },
-        "$return": { "$fn": ["upper", { "$get": "name", "$from": { "$var": "person" } }] }
+        "$return": {
+          "$call": "upper",
+          "$args": [{ "$get": "name", "$from": { "$var": "person" } }]
+        }
       },
       "expected": "ADA"
     },
@@ -246,7 +252,7 @@
           "$params": ["unused"],
           "$return": { "$get": "name", "$from": { "$var": "person" } }
         },
-        "$return": { "$fn": [{ "$var": "getter" }, null] }
+        "$return": { "$call": { "$var": "getter" }, "$args": [null] }
       },
       "args": [{ "name": "Ada", "age": 36 }],
       "expected": "Ada"
@@ -283,7 +289,7 @@
             "$from": { "$get": "nested", "$from": { "$var": "data" } }
           }
         },
-        "$return": { "$fn": [{ "$var": "accessor" }, "y"] }
+        "$return": { "$call": { "$var": "accessor" }, "$args": ["y"] }
       },
       "args": [{ "nested": { "x": 10, "y": 20 } }],
       "expected": 20
@@ -317,7 +323,7 @@
       "description": "$get on string: computed index",
       "body": {
         "s": "world",
-        "$return": { "$get": { "$fn": ["sub", 4, 2] }, "$from": { "$var": "s" } }
+        "$return": { "$get": { "$call": "sub", "$args": [4, 2] }, "$from": { "$var": "s" } }
       },
       "expected": "r"
     },

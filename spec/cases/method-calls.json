@@ -5,11 +5,17 @@
       "$params": ["n"],
       "$return": {
         "value": { "$return": { "$var": "n" } },
-        "inc": { "$return": { "$fn": ["makeCounter", { "$fn": ["add", { "$var": "n" }, 1] }] } },
+        "inc": {
+          "$return": {
+            "$call": "makeCounter",
+            "$args": [{ "$call": "add", "$args": [{ "$var": "n" }, 1] }]
+          }
+        },
         "incBy": {
           "$params": ["k"],
           "$return": {
-            "$fn": ["makeCounter", { "$fn": ["add", { "$var": "n" }, { "$var": "k" }] }]
+            "$call": "makeCounter",
+            "$args": [{ "$call": "add", "$args": [{ "$var": "n" }, { "$var": "k" }] }]
           }
         }
       }
@@ -20,29 +26,26 @@
       "description": "fluent immutable object: a self-referential constructor chains without escaping-closure capture blow-up",
       "body": {
         "$return": {
-          "$fn": [
-            {
-              "$get": "value",
-              "$from": {
-                "$fn": [
-                  {
-                    "$get": "incBy",
+          "$call": {
+            "$get": "value",
+            "$from": {
+              "$call": {
+                "$get": "incBy",
+                "$from": {
+                  "$call": {
+                    "$get": "inc",
                     "$from": {
-                      "$fn": [
-                        {
-                          "$get": "inc",
-                          "$from": {
-                            "$fn": [{ "$get": "inc", "$from": { "$fn": ["makeCounter", 0] } }]
-                          }
-                        }
-                      ]
+                      "$call": { "$get": "inc", "$from": { "$call": "makeCounter", "$args": [0] } },
+                      "$args": []
                     }
                   },
-                  5
-                ]
-              }
+                  "$args": []
+                }
+              },
+              "$args": [5]
             }
-          ]
+          },
+          "$args": []
         }
       },
       "expected": 7
@@ -54,11 +57,14 @@
           "db": {
             "query": {
               "$params": ["sql"],
-              "$return": { "$fn": ["strcat", "ran: ", { "$var": "sql" }] }
+              "$return": { "$call": "strcat", "$args": ["ran: ", { "$var": "sql" }] }
             }
           }
         },
-        "$return": { "$fn": [{ "$get": ["db", "query"], "$from": { "$var": "caps" } }, "SELECT 1"] }
+        "$return": {
+          "$call": { "$get": ["db", "query"], "$from": { "$var": "caps" } },
+          "$args": ["SELECT 1"]
+        }
       },
       "expected": "ran: SELECT 1"
     },
@@ -66,7 +72,7 @@
       "description": "zero-arg method call: io.readLine()",
       "body": {
         "io": { "readLine": { "$return": "hello" } },
-        "$return": { "$fn": [{ "$get": "readLine", "$from": { "$var": "io" } }] }
+        "$return": { "$call": { "$get": "readLine", "$from": { "$var": "io" } }, "$args": [] }
       },
       "expected": "hello"
     },
@@ -77,10 +83,10 @@
           "greeting": "hi",
           "greet": {
             "$params": ["name"],
-            "$return": { "$fn": ["strcat", "hi ", { "$var": "name" }] }
+            "$return": { "$call": "strcat", "$args": ["hi ", { "$var": "name" }] }
           }
         },
-        "$return": { "$fn": [{ "$get": "greet", "$from": { "$var": "obj" } }, "ada"] }
+        "$return": { "$call": { "$get": "greet", "$from": { "$var": "obj" } }, "$args": ["ada"] }
       },
       "expected": "hi ada"
     },
@@ -88,11 +94,14 @@
       "description": "computed-key method dispatch: caps[name](x)",
       "body": {
         "caps": {
-          "inc": { "$params": ["n"], "$return": { "$fn": ["add", { "$var": "n" }, 1] } },
-          "dbl": { "$params": ["n"], "$return": { "$fn": ["mul", { "$var": "n" }, 2] } }
+          "inc": { "$params": ["n"], "$return": { "$call": "add", "$args": [{ "$var": "n" }, 1] } },
+          "dbl": { "$params": ["n"], "$return": { "$call": "mul", "$args": [{ "$var": "n" }, 2] } }
         },
         "which": "dbl",
-        "$return": { "$fn": [{ "$get": { "$var": "which" }, "$from": { "$var": "caps" } }, 21] }
+        "$return": {
+          "$call": { "$get": { "$var": "which" }, "$from": { "$var": "caps" } },
+          "$args": [21]
+        }
       },
       "expected": 42
     },
@@ -103,11 +112,14 @@
           "$return": {
             "print": {
               "$params": ["msg"],
-              "$return": { "$fn": ["strcat", "out: ", { "$var": "msg" }] }
+              "$return": { "$call": "strcat", "$args": ["out: ", { "$var": "msg" }] }
             }
           }
         },
-        "$return": { "$fn": [{ "$get": "print", "$from": { "$fn": ["makeIo"] } }, "done"] }
+        "$return": {
+          "$call": { "$get": "print", "$from": { "$call": "makeIo", "$args": [] } },
+          "$args": ["done"]
+        }
       },
       "expected": "out: done"
     },
@@ -115,9 +127,13 @@
       "description": "method call as a parameter-supplied capability record",
       "body": {
         "$params": ["io"],
-        "$return": { "$fn": [{ "$get": "print", "$from": { "$var": "io" } }, "x"] }
+        "$return": { "$call": { "$get": "print", "$from": { "$var": "io" } }, "$args": ["x"] }
       },
-      "args": [{ "print": { "$params": ["m"], "$return": { "$fn": ["upper", { "$var": "m" }] } } }],
+      "args": [
+        {
+          "print": { "$params": ["m"], "$return": { "$call": "upper", "$args": [{ "$var": "m" }] } }
+        }
+      ],
       "expected": "X"
     }
   ]

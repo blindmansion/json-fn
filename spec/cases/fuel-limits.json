@@ -5,7 +5,10 @@
     {
       "description": "op-bomb via map + pure-builtin callback is rejected at a tight budget",
       "body": {
-        "$return": { "$fn": ["length", { "$fn": ["map", "neg", { "$fn": ["range", 100000] }] }] }
+        "$return": {
+          "$call": "length",
+          "$args": [{ "$call": "map", "$args": ["neg", { "$call": "range", "$args": [100000] }] }]
+        }
       },
       "limits": { "maxFuel": 1000 },
       "error": "Maximum fuel"
@@ -13,27 +16,37 @@
     {
       "description": "same map program completes under an adequate budget",
       "body": {
-        "$return": { "$fn": ["length", { "$fn": ["map", "neg", { "$fn": ["range", 100000] }] }] }
+        "$return": {
+          "$call": "length",
+          "$args": [{ "$call": "map", "$args": ["neg", { "$call": "range", "$args": [100000] }] }]
+        }
       },
       "limits": { "maxFuel": 10000000 },
       "expected": 100000
     },
     {
       "description": "op-bomb via reduce + pure-builtin callback is rejected at a tight budget",
-      "body": { "$return": { "$fn": ["reduce", "add", 0, { "$fn": ["range", 1000] }] } },
+      "body": {
+        "$return": { "$call": "reduce", "$args": ["add", 0, { "$call": "range", "$args": [1000] }] }
+      },
       "limits": { "maxFuel": 1000 },
       "error": "Maximum fuel"
     },
     {
       "description": "same reduce program completes under an adequate budget",
-      "body": { "$return": { "$fn": ["reduce", "add", 0, { "$fn": ["range", 1000] }] } },
+      "body": {
+        "$return": { "$call": "reduce", "$args": ["add", 0, { "$call": "range", "$args": [1000] }] }
+      },
       "limits": { "maxFuel": 10000000 },
       "expected": 499500
     },
     {
       "description": "op-bomb via sort + pure-builtin comparator is rejected at a tight budget",
       "body": {
-        "$return": { "$fn": ["length", { "$fn": ["sort", "sub", { "$fn": ["range", 1000] }] }] }
+        "$return": {
+          "$call": "length",
+          "$args": [{ "$call": "sort", "$args": ["sub", { "$call": "range", "$args": [1000] }] }]
+        }
       },
       "limits": { "maxFuel": 1000 },
       "error": "Maximum fuel"
@@ -42,16 +55,19 @@
       "description": "nested-HOF amplification (flatMap of map) is rejected at a tight budget",
       "body": {
         "$return": {
-          "$fn": [
-            "length",
+          "$call": "length",
+          "$args": [
             {
-              "$fn": [
-                "flatMap",
+              "$call": "flatMap",
+              "$args": [
                 {
                   "$params": ["x"],
-                  "$return": { "$fn": ["map", "neg", { "$fn": ["range", 300] }] }
+                  "$return": {
+                    "$call": "map",
+                    "$args": ["neg", { "$call": "range", "$args": [300] }]
+                  }
                 },
-                { "$fn": ["range", 300] }
+                { "$call": "range", "$args": [300] }
               ]
             }
           ]
@@ -64,16 +80,19 @@
       "description": "same nested-HOF program completes under an adequate budget",
       "body": {
         "$return": {
-          "$fn": [
-            "length",
+          "$call": "length",
+          "$args": [
             {
-              "$fn": [
-                "flatMap",
+              "$call": "flatMap",
+              "$args": [
                 {
                   "$params": ["x"],
-                  "$return": { "$fn": ["map", "neg", { "$fn": ["range", 300] }] }
+                  "$return": {
+                    "$call": "map",
+                    "$args": ["neg", { "$call": "range", "$args": [300] }]
+                  }
                 },
-                { "$fn": ["range", 300] }
+                { "$call": "range", "$args": [300] }
               ]
             }
           ]
@@ -84,7 +103,7 @@
     },
     {
       "description": "small program still runs under a modest budget (guards against over-charging)",
-      "body": { "$return": { "$fn": ["map", "neg", [1, 2, 3]] } },
+      "body": { "$return": { "$call": "map", "$args": ["neg", [1, 2, 3]] } },
       "limits": { "maxFuel": 1000 },
       "expected": [-1, -2, -3]
     }

@@ -25,7 +25,7 @@
     {
       "description": "access off a call result uses $from",
       "source": "f(x).b",
-      "expected": { "$get": "b", "$from": { "$fn": ["f", { "$var": "x" }] } }
+      "expected": { "$get": "b", "$from": { "$call": "f", "$args": [{ "$var": "x" }] } }
     },
     {
       "description": "mixed dotted and numeric access collapses",

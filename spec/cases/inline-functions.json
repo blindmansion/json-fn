@@ -5,10 +5,11 @@
       "description": "inline square(5)",
       "body": {
         "$return": {
-          "$fn": [
-            { "$params": ["x"], "$return": { "$fn": ["mul", { "$var": "x" }, { "$var": "x" }] } },
-            5
-          ]
+          "$call": {
+            "$params": ["x"],
+            "$return": { "$call": "mul", "$args": [{ "$var": "x" }, { "$var": "x" }] }
+          },
+          "$args": [5]
         }
       },
       "expected": 25
@@ -17,22 +18,17 @@
       "description": "nested inline: sumThenSquare(3, 4)",
       "body": {
         "$return": {
-          "$fn": [
-            {
-              "$params": ["a", "b"],
-              "$return": {
-                "$fn": [
-                  {
-                    "$params": ["sum"],
-                    "$return": { "$fn": ["mul", { "$var": "sum" }, { "$var": "sum" }] }
-                  },
-                  { "$fn": ["add", { "$var": "a" }, { "$var": "b" }] }
-                ]
-              }
-            },
-            3,
-            4
-          ]
+          "$call": {
+            "$params": ["a", "b"],
+            "$return": {
+              "$call": {
+                "$params": ["sum"],
+                "$return": { "$call": "mul", "$args": [{ "$var": "sum" }, { "$var": "sum" }] }
+              },
+              "$args": [{ "$call": "add", "$args": [{ "$var": "a" }, { "$var": "b" }] }]
+            }
+          },
+          "$args": [3, 4]
         }
       },
       "expected": 49

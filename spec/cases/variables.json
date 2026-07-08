@@ -6,8 +6,8 @@
       "body": {
         "a": 5,
         "b": 10,
-        "sum": { "$fn": ["add", { "$var": "a" }, { "$var": "b" }] },
-        "doubled": { "$fn": ["mul", { "$var": "sum" }, 2] },
+        "sum": { "$call": "add", "$args": [{ "$var": "a" }, { "$var": "b" }] },
+        "doubled": { "$call": "mul", "$args": [{ "$var": "sum" }, 2] },
         "$return": { "$var": "doubled" }
       },
       "expected": 30
@@ -16,7 +16,7 @@
       "description": "variables can reference arguments via $params",
       "body": {
         "$params": ["x", "y"],
-        "product": { "$fn": ["mul", { "$var": "x" }, { "$var": "y" }] },
+        "product": { "$call": "mul", "$args": [{ "$var": "x" }, { "$var": "y" }] },
         "$return": { "$var": "product" }
       },
       "args": [7, 8],

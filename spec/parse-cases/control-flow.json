@@ -27,10 +27,10 @@
       "expected": {
         "$match": { "$var": "cmd" },
         "$cases": [
-          ["show", { "$fn": ["showResult", { "$var": "state" }] }],
-          ["reset", { "$fn": ["resetResult"] }]
+          ["show", { "$call": "showResult", "$args": [{ "$var": "state" }] }],
+          ["reset", { "$call": "resetResult", "$args": [] }]
         ],
-        "$else": { "$fn": ["moveResult", { "$var": "state" }, { "$var": "argv" }] }
+        "$else": { "$call": "moveResult", "$args": [{ "$var": "state" }, { "$var": "argv" }] }
       }
     }
   ]

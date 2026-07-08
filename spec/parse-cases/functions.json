@@ -6,7 +6,7 @@
       "source": "(a, b) => add(a, b)",
       "expected": {
         "$params": ["a", "b"],
-        "$return": { "$fn": ["add", { "$var": "a" }, { "$var": "b" }] }
+        "$return": { "$call": "add", "$args": [{ "$var": "a" }, { "$var": "b" }] }
       }
     },
     {
@@ -14,8 +14,8 @@
       "source": "(x, y) => doubled where {\n  sum:     add(x, y),\n  doubled: mul(sum, 2)\n}",
       "expected": {
         "$params": ["x", "y"],
-        "sum": { "$fn": ["add", { "$var": "x" }, { "$var": "y" }] },
-        "doubled": { "$fn": ["mul", { "$var": "sum" }, 2] },
+        "sum": { "$call": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] },
+        "doubled": { "$call": "mul", "$args": [{ "$var": "sum" }, 2] },
         "$return": { "$var": "doubled" }
       }
     },
@@ -24,7 +24,10 @@
       "source": "(state) => { output: boardSection(state, \"\"), exitCode: 0 }",
       "expected": {
         "$params": ["state"],
-        "$return": { "output": { "$fn": ["boardSection", { "$var": "state" }, ""] }, "exitCode": 0 }
+        "$return": {
+          "output": { "$call": "boardSection", "$args": [{ "$var": "state" }, ""] },
+          "exitCode": 0
+        }
       }
     },
     { "description": "no params", "source": "() => 1", "expected": { "$return": 1 } },
@@ -40,7 +43,7 @@
         "$params": ["x"],
         "$return": {
           "$params": ["y"],
-          "$return": { "$fn": ["add", { "$var": "x" }, { "$var": "y" }] }
+          "$return": { "$call": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] }
         }
       }
     }

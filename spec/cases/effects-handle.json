@@ -3,16 +3,19 @@
   "functions": {
     "counter": {
       "$return": {
-        "$fn": [
-          "bind",
-          { "$fn": ["perform", "get", []] },
+        "$call": "bind",
+        "$args": [
+          { "$call": "perform", "$args": ["get", []] },
           {
             "$params": ["c"],
             "$return": {
-              "$fn": [
-                "bind",
-                { "$fn": ["perform", "put", [{ "$fn": ["add", { "$var": "c" }, 1] }]] },
-                { "$params": ["_"], "$return": { "$fn": ["pure", { "$var": "c" }] } }
+              "$call": "bind",
+              "$args": [
+                {
+                  "$call": "perform",
+                  "$args": ["put", [{ "$call": "add", "$args": [{ "$var": "c" }, 1] }]]
+                },
+                { "$params": ["_"], "$return": { "$call": "pure", "$args": [{ "$var": "c" }] } }
               ]
             }
           }
@@ -22,56 +25,63 @@
     "withState": {
       "$params": ["s0", "task"],
       "$return": {
-        "$fn": [
-          {
-            "$fn": [
-              "handle",
-              { "$var": "task" },
-              {
-                "get": {
-                  "$params": ["resume"],
+        "$call": {
+          "$call": "handle",
+          "$args": [
+            { "$var": "task" },
+            {
+              "get": {
+                "$params": ["resume"],
+                "$return": {
+                  "$params": ["s"],
                   "$return": {
-                    "$params": ["s"],
-                    "$return": {
-                      "$fn": [{ "$fn": [{ "$var": "resume" }, { "$var": "s" }] }, { "$var": "s" }]
-                    }
+                    "$call": { "$call": { "$var": "resume" }, "$args": [{ "$var": "s" }] },
+                    "$args": [{ "$var": "s" }]
                   }
-                },
-                "put": {
-                  "$params": ["s1", "resume"],
-                  "$return": {
-                    "$params": ["s"],
-                    "$return": {
-                      "$fn": [{ "$fn": [{ "$var": "resume" }, null] }, { "$var": "s1" }]
-                    }
-                  }
-                },
-                "return": {
-                  "$params": ["v"],
-                  "$return": { "$params": ["s"], "$return": { "$var": "v" } }
                 }
+              },
+              "put": {
+                "$params": ["s1", "resume"],
+                "$return": {
+                  "$params": ["s"],
+                  "$return": {
+                    "$call": { "$call": { "$var": "resume" }, "$args": [null] },
+                    "$args": [{ "$var": "s1" }]
+                  }
+                }
+              },
+              "return": {
+                "$params": ["v"],
+                "$return": { "$params": ["s"], "$return": { "$var": "v" } }
               }
-            ]
-          },
-          { "$var": "s0" }
-        ]
+            }
+          ]
+        },
+        "$args": [{ "$var": "s0" }]
       }
     }
   },
   "cases": [
     {
       "description": "pure passthrough: a fully-pure task with empty handlers returns its value",
-      "body": { "$return": { "$fn": ["handle", { "$fn": ["pure", 5] }, {}] } },
+      "body": {
+        "$return": { "$call": "handle", "$args": [{ "$call": "pure", "$args": [5] }, {}] }
+      },
       "expected": 5
     },
     {
       "description": "single effect handled: resume feeds a value back into the continuation",
       "body": {
         "$return": {
-          "$fn": [
-            "handle",
-            { "$fn": ["perform", "ask", []] },
-            { "ask": { "$params": ["resume"], "$return": { "$fn": [{ "$var": "resume" }, 10] } } }
+          "$call": "handle",
+          "$args": [
+            { "$call": "perform", "$args": ["ask", []] },
+            {
+              "ask": {
+                "$params": ["resume"],
+                "$return": { "$call": { "$var": "resume" }, "$args": [10] }
+              }
+            }
           ]
         }
       },
@@ -81,13 +91,16 @@
       "description": "effect args are spread into the clause before resume",
       "body": {
         "$return": {
-          "$fn": [
-            "handle",
-            { "$fn": ["perform", "add1", [5]] },
+          "$call": "handle",
+          "$args": [
+            { "$call": "perform", "$args": ["add1", [5]] },
             {
               "add1": {
                 "$params": ["x", "resume"],
-                "$return": { "$fn": [{ "$var": "resume" }, { "$fn": ["add", { "$var": "x" }, 1] }] }
+                "$return": {
+                  "$call": { "$var": "resume" },
+                  "$args": [{ "$call": "add", "$args": [{ "$var": "x" }, 1] }]
+                }
               }
             }
           ]
@@ -99,19 +112,22 @@
       "description": "chained binds (the greeter): effects sequenced through resume",
       "body": {
         "$return": {
-          "$fn": [
-            "handle",
+          "$call": "handle",
+          "$args": [
             {
-              "$fn": [
-                "bind",
-                { "$fn": ["perform", "io.readLine", []] },
+              "$call": "bind",
+              "$args": [
+                { "$call": "perform", "$args": ["io.readLine", []] },
                 {
                   "$params": ["name"],
                   "$return": {
-                    "$fn": [
-                      "bind",
-                      { "$fn": ["perform", "io.print", [{ "$var": "name" }]] },
-                      { "$params": ["_"], "$return": { "$fn": ["pure", { "$var": "name" }] } }
+                    "$call": "bind",
+                    "$args": [
+                      { "$call": "perform", "$args": ["io.print", [{ "$var": "name" }]] },
+                      {
+                        "$params": ["_"],
+                        "$return": { "$call": "pure", "$args": [{ "$var": "name" }] }
+                      }
                     ]
                   }
                 }
@@ -120,11 +136,11 @@
             {
               "io.readLine": {
                 "$params": ["resume"],
-                "$return": { "$fn": [{ "$var": "resume" }, "world"] }
+                "$return": { "$call": { "$var": "resume" }, "$args": ["world"] }
               },
               "io.print": {
                 "$params": ["msg", "resume"],
-                "$return": { "$fn": [{ "$var": "resume" }, null] }
+                "$return": { "$call": { "$var": "resume" }, "$args": [null] }
               }
             }
           ]
@@ -136,10 +152,15 @@
       "description": "return clause lifts the completion value",
       "body": {
         "$return": {
-          "$fn": [
-            "handle",
-            { "$fn": ["pure", 5] },
-            { "return": { "$params": ["v"], "$return": { "$fn": ["mul", { "$var": "v" }, 2] } } }
+          "$call": "handle",
+          "$args": [
+            { "$call": "pure", "$args": [5] },
+            {
+              "return": {
+                "$params": ["v"],
+                "$return": { "$call": "mul", "$args": [{ "$var": "v" }, 2] }
+              }
+            }
           ]
         }
       },
@@ -149,13 +170,13 @@
       "description": "return clause result is final, not re-interpreted (a returned task is not stepped)",
       "body": {
         "$return": {
-          "$fn": [
-            "handle",
-            { "$fn": ["pure", 3] },
+          "$call": "handle",
+          "$args": [
+            { "$call": "pure", "$args": [3] },
             {
               "return": {
                 "$params": ["v"],
-                "$return": { "$fn": ["perform", "e", [{ "$var": "v" }]] }
+                "$return": { "$call": "perform", "$args": ["e", [{ "$var": "v" }]] }
               }
             }
           ]
@@ -167,9 +188,9 @@
       "description": "a clause that ignores resume short-circuits (orElse / early exit)",
       "body": {
         "$return": {
-          "$fn": [
-            "handle",
-            { "$fn": ["perform", "fail", []] },
+          "$call": "handle",
+          "$args": [
+            { "$call": "perform", "$args": ["fail", []] },
             { "fail": { "$params": ["resume"], "$return": "early" } }
           ]
         }
@@ -180,9 +201,9 @@
       "description": "raise caught by a raise clause",
       "body": {
         "$return": {
-          "$fn": [
-            "handle",
-            { "$fn": ["raise", { "tag": "NotFound" }] },
+          "$call": "handle",
+          "$args": [
+            { "$call": "raise", "$args": [{ "tag": "NotFound" }] },
             {
               "raise": {
                 "$params": ["err", "resume"],
@@ -198,9 +219,9 @@
       "description": "the * wildcard clause receives { name, args }",
       "body": {
         "$return": {
-          "$fn": [
-            "handle",
-            { "$fn": ["perform", "trace", [1, 2, 3]] },
+          "$call": "handle",
+          "$args": [
+            { "$call": "perform", "$args": ["trace", [1, 2, 3]] },
             {
               "*": {
                 "$params": ["eff", "resume"],
@@ -216,14 +237,15 @@
       "description": "an unmatched effect bubbles through an inner handle to an outer one",
       "body": {
         "$return": {
-          "$fn": [
-            "handle",
-            { "$fn": ["handle", { "$fn": ["perform", "e", ["x"]] }, {}] },
+          "$call": "handle",
+          "$args": [
+            { "$call": "handle", "$args": [{ "$call": "perform", "$args": ["e", ["x"]] }, {}] },
             {
               "e": {
                 "$params": ["a", "resume"],
                 "$return": {
-                  "$fn": [{ "$var": "resume" }, { "$fn": ["strcat", "got:", { "$var": "a" }] }]
+                  "$call": { "$var": "resume" },
+                  "$args": [{ "$call": "strcat", "$args": ["got:", { "$var": "a" }] }]
                 }
               }
             }
@@ -236,16 +258,16 @@
       "description": "an unmatched effect bubbles through two nested handles",
       "body": {
         "$return": {
-          "$fn": [
-            "handle",
+          "$call": "handle",
+          "$args": [
             {
-              "$fn": [
-                "handle",
-                { "$fn": ["handle", { "$fn": ["perform", "e", [3]] }, {}] },
+              "$call": "handle",
+              "$args": [
+                { "$call": "handle", "$args": [{ "$call": "perform", "$args": ["e", [3]] }, {}] },
                 {
                   "other": {
                     "$params": ["resume"],
-                    "$return": { "$fn": [{ "$var": "resume" }, 0] }
+                    "$return": { "$call": { "$var": "resume" }, "$args": [0] }
                   }
                 }
               ]
@@ -254,7 +276,8 @@
               "e": {
                 "$params": ["n", "resume"],
                 "$return": {
-                  "$fn": [{ "$var": "resume" }, { "$fn": ["mul", { "$var": "n" }, 10] }]
+                  "$call": { "$var": "resume" },
+                  "$args": [{ "$call": "mul", "$args": [{ "$var": "n" }, 10] }]
                 }
               }
             }
@@ -269,13 +292,16 @@
         "allSolutions": {
           "$params": ["task"],
           "$return": {
-            "$fn": [
-              "handle",
+            "$call": "handle",
+            "$args": [
               { "$var": "task" },
               {
                 "choose": {
                   "$params": ["xs", "resume"],
-                  "$return": { "$fn": ["flatMap", { "$var": "resume" }, { "$var": "xs" }] }
+                  "$return": {
+                    "$call": "flatMap",
+                    "$args": [{ "$var": "resume" }, { "$var": "xs" }]
+                  }
                 },
                 "fail": { "$params": ["resume"], "$return": [] },
                 "return": { "$params": ["v"], "$return": [{ "$var": "v" }] }
@@ -285,21 +311,26 @@
         },
         "pairsSummingTo4": {
           "$return": {
-            "$fn": [
-              "bind",
-              { "$fn": ["perform", "choose", [[1, 2, 3]]] },
+            "$call": "bind",
+            "$args": [
+              { "$call": "perform", "$args": ["choose", [[1, 2, 3]]] },
               {
                 "$params": ["a"],
                 "$return": {
-                  "$fn": [
-                    "bind",
-                    { "$fn": ["perform", "choose", [[1, 2, 3]]] },
+                  "$call": "bind",
+                  "$args": [
+                    { "$call": "perform", "$args": ["choose", [[1, 2, 3]]] },
                     {
                       "$params": ["b"],
                       "$return": {
-                        "$if": { "$eq": [{ "$fn": ["add", { "$var": "a" }, { "$var": "b" }] }, 4] },
-                        "$then": { "$fn": ["pure", [{ "$var": "a" }, { "$var": "b" }]] },
-                        "$else": { "$fn": ["perform", "fail", []] }
+                        "$if": {
+                          "$eq": [
+                            { "$call": "add", "$args": [{ "$var": "a" }, { "$var": "b" }] },
+                            4
+                          ]
+                        },
+                        "$then": { "$call": "pure", "$args": [[{ "$var": "a" }, { "$var": "b" }]] },
+                        "$else": { "$call": "perform", "$args": ["fail", []] }
                       }
                     }
                   ]
@@ -309,7 +340,12 @@
           }
         }
       },
-      "body": { "$return": { "$fn": ["allSolutions", { "$fn": ["pairsSummingTo4"] }] } },
+      "body": {
+        "$return": {
+          "$call": "allSolutions",
+          "$args": [{ "$call": "pairsSummingTo4", "$args": [] }]
+        }
+      },
       "expected": [
         [1, 3],
         [2, 2],
@@ -318,7 +354,9 @@
     },
     {
       "description": "the state handler runs end-to-end: get/put/return threaded purely",
-      "body": { "$return": { "$fn": ["withState", 10, { "$fn": ["counter"] }] } },
+      "body": {
+        "$return": { "$call": "withState", "$args": [10, { "$call": "counter", "$args": [] }] }
+      },
       "expected": 10
     },
     {
@@ -331,28 +369,32 @@
             "$params": ["n"],
             "$return": {
               "$if": { "$lte": [{ "$var": "n" }, 0] },
-              "$then": { "$fn": ["pure", []] },
+              "$then": { "$call": "pure", "$args": [[]] },
               "$else": {
-                "$fn": [
-                  "bind",
-                  { "$fn": ["perform", "emit", [{ "$var": "n" }]] },
+                "$call": "bind",
+                "$args": [
+                  { "$call": "perform", "$args": ["emit", [{ "$var": "n" }]] },
                   {
                     "$params": ["_"],
-                    "$return": { "$fn": ["go", { "$fn": ["sub", { "$var": "n" }, 1] }] }
+                    "$return": {
+                      "$call": "go",
+                      "$args": [{ "$call": "sub", "$args": [{ "$var": "n" }, 1] }]
+                    }
                   }
                 ]
               }
             }
           },
           "$return": {
-            "$fn": [
-              "handle",
-              { "$fn": ["go", { "$var": "s" }] },
+            "$call": "handle",
+            "$args": [
+              { "$call": "go", "$args": [{ "$var": "s" }] },
               {
                 "emit": {
                   "$params": ["x", "resume"],
                   "$return": {
-                    "$fn": ["concat", [{ "$var": "x" }], { "$fn": [{ "$var": "resume" }, null] }]
+                    "$call": "concat",
+                    "$args": [[{ "$var": "x" }], { "$call": { "$var": "resume" }, "$args": [null] }]
                   }
                 },
                 "return": { "$params": ["v"], "$return": { "$var": "v" } }
@@ -360,7 +402,7 @@
             ]
           }
         },
-        "$return": { "$fn": ["run", { "$var": "start" }] }
+        "$return": { "$call": "run", "$args": [{ "$var": "start" }] }
       },
       "args": [3],
       "expected": [3, 2, 1]
@@ -369,8 +411,8 @@
       "description": "malformed forged task: bind with a non-closure then fails with a clean guest-visible error",
       "body": {
         "$return": {
-          "$fn": [
-            "handle",
+          "$call": "handle",
+          "$args": [
             { "$raw": { "@task": "bind", "task": { "@task": "pure", "value": 1 }, "then": 5 } },
             {}
           ]
@@ -382,7 +424,8 @@
       "description": "malformed forged task: effect with a non-string name fails cleanly",
       "body": {
         "$return": {
-          "$fn": ["handle", { "$raw": { "@task": "effect", "name": 5, "args": [] } }, {}]
+          "$call": "handle",
+          "$args": [{ "$raw": { "@task": "effect", "name": 5, "args": [] } }, {}]
         }
       },
       "error": "effect `name` must be a string"
@@ -391,30 +434,36 @@
       "description": "malformed forged task: effect with non-array args fails cleanly",
       "body": {
         "$return": {
-          "$fn": ["handle", { "$raw": { "@task": "effect", "name": "e", "args": 7 } }, {}]
+          "$call": "handle",
+          "$args": [{ "$raw": { "@task": "effect", "name": "e", "args": 7 } }, {}]
         }
       },
       "error": "effect `args` must be an array"
     },
     {
       "description": "handling a non-task value fails cleanly",
-      "body": { "$return": { "$fn": ["handle", 5, {}] } },
+      "body": { "$return": { "$call": "handle", "$args": [5, {}] } },
       "error": "Task expected"
     },
     {
       "description": "handle charges fuel; a tight budget trips the fuel limit",
       "body": {
         "$return": {
-          "$fn": [
-            "handle",
+          "$call": "handle",
+          "$args": [
             {
-              "$fn": [
-                "bind",
-                { "$fn": ["perform", "e", []] },
-                { "$params": ["_"], "$return": { "$fn": ["pure", 1] } }
+              "$call": "bind",
+              "$args": [
+                { "$call": "perform", "$args": ["e", []] },
+                { "$params": ["_"], "$return": { "$call": "pure", "$args": [1] } }
               ]
             },
-            { "e": { "$params": ["resume"], "$return": { "$fn": [{ "$var": "resume" }, null] } } }
+            {
+              "e": {
+                "$params": ["resume"],
+                "$return": { "$call": { "$var": "resume" }, "$args": [null] }
+              }
+            }
           ]
         }
       },
