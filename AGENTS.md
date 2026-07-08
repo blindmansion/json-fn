@@ -2,6 +2,17 @@
 
 json-fn is a pure-JSON functional expression language evaluated by a tree-walking interpreter. See `README.md` for the language pitch and `docs/language.md` for the full reference.
 
+> Note: `README.md` is currently out of date. We're not updating it yet, so treat `docs/` as the source of truth for language details.
+
+## Reference docs & working notes
+
+- `docs/` — language reference documentation.
+  - `docs/language.md` — full language reference.
+  - `docs/shorthand-spec.md` — the `.jfn` shorthand syntax spec.
+- `plans/` — design plans and sketches for in-progress / proposed language work (e.g. `module-scope.md`, `effects-sketch.md`, `type-sketch.md`).
+- `todo/` — outstanding work items and tracking notes (e.g. `conformance-tests.md`, `impl-feature-parity.md`, `new-features.md`).
+- `examples/` — sample programs in `.jfn` shorthand and canonical `.json` (e.g. `chess`, `tictactoe`, `life`, `stretch`).
+
 ## Implementations
 
 There are four interpreters. **The TypeScript implementation (`typescript/`) is the canonical one** — treat it as the source of truth when behaviors disagree.
