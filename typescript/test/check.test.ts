@@ -714,3 +714,216 @@ describe("Section F — builtin signatures", () => {
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Real-program fragments: the chess example, worked up in tiers.
+//
+// Rather than hand-annotate the whole 40-function module at once, we build up
+// from the smallest self-contained pieces. Each tier exercises the checker (and
+// the builtin table) against code that actually appears in `examples/chess.jfn`,
+// lowered to canonical JSON with `$sig`s and a module `$types` pool added.
+//
+// Tier 1 — the pure coordinate layer: integer/boolean arithmetic with no
+// nullability and no name-union dispatch. This is the cleanest slice and should
+// type with zero diagnostics.
+// ---------------------------------------------------------------------------
+
+describe("chess fragments — Tier 1: coordinate layer", () => {
+  const BT = loadBuiltinTable();
+  const c = (name: JSONType, ...args: JSONType[]): JSONType => ({ $call: name, $args: args });
+  const B: Schema = { type: "boolean" };
+  const Color: Schema = { $ref: "#/$defs/Color" };
+  const types: Defs = { Color: { enum: ["w", "b"] } };
+
+  const v = (name: string): JSONType => ({ $var: name });
+
+  test("rowOf: floor(idx / 8) : integer", () => {
+    const mod = {
+      $types: types,
+      rowOf: body(["idx"], { params: [I], returns: I }, c("floor", c("div", v("idx"), 8))),
+    };
+    expect(checkModule(mod, BT)).toEqual([]);
+  });
+
+  test("colOf: idx % 8 preserves integer", () => {
+    const mod = {
+      $types: types,
+      colOf: body(["idx"], { params: [I], returns: I }, c("mod", v("idx"), 8)),
+    };
+    expect(checkModule(mod, BT)).toEqual([]);
+  });
+
+  test("toIdx: row * 8 + col preserves integer through mul/add", () => {
+    const mod = {
+      $types: types,
+      toIdx: body(
+        ["row", "col"],
+        { params: [I, I], returns: I },
+        c("add", c("mul", v("row"), 8), v("col")),
+      ),
+    };
+    expect(checkModule(mod, BT)).toEqual([]);
+  });
+
+  test("inBounds: a variadic $and of comparisons is boolean", () => {
+    const mod = {
+      $types: types,
+      inBounds: body(
+        ["row", "col"],
+        { params: [I, I], returns: B },
+        {
+          $and: [
+            c("gte", v("row"), 0),
+            c("lte", v("row"), 7),
+            c("gte", v("col"), 0),
+            c("lte", v("col"), 7),
+          ],
+        },
+      ),
+    };
+    expect(checkModule(mod, BT)).toEqual([]);
+  });
+
+  test("otherColor: an if over string literals fits the Color enum", () => {
+    const mod = {
+      $types: types,
+      otherColor: body(
+        ["color"],
+        { params: [Color], returns: Color },
+        { $if: c("eq", v("color"), "w"), $then: "b", $else: "w" },
+      ),
+    };
+    expect(checkModule(mod, BT)).toEqual([]);
+  });
+
+  test("the whole coordinate layer checks together, cleanly", () => {
+    const mod = {
+      $types: types,
+      rowOf: body(["idx"], { params: [I], returns: I }, c("floor", c("div", v("idx"), 8))),
+      colOf: body(["idx"], { params: [I], returns: I }, c("mod", v("idx"), 8)),
+      toIdx: body(
+        ["row", "col"],
+        { params: [I, I], returns: I },
+        c("add", c("mul", v("row"), 8), v("col")),
+      ),
+      inBounds: body(
+        ["row", "col"],
+        { params: [I, I], returns: B },
+        {
+          $and: [
+            c("gte", v("row"), 0),
+            c("lte", v("row"), 7),
+            c("gte", v("col"), 0),
+            c("lte", v("col"), 7),
+          ],
+        },
+      ),
+      otherColor: body(
+        ["color"],
+        { params: [Color], returns: Color },
+        { $if: c("eq", v("color"), "w"), $then: "b", $else: "w" },
+      ),
+    };
+    expect(checkModule(mod, BT)).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tier 2 — nullability and the narrowing wall (§5.5).
+//
+// The chess piece layer works over `Cell = Piece | null`. The idiom is
+// guard-then-use: `if isNull(piece) then ... else <use piece as a string>`.
+// The `else` branch is only reached when `piece` is non-null, but the v1
+// checker performs *no flow narrowing* (§5.5, option 1) — so `piece` keeps its
+// declared `Cell` type inside the branch and a `string`-expecting builtin sees
+// `Piece | null`.
+//
+// These tests pin that behavior: they assert the diagnostics the current
+// checker *does* produce, marking exactly where narrowing (or its v1 stand-in,
+// downgrading such mismatches to runtime-checked warnings) would change things.
+// They are the concrete artifact of "exercise the checker on chess" — the wall
+// is real, reproduced, and localized.
+// ---------------------------------------------------------------------------
+
+describe("chess fragments — Tier 2: nullability & narrowing", () => {
+  const BT = loadBuiltinTable();
+  const c = (name: JSONType, ...args: JSONType[]): JSONType => ({ $call: name, $args: args });
+  const v = (name: string): JSONType => ({ $var: name });
+  const eqJson = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b);
+
+  const Color: Schema = { $ref: "#/$defs/Color" };
+  const Cell: Schema = { $ref: "#/$defs/Cell" };
+  const Piece: Schema = { $ref: "#/$defs/Piece" };
+  const PieceType: Schema = { $ref: "#/$defs/PieceType" };
+  const ColorOrNull: Schema = { anyOf: [Color, { type: "null" }] };
+
+  const types: Defs = {
+    Color: { enum: ["w", "b"] },
+    Piece: { enum: ["K", "Q", "R", "B", "N", "P", "k", "q", "r", "b", "n", "p"] },
+    PieceType: { enum: ["P", "N", "B", "R", "Q", "K"] },
+    Cell: { anyOf: [{ $ref: "#/$defs/Piece" }, { type: "null" }] },
+  };
+
+  test("isNull accepts a Cell and yields boolean (the guard itself is fine)", () => {
+    const mod = {
+      $types: types,
+      isEmpty: body(
+        ["piece"],
+        { params: [Cell], returns: { type: "boolean" } },
+        c("isNull", v("piece")),
+      ),
+    };
+    expect(checkModule(mod, BT)).toEqual([]);
+  });
+
+  test("pieceColor: upper(piece) on a Cell is flagged for want of narrowing (§5.5)", () => {
+    // (piece: Cell) => if isNull(piece) then null
+    //                  else if piece == upper(piece) then "w" else "b"
+    const mod = {
+      $types: types,
+      pieceColor: body(
+        ["piece"],
+        { params: [Cell], returns: ColorOrNull },
+        {
+          $if: c("isNull", v("piece")),
+          $then: null,
+          $else: {
+            $if: c("eq", v("piece"), c("upper", v("piece"))),
+            $then: "w",
+            $else: "b",
+          },
+        },
+      ),
+    };
+    const diags = checkModule(mod, BT);
+    // Exactly one strain: `upper` wants a string, but `Cell` (= Piece | null) is
+    // not narrowed to `Piece` in the else-branch. Everything else type-checks.
+    expect(diags.length).toBe(1);
+    expect(eqJson(diags[0]!.expected, { type: "string" })).toBe(true);
+    expect(eqJson(diags[0]!.actual, Cell)).toBe(true);
+  });
+
+  test("makePiece: lower(type) widens the enum to `string`, losing ⊆ Piece (§5.3 precision)", () => {
+    // (color: Color, type: PieceType) => if color == "w" then type else lower(type)
+    // The argument `lower(type)` type-checks (PieceType ⊆ string), but `lower`'s
+    // result schema is the generic `string`, so the `if` union
+    // `PieceType | string` no longer fits the declared `Piece` return. This is a
+    // *builtin result precision* limit, distinct from the narrowing wall above.
+    const mod = {
+      $types: types,
+      makePiece: body(
+        ["color", "type"],
+        { params: [Color, PieceType], returns: Piece },
+        {
+          $if: c("eq", v("color"), "w"),
+          $then: v("type"),
+          $else: c("lower", v("type")),
+        },
+      ),
+    };
+    const diags = checkModule(mod, BT);
+    expect(diags.length).toBe(1);
+    expect(diags[0]!.path).toEqual(["makePiece", "$return"]);
+    expect(eqJson(diags[0]!.expected, Piece)).toBe(true);
+  });
+});

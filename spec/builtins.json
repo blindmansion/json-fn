@@ -14,12 +14,6 @@
     }
   },
   "builtins": {
-    "div": [
-      {
-        "params": [{ "type": "number" }, { "type": "number" }],
-        "returns": { "type": "number" }
-      }
-    ],
     "add": [
       {
         "params": [{ "type": "integer" }, { "type": "integer" }],
@@ -30,13 +24,84 @@
         "returns": { "type": "number" }
       }
     ],
-    "gt": [
+    "sub": [
+      {
+        "params": [{ "type": "integer" }, { "type": "integer" }],
+        "returns": { "type": "integer" }
+      },
       {
         "params": [{ "type": "number" }, { "type": "number" }],
-        "returns": { "type": "boolean" }
+        "returns": { "type": "number" }
       }
     ],
+    "mul": [
+      {
+        "params": [{ "type": "integer" }, { "type": "integer" }],
+        "returns": { "type": "integer" }
+      },
+      {
+        "params": [{ "type": "number" }, { "type": "number" }],
+        "returns": { "type": "number" }
+      }
+    ],
+    "mod": [
+      {
+        "params": [{ "type": "integer" }, { "type": "integer" }],
+        "returns": { "type": "integer" }
+      },
+      {
+        "params": [{ "type": "number" }, { "type": "number" }],
+        "returns": { "type": "number" }
+      }
+    ],
+    "div": [
+      {
+        "params": [{ "type": "number" }, { "type": "number" }],
+        "returns": { "type": "number" }
+      }
+    ],
+    "neg": [
+      { "params": [{ "type": "integer" }], "returns": { "type": "integer" } },
+      { "params": [{ "type": "number" }], "returns": { "type": "number" } }
+    ],
+    "abs": [
+      { "params": [{ "type": "integer" }], "returns": { "type": "integer" } },
+      { "params": [{ "type": "number" }], "returns": { "type": "number" } }
+    ],
+    "floor": [{ "params": [{ "type": "number" }], "returns": { "type": "integer" } }],
+    "ceil": [{ "params": [{ "type": "number" }], "returns": { "type": "integer" } }],
+    "round": [{ "params": [{ "type": "number" }], "returns": { "type": "integer" } }],
+    "eq": [{ "params": [true, true], "returns": { "type": "boolean" } }],
+    "neq": [{ "params": [true, true], "returns": { "type": "boolean" } }],
+    "lt": [
+      { "params": [{ "type": "number" }, { "type": "number" }], "returns": { "type": "boolean" } }
+    ],
+    "lte": [
+      { "params": [{ "type": "number" }, { "type": "number" }], "returns": { "type": "boolean" } }
+    ],
+    "gt": [
+      { "params": [{ "type": "number" }, { "type": "number" }], "returns": { "type": "boolean" } }
+    ],
+    "gte": [
+      { "params": [{ "type": "number" }, { "type": "number" }], "returns": { "type": "boolean" } }
+    ],
     "not": [{ "params": [{ "type": "boolean" }], "returns": { "type": "boolean" } }],
+    "and": [
+      { "params": [{ "type": "boolean" }, { "type": "boolean" }], "returns": { "type": "boolean" } }
+    ],
+    "or": [
+      { "params": [{ "type": "boolean" }, { "type": "boolean" }], "returns": { "type": "boolean" } }
+    ],
+    "isNull": [{ "params": [true], "returns": { "type": "boolean" } }],
+    "isBool": [{ "params": [true], "returns": { "type": "boolean" } }],
+    "isNumber": [{ "params": [true], "returns": { "type": "boolean" } }],
+    "isString": [{ "params": [true], "returns": { "type": "boolean" } }],
+    "isArray": [{ "params": [true], "returns": { "type": "boolean" } }],
+    "isObject": [{ "params": [true], "returns": { "type": "boolean" } }],
+    "str": [{ "params": [true], "returns": { "type": "string" } }],
+    "upper": [{ "params": [{ "type": "string" }], "returns": { "type": "string" } }],
+    "lower": [{ "params": [{ "type": "string" }], "returns": { "type": "string" } }],
+    "trim": [{ "params": [{ "type": "string" }], "returns": { "type": "string" } }],
     "length": [
       { "params": [{ "type": "array" }], "returns": { "type": "integer" } },
       { "params": [{ "type": "string" }], "returns": { "type": "integer" } }
