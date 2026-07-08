@@ -363,9 +363,11 @@ class Parser {
     for (;;) {
       const t = this.peek();
       let key: string;
+      let bareIdent = false;
       if (t.type === "ident" || t.type === "str") {
         this.advance();
         key = t.value;
+        bareIdent = t.type === "ident";
       } else {
         throw this.err(`expected data-object key, found ${describe(t)}`);
       }
@@ -374,8 +376,14 @@ class Parser {
           `data-object key "${key}" must not start with '$'; use 'raw' for $-keyed data`,
         );
       }
-      this.expect("colon", "':' after data-object key");
-      map[key] = this.parseExpr();
+      // Shorthand-property punning: a bare identifier key not followed by `:`
+      // stands for `key: key`, lowering to a `$var` read of the same name.
+      if (bareIdent && (this.peekType() === "comma" || this.peekType() === "rbrace")) {
+        map[key] = { $var: key };
+      } else {
+        this.expect("colon", "':' after data-object key");
+        map[key] = this.parseExpr();
+      }
       const type = this.peekType();
       if (type === "comma") {
         this.advance();

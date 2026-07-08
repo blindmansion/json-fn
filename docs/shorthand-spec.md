@@ -85,6 +85,25 @@ bare identifiers or quoted strings.
 **`$`-prefixed keys are forbidden** in a data object (they would collide with a
 magic key on lowering). Use `raw` for data containing `$`-keys.
 
+**Shorthand-property punning.** A bare identifier key with no `: value` puns to
+a same-named variable read — `{ year }` means `{ year: year }`. It mirrors the
+`{ year, month, day }` **object-pattern parameter** (§8), so a destructured
+parameter and the record you build to pass it read identically.
+
+```jfn
+{ year, month, day }
+```
+
+```json
+{ "year": { "$var": "year" }, "month": { "$var": "month" }, "day": { "$var": "day" } }
+```
+
+Punning and explicit entries mix freely (`{ year, month: m }`). Only **bare
+identifier** keys pun; a quoted-string key always requires an explicit value.
+The pun is the **canonical printback** for a `{ "$var": k }` value whose key `k`
+equals the variable name (a value with a `$get` path — `{ year: year.start }` —
+is not a pun and prints in full).
+
 ### Inert data — `raw`
 
 `raw` introduces a **verbatim JSON island**; nothing inside is evaluated. It
@@ -508,6 +527,7 @@ body        := expr ( "where" "{" binding ("," binding)* "}" )?
 binding     := ident ":" expr
 params      := ( ident ("," ident)* )?               // last may be "...ident"
 dataEntry   := (ident | string) ":" expr
+             | ident                                 // punned: { x } == { x: x }
 arm         := (expr | "else") "->" expr
 template    := "`" ( char | "${" expr "}" )* "`"     // strict; no coercion
 ident       := [A-Za-z_][A-Za-z0-9_]*

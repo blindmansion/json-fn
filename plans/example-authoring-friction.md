@@ -235,16 +235,26 @@ feature multiplies — is the worst-reading part of the canonical output. A
 fits-on-one-line heuristic for small objects would pay off *most* here; the two
 features (named args + width-aware object printing) really want to ship together.
 
-### 🔴 No object shorthand-property punning `{ year, month }`
+### 🟢 Object shorthand-property punning `{ year, month }` (resolved)
 
 The natural companion to a `{ year, month, day }` **pattern** is a `{ year, month, day }`
-**literal** that puns field names to same-named variables. It's a parse error:
+**literal** that puns field names to same-named variables. It *was* a parse error:
 
 ```
 { year, month }  ->  parse error: expected ':' after data-object key, found 'comma'
 ```
 
-so every named-arg call site must spell `{ year: year, month: month, day: day }`.
-Adding punning (`{ year }` ⇒ `{ "year": { "$var": "year" } }`) would mirror the
-destructuring syntax, roughly halve the width of these call sites, and directly
-soften the previous finding. Strong candidate to pair with destructured params.
+**Fixed.** Punning is now implemented in the TypeScript toolchain (parse, print,
+spec). A bare-identifier key with no `: value` lowers as `{ year }` ⇒
+`{ "year": { "$var": "year" } }`, mirroring the destructuring syntax, and it is
+the canonical printback for a `{ "$var": k }` value whose key equals the name.
+Only bare identifiers pun (quoted-string keys still require a value), and a value
+carrying a `$get` path (`{ year: year.start }`) is not a pun. Documented in
+`docs/shorthand-spec.md` §3/§10; `examples/calendar.jfn` uses it at every
+named-arg call site. This roughly halves the width of those call sites and
+directly softens the previous finding.
+
+Remaining: this makes the call sites *narrower* but they still explode
+vertically because of the "objects always multi-line" printer rule above — the
+width-aware object printing finding is the last piece needed to make these read
+as well as they lower.

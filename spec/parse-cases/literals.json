@@ -18,6 +18,30 @@
       "expected": { "name": "ada", "score": { "$fn": ["add", { "$var": "x" }, 1] } }
     },
     {
+      "description": "data object with shorthand-property punning",
+      "source": "{ year, month, day }",
+      "expected": {
+        "year": { "$var": "year" },
+        "month": { "$var": "month" },
+        "day": { "$var": "day" }
+      }
+    },
+    {
+      "description": "punned and explicit entries mix",
+      "source": "{ year, month: m }",
+      "expected": { "year": { "$var": "year" }, "month": { "$var": "m" } }
+    },
+    {
+      "description": "trailing comma after a pun normalizes away",
+      "source": "{ x, }",
+      "expected": { "x": { "$var": "x" } }
+    },
+    {
+      "description": "quoted-string key cannot pun (requires a value)",
+      "source": "{ \"year\" }",
+      "error": true
+    },
+    {
       "description": "data-object $-key (bare) is rejected",
       "source": "{ $fn: 1 }",
       "error": true

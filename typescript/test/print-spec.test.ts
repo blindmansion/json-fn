@@ -148,6 +148,21 @@ describe("printer output shape", () => {
     expect(print(node).startsWith("(p) => ((y) =>")).toBe(true);
   });
 
+  test("data-object entry whose value is { $var: key } prints as a pun", () => {
+    expect(print({ year: { $var: "year" } })).toBe("{ year }");
+    expect(print({ year: { $var: "year" }, month: { $var: "month" }, day: { $var: "day" } })).toBe(
+      "{\n  year,\n  month,\n  day\n}",
+    );
+  });
+
+  test("punning only applies when the key matches the variable name", () => {
+    expect(print({ month: { $var: "m" } })).toBe("{ month: m }");
+  });
+
+  test("a $var with a $get path is not a pun", () => {
+    expect(print({ start: { $var: "start", $get: "year" } })).toBe("{ start: start.year }");
+  });
+
   test("cond return with where locals needs no parens (brace-terminated)", () => {
     const node: JSONType = {
       $params: ["n"],

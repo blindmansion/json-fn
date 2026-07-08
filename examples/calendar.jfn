@@ -48,7 +48,7 @@
 
   // Ordinal day within the year: Jan 1 -> 1, Dec 31 -> 365 or 366.
   dayOfYear: ({ year, month, day }) => reduce(
-    (total, m) => total + daysInMonth({ year: year, month: m }),
+    (total, m) => total + daysInMonth({ year, month: m }),
     day,
     priorMonths
   ) where {
@@ -58,7 +58,7 @@
   // ---- Formatting + reporting ------------------------------------------
 
   formatDate: ({ year, month, day }) => `${weekday}, ${MONTHS[month - 1]} ${str(day)}, ${str(year)}` where {
-    weekday: dayOfWeek({ year: year, month: month, day: day })
+    weekday: dayOfWeek({ year, month, day })
   },
 
   describe: ({ year, month, day }) => {
@@ -66,9 +66,9 @@
     weekday: dayOfWeek(date),
     dayOfYear: dayOfYear(date),
     leapYear: isLeapYear(year),
-    daysThisMonth: daysInMonth({ year: year, month: month })
+    daysThisMonth: daysInMonth({ year, month })
   } where {
-    date: { year: year, month: month, day: day }
+    date: { year, month, day }
   },
 
   demo: () => map(describe, dates) where {

@@ -328,13 +328,25 @@ function renderDataObject(node: { [k: string]: JSONType }, indent: string): stri
   if (keys.some((k) => k.startsWith("$"))) return `raw ${JSON.stringify(node)}`;
   if (keys.length === 0) return "{}";
 
-  const entry = (k: string, ind: string): string =>
-    `${IDENT_RE.test(k) ? k : JSON.stringify(k)}: ${emit(node[k]!, P_BLOCK, ind)}`;
+  const entry = (k: string, ind: string): string => {
+    // Shorthand-property punning: `{ key: { $var: key } }` prints as `{ key }`
+    // when the key is a bare identifier (the canonical, narrower spelling).
+    if (IDENT_RE.test(k) && isVarPun(node[k]!, k)) return k;
+    return `${IDENT_RE.test(k) ? k : JSON.stringify(k)}: ${emit(node[k]!, P_BLOCK, ind)}`;
+  };
 
   if (keys.length === 1) return `{ ${entry(keys[0]!, indent)} }`;
 
   const inner = indent + "  ";
   return `{\n${keys.map((k) => inner + entry(k, inner)).join(",\n")}\n${indent}}`;
+}
+
+/** Whether `value` is exactly `{ "$var": name }` (a bare variable read of
+ * `name`, with no `$get` path or other keys) — the punnable data-object value. */
+function isVarPun(value: JSONType, name: string): boolean {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
+  const keys = Object.keys(value);
+  return keys.length === 1 && keys[0] === "$var" && value.$var === name;
 }
 
 /** Serialize a number the way the lexer expects to read it back. */
