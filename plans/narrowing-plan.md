@@ -349,3 +349,27 @@ recognized discriminant/isNull forms.
    counts on chess.
 4. **Boolean-guard alias depth** — how far to chase `b: someOtherBool` chains
    before giving up to the M0 warning. Start at depth 1–2.
+
+## Module exports reference (`typescript/src/check/`)
+
+Barrel exports as declared at the end of each file.
+
+- **`ast.ts`** — `nodeKind`, `asVarName`, `litOf`.
+- **`builtin-rules.ts`** — `synthBuiltinCall`.
+- **`builtin-types.ts`** — types: `TVarNode`, `BuiltinSig`, `BuiltinEntry`,
+  `BuiltinTable`, `Bindings`.
+- **`checker.ts`** — `buildTypeScope`, `synth`, `paramAt`, `checkArity`,
+  `reportMismatch`, `check`.
+- **`context.ts`** — types: `CheckContext`, `TypeEnv`, `Diagnostic`, `Severity`,
+  `Sig`; values: `EMPTY_ENV`, `report`, `at`, `isBody`, `sigOf`,
+  `bodyFnTypeSchema`, `bindingKeys`.
+- **`module.ts`** — `checkFunction`, `checkModule`, `checkExpr`.
+- **`narrowing.ts`** — `withNarrowings`, `factsFromCondition`, `currentType`,
+  `restrictToLiteral`, `excludeLiteral`.
+- **`schema.ts`** — types: `Schema`, `Defs`, `ApMode`, `FnTypeShape`, `Bound`;
+  values: `SchemaKind`, `isSchemaObject`, `classifySchema`, `asObject`,
+  `refName`, `resolveRef`, `resolveDeep`, `unionArms`, `literalValues`,
+  `deepEqual`, `itemsSchema`, `prefixItems`, `tupleRest`, `apMode`, `properties`,
+  `requiredKeys`, `fnShape`, `valueType`, `typeMatches`, `unionOf`.
+- **`subsumption.ts`** — `isSubschema`.
+- **`values.ts`** — `valueSatisfies`.
