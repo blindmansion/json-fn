@@ -1,0 +1,100 @@
+// objects.jfn — objects are records of closures, and a "method call" is just a
+// property access in call position.
+//
+// json-fn has no classes. An "object" is a plain record whose fields happen to
+// be closures over some private state; `account.deposit(50)` reads the closure
+// stored at `account.deposit` and calls it. Values are immutable, so a mutator
+// returns a *new* object — which means calls chain, exactly like a fluent API:
+// `account.deposit(50).withdraw(20).balance()`. And because a method name is
+// just a key, you can dispatch on a *computed* one — `account[tx.op](tx.amount)`
+// — to replay a whole transaction log with `reduce`.
+//
+// Three call shapes appear, all lowering to a `$fn` whose callee is evaluated
+// (not a literal function name):
+//   obj.method(x)          — dispatch on a named field         (callee: $var/$get)
+//   make(...).method(x)    — chained call on a returned object (callee: $get/$from)
+//   obj[name](x)           — dispatch on a computed method name (callee: $var/$get)
+//
+// Demo:
+//   jfn eval --file examples/objects.jfn --entry demo
+// Replay a ledger from its opening balance:
+//   jfn eval --file examples/objects.jfn --entry replayDemo
+
+{
+  // ---- A bank account: an immutable object with getter + mutator methods ---
+  // The record closes over `balance`; the getter reads it, and each mutator
+  // returns a fresh account, so `makeAccount` is the only constructor.
+
+  makeAccount: (balance) => {
+    balance:  () => balance,
+    isEmpty:  () => balance == 0,
+    deposit:  (amount) => makeAccount(balance + amount),
+    // Overdrafts are refused: the balance is left unchanged.
+    withdraw: (amount) => makeAccount(if amount > balance then balance else balance - amount),
+    describe: () => `balance: ${str(balance)}`
+  },
+
+  // ---- A stack ADT, same shape: private state + closures over it -----------
+
+  makeStack: (items) => {
+    items:   () => items,
+    size:    () => length(items),
+    isEmpty: () => length(items) == 0,
+    peek:    () => if length(items) == 0 then null else last(items),
+    push:    (x) => makeStack(concat(items, [x])),
+    // Popping an empty stack is a no-op (there is no value to remove).
+    pop:     () => makeStack(if length(items) == 0
+      then items
+      else slice(items, 0, length(items) - 1))
+  },
+
+  // ---- Dispatch helpers ----------------------------------------------------
+
+  // Send a one-argument message chosen at runtime: the method name is data.
+  send: (obj, msg, arg) => obj[msg](arg),
+
+  // Apply one { op, amount } transaction by dispatching on `op`.
+  applyTx: (account, tx) => account[tx.op](tx.amount),
+
+  // Fold a ledger of transactions over a starting balance.
+  replay: (opening, txs) => reduce(applyTx, makeAccount(opening), txs),
+
+  // ---- Top level -----------------------------------------------------------
+
+  // A fluent chain: every `.method(...)` call on a returned object flows into
+  // the next, and the final `.balance()` extracts the number.
+  chainDemo: () => makeAccount(100).deposit(50).withdraw(30).deposit(5).balance(),
+
+  // Computed dispatch: `send` picks the method by name from a string.
+  sendDemo: () => send(makeStack([1, 2, 3]), "push", 4).items(),
+
+  // Replaying a transaction log with computed method dispatch, then reporting
+  // final state through two ordinary named method calls.
+  replayDemo: () => {
+    finalBalance: settled.balance(),
+    summary: settled.describe(),
+    overdrawnAttempts: length(filter((tx) => tx.op == "withdraw" && tx.amount > 1000, ledger))
+  } where {
+    ledger: [
+      { op: "deposit", amount: 100 },
+      { op: "withdraw", amount: 40 },
+      { op: "deposit", amount: 250 },
+      { op: "withdraw", amount: 5000 },   // refused: over balance, left unchanged
+      { op: "withdraw", amount: 60 }
+    ],
+    settled: replay(0, ledger)
+  },
+
+  demo: () => {
+    // obj.method(x): a single named-field dispatch.
+    deposit:      makeAccount(0).deposit(75).balance(),
+    // make(...).method(x)...: chained calls on returned objects.
+    chained:      chainDemo(),
+    // obj[name](x): computed method dispatch through `send`.
+    sent:         sendDemo(),
+    // Chained stack ops, reading the result out at the end.
+    stackTop:     makeStack([]).push("a").push("b").push("c").pop().peek(),
+    // The ledger replay, dispatching each op by its string name.
+    ledger:       replayDemo()
+  }
+}

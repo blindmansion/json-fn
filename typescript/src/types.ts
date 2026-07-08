@@ -179,6 +179,14 @@ type EvaluationContext = {
   // inlined into an escaping closure, while local function names stay literal so
   // they keep dispatching through the registry (recursion is preserved).
   localFns?: ReadonlySet<string>;
+  // Subset of `localFns` eligible for escaping-closure *attachment* (see
+  // `attachFreeLocalFns`). Unlike `localFns`, this EXCLUDES the persistent
+  // module/registry scope: those functions resolve by name for the whole
+  // program, so an in-program reference never dangles, and inlining a
+  // self-referential module function into an escaping value blows capture up
+  // super-exponentially. Seeded empty at the root/module scope
+  // (`attachFns === undefined`); each nested scope adds its own local functions.
+  attachFns?: ReadonlySet<string>;
   limits: ResolvedLimits;
   state: CallState;
   perf?: PerfStats;

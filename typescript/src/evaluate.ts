@@ -268,7 +268,7 @@ export function callProgram(
   const perf = limits?.perf;
   try {
     // The module is a function body with no `$params` and no `$return`.
-    const { getVar, scopedFunctions, localFns } = buildScope(
+    const { getVar, scopedFunctions, localFns, attachFns } = buildScope(
       module as unknown as FunctionBody,
       [],
       {
@@ -303,6 +303,7 @@ export function callProgram(
       functions: scopedFunctions,
       getVar,
       localFns,
+      attachFns,
       limits: resolved,
       state,
       perf,
@@ -471,6 +472,7 @@ function buildScope(
   getVar: (name: string) => JSONType | undefined;
   scopedFunctions: FunctionRegistry;
   localFns: ReadonlySet<string>;
+  attachFns: ReadonlySet<string>;
 } {
   const { perf } = context;
   const { functions, getVar: getVarParent, limits, state } = context;
@@ -496,6 +498,23 @@ function buildScope(
     const merged = new Set(parentLocalFns);
     for (const key of localFnKeys) merged.add(key);
     localFns = merged;
+  }
+
+  // Attachable subset for escaping-closure capture. `context.attachFns` is
+  // `undefined` only at the root/module scope, whose functions are registry-
+  // backed for the program's whole lifetime and so must never be attached
+  // (attaching a self-referential module function is the source of the
+  // capture blow-up). Nested scopes accumulate their own local functions.
+  const parentAttachFns = context.attachFns;
+  let attachFns: ReadonlySet<string>;
+  if (parentAttachFns === undefined) {
+    attachFns = EMPTY_LOCAL_FNS;
+  } else if (localFnKeys.length > 0) {
+    const merged = new Set(parentAttachFns);
+    for (const key of localFnKeys) merged.add(key);
+    attachFns = merged;
+  } else {
+    attachFns = parentAttachFns;
   }
 
   const evaluatedVars: Record<string, JSONType> = {};
@@ -547,6 +566,7 @@ function buildScope(
           functions: scopedFunctions,
           getVar,
           localFns,
+          attachFns,
           limits,
           state,
         });
@@ -575,13 +595,14 @@ function buildScope(
         fn[key]!,
         getVar,
         localFns,
+        attachFns,
         undefined,
-        perf,
+        context,
       ) as FunctionBody;
     }
   }
 
-  return { getVar, scopedFunctions, localFns };
+  return { getVar, scopedFunctions, localFns, attachFns };
 }
 
 function callJSONFunction(fn: FunctionBody, args: JSONType[], context: EvaluationContext) {
@@ -589,12 +610,13 @@ function callJSONFunction(fn: FunctionBody, args: JSONType[], context: Evaluatio
   if (perf) perf.callJSONFunction++;
   const { limits, state } = context;
 
-  const { getVar, scopedFunctions, localFns } = buildScope(fn, args, context);
+  const { getVar, scopedFunctions, localFns, attachFns } = buildScope(fn, args, context);
 
   return evaluateExpression(fn.$return, {
     functions: scopedFunctions,
     getVar,
     localFns,
+    attachFns,
     limits,
     state,
     perf,
@@ -655,8 +677,9 @@ function evaluateExpression(expression: JSONType, context: EvaluationContext): J
         expression,
         getVar,
         context.localFns ?? EMPTY_LOCAL_FNS,
+        context.attachFns ?? EMPTY_LOCAL_FNS,
         context.functions,
-        perf,
+        context,
       );
 
     case ExpressionType.Conditional:
@@ -772,16 +795,20 @@ function replaceVars(
   expression: JSONType,
   getVar: (name: string) => JSONType | undefined,
   localFns: ReadonlySet<string>,
+  attachFns: ReadonlySet<string>,
   localFnDefs: FunctionRegistry | undefined,
-  perf?: PerfStats,
+  context: EvaluationContext,
 ): JSONType {
+  const { perf } = context;
   if (perf) perf.replaceVars++;
   if (typeof expression === "object" && expression !== null && isRaw(expression)) {
     if (perf) perf.rawSkips++;
     return expression;
   }
   if (Array.isArray(expression)) {
-    return expression.map((item) => replaceVars(item, getVar, localFns, localFnDefs, perf));
+    return expression.map((item) =>
+      replaceVars(item, getVar, localFns, attachFns, localFnDefs, context),
+    );
   }
 
   if (typeof expression === "object" && expression !== null) {
@@ -789,7 +816,14 @@ function replaceVars(
       const parsed = parsePath(expression.$var);
       if ("$get" in expression) {
         const varValue = getVar(parsed.variable);
-        const replacedKey = replaceVars(expression.$get, getVar, localFns, localFnDefs, perf);
+        const replacedKey = replaceVars(
+          expression.$get,
+          getVar,
+          localFns,
+          attachFns,
+          localFnDefs,
+          context,
+        );
         if (varValue !== undefined) {
           if (parsed.path.length > 0) {
             const pathKey: JSONType = parsed.path.length === 1 ? parsed.path[0]! : parsed.path;
@@ -838,14 +872,24 @@ function replaceVars(
 
       const newObject: Record<string, JSONType> = {};
       for (const [key, value] of Object.entries(expression)) {
-        newObject[key] = replaceVars(value, maskedGetVar, localFns, localFnDefs, perf);
+        newObject[key] = replaceVars(
+          value,
+          maskedGetVar,
+          localFns,
+          attachFns,
+          localFnDefs,
+          context,
+        );
       }
       // Re-attach the enclosing local functions this escaping body still calls
       // by name, so it stays callable once it leaves its defining scope. Off
       // during in-scope close-over (localFnDefs undefined), where sibling names
-      // must remain literal for registry dispatch.
-      if (localFnDefs !== undefined && localFns.size > 0) {
-        attachFreeLocalFns(newObject, localNames, localFns, localFnDefs);
+      // must remain literal for registry dispatch. Only *attachable* names are
+      // considered (`attachFns`): registry-backed module functions are excluded,
+      // since they resolve by name for the program's lifetime and inlining a
+      // self-referential one blows capture up (see `attachFns` in types.ts).
+      if (localFnDefs !== undefined && attachFns.size > 0) {
+        attachFreeLocalFns(newObject, localNames, attachFns, localFnDefs, context);
       }
       return newObject;
     }
@@ -871,14 +915,14 @@ function replaceVars(
           const captured = getVar(callee);
           return captured !== undefined && isFnDeclaration(captured) ? captured : item;
         }
-        return replaceVars(item, getVar, localFns, localFnDefs, perf);
+        return replaceVars(item, getVar, localFns, attachFns, localFnDefs, context);
       });
       return { ...expression, $fn: newArr };
     }
 
     const newObject: Record<string, JSONType> = {};
     for (const [key, value] of Object.entries(expression)) {
-      newObject[key] = replaceVars(value, getVar, localFns, localFnDefs, perf);
+      newObject[key] = replaceVars(value, getVar, localFns, attachFns, localFnDefs, context);
     }
     return newObject;
   }
@@ -886,17 +930,21 @@ function replaceVars(
   return expression;
 }
 
-// Collect names in `localFns` referenced by `node` at its own scope level, in
+// Collect names in `attachFns` referenced by `node` at its own scope level, in
 // call position (`{ $fn: ["name", ...] }`) or as a function reference
 // (`{ $fn: "name" }`). Nested function bodies are scope boundaries: they are
 // skipped here because they re-attach their own free local functions when they
 // are themselves captured. `$var`-position references to local functions are
 // already inlined by `replaceVars`, so they never reach this scan as names.
-function collectLocalFnRefs(node: JSONType, localFns: ReadonlySet<string>, out: Set<string>): void {
+function collectLocalFnRefs(
+  node: JSONType,
+  attachFns: ReadonlySet<string>,
+  out: Set<string>,
+): void {
   if (node === null || typeof node !== "object") return;
   if (isRaw(node)) return;
   if (Array.isArray(node)) {
-    for (const item of node) collectLocalFnRefs(item, localFns, out);
+    for (const item of node) collectLocalFnRefs(item, attachFns, out);
     return;
   }
   if ("$return" in node) return;
@@ -904,51 +952,70 @@ function collectLocalFnRefs(node: JSONType, localFns: ReadonlySet<string>, out: 
   const fnVal = (node as Record<string, JSONType>).$fn;
   if (Array.isArray(fnVal)) {
     const callee = fnVal[0];
-    if (typeof callee === "string" && localFns.has(callee)) out.add(callee);
-    for (const item of fnVal) collectLocalFnRefs(item, localFns, out);
+    if (typeof callee === "string" && attachFns.has(callee)) out.add(callee);
+    for (const item of fnVal) collectLocalFnRefs(item, attachFns, out);
     return;
   }
   if (typeof fnVal === "string") {
-    if (localFns.has(fnVal)) out.add(fnVal);
+    if (attachFns.has(fnVal)) out.add(fnVal);
     return;
   }
-  for (const value of Object.values(node)) collectLocalFnRefs(value, localFns, out);
+  for (const value of Object.values(node)) collectLocalFnRefs(value, attachFns, out);
 }
 
 // Scan a function body's own level (its `$return` and locals, not nested
-// lambdas) for referenced local-function names.
+// lambdas) for referenced attachable-function names.
 function collectBodyLevelLocalFnRefs(
   body: Record<string, JSONType>,
-  localFns: ReadonlySet<string>,
+  attachFns: ReadonlySet<string>,
   out: Set<string>,
 ): void {
   for (const [key, value] of Object.entries(body)) {
     if (key === "$params") continue;
     if (key === "$comment" && typeof value === "string") continue;
-    collectLocalFnRefs(value, localFns, out);
+    collectLocalFnRefs(value, attachFns, out);
   }
+}
+
+// Count the JSON nodes in a value — used to meter escaping-closure attachment
+// so a runaway capture fails against the value-size/fuel limits instead of
+// hanging (the safety net for pathological but bounded capture growth).
+function countNodes(node: JSONType): number {
+  if (node === null || typeof node !== "object") return 1;
+  let n = 1;
+  if (Array.isArray(node)) {
+    for (const item of node) n += countNodes(item);
+  } else {
+    for (const value of Object.values(node)) n += countNodes(value);
+  }
+  return n;
 }
 
 // Make an escaping function body self-contained: for every enclosing local
 // function it still references by name (kept literal so recursion/mutual
 // recursion dispatch through the scope), attach that function's closed-over
-// definition as a sibling local. Definitions come from `localFnDefs` (the
-// scope's closed-over registry) rather than `getVar`, so mutually recursive
-// clusters do not trip the lazy-`$var` cycle detector. The walk is transitive
-// (an attached function pulls in the siblings it calls) and cycle-safe (names
+// definition as a sibling local. Only `attachFns` names are eligible —
+// registry-backed module functions are deliberately excluded (see
+// `attachFns` in types.ts). Definitions come from `localFnDefs` (the scope's
+// closed-over registry) rather than `getVar`, so mutually recursive clusters
+// do not trip the lazy-`$var` cycle detector. The walk is transitive (an
+// attached function pulls in the siblings it calls) and cycle-safe (names
 // already present are skipped). Names bound by this body — its own params and
-// locals — are never attached, preserving shadowing.
+// locals — are never attached, preserving shadowing. Each attached definition
+// is charged to the fuel/value-size budget so runaway capture fails fast.
 function attachFreeLocalFns(
   body: Record<string, JSONType>,
   boundNames: ReadonlySet<string>,
-  localFns: ReadonlySet<string>,
+  attachFns: ReadonlySet<string>,
   localFnDefs: FunctionRegistry,
+  context: EvaluationContext,
 ): void {
   const queue: string[] = [];
   const seen = new Set<string>();
-  collectBodyLevelLocalFnRefs(body, localFns, seen);
+  collectBodyLevelLocalFnRefs(body, attachFns, seen);
   queue.push(...seen);
 
+  let attachedNodes = 0;
   while (queue.length > 0) {
     const name = queue.shift()!;
     if (name in body || boundNames.has(name)) continue;
@@ -956,9 +1023,15 @@ function attachFreeLocalFns(
     if (def === undefined || typeof def !== "object" || def === null || !("$return" in def)) {
       continue;
     }
+    // Meter the attachment (Part B safety net): charge and size-guard before
+    // embedding, so an unexpectedly large or growing capture raises a clean
+    // limit error rather than silently ballooning.
+    attachedNodes += countNodes(def as JSONType);
+    guardValueSize(context, attachedNodes);
+    chargeFuel(context, attachedNodes);
     body[name] = def as JSONType;
     const more = new Set<string>();
-    collectBodyLevelLocalFnRefs(def as Record<string, JSONType>, localFns, more);
+    collectBodyLevelLocalFnRefs(def as Record<string, JSONType>, attachFns, more);
     for (const ref of more) {
       if (!(ref in body) && !boundNames.has(ref) && !seen.has(ref)) {
         seen.add(ref);

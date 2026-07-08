@@ -335,6 +335,8 @@ Called with `[42]`, returns a body that carries `go` as an attached local so it 
 
 Only the local functions actually referenced (transitively) are attached, and a name shadowed by the returned body's own `$params` or locals is never attached — the inner binder wins.
 
+**Module-level (registry) functions are not attached.** Attachment applies only to functions defined by an *enclosing scope that goes away* when the closure escapes it — `where`-locals and nested locals. A top-level module function lives in the registry for the whole program, so an in-program reference to it never dangles and it resolves by name at call time like a stdlib builtin; attaching it would be redundant and, for a self-referential constructor that returns a record of closures (`makeThing` → `{ … next: () => makeThing(…) }`), would make capture copy the definition into itself on every call and blow up super-exponentially. The consequence is a small, consistent contract: a closure serialized and shipped *out of the program* keeps its local functions inline, but still relies on the target host providing the registry (module + stdlib) — exactly as it already relies on `add`, `map`, and friends being present.
+
 ## Scoping Rules
 
 - `$params` and local variable keys create a scope within their function body.

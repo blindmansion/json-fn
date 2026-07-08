@@ -1,6 +1,52 @@
 {
   "description": "method-call syntax: dispatch through property-access callees (records of closures, the effects-plan capability pattern)",
+  "functions": {
+    "makeCounter": {
+      "$params": ["n"],
+      "$return": {
+        "value": { "$return": { "$var": "n" } },
+        "inc": { "$return": { "$fn": ["makeCounter", { "$fn": ["add", { "$var": "n" }, 1] }] } },
+        "incBy": {
+          "$params": ["k"],
+          "$return": {
+            "$fn": ["makeCounter", { "$fn": ["add", { "$var": "n" }, { "$var": "k" }] }]
+          }
+        }
+      }
+    }
+  },
   "cases": [
+    {
+      "description": "fluent immutable object: a self-referential constructor chains without escaping-closure capture blow-up",
+      "body": {
+        "$return": {
+          "$fn": [
+            {
+              "$get": "value",
+              "$from": {
+                "$fn": [
+                  {
+                    "$get": "incBy",
+                    "$from": {
+                      "$fn": [
+                        {
+                          "$get": "inc",
+                          "$from": {
+                            "$fn": [{ "$get": "inc", "$from": { "$fn": ["makeCounter", 0] } }]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  5
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "expected": 7
+    },
     {
       "description": "call a closure held in a nested record: caps.db.query(sql)",
       "body": {
