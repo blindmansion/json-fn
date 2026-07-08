@@ -79,14 +79,51 @@
       }
     },
     {
+      "description": "a non-final bare expression is a discard: it runs for its effect and drops the result (`bind` with a zero-param continuation)",
+      "source": "do {\n  log(\"hi\"),\n  pure(1)\n}",
+      "expected": {
+        "$fn": ["bind", { "$fn": ["log", "hi"] }, { "$return": { "$fn": ["pure", 1] } }]
+      }
+    },
+    {
+      "description": "discard mixed with effect bindings and pures (the greeter, `_ <-` written as a bare discard)",
+      "source": "do {\n  name <- readLine(),\n  upper: upper(name),\n  print(upper),\n  pure(upper)\n}",
+      "expected": {
+        "$fn": [
+          "bind",
+          { "$fn": ["readLine"] },
+          {
+            "$params": ["name"],
+            "upper": { "$fn": ["upper", { "$var": "name" }] },
+            "$return": {
+              "$fn": [
+                "bind",
+                { "$fn": ["print", { "$var": "upper" }] },
+                { "$return": { "$fn": ["pure", { "$var": "upper" }] } }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "description": "a discard may carry following pure bindings as its continuation's where-locals",
+      "source": "do {\n  step(),\n  n: 1,\n  pure(n)\n}",
+      "expected": {
+        "$fn": [
+          "bind",
+          { "$fn": ["step"] },
+          {
+            "n": 1,
+            "$return": { "$fn": ["pure", { "$var": "n" }] }
+          }
+        ]
+      }
+    },
+    {
       "description": "a do block must end with a result expression, not a binding",
       "source": "do {\n  x <- e()\n}",
       "error": "must end with a result expression"
-    },
-    {
-      "description": "only the final entry may be a bare expression",
-      "source": "do {\n  foo(),\n  x <- e(),\n  pure(x)\n}",
-      "error": "only the final entry"
     }
   ]
 }

@@ -234,12 +234,18 @@ Parser:
   looks for this, so expression syntax is unaffected.
 - `do { … }` grammar: comma-separated entries, each either
   `ident <- expr` (effect binding), `ident : expr` (pure binding, reuses
-  `parseBody` so trailing `where` works), or — last entry only — a bare
-  expression. Desugar: each `<-` starts a nested `bind(expr, k)`; the
-  continuation `k` is built with the existing `buildScope`, with any pure
-  bindings since the previous `<-` attached as its lazy locals. Pure bindings
-  *before* the first `<-` wrap the whole chain in a zero-arg IIFE, exactly
-  like expression-level `where` (`parseBody`, parser.ts ~line 462). `_` is an
+  `parseBody` so trailing `where` works), or a bare expression. A bare
+  expression as the **final** entry is the block's result; a **non-final** bare
+  expression is a *discard* — an effect run only for its side effect, like
+  Haskell's `e >> rest`. Desugar: each `<-` (and each discard) starts a nested
+  `bind(expr, k)`; the continuation `k` is built with the existing `buildScope`,
+  with any pure bindings since the previous entry attached as its lazy locals.
+  An effect binding's `k` binds the result to its `ident`; a discard's `k` takes
+  **no parameter** (a zero-param continuation), so the result is dropped — this
+  is a distinct JSON shape from `_ <- expr` (which binds `_`), so both surface
+  forms preserve distinct JSON and print back to themselves. Pure bindings
+  *before* the first entry wrap the whole chain in a zero-arg IIFE, exactly like
+  expression-level `where` (`parseBody`, parser.ts ~line 462). `_` is an
   ordinary parameter name.
 - `handle expr with { "name": clause, … }` lowers to
   `{ $fn: ["handle", expr, { …clauses… }] }`. Clause keys follow data-object

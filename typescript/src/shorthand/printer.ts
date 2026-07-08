@@ -242,9 +242,10 @@ function tryRenderDo(node: { [k: string]: JSONType }, indent: string): Rendered 
 }
 
 /** Reconstruct the `do` entries of a `bind` spine, or `null` if `node` is not
- * one. Each `bind(value, k)` yields an effect binding plus `k`'s locals as pure
- * bindings, then continues into `k`'s `$return`; a non-`bind` tail is the final
- * result expression. */
+ * one. Each `bind(value, k)` yields an effect binding (or, when `k` takes no
+ * parameter, a discard entry — a non-final bare expression) plus `k`'s locals
+ * as pure bindings, then continues into `k`'s `$return`; a non-`bind` tail is
+ * the final result expression. */
 function collectDo(node: JSONType): DoEntry[] | null {
   if (!isPlainObject(node)) return null;
   const fn = node.$fn;
@@ -253,13 +254,22 @@ function collectDo(node: JSONType): DoEntry[] | null {
   const k = fn[2]!;
   if (!isPlainObject(k) || !("$return" in k)) return null;
   const params = k.$params;
-  if (!Array.isArray(params) || params.length !== 1 || typeof params[0] !== "string") return null;
-  const name = params[0];
-  if (!IDENT_RE.test(name)) return null;
+  // A zero-param continuation (no `$params`, or an empty list) is a discard:
+  // the effect's result is dropped, so it prints as a bare non-final expression.
+  const isDiscard = params === undefined || (Array.isArray(params) && params.length === 0);
+  let head: DoEntry;
+  if (isDiscard) {
+    head = { kind: "expr", value: fn[1]! };
+  } else {
+    if (!Array.isArray(params) || params.length !== 1 || typeof params[0] !== "string") return null;
+    const name = params[0];
+    if (!IDENT_RE.test(name)) return null;
+    head = { kind: "effect", name, value: fn[1]! };
+  }
   const locals = objectLocals(k);
   if (locals === null) return null;
 
-  const entries: DoEntry[] = [{ kind: "effect", name, value: fn[1]! }];
+  const entries: DoEntry[] = [head];
   for (const [pureName, value] of locals) entries.push({ kind: "pure", name: pureName, value });
   const rest = collectDo(k.$return!);
   entries.push(...(rest ?? [{ kind: "expr", value: k.$return! }]));

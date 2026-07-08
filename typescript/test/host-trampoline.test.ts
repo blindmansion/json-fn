@@ -43,6 +43,28 @@ describe("runTask: async capability round-trips", () => {
     expect(printed).toEqual(["hi ada"]);
   });
 
+  test("a non-final bare expression runs for its effect and discards the result", async () => {
+    // Same as the greeter, but the print is a bare discard (no `_ <-`): it must
+    // still fire and sequence between the read and the result.
+    const mod = moduleOf(`{
+      greet: () => do {
+        name <- perform("readLine", []),
+        perform("print", [\`hi \${name}\`]),
+        pure(name)
+      }
+    }`);
+    const printed: string[] = [];
+    const result = await runTask(mod, "greet", [], createStdlib(), {
+      readLine: async () => "ada",
+      print: async (msg: JSONType) => {
+        printed.push(msg as string);
+        return "ignored-return-value";
+      },
+    });
+    expect(result).toBe("ada");
+    expect(printed).toEqual(["hi ada"]);
+  });
+
   test("a bare (non-task) return value passes straight through", async () => {
     const mod = moduleOf(`{ answer: () => pure(42) }`);
     expect(await runTask(mod, "answer", [], createStdlib(), {})).toBe(42);

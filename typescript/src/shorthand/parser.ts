@@ -632,8 +632,10 @@ class Parser {
   // ----- effects: do-notation & handle (shorthand-spec §13) -----
 
   /** `do { entry, ... }` where each entry is `ident <- expr` (effect binding),
-   * `ident : expr` (pure binding), or — last only — a bare expression. Desugars
-   * to nested `bind(expr, k)` calls; see `desugarDo`. */
+   * `ident : expr` (pure binding), or a bare expression. A non-final bare
+   * expression is an effect run only for its side effect (its result is
+   * discarded, like Haskell's `e >> rest`); the final bare expression is the
+   * block's result. Desugars to nested `bind(expr, k)` calls; see `desugarDo`. */
   private parseDo(): JSONType {
     // `do` already consumed.
     this.expect("lbrace", "'{' after 'do'");
@@ -693,19 +695,16 @@ class Parser {
     return a.line === b.line && b.col === a.col + 1;
   }
 
-  /** Lower do-entries to a `bind` spine. Each effect binding `x <- e` becomes
-   * `bind(e, (x) => rest)`; pure bindings since the previous effect attach as
-   * that continuation's `where`-locals; pure bindings before the first effect
-   * wrap the whole chain in a zero-arg IIFE (like expression-level `where`). */
+  /** Lower do-entries to a `bind` spine. An effect binding `x <- e` becomes
+   * `bind(e, (x) => rest)`; a non-final bare expression `e` (a discard) becomes
+   * `bind(e, () => rest)` — a zero-param continuation, so the effect runs and
+   * its result is dropped. Pure bindings since the previous effect/discard
+   * attach as that continuation's `where`-locals; pure bindings before the
+   * first one wrap the whole chain in a zero-arg IIFE (like `where`). */
   private desugarDo(entries: DoEntry[]): JSONType {
     const last = entries[entries.length - 1]!;
     if (last.kind !== "expr") {
       throw this.err("a do block must end with a result expression, not a binding");
-    }
-    for (let i = 0; i < entries.length - 1; i++) {
-      if (entries[i]!.kind === "expr") {
-        throw this.err("only the final entry of a do block may be a bare expression");
-      }
     }
     const [leading, restIdx] = collectDoPures(entries, 0);
     const chain = this.buildDoChain(entries, restIdx);
@@ -716,14 +715,20 @@ class Parser {
   }
 
   /** Build the expression for `entries[i..]`, where `entries[i]` is an effect
-   * binding or the final expression (any leading pures already consumed). */
+   * binding, a discard (non-final bare expression), or the final result
+   * expression (any leading pures already consumed). */
   private buildDoChain(entries: DoEntry[], i: number): JSONType {
     const entry = entries[i]!;
-    if (entry.kind === "expr") return entry.value;
-    // entry.kind === "effect"
+    // The final entry is the bare result expression (guaranteed by `desugarDo`).
+    if (i === entries.length - 1) return (entry as { value: JSONType }).value;
+    // A non-final entry is an effect binding (`x <- e`) or a discard (bare `e`).
+    // Both lower to `bind(e, k)`; `k` binds the result to `x` for an effect
+    // binding, or takes no parameter for a discard. Following pures are `k`'s
+    // `where`-locals.
     const [pures, nextIdx] = collectDoPures(entries, i + 1);
     const contBody = this.buildDoChain(entries, nextIdx);
-    const k = this.buildScope([entry.name], pures, contBody);
+    const params: Param[] = entry.kind === "effect" ? [entry.name] : [];
+    const k = this.buildScope(params, pures, contBody);
     return { $fn: ["bind", entry.value, k] };
   }
 
@@ -889,7 +894,7 @@ class Parser {
 type DoEntry =
   | { kind: "effect"; name: string; value: JSONType } // `name <- expr`
   | { kind: "pure"; name: string; value: JSONType } // `name : expr`
-  | { kind: "expr"; value: JSONType }; // bare final expression
+  | { kind: "expr"; value: JSONType }; // bare expression: discard (non-final) or result (final)
 
 /** Collect a run of consecutive pure (`:`) bindings starting at `i`, returning
  * them as `[name, value]` pairs plus the index of the first non-pure entry. */

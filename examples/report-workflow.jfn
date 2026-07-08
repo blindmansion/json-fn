@@ -58,7 +58,7 @@
   main: () => do {
     ids      <- perform("db.userIds", []),
     rows     <- forEachE(loadUser, ids),
-    _        <- perform("log", [`built ${str(length(rows))} report rows`]),
+    perform("log", [`built ${str(length(rows))} report rows`]),
     reportId <- saveReport({ count: length(rows), rows: rows }),
     pure({ reportId: reportId, count: length(rows), rows: rows })
   }
