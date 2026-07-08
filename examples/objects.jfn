@@ -9,11 +9,11 @@
 // just a key, you can dispatch on a *computed* one — `account[tx.op](tx.amount)`
 // — to replay a whole transaction log with `reduce`.
 //
-// Three call shapes appear, all lowering to a `$fn` whose callee is evaluated
-// (not a literal function name):
-//   obj.method(x)          — dispatch on a named field         (callee: $var/$get)
-//   make(...).method(x)    — chained call on a returned object (callee: $get/$from)
-//   obj[name](x)           — dispatch on a computed method name (callee: $var/$get)
+// Three call shapes appear, all lowering to a `$fn` whose callee is an
+// evaluated `$get`/`$from` access (not a literal function name):
+//   obj.method(x)          — dispatch on a named field          ($from: a var)
+//   make(...).method(x)    — chained call on a returned object  ($from: a call)
+//   obj[name](x)           — dispatch on a computed method name  ($get: a var)
 //
 // Demo:
 //   jfn eval --file examples/objects.jfn --entry demo
