@@ -11,7 +11,6 @@
 
 import type { JSONType } from "../types";
 import { asVarName, litOf, nodeKind } from "./ast";
-import { synthBuiltinCall } from "./builtin-rules";
 import {
   at,
   bindingKeys,
@@ -276,10 +275,17 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
       const call = expr as { $call: JSONType; $args: JSONType[] };
       const args = Array.isArray(call.$args) ? call.$args : [];
       // A bare builtin name that no local/module binding shadows dispatches to
-      // the polymorphic builtin layer (§5.3); user bindings still win.
-      if (typeof call.$call === "string" && ctx.builtins && call.$call in ctx.builtins) {
+      // the polymorphic builtin layer (§5.3); user bindings still win. The
+      // dispatcher is injected (see `CheckContext.synthBuiltinCall`) so this
+      // core module never imports the builtin engine.
+      if (
+        typeof call.$call === "string" &&
+        ctx.builtins &&
+        ctx.synthBuiltinCall &&
+        call.$call in ctx.builtins
+      ) {
         if (ctx.env.lookupType(call.$call) === undefined) {
-          return synthBuiltinCall(ctx.builtins[call.$call]!, args, ctx);
+          return ctx.synthBuiltinCall(ctx.builtins[call.$call]!, args, ctx);
         }
       }
       const sig = resolveCalleeSig(call.$call, ctx);

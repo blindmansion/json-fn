@@ -3,6 +3,7 @@
 
 import type { JSONType } from "../types";
 import type { BuiltinTable } from "./builtin-types";
+import { synthBuiltinCall } from "./builtin-rules";
 import { buildTypeScope, check, synth } from "./checker";
 import {
   at,
@@ -41,6 +42,7 @@ function checkModule(module: Record<string, JSONType>, builtins?: BuiltinTable):
     diagnostics: [],
     path: [],
     builtins: builtins?.builtins,
+    synthBuiltinCall,
   };
   const env = buildTypeScope(withoutTypes(module), null, ctx);
   ctx.env = env;
@@ -81,6 +83,7 @@ function checkExpr(
     diagnostics: [],
     path: [],
     builtins: builtins?.builtins,
+    synthBuiltinCall,
   };
   return { type: synth(expr, ctx), diagnostics: ctx.diagnostics };
 }
