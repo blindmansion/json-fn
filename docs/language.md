@@ -293,6 +293,48 @@ Called with `[10]`, returns:
 
 The returned body is a valid function body that can be called subsequently.
 
+### Escaping closures carry the local functions they call
+
+Capture also keeps an escaping closure **self-contained** when it calls an enclosing [local function](#local-recursive-functions) by name. Names in call position that resolve to a local function stay literal (so recursion and mutual recursion keep dispatching by name), and capture re-attaches those functions' closed-over definitions as locals on the returned body. A closure that recurses — or that calls a sibling local — therefore remains callable after it leaves the scope that defined those functions.
+
+```json
+{
+  "$params": ["base"],
+  "go": {
+    "$params": ["x"],
+    "$return": {
+      "$if": { "$lte": [{ "$var": "x" }, 0] },
+      "$then": { "$var": "base" },
+      "$else": { "$fn": ["go", { "$fn": ["sub", { "$var": "x" }, 1] }] }
+    }
+  },
+  "$return": { "$var": "go" }
+}
+```
+
+Called with `[42]`, returns a body that carries `go` as an attached local so it still recurses when invoked later:
+
+```json
+{
+  "$params": ["x"],
+  "go": {
+    "$params": ["x"],
+    "$return": {
+      "$if": { "$lte": [{ "$var": "x" }, 0] },
+      "$then": 42,
+      "$else": { "$fn": ["go", { "$fn": ["sub", { "$var": "x" }, 1] }] }
+    }
+  },
+  "$return": {
+    "$if": { "$lte": [{ "$var": "x" }, 0] },
+    "$then": 42,
+    "$else": { "$fn": ["go", { "$fn": ["sub", { "$var": "x" }, 1] }] }
+  }
+}
+```
+
+Only the local functions actually referenced (transitively) are attached, and a name shadowed by the returned body's own `$params` or locals is never attached — the inner binder wins.
+
 ## Scoping Rules
 
 - `$params` and local variable keys create a scope within their function body.

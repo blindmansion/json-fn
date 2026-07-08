@@ -67,6 +67,55 @@ module scope kept to a single outermost frame over stdlib. See
 `docs/shorthand-spec.md` §9 ("Future direction") and `plans/module-scope.md`
 ("Non-goal").
 
+## Captured function *references* aren't inlined in call position (closure gap)
+
+Escaping closures now re-attach the enclosing **local functions** they call by
+name (see `docs/language.md` "Escaping closures carry the local functions they
+call", impl in `replaceVars`/`attachFreeLocalFns` in
+`typescript/src/evaluate.ts`, spec in `spec/cases/escaping-closures.json`). One
+related gap is **not** covered by that work: a captured variable whose value is
+a **function reference** (`{ "$fn": "name" }`, i.e. `&name`) used in **call
+position** inside an escaping closure is left literal and dangles once the
+closure leaves scope.
+
+Root cause: the call-position capture in `replaceVars` only substitutes when
+`getVar(callee)` resolves to a **function declaration** — `isFnDeclaration` is
+true only for a string name or a `$return`-bearing body. A reference *object*
+`{ "$fn": "add" }` is neither, so the callee name stays literal.
+
+Minimal repro (from `typescript/`):
+
+```bash
+# A) reference OBJECT bound to `op`, used in call position -> stays literal, dangles
+bun run src/cli.ts eval '(op) => (n) => op(n, 1)' --args '[{"$fn":"add"}]' --shorthand
+#   => (n) => op(n, 1)
+#   applying it fresh:  ((n) => op(n, 1))(5)  ->  "Function op not found"
+
+# B) same, but `op` is a NAME STRING -> inlined (prints as the + operator)
+bun run src/cli.ts eval '(op) => (n) => op(n, 1)' --args '["add"]' --shorthand
+#   => (n) => n + 1
+
+# C) same, but `op` is an inline BODY -> whole body inlined
+bun run src/cli.ts eval '(op) => (n) => op(n, 1)' \
+  --args '[{"$params":["a","b"],"$return":{"$fn":["add",{"$var":"a"},{"$var":"b"}]}}]' --shorthand
+#   => (n) => ((a, b) => a + b)(n, 1)
+```
+
+Note this only bites when a reference *object* reaches the param unevaluated
+(e.g. injected via `--args`, or a `{ "$fn": <expr> }` computed reference). In
+ordinary shorthand, `&add` in argument position **evaluates to the bare name
+`"add"`** (case B) and therefore does travel — so `foldr`-style HOFs closing
+over `&add`/`&mul` work today (see `examples/escaping-closures.jfn` §6). The
+inconsistency is: name string and inline body both travel, but the reference
+object does not.
+
+Possible fix: in the call-position branch of `replaceVars`, when
+`getVar(callee)` is a function-reference object (`{ "$fn": <string|value> }`),
+substitute the callee with that reference (or its underlying name) instead of
+requiring `isFnDeclaration`. Needs a conformance case per the reference vs.
+name vs. body matrix above, and a decision on whether `{ "$fn": <expr> }`
+(computed reference) should be captured eagerly or left for call-time.
+
 ## Housekeeping
 - Correct `plans/shorthand-llm-probes.md` §2e: the `Invalid JSON expression: {`
   output was the probe harness truncating a multi-line `exprError`; the real

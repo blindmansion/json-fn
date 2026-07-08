@@ -566,7 +566,18 @@ function buildScope(
 
   if (localFnKeys.length > 0) {
     for (const key of localFnKeys) {
-      scopedFunctions[key] = replaceVars(fn[key]!, getVar, localFns, perf) as FunctionBody;
+      // Close over for in-scope registry dispatch: substitute free `$var`s but
+      // keep sibling function names literal (attach mode off), so recursion and
+      // mutual recursion resolve through `scopedFunctions`. These closed-over
+      // bodies are what `attachFreeLocalFns` later re-attaches to escaping
+      // closures.
+      scopedFunctions[key] = replaceVars(
+        fn[key]!,
+        getVar,
+        localFns,
+        undefined,
+        perf,
+      ) as FunctionBody;
     }
   }
 
@@ -640,7 +651,13 @@ function evaluateExpression(expression: JSONType, context: EvaluationContext): J
       if (!getVar) {
         return expression;
       }
-      return replaceVars(expression, getVar, context.localFns ?? EMPTY_LOCAL_FNS, perf);
+      return replaceVars(
+        expression,
+        getVar,
+        context.localFns ?? EMPTY_LOCAL_FNS,
+        context.functions,
+        perf,
+      );
 
     case ExpressionType.Conditional:
       const conditional = expression as Conditional;
@@ -744,10 +761,18 @@ function evaluateExpression(expression: JSONType, context: EvaluationContext): J
   }
 }
 
+// Closure capture. Substitutes free `$var`s and captures function-valued
+// callees, and — when `localFnDefs` is supplied ("attach mode") — makes an
+// escaping function body self-contained by re-attaching the enclosing local
+// functions it still references by name (see `attachFreeLocalFns`). Attach mode
+// is off while `buildScope` closes over local functions for *in-scope*
+// registry dispatch: those must keep sibling names literal, and `localFnDefs`
+// is exactly the set of closed-over bodies produced there.
 function replaceVars(
   expression: JSONType,
   getVar: (name: string) => JSONType | undefined,
   localFns: ReadonlySet<string>,
+  localFnDefs: FunctionRegistry | undefined,
   perf?: PerfStats,
 ): JSONType {
   if (perf) perf.replaceVars++;
@@ -756,7 +781,7 @@ function replaceVars(
     return expression;
   }
   if (Array.isArray(expression)) {
-    return expression.map((item) => replaceVars(item, getVar, localFns, perf));
+    return expression.map((item) => replaceVars(item, getVar, localFns, localFnDefs, perf));
   }
 
   if (typeof expression === "object" && expression !== null) {
@@ -764,7 +789,7 @@ function replaceVars(
       const parsed = parsePath(expression.$var);
       if ("$get" in expression) {
         const varValue = getVar(parsed.variable);
-        const replacedKey = replaceVars(expression.$get, getVar, localFns, perf);
+        const replacedKey = replaceVars(expression.$get, getVar, localFns, localFnDefs, perf);
         if (varValue !== undefined) {
           if (parsed.path.length > 0) {
             const pathKey: JSONType = parsed.path.length === 1 ? parsed.path[0]! : parsed.path;
@@ -813,7 +838,14 @@ function replaceVars(
 
       const newObject: Record<string, JSONType> = {};
       for (const [key, value] of Object.entries(expression)) {
-        newObject[key] = replaceVars(value, maskedGetVar, localFns, perf);
+        newObject[key] = replaceVars(value, maskedGetVar, localFns, localFnDefs, perf);
+      }
+      // Re-attach the enclosing local functions this escaping body still calls
+      // by name, so it stays callable once it leaves its defining scope. Off
+      // during in-scope close-over (localFnDefs undefined), where sibling names
+      // must remain literal for registry dispatch.
+      if (localFnDefs !== undefined && localFns.size > 0) {
+        attachFreeLocalFns(newObject, localNames, localFns, localFnDefs);
       }
       return newObject;
     }
@@ -839,19 +871,101 @@ function replaceVars(
           const captured = getVar(callee);
           return captured !== undefined && isFnDeclaration(captured) ? captured : item;
         }
-        return replaceVars(item, getVar, localFns, perf);
+        return replaceVars(item, getVar, localFns, localFnDefs, perf);
       });
       return { ...expression, $fn: newArr };
     }
 
     const newObject: Record<string, JSONType> = {};
     for (const [key, value] of Object.entries(expression)) {
-      newObject[key] = replaceVars(value, getVar, localFns, perf);
+      newObject[key] = replaceVars(value, getVar, localFns, localFnDefs, perf);
     }
     return newObject;
   }
 
   return expression;
+}
+
+// Collect names in `localFns` referenced by `node` at its own scope level, in
+// call position (`{ $fn: ["name", ...] }`) or as a function reference
+// (`{ $fn: "name" }`). Nested function bodies are scope boundaries: they are
+// skipped here because they re-attach their own free local functions when they
+// are themselves captured. `$var`-position references to local functions are
+// already inlined by `replaceVars`, so they never reach this scan as names.
+function collectLocalFnRefs(node: JSONType, localFns: ReadonlySet<string>, out: Set<string>): void {
+  if (node === null || typeof node !== "object") return;
+  if (isRaw(node)) return;
+  if (Array.isArray(node)) {
+    for (const item of node) collectLocalFnRefs(item, localFns, out);
+    return;
+  }
+  if ("$return" in node) return;
+
+  const fnVal = (node as Record<string, JSONType>).$fn;
+  if (Array.isArray(fnVal)) {
+    const callee = fnVal[0];
+    if (typeof callee === "string" && localFns.has(callee)) out.add(callee);
+    for (const item of fnVal) collectLocalFnRefs(item, localFns, out);
+    return;
+  }
+  if (typeof fnVal === "string") {
+    if (localFns.has(fnVal)) out.add(fnVal);
+    return;
+  }
+  for (const value of Object.values(node)) collectLocalFnRefs(value, localFns, out);
+}
+
+// Scan a function body's own level (its `$return` and locals, not nested
+// lambdas) for referenced local-function names.
+function collectBodyLevelLocalFnRefs(
+  body: Record<string, JSONType>,
+  localFns: ReadonlySet<string>,
+  out: Set<string>,
+): void {
+  for (const [key, value] of Object.entries(body)) {
+    if (key === "$params") continue;
+    if (key === "$comment" && typeof value === "string") continue;
+    collectLocalFnRefs(value, localFns, out);
+  }
+}
+
+// Make an escaping function body self-contained: for every enclosing local
+// function it still references by name (kept literal so recursion/mutual
+// recursion dispatch through the scope), attach that function's closed-over
+// definition as a sibling local. Definitions come from `localFnDefs` (the
+// scope's closed-over registry) rather than `getVar`, so mutually recursive
+// clusters do not trip the lazy-`$var` cycle detector. The walk is transitive
+// (an attached function pulls in the siblings it calls) and cycle-safe (names
+// already present are skipped). Names bound by this body — its own params and
+// locals — are never attached, preserving shadowing.
+function attachFreeLocalFns(
+  body: Record<string, JSONType>,
+  boundNames: ReadonlySet<string>,
+  localFns: ReadonlySet<string>,
+  localFnDefs: FunctionRegistry,
+): void {
+  const queue: string[] = [];
+  const seen = new Set<string>();
+  collectBodyLevelLocalFnRefs(body, localFns, seen);
+  queue.push(...seen);
+
+  while (queue.length > 0) {
+    const name = queue.shift()!;
+    if (name in body || boundNames.has(name)) continue;
+    const def = localFnDefs[name];
+    if (def === undefined || typeof def !== "object" || def === null || !("$return" in def)) {
+      continue;
+    }
+    body[name] = def as JSONType;
+    const more = new Set<string>();
+    collectBodyLevelLocalFnRefs(def as Record<string, JSONType>, localFns, more);
+    for (const ref of more) {
+      if (!(ref in body) && !boundNames.has(ref) && !seen.has(ref)) {
+        seen.add(ref);
+        queue.push(ref);
+      }
+    }
+  }
 }
 
 function getComparisonOperator(json: Record<string, JSONType>): ComparisonOperator | undefined {

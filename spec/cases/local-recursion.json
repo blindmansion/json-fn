@@ -359,7 +359,7 @@
       "error": "Function fact not found"
     },
     {
-      "description": "returned closure referencing local fn by string fails outside defining scope",
+      "description": "returned closure re-attaches the local fn it calls, so it works outside its defining scope",
       "body": {
         "closure": {
           "$fn": [
@@ -377,7 +377,7 @@
         },
         "$return": { "$fn": [{ "$var": "closure" }, 5] }
       },
-      "error": "Function helper not found"
+      "expected": 10
     }
   ]
 }

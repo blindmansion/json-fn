@@ -1,0 +1,160 @@
+{
+  "description": "escaping closures re-attach the enclosing local functions they call by name, so recursion and mutual recursion survive leaving the defining scope",
+  "cases": [
+    {
+      "description": "self-recursive local escapes as a closure and remains callable outside its defining scope",
+      "body": {
+        "$params": ["base", "start"],
+        "makeCountdown": {
+          "$params": ["b"],
+          "go": {
+            "$params": ["x"],
+            "$return": {
+              "$if": { "$lte": [{ "$var": "x" }, 0] },
+              "$then": { "$var": "b" },
+              "$else": { "$fn": ["go", { "$fn": ["sub", { "$var": "x" }, 1] }] }
+            }
+          },
+          "$return": { "$var": "go" }
+        },
+        "$return": {
+          "$fn": [{ "$fn": ["makeCountdown", { "$var": "base" }] }, { "$var": "start" }]
+        }
+      },
+      "args": [42, 3],
+      "expected": 42
+    },
+    {
+      "description": "mutually recursive locals escape together (even branch)",
+      "body": {
+        "$params": ["start"],
+        "makeParity": {
+          "isEven": {
+            "$params": ["n"],
+            "$return": {
+              "$if": { "$eq": [{ "$var": "n" }, 0] },
+              "$then": true,
+              "$else": { "$fn": ["isOdd", { "$fn": ["sub", { "$var": "n" }, 1] }] }
+            }
+          },
+          "isOdd": {
+            "$params": ["n"],
+            "$return": {
+              "$if": { "$eq": [{ "$var": "n" }, 0] },
+              "$then": false,
+              "$else": { "$fn": ["isEven", { "$fn": ["sub", { "$var": "n" }, 1] }] }
+            }
+          },
+          "$return": { "$var": "isEven" }
+        },
+        "$return": {
+          "$fn": [{ "$fn": ["makeParity"] }, { "$var": "start" }]
+        }
+      },
+      "args": [10],
+      "expected": true
+    },
+    {
+      "description": "mutually recursive locals escape together (odd branch)",
+      "body": {
+        "$params": ["start"],
+        "makeParity": {
+          "isEven": {
+            "$params": ["n"],
+            "$return": {
+              "$if": { "$eq": [{ "$var": "n" }, 0] },
+              "$then": true,
+              "$else": { "$fn": ["isOdd", { "$fn": ["sub", { "$var": "n" }, 1] }] }
+            }
+          },
+          "isOdd": {
+            "$params": ["n"],
+            "$return": {
+              "$if": { "$eq": [{ "$var": "n" }, 0] },
+              "$then": false,
+              "$else": { "$fn": ["isEven", { "$fn": ["sub", { "$var": "n" }, 1] }] }
+            }
+          },
+          "$return": { "$var": "isEven" }
+        },
+        "$return": {
+          "$fn": [{ "$fn": ["makeParity"] }, { "$var": "start" }]
+        }
+      },
+      "args": [7],
+      "expected": false
+    },
+    {
+      "description": "partial application: capturing a param baked into the escaping recursive closure",
+      "body": {
+        "$params": ["base", "start"],
+        "adderFrom": {
+          "$params": ["b"],
+          "sumDown": {
+            "$params": ["x"],
+            "$return": {
+              "$if": { "$lte": [{ "$var": "x" }, 0] },
+              "$then": { "$var": "b" },
+              "$else": {
+                "$fn": [
+                  "add",
+                  { "$var": "x" },
+                  { "$fn": ["sumDown", { "$fn": ["sub", { "$var": "x" }, 1] }] }
+                ]
+              }
+            }
+          },
+          "$return": { "$var": "sumDown" }
+        },
+        "$return": {
+          "$fn": [{ "$fn": ["adderFrom", { "$var": "base" }] }, { "$var": "start" }]
+        }
+      },
+      "args": [100, 3],
+      "expected": 106
+    },
+    {
+      "description": "escaping closure passes an enclosing local fn to a HOF by reference",
+      "body": {
+        "$params": ["xs"],
+        "makeMapper": {
+          "triple": {
+            "$params": ["x"],
+            "$return": { "$fn": ["mul", { "$var": "x" }, 3] }
+          },
+          "$return": {
+            "$params": ["ys"],
+            "$return": { "$fn": ["map", { "$fn": "triple" }, { "$var": "ys" }] }
+          }
+        },
+        "$return": {
+          "$fn": [{ "$fn": ["makeMapper"] }, { "$var": "xs" }]
+        }
+      },
+      "args": [[1, 2, 3]],
+      "expected": [3, 6, 9]
+    },
+    {
+      "description": "inner param shadows an enclosing local fn of the same name; the argument wins and the enclosing definition is not attached in its place",
+      "body": {
+        "$params": ["base", "arg"],
+        "makeShadow": {
+          "$params": ["b"],
+          "go": {
+            "$params": ["x"],
+            "$return": { "$fn": ["add", { "$var": "x" }, 1000] }
+          },
+          "$return": {
+            "$params": ["go"],
+            "$return": { "$fn": ["go", { "$var": "b" }] }
+          }
+        },
+        "$return": {
+          "$fn": [{ "$fn": ["makeShadow", { "$var": "base" }] }, { "$var": "arg" }]
+        }
+      },
+      "args": [1, { "$params": ["x"], "$return": { "$fn": ["mul", { "$var": "x" }, 3] } }],
+      "expected": 3
+    }
+  ]
+}
