@@ -74,7 +74,7 @@
         "$call": "bind",
         "$args": [
           { "$call": "f", "$args": [] },
-          { "$params": ["r"], "$return": { "$lt": [{ "$var": "r" }, -1] } }
+          { "$params": ["r"], "$return": { "$call": "lt", "$args": [{ "$var": "r" }, -1] } }
         ]
       }
     },

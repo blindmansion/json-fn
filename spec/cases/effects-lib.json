@@ -24,7 +24,7 @@
     "forEachE": {
       "$params": ["f", "xs"],
       "$return": {
-        "$if": { "$eq": [{ "$call": "length", "$args": [{ "$var": "xs" }] }, 0] },
+        "$if": { "$call": "eq", "$args": [{ "$call": "length", "$args": [{ "$var": "xs" }] }, 0] },
         "$then": { "$call": "pure", "$args": [[]] },
         "$else": {
           "$call": "bind",
@@ -81,7 +81,7 @@
           {
             "$params": ["err"],
             "$return": {
-              "$if": { "$lte": [{ "$var": "n" }, 0] },
+              "$if": { "$call": "lte", "$args": [{ "$var": "n" }, 0] },
               "$then": { "$call": "raise", "$args": [{ "$var": "err" }] },
               "$else": {
                 "$call": "retry",
@@ -182,7 +182,8 @@
     "hasPrefix": {
       "$params": ["s", "p"],
       "$return": {
-        "$eq": [
+        "$call": "eq",
+        "$args": [
           {
             "$call": "slice",
             "$args": [{ "$var": "s" }, 0, { "$call": "length", "$args": [{ "$var": "p" }] }]

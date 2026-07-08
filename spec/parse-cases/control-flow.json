@@ -5,7 +5,7 @@
       "description": "if / then / else",
       "source": "if x > 0 then \"positive\" else \"non-positive\"",
       "expected": {
-        "$if": { "$gt": [{ "$var": "x" }, 0] },
+        "$if": { "$call": "gt", "$args": [{ "$var": "x" }, 0] },
         "$then": "positive",
         "$else": "non-positive"
       }
@@ -15,8 +15,8 @@
       "source": "cond {\n  n < 0  -> \"negative\",\n  n == 0 -> \"zero\",\n  else   -> \"positive\"\n}",
       "expected": {
         "$cond": [
-          [{ "$lt": [{ "$var": "n" }, 0] }, "negative"],
-          [{ "$eq": [{ "$var": "n" }, 0] }, "zero"]
+          [{ "$call": "lt", "$args": [{ "$var": "n" }, 0] }, "negative"],
+          [{ "$call": "eq", "$args": [{ "$var": "n" }, 0] }, "zero"]
         ],
         "$else": "positive"
       }

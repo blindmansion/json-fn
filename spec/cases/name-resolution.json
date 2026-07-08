@@ -92,7 +92,7 @@
         "fact": {
           "$params": ["m"],
           "$return": {
-            "$if": { "$lte": [{ "$var": "m" }, 1] },
+            "$if": { "$call": "lte", "$args": [{ "$var": "m" }, 1] },
             "$then": 1,
             "$else": {
               "$call": "mul",
@@ -115,7 +115,7 @@
         "isEven": {
           "$params": ["m"],
           "$return": {
-            "$if": { "$eq": [{ "$var": "m" }, 0] },
+            "$if": { "$call": "eq", "$args": [{ "$var": "m" }, 0] },
             "$then": true,
             "$else": {
               "$call": "isOdd",
@@ -126,7 +126,7 @@
         "isOdd": {
           "$params": ["m"],
           "$return": {
-            "$if": { "$eq": [{ "$var": "m" }, 0] },
+            "$if": { "$call": "eq", "$args": [{ "$var": "m" }, 0] },
             "$then": false,
             "$else": {
               "$call": "isEven",
@@ -146,7 +146,7 @@
         "isEven": {
           "$params": ["m"],
           "$return": {
-            "$if": { "$eq": [{ "$var": "m" }, 0] },
+            "$if": { "$call": "eq", "$args": [{ "$var": "m" }, 0] },
             "$then": true,
             "$else": {
               "$call": "isOdd",
@@ -157,7 +157,7 @@
         "isOdd": {
           "$params": ["m"],
           "$return": {
-            "$if": { "$eq": [{ "$var": "m" }, 0] },
+            "$if": { "$call": "eq", "$args": [{ "$var": "m" }, 0] },
             "$then": false,
             "$else": {
               "$call": "isEven",

@@ -9,7 +9,11 @@
         "$args": [{ "$call": "mul", "$args": [{ "$var": "row" }, 8] }, { "$var": "col" }]
       }
     },
-    { "description": "unary not", "source": "!done", "expected": { "$not": { "$var": "done" } } },
+    {
+      "description": "unary not",
+      "source": "!done",
+      "expected": { "$call": "not", "$args": [{ "$var": "done" }] }
+    },
     {
       "description": "unary negation of variable",
       "source": "-x",
@@ -23,7 +27,12 @@
     {
       "description": "logical and flattens across comparisons",
       "source": "x > 0 && x < 100",
-      "expected": { "$and": [{ "$gt": [{ "$var": "x" }, 0] }, { "$lt": [{ "$var": "x" }, 100] }] }
+      "expected": {
+        "$and": [
+          { "$call": "gt", "$args": [{ "$var": "x" }, 0] },
+          { "$call": "lt", "$args": [{ "$var": "x" }, 100] }
+        ]
+      }
     },
     {
       "description": "logical and flattens chained operands",

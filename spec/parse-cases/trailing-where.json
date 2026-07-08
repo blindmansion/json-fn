@@ -7,7 +7,7 @@
       "expected": {
         "$cond": [
           [
-            { "$gt": [{ "$var": "n" }, 0] },
+            { "$call": "gt", "$args": [{ "$var": "n" }, 0] },
             {
               "$call": {
                 "big": {
@@ -50,7 +50,7 @@
       "description": "trailing where on an if/then branch attaches to the branch (not the whole if)",
       "source": "if x > 0 then double(x) where { double: (n) => n * 2 } else 0",
       "expected": {
-        "$if": { "$gt": [{ "$var": "x" }, 0] },
+        "$if": { "$call": "gt", "$args": [{ "$var": "x" }, 0] },
         "$then": {
           "$call": {
             "double": {
@@ -68,7 +68,7 @@
       "description": "trailing where on an else branch attaches to the branch",
       "source": "if x > 0 then 1 else fallback(x) where { fallback: (n) => n - 1 }",
       "expected": {
-        "$if": { "$gt": [{ "$var": "x" }, 0] },
+        "$if": { "$call": "gt", "$args": [{ "$var": "x" }, 0] },
         "$then": 1,
         "$else": {
           "$call": {
@@ -107,7 +107,7 @@
         "$params": ["s"],
         "len": { "$call": "length", "$args": [{ "$var": "s" }] },
         "$return": {
-          "$if": { "$eq": [{ "$var": "len" }, 2] },
+          "$if": { "$call": "eq", "$args": [{ "$var": "len" }, 2] },
           "$then": { "$var": "len" },
           "$else": null
         }

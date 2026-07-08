@@ -100,19 +100,24 @@
     },
     {
       "description": "$eq: true for equal evaluated values",
-      "body": { "$return": { "$eq": [{ "$call": "add", "$args": [1, 1] }, 2] } },
+      "body": { "$return": { "$call": "eq", "$args": [{ "$call": "add", "$args": [1, 1] }, 2] } },
       "expected": true
     },
     {
       "description": "$neq: true for unequal evaluated values",
-      "body": { "$return": { "$neq": [{ "$call": "str", "$args": [1] }, 1] } },
+      "body": { "$return": { "$call": "neq", "$args": [{ "$call": "str", "$args": [1] }, 1] } },
       "expected": true
     },
     {
       "description": "$lt/$lte/$gt/$gte: comparison shorthands",
       "body": {
         "$return": {
-          "$and": [{ "$lt": [1, 2] }, { "$lte": [2, 2] }, { "$gt": [3, 2] }, { "$gte": [3, 3] }]
+          "$and": [
+            { "$call": "lt", "$args": [1, 2] },
+            { "$call": "lte", "$args": [2, 2] },
+            { "$call": "gt", "$args": [3, 2] },
+            { "$call": "gte", "$args": [3, 3] }
+          ]
         }
       },
       "expected": true
@@ -122,11 +127,11 @@
       "body": {
         "$return": {
           "$and": [
-            { "$not": false },
-            { "$not": null },
-            { "$not": 0 },
-            { "$not": "" },
-            { "$not": { "$eq": [1, 2] } }
+            { "$call": "not", "$args": [false] },
+            { "$call": "not", "$args": [null] },
+            { "$call": "not", "$args": [0] },
+            { "$call": "not", "$args": [""] },
+            { "$call": "not", "$args": [{ "$call": "eq", "$args": [1, 2] }] }
           ]
         }
       },
@@ -134,7 +139,7 @@
     },
     {
       "description": "$not: false for truthy values",
-      "body": { "$return": { "$not": "value" } },
+      "body": { "$return": { "$call": "not", "$args": ["value"] } },
       "expected": false
     },
     {
@@ -142,23 +147,13 @@
       "body": {
         "$params": ["cmd"],
         "$return": {
-          "$if": { "$eq": [{ "$var": "cmd" }, "show"] },
+          "$if": { "$call": "eq", "$args": [{ "$var": "cmd" }, "show"] },
           "$then": "display",
           "$else": "move"
         }
       },
       "args": ["show"],
       "expected": "display"
-    },
-    {
-      "description": "$eq: only uses strict scalar equality for arrays",
-      "body": { "$return": { "$eq": [[1], [1]] } },
-      "expected": false
-    },
-    {
-      "description": "$eq: only uses strict scalar equality for objects",
-      "body": { "$return": { "$eq": [{ "x": 1 }, { "x": 1 }] } },
-      "expected": false
     },
     {
       "description": "eq: only uses strict scalar equality for arrays",
@@ -235,31 +230,14 @@
         "$return": {
           "$and": [
             { "$call": "jsonNeq", "$args": [{ "x": 1 }, { "x": 2 }] },
-            { "$not": { "$call": "jsonNeq", "$args": [{ "x": [1] }, { "x": [1] }] } }
+            {
+              "$call": "not",
+              "$args": [{ "$call": "jsonNeq", "$args": [{ "x": [1] }, { "x": [1] }] }]
+            }
           ]
         }
       },
       "expected": true
-    },
-    {
-      "description": "$eq: rejects non-array operands",
-      "body": { "$return": { "$eq": 1 } },
-      "error": "$eq must be an array of two expressions"
-    },
-    {
-      "description": "$eq: rejects wrong arity",
-      "body": { "$return": { "$eq": [1, 1, 1] } },
-      "error": "$eq must be an array of two expressions"
-    },
-    {
-      "description": "$gt: rejects sibling expression properties",
-      "body": { "$return": { "$gt": [2, 1], "$lt": [1, 2] } },
-      "error": "$gt expressions cannot have other properties"
-    },
-    {
-      "description": "$not: rejects sibling expression properties",
-      "body": { "$return": { "$not": true, "$eq": [1, 1] } },
-      "error": "$eq expressions cannot have other properties"
     }
   ]
 }
