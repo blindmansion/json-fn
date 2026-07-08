@@ -1,10 +1,10 @@
 {
   "name": "json-fn",
-  "type": "module",
-  "module": "index.ts",
   "bin": {
     "jfn": "src/cli.ts"
   },
+  "type": "module",
+  "module": "index.ts",
   "scripts": {
     "cli": "bun run src/cli.ts",
     "check": "bunx tsc --noEmit && oxlint && oxfmt --check && bun run format:spec-cases:check",

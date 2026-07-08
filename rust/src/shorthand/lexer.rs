@@ -41,7 +41,7 @@ pub enum Tok {
     Slash,
     Percent,
 
-    EqEq,  // ==
+    EqEq,   // ==
     BangEq, // !=
     Lt,
     LtEq,
@@ -384,11 +384,8 @@ impl Lexer {
                         self.bump();
                         let low = self.read_hex4()?;
                         if (0xDC00..=0xDFFF).contains(&low) {
-                            let combined =
-                                0x10000 + ((cp - 0xD800) << 10) + (low - 0xDC00);
-                            char::from_u32(combined)
-                                .unwrap_or('\u{FFFD}')
-                                .to_string()
+                            let combined = 0x10000 + ((cp - 0xD800) << 10) + (low - 0xDC00);
+                            char::from_u32(combined).unwrap_or('\u{FFFD}').to_string()
                         } else {
                             return Err(self.err("invalid low surrogate in \\u escape"));
                         }

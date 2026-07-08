@@ -6,7 +6,7 @@
 use serde_json::{Map, Number, Value};
 
 use super::error::ParseError;
-use super::lexer::{Tok, Token, TemplatePart, lex};
+use super::lexer::{TemplatePart, Tok, Token, lex};
 
 /// Parse a full `.jfn` expression, returning canonical json-fn JSON.
 pub fn parse(src: &str) -> Result<Value, ParseError> {
@@ -347,12 +347,13 @@ impl Parser {
                     self.advance();
                     Ok((self.parse_raw()?, None))
                 }
-                "let" => Err(self.err(
-                    "the 'let { ... } in expr' form is replaced by 'expr where { ... }'",
-                )),
-                "where" => Err(
-                    self.err("'where { ... }' is only valid immediately after a function body"),
-                ),
+                "let" => {
+                    Err(self
+                        .err("the 'let { ... } in expr' form is replaced by 'expr where { ... }'"))
+                }
+                "where" => {
+                    Err(self.err("'where { ... }' is only valid immediately after a function body"))
+                }
                 _ => {
                     self.advance();
                     Ok((obj(vec![("$var", Value::String(name.clone()))]), Some(name)))
@@ -566,11 +567,7 @@ impl Parser {
         let then_ = self.parse_expr()?;
         self.expect_keyword("else")?;
         let else_ = self.parse_expr()?;
-        Ok(obj(vec![
-            ("$if", cond),
-            ("$then", then_),
-            ("$else", else_),
-        ]))
+        Ok(obj(vec![("$if", cond), ("$then", then_), ("$else", else_)]))
     }
 
     fn parse_cond(&mut self) -> Result<Value, ParseError> {
@@ -750,7 +747,9 @@ impl Parser {
                 }
                 Ok(Value::Object(map))
             }
-            other => Err(self.err(format!("expected a JSON value after 'raw', found {other:?}"))),
+            other => Err(self.err(format!(
+                "expected a JSON value after 'raw', found {other:?}"
+            ))),
         }
     }
 
@@ -890,9 +889,7 @@ fn build_access(base: Base, segs: Vec<Seg>) -> Value {
     current
 }
 
-fn take_static_run(
-    iter: &mut std::iter::Peekable<std::vec::IntoIter<Seg>>,
-) -> Vec<Value> {
+fn take_static_run(iter: &mut std::iter::Peekable<std::vec::IntoIter<Seg>>) -> Vec<Value> {
     let mut run = Vec::new();
     while matches!(iter.peek(), Some(Seg::Static(_))) {
         if let Some(Seg::Static(v)) = iter.next() {
