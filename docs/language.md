@@ -417,6 +417,97 @@ The first element of `$fn` can be a `$var` reference or any expression that eval
 
 Called with `["add"]` returns `7`. Called with `["mul"]` returns `12`.
 
+## Tasks & Effects
+
+json-fn is pure: evaluating an expression never performs I/O or any observable side effect. **Effects** are represented as *data* — inert values called **tasks** that *describe* an effectful computation without running it. Running a task is a separate step, performed either in-language by the `handle` builtin (which interprets each effect) or at the host boundary by a trampoline (`runTask`) that answers effects with real I/O.
+
+The kernel is deliberately small: three task **constructors** (`perform`, `pure`, `bind`), one `raise` convenience, and one `handle` builtin. Everything richer — retries, error recovery, threaded state, dry-runs, capability attenuation — is ordinary json-fn library code, because [escaping-closure capture](#escaping-closures-carry-the-local-functions-they-call) makes every suspended continuation a self-contained JSON value.
+
+### Task representation
+
+A task is a tagged plain object. The tag key is `@task` — deliberately **not** a `$`-key, so a task classifies as an ordinary object and is never re-interpreted as an expression form. Tasks are **inert**: once built they are returned, stored, and passed around verbatim, never re-evaluated. There are three node kinds:
+
+```json
+{ "@task": "effect", "name": "http.get", "args": ["https://example.com"] }
+{ "@task": "pure", "value": 42 }
+{ "@task": "bind", "task": { "@task": "pure", "value": 1 }, "then": { "$params": ["x"], "$return": { "$fn": ["pure", { "$var": "x" }] } } }
+```
+
+- **`effect`** requests one effect by `name`, carrying its `args`. `raise(err)` is the distinguished effect named `raise`.
+- **`pure`** is a completed task whose result is `value`.
+- **`bind`** sequences: run `task`, then apply the continuation `then` (an ordinary one-parameter function) to its result to obtain the next task.
+
+Because tasks are inert data, laziness composes with them cleanly: a task held in an [unreferenced lazy local](#lazy-local-variables) is never built, and building a task never performs its effect. Nothing happens until something *runs* the task.
+
+### Constructors
+
+These are standard-library functions (see [Standard Library → Tasks & Effects](#tasks--effects-1)):
+
+- `perform(name, args)` — build an `effect` task. `name` must be a string, `args` an array.
+- `pure(value)` — build a completed task carrying `value`.
+- `bind(task, k)` — sequence; `k` must be a function (registry name or body).
+- `raise(err)` — convenience for `perform("raise", [err])`.
+
+Malformed tasks (e.g. a `bind` whose `then` is not a function, or an `effect` with a non-string `name`) are rejected as ordinary **guest-visible evaluation errors** when the task is run — never as host-language exceptions.
+
+### The suspended form
+
+Running a task normalizes it — walking the `bind` spine — to exactly one of two shapes. This pair is the stable contract shared by `handle`, the host trampoline, and durable storage:
+
+```json
+{ "done": 42 }
+{ "pending": { "name": "http.get", "args": ["https://example.com"], "resume": { "$params": ["__v"], "$return": "..." } } }
+```
+
+`resume` is an ordinary self-contained closure `(value) => <task>`: apply it to the effect's result to continue. Because escaping-closure capture keeps it self-contained, a `pending` record is plain JSON — persist it, ship it across a process boundary, print it as shorthand, or apply it **more than once** (multi-shot).
+
+### `handle` — interpreting effects in-language
+
+`handle(task, clauses)` runs a task, dispatching each effect it performs to a matching clause in the `clauses` record. This is a pure, in-language interpreter for effects — no host involved — which is what makes effectful code testable.
+
+Clause lookup is by effect name:
+
+- A **named clause** `"http.get": (url, resume) => …` receives the effect's args spread positionally, then `resume` last.
+- The reserved **`"*"` wildcard** clause `"*": (eff, resume) => …` catches any otherwise-unmatched effect and receives `eff = { name, args }` plus `resume`.
+- The reserved **`"return"` clause** `"return": (v) => …` runs when the task completes normally with value `v`; its result is final and is **not** re-interpreted by this handler. Without a `"return"` clause, `handle` returns the completion value directly.
+
+`resume` is itself plain JSON built by `handle`, so continuations stay serializable mid-handle and multi-shot resumption is free: calling `resume` twice re-runs the rest of the task twice (the basis for nondeterminism, retry, and backtracking combinators).
+
+**Bubbling.** An effect with no matching clause (and no `"*"`) is *not* an error: `handle` re-performs it, wrapping the surrounding continuation so it re-enters the same handler afterward. The effect bubbles outward to the next enclosing `handle`, and ultimately to the host. This is what lets a handler discharge only the effects it cares about while staying transparent to the rest of the effect set.
+
+```jfn
+handle greet(mockIo()) with {
+  "io.readLine": (resume) => resume("world"),
+  "io.print":    (msg, resume) => resume(null)
+}
+```
+
+Handler clauses are invoked through the normal call path, so fuel and call-depth metering apply; task normalization additionally charges fuel per interpreted node.
+
+### Host trampoline
+
+`handle` interprets effects *in-language*; to connect a task to the real world, a host drives it with `runTask` (in TypeScript, exported from the package):
+
+```ts
+const result = await runTask(module, "main", [], registry, {
+  "io.readLine": async () => prompt(),
+  "io.print": async (msg) => { console.log(msg); },
+}, limits);
+```
+
+The host is the *outermost handler*: any effect that no in-language `handle` discharged bubbles all the way out to `runTask`, which
+
+- returns the value on `{ done }`;
+- throws `TaskRaiseError` (carrying the guest payload) for an unhandled `raise`;
+- throws `UnhandledEffectError` for an effect with no capability;
+- otherwise `await`s the capability, applies `resume` to its result, and loops.
+
+**Durable suspend/resume.** Because a `pending` task is plain JSON, a host can `serializeTask` it, store it, and later `hydrateTask` + resume — even in a different process. `hydrateTask` restores the inertness marks that keep embedded tasks opaque to the evaluator.
+
+**Static admission.** `requiredCapabilities(module | task)` walks the JSON and returns the effect names a program could ever perform, as `{ names, dynamic }`. A host can enumerate what a program might ask for *before* running it and reject at admission time rather than hitting `UnhandledEffectError` mid-run. It is a conservative over-approximation — it does **not** subtract effects an in-language `handle` discharges — and sets `dynamic: true` when a `perform` name is not a literal string.
+
+**Idempotency caveat.** `runTask` answers each `pending` exactly once, but durable suspend/resume makes **at-least-once** effect execution the practical reality: a crash between running a capability and persisting the resumed task reruns that effect on recovery (the same tradeoff as Temporal). In-language multi-shot `resume` is a feature; at the host boundary, replay is not free — capabilities with external side effects should take idempotency keys.
+
 ## Standard Library
 
 All functions listed below are available in the standard library.
@@ -471,6 +562,7 @@ All functions listed below are available in the standard library.
 | `isString` | `(a)` | is string                             |
 | `isArray`  | `(a)` | is array                              |
 | `isObject` | `(a)` | is plain object (not array, not null) |
+| `isTask`   | `(a)` | is a task (a plain object with an `@task` string tag) |
 
 ### Type Coercion
 
@@ -557,6 +649,20 @@ Higher-order functions can invoke json-fn callbacks. The callback argument can b
 | `apply`         | `(fn, argsArray)`          | call `fn` with elements of `argsArray` as positional arguments.                  |
 | `pipe`          | `(fns, init)`              | thread value through array of functions left-to-right.                           |
 | `reReplaceWith` | `(pattern, callback, str)` | replace all regex matches via callback. Callback receives a match object.        |
+
+### Tasks & Effects
+
+These build and run **tasks** — the effect representation described under [Tasks & Effects](#tasks--effects). Constructors build inert, tagged records; `handle` interprets them in-language.
+
+| Function  | Args              | Description                                                                                          |
+| --------- | ----------------- | ---------------------------------------------------------------------------------------------------- |
+| `perform` | `(name, args)`    | build an `effect` task requesting effect `name` with arguments `args`                                |
+| `pure`    | `(value)`         | build a completed task carrying `value`                                                              |
+| `bind`    | `(task, k)`       | sequence: run `task`, pass its result to continuation `k`, which returns the next task               |
+| `raise`   | `(err)`           | build a `raise` effect task (convenience for `perform("raise", [err])`)                              |
+| `handle`  | `(task, clauses)` | run `task`, interpreting each effect via the `clauses` record; unmatched effects bubble outward      |
+
+`isTask(a)` (listed under [Type Checking](#type-checking)) reports whether a value is a task.
 
 ### Introspection
 

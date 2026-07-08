@@ -565,6 +565,8 @@ primary     := number | string | template | "true" | "false" | "null"
              | "if" expr "then" expr "else" expr
              | "cond" "{" arm ("," arm)* "}"
              | "match" expr "{" arm ("," arm)* "}"
+             | "do" "{" doEntry ("," doEntry)* "}"   // effects (§13)
+             | "handle" expr "with" "{" (dataEntry ("," dataEntry)*)? "}"  // §13
              | "raw" jsonValue
 
 funcLit     := "(" params ")" "=>" body
@@ -573,6 +575,9 @@ binding     := ident ":" expr
 params      := ( ident ("," ident)* )?               // last may be "...ident"
 dataEntry   := (ident | string) ":" expr
              | ident                                 // punned: { x } == { x: x }
+doEntry     := ident "<-" expr                       // effect binding (§13)
+             | ident ":" body                        // pure (lazy-local) binding
+             | expr                                  // discard (non-final) / result (final)
 arm         := (expr | "else") "->" expr
 template    := "`" ( char | "${" expr "}" )* "`"     // strict; no coercion
 ident       := [A-Za-z_][A-Za-z0-9_]*
@@ -601,3 +606,116 @@ everything else is truthy. Used by `if`, `cond`, `match` (subject compare aside)
   canonical printback is deferred.
 
 Everything else in this document is resolved and implementable.
+
+---
+
+## 13. Effects: `do` and `handle`
+
+Two surface forms lower to the effects kernel (`perform` / `pure` / `bind` /
+`handle`; see the [Tasks & Effects](./language.md#tasks--effects) section of the
+language reference for the runtime semantics). Both are **parser-only sugar** —
+they lower to ordinary `$fn` calls, and the printer folds those exact shapes
+back.
+
+`do` and `handle` are **contextual keywords**: in primary position they
+introduce these forms, so — unlike ordinary identifiers — they can no longer be
+used as bare variable or call names there (a breaking change, alongside
+`if`/`cond`/`match`/`raw`). A property key or a `.field` access named `do`/`handle`
+is unaffected.
+
+### `do { … }` — sequencing effects
+
+A `do` block is a comma-separated list of entries; each is one of:
+
+- **effect binding** — `name <- expr`: run the task `expr`, bind its result to
+  `name` for the rest of the block;
+- **pure binding** — `name : expr`: a lazy local (like a `where` binding; the
+  value parses as a `body`, so a trailing `where` works);
+- **bare expression** — a *discard* if non-final (run for its effect, result
+  dropped, like Haskell's `e >> rest`), or the block's **result** if final.
+
+A `do` block **must end with a result expression**, never a binding.
+
+Desugar: each effect binding and each discard starts a nested `bind(expr, k)`.
+The continuation `k` binds the effect result to `name` (effect binding) or takes
+**no parameter** (discard — a distinct JSON shape from `_ <- expr`, which binds
+`_`, so both surface forms round-trip). Pure bindings since the previous
+effect/discard attach as `k`'s `where`-locals; pure bindings *before* the first
+effect wrap the whole chain in a zero-arg IIFE, exactly like expression-level
+`where`.
+
+```jfn
+do {
+  name <- readLine(),
+  upper: upper(name),
+  print(upper),
+  pure(upper)
+}
+```
+
+```json
+{
+  "$fn": [
+    "bind",
+    { "$fn": ["readLine"] },
+    {
+      "$params": ["name"],
+      "upper": { "$fn": ["upper", { "$var": "name" }] },
+      "$return": {
+        "$fn": [
+          "bind",
+          { "$fn": ["print", { "$var": "upper" }] },
+          { "$return": { "$fn": ["pure", { "$var": "upper" }] } }
+        ]
+      }
+    }
+  ]
+}
+```
+
+#### The `<-` adjacency rule
+
+`<-` is **not a lexer token** — tokenizing it as one would break `x < -1`.
+Instead, only in do-binding position, the parser recognizes a `<` token
+immediately followed by an **adjacent** `-` token (same line, next column).
+Everywhere else `< -` is an ordinary comparison against a negated operand, so a
+`do` result like `r < -1` is unaffected.
+
+### `handle … with { … }` — in-language effect interpreter
+
+`handle <task> with { "name": clause, … }` lowers to
+`handle(task, { …clauses… })`. The clause record follows **data-object key
+rules** (§3), so dotted effect names (`io.readLine`), the `"*"` wildcard, and the
+`"return"` clause must be quoted. Clause semantics — named clauses, `"*"`,
+`"return"`, bubbling, and multi-shot `resume` — are specified in the language
+reference.
+
+```jfn
+handle greet(io) with {
+  "io.readLine": (resume) => resume("world"),
+  "io.print":    (msg, resume) => resume(null)
+}
+```
+
+```json
+{
+  "$fn": [
+    "handle",
+    { "$fn": ["greet", { "$var": "io" }] },
+    {
+      "io.readLine": { "$params": ["resume"], "$return": { "$fn": ["resume", "world"] } },
+      "io.print": { "$params": ["msg", "resume"], "$return": { "$fn": ["resume", null] } }
+    }
+  ]
+}
+```
+
+### Canonical printback
+
+The printer folds **only exact desugar images**, preserving the
+bijective-by-normal-form guarantee (`parse(print(x)) === x`): a `bind` call whose
+continuation is a function literal prints as `do { … }` (folding nested binds and
+their where-locals back into `<-` / `:` / discard entries), and a `handle` call
+with a literal clause object prints as `handle … with { … }`. Any other shape —
+e.g. a `bind` with a `&`-referenced continuation, or a `handle` whose clauses are
+a computed expression — prints as a plain call.
