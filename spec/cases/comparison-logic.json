@@ -156,30 +156,30 @@
       "expected": "display"
     },
     {
-      "description": "eq: only uses strict scalar equality for arrays",
+      "description": "eq: structural equality is true for structurally equal arrays",
       "body": { "$return": { "$call": "eq", "$args": [[1], [1]] } },
-      "expected": false
+      "expected": true
     },
     {
-      "description": "neq: true for structurally equal arrays",
+      "description": "neq: false for structurally equal arrays",
       "body": { "$return": { "$call": "neq", "$args": [[1], [1]] } },
-      "expected": true
-    },
-    {
-      "description": "eq: only uses strict scalar equality for objects",
-      "body": { "$return": { "$call": "eq", "$args": [{ "x": 1 }, { "x": 1 }] } },
       "expected": false
     },
     {
-      "description": "neq: true for structurally equal objects",
-      "body": { "$return": { "$call": "neq", "$args": [{ "x": 1 }, { "x": 1 }] } },
+      "description": "eq: structural equality is true for structurally equal objects",
+      "body": { "$return": { "$call": "eq", "$args": [{ "x": 1 }, { "x": 1 }] } },
       "expected": true
     },
     {
-      "description": "jsonEq: true for structurally equal arrays",
+      "description": "neq: false for structurally equal objects",
+      "body": { "$return": { "$call": "neq", "$args": [{ "x": 1 }, { "x": 1 }] } },
+      "expected": false
+    },
+    {
+      "description": "eq: true for deeply/structurally equal nested arrays",
       "body": {
         "$return": {
-          "$call": "jsonEq",
+          "$call": "eq",
           "$args": [
             [1, { "x": [true, null] }],
             [1, { "x": [true, null] }]
@@ -189,10 +189,10 @@
       "expected": true
     },
     {
-      "description": "jsonEq: true for structurally equal objects regardless of key order",
+      "description": "eq: true for structurally equal objects regardless of key order",
       "body": {
         "$return": {
-          "$call": "jsonEq",
+          "$call": "eq",
           "$args": [
             { "a": 1, "b": [2, 3] },
             { "b": [2, 3], "a": 1 }
@@ -202,10 +202,10 @@
       "expected": true
     },
     {
-      "description": "jsonEq: false when array order differs",
+      "description": "eq: false when array order differs",
       "body": {
         "$return": {
-          "$call": "jsonEq",
+          "$call": "eq",
           "$args": [
             [1, 2, 3],
             [3, 2, 1]
@@ -215,24 +215,24 @@
       "expected": false
     },
     {
-      "description": "jsonEq: false for boolean vs number",
-      "body": { "$return": { "$call": "jsonEq", "$args": [true, 1] } },
+      "description": "eq: false for boolean vs number (no coercion)",
+      "body": { "$return": { "$call": "eq", "$args": [true, 1] } },
       "expected": false
     },
     {
-      "description": "jsonEq: false for number vs string",
-      "body": { "$return": { "$call": "jsonEq", "$args": [1, "1"] } },
+      "description": "eq: false for number vs string (no coercion)",
+      "body": { "$return": { "$call": "eq", "$args": [1, "1"] } },
       "expected": false
     },
     {
-      "description": "jsonNeq: negates jsonEq",
+      "description": "neq: negates structural eq",
       "body": {
         "$return": {
           "$and": [
-            { "$call": "jsonNeq", "$args": [{ "x": 1 }, { "x": 2 }] },
+            { "$call": "neq", "$args": [{ "x": 1 }, { "x": 2 }] },
             {
               "$call": "not",
-              "$args": [{ "$call": "jsonNeq", "$args": [{ "x": [1] }, { "x": [1] }] }]
+              "$args": [{ "$call": "neq", "$args": [{ "x": [1] }, { "x": [1] }] }]
             }
           ]
         }

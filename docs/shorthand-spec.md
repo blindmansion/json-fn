@@ -300,7 +300,8 @@ Rules and rationale:
   short-circuit language forms, **never** the eager stdlib `and`/`or` (call those
   by name: `and(a, b)`).
 - Comparisons are **non-associative** (exactly two operands; no `a < b < c`).
-  `==` is `eq` (strict); for structural equality call `jsonEq(a, b)`.
+  `==` is `eq`, which is **structural** (deep) equality — the only equality
+  json-fn has; on scalars it is ordinary strict equality.
 - Only operators with a single unambiguous meaning and universal precedence are
   elevated. Everything else stays a named call.
 - The call form (`add(a, b)`) remains legal and parses identically, but the

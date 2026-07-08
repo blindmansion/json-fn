@@ -93,11 +93,12 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
       return Math.min(...arr);
     }),
 
-    // Comparison
-    eq: pure((a: any, b: any) => a === b),
-    neq: pure((a: any, b: any) => a !== b),
-    jsonEq: pure((a: JSONType, b: JSONType) => jsonEqual(a, b)),
-    jsonNeq: pure((a: JSONType, b: JSONType) => !jsonEqual(a, b)),
+    // Comparison. Equality is structural: json-fn values are immutable JSON, so
+    // there is no observable reference identity to compare — deep equality is the
+    // only well-founded, cross-implementation notion. On scalars it collapses to
+    // `===` (see `jsonEqual`).
+    eq: pure((a: JSONType, b: JSONType) => jsonEqual(a, b)),
+    neq: pure((a: JSONType, b: JSONType) => !jsonEqual(a, b)),
     gt: pure((a: number, b: number) => a > b),
     gte: pure((a: number, b: number) => a >= b),
     lt: pure((a: number, b: number) => a < b),
@@ -159,8 +160,14 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
       end === undefined ? arr.slice(start) : arr.slice(start, end),
     ),
     reverse: pure((arr: any[]) => [...arr].reverse()),
-    includes: pure((arr: any[] | string, value: any) => arr.includes(value)),
-    indexOf: pure((arr: any[] | string, value: any) => (arr as any[]).indexOf(value)),
+    // Membership uses the same structural equality as `eq` for array elements;
+    // on strings these stay substring/char-index checks.
+    includes: pure((arr: any[] | string, value: any) =>
+      typeof arr === "string" ? arr.includes(value) : arr.some((el) => jsonEqual(el, value)),
+    ),
+    indexOf: pure((arr: any[] | string, value: any) =>
+      typeof arr === "string" ? arr.indexOf(value) : arr.findIndex((el) => jsonEqual(el, value)),
+    ),
     flatten: pure((arr: any[]) => arr.flat()),
     setAt: pure((arr: any[], idx: number, value: any) => {
       if (idx < 0 || idx >= arr.length)

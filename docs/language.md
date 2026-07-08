@@ -163,7 +163,7 @@ Comparison and negation have **no dedicated expression forms**. Comparisons (`eq
 { "$call": "not", "$args": [{ "$call": "eq", "$args": [{ "$var": "status" }, "playing"] }] }
 ```
 
-`eq` and `neq` use strict equality, not deep structural equality; use `jsonEq`/`jsonNeq` for structural comparison.
+`eq` and `neq` are **structural** (deep) equality — the only equality json-fn has (see [Standard Library → Comparison](#comparison)).
 
 ### Raw — `{ $raw }`
 
@@ -554,18 +554,16 @@ All functions listed below are available in the standard library.
 
 ### Comparison
 
-| Function  | Args     | Description                |
-| --------- | -------- | -------------------------- |
-| `eq`      | `(a, b)` | strict equality            |
-| `neq`     | `(a, b)` | strict inequality          |
-| `jsonEq`  | `(a, b)` | structural JSON equality   |
-| `jsonNeq` | `(a, b)` | structural JSON inequality |
-| `gt`      | `(a, b)` | `a > b`                    |
-| `gte`     | `(a, b)` | `a >= b`                   |
-| `lt`      | `(a, b)` | `a < b`                    |
-| `lte`     | `(a, b)` | `a <= b`                   |
+| Function | Args     | Description             |
+| -------- | -------- | ----------------------- |
+| `eq`     | `(a, b)` | structural equality     |
+| `neq`    | `(a, b)` | structural inequality   |
+| `gt`     | `(a, b)` | `a > b`                 |
+| `gte`    | `(a, b)` | `a >= b`                |
+| `lt`     | `(a, b)` | `a < b`                 |
+| `lte`    | `(a, b)` | `a <= b`                |
 
-`jsonEq` and `jsonNeq` compare arrays and objects recursively; object key order does not matter. They do not coerce types, so `true` is not `1` and `"1"` is not `1`.
+`eq`/`neq` are **structural**: arrays and objects are compared recursively and object key order does not matter (on scalars this is just `===`). This is the only equality — json-fn values are immutable JSON, so there is no observable reference identity to compare. Equality does **not** coerce types, so `true` is not `1` and `"1"` is not `1`. The same structural equality backs `includes`/`indexOf` element membership. (`$match` compares its subject against case values by equality too, but restricts both to scalars — see [Scalar Value Match](#scalar-value-match--match-cases-else).)
 
 ### Logic
 
@@ -606,8 +604,8 @@ All functions listed below are available in the standard library.
 | `range`    | `(n)`                | `[0, 1, ..., n-1]`                       |
 | `slice`    | `(arr, start, end?)` | slice                                    |
 | `reverse`  | `(arr)`              | reversed copy                            |
-| `includes` | `(arr, value)`       | strict contains check (works on strings) |
-| `indexOf`  | `(arr, value)`       | strict index of value (-1 if missing)    |
+| `includes` | `(arr, value)`       | structural contains check (substring check on strings) |
+| `indexOf`  | `(arr, value)`       | structural index of value, -1 if missing (substring index on strings) |
 | `flatten`  | `(arr)`              | flatten one level                        |
 | `setAt`    | `(arr, idx, value)`  | new array with element at idx replaced   |
 

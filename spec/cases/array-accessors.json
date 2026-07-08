@@ -122,14 +122,14 @@
       "expected": 1
     },
     {
-      "description": "indexOf: does not use structural equality for arrays",
+      "description": "indexOf: uses structural equality for arrays",
       "body": { "$return": { "$call": "indexOf", "$args": [[[1]], [1]] } },
-      "expected": -1
+      "expected": 0
     },
     {
-      "description": "indexOf: does not use structural equality for objects",
+      "description": "indexOf: uses structural equality for objects",
       "body": { "$return": { "$call": "indexOf", "$args": [[{ "x": 1 }], { "x": 1 }] } },
-      "expected": -1
+      "expected": 0
     },
     {
       "description": "indexOf: found in string",
@@ -152,14 +152,14 @@
       "expected": false
     },
     {
-      "description": "includes: does not use structural equality for arrays",
+      "description": "includes: uses structural equality for arrays",
       "body": { "$return": { "$call": "includes", "$args": [[[1]], [1]] } },
-      "expected": false
+      "expected": true
     },
     {
-      "description": "includes: does not use structural equality for objects",
+      "description": "includes: uses structural equality for objects",
       "body": { "$return": { "$call": "includes", "$args": [[{ "x": 1 }], { "x": 1 }] } },
-      "expected": false
+      "expected": true
     },
     {
       "description": "includes: true when substring exists",

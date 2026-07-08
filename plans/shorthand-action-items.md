@@ -45,7 +45,7 @@ Missing stdlib that the existing set implies:
 | Candidate | Notes |
 | --- | --- |
 | `sum` | fold over numbers; trivial |
-| `unique` | dedupe (define equality: scalar/`jsonEq`) |
+| `unique` | dedupe (uses structural `eq`) |
 | `zip` | pair two arrays |
 | `take` / `drop` | array prefix/suffix |
 | `count` | `length(filter(pred, xs))` convenience |

@@ -46,7 +46,7 @@
     sorted: sort((a, b) => a - b, map(rankValue, hand)),
     distinct: length(keys(rankCounts(hand))),
     span: last(sorted) - head(sorted),
-    wheel: jsonEq(sorted, [2, 3, 4, 5, 14])
+    wheel: eq(sorted, [2, 3, 4, 5, 14])
   },
 
   // ---- Classification --------------------------------------------------
