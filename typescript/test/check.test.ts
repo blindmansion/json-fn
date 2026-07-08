@@ -838,11 +838,13 @@ describe("chess fragments — Tier 1: coordinate layer", () => {
 // performs *no flow narrowing* yet — so `piece` keeps its declared `Cell` type
 // inside the branch and a `string`-expecting builtin sees `Piece | null`.
 //
-// Milestone 0 (§5.5 option 1) is now in place: because `Cell` *overlaps*
-// `string` (the `Piece` arm fits), such a mismatch is not a hard error — it is
-// a runtime-checkable **warning**, the stand-in until real narrowing lands. A
-// genuinely disjoint mismatch (no arm fits) stays an error. These tests pin
-// that severity split, localized to exactly where narrowing is still owed.
+// Milestone 1 (§5.5 option 2) now does *real* flow narrowing for the tractable
+// case — the guarded subject is a bare `$var` (param or eager local) and the
+// fact holds within one `$if`/`$cond`/`$match` arm. So `pieceColor`'s
+// `isNull(piece)` guard narrows `piece` from `Cell` to `Piece` in the
+// else-branch, and `upper(piece)` type-checks clean. Cases narrowing *can't*
+// reach (a builtin-result precision loss like `makePiece`) still land on the
+// M0 warning path; genuinely disjoint mismatches stay hard errors.
 // ---------------------------------------------------------------------------
 
 describe("chess fragments — Tier 2: nullability & narrowing", () => {
@@ -876,7 +878,7 @@ describe("chess fragments — Tier 2: nullability & narrowing", () => {
     expect(checkModule(mod, BT)).toEqual([]);
   });
 
-  test("pieceColor: upper(piece) on a Cell is a narrowing warning, not an error (§5.5)", () => {
+  test("pieceColor: isNull(piece) narrows Cell to Piece in the else-branch (§5.5 M1)", () => {
     // (piece: Cell) => if isNull(piece) then null
     //                  else if piece == upper(piece) then "w" else "b"
     const mod = {
@@ -895,14 +897,53 @@ describe("chess fragments — Tier 2: nullability & narrowing", () => {
         },
       ),
     };
-    const diags = checkModule(mod, BT);
-    // Exactly one strain: `upper` wants a string, but `Cell` (= Piece | null) is
-    // not narrowed to `Piece` in the else-branch. Because `Piece ⊆ string`, this
-    // is a runtime-checkable warning rather than a hard error (§5.5 M0).
-    expect(diags.length).toBe(1);
-    expect(diags[0]!.severity).toBe("warning");
-    expect(eqJson(diags[0]!.expected, { type: "string" })).toBe(true);
-    expect(eqJson(diags[0]!.actual, Cell)).toBe(true);
+    // The `isNull` guard proves `piece : Piece` on the else-branch, so
+    // `upper(piece)` (Piece ⊆ string) type-checks clean — zero diagnostics.
+    expect(checkModule(mod, BT)).toEqual([]);
+  });
+
+  test('negative narrowing: eq(color, "w") excludes the literal on the else-branch', () => {
+    // (color: Color) => if color == "w" then "first" else <use narrowed color>
+    // On the else-branch `color` is narrowed to the `Color` enum minus "w",
+    // i.e. the const "b", which still fits the declared `Color` return.
+    const mod = {
+      $types: types,
+      afterWhite: body(
+        ["color"],
+        { params: [Color], returns: Color },
+        { $if: c("eq", v("color"), "w"), $then: "b", $else: v("color") },
+      ),
+    };
+    expect(checkModule(mod, BT)).toEqual([]);
+  });
+
+  test("narrowed var feeds a field projection: isNull(sq) guard unlocks sq.file", () => {
+    // (sq: Square | null) => if isNull(sq) then 0 else sq.file
+    // Without narrowing, the else-branch target is `Square | null` (a union, not
+    // an object), so `$get "file"` degrades to `any` and `any ⊄ integer` fires.
+    // The `isNull` guard narrows `sq` to `Square`, so the projection yields the
+    // declared `file : integer` and the module is clean — an observable proof
+    // that narrowing feeds `$get`.
+    const Square: Schema = {
+      type: "object",
+      properties: { file: I, rank: I },
+      required: ["file", "rank"],
+      additionalProperties: false,
+    };
+    const NullableSquare: Schema = { anyOf: [Square, { type: "null" }] };
+    const mod = {
+      $types: types,
+      fileOf: body(
+        ["sq"],
+        { params: [NullableSquare], returns: I },
+        {
+          $if: c("isNull", v("sq")),
+          $then: 0,
+          $else: { $get: "file", $from: v("sq") },
+        },
+      ),
+    };
+    expect(checkModule(mod, BT)).toEqual([]);
   });
 
   test("makePiece: lower(type) widens the enum to `string`, losing ⊆ Piece (§5.3 precision)", () => {
