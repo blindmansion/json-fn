@@ -1,0 +1,91 @@
+{
+  "description": "method-call syntax: dispatch through property-access callees (records of closures, the effects-plan capability pattern)",
+  "cases": [
+    {
+      "description": "call a closure held in a nested record: caps.db.query(sql)",
+      "body": {
+        "caps": {
+          "db": {
+            "query": {
+              "$params": ["sql"],
+              "$return": { "$fn": ["strcat", "ran: ", { "$var": "sql" }] }
+            }
+          }
+        },
+        "$return": {
+          "$fn": [{ "$var": "caps", "$get": ["db", "query"] }, "SELECT 1"]
+        }
+      },
+      "expected": "ran: SELECT 1"
+    },
+    {
+      "description": "zero-arg method call: io.readLine()",
+      "body": {
+        "io": { "readLine": { "$return": "hello" } },
+        "$return": { "$fn": [{ "$var": "io", "$get": "readLine" }] }
+      },
+      "expected": "hello"
+    },
+    {
+      "description": "single-dot method call closes over sibling record fields",
+      "body": {
+        "obj": {
+          "greeting": "hi",
+          "greet": {
+            "$params": ["name"],
+            "$return": { "$fn": ["strcat", "hi ", { "$var": "name" }] }
+          }
+        },
+        "$return": { "$fn": [{ "$var": "obj", "$get": "greet" }, "ada"] }
+      },
+      "expected": "hi ada"
+    },
+    {
+      "description": "computed-key method dispatch: caps[name](x)",
+      "body": {
+        "caps": {
+          "inc": { "$params": ["n"], "$return": { "$fn": ["add", { "$var": "n" }, 1] } },
+          "dbl": { "$params": ["n"], "$return": { "$fn": ["mul", { "$var": "n" }, 2] } }
+        },
+        "which": "dbl",
+        "$return": {
+          "$fn": [{ "$var": "caps", "$get": { "$var": "which" } }, 21]
+        }
+      },
+      "expected": 42
+    },
+    {
+      "description": "method call on a call result: makeIo().print(x)",
+      "body": {
+        "makeIo": {
+          "$return": {
+            "print": {
+              "$params": ["msg"],
+              "$return": { "$fn": ["strcat", "out: ", { "$var": "msg" }] }
+            }
+          }
+        },
+        "$return": {
+          "$fn": [{ "$get": "print", "$from": { "$fn": ["makeIo"] } }, "done"]
+        }
+      },
+      "expected": "out: done"
+    },
+    {
+      "description": "method call as a parameter-supplied capability record",
+      "body": {
+        "$params": ["io"],
+        "$return": { "$fn": [{ "$var": "io", "$get": "print" }, "x"] }
+      },
+      "args": [
+        {
+          "print": {
+            "$params": ["m"],
+            "$return": { "$fn": ["upper", { "$var": "m" }] }
+          }
+        }
+      ],
+      "expected": "X"
+    }
+  ]
+}

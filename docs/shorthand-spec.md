@@ -157,6 +157,47 @@ f()                       // zero-arg call
 { "$fn": [{ "$params": ["x"], "$return": { "$fn": ["mul", { "$var": "x" }, { "$var": "x" }] } }, 5] }
 ```
 
+### Method calls and chained application
+
+The callee slot is a full postfix expression, so anything that produces a
+function value can sit in call position. In particular, a **property-access
+chain** or a **preceding call** in call position is an evaluated callee — the
+access/call is performed first and its result is applied. This is the
+"method-call" surface: it dispatches through a record of closures (the pattern
+capabilities use — see `plans/effects-implementation.md`), with no distinct
+`$` form. A bare name is still the only thing that means a literal function
+_name_ (`f(x)` → `{ "$fn": ["f", …] }`); the moment a `.`, `[…]`, or a prior
+`(…)` intervenes, the callee is evaluated.
+
+```jfn
+caps.db.query(sql)        // call the closure held at caps.db.query
+io.readLine()             // zero-arg method call
+caps[name](x)             // computed-key dispatch
+f(x).method(y)            // method on a call result (callee uses $get/$from)
+makeCountdown(42)(3)      // chained application (call the returned closure)
+```
+
+```json
+{ "$fn": [{ "$var": "caps", "$get": ["db", "query"] }, { "$var": "sql" }] }
+{ "$fn": [{ "$var": "io", "$get": "readLine" }] }
+{ "$fn": [{ "$var": "caps", "$get": { "$var": "name" } }, { "$var": "x" }] }
+{ "$fn": [{ "$get": "method", "$from": { "$fn": ["f", { "$var": "x" }] } }, { "$var": "y" }] }
+{ "$fn": [{ "$fn": ["makeCountdown", 42] }, 3] }
+```
+
+The callee lowering is exactly the property-access lowering of §5 (a `$var`/`$get`
+chain rooted at a variable, or a `$get`/`$from` chain rooted at an expression),
+placed as the first element of the `$fn` call array.
+
+> **Printer note (deferred).** These forms parse and evaluate today, but the
+> canonical pretty-printer currently wraps the callee in parentheses
+> (`(caps.db.query)(sql)`, `(makeCountdown(42))(3)`). That still round-trips —
+> `parse(print(x))` is `x` — so the bijective-by-normal-form guarantee holds; it
+> is only less pretty than the bare source. Tightening the printer to emit the
+> bare form for access-headed and call-headed callees (while keeping the parens
+> on a bare `$var` callee, since `f(x)` would otherwise collide with a
+> literal-name call) is tracked as deferred polish (§12).
+
 ### Function reference — `&`
 
 Passes a function as a value (the language's non-array `$fn`).
@@ -216,6 +257,9 @@ Lowering rules:
 Canonical JSON is always the `$var`/`$get` form (the older `$var` dotted
 path-string form is deprecated; see `shorthand-stdlib-changes.md` if we remove
 it from the interpreters).
+
+An access chain **in call position** is a method call: the chain evaluates to a
+function value that is then applied (`caps.db.query(sql)`). See §4.
 
 ---
 
@@ -550,5 +594,9 @@ everything else is truthy. Used by `if`, `cond`, `match` (subject compare aside)
 
 - 🔴 **TODO(comments)** — §1: how `//` comments attach and lower to `$comment`,
   including group/section comments and comments on non-object targets.
+- 🟡 **Printer polish for method/chained callees** — §4: the pretty-printer
+  parenthesizes access-headed and call-headed callees (`(caps.db.query)(sql)`).
+  Parsing and evaluation of the bare form already work and round-trip; only the
+  canonical printback is deferred.
 
 Everything else in this document is resolved and implementable.

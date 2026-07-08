@@ -40,6 +40,42 @@
       "description": "function reference from parenthesized expression",
       "source": "&(expr)",
       "expected": { "$fn": { "$var": "expr" } }
+    },
+    {
+      "description": "method call: access chain in call position is a call on the evaluated callee",
+      "source": "caps.db.query(sql)",
+      "expected": {
+        "$fn": [{ "$var": "caps", "$get": ["db", "query"] }, { "$var": "sql" }]
+      }
+    },
+    {
+      "description": "zero-arg method call",
+      "source": "io.readLine()",
+      "expected": { "$fn": [{ "$var": "io", "$get": "readLine" }] }
+    },
+    {
+      "description": "single-dot method call",
+      "source": "obj.method(x)",
+      "expected": { "$fn": [{ "$var": "obj", "$get": "method" }, { "$var": "x" }] }
+    },
+    {
+      "description": "computed-key method call",
+      "source": "caps[name](x)",
+      "expected": {
+        "$fn": [{ "$var": "caps", "$get": { "$var": "name" } }, { "$var": "x" }]
+      }
+    },
+    {
+      "description": "method call on a call result uses $from callee",
+      "source": "f(x).method(y)",
+      "expected": {
+        "$fn": [{ "$get": "method", "$from": { "$fn": ["f", { "$var": "x" }] } }, { "$var": "y" }]
+      }
+    },
+    {
+      "description": "chained application: a call in call position calls its result",
+      "source": "makeCountdown(42)(3)",
+      "expected": { "$fn": [{ "$fn": ["makeCountdown", 42] }, 3] }
     }
   ]
 }
