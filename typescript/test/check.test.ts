@@ -983,3 +983,153 @@ describe("chess fragments — Tier 2: nullability & narrowing", () => {
     expect(diags[0]!.path).toEqual(["bad", "$return"]);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Tier 3 — lazy-local narrowing at forcing sites (§5.5 M2).
+//
+// The bulk of real chess narrows a value that flows *through* a where-local,
+// not the guarded var directly:
+//   * `pieceMoves`: `type`/`color` are lazy locals bound from `piece`; they are
+//     forced only inside the non-null (`else`) arm, so re-synthesizing them
+//     under the guard's fact is sound and clean.
+//   * `slideDir`: the arms of a `$cond` are guarded by *named boolean locals*
+//     (`empty: isNull(target)`, `ok: not(empty)`), not inline predicates.
+//
+// M2 threads the forcing site's facts into lazy-local resolution behind a
+// free-variable gate (the no-narrowing path is byte-identical), re-synthesizes
+// a dependent local under the *relevant* facts with a fact-keyed cache, and
+// teaches `factsFromCondition` to recurse through a boolean-guard local.
+// ---------------------------------------------------------------------------
+
+describe("chess fragments — Tier 3: lazy-local & boolean-guard narrowing (§5.5 M2)", () => {
+  const BT = loadBuiltinTable();
+  const c = (name: JSONType, ...args: JSONType[]): JSONType => ({ $call: name, $args: args });
+  const v = (name: string): JSONType => ({ $var: name });
+
+  const Cell: Schema = { $ref: "#/$defs/Cell" };
+  const StringOrNull: Schema = { anyOf: [S, { type: "null" }] };
+  const StringArray: Schema = { type: "array", items: S };
+
+  const types: Defs = {
+    Color: { enum: ["w", "b"] },
+    Piece: { enum: ["K", "Q", "R", "B", "N", "P", "k", "q", "r", "b", "n", "p"] },
+    Cell: { anyOf: [{ $ref: "#/$defs/Piece" }, { type: "null" }] },
+  };
+
+  test("pieceMoves: locals bound from a guarded var narrow at their forcing site", () => {
+    // (piece: Cell) => if isNull(piece) then [] else [type, color]
+    //   where type = upper(piece), color = lower(piece)
+    // `type`/`color` reference `piece` but are forced *only* in the non-null
+    // else-arm. Under M1 they were synthesized once, un-narrowed, so
+    // `upper(Cell)` warned (Cell ⊄ string). M2 re-synthesizes them under the
+    // guard's `piece : Piece` fact (indirect narrowing through the free-var
+    // gate), so both fit `string` and the module is clean.
+    const mod = {
+      $types: types,
+      pieceMoves: body(
+        ["piece"],
+        { params: [Cell], returns: StringArray },
+        { $if: c("isNull", v("piece")), $then: [], $else: [v("type"), v("color")] },
+        { type: c("upper", v("piece")), color: c("lower", v("piece")) },
+      ),
+    };
+    expect(checkModule(mod, BT)).toEqual([]);
+  });
+
+  test("slideDir: a $cond guarded by named boolean locals narrows the else-arm (§2.3)", () => {
+    // (target: Cell) => cond { !ok -> null, empty -> null, else -> upper(target) }
+    //   where empty = isNull(target), ok = not(empty)   // alias depth 2
+    // The else-arm is reached only when every guard is false, which the boolean
+    // aliases prove implies `target : Piece`. `factsFromCondition` recurses
+    // through `ok -> not(empty) -> isNull(target)` to learn that, so
+    // `upper(target)` type-checks clean.
+    const mod = {
+      $types: types,
+      slideDir: body(
+        ["target"],
+        { params: [Cell], returns: StringOrNull },
+        {
+          $cond: [
+            [c("not", v("ok")), null],
+            [v("empty"), null],
+          ],
+          $else: c("upper", v("target")),
+        },
+        { empty: c("isNull", v("target")), ok: c("not", v("empty")) },
+      ),
+    };
+    expect(checkModule(mod, BT)).toEqual([]);
+  });
+
+  test("parseMove: !isNull(from) && !isNull(to) narrows both before object construction", () => {
+    // (from: Cell, to: Cell) => if !isNull(from) && !isNull(to)
+    //                           then { from, to } else null
+    // The conjunction narrows both vars to `Piece` on the then-arm, so the
+    // constructed object fits the non-null `Move` shape.
+    const Move: Schema = {
+      type: "object",
+      properties: { from: { $ref: "#/$defs/Piece" }, to: { $ref: "#/$defs/Piece" } },
+      required: ["from", "to"],
+      additionalProperties: false,
+    };
+    const mod = {
+      $types: types,
+      parseMove: body(
+        ["from", "to"],
+        { params: [Cell, Cell], returns: { anyOf: [Move, { type: "null" }] } },
+        {
+          $if: { $and: [c("not", c("isNull", v("from"))), c("not", c("isNull", v("to")))] },
+          $then: { from: v("from"), to: v("to") },
+          $else: null,
+        },
+      ),
+    };
+    expect(checkModule(mod, BT)).toEqual([]);
+  });
+
+  test("per-arm divergence: a local re-synthesizes per fact set, with dedup'd diagnostics", () => {
+    // (p: Color, q: Cell) => match p { "w" -> d } else d
+    //   where d = [upper(q), p]
+    // `d` is forced under two distinct facts — p : "w" (case) and p : "b"
+    // (else). The memo split gives `d` two element types ("w" vs "b"), whose
+    // union no longer fits the declared `[string, "w"]` return → one return
+    // warning (absent if the two arms had collapsed onto one memo). Meanwhile
+    // `upper(q)` (q never narrowed) warns inside *each* re-synth of `d`, but the
+    // two are structurally identical, so the end-of-module dedupe keeps one.
+    const Color: Schema = { $ref: "#/$defs/Color" };
+    const mod = {
+      $types: types,
+      divergent: body(
+        ["p", "q"],
+        {
+          params: [Color, Cell],
+          returns: { type: "array", prefixItems: [S, { const: "w" }], items: false, minItems: 2 },
+        },
+        { $match: v("p"), $cases: [["w", v("d")]], $else: v("d") },
+        { d: [c("upper", v("q")), v("p")] },
+      ),
+    };
+    const diags = checkModule(mod, BT);
+    // Exactly two: 1 (not 3) means the duplicate `upper(q)` warning was deduped;
+    // 2 (not 1) means the else-arm re-synthesized `d` under its own fact.
+    expect(diags.length).toBe(2);
+    expect(diags.every((d) => d.severity === "warning")).toBe(true);
+    expect(diags.some((d) => d.path.join(".") === "divergent.$return")).toBe(true);
+    expect(diags.some((d) => d.path[0] === "d")).toBe(true);
+  });
+
+  test("fast path: a module with no narrowing is unaffected by the gate/dedupe", () => {
+    // A plain guard-free use: `upper(q)` on a `Cell` warns (Cell ⊄ string,
+    // narrowable). No narrowing is in play, so the free-var gate returns the
+    // un-narrowed memo and the dedupe is a no-op — the diagnostic is exactly the
+    // single M0 warning, unchanged.
+    const mod = {
+      $types: types,
+      plain: body(["q"], { params: [Cell], returns: S }, c("upper", v("q"))),
+    };
+    const diags = checkModule(mod, BT);
+    expect(diags.length).toBe(1);
+    expect(diags[0]!.severity).toBe("warning");
+    expect(diags[0]!.path).toEqual(["plain", "$return", "$args[0]"]);
+  });
+});

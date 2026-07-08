@@ -18,6 +18,7 @@ import {
   isBody,
   report,
   sigOf,
+  stableStringify,
   type CheckContext,
   type Severity,
   type Sig,
@@ -81,11 +82,31 @@ function bindParams(params: JSONType[], sig: Sig | null, eager: Record<string, S
   }
 }
 
+// Collect every `$var` name syntactically referenced by an expression. Used to
+// over-approximate a lazy local's free variables (§5.5 M2 §2.2b): we descend
+// into everything except `$raw` payloads (unevaluated data), *including* nested
+// lambda bodies — ignoring their shadowing is a sound over-approximation (a
+// superset only ever triggers a harmless extra re-synth, never a stale type).
+function collectVars(expr: JSONType, acc: Set<string>): void {
+  if (expr === null || typeof expr !== "object") return;
+  if (Array.isArray(expr)) {
+    for (const e of expr) collectVars(e, acc);
+    return;
+  }
+  const o = expr as Record<string, JSONType>;
+  if (typeof o.$var === "string") {
+    acc.add(o.$var);
+    return;
+  }
+  if ("$raw" in o) return;
+  for (const val of Object.values(o)) collectVars(val, acc);
+}
+
 function buildTypeScope(
   body: Record<string, JSONType>,
   parent: TypeEnv | null,
   ctx: CheckContext,
-): TypeEnv {
+): { env: TypeEnv; guards: Record<string, JSONType> } {
   const eager: Record<string, Schema> = {};
   const exprLocals: Record<string, JSONType> = {};
 
@@ -102,32 +123,81 @@ function buildTypeScope(
     }
   }
 
+  // Lazy locals double as named boolean guards (§2.3); outer guards remain in
+  // scope, with siblings shadowing them.
+  const guards: Record<string, JSONType> = { ...ctx.guards, ...exprLocals };
+
+  // Two-tier cache: `memo` is the un-narrowed type (the fast path, byte-for-byte
+  // as before); `narrowedMemo[name][key]` holds a re-synth under a specific set
+  // of *relevant* facts (§2.2c).
   const memo: Record<string, Schema> = {};
+  const narrowedMemo: Record<string, Record<string, Schema>> = {};
+  const freeVarsMemo: Record<string, Set<string>> = {};
   const resolving: string[] = [];
 
+  // The `$var` names a lazy local transitively references, expanding names that
+  // are themselves lazy locals. Memoized (the shared-ref write before recursion
+  // also breaks reference cycles); the result is an over-approximation.
+  function freeVarsOf(name: string): Set<string> {
+    const cached = freeVarsMemo[name];
+    if (cached) return cached;
+    const result = new Set<string>();
+    freeVarsMemo[name] = result;
+    const direct = new Set<string>();
+    collectVars(exprLocals[name]!, direct);
+    for (const dv of direct) {
+      result.add(dv);
+      if (dv !== name && dv in exprLocals) for (const fv of freeVarsOf(dv)) result.add(fv);
+    }
+    return result;
+  }
+
+  // The subset of `narrowings` that could actually change this local's type.
+  function relevantFacts(name: string, narrowings: Record<string, Schema>): Record<string, Schema> {
+    const fv = freeVarsOf(name);
+    const out: Record<string, Schema> = {};
+    for (const k of Object.keys(narrowings)) if (fv.has(k)) out[k] = narrowings[k]!;
+    return out;
+  }
+
+  // Synthesize a lazy local's type under the given facts (undefined ⇒ fast
+  // path). Shares the `resolving` cycle guard across both paths.
+  function resolveLocal(name: string, narrowings: Record<string, Schema> | undefined): Schema {
+    if (resolving.includes(name)) {
+      const cycle = [...resolving.slice(resolving.indexOf(name)), name].join(" -> ");
+      report(ctx, `Circular local type dependency: ${cycle}`);
+      return true;
+    }
+    resolving.push(name);
+    try {
+      return synth(exprLocals[name]!, { ...ctx, env, guards, path: [name], narrowings });
+    } finally {
+      resolving.pop();
+    }
+  }
+
   const env: TypeEnv = {
-    lookupType(name: string): Schema | undefined {
+    lookupType(name: string, narrowings?: Record<string, Schema>): Schema | undefined {
       if (name in eager) return eager[name];
-      if (name in memo) return memo[name];
-      if (name in exprLocals) {
-        if (resolving.includes(name)) {
-          const cycle = [...resolving.slice(resolving.indexOf(name)), name].join(" -> ");
-          report(ctx, `Circular local type dependency: ${cycle}`);
-          return (memo[name] = true);
-        }
-        resolving.push(name);
-        try {
-          const s = synth(exprLocals[name]!, { ...ctx, env, path: [name] });
-          return (memo[name] = s);
-        } finally {
-          resolving.pop();
-        }
+      if (!(name in exprLocals)) return parent?.lookupType(name, narrowings);
+
+      // Gate: only facts this local depends on matter. With none, the plain
+      // memo answers — the no-narrowing path stays exactly as before.
+      const relevant =
+        narrowings && Object.keys(narrowings).length > 0 ? relevantFacts(name, narrowings) : {};
+      if (Object.keys(relevant).length === 0) {
+        if (name in memo) return memo[name];
+        return (memo[name] = resolveLocal(name, undefined));
       }
-      return parent?.lookupType(name);
+
+      const bucket = (narrowedMemo[name] ??= {});
+      const key = stableStringify(relevant);
+      if (key in bucket) return bucket[key]!;
+      return (bucket[key] = resolveLocal(name, relevant));
     },
   };
 
-  return env;
+  return { env, guards };
 }
 
 // Structural type of literal JSON *data* (a `$raw` payload or a nested literal):
@@ -254,7 +324,10 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
       // so a hit is authoritative.
       const narrowed = ctx.narrowings?.[name];
       if (narrowed !== undefined) return narrowed;
-      const t = ctx.env.lookupType(name);
+      // A direct hit above; otherwise this may be an *indirect* narrowing — a
+      // lazy local that references a narrowed var — so pass the active facts
+      // down for re-synth under them (§5.5 M2).
+      const t = ctx.env.lookupType(name, ctx.narrowings);
       // A miss is not necessarily an error: bare builtin/registry names resolve
       // as function values (§P4). Until the builtin layer lands, degrade to any.
       return t ?? true;

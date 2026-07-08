@@ -11,6 +11,7 @@ import {
   EMPTY_ENV,
   isBody,
   sigOf,
+  stableStringify,
   type CheckContext,
   type Diagnostic,
 } from "./context";
@@ -19,8 +20,8 @@ import { type Defs, isSchemaObject, type Schema } from "./schema";
 // locals are checked recursively in the body's own scope.
 function checkFunction(body: Record<string, JSONType>, ctx: CheckContext): void {
   const sig = sigOf(body);
-  const env = buildTypeScope(body, ctx.env, ctx);
-  const bctx: CheckContext = { ...ctx, env };
+  const { env, guards } = buildTypeScope(body, ctx.env, ctx);
+  const bctx: CheckContext = { ...ctx, env, guards };
   check(body.$return!, sig?.returns ?? true, at(bctx, "$return"));
   for (const key of bindingKeys(body)) {
     const val = body[key]!;
@@ -44,8 +45,9 @@ function checkModule(module: Record<string, JSONType>, builtins?: BuiltinTable):
     builtins: builtins?.builtins,
     synthBuiltinCall,
   };
-  const env = buildTypeScope(withoutTypes(module), null, ctx);
+  const { env, guards } = buildTypeScope(withoutTypes(module), null, ctx);
   ctx.env = env;
+  ctx.guards = guards;
 
   for (const key of bindingKeys(withoutTypes(module))) {
     const val = module[key]!;
@@ -57,7 +59,30 @@ function checkModule(module: Record<string, JSONType>, builtins?: BuiltinTable):
       env.lookupType(key);
     }
   }
-  return ctx.diagnostics;
+  return dedupeDiagnostics(ctx.diagnostics);
+}
+
+// Drop later diagnostics structurally equal to an earlier one (§5.5 M2 §2.2d).
+// A lazy local forced under two distinct fact sets re-synthesizes once per set,
+// so a mismatch inside it can be reported twice; deduping keeps the first and
+// is order-stable. A diagnostic present only under a *later* arm differs
+// structurally, so it survives — this is not first-seen suppression.
+function dedupeDiagnostics(diags: Diagnostic[]): Diagnostic[] {
+  const seen = new Set<string>();
+  const out: Diagnostic[] = [];
+  for (const d of diags) {
+    const key = stableStringify([
+      d.path,
+      d.message,
+      d.severity,
+      d.expected ?? null,
+      d.actual ?? null,
+    ]);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(d);
+  }
+  return out;
 }
 
 // The module minus its reserved `$types` sibling, so the type pool is not

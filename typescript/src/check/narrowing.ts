@@ -165,20 +165,32 @@ function factsFromCondition(
   cond: JSONType,
   sense: boolean,
   ctx: CheckContext,
+  seen: readonly string[] = [],
 ): Record<string, Schema> {
   if (!isSchemaObject(cond)) return {};
 
+  // A bare-var condition may be a *named boolean guard* — a lazy local like
+  // `empty: isNull(target)` used as `cond { empty -> … }` (§2.3). Recurse into
+  // its binding expression; `seen` breaks alias cycles (`ok: not(empty)`,
+  // `empty: not(ok)`), falling those back to the M0 warning path.
+  const guardVar = asVarName(cond);
+  if (guardVar !== null) {
+    const guardExpr = ctx.guards?.[guardVar];
+    if (guardExpr === undefined || seen.includes(guardVar)) return {};
+    return factsFromCondition(guardExpr, sense, ctx, [...seen, guardVar]);
+  }
+
   // `$and` learns a conjunction only when true; `$or` only when false. The dual
   // cases (`$and` false / `$or` true) yield no sound single-var fact.
-  if (Array.isArray(cond.$and)) return sense ? conjoin(cond.$and, true, ctx) : {};
-  if (Array.isArray(cond.$or)) return sense ? {} : conjoin(cond.$or, false, ctx);
+  if (Array.isArray(cond.$and)) return sense ? conjoin(cond.$and, true, ctx, seen) : {};
+  if (Array.isArray(cond.$or)) return sense ? {} : conjoin(cond.$or, false, ctx, seen);
 
   if (!("$call" in cond) || typeof cond.$call !== "string") return {};
   const name = cond.$call;
   const args = Array.isArray(cond.$args) ? cond.$args : [];
   if (!isUnshadowed(name, ctx)) return {};
 
-  if (name === "not" && args.length === 1) return factsFromCondition(args[0]!, !sense, ctx);
+  if (name === "not" && args.length === 1) return factsFromCondition(args[0]!, !sense, ctx, seen);
 
   if (name in TYPE_PREDICATES && args.length === 1) {
     const subject = asVarName(args[0]!);
@@ -225,11 +237,16 @@ function equalityFact(
 
 // Fold a `$and`/`$or` arm list into a single fact map, threading each arm's
 // facts forward so a later arm refines an earlier one on the same var.
-function conjoin(exprs: JSONType[], sense: boolean, ctx: CheckContext): Record<string, Schema> {
+function conjoin(
+  exprs: JSONType[],
+  sense: boolean,
+  ctx: CheckContext,
+  seen: readonly string[] = [],
+): Record<string, Schema> {
   let acc: Record<string, Schema> = {};
   let cur = ctx;
   for (const e of exprs) {
-    const facts = factsFromCondition(e, sense, cur);
+    const facts = factsFromCondition(e, sense, cur, seen);
     if (Object.keys(facts).length === 0) continue;
     acc = { ...acc, ...facts };
     cur = withNarrowings(cur, facts);

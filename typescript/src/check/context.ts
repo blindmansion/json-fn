@@ -26,8 +26,14 @@ type Diagnostic = {
 };
 
 // The term scope Γ: term name → type. A flat lookup with a parent chain,
-// mirroring the evaluator's `getVar`.
-type TypeEnv = { lookupType: (name: string) => Schema | undefined };
+// mirroring the evaluator's `getVar`. The optional `narrowings` argument carries
+// the forcing site's flow facts into lazy-local resolution (§5.5 M2): a local
+// that *references* a narrowed var is re-synthesized under those facts. Callers
+// that never narrow (a function's `$fnType` never does) simply omit it and stay
+// on the fast path.
+type TypeEnv = {
+  lookupType: (name: string, narrowings?: Record<string, Schema>) => Schema | undefined;
+};
 
 type CheckContext = {
   // The module `$types` pool ($defs), resolving `$ref`. The type-NAME scope.
@@ -51,6 +57,10 @@ type CheckContext = {
   // type. Present only inside a guarded control-flow arm; `synth`'s `"var"`
   // case consults it before the term scope. Absent ⇒ no narrowing active.
   narrowings?: Record<string, Schema>;
+  // Lazy-local binding expressions in scope (§5.5 M2, §2.3): local name → its
+  // un-annotated binding expression. Lets `factsFromCondition` recurse through a
+  // named boolean guard (`empty: isNull(target)`) used as a bare-var condition.
+  guards?: Record<string, JSONType>;
 };
 
 // A function signature — the shape shared by a body's `$sig` and the inner of
@@ -64,6 +74,18 @@ const EMPTY_ENV: TypeEnv = { lookupType: () => undefined };
 // runtime-checkable downgrade.
 function report(ctx: CheckContext, message: string, extra?: Partial<Diagnostic>): void {
   ctx.diagnostics.push({ path: [...ctx.path], message, severity: "error", ...extra });
+}
+
+// A deterministic JSON stringify (object keys sorted), for content-addressing
+// schemas: the M2 fact-keyed re-synth cache keys on it and the end-of-module
+// diagnostic dedupe compares by it. Key order can differ between two structurally
+// equal schemas, so `JSON.stringify` alone is not safe here.
+function stableStringify(v: unknown): string {
+  if (v === null || typeof v !== "object") return JSON.stringify(v) ?? "null";
+  if (Array.isArray(v)) return `[${v.map(stableStringify).join(",")}]`;
+  const obj = v as Record<string, unknown>;
+  const keys = Object.keys(obj).sort();
+  return `{${keys.map((k) => `${JSON.stringify(k)}:${stableStringify(obj[k])}`).join(",")}}`;
 }
 
 // A child context at a nested path segment (used when descending into args,
@@ -107,4 +129,4 @@ function bindingKeys(body: Record<string, JSONType>): string[] {
 }
 
 export type { CheckContext, TypeEnv, Diagnostic, Severity, Sig };
-export { EMPTY_ENV, report, at, isBody, sigOf, bodyFnTypeSchema, bindingKeys };
+export { EMPTY_ENV, report, at, isBody, sigOf, bodyFnTypeSchema, bindingKeys, stableStringify };
