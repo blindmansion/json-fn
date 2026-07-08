@@ -268,14 +268,14 @@ function value that is then applied (`caps.db.query(sql)`). See §4.
 
 A closed set of operators. Precedence from highest to lowest:
 
-| Prec | Operators         | Assoc   | Lowers to                               |
-| ---- | ----------------- | ------- | --------------------------------------- |
-| 1    | `!x` `-x` (unary) | prefix  | `$not` · `neg(x)`                       |
-| 2    | `*` `/` `%`       | left    | `mul` · `div` · `mod` (stdlib calls)    |
-| 3    | `+` `-` `++`      | left    | `add` · `sub` · `strcat` (stdlib calls) |
-| 4    | `== != < <= > >=` | none    | `$eq $neq $lt $lte $gt $gte`            |
-| 5    | `&&`              | flatten | `$and` (short-circuit, variadic)        |
-| 6    | `\|\|`            | flatten | `$or` (short-circuit, variadic)         |
+| Prec | Operators         | Assoc   | Lowers to                                        |
+| ---- | ----------------- | ------- | ------------------------------------------------ |
+| 1    | `!x` `-x` (unary) | prefix  | `not(x)` · `neg(x)` (stdlib calls)               |
+| 2    | `*` `/` `%`       | left    | `mul` · `div` · `mod` (stdlib calls)             |
+| 3    | `+` `-` `++`      | left    | `add` · `sub` · `strcat` (stdlib calls)          |
+| 4    | `== != < <= > >=` | none    | `eq neq lt lte gt gte` (stdlib calls)            |
+| 5    | `&&`              | flatten | `$and` (short-circuit, variadic)                 |
+| 6    | `\|\|`            | flatten | `$or` (short-circuit, variadic)                  |
 
 ```jfn
 row * 8 + col
@@ -286,20 +286,21 @@ cached || compute(x)
 
 ```json
 { "$call": "add", "$args": [{ "$call": "mul", "$args": [{ "$var": "row" }, 8] }, { "$var": "col" }] }
-{ "$not": { "$var": "done" } }
-{ "$and": [{ "$gt": [{ "$var": "x" }, 0] }, { "$lt": [{ "$var": "x" }, 100] }] }
+{ "$call": "not", "$args": [{ "$var": "done" }] }
+{ "$and": [{ "$call": "gt", "$args": [{ "$var": "x" }, 0] }, { "$call": "lt", "$args": [{ "$var": "x" }, 100] }] }
 { "$or": [{ "$var": "cached" }, { "$call": "compute", "$args": [{ "$var": "x" }] }] }
 ```
 
 Rules and rationale:
 
-- **Arithmetic and `++`** lower to **stdlib `$call` calls**; **comparisons, `&&`,
-  `||`, `!`** lower to **language `$`-forms**.
+- **Arithmetic, `++`, comparisons, and `!`** lower to **stdlib `$call` calls**
+  (`add`, `strcat`, `eq`, `not`, …); only **`&&` and `||`** lower to **language
+  `$`-forms**, because they short-circuit.
 - `&&`/`||` **flatten**: `a && b && c` → one variadic `$and`. They map to the
   short-circuit language forms, **never** the eager stdlib `and`/`or` (call those
   by name: `and(a, b)`).
 - Comparisons are **non-associative** (exactly two operands; no `a < b < c`).
-  `==` is `$eq` (strict); for structural equality call `jsonEq(a, b)`.
+  `==` is `eq` (strict); for structural equality call `jsonEq(a, b)`.
 - Only operators with a single unambiguous meaning and universal precedence are
   elevated. Everything else stays a named call.
 - The call form (`add(a, b)`) remains legal and parses identically, but the
@@ -347,7 +348,7 @@ if x > 0 then "positive" else "non-positive"
 ```
 
 ```json
-{ "$if": { "$gt": [{ "$var": "x" }, 0] }, "$then": "positive", "$else": "non-positive" }
+{ "$if": { "$call": "gt", "$args": [{ "$var": "x" }, 0] }, "$then": "positive", "$else": "non-positive" }
 ```
 
 ### `cond { … }` → `$cond`
@@ -367,8 +368,8 @@ cond {
 ```json
 {
   "$cond": [
-    [{ "$lt": [{ "$var": "n" }, 0] }, "negative"],
-    [{ "$eq": [{ "$var": "n" }, 0] }, "zero"]
+    [{ "$call": "lt", "$args": [{ "$var": "n" }, 0] }, "negative"],
+    [{ "$call": "eq", "$args": [{ "$var": "n" }, 0] }, "zero"]
   ],
   "$else": "positive"
 }
@@ -555,7 +556,7 @@ the parent frame (stdlib + native builtins) and picks an entry point to invoke.
 {
   "otherColor": {
     "$params": ["color"],
-    "$return": { "$if": { "$eq": [{ "$var": "color" }, "w"] }, "$then": "b", "$else": "w" }
+    "$return": { "$if": { "$call": "eq", "$args": [{ "$var": "color" }, "w"] }, "$then": "b", "$else": "w" }
   },
   "pieceType": { "$params": ["piece"], "$return": { "$call": "upper", "$args": [{ "$var": "piece" }] } }
 }

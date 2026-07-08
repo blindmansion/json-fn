@@ -85,7 +85,7 @@ Defines a function. Required key: `$return` (the expression to evaluate when cal
 {
   "$params": ["n"],
   "remainder": { "$call": "mod", "$args": [{ "$var": "n" }, 2] },
-  "$return": { "$eq": [{ "$var": "remainder" }, 0] }
+  "$return": { "$call": "eq", "$args": [{ "$var": "remainder" }, 0] }
 }
 ```
 
@@ -97,7 +97,7 @@ All three keys are required. `$if` is evaluated; if truthy, `$then` is evaluated
 
 ```json
 {
-  "$if": { "$gt": [{ "$var": "x" }, 0] },
+  "$if": { "$call": "gt", "$args": [{ "$var": "x" }, 0] },
   "$then": "positive",
   "$else": "non-positive"
 }
@@ -110,8 +110,8 @@ Array of `[condition, result]` pairs. First truthy condition wins. If no conditi
 ```json
 {
   "$cond": [
-    [{ "$lt": [{ "$var": "n" }, 0] }, "negative"],
-    [{ "$eq": [{ "$var": "n" }, 0] }, "zero"]
+    [{ "$call": "lt", "$args": [{ "$var": "n" }, 0] }, "negative"],
+    [{ "$call": "eq", "$args": [{ "$var": "n" }, 0] }, "zero"]
   ],
   "$else": "positive"
 }
@@ -141,7 +141,7 @@ Array of expressions evaluated left-to-right. Returns the first falsy value, or 
 
 ```json
 {
-  "$and": [{ "$gt": [{ "$var": "x" }, 0] }, { "$lt": [{ "$var": "x" }, 100] }, "in range"]
+  "$and": [{ "$call": "gt", "$args": [{ "$var": "x" }, 0] }, { "$call": "lt", "$args": [{ "$var": "x" }, 100] }, "in range"]
 }
 ```
 
@@ -155,24 +155,15 @@ Array of expressions evaluated left-to-right. Returns the first truthy value, or
 { "$or": [{ "$var": "cached" }, { "$call": "compute", "$args": [{ "$var": "x" }] }] }
 ```
 
-### Comparison Shorthands — `{ $eq }`, `{ $neq }`, `{ $lt }`, `{ $lte }`, `{ $gt }`, `{ $gte }`
-
-Each comparison shorthand takes an array of exactly two expressions, evaluates both, and returns a boolean. They are concise equivalents of the stdlib comparison functions.
+Comparison and negation have **no dedicated expression forms**. Comparisons (`eq`, `neq`, `lt`, `lte`, `gt`, `gte`) and logical negation (`not`) are ordinary [standard-library functions](#comparison) called via `$call`/`$args`:
 
 ```json
-{ "$eq": [{ "$var": "status" }, "playing"] }
-{ "$gte": [{ "$var": "score" }, 10] }
+{ "$call": "eq", "$args": [{ "$var": "status" }, "playing"] }
+{ "$call": "gte", "$args": [{ "$var": "score" }, 10] }
+{ "$call": "not", "$args": [{ "$call": "eq", "$args": [{ "$var": "status" }, "playing"] }] }
 ```
 
-`$eq` and `$neq` use strict equality, not deep structural equality.
-
-### Not Shorthand — `{ $not }`
-
-Evaluates the expression and returns its logical negation using normal json-fn truthiness.
-
-```json
-{ "$not": { "$eq": [{ "$var": "status" }, "playing"] } }
-```
+`eq` and `neq` use strict equality, not deep structural equality; use `jsonEq`/`jsonNeq` for structural comparison.
 
 ### Raw — `{ $raw }`
 
@@ -198,8 +189,8 @@ A `$comment` key with a string value is ignored everywhere it appears as a sibli
   "$params": ["n"],
   "$return": {
     "$cond": [
-      [{ "$lt": [{ "$var": "n" }, 0] }, "negative"],
-      [{ "$eq": [{ "$var": "n" }, 0] }, "zero"],
+      [{ "$call": "lt", "$args": [{ "$var": "n" }, 0] }, "negative"],
+      [{ "$call": "eq", "$args": [{ "$var": "n" }, 0] }, "zero"],
       [true, "positive"]
     ]
   }
@@ -209,7 +200,7 @@ A `$comment` key with a string value is ignored everywhere it appears as a sibli
 Rules:
 
 - The value **must be a string** to be recognized as a comment. Non-string values are treated as normal keys (and will typically cause "expression cannot have other properties" errors in expression forms).
-- Allowed as a sibling key in any expression form (`$call`/`$args`, `$fn`, `$var`, `$if`/`$then`/`$else`, `$cond`, `$and`, `$or`, comparison shorthands, `$not`, `$raw`, `$get`/`$from`, `$return`/`$params`/locals).
+- Allowed as a sibling key in any expression form (`$call`/`$args`, `$fn`, `$var`, `$if`/`$then`/`$else`, `$cond`, `$and`, `$or`, `$raw`, `$get`/`$from`, `$return`/`$params`/locals).
 - In plain data objects, `$comment` is stripped from the output. To preserve a literal `$comment` key in data, wrap with `$raw`.
 - Inside `$raw`, the entire value is returned verbatim — `$comment` is preserved.
 - Closures preserve `$comment` when a function body is returned as a value.
@@ -321,7 +312,7 @@ Capture also keeps an escaping closure **self-contained** when it calls an enclo
   "go": {
     "$params": ["x"],
     "$return": {
-      "$if": { "$lte": [{ "$var": "x" }, 0] },
+      "$if": { "$call": "lte", "$args": [{ "$var": "x" }, 0] },
       "$then": { "$var": "base" },
       "$else": { "$call": "go", "$args": [{ "$call": "sub", "$args": [{ "$var": "x" }, 1] }] }
     }
@@ -338,13 +329,13 @@ Called with `[42]`, returns a body that carries `go` as an attached local so it 
   "go": {
     "$params": ["x"],
     "$return": {
-      "$if": { "$lte": [{ "$var": "x" }, 0] },
+      "$if": { "$call": "lte", "$args": [{ "$var": "x" }, 0] },
       "$then": 42,
       "$else": { "$call": "go", "$args": [{ "$call": "sub", "$args": [{ "$var": "x" }, 1] }] }
     }
   },
   "$return": {
-    "$if": { "$lte": [{ "$var": "x" }, 0] },
+    "$if": { "$call": "lte", "$args": [{ "$var": "x" }, 0] },
     "$then": 42,
     "$else": { "$call": "go", "$args": [{ "$call": "sub", "$args": [{ "$var": "x" }, 1] }] }
   }
@@ -369,7 +360,7 @@ Functions can call themselves by name if registered in the function registry.
 {
   "$params": ["n"],
   "$return": {
-    "$if": { "$lte": [{ "$var": "n" }, 1] },
+    "$if": { "$call": "lte", "$args": [{ "$var": "n" }, 1] },
     "$then": 1,
     "$else": {
       "$call": "mul",
@@ -389,7 +380,7 @@ Local variables whose values are function bodies (have a `$return` key) can be c
   "fact": {
     "$params": ["x"],
     "$return": {
-      "$if": { "$lte": [{ "$var": "x" }, 1] },
+      "$if": { "$call": "lte", "$args": [{ "$var": "x" }, 1] },
       "$then": 1,
       "$else": {
         "$call": "mul",
@@ -805,7 +796,7 @@ Use `entries` -> HOF -> `fromEntries` to transform objects:
     "$args": [
       {
         "$params": ["pair"],
-        "$return": { "$gt": [{ "$get": 1, "$from": { "$var": "pair" } }, 3] }
+        "$return": { "$call": "gt", "$args": [{ "$get": 1, "$from": { "$var": "pair" } }, 3] }
       },
       { "$var": "pairs" }
     ]
@@ -846,8 +837,6 @@ How limits are supplied, the per-language cancellation/timeout APIs, and default
 - `$match` must have `$match`, `$cases`, and `$else`; `$match` and case values must evaluate to scalar JSON values.
 - `$and` must be the sole key; value must be an array of expressions.
 - `$or` must be the sole key; value must be an array of expressions.
-- `$eq`, `$neq`, `$lt`, `$lte`, `$gt`, and `$gte` must be the sole key; value must be an array of exactly two expressions.
-- `$not` must be the sole key.
 - `$raw` must be the sole key.
 - A function call has exactly `$call` (the callee) and `$args` (an array of arguments) and no other keys.
 - A function reference has `$fn` as its sole key; `$fn` is never an array.
