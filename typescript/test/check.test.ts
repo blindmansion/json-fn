@@ -10,6 +10,7 @@ import {
   valueSatisfies,
 } from "../src/check";
 import type { CheckContext, Defs, Schema } from "../src/check";
+import { loadBuiltinTable } from "../src/builtins";
 import type { JSONType } from "../src/types";
 
 // ---------------------------------------------------------------------------
@@ -598,5 +599,118 @@ describe("synth: control-flow unions", () => {
     };
     const t = synth({ $if: true, $then: 1, $else: "x" }, ctx);
     expect(t).toEqual({ anyOf: [{ const: 1 }, { const: "x" }] });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Section F — builtin signatures (the spec/builtins.json dialect, end to end)
+// ---------------------------------------------------------------------------
+
+describe("Section F — builtin signatures", () => {
+  const BT = loadBuiltinTable();
+  const call = (name: JSONType, ...args: JSONType[]): JSONType => ({ $call: name, $args: args });
+  const arrOfInt: Schema = { type: "array", items: { type: "integer" } };
+  const synthB = (expr: JSONType) => checkExpr(expr, {}, BT);
+
+  test("builtins are opt-in: no table means degrade to any", () => {
+    expect(checkExpr(call("add", 1, 2)).type).toBe(true);
+  });
+
+  test("overloads: add preserves integer, widens to number", () => {
+    expect(synthB(call("add", 1, 2)).type).toEqual({ type: "integer" });
+    expect(synthB(call("add", 1.5, 2)).type).toEqual({ type: "number" });
+  });
+
+  test("overloads: length accepts arrays and strings", () => {
+    expect(synthB(call("length", [1, 2, 3])).type).toEqual({ type: "integer" });
+    expect(synthB(call("length", "hello")).type).toEqual({ type: "integer" });
+  });
+
+  test("a no-overload-fits call reports a diagnostic", () => {
+    // gt : (number, number) -> boolean; strings fit neither overload.
+    expect(synthB(call("gt", "a", "b")).diagnostics.length).toBeGreaterThan(0);
+  });
+
+  test("type variables: head returns T | null", () => {
+    const { type } = synthB(call("head", [1, 2, 3]));
+    expect(isSubschema(type, { type: ["integer", "null"] })).toBe(true);
+  });
+
+  test("type variables: concat and setAt preserve the element type", () => {
+    expect(isSubschema(synthB(call("concat", [1, 2], [3, 4])).type, arrOfInt)).toBe(true);
+    expect(isSubschema(synthB(call("setAt", [1, 2, 3], 0, 9)).type, arrOfInt)).toBe(true);
+  });
+
+  test("named $defs type + union return: reMatch", () => {
+    expect(synthB(call("reMatch", "a", "b")).type).toEqual({
+      anyOf: [{ $ref: "#/$defs/Match" }, { type: "null" }],
+    });
+  });
+
+  test("escape hatch: a rule builtin yields any", () => {
+    expect(synthB(call("pipe", [], 1)).type).toBe(true);
+  });
+
+  describe("contextual lambda typing", () => {
+    test("map infers T from the array and U from the callback return", () => {
+      const identity = { $params: ["n"], $return: { $var: "n" } };
+      const r = synthB(call("map", identity, [1, 2, 3]));
+      expect(r.diagnostics).toEqual([]);
+      expect(isSubschema(r.type, arrOfInt)).toBe(true);
+    });
+
+    test("map callback bodies resolve nested builtins under the pushed param type", () => {
+      const addOne = { $params: ["n"], $return: call("add", { $var: "n" }, 1) };
+      const r = synthB(call("map", addOne, [1, 2, 3]));
+      expect(r.diagnostics).toEqual([]);
+      expect(isSubschema(r.type, arrOfInt)).toBe(true);
+    });
+
+    test("filter accepts a boolean-returning callback", () => {
+      const gtOne = { $params: ["n"], $return: call("gt", { $var: "n" }, 1) };
+      const r = synthB(call("filter", gtOne, [1, 2, 3]));
+      expect(r.diagnostics).toEqual([]);
+      expect(isSubschema(r.type, arrOfInt)).toBe(true);
+    });
+
+    test("filter reports a non-boolean callback return", () => {
+      const bad = { $params: ["n"], $return: { $var: "n" } };
+      const r = synthB(call("filter", bad, [1, 2, 3]));
+      expect(r.diagnostics.length).toBeGreaterThan(0);
+      expect(r.diagnostics.some((d) => d.path.join(".") === "$args[0].$return")).toBe(true);
+    });
+  });
+
+  describe("through the module checker", () => {
+    test("map/add flow an integer[] cleanly to a declared integer[] return", () => {
+      const mod = {
+        doubleAll: body(
+          ["xs"],
+          { params: [arrOfInt], returns: arrOfInt },
+          call(
+            "map",
+            { $params: ["n"], $return: call("add", { $var: "n" }, { $var: "n" }) },
+            {
+              $var: "xs",
+            },
+          ),
+        ),
+      };
+      expect(checkModule(mod, BT)).toEqual([]);
+    });
+
+    test("a builtin result that mismatches the declared return is reported", () => {
+      const strArr: Schema = { type: "array", items: S };
+      const mod = {
+        wrong: body(
+          ["xs"],
+          { params: [arrOfInt], returns: strArr },
+          call("map", { $params: ["n"], $return: { $var: "n" } }, { $var: "xs" }),
+        ),
+      };
+      const diags = checkModule(mod, BT);
+      expect(diags.length).toBeGreaterThan(0);
+      expect(diags[0]!.path).toEqual(["wrong", "$return"]);
+    });
   });
 });

@@ -1,0 +1,148 @@
+# Builtin type signatures
+
+Status: **draft / first pass.** Currently only the TypeScript checker consumes
+this; the format is being validated on a small representative set before it is
+filled out for every builtin.
+
+## Why this exists
+
+The builtin registry (`stdlib.ts` and its ports) is reimplemented in every
+language. Their *types* are needed by every static checker (see
+`plans/type-sketch.md` §5.3). Writing those types four times guarantees drift.
+
+So the canonical builtin signatures live in **one** language-agnostic file,
+`spec/builtins.json`, exactly like the conformance cases in `spec/cases/`. Each
+implementation reads (or, later, bundles / codegens) that file and feeds it to
+its checker's builtin layer.
+
+The goal is only to **shrink the shared surface area**. Where a signature is
+impossible or unwise to express in the agnostic dialect, the table punts to a
+per-implementation escape hatch (see [Escape hatch](#escape-hatch)) rather than
+contorting the format.
+
+## Why not just one schema per builtin
+
+Monomorphic signatures would launder everything to `any`: `setAt(board, i, p)`
+typed as `(any[], integer, any) -> any[]` silently disables checking for the
+whole downstream dataflow. The load-bearing builtins (`map`, `filter`, `setAt`,
+`concat`, …) are exactly the polymorphic ones. So the table speaks a small
+dialect **on top of** the user-facing schema fragment (`docs/language.md` /
+`plans/type-sketch.md` §2). These extensions are **builtin-only** — they never
+appear in user-written types or in the schemas the checker infers; the checker
+*instantiates* them away at each call site.
+
+## File shape
+
+```json
+{
+  "$defs": { "Match": { "...": "shared builtin-owned named types" } },
+  "builtins": {
+    "add": [ /* overload signatures */ ],
+    "pipe": { "rule": "pipe" }
+  }
+}
+```
+
+- **`$defs`** — named types owned by builtins (e.g. the regex `Match` record),
+  referenced with ordinary `{"$ref": "#/$defs/Name"}`. Merged into the module's
+  `$types` pool by the checker (module types win on a name clash).
+- **`builtins`** — a map from builtin name to either an **overload set** (an
+  array of signatures) or a **rule escape hatch** (`{"rule": "..."}`).
+
+## Signatures
+
+A signature reuses the `$fnType` inner shape plus an optional `typeParams`:
+
+```json
+{ "typeParams": ["T", "U"], "params": [ /* Schema */ ], "rest": { }, "returns": { } }
+```
+
+- `params` — one schema per fixed parameter.
+- `rest` — optional; the element schema of a variadic tail (as in `$fnType`).
+- `returns` — the result schema.
+- `typeParams` — the type variables this signature binds (see below).
+
+### Overload sets
+
+Each builtin maps to an **array** of signatures, tried in order; the first whose
+concrete (non-lambda) arguments fit is chosen. Overloads express both ad-hoc
+polymorphism and type-directed refinement:
+
+```json
+"add": [
+  { "params": [{ "type": "integer" }, { "type": "integer" }], "returns": { "type": "integer" } },
+  { "params": [{ "type": "number" },  { "type": "number" }],  "returns": { "type": "number" } }
+],
+"length": [
+  { "params": [{ "type": "array" }],  "returns": { "type": "integer" } },
+  { "params": [{ "type": "string" }], "returns": { "type": "integer" } }
+]
+```
+
+`add` preserves `integer` when both arguments are integers and widens to
+`number` otherwise; `length` accepts arrays or strings. No special-case code —
+just ordered overloads.
+
+### Type variables
+
+A type variable is the node `{"$tvar": "T"}` (distinct from `$ref`, which points
+into `$defs`). Variables named in `typeParams` are bound per call site by
+matching the template against the concrete argument schemas, then substituted
+into `returns`:
+
+```json
+"map": [{
+  "typeParams": ["T", "U"],
+  "params": [
+    { "$fnType": { "params": [{ "$tvar": "T" }, { "type": "integer" }], "returns": { "$tvar": "U" } } },
+    { "type": "array", "items": { "$tvar": "T" } }
+  ],
+  "returns": { "type": "array", "items": { "$tvar": "U" } }
+}]
+```
+
+`T` is inferred from the array argument; the instantiated parameter type
+`(T, integer) -> U` is then pushed into the inline callback (contextual typing,
+§4.3), and `U` is inferred from the callback's synthesized return.
+
+### Variadic `rest`
+
+```json
+"concat": [{
+  "typeParams": ["T"],
+  "params": [],
+  "rest": { "type": "array", "items": { "$tvar": "T" } },
+  "returns": { "type": "array", "items": { "$tvar": "T" } }
+}]
+```
+
+## Escape hatch
+
+Some builtins can't be captured by a data template (`pipe`, `apply`, the
+effects/`Task` constructors — arity threading, heterogeneous returns, etc.).
+They are listed with a named rule so the *set* of builtins stays canonical and
+cross-language even though the *resolution* is code:
+
+```json
+"pipe": { "rule": "pipe" }
+```
+
+Each implementation decides how to handle a given rule name. Until one does, the
+call yields `any` (its arguments are still walked for nested errors). This is the
+deliberate release valve: prefer an escape hatch over distorting the shared
+format.
+
+## What each implementation must provide
+
+The JSON is pure data. Reading it back into working checks needs a small,
+per-implementation **instantiation engine** (the algorithm, not the data):
+
+1. Pick the first overload whose concrete arguments fit.
+2. Infer type variables from those argument schemas.
+3. Instantiate the parameter types and push function-typed parameters into
+   inline-lambda arguments; infer any output variables from their returns.
+4. Instantiate and return the result schema.
+
+In TypeScript this lives in section F of `typescript/src/check.ts`, loaded via
+`typescript/src/builtins.ts`. Other implementations may bundle or codegen the
+table; that choice is left to each.

@@ -1,0 +1,108 @@
+{
+  "description": "Canonical type signatures for json-fn builtins. Shared across implementations to reduce drift. See docs/builtin-signatures.md for the dialect.",
+  "$defs": {
+    "Match": {
+      "type": "object",
+      "properties": {
+        "match": { "type": "string" },
+        "index": { "type": "integer" },
+        "groups": { "type": "array", "items": { "type": ["string", "null"] } },
+        "named": { "type": "object", "additionalProperties": { "type": ["string", "null"] } }
+      },
+      "required": ["match", "index", "groups", "named"],
+      "additionalProperties": false
+    }
+  },
+  "builtins": {
+    "div": [
+      {
+        "params": [{ "type": "number" }, { "type": "number" }],
+        "returns": { "type": "number" }
+      }
+    ],
+    "add": [
+      {
+        "params": [{ "type": "integer" }, { "type": "integer" }],
+        "returns": { "type": "integer" }
+      },
+      {
+        "params": [{ "type": "number" }, { "type": "number" }],
+        "returns": { "type": "number" }
+      }
+    ],
+    "gt": [
+      {
+        "params": [{ "type": "number" }, { "type": "number" }],
+        "returns": { "type": "boolean" }
+      }
+    ],
+    "not": [{ "params": [{ "type": "boolean" }], "returns": { "type": "boolean" } }],
+    "length": [
+      { "params": [{ "type": "array" }], "returns": { "type": "integer" } },
+      { "params": [{ "type": "string" }], "returns": { "type": "integer" } }
+    ],
+    "head": [
+      {
+        "typeParams": ["T"],
+        "params": [{ "type": "array", "items": { "$tvar": "T" } }],
+        "returns": { "anyOf": [{ "$tvar": "T" }, { "type": "null" }] }
+      }
+    ],
+    "concat": [
+      {
+        "typeParams": ["T"],
+        "params": [],
+        "rest": { "type": "array", "items": { "$tvar": "T" } },
+        "returns": { "type": "array", "items": { "$tvar": "T" } }
+      }
+    ],
+    "setAt": [
+      {
+        "typeParams": ["T"],
+        "params": [
+          { "type": "array", "items": { "$tvar": "T" } },
+          { "type": "integer" },
+          { "$tvar": "T" }
+        ],
+        "returns": { "type": "array", "items": { "$tvar": "T" } }
+      }
+    ],
+    "map": [
+      {
+        "typeParams": ["T", "U"],
+        "params": [
+          {
+            "$fnType": {
+              "params": [{ "$tvar": "T" }, { "type": "integer" }],
+              "returns": { "$tvar": "U" }
+            }
+          },
+          { "type": "array", "items": { "$tvar": "T" } }
+        ],
+        "returns": { "type": "array", "items": { "$tvar": "U" } }
+      }
+    ],
+    "filter": [
+      {
+        "typeParams": ["T"],
+        "params": [
+          {
+            "$fnType": {
+              "params": [{ "$tvar": "T" }, { "type": "integer" }],
+              "returns": { "type": "boolean" }
+            }
+          },
+          { "type": "array", "items": { "$tvar": "T" } }
+        ],
+        "returns": { "type": "array", "items": { "$tvar": "T" } }
+      }
+    ],
+    "reMatch": [
+      {
+        "params": [{ "type": "string" }, { "type": "string" }],
+        "returns": { "anyOf": [{ "$ref": "#/$defs/Match" }, { "type": "null" }] }
+      }
+    ],
+    "pipe": { "rule": "pipe" }
+  }
+}

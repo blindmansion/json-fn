@@ -13,10 +13,16 @@
 //   D. Type environment / scope       — `buildTypeScope` (eager params +
 //                                        sibling sigs, lazy cycle-guarded locals)
 //   E. Term checking (synth-first)     — `synth` / `check` / `nodeKind`
+//   F. Builtin signature rules (§5.3)  — the polymorphic layer, driven by the
+//                                        language-agnostic `spec/builtins.json`
+//                                        table (`$tvar`/overloads/rest/rule)
 //   G. Module wiring (minimal)         — `checkModule`, `checkFunction`, `checkExpr`
 //
-// Not yet wired: the polymorphic builtin layer (§5.3) and contextual typing of
-// un-annotated inline lambdas (§4.3) — both degrade to `any` for now.
+// The builtin layer is opt-in: without a table in the `CheckContext`, builtin
+// calls degrade to `any` (the pre-Section-F behavior). Contextual typing of
+// un-annotated inline lambdas (§4.3) is currently driven *through* the builtin
+// layer (a `map` callback is typed from `map`'s signature); free-standing
+// lambdas outside a builtin call still degrade to `any`.
 
 import type { JSONType } from "./types";
 
@@ -630,6 +636,9 @@ type CheckContext = {
   diagnostics: Diagnostic[];
   // Current location, for messages.
   path: string[];
+  // The polymorphic builtin layer (§5.3), loaded from `spec/builtins.json`.
+  // Absent → builtins degrade to `any` (the pre-Section-F behavior).
+  builtins?: Record<string, BuiltinEntry>;
 };
 
 // A function signature — the shape shared by a body's `$sig` and the inner of
@@ -983,6 +992,13 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
     case "call": {
       const call = expr as { $call: JSONType; $args: JSONType[] };
       const args = Array.isArray(call.$args) ? call.$args : [];
+      // A bare builtin name that no local/module binding shadows dispatches to
+      // the polymorphic builtin layer (§5.3); user bindings still win.
+      if (typeof call.$call === "string" && ctx.builtins && call.$call in ctx.builtins) {
+        if (ctx.env.lookupType(call.$call) === undefined) {
+          return synthBuiltinCall(ctx.builtins[call.$call]!, args, ctx);
+        }
+      }
       const sig = resolveCalleeSig(call.$call, ctx);
       if (sig === null) {
         // Unknown callee: still walk args to surface nested errors.
@@ -1072,6 +1088,228 @@ function describe(schema: Schema): string {
 }
 
 // ---------------------------------------------------------------------------
+// Section F — Builtin signature rules (mirrors stdlib.ts, §5.3)
+// ---------------------------------------------------------------------------
+//
+// The polymorphic layer. Builtin signatures live in a language-agnostic table
+// (`spec/builtins.json`, see docs/builtin-signatures.md) so all implementations
+// share one source of truth and don't drift. That table speaks a small
+// *builtin-only* dialect on top of the user-facing schema fragment:
+//
+//   * type variables — `{ "$tvar": "T" }` — instantiated per call site;
+//   * overload sets — a builtin maps to an *array* of signatures, tried in
+//     order (covers `add`'s integer-preservation and array/string overloads);
+//   * variadic `rest` — reused from the `$fnType` shape;
+//   * an escape hatch — `{ "rule": "name" }` — for builtins no data template
+//     can capture (`pipe`, `apply`, effects), which each impl handles itself.
+//
+// The table is pure data; the code below is the (per-impl) engine that reads
+// it: choose an overload, infer type variables from the concrete argument
+// schemas, push the instantiated parameter types into inline-lambda arguments
+// (contextual typing, §4.3), and instantiate the return.
+
+type TVarNode = { $tvar: string };
+type BuiltinSig = { typeParams?: string[]; params: Schema[]; rest?: Schema; returns: Schema };
+type BuiltinEntry = BuiltinSig[] | { rule: string };
+type BuiltinTable = { $defs?: Defs; builtins: Record<string, BuiltinEntry> };
+
+// A per-call-site type-variable environment (T, U, … → their inferred schema).
+type Bindings = Record<string, Schema>;
+
+function isTVar(s: Schema): s is TVarNode {
+  return isSchemaObject(s) && "$tvar" in s;
+}
+
+function isUnboundTVar(s: Schema, bindings: Bindings): boolean {
+  return isTVar(s) && !(s.$tvar in bindings);
+}
+
+// Substitute bound type variables throughout a signature template. An unbound
+// variable collapses to `any` — a template hole no argument pinned down.
+function instantiate(schema: Schema, bindings: Bindings): Schema {
+  if (isTVar(schema)) {
+    const bound = bindings[schema.$tvar];
+    return bound === undefined ? true : bound;
+  }
+  if (Array.isArray(schema)) return schema.map((x) => instantiate(x, bindings));
+  if (isSchemaObject(schema)) {
+    const out: Record<string, JSONType> = {};
+    for (const [k, v] of Object.entries(schema)) out[k] = instantiate(v as Schema, bindings);
+    return out;
+  }
+  return schema;
+}
+
+// The element schema of a concrete array/tuple, for matching an `array items T`
+// template against an argument. Null when the value isn't array-shaped.
+function elementSchemaOf(concrete: Schema, ctx: CheckContext): Schema | null {
+  let t = concrete;
+  while (classifySchema(t) === SchemaKind.Ref) t = resolveRef(t, ctx.defs);
+  const k = classifySchema(t);
+  if (k === SchemaKind.Array) return itemsSchema(asObject(t));
+  if (k === SchemaKind.Tuple) {
+    const o = asObject(t);
+    const rest = tupleRest(o);
+    return unionOf(rest === null ? prefixItems(o) : [...prefixItems(o), rest]);
+  }
+  return null;
+}
+
+// Match a signature template against a concrete argument schema: bind type
+// variables where the template has them, and verify compatibility where it
+// doesn't. Returns false only on a definite concrete mismatch, which lets
+// overload selection reject an arm.
+function unifyTemplate(
+  template: Schema,
+  concrete: Schema,
+  bindings: Bindings,
+  ctx: CheckContext,
+): boolean {
+  if (isTVar(template)) {
+    const name = template.$tvar;
+    bindings[name] = name in bindings ? unionOf([bindings[name]!, concrete]) : concrete;
+    return true;
+  }
+
+  const tk = classifySchema(template);
+
+  if (tk === SchemaKind.Array) {
+    const elem = elementSchemaOf(concrete, ctx);
+    if (elem === null) return concrete === true; // only `any` fits a non-array
+    return unifyTemplate(itemsSchema(asObject(template)), elem, bindings, ctx);
+  }
+
+  if (tk === SchemaKind.FnType) {
+    if (classifySchema(concrete) !== SchemaKind.FnType) return concrete === true;
+    const a = fnShape(asObject(template));
+    const b = fnShape(asObject(concrete));
+    if (a.params.length !== b.params.length) return false;
+    for (let i = 0; i < a.params.length; i++) {
+      if (!unifyTemplate(a.params[i]!, b.params[i]!, bindings, ctx)) return false;
+    }
+    return unifyTemplate(a.returns, b.returns, bindings, ctx);
+  }
+
+  // No type variables to bind here — a plain compatibility check.
+  return isSubschema(concrete, instantiate(template, bindings), ctx.defs);
+}
+
+// Type an inline-lambda argument under the (instantiated) parameter types the
+// builtin demands, returning its synthesized body type. Reuses the term-scope
+// machinery by stamping a synthetic `$sig` onto the lambda body.
+function inferLambdaReturn(body: JSONType, expectedFn: Schema, ctx: CheckContext): Schema {
+  const shape = fnShape(asObject(expectedFn));
+  const withSig: Record<string, JSONType> = {
+    ...(body as Record<string, JSONType>),
+    $sig: {
+      params: shape.params,
+      ...(shape.rest !== undefined ? { rest: shape.rest } : {}),
+      returns: shape.returns,
+    },
+  };
+  const env = buildTypeScope(withSig, ctx.env, ctx);
+  const bctx: CheckContext = { ...ctx, env, path: [...ctx.path, "$return"] };
+  return synth((body as Record<string, JSONType>).$return!, bctx);
+}
+
+// Trial: can this overload accept the arguments? Binds type variables from the
+// concrete (non-lambda) args; lambdas are deferred to `applyOverload`. Returns
+// the bindings on success, null on a concrete mismatch or arity failure. Runs
+// silently — diagnostics are emitted only for the chosen overload.
+function tryBindOverload(
+  sig: BuiltinSig,
+  argExprs: JSONType[],
+  ctx: CheckContext,
+): Bindings | null {
+  if (sig.rest === undefined) {
+    if (argExprs.length !== sig.params.length) return null;
+  } else if (argExprs.length < sig.params.length) {
+    return null;
+  }
+  const bindings: Bindings = {};
+  const silent: CheckContext = { ...ctx, diagnostics: [] };
+  for (let i = 0; i < argExprs.length; i++) {
+    const param = paramAt(sig, i);
+    if (param === null) return null;
+    if (isBody(argExprs[i]!)) continue; // lambda: defer
+    const argSchema = synth(argExprs[i]!, silent);
+    if (!unifyTemplate(param, argSchema, bindings, ctx)) return null;
+  }
+  return bindings;
+}
+
+// Real pass over a chosen overload: emit diagnostics, type inline lambdas with
+// the inferred type variables, and return the instantiated result schema.
+function applyOverload(sig: BuiltinSig, argExprs: JSONType[], ctx: CheckContext): Schema {
+  checkArity(sig, argExprs.length, ctx);
+  const bindings: Bindings = {};
+  const lambdas: number[] = [];
+
+  // Pass 1 — concrete args bind the input type variables.
+  for (let i = 0; i < argExprs.length; i++) {
+    const param = paramAt(sig, i);
+    const actx = at(ctx, `$args[${i}]`);
+    if (param === null) {
+      synth(argExprs[i]!, actx); // surplus arg (no param): still walk for errors
+      continue;
+    }
+    if (isBody(argExprs[i]!)) {
+      lambdas.push(i);
+      continue;
+    }
+    const argSchema = synth(argExprs[i]!, actx);
+    unifyTemplate(param, argSchema, bindings, ctx);
+    const inst = instantiate(param, bindings);
+    if (!isSubschema(argSchema, inst, ctx.defs)) {
+      report(actx, `${describe(argSchema)} is not assignable to ${describe(inst)}.`, {
+        expected: inst,
+        actual: argSchema,
+      });
+    }
+  }
+
+  // Pass 2 — lambdas, now that input variables are known. Their returns bind
+  // the output variables (or are checked against a concrete return template).
+  for (const i of lambdas) {
+    const shape = fnShape(asObject(paramAt(sig, i)!));
+    const expectedFn: Schema = {
+      $fnType: {
+        params: shape.params.map((p) => instantiate(p, bindings)),
+        ...(shape.rest !== undefined ? { rest: instantiate(shape.rest, bindings) } : {}),
+        returns: true,
+      },
+    };
+    const actx = at(ctx, `$args[${i}]`);
+    const ret = inferLambdaReturn(argExprs[i]!, expectedFn, actx);
+    if (isUnboundTVar(shape.returns, bindings)) {
+      unifyTemplate(shape.returns, ret, bindings, ctx);
+    } else {
+      const inst = instantiate(shape.returns, bindings);
+      if (!isSubschema(ret, inst, ctx.defs)) {
+        report(at(actx, "$return"), `${describe(ret)} is not assignable to ${describe(inst)}.`, {
+          expected: inst,
+          actual: ret,
+        });
+      }
+    }
+  }
+
+  return instantiate(sig.returns, bindings);
+}
+
+// Dispatch a builtin call by its table entry.
+function synthBuiltinCall(entry: BuiltinEntry, argExprs: JSONType[], ctx: CheckContext): Schema {
+  if (!Array.isArray(entry)) {
+    // `{ rule: ... }` escape hatch: no agnostic template. Walk args for nested
+    // errors and yield `any` (a per-impl code rule may refine this later).
+    argExprs.forEach((a, i) => synth(a, at(ctx, `$args[${i}]`)));
+    return true;
+  }
+  const chosen = entry.find((ov) => tryBindOverload(ov, argExprs, ctx) !== null) ?? entry[0]!;
+  return applyOverload(chosen, argExprs, ctx);
+}
+
+// ---------------------------------------------------------------------------
 // Section G (minimal) — Signature & module wiring (mirrors callFunction /
 // callProgram). Full diagnostics formatting is a later milestone.
 // ---------------------------------------------------------------------------
@@ -1093,9 +1331,18 @@ function checkFunction(body: Record<string, JSONType>, ctx: CheckContext): void 
 // Public entry, mirroring `callProgram`: lift `$types` into the defs pool, wire
 // the module scope (function `$fnType`s eager, constants lazy), then check each
 // function body. Returns all accumulated diagnostics.
-function checkModule(module: Record<string, JSONType>): Diagnostic[] {
-  const defs: Defs = isSchemaObject(module.$types) ? (module.$types as Defs) : {};
-  const ctx: CheckContext = { defs, env: EMPTY_ENV, diagnostics: [], path: [] };
+function checkModule(module: Record<string, JSONType>, builtins?: BuiltinTable): Diagnostic[] {
+  const moduleDefs: Defs = isSchemaObject(module.$types) ? (module.$types as Defs) : {};
+  // Builtin-owned named types (`Match`, …) merge into the pool; module types
+  // win on a name clash.
+  const defs: Defs = { ...builtins?.$defs, ...moduleDefs };
+  const ctx: CheckContext = {
+    defs,
+    env: EMPTY_ENV,
+    diagnostics: [],
+    path: [],
+    builtins: builtins?.builtins,
+  };
   const env = buildTypeScope(withoutTypes(module), null, ctx);
   ctx.env = env;
 
@@ -1123,8 +1370,19 @@ function withoutTypes(module: Record<string, JSONType>): Record<string, JSONType
 
 // Synthesize the type of a standalone expression (for the CLI/REPL). Returns
 // the inferred schema and any diagnostics gathered.
-function checkExpr(expr: JSONType, defs: Defs = {}): { type: Schema; diagnostics: Diagnostic[] } {
-  const ctx: CheckContext = { defs, env: EMPTY_ENV, diagnostics: [], path: [] };
+function checkExpr(
+  expr: JSONType,
+  defs: Defs = {},
+  builtins?: BuiltinTable,
+): { type: Schema; diagnostics: Diagnostic[] } {
+  const merged: Defs = { ...builtins?.$defs, ...defs };
+  const ctx: CheckContext = {
+    defs: merged,
+    env: EMPTY_ENV,
+    diagnostics: [],
+    path: [],
+    builtins: builtins?.builtins,
+  };
   return { type: synth(expr, ctx), diagnostics: ctx.diagnostics };
 }
 
@@ -1142,3 +1400,4 @@ export {
   nodeKind,
 };
 export type { Schema, Defs, Diagnostic, TypeEnv, CheckContext, Sig };
+export type { BuiltinTable, BuiltinEntry, BuiltinSig };
