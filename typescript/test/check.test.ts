@@ -509,6 +509,7 @@ describe("checkModule: diagnostics", () => {
     };
     const diags = checkModule(mod);
     expect(diags.length).toBe(1);
+    expect(diags[0]!.severity).toBe("error");
     expect(diags[0]!.path).toEqual(["bad", "$return"]);
     expect(diags[0]!.expected).toEqual(S);
     expect(diags[0]!.actual).toEqual(I);
@@ -833,16 +834,15 @@ describe("chess fragments — Tier 1: coordinate layer", () => {
 //
 // The chess piece layer works over `Cell = Piece | null`. The idiom is
 // guard-then-use: `if isNull(piece) then ... else <use piece as a string>`.
-// The `else` branch is only reached when `piece` is non-null, but the v1
-// checker performs *no flow narrowing* (§5.5, option 1) — so `piece` keeps its
-// declared `Cell` type inside the branch and a `string`-expecting builtin sees
-// `Piece | null`.
+// The `else` branch is only reached when `piece` is non-null, but the checker
+// performs *no flow narrowing* yet — so `piece` keeps its declared `Cell` type
+// inside the branch and a `string`-expecting builtin sees `Piece | null`.
 //
-// These tests pin that behavior: they assert the diagnostics the current
-// checker *does* produce, marking exactly where narrowing (or its v1 stand-in,
-// downgrading such mismatches to runtime-checked warnings) would change things.
-// They are the concrete artifact of "exercise the checker on chess" — the wall
-// is real, reproduced, and localized.
+// Milestone 0 (§5.5 option 1) is now in place: because `Cell` *overlaps*
+// `string` (the `Piece` arm fits), such a mismatch is not a hard error — it is
+// a runtime-checkable **warning**, the stand-in until real narrowing lands. A
+// genuinely disjoint mismatch (no arm fits) stays an error. These tests pin
+// that severity split, localized to exactly where narrowing is still owed.
 // ---------------------------------------------------------------------------
 
 describe("chess fragments — Tier 2: nullability & narrowing", () => {
@@ -876,7 +876,7 @@ describe("chess fragments — Tier 2: nullability & narrowing", () => {
     expect(checkModule(mod, BT)).toEqual([]);
   });
 
-  test("pieceColor: upper(piece) on a Cell is flagged for want of narrowing (§5.5)", () => {
+  test("pieceColor: upper(piece) on a Cell is a narrowing warning, not an error (§5.5)", () => {
     // (piece: Cell) => if isNull(piece) then null
     //                  else if piece == upper(piece) then "w" else "b"
     const mod = {
@@ -897,8 +897,10 @@ describe("chess fragments — Tier 2: nullability & narrowing", () => {
     };
     const diags = checkModule(mod, BT);
     // Exactly one strain: `upper` wants a string, but `Cell` (= Piece | null) is
-    // not narrowed to `Piece` in the else-branch. Everything else type-checks.
+    // not narrowed to `Piece` in the else-branch. Because `Piece ⊆ string`, this
+    // is a runtime-checkable warning rather than a hard error (§5.5 M0).
     expect(diags.length).toBe(1);
+    expect(diags[0]!.severity).toBe("warning");
     expect(eqJson(diags[0]!.expected, { type: "string" })).toBe(true);
     expect(eqJson(diags[0]!.actual, Cell)).toBe(true);
   });
@@ -908,7 +910,9 @@ describe("chess fragments — Tier 2: nullability & narrowing", () => {
     // The argument `lower(type)` type-checks (PieceType ⊆ string), but `lower`'s
     // result schema is the generic `string`, so the `if` union
     // `PieceType | string` no longer fits the declared `Piece` return. This is a
-    // *builtin result precision* limit, distinct from the narrowing wall above.
+    // *builtin result precision* limit, distinct from the narrowing wall above —
+    // but it too overlaps `Piece` (the `PieceType` arm fits), so M0 downgrades it
+    // to a warning rather than a hard error.
     const mod = {
       $types: types,
       makePiece: body(
@@ -923,7 +927,22 @@ describe("chess fragments — Tier 2: nullability & narrowing", () => {
     };
     const diags = checkModule(mod, BT);
     expect(diags.length).toBe(1);
+    expect(diags[0]!.severity).toBe("warning");
     expect(diags[0]!.path).toEqual(["makePiece", "$return"]);
     expect(eqJson(diags[0]!.expected, Piece)).toBe(true);
+  });
+
+  test("a disjoint mismatch stays a hard error (the predicate discriminates)", () => {
+    // Return an `integer` (length's result) where a `Color` enum is declared. No
+    // arm of `integer` fits `Color`, so the types are disjoint and this is a
+    // genuine error, not a runtime-checkable warning.
+    const mod = {
+      $types: types,
+      bad: body(["color"], { params: [Color], returns: Color }, c("length", "abc")),
+    };
+    const diags = checkModule(mod, BT);
+    expect(diags.length).toBe(1);
+    expect(diags[0]!.severity).toBe("error");
+    expect(diags[0]!.path).toEqual(["bad", "$return"]);
   });
 });

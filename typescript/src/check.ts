@@ -620,8 +620,22 @@ function objectValueMatches(value: JSONType, o: Record<string, JSONType>, defs: 
 // rather than failing fast, and it is structured for bidirectional checking
 // (a `synth` mode and a `check`-against-expected mode).
 
-// A single type error, with a JSON-ish path to its location (§6).
-type Diagnostic = { path: string[]; message: string; expected?: Schema; actual?: Schema };
+// The tier of a diagnostic. A `warning` marks a mismatch the checker cannot
+// *prove* wrong statically but that is checkable at runtime — the §5.5 stand-in
+// for flow narrowing: a value like `Piece | null` used where `string` is wanted
+// is a hard error only if the two are disjoint; if they overlap, a guard could
+// make it pass, so we downgrade to a runtime-checked warning (§6) instead of a
+// false positive.
+type Severity = "error" | "warning";
+
+// A single type diagnostic, with a JSON-ish path to its location (§6).
+type Diagnostic = {
+  path: string[];
+  message: string;
+  severity: Severity;
+  expected?: Schema;
+  actual?: Schema;
+};
 
 // The term scope Γ: term name → type. A flat lookup with a parent chain,
 // mirroring the evaluator's `getVar`.
@@ -680,9 +694,11 @@ function bindingKeys(body: Record<string, JSONType>): string[] {
   });
 }
 
-// Diagnostics helper: push a mismatch, extending the current path.
+// Diagnostics helper: push a diagnostic at the current path. Severity defaults
+// to `error`; callers pass `severity: "warning"` (via `extra`) for the §5.5
+// runtime-checkable downgrade.
 function report(ctx: CheckContext, message: string, extra?: Partial<Diagnostic>): void {
-  ctx.diagnostics.push({ path: [...ctx.path], message, ...extra });
+  ctx.diagnostics.push({ path: [...ctx.path], message, severity: "error", ...extra });
 }
 
 // A child context at a nested path segment (used when descending into args,
@@ -1067,6 +1083,37 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
   }
 }
 
+// Break a schema into the arms a guard could narrow it down to: union arms
+// (recursively, resolving `$ref`s), else the schema itself. Enums/consts stay
+// whole — every literal already fits or fails a `sup` together.
+function decomposeArms(s: Schema, defs: Defs): Schema[] {
+  let t = s;
+  while (classifySchema(t) === SchemaKind.Ref) t = resolveRef(t, defs);
+  const arms = unionArms(t);
+  if (arms) return arms.flatMap((a) => decomposeArms(a, defs));
+  return [t];
+}
+
+// Is a failed `actual ⊆ expected` check *narrowable* rather than a hard error?
+// True when the two types overlap — some arm of `actual` already fits
+// `expected` — so a guard (or an explicit assertion) could make the value pass.
+// Such mismatches are the §5.5 wall: without flow narrowing we can't prove them
+// safe statically, so we downgrade them to runtime-checked warnings (§6) rather
+// than emit a false positive. Disjoint mismatches (no arm fits) stay errors.
+function narrowableMismatch(actual: Schema, expected: Schema, defs: Defs): boolean {
+  return decomposeArms(actual, defs).some((arm) => isSubschema(arm, expected, defs));
+}
+
+// Report an `actual ⊄ expected` mismatch, choosing the severity per §5.5.
+function reportMismatch(ctx: CheckContext, actual: Schema, expected: Schema): void {
+  const severity: Severity = narrowableMismatch(actual, expected, ctx.defs) ? "warning" : "error";
+  report(ctx, `${describe(actual)} is not assignable to ${describe(expected)}.`, {
+    expected,
+    actual,
+    severity,
+  });
+}
+
 // Verify an expression against an expected schema, reporting on mismatch.
 function check(expr: JSONType, expected: Schema, ctx: CheckContext): void {
   // Un-annotated inline lambdas need contextual typing (later milestone); we
@@ -1075,12 +1122,7 @@ function check(expr: JSONType, expected: Schema, ctx: CheckContext): void {
   if (nodeKind(expr) === "body" && sigOf(expr as Record<string, JSONType>) === null) return;
 
   const actual = synth(expr, ctx);
-  if (!isSubschema(actual, expected, ctx.defs)) {
-    report(ctx, `${describe(actual)} is not assignable to ${describe(expected)}.`, {
-      expected,
-      actual,
-    });
-  }
+  if (!isSubschema(actual, expected, ctx.defs)) reportMismatch(ctx, actual, expected);
 }
 
 function describe(schema: Schema): string {
@@ -1260,12 +1302,7 @@ function applyOverload(sig: BuiltinSig, argExprs: JSONType[], ctx: CheckContext)
     const argSchema = synth(argExprs[i]!, actx);
     unifyTemplate(param, argSchema, bindings, ctx);
     const inst = instantiate(param, bindings);
-    if (!isSubschema(argSchema, inst, ctx.defs)) {
-      report(actx, `${describe(argSchema)} is not assignable to ${describe(inst)}.`, {
-        expected: inst,
-        actual: argSchema,
-      });
-    }
+    if (!isSubschema(argSchema, inst, ctx.defs)) reportMismatch(actx, argSchema, inst);
   }
 
   // Pass 2 — lambdas, now that input variables are known. Their returns bind
@@ -1285,12 +1322,7 @@ function applyOverload(sig: BuiltinSig, argExprs: JSONType[], ctx: CheckContext)
       unifyTemplate(shape.returns, ret, bindings, ctx);
     } else {
       const inst = instantiate(shape.returns, bindings);
-      if (!isSubschema(ret, inst, ctx.defs)) {
-        report(at(actx, "$return"), `${describe(ret)} is not assignable to ${describe(inst)}.`, {
-          expected: inst,
-          actual: ret,
-        });
-      }
+      if (!isSubschema(ret, inst, ctx.defs)) reportMismatch(at(actx, "$return"), ret, inst);
     }
   }
 
@@ -1399,5 +1431,5 @@ export {
   buildTypeScope,
   nodeKind,
 };
-export type { Schema, Defs, Diagnostic, TypeEnv, CheckContext, Sig };
+export type { Schema, Defs, Diagnostic, Severity, TypeEnv, CheckContext, Sig };
 export type { BuiltinTable, BuiltinEntry, BuiltinSig };
