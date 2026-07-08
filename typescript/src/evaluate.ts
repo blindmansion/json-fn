@@ -1043,6 +1043,41 @@ function evaluateComparisonExpression(
   }
 }
 
+/**
+ * A short, human-readable description of a `$get` target, used only to make
+ * property-access errors actionable (which shape, what keys were available).
+ * Object key lists are truncated so the message stays readable on wide records.
+ */
+function describeTarget(value: JSONType): string {
+  if (value === null) return "null";
+  if (Array.isArray(value)) return `an array of length ${value.length}`;
+  if (typeof value === "object") {
+    const keys = Object.keys(value);
+    if (keys.length === 0) return "an empty object";
+    const shown = keys.slice(0, 8).map((k) => JSON.stringify(k));
+    const suffix = keys.length > shown.length ? `, … (${keys.length} keys)` : "";
+    return `an object with keys ${shown.join(", ")}${suffix}`;
+  }
+  if (typeof value === "string") return `a string of length ${value.length}`;
+  return `a ${typeof value} (${JSON.stringify(value)})`;
+}
+
+/**
+ * The likely-cause hint for a key that is neither a string nor a number. A
+ * `null` key is almost always a lookup expression that evaluated to nothing
+ * (an out-of-range index, a missing field, an unmatched branch), so we call
+ * that out explicitly — it's the single most common property-access mistake.
+ */
+function keyHint(key: JSONType): string {
+  if (key === null) {
+    return (
+      " A null key usually means a lookup expression produced no value " +
+      "(e.g. an out-of-range index or a missing field); guard it before indexing."
+    );
+  }
+  return "";
+}
+
 function evaluatePropertyAccess(expression: PropertyAccess, context: EvaluationContext): JSONType {
   const evaluatedKey = evaluateExpression(expression.$get, context);
   const evaluatedTarget = evaluateExpression(expression.$from, context);
@@ -1052,7 +1087,8 @@ function evaluatePropertyAccess(expression: PropertyAccess, context: EvaluationC
     (typeof evaluatedTarget !== "object" && typeof evaluatedTarget !== "string")
   ) {
     throw new Error(
-      `Invalid $get target: expected object, array, or string, got ${JSON.stringify(evaluatedTarget)}`,
+      `Cannot access property ${JSON.stringify(evaluatedKey)}: the target is ` +
+        `${describeTarget(evaluatedTarget)}, not an object, array, or string.`,
     );
   }
 
@@ -1061,7 +1097,8 @@ function evaluatePropertyAccess(expression: PropertyAccess, context: EvaluationC
       return evaluatedTarget[evaluatedKey] ?? null;
     }
     throw new Error(
-      `Invalid $get key for string: expected number, got ${JSON.stringify(evaluatedKey)}`,
+      `Cannot index a string with key ${JSON.stringify(evaluatedKey)}: string ` +
+        `indices must be numbers.${keyHint(evaluatedKey)}`,
     );
   }
 
@@ -1084,9 +1121,9 @@ function evaluatePropertyAccess(expression: PropertyAccess, context: EvaluationC
         current = ch;
       } else if (current === null || typeof current !== "object") {
         throw new Error(
-          `Invalid $get path traversal: cannot access property ${JSON.stringify(
-            segment,
-          )} on ${JSON.stringify(current)}`,
+          `Cannot access property ${JSON.stringify(segment)} partway through a ` +
+            `path: the value at that point is ${describeTarget(current)}, not an ` +
+            `object, array, or string.`,
         );
       } else {
         const next: JSONType | undefined = (current as any)[segment as string | number];
@@ -1103,9 +1140,9 @@ function evaluatePropertyAccess(expression: PropertyAccess, context: EvaluationC
   }
 
   throw new Error(
-    `Invalid $get key: expected string, number, or array of strings/numbers, got ${JSON.stringify(
-      evaluatedKey,
-    )}`,
+    `Invalid property key ${JSON.stringify(evaluatedKey)}: a key must be a ` +
+      `string, number, or array of strings/numbers. Target is ` +
+      `${describeTarget(evaluatedTarget)}.${keyHint(evaluatedKey)}`,
   );
 }
 

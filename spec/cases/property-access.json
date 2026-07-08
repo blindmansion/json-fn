@@ -166,7 +166,7 @@
     {
       "description": "dot notation: path into non-object throws",
       "body": { "obj": { "a": 42 }, "$return": { "$get": ["a", "b"], "$from": { "$var": "obj" } } },
-      "error": "cannot access property"
+      "error": "Cannot access property"
     },
     {
       "description": "dot notation: out-of-bounds index returns null",
@@ -324,7 +324,7 @@
     {
       "description": "$get on string: non-numeric key throws",
       "body": { "$return": { "$get": "x", "$from": "hello" } },
-      "error": "expected number"
+      "error": "string indices must be numbers"
     },
     {
       "description": "$var bracket notation on string",

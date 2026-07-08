@@ -109,6 +109,47 @@ requiring `isFnDeclaration`. Needs a conformance case per the reference vs.
 name vs. body matrix above, and a decision on whether `{ "$fn": <expr> }`
 (computed reference) should be captured eagerly or left for call-time.
 
+## Guest-level stack traces for runtime errors (DX)
+
+Today a runtime evaluator error (bad `$get` key, `Function not found`, fuel/depth
+limits, division by zero, …) throws a plain host `Error`. The guest author sees a
+host-language stack trace (frames of `callFunctionInternal`/`evaluateExpression`
+in `typescript/src/evaluate.ts`) and a message with no *guest* context: which
+function, which `where`-local, or which sub-expression was being evaluated. For
+straight-line pure code this is survivable; for effectful programs driven through
+`runTask` (see `typescript/examples/dungeon.ts`) a guest bug surfaces as an opaque
+Bun stack dump from inside the trampoline.
+
+We improved the *messages* (richer `$get` diagnostics) and *host presentation*
+(examples catch non-`TaskRaiseError` evaluator errors and print cleanly). The
+remaining, larger piece is a **guest-level traceback**: thread a lightweight
+frame stack through `EvaluationContext` (function name, and ideally the active
+`where`-local / argument values) so a thrown error can render as, e.g.
+
+```
+  in move (dir = null)
+  in step
+  in playTurn
+  at exits[dir]        (examples/dungeon.jfn)
+```
+
+instead of interpreter internals. Design notes:
+
+- Push/pop a frame in `callFunctionInternal` (function name + args) and optionally
+  when entering a named `where`-local. Keep it cheap — this is on the hot path;
+  gate detail behind a limit or a debug flag if needed, or keep only names.
+- Attach the trace to the thrown error (a dedicated `JsonFnRuntimeError` carrying
+  `{ message, frames, node? }`) rather than string-concatenating, so hosts can
+  format it.
+- Distinguish guest programming errors (host-fatal per the effects plan — fuel,
+  depth, var-not-found, bad key) from in-language `raise`; only the former get a
+  traceback. `raise` stays a structured effect payload.
+- Source spans: shorthand parse position isn't currently carried into the core
+  JSON, so a first cut is function/local *names* only. A later pass could thread
+  `$comment`/position metadata for true source locations.
+- Cross-cutting: mirror in the Go/Python/Rust interpreters for conformance, or
+  scope this as a TS-only DX feature and document it as non-normative.
+
 ## Housekeeping
 
 - Correct `plans/shorthand-llm-probes.md` §2e: the `Invalid JSON expression: {`
