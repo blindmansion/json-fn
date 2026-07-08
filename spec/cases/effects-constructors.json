@@ -1,0 +1,86 @@
+{
+  "description": "effect task constructors (perform/pure/bind/raise) build inert tagged records that survive being stored in data structures and returned unchanged",
+  "cases": [
+    {
+      "description": "pure builds a tagged pure record",
+      "body": { "$return": { "$fn": ["pure", 42] } },
+      "expected": { "@task": "pure", "value": 42 }
+    },
+    {
+      "description": "pure wraps any value, including objects",
+      "body": { "$return": { "$fn": ["pure", { "a": 1, "b": [2, 3] }] } },
+      "expected": { "@task": "pure", "value": { "a": 1, "b": [2, 3] } }
+    },
+    {
+      "description": "perform builds a tagged effect record",
+      "body": { "$return": { "$fn": ["perform", "http.get", ["https://example.com"]] } },
+      "expected": { "@task": "effect", "name": "http.get", "args": ["https://example.com"] }
+    },
+    {
+      "description": "perform requires a string effect name",
+      "body": { "$return": { "$fn": ["perform", 5, []] } },
+      "error": "perform: first argument must be a string"
+    },
+    {
+      "description": "perform requires an array of args",
+      "body": { "$return": { "$fn": ["perform", "e", "not-an-array"] } },
+      "error": "perform: second argument must be an array"
+    },
+    {
+      "description": "raise is a distinguished effect named raise",
+      "body": { "$return": { "$fn": ["raise", { "tag": "NotFound" }] } },
+      "expected": { "@task": "effect", "name": "raise", "args": [{ "tag": "NotFound" }] }
+    },
+    {
+      "description": "bind nests a continuation closure",
+      "body": {
+        "$return": {
+          "$fn": [
+            "bind",
+            { "$fn": ["pure", 1] },
+            { "$params": ["x"], "$return": { "$fn": ["pure", { "$var": "x" }] } }
+          ]
+        }
+      },
+      "expected": {
+        "@task": "bind",
+        "task": { "@task": "pure", "value": 1 },
+        "then": { "$params": ["x"], "$return": { "$fn": ["pure", { "$var": "x" }] } }
+      }
+    },
+    {
+      "description": "bind requires a function continuation",
+      "body": { "$return": { "$fn": ["bind", { "$fn": ["pure", 1] }, 5] } },
+      "error": "bind: second argument must be a function"
+    },
+    {
+      "description": "a constructed task passes through an array literal inert",
+      "body": { "$return": [{ "$fn": ["pure", 1] }, { "$fn": ["perform", "e", []] }] },
+      "expected": [
+        { "@task": "pure", "value": 1 },
+        { "@task": "effect", "name": "e", "args": [] }
+      ]
+    },
+    {
+      "description": "a constructed task nested in an object literal is not re-walked",
+      "body": { "$return": { "wrapped": { "$fn": ["perform", "e", [1, 2]] } } },
+      "expected": { "wrapped": { "@task": "effect", "name": "e", "args": [1, 2] } }
+    },
+    {
+      "description": "a task in an unreferenced lazy local never runs (laziness interaction)",
+      "body": {
+        "unused": { "$fn": ["perform", "boom", []] },
+        "$return": 99
+      },
+      "expected": 99
+    },
+    {
+      "description": "a constructed task is returned from a closure unchanged",
+      "body": {
+        "mk": { "$params": ["n"], "$return": { "$fn": ["pure", { "$var": "n" }] } },
+        "$return": { "$fn": ["mk", 7] }
+      },
+      "expected": { "@task": "pure", "value": 7 }
+    }
+  ]
+}

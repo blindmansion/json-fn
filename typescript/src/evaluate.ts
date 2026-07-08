@@ -210,6 +210,108 @@ export function callProgram(
   }
 }
 
+/**
+ * Prepare a program's module scope once and return the pieces a host trampoline
+ * needs to drive a task across multiple synchronous hops
+ * (`plans/effects-implementation.md` §4) without re-closing over the module each
+ * time. `runTask` (see `host.ts`) is the sole intended consumer.
+ *
+ * - `invokeEntry` runs a chosen module entry (same validation as `callProgram`).
+ * - `call` applies any function value in module scope — used by `stepTask` to
+ *   run `bind` continuations and by the host to answer a suspended `resume`.
+ *   Captured continuations and closed-over module functions are self-contained,
+ *   so re-entry needs no fresh substitution.
+ * - `meter` charges the shared budget for the `stepTask` normalization walk.
+ * - `refreshDeadline` re-arms the wall-clock backstop before a hop, so time a
+ *   host spends awaiting an async capability does not count against the task.
+ *
+ * All hops share one `state`/`limits`: fuel is a single budget for the whole
+ * run, so a task cannot escape its budget by suspending. `signal`/`maxFuel`/
+ * `maxValueSize`/`maxCallDepth` behave exactly as in `callFunction`.
+ */
+export function prepareProgram(
+  module: Record<string, JSONType>,
+  baseRegistry: FunctionRegistry,
+  limits?: ExecutionLimits,
+): {
+  invokeEntry: (entry: string, args: JSONType[]) => JSONType;
+  call: (fn: JSONType, args: JSONType[]) => JSONType;
+  meter: Meter;
+  refreshDeadline: () => void;
+} {
+  const maxFuel = limits?.maxFuel ?? Infinity;
+  const maxValueSize = limits?.maxValueSize ?? Infinity;
+  const usage = limits?.usage;
+  const timeoutMs = limits?.timeoutMs;
+  const hasTimeout = timeoutMs !== undefined && timeoutMs >= 0;
+  const state: CallState = { depth: 0, fuel: 0 };
+  const resolved: ResolvedLimits = {
+    maxCallDepth: limits?.maxCallDepth ?? DEFAULT_MAX_CALL_DEPTH,
+    maxFuel,
+    maxValueSize,
+    trackFuel: maxFuel < Infinity || usage !== undefined,
+    signal: limits?.signal,
+    deadline: hasTimeout ? Date.now() + timeoutMs! : Infinity,
+  };
+  const perf = limits?.perf;
+
+  // The module is a function body with no `$params`/`$return`; build its scope
+  // once (mirrors `callProgram`).
+  const { getVar, scopedFunctions, localFns, attachFns } = buildScope(
+    module as unknown as FunctionBody,
+    [],
+    { functions: baseRegistry, limits: resolved, state, perf },
+  );
+
+  const context: EvaluationContext = {
+    functions: scopedFunctions,
+    getVar,
+    localFns,
+    attachFns,
+    limits: resolved,
+    state,
+    perf,
+  };
+
+  const syncUsage = (): void => {
+    if (usage) usage.fuel = state.fuel;
+  };
+
+  const call = (fn: JSONType, args: JSONType[]): JSONType => {
+    const result = callFunctionInternal(fn as FunctionDeclaration, args, context);
+    syncUsage();
+    return result;
+  };
+
+  const meter: Meter = {
+    charge: (amount: number) => chargeFuel(context, amount),
+    guardSize: (size: number) => guardValueSize(context, size),
+  };
+
+  const invokeEntry = (entry: string, args: JSONType[]): JSONType => {
+    // Fail fast on a non-function or stdlib-shadowing entry, exactly as
+    // `callProgram` does (check the module's own keys, not `scopedFunctions`).
+    const moduleEntry = Object.prototype.hasOwnProperty.call(module, entry)
+      ? module[entry]
+      : undefined;
+    const isModuleFunction =
+      typeof moduleEntry === "object" &&
+      moduleEntry !== null &&
+      !Array.isArray(moduleEntry) &&
+      "$return" in moduleEntry;
+    if (!isModuleFunction) {
+      throw new Error(`Program entry "${entry}" is not a function defined by the module`);
+    }
+    return call(scopedFunctions[entry] as FunctionDeclaration, args);
+  };
+
+  const refreshDeadline = (): void => {
+    if (hasTimeout) resolved.deadline = Date.now() + timeoutMs!;
+  };
+
+  return { invokeEntry, call, meter, refreshDeadline };
+}
+
 // Cooperative interrupt check: cancellation signal + wall-clock deadline. Both
 // are host-only backstops (never charge fuel, so anchor fuel counts are
 // unaffected). Checked at every node *and* every invocation so native

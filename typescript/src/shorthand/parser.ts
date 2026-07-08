@@ -296,6 +296,12 @@ class Parser {
           case "match":
             this.advance();
             return { value: this.parseMatch(), name: null };
+          case "do":
+            this.advance();
+            return { value: this.parseDo(), name: null };
+          case "handle":
+            this.advance();
+            return { value: this.parseHandle(), name: null };
           case "raw":
             this.advance();
             return { value: this.parseRaw(), name: null };
@@ -623,6 +629,116 @@ class Parser {
     return [arms, elseVal];
   }
 
+  // ----- effects: do-notation & handle (shorthand-spec §13) -----
+
+  /** `do { entry, ... }` where each entry is `ident <- expr` (effect binding),
+   * `ident : expr` (pure binding), or — last only — a bare expression. Desugars
+   * to nested `bind(expr, k)` calls; see `desugarDo`. */
+  private parseDo(): JSONType {
+    // `do` already consumed.
+    this.expect("lbrace", "'{' after 'do'");
+    if (this.peekType() === "rbrace") {
+      throw this.err("empty 'do' block: it must end with a result expression");
+    }
+    const entries: DoEntry[] = [];
+    for (;;) {
+      entries.push(this.parseDoEntry());
+      const type = this.peekType();
+      if (type === "comma") {
+        this.advance();
+        if (this.peekType() === "rbrace") {
+          this.advance();
+          break;
+        }
+      } else if (type === "rbrace") {
+        this.advance();
+        break;
+      } else {
+        throw this.err("expected ',' or '}' in do block");
+      }
+    }
+    return this.desugarDo(entries);
+  }
+
+  private parseDoEntry(): DoEntry {
+    const t = this.peek();
+    if (t.type === "ident") {
+      const after = this.tokens[this.pos + 1]?.tok;
+      // `ident : expr` — pure (lazy-local) binding.
+      if (after?.type === "colon") {
+        this.advance(); // ident
+        this.advance(); // colon
+        return { kind: "pure", name: t.value, value: this.parseBody() };
+      }
+      // `ident <- expr` — effect binding. `<-` is not a lexer token (that would
+      // break `x < -1`); we require an `lt` immediately followed by an adjacent
+      // `minus` (same line, next column), only in this position.
+      if (this.isLtMinusAt(this.pos + 1)) {
+        this.advance(); // ident
+        this.advance(); // lt
+        this.advance(); // minus
+        return { kind: "effect", name: t.value, value: this.parseExpr() };
+      }
+    }
+    // Otherwise a bare result expression (only valid as the final entry).
+    return { kind: "expr", value: this.parseBody() };
+  }
+
+  /** Whether tokens `[idx, idx+1]` are an adjacent `lt`/`minus` pair (`<-`). */
+  private isLtMinusAt(idx: number): boolean {
+    const a = this.tokens[idx];
+    const b = this.tokens[idx + 1];
+    if (a === undefined || b === undefined) return false;
+    if (a.tok.type !== "lt" || b.tok.type !== "minus") return false;
+    return a.line === b.line && b.col === a.col + 1;
+  }
+
+  /** Lower do-entries to a `bind` spine. Each effect binding `x <- e` becomes
+   * `bind(e, (x) => rest)`; pure bindings since the previous effect attach as
+   * that continuation's `where`-locals; pure bindings before the first effect
+   * wrap the whole chain in a zero-arg IIFE (like expression-level `where`). */
+  private desugarDo(entries: DoEntry[]): JSONType {
+    const last = entries[entries.length - 1]!;
+    if (last.kind !== "expr") {
+      throw this.err("a do block must end with a result expression, not a binding");
+    }
+    for (let i = 0; i < entries.length - 1; i++) {
+      if (entries[i]!.kind === "expr") {
+        throw this.err("only the final entry of a do block may be a bare expression");
+      }
+    }
+    const [leading, restIdx] = collectDoPures(entries, 0);
+    const chain = this.buildDoChain(entries, restIdx);
+    if (leading.length > 0) {
+      return { $fn: [this.buildScope([], leading, chain)] };
+    }
+    return chain;
+  }
+
+  /** Build the expression for `entries[i..]`, where `entries[i]` is an effect
+   * binding or the final expression (any leading pures already consumed). */
+  private buildDoChain(entries: DoEntry[], i: number): JSONType {
+    const entry = entries[i]!;
+    if (entry.kind === "expr") return entry.value;
+    // entry.kind === "effect"
+    const [pures, nextIdx] = collectDoPures(entries, i + 1);
+    const contBody = this.buildDoChain(entries, nextIdx);
+    const k = this.buildScope([entry.name], pures, contBody);
+    return { $fn: ["bind", entry.value, k] };
+  }
+
+  /** `handle <task> with { "name": clause, ... }` → `handle(task, clauses)`.
+   * Clause keys follow data-object key rules (dotted names like `io.readLine`
+   * and the `*` wildcard need quotes). */
+  private parseHandle(): JSONType {
+    // `handle` already consumed.
+    const task = this.parseExpr();
+    this.expectKeyword("with");
+    this.expect("lbrace", "'{' after 'with'");
+    const handlers = this.parseDataObject();
+    return { $fn: ["handle", task, handlers] };
+  }
+
   // ----- raw JSON islands (spec section 3) -----
 
   private parseRaw(): JSONType {
@@ -768,6 +884,25 @@ class Parser {
 }
 
 // ----- lowering helpers -----
+
+/** One parsed entry of a `do` block, before desugaring. */
+type DoEntry =
+  | { kind: "effect"; name: string; value: JSONType } // `name <- expr`
+  | { kind: "pure"; name: string; value: JSONType } // `name : expr`
+  | { kind: "expr"; value: JSONType }; // bare final expression
+
+/** Collect a run of consecutive pure (`:`) bindings starting at `i`, returning
+ * them as `[name, value]` pairs plus the index of the first non-pure entry. */
+function collectDoPures(entries: DoEntry[], i: number): [[string, JSONType][], number] {
+  const pures: [string, JSONType][] = [];
+  let j = i;
+  while (j < entries.length && entries[j]!.kind === "pure") {
+    const e = entries[j] as { kind: "pure"; name: string; value: JSONType };
+    pures.push([e.name, e.value]);
+    j++;
+  }
+  return [pures, j];
+}
 
 function fncall(name: string, args: JSONType[]): JSONType {
   return { $fn: [name, ...args] };

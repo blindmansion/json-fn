@@ -1,5 +1,6 @@
 import { builtin, pure, getArity } from "./utils";
 import type { FunctionRegistry, JSONType } from "./types";
+import { effectTask, pureTask, bindTask, isFnDecl, runHandle } from "./task";
 
 export type LogFn = (value: JSONType, label?: string) => void;
 
@@ -113,6 +114,10 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
     isNumber: pure((a: any) => typeof a === "number"),
     isString: pure((a: any) => typeof a === "string"),
     isArray: pure((a: any) => Array.isArray(a)),
+    isTask: pure(
+      (a: any) =>
+        typeof a === "object" && a !== null && !Array.isArray(a) && typeof a["@task"] === "string",
+    ),
 
     // Type coercion
     str: pure((a: any) => {
@@ -381,6 +386,30 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
       parts.push(str.slice(lastIndex));
       return parts.join("");
     }, 3),
+
+    // Tasks & effects (see src/task.ts and docs/language.md "Tasks & Effects").
+    // Constructors build inert, raw-marked tagged records; `handle` interprets
+    // them in-language. `pure` the registry key coexists with the `pure` marker
+    // helper imported above — one is an object key, the other an identifier.
+    perform: builtin((args) => {
+      const [name, effArgs] = args;
+      if (typeof name !== "string")
+        throw new Error("perform: first argument must be a string effect name");
+      if (!Array.isArray(effArgs))
+        throw new Error("perform: second argument must be an array of effect arguments");
+      return effectTask(name, effArgs);
+    }, 2),
+    pure: builtin((args) => pureTask(args[0] ?? null), 1),
+    bind: builtin((args) => {
+      const [task, then] = args;
+      if (!isFnDecl(then!)) throw new Error("bind: second argument must be a function");
+      return bindTask(task!, then!);
+    }, 2),
+    raise: builtin((args) => effectTask("raise", [args[0] ?? null]), 1),
+    handle: builtin(
+      (args, call, _functions, meter) => runHandle(args[0]!, args[1]!, call, meter),
+      2,
+    ),
 
     // Introspection
     arity: builtin((args, _call, functions) => {

@@ -1,0 +1,425 @@
+{
+  "description": "the `handle` builtin: in-language interpretation of tasks (pure passthrough, effect dispatch, bubbling, multi-shot resume, raise, wildcard, return clause, malformed-node errors, and the escaping-closure interaction)",
+  "functions": {
+    "counter": {
+      "$return": {
+        "$fn": [
+          "bind",
+          { "$fn": ["perform", "get", []] },
+          {
+            "$params": ["c"],
+            "$return": {
+              "$fn": [
+                "bind",
+                { "$fn": ["perform", "put", [{ "$fn": ["add", { "$var": "c" }, 1] }]] },
+                { "$params": ["_"], "$return": { "$fn": ["pure", { "$var": "c" }] } }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "withState": {
+      "$params": ["s0", "task"],
+      "$return": {
+        "$fn": [
+          {
+            "$fn": [
+              "handle",
+              { "$var": "task" },
+              {
+                "get": {
+                  "$params": ["resume"],
+                  "$return": {
+                    "$params": ["s"],
+                    "$return": {
+                      "$fn": [{ "$fn": [{ "$var": "resume" }, { "$var": "s" }] }, { "$var": "s" }]
+                    }
+                  }
+                },
+                "put": {
+                  "$params": ["s1", "resume"],
+                  "$return": {
+                    "$params": ["s"],
+                    "$return": {
+                      "$fn": [{ "$fn": [{ "$var": "resume" }, null] }, { "$var": "s1" }]
+                    }
+                  }
+                },
+                "return": {
+                  "$params": ["v"],
+                  "$return": { "$params": ["s"], "$return": { "$var": "v" } }
+                }
+              }
+            ]
+          },
+          { "$var": "s0" }
+        ]
+      }
+    }
+  },
+  "cases": [
+    {
+      "description": "pure passthrough: a fully-pure task with empty handlers returns its value",
+      "body": { "$return": { "$fn": ["handle", { "$fn": ["pure", 5] }, {}] } },
+      "expected": 5
+    },
+    {
+      "description": "single effect handled: resume feeds a value back into the continuation",
+      "body": {
+        "$return": {
+          "$fn": [
+            "handle",
+            { "$fn": ["perform", "ask", []] },
+            { "ask": { "$params": ["resume"], "$return": { "$fn": [{ "$var": "resume" }, 10] } } }
+          ]
+        }
+      },
+      "expected": 10
+    },
+    {
+      "description": "effect args are spread into the clause before resume",
+      "body": {
+        "$return": {
+          "$fn": [
+            "handle",
+            { "$fn": ["perform", "add1", [5]] },
+            {
+              "add1": {
+                "$params": ["x", "resume"],
+                "$return": { "$fn": [{ "$var": "resume" }, { "$fn": ["add", { "$var": "x" }, 1] }] }
+              }
+            }
+          ]
+        }
+      },
+      "expected": 6
+    },
+    {
+      "description": "chained binds (the greeter): effects sequenced through resume",
+      "body": {
+        "$return": {
+          "$fn": [
+            "handle",
+            {
+              "$fn": [
+                "bind",
+                { "$fn": ["perform", "io.readLine", []] },
+                {
+                  "$params": ["name"],
+                  "$return": {
+                    "$fn": [
+                      "bind",
+                      { "$fn": ["perform", "io.print", [{ "$var": "name" }]] },
+                      { "$params": ["_"], "$return": { "$fn": ["pure", { "$var": "name" }] } }
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "io.readLine": {
+                "$params": ["resume"],
+                "$return": { "$fn": [{ "$var": "resume" }, "world"] }
+              },
+              "io.print": {
+                "$params": ["msg", "resume"],
+                "$return": { "$fn": [{ "$var": "resume" }, null] }
+              }
+            }
+          ]
+        }
+      },
+      "expected": "world"
+    },
+    {
+      "description": "return clause lifts the completion value",
+      "body": {
+        "$return": {
+          "$fn": [
+            "handle",
+            { "$fn": ["pure", 5] },
+            { "return": { "$params": ["v"], "$return": { "$fn": ["mul", { "$var": "v" }, 2] } } }
+          ]
+        }
+      },
+      "expected": 10
+    },
+    {
+      "description": "return clause result is final, not re-interpreted (a returned task is not stepped)",
+      "body": {
+        "$return": {
+          "$fn": [
+            "handle",
+            { "$fn": ["pure", 3] },
+            {
+              "return": {
+                "$params": ["v"],
+                "$return": { "$fn": ["perform", "e", [{ "$var": "v" }]] }
+              }
+            }
+          ]
+        }
+      },
+      "expected": { "@task": "effect", "name": "e", "args": [3] }
+    },
+    {
+      "description": "a clause that ignores resume short-circuits (orElse / early exit)",
+      "body": {
+        "$return": {
+          "$fn": [
+            "handle",
+            { "$fn": ["perform", "fail", []] },
+            { "fail": { "$params": ["resume"], "$return": "early" } }
+          ]
+        }
+      },
+      "expected": "early"
+    },
+    {
+      "description": "raise caught by a raise clause",
+      "body": {
+        "$return": {
+          "$fn": [
+            "handle",
+            { "$fn": ["raise", { "tag": "NotFound" }] },
+            {
+              "raise": {
+                "$params": ["err", "resume"],
+                "$return": { "$get": "tag", "$from": { "$var": "err" } }
+              }
+            }
+          ]
+        }
+      },
+      "expected": "NotFound"
+    },
+    {
+      "description": "the * wildcard clause receives { name, args }",
+      "body": {
+        "$return": {
+          "$fn": [
+            "handle",
+            { "$fn": ["perform", "trace", [1, 2, 3]] },
+            {
+              "*": {
+                "$params": ["eff", "resume"],
+                "$return": { "$get": "args", "$from": { "$var": "eff" } }
+              }
+            }
+          ]
+        }
+      },
+      "expected": [1, 2, 3]
+    },
+    {
+      "description": "an unmatched effect bubbles through an inner handle to an outer one",
+      "body": {
+        "$return": {
+          "$fn": [
+            "handle",
+            { "$fn": ["handle", { "$fn": ["perform", "e", ["x"]] }, {}] },
+            {
+              "e": {
+                "$params": ["a", "resume"],
+                "$return": {
+                  "$fn": [{ "$var": "resume" }, { "$fn": ["strcat", "got:", { "$var": "a" }] }]
+                }
+              }
+            }
+          ]
+        }
+      },
+      "expected": "got:x"
+    },
+    {
+      "description": "an unmatched effect bubbles through two nested handles",
+      "body": {
+        "$return": {
+          "$fn": [
+            "handle",
+            {
+              "$fn": [
+                "handle",
+                { "$fn": ["handle", { "$fn": ["perform", "e", [3]] }, {}] },
+                {
+                  "other": {
+                    "$params": ["resume"],
+                    "$return": { "$fn": [{ "$var": "resume" }, 0] }
+                  }
+                }
+              ]
+            },
+            {
+              "e": {
+                "$params": ["n", "resume"],
+                "$return": {
+                  "$fn": [{ "$var": "resume" }, { "$fn": ["mul", { "$var": "n" }, 10] }]
+                }
+              }
+            }
+          ]
+        }
+      },
+      "expected": 30
+    },
+    {
+      "description": "multi-shot resume: nondeterministic search collects all solutions",
+      "functions": {
+        "allSolutions": {
+          "$params": ["task"],
+          "$return": {
+            "$fn": [
+              "handle",
+              { "$var": "task" },
+              {
+                "choose": {
+                  "$params": ["xs", "resume"],
+                  "$return": { "$fn": ["flatMap", { "$var": "resume" }, { "$var": "xs" }] }
+                },
+                "fail": { "$params": ["resume"], "$return": [] },
+                "return": { "$params": ["v"], "$return": [{ "$var": "v" }] }
+              }
+            ]
+          }
+        },
+        "pairsSummingTo4": {
+          "$return": {
+            "$fn": [
+              "bind",
+              { "$fn": ["perform", "choose", [[1, 2, 3]]] },
+              {
+                "$params": ["a"],
+                "$return": {
+                  "$fn": [
+                    "bind",
+                    { "$fn": ["perform", "choose", [[1, 2, 3]]] },
+                    {
+                      "$params": ["b"],
+                      "$return": {
+                        "$if": { "$eq": [{ "$fn": ["add", { "$var": "a" }, { "$var": "b" }] }, 4] },
+                        "$then": { "$fn": ["pure", [{ "$var": "a" }, { "$var": "b" }]] },
+                        "$else": { "$fn": ["perform", "fail", []] }
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      },
+      "body": { "$return": { "$fn": ["allSolutions", { "$fn": ["pairsSummingTo4"] }] } },
+      "expected": [
+        [1, 3],
+        [2, 2],
+        [3, 1]
+      ]
+    },
+    {
+      "description": "the state handler runs end-to-end: get/put/return threaded purely",
+      "body": { "$return": { "$fn": ["withState", 10, { "$fn": ["counter"] }] } },
+      "expected": 10
+    },
+    {
+      "description": "load-bearing: a recursive nested where-local effectful loop whose suspended continuation escapes handle still works (escaping-closures x bind chains)",
+      "body": {
+        "$params": ["start"],
+        "run": {
+          "$params": ["s"],
+          "go": {
+            "$params": ["n"],
+            "$return": {
+              "$if": { "$lte": [{ "$var": "n" }, 0] },
+              "$then": { "$fn": ["pure", []] },
+              "$else": {
+                "$fn": [
+                  "bind",
+                  { "$fn": ["perform", "emit", [{ "$var": "n" }]] },
+                  {
+                    "$params": ["_"],
+                    "$return": { "$fn": ["go", { "$fn": ["sub", { "$var": "n" }, 1] }] }
+                  }
+                ]
+              }
+            }
+          },
+          "$return": {
+            "$fn": [
+              "handle",
+              { "$fn": ["go", { "$var": "s" }] },
+              {
+                "emit": {
+                  "$params": ["x", "resume"],
+                  "$return": {
+                    "$fn": ["concat", [{ "$var": "x" }], { "$fn": [{ "$var": "resume" }, null] }]
+                  }
+                },
+                "return": { "$params": ["v"], "$return": { "$var": "v" } }
+              }
+            ]
+          }
+        },
+        "$return": { "$fn": ["run", { "$var": "start" }] }
+      },
+      "args": [3],
+      "expected": [3, 2, 1]
+    },
+    {
+      "description": "malformed forged task: bind with a non-closure then fails with a clean guest-visible error",
+      "body": {
+        "$return": {
+          "$fn": [
+            "handle",
+            { "$raw": { "@task": "bind", "task": { "@task": "pure", "value": 1 }, "then": 5 } },
+            {}
+          ]
+        }
+      },
+      "error": "bind `then` must be a function"
+    },
+    {
+      "description": "malformed forged task: effect with a non-string name fails cleanly",
+      "body": {
+        "$return": {
+          "$fn": ["handle", { "$raw": { "@task": "effect", "name": 5, "args": [] } }, {}]
+        }
+      },
+      "error": "effect `name` must be a string"
+    },
+    {
+      "description": "malformed forged task: effect with non-array args fails cleanly",
+      "body": {
+        "$return": {
+          "$fn": ["handle", { "$raw": { "@task": "effect", "name": "e", "args": 7 } }, {}]
+        }
+      },
+      "error": "effect `args` must be an array"
+    },
+    {
+      "description": "handling a non-task value fails cleanly",
+      "body": { "$return": { "$fn": ["handle", 5, {}] } },
+      "error": "Task expected"
+    },
+    {
+      "description": "handle charges fuel; a tight budget trips the fuel limit",
+      "body": {
+        "$return": {
+          "$fn": [
+            "handle",
+            {
+              "$fn": [
+                "bind",
+                { "$fn": ["perform", "e", []] },
+                { "$params": ["_"], "$return": { "$fn": ["pure", 1] } }
+              ]
+            },
+            { "e": { "$params": ["resume"], "$return": { "$fn": [{ "$var": "resume" }, null] } } }
+          ]
+        }
+      },
+      "limits": { "maxFuel": 5 },
+      "error": "fuel limit"
+    }
+  ]
+}

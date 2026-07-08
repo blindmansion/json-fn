@@ -93,7 +93,15 @@ function render(node: JSONType, indent: string): Rendered {
 }
 
 function renderObject(node: { [k: string]: JSONType }, indent: string): Rendered {
-  if ("$fn" in node) return renderFn(node.$fn!, indent);
+  if ("$fn" in node) {
+    // Effects sugar (shorthand-spec §13): a `bind` spine folds back to a
+    // `do { … }` block and a `handle` call to `handle … with { … }`. Both are
+    // exact inverses of the parser desugar, so the round-trip is preserved; any
+    // shape that is not an exact desugar falls through to a plain call.
+    const asDo = tryRenderDo(node, indent);
+    if (asDo !== null) return asDo;
+    return renderFn(node.$fn!, indent);
+  }
   if ("$var" in node) return atom(node.$var as string);
   if ("$get" in node && "$from" in node) return atom(renderFromAccess(node, indent));
   if ("$if" in node) return renderIf(node, indent);
@@ -122,6 +130,13 @@ function renderFn(fn: JSONType, indent: string): Rendered {
   const args = fn.slice(1);
 
   if (typeof head === "string") {
+    // `handle(task, { …clauses… })` prints as `handle task with { … }` (spec
+    // §13). `handle` is a contextual keyword, so it can never print as a bare
+    // call; this fold is what makes such nodes round-trip. Only a literal
+    // clause object (no `$`-keys) is expressible with `with { … }`.
+    if (head === "handle" && args.length === 2 && isDataObject(args[1]!)) {
+      return renderHandle(args[0]!, args[1] as { [k: string]: JSONType }, indent);
+    }
     // Unary negation: `-x`, but only when it cannot fold back into a numeric
     // literal (`-5` would parse as the number, not `neg(5)`).
     if (head === "neg" && args.length === 1 && typeof args[0] !== "number") {
@@ -189,6 +204,108 @@ function escapeTemplateSpan(s: string): string {
     else out += ch;
   }
   return out;
+}
+
+// ----- effects: do-notation & handle (shorthand-spec §13) -----
+
+/** One reconstructed `do` entry, the inverse of the parser's `DoEntry`. */
+type DoEntry =
+  | { kind: "effect"; name: string; value: JSONType } // `name <- value`
+  | { kind: "pure"; name: string; value: JSONType } // `name: value`
+  | { kind: "expr"; value: JSONType }; // bare final expression
+
+/** Fold a `$fn` node back into a `do { … }` block when it is an exact
+ * desugar image, else `null`. Two shapes qualify (see `parser.ts` `desugarDo`):
+ * a bare `bind` spine, and a zero-arg IIFE `{ $fn: [scope] }` whose body is a
+ * `bind` spine — the latter carries the pure bindings that preceded the first
+ * effect. */
+function tryRenderDo(node: { [k: string]: JSONType }, indent: string): Rendered | null {
+  const fn = node.$fn;
+  if (!Array.isArray(fn)) return null;
+
+  // Leading-pures IIFE: `{ $fn: [ { …pures, $return: <bind-spine> } ] }`.
+  if (fn.length === 1) {
+    const scope = fn[0];
+    if (isPlainObject(scope!) && !("$params" in scope) && "$return" in scope) {
+      const inner = collectDo(scope.$return!);
+      if (inner === null) return null;
+      const leading = objectLocals(scope);
+      if (leading === null) return null;
+      const pures: DoEntry[] = leading.map(([name, value]) => ({ kind: "pure", name, value }));
+      return renderDo([...pures, ...inner], indent);
+    }
+    return null;
+  }
+
+  const entries = collectDo(node);
+  return entries === null ? null : renderDo(entries, indent);
+}
+
+/** Reconstruct the `do` entries of a `bind` spine, or `null` if `node` is not
+ * one. Each `bind(value, k)` yields an effect binding plus `k`'s locals as pure
+ * bindings, then continues into `k`'s `$return`; a non-`bind` tail is the final
+ * result expression. */
+function collectDo(node: JSONType): DoEntry[] | null {
+  if (!isPlainObject(node)) return null;
+  const fn = node.$fn;
+  if (!Array.isArray(fn) || fn.length !== 3 || fn[0] !== "bind") return null;
+
+  const k = fn[2]!;
+  if (!isPlainObject(k) || !("$return" in k)) return null;
+  const params = k.$params;
+  if (!Array.isArray(params) || params.length !== 1 || typeof params[0] !== "string") return null;
+  const name = params[0];
+  if (!IDENT_RE.test(name)) return null;
+  const locals = objectLocals(k);
+  if (locals === null) return null;
+
+  const entries: DoEntry[] = [{ kind: "effect", name, value: fn[1]! }];
+  for (const [pureName, value] of locals) entries.push({ kind: "pure", name: pureName, value });
+  const rest = collectDo(k.$return!);
+  entries.push(...(rest ?? [{ kind: "expr", value: k.$return! }]));
+  return entries;
+}
+
+/** The non-`$` keys of a scope object as `[name, value]` locals in source order,
+ * or `null` if any key is not a bare identifier (not spellable as a binding). */
+function objectLocals(node: { [k: string]: JSONType }): [string, JSONType][] | null {
+  const locals: [string, JSONType][] = [];
+  for (const key of Object.keys(node)) {
+    if (key.startsWith("$")) continue;
+    if (!IDENT_RE.test(key)) return null;
+    locals.push([key, node[key]!]);
+  }
+  return locals;
+}
+
+function renderDo(entries: DoEntry[], indent: string): Rendered {
+  const inner = indent + "  ";
+  const lines = entries.map((e) => {
+    if (e.kind === "effect") return `${inner}${e.name} <- ${emit(e.value, P_BLOCK, inner)}`;
+    if (e.kind === "pure") return `${inner}${e.name}: ${emit(e.value, P_BLOCK, inner)}`;
+    return `${inner}${emit(e.value, P_BLOCK, inner)}`;
+  });
+  return { text: `do {\n${lines.join(",\n")}\n${indent}}`, prec: P_BLOCK };
+}
+
+function renderHandle(
+  task: JSONType,
+  handlers: { [k: string]: JSONType },
+  indent: string,
+): Rendered {
+  const clauses = renderDataObject(handlers, indent);
+  return { text: `handle ${emit(task, P_BLOCK, indent)} with ${clauses}`, prec: P_BLOCK };
+}
+
+/** Whether `value` is a plain object with no `$`-prefixed keys — the shape that
+ * prints as a shorthand data object (spec §3) rather than a special form. */
+function isDataObject(value: JSONType): value is { [k: string]: JSONType } {
+  if (!isPlainObject(value)) return false;
+  return Object.keys(value).every((k) => !k.startsWith("$"));
+}
+
+function isPlainObject(value: JSONType): value is { [k: string]: JSONType } {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 // ----- variables and property access (spec §5) -----

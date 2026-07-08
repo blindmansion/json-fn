@@ -1,0 +1,56 @@
+{
+  "description": "handle ... with { ... } surface sugar over the handle builtin (shorthand-spec §13)",
+  "cases": [
+    {
+      "description": "named clauses with dotted (quoted) effect names",
+      "source": "handle greet(io) with {\n  \"io.readLine\": (resume) => resume(\"world\"),\n  \"io.print\": (msg, resume) => resume(null)\n}",
+      "expected": {
+        "$fn": [
+          "handle",
+          { "$fn": ["greet", { "$var": "io" }] },
+          {
+            "io.readLine": {
+              "$params": ["resume"],
+              "$return": { "$fn": ["resume", "world"] }
+            },
+            "io.print": {
+              "$params": ["msg", "resume"],
+              "$return": { "$fn": ["resume", null] }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "description": "wildcard and return clauses",
+      "source": "handle t with {\n  \"*\": (eff, resume) => resume(null),\n  return: (v) => v\n}",
+      "expected": {
+        "$fn": [
+          "handle",
+          { "$var": "t" },
+          {
+            "*": { "$params": ["eff", "resume"], "$return": { "$fn": ["resume", null] } },
+            "return": { "$params": ["v"], "$return": { "$var": "v" } }
+          }
+        ]
+      }
+    },
+    {
+      "description": "a do block as the handled task",
+      "source": "handle do {\n  x <- get(),\n  pure(x)\n} with {\n  \"get\": (resume) => resume(1)\n}",
+      "expected": {
+        "$fn": [
+          "handle",
+          {
+            "$fn": [
+              "bind",
+              { "$fn": ["get"] },
+              { "$params": ["x"], "$return": { "$fn": ["pure", { "$var": "x" }] } }
+            ]
+          },
+          { "get": { "$params": ["resume"], "$return": { "$fn": ["resume", 1] } } }
+        ]
+      }
+    }
+  ]
+}

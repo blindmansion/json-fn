@@ -1,0 +1,154 @@
+// effects-lib.jfn — a guest-code effects library built on the kernel.
+//
+// The whole effects kernel is three constructors (`perform`, `pure`, `bind`,
+// plus the `raise` convenience) and one `handle` builtin. Everything richer —
+// mapping, sequencing, error recovery, retries, dry-runs, threaded state,
+// capability attenuation — is *ordinary json-fn code* in this file. Nothing
+// here needs a new builtin; that is the acceptance test for the kernel. It
+// works because escaping-closure capture makes every continuation a
+// self-contained JSON value, so handlers can drop, save, or re-run them freely.
+//
+// Try it (pure interpretation — no host, every effect answered in-language):
+//   bun run typescript/src/cli.ts eval --file examples/effects-lib.jfn --entry demoForEach
+//   bun run typescript/src/cli.ts eval --file examples/effects-lib.jfn --entry demoRetry
+//   bun run typescript/src/cli.ts eval --file examples/effects-lib.jfn --entry demoState
+//   bun run typescript/src/cli.ts eval --file examples/effects-lib.jfn --entry demoDryRun
+//   bun run typescript/src/cli.ts eval --file examples/effects-lib.jfn --entry demoAttenuate
+
+{
+  // ----- combinators over task *values* (pure JSON construction) -----
+
+  // Transform a task's result value. `bind` into a `pure` of the mapped value.
+  mapTask: (f, task) => bind(task, (x) => pure(f(x))),
+
+  // Sequence two tasks, discarding the first's result (the `>>` of do-notation).
+  andThen: (task, next) => bind(task, (_) => next),
+
+  // Run an effectful `f` over each element in order, collecting the results.
+  // Builds a right-nested bind spine; laziness means nothing runs until the
+  // resulting task is handled.
+  forEachE: (f, xs) => if length(xs) == 0
+    then pure([])
+    else bind(f(head(xs)), (y) =>
+      mapTask((rest) => concat([y], rest), forEachE(f, tail(xs)))),
+
+  // ----- error handling as a handler over the `raise` effect -----
+
+  // Run `task`; if it performs `raise(err)`, abandon its continuation and run
+  // `onErr(err)` (which returns a task). Any other effect bubbles untouched, so
+  // `catch` is transparent to the rest of the effect set. The `return` clause
+  // lifts a normal completion back into a task, keeping `catch` composable.
+  catch: (task, onErr) => handle task with {
+    raise: (err, resume) => onErr(err),
+    return: (v) => pure(v)
+  },
+
+  // Retry a failing task up to `n` more times. Each attempt re-runs the same
+  // task value from scratch; when the budget is gone, the last error re-raises.
+  retry: (n, task) => catch(task, (err) =>
+    if n <= 0 then raise(err) else retry(n - 1, task)),
+
+  // Run `taskA`; on failure fall back to `taskB` (ignoring the error).
+  orElse: (taskA, taskB) => catch(taskA, (err) => taskB),
+
+  // ----- dry-run: interpret every effect without performing it -----
+
+  // Walk a task with a wildcard clause, recording each effect's { name, args }
+  // and resuming with `null` so the rest of the program keeps running. Returns
+  // the ordered list of effects the task *would* perform. Uses multi-shot-safe
+  // `resume`: it is called exactly once per effect, threading the tail list back.
+  collectEffects: (task) => handle task with {
+    "*": (eff, resume) => concat([eff], resume(null)),
+    return: (v) => []
+  },
+
+  // ----- threaded state as a pure handler (the §2 example) -----
+
+  // Interpret `get`/`put` by turning every clause into a function awaiting the
+  // current state, then feed in `s0`. No mutation: the state is an argument
+  // threaded through the continuations, so it is multi-shot-safe.
+  withState: (s0, task) => (handle task with {
+    get: (resume) => (s) => resume(s)(s),
+    put: (s1, resume) => (s) => resume(null)(s1),
+    return: (v) => (s) => v
+  })(s0),
+
+  // ----- capability attenuation (guest code narrowing guest code) -----
+
+  // Capabilities are plain records of closures over `perform`. Attenuating one
+  // is just building a narrower record — no special support needed.
+
+  // Drop capabilities: keep only the named methods of a capability record.
+  attenuate: (caps, allowed) => pick(caps, allowed),
+
+  // Guard a capability: wrap a filesystem-like `fs` so `read` only reaches paths
+  // under `prefix`, raising `Forbidden` otherwise. This drops `write`/`delete`
+  // (a narrower interface) *and* restricts the surviving method's authority.
+  readOnlyFs: (fs, prefix) => {
+    read: (path) => if hasPrefix(path, prefix)
+      then fs.read(path)
+      else raise({ tag: "Forbidden", path: path })
+  },
+
+  hasPrefix: (s, p) => slice(s, 0, length(p)) == p,
+
+  // ----- mock capabilities: records of closures over `perform` -----
+
+  mockIo: () => {
+    readLine: () => perform("io.readLine", []),
+    print: (msg) => perform("io.print", [msg])
+  },
+
+  mockFs: () => {
+    read: (path) => perform("fs.read", [path]),
+    write: (path, data) => perform("fs.write", [path, data])
+  },
+
+  counter: () => do {
+    c <- perform("get", []),
+    _ <- perform("put", [c + 1]),
+    pure(c)
+  },
+
+  // ----- runnable demos (pure: every effect interpreted in-language) -----
+
+  // forEachE over a doubling effect: [1,2,3] -> [2,4,6].
+  demoForEach: () => handle forEachE((x) => perform("double", [x]), [1, 2, 3]) with {
+    double: (x, resume) => resume(x * 2)
+  },
+
+  // retry: a task that always fails; catch the exhausted result. Attempts are
+  // counted by an outer wildcard handler (initial try + 2 retries = 3).
+  demoRetry: () => handle catch(retry(2, flaky), (err) => pure([])) with {
+    attempt: (resume) => concat(["try"], resume(null)),
+    return: (v) => v
+  } where {
+    flaky: bind(perform("attempt", []), (_) => raise("boom"))
+  },
+
+  // orElse: first branch fails, fall back to the second.
+  demoOrElse: () => handle orElse(raise("nope"), pure("fallback")) with {},
+
+  // withState: get, put c+1, return the old value (starts at 10).
+  demoState: () => withState(10, counter()),
+
+  // dry-run: list the effects a program would perform without performing them.
+  demoDryRun: () => collectEffects(do {
+    line <- perform("io.readLine", []),
+    _ <- perform("io.print", ["hello"]),
+    pure(null)
+  }),
+
+  // attenuation: a read-only fs under "/pub/" allows public reads, forbids the
+  // rest. Returns [ allowed-value, forbidden-tag ].
+  demoAttenuate: () => [
+    handle roFs.read("/pub/greeting") with {
+      "fs.read": (path, resume) => resume(strcat("contents of ", path))
+    },
+    handle catch(roFs.read("/etc/secrets"), (err) => pure(err.tag)) with {
+      "fs.read": (path, resume) => resume("should-not-happen")
+    }
+  ] where {
+    roFs: readOnlyFs(mockFs(), "/pub/")
+  }
+}

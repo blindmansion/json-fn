@@ -20,7 +20,7 @@
     }
   },
 
-  nextCell: (grid, idx) => if alive then n == 2 || n == 3 else n == 3 where {
+  nextCell: (grid, idx) => (if alive then n == 2 || n == 3 else n == 3) where {
     alive: grid[idx],
     n: neighborCount(grid, idx)
   },
@@ -74,7 +74,7 @@
     empty: emptyGrid()
   },
 
-  parseNat: (s) => if n == 0 then null else loop(0, 0) where {
+  parseNat: (s) => (if n == 0 then null else loop(0, 0)) where {
     n: length(s),
     loop: (i, acc) => cond {
       i == n -> acc,
