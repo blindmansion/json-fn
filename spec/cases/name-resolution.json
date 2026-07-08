@@ -185,11 +185,6 @@
       "expected": 42
     },
     {
-      "description": "`length.foo` still errors (path guard, no ref-then-walk)",
-      "body": { "$return": { "$var": "length.foo" } },
-      "error": "Variable length not found"
-    },
-    {
       "description": "an unknown bare name still errors",
       "body": { "$return": { "$var": "definitelyNotRegistered" } },
       "error": "Variable definitelyNotRegistered not found"

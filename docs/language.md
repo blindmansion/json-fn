@@ -50,43 +50,31 @@ When `$fn` is not an array, it evaluates the value and returns the result (a str
 
 ### Variable Reference — `{ $var }`
 
-Resolves a variable by name.
+Resolves a variable by name. `$var` must be the sole key, and its value is a plain variable name looked up directly in scope — there is no dot/bracket path notation and no `$get` sibling.
 
 ```json
 { "$var": "x" }
 ```
 
-Dot/bracket notation accesses nested properties inline:
+### Property Access — `{ $get, $from }`
+
+All property access uses `$get`/`$from`. `$from` evaluates to the target and `$get` evaluates to the key read from it:
 
 ```json
-{ "$var": "person.name" }
-{ "$var": "items[0]" }
-{ "$var": "data.items[1].name" }
-```
-
-`.key` accesses a string property, `[N]` accesses a numeric index (into an array, or into a string to get the character at that position), and `[key]` accesses a string key when the key is non-numeric. The first segment before any `.` or `[` is the variable name. Missing keys, out-of-bounds indices, or path traversal into non-object values return `null`.
-
-For dynamic or computed keys, add `$get`. It evaluates to a string key, numeric index, or array path, and applies after any dot-notation path resolves:
-
-```json
-{ "$var": "person", "$get": "name" }
-{ "$var": "items", "$get": 1 }
-{ "$var": "person", "$get": ["address", "city"] }
-{ "$var": "data.people[0]", "$get": "city" }
-{ "$var": "data", "$get": { "$var": "fieldName" } }
-```
-
-**Variable name restriction**: Variable names (in `$params` and as local keys) must not contain `.` or `[`.
-
-#### `{ $get, $from }` — Property Access on Expressions
-
-For accessing properties on non-variable expressions (e.g. function results or literals), use `$get`/`$from`. `$from` evaluates to the target object/array.
-
-```json
+{ "$get": "name", "$from": { "$var": "person" } }
+{ "$get": 1, "$from": { "$var": "items" } }
+{ "$get": ["address", "city"], "$from": { "$var": "person" } }
+{ "$get": { "$var": "fieldName" }, "$from": { "$var": "data" } }
 { "$get": 0, "$from": { "$fn": ["concat", [10], [20]] } }
 ```
 
-A numeric `$get` on a string returns the character at that index (`null` if out of bounds); a non-numeric `$get` on a string errors.
+`$get` evaluates to one of:
+
+- a **string** key — reads an object property (`null` if the key is missing);
+- a **number** index — reads an array element, or a character from a string (`null` if out of bounds);
+- an **array** — a static path walked segment by segment, applying the per-segment rules above at each step.
+
+`$from` may be any expression: a variable, a function result, a literal, or another `$get`/`$from` chain (nest them to walk deeper). Path traversal into a `null` or missing intermediate value returns `null`; a non-numeric `$get` on a string errors, as does a `$get` whose target is not an object, array, or string. `$get`/`$from` must be the only two keys.
 
 ### Function Body — `{ $return, ... }`
 
@@ -681,7 +669,7 @@ Use `entries` -> HOF -> `fromEntries` to transform objects:
       "filter",
       {
         "$params": ["pair"],
-        "$return": { "$gt": [{ "$var": "pair", "$get": 1 }, 3] }
+        "$return": { "$gt": [{ "$get": 1, "$from": { "$var": "pair" } }, 3] }
       },
       { "$var": "pairs" }
     ]
@@ -715,9 +703,8 @@ How limits are supplied, the per-language cancellation/timeout APIs, and default
 
 ## Constraints
 
-- `$var` must be the sole key, or paired only with `$get` for property access. The `$var` string may include dot/bracket path notation (e.g. `"person.name"`, `"items[0]"`).
-- Variable names (in `$params` and as local keys in function bodies) must not contain `.` or `[`.
-- `$get`/`$from` must be the only two keys (alternative property access form).
+- `$var` must be the sole key; its value is a plain variable name (no path notation, no `$get` sibling).
+- `$get`/`$from` must be the only two keys; both are required. This is the only property-access form.
 - `$if`/`$then`/`$else` must all be present, exactly three keys.
 - `$cond` may have only `$cond` and optional `$else`; each entry must be a two-element array.
 - `$match` must have `$match`, `$cases`, and `$else`; `$match` and case values must evaluate to scalar JSON values.

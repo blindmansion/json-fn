@@ -3,51 +3,17 @@
   "otherPlayer": {
     "$comment": "otherPlayer(\"X\") → \"O\",  otherPlayer(\"O\") → \"X\"",
     "$params": ["player"],
-    "$return": {
-      "$if": {
-        "$eq": [
-          {
-            "$var": "player"
-          },
-          "X"
-        ]
-      },
-      "$then": "O",
-      "$else": "X"
-    }
+    "$return": { "$if": { "$eq": [{ "$var": "player" }, "X"] }, "$then": "O", "$else": "X" }
   },
   "validMove": {
     "$comment": "validMove(board, pos) — is the cell at pos empty?",
     "$params": ["board", "pos"],
-    "$return": {
-      "$fn": [
-        "isNull",
-        {
-          "$var": "board",
-          "$get": {
-            "$var": "pos"
-          }
-        }
-      ]
-    }
+    "$return": { "$fn": ["isNull", { "$get": { "$var": "pos" }, "$from": { "$var": "board" } }] }
   },
   "makeMove": {
     "$comment": "makeMove(board, pos, player) — return a new board with player's mark at pos.",
     "$params": ["board", "pos", "player"],
-    "$return": {
-      "$fn": [
-        "setAt",
-        {
-          "$var": "board"
-        },
-        {
-          "$var": "pos"
-        },
-        {
-          "$var": "player"
-        }
-      ]
-    }
+    "$return": { "$fn": ["setAt", { "$var": "board" }, { "$var": "pos" }, { "$var": "player" }] }
   },
   "checkLine": {
     "$comment": "checkLine(board, player, line) — do all positions in `line` contain `player`?",
@@ -59,21 +25,12 @@
           "$params": ["pos"],
           "$return": {
             "$eq": [
-              {
-                "$var": "board",
-                "$get": {
-                  "$var": "pos"
-                }
-              },
-              {
-                "$var": "player"
-              }
+              { "$get": { "$var": "pos" }, "$from": { "$var": "board" } },
+              { "$var": "player" }
             ]
           }
         },
-        {
-          "$var": "line"
-        }
+        { "$var": "line" }
       ]
     }
   },
@@ -98,90 +55,29 @@
         {
           "$params": ["line"],
           "$return": {
-            "$fn": [
-              "checkLine",
-              {
-                "$var": "board"
-              },
-              {
-                "$var": "player"
-              },
-              {
-                "$var": "line"
-              }
-            ]
+            "$fn": ["checkLine", { "$var": "board" }, { "$var": "player" }, { "$var": "line" }]
           }
         },
-        {
-          "$var": "lines"
-        }
+        { "$var": "lines" }
       ]
     }
   },
   "isBoardFull": {
     "$comment": "isBoardFull(board) — are all 9 cells occupied?",
     "$params": ["board"],
-    "$return": {
-      "$not": {
-        "$fn": [
-          "includes",
-          {
-            "$var": "board"
-          },
-          null
-        ]
-      }
-    }
+    "$return": { "$not": { "$fn": ["includes", { "$var": "board" }, null] } }
   },
   "getStatus": {
     "$comment": "getStatus(board) → \"X\" | \"O\" | \"draw\" | \"playing\"",
     "$params": ["board"],
-    "xWins": {
-      "$fn": [
-        "checkWin",
-        {
-          "$var": "board"
-        },
-        "X"
-      ]
-    },
-    "oWins": {
-      "$fn": [
-        "checkWin",
-        {
-          "$var": "board"
-        },
-        "O"
-      ]
-    },
-    "full": {
-      "$fn": [
-        "isBoardFull",
-        {
-          "$var": "board"
-        }
-      ]
-    },
+    "xWins": { "$fn": ["checkWin", { "$var": "board" }, "X"] },
+    "oWins": { "$fn": ["checkWin", { "$var": "board" }, "O"] },
+    "full": { "$fn": ["isBoardFull", { "$var": "board" }] },
     "$return": {
       "$cond": [
-        [
-          {
-            "$var": "xWins"
-          },
-          "X"
-        ],
-        [
-          {
-            "$var": "oWins"
-          },
-          "O"
-        ],
-        [
-          {
-            "$var": "full"
-          },
-          "draw"
-        ]
+        [{ "$var": "xWins" }, "X"],
+        [{ "$var": "oWins" }, "O"],
+        [{ "$var": "full" }, "draw"]
       ],
       "$else": "playing"
     }
@@ -189,189 +85,58 @@
   "playMove": {
     "$comment": "playMove(state, pos) — apply a move and return the new game state.\nValidates that the game is still playing and the cell is empty.\nThanks to lazy evaluation, newBoard/newStatus/nextTurn are only\ncomputed when the move is actually valid.",
     "$params": ["state", "pos"],
-    "board": {
-      "$var": "state.board"
-    },
-    "turn": {
-      "$var": "state.turn"
-    },
-    "currentStatus": {
-      "$var": "state.status"
-    },
-    "stillPlaying": {
-      "$eq": [
-        {
-          "$var": "currentStatus"
-        },
-        "playing"
-      ]
-    },
-    "valid": {
-      "$fn": [
-        "validMove",
-        {
-          "$var": "board"
-        },
-        {
-          "$var": "pos"
-        }
-      ]
-    },
-    "canMove": {
-      "$fn": [
-        "and",
-        {
-          "$var": "stillPlaying"
-        },
-        {
-          "$var": "valid"
-        }
-      ]
-    },
-    "newBoard": {
-      "$fn": [
-        "makeMove",
-        {
-          "$var": "board"
-        },
-        {
-          "$var": "pos"
-        },
-        {
-          "$var": "turn"
-        }
-      ]
-    },
-    "newStatus": {
-      "$fn": [
-        "getStatus",
-        {
-          "$var": "newBoard"
-        }
-      ]
-    },
-    "nextTurn": {
-      "$fn": [
-        "otherPlayer",
-        {
-          "$var": "turn"
-        }
-      ]
-    },
+    "board": { "$get": "board", "$from": { "$var": "state" } },
+    "turn": { "$get": "turn", "$from": { "$var": "state" } },
+    "currentStatus": { "$get": "status", "$from": { "$var": "state" } },
+    "stillPlaying": { "$eq": [{ "$var": "currentStatus" }, "playing"] },
+    "valid": { "$fn": ["validMove", { "$var": "board" }, { "$var": "pos" }] },
+    "canMove": { "$fn": ["and", { "$var": "stillPlaying" }, { "$var": "valid" }] },
+    "newBoard": { "$fn": ["makeMove", { "$var": "board" }, { "$var": "pos" }, { "$var": "turn" }] },
+    "newStatus": { "$fn": ["getStatus", { "$var": "newBoard" }] },
+    "nextTurn": { "$fn": ["otherPlayer", { "$var": "turn" }] },
     "$return": {
-      "$if": {
-        "$var": "canMove"
-      },
+      "$if": { "$var": "canMove" },
       "$then": {
-        "board": {
-          "$var": "newBoard"
-        },
-        "turn": {
-          "$var": "nextTurn"
-        },
-        "status": {
-          "$var": "newStatus"
-        }
+        "board": { "$var": "newBoard" },
+        "turn": { "$var": "nextTurn" },
+        "status": { "$var": "newStatus" }
       },
-      "$else": {
-        "$var": "state"
-      }
+      "$else": { "$var": "state" }
     }
   },
   "minimax": {
     "$comment": "---------------------------------------------------------------------------\nMinimax AI\n\nminimax(board, depth, isMaximizing, aiPlayer) → score\n\nAll variables are lazily evaluated, so the recursive-case variables\n(emptyPos, scores, maxScore, minScore) are never computed when the\ngame is already over — the conditional short-circuits past them.\n---------------------------------------------------------------------------",
     "$params": ["board", "depth", "isMaximizing", "aiPlayer"],
-    "opponent": {
-      "$fn": [
-        "otherPlayer",
-        {
-          "$var": "aiPlayer"
-        }
-      ]
-    },
-    "status": {
-      "$fn": [
-        "getStatus",
-        {
-          "$var": "board"
-        }
-      ]
-    },
-    "gameOver": {
-      "$neq": [
-        {
-          "$var": "status"
-        },
-        "playing"
-      ]
-    },
+    "opponent": { "$fn": ["otherPlayer", { "$var": "aiPlayer" }] },
+    "status": { "$fn": ["getStatus", { "$var": "board" }] },
+    "gameOver": { "$neq": [{ "$var": "status" }, "playing"] },
     "aiWins": {
       "$fn": [
         "and",
-        {
-          "$var": "gameOver"
-        },
-        {
-          "$eq": [
-            {
-              "$var": "status"
-            },
-            {
-              "$var": "aiPlayer"
-            }
-          ]
-        }
+        { "$var": "gameOver" },
+        { "$eq": [{ "$var": "status" }, { "$var": "aiPlayer" }] }
       ]
     },
     "opponentWins": {
       "$fn": [
         "and",
-        {
-          "$var": "gameOver"
-        },
-        {
-          "$eq": [
-            {
-              "$var": "status"
-            },
-            {
-              "$var": "opponent"
-            }
-          ]
-        }
+        { "$var": "gameOver" },
+        { "$eq": [{ "$var": "status" }, { "$var": "opponent" }] }
       ]
     },
     "currentPlayer": {
-      "$if": {
-        "$var": "isMaximizing"
-      },
-      "$then": {
-        "$var": "aiPlayer"
-      },
-      "$else": {
-        "$var": "opponent"
-      }
+      "$if": { "$var": "isMaximizing" },
+      "$then": { "$var": "aiPlayer" },
+      "$else": { "$var": "opponent" }
     },
     "emptyPos": {
       "$fn": [
         "filter",
         {
           "$params": ["pos"],
-          "$return": {
-            "$fn": [
-              "validMove",
-              {
-                "$var": "board"
-              },
-              {
-                "$var": "pos"
-              }
-            ]
-          }
+          "$return": { "$fn": ["validMove", { "$var": "board" }, { "$var": "pos" }] }
         },
-        {
-          "$fn": ["range", 9]
-        }
+        { "$fn": ["range", 9] }
       ]
     },
     "scores": {
@@ -385,106 +150,30 @@
               {
                 "$fn": [
                   "makeMove",
-                  {
-                    "$var": "board"
-                  },
-                  {
-                    "$var": "pos"
-                  },
-                  {
-                    "$var": "currentPlayer"
-                  }
+                  { "$var": "board" },
+                  { "$var": "pos" },
+                  { "$var": "currentPlayer" }
                 ]
               },
-              {
-                "$fn": [
-                  "add",
-                  {
-                    "$var": "depth"
-                  },
-                  1
-                ]
-              },
-              {
-                "$not": {
-                  "$var": "isMaximizing"
-                }
-              },
-              {
-                "$var": "aiPlayer"
-              }
+              { "$fn": ["add", { "$var": "depth" }, 1] },
+              { "$not": { "$var": "isMaximizing" } },
+              { "$var": "aiPlayer" }
             ]
           }
         },
-        {
-          "$var": "emptyPos"
-        }
+        { "$var": "emptyPos" }
       ]
     },
-    "maxScore": {
-      "$fn": [
-        "max",
-        {
-          "$var": "scores"
-        }
-      ]
-    },
-    "minScore": {
-      "$fn": [
-        "min",
-        {
-          "$var": "scores"
-        }
-      ]
-    },
+    "maxScore": { "$fn": ["max", { "$var": "scores" }] },
+    "minScore": { "$fn": ["min", { "$var": "scores" }] },
     "$return": {
       "$cond": [
-        [
-          {
-            "$var": "aiWins"
-          },
-          {
-            "$fn": [
-              "sub",
-              10,
-              {
-                "$var": "depth"
-              }
-            ]
-          }
-        ],
-        [
-          {
-            "$var": "opponentWins"
-          },
-          {
-            "$fn": [
-              "sub",
-              {
-                "$var": "depth"
-              },
-              10
-            ]
-          }
-        ],
-        [
-          {
-            "$var": "gameOver"
-          },
-          0
-        ],
-        [
-          {
-            "$var": "isMaximizing"
-          },
-          {
-            "$var": "maxScore"
-          }
-        ]
+        [{ "$var": "aiWins" }, { "$fn": ["sub", 10, { "$var": "depth" }] }],
+        [{ "$var": "opponentWins" }, { "$fn": ["sub", { "$var": "depth" }, 10] }],
+        [{ "$var": "gameOver" }, 0],
+        [{ "$var": "isMaximizing" }, { "$var": "maxScore" }]
       ],
-      "$else": {
-        "$var": "minScore"
-      }
+      "$else": { "$var": "minScore" }
     }
   },
   "bestMove": {
@@ -495,21 +184,9 @@
         "filter",
         {
           "$params": ["pos"],
-          "$return": {
-            "$fn": [
-              "validMove",
-              {
-                "$var": "board"
-              },
-              {
-                "$var": "pos"
-              }
-            ]
-          }
+          "$return": { "$fn": ["validMove", { "$var": "board" }, { "$var": "pos" }] }
         },
-        {
-          "$fn": ["range", 9]
-        }
+        { "$fn": ["range", 9] }
       ]
     },
     "best": {
@@ -518,70 +195,20 @@
         {
           "$params": ["acc", "pos"],
           "newBoard": {
-            "$fn": [
-              "makeMove",
-              {
-                "$var": "board"
-              },
-              {
-                "$var": "pos"
-              },
-              {
-                "$var": "aiPlayer"
-              }
-            ]
+            "$fn": ["makeMove", { "$var": "board" }, { "$var": "pos" }, { "$var": "aiPlayer" }]
           },
-          "score": {
-            "$fn": [
-              "minimax",
-              {
-                "$var": "newBoard"
-              },
-              1,
-              false,
-              {
-                "$var": "aiPlayer"
-              }
-            ]
-          },
-          "bestScore": {
-            "$var": "acc.score"
-          },
+          "score": { "$fn": ["minimax", { "$var": "newBoard" }, 1, false, { "$var": "aiPlayer" }] },
+          "bestScore": { "$get": "score", "$from": { "$var": "acc" } },
           "$return": {
-            "$if": {
-              "$gt": [
-                {
-                  "$var": "score"
-                },
-                {
-                  "$var": "bestScore"
-                }
-              ]
-            },
-            "$then": {
-              "score": {
-                "$var": "score"
-              },
-              "pos": {
-                "$var": "pos"
-              }
-            },
-            "$else": {
-              "$var": "acc"
-            }
+            "$if": { "$gt": [{ "$var": "score" }, { "$var": "bestScore" }] },
+            "$then": { "score": { "$var": "score" }, "pos": { "$var": "pos" } },
+            "$else": { "$var": "acc" }
           }
         },
-        {
-          "score": -100,
-          "pos": -1
-        },
-        {
-          "$var": "emptyPos"
-        }
+        { "score": -100, "pos": -1 },
+        { "$var": "emptyPos" }
       ]
     },
-    "$return": {
-      "$var": "best.pos"
-    }
+    "$return": { "$get": "pos", "$from": { "$var": "best" } }
   }
 }

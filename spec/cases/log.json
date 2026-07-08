@@ -13,18 +13,12 @@
     },
     {
       "description": "log returns an object unchanged with a label",
-      "body": {
-        "$return": { "$fn": ["log", { "answer": 42, "ok": true }, "debug"] }
-      },
+      "body": { "$return": { "$fn": ["log", { "answer": 42, "ok": true }, "debug"] } },
       "expected": { "answer": 42, "ok": true }
     },
     {
       "description": "log returns an array unchanged",
-      "body": {
-        "$return": {
-          "$fn": ["log", [1, { "two": 2 }, null]]
-        }
-      },
+      "body": { "$return": { "$fn": ["log", [1, { "two": 2 }, null]] } },
       "expected": [1, { "two": 2 }, null]
     },
     {
@@ -33,10 +27,7 @@
         "$return": {
           "$fn": [
             "map",
-            {
-              "$params": ["x"],
-              "$return": { "$fn": ["log", { "$var": "x" }, "item"] }
-            },
+            { "$params": ["x"], "$return": { "$fn": ["log", { "$var": "x" }, "item"] } },
             [1, 2, 3]
           ]
         }

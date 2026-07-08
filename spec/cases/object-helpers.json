@@ -3,16 +3,12 @@
   "cases": [
     {
       "description": "keys: empty object returns empty array",
-      "body": {
-        "$return": { "$fn": ["keys", {}] }
-      },
+      "body": { "$return": { "$fn": ["keys", {}] } },
       "expected": []
     },
     {
       "description": "keys: single-key object",
-      "body": {
-        "$return": { "$fn": ["keys", { "name": "alice" }] }
-      },
+      "body": { "$return": { "$fn": ["keys", { "name": "alice" }] } },
       "expected": ["name"]
     },
     {
@@ -27,25 +23,17 @@
     },
     {
       "description": "keys: count matches number of keys",
-      "body": {
-        "$return": {
-          "$fn": ["length", { "$fn": ["keys", { "x": 1, "y": 2, "z": 3 }] }]
-        }
-      },
+      "body": { "$return": { "$fn": ["length", { "$fn": ["keys", { "x": 1, "y": 2, "z": 3 }] }] } },
       "expected": 3
     },
     {
       "description": "values: empty object returns empty array",
-      "body": {
-        "$return": { "$fn": ["values", {}] }
-      },
+      "body": { "$return": { "$fn": ["values", {}] } },
       "expected": []
     },
     {
       "description": "values: single-key object",
-      "body": {
-        "$return": { "$fn": ["values", { "a": 42 }] }
-      },
+      "body": { "$return": { "$fn": ["values", { "a": 42 }] } },
       "expected": [42]
     },
     {
@@ -62,12 +50,8 @@
       "description": "keys and values: same length",
       "body": {
         "obj": { "x": 10, "y": 20, "z": 30 },
-        "kLen": {
-          "$fn": ["length", { "$fn": ["keys", { "$var": "obj" }] }]
-        },
-        "vLen": {
-          "$fn": ["length", { "$fn": ["values", { "$var": "obj" }] }]
-        },
+        "kLen": { "$fn": ["length", { "$fn": ["keys", { "$var": "obj" }] }] },
+        "vLen": { "$fn": ["length", { "$fn": ["values", { "$var": "obj" }] }] },
         "$return": { "$fn": ["eq", { "$var": "kLen" }, { "$var": "vLen" }] }
       },
       "expected": true

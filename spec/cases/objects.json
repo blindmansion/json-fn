@@ -3,9 +3,7 @@
   "cases": [
     {
       "description": "entries: returns key-value pairs",
-      "body": {
-        "$return": { "$fn": ["entries", { "a": 1, "b": 2, "c": 3 }] }
-      },
+      "body": { "$return": { "$fn": ["entries", { "a": 1, "b": 2, "c": 3 }] } },
       "expected": [
         ["a", 1],
         ["b", 2],
@@ -14,9 +12,7 @@
     },
     {
       "description": "entries: empty object returns empty array",
-      "body": {
-        "$return": { "$fn": ["entries", {}] }
-      },
+      "body": { "$return": { "$fn": ["entries", {}] } },
       "expected": []
     },
     {
@@ -36,9 +32,7 @@
     },
     {
       "description": "fromEntries: empty pairs returns empty object",
-      "body": {
-        "$return": { "$fn": ["fromEntries", []] }
-      },
+      "body": { "$return": { "$fn": ["fromEntries", []] } },
       "expected": {}
     },
     {
@@ -51,65 +45,47 @@
     },
     {
       "description": "merge: merges two objects",
-      "body": {
-        "$return": { "$fn": ["merge", { "a": 1 }, { "b": 2 }] }
-      },
+      "body": { "$return": { "$fn": ["merge", { "a": 1 }, { "b": 2 }] } },
       "expected": { "a": 1, "b": 2 }
     },
     {
       "description": "merge: second object wins on key conflict",
-      "body": {
-        "$return": { "$fn": ["merge", { "a": 1, "b": 2 }, { "b": 99, "c": 3 }] }
-      },
+      "body": { "$return": { "$fn": ["merge", { "a": 1, "b": 2 }, { "b": 99, "c": 3 }] } },
       "expected": { "a": 1, "b": 99, "c": 3 }
     },
     {
       "description": "merge: merging with empty object is identity",
-      "body": {
-        "$return": { "$fn": ["merge", { "a": 1 }, {}] }
-      },
+      "body": { "$return": { "$fn": ["merge", { "a": 1 }, {}] } },
       "expected": { "a": 1 }
     },
     {
       "description": "hasKey: returns true for existing key",
-      "body": {
-        "$return": { "$fn": ["hasKey", { "x": 1, "y": 2 }, "x"] }
-      },
+      "body": { "$return": { "$fn": ["hasKey", { "x": 1, "y": 2 }, "x"] } },
       "expected": true
     },
     {
       "description": "hasKey: returns false for missing key",
-      "body": {
-        "$return": { "$fn": ["hasKey", { "x": 1 }, "z"] }
-      },
+      "body": { "$return": { "$fn": ["hasKey", { "x": 1 }, "z"] } },
       "expected": false
     },
     {
       "description": "hasKey: detects key with null value",
-      "body": {
-        "$return": { "$fn": ["hasKey", { "a": null }, "a"] }
-      },
+      "body": { "$return": { "$fn": ["hasKey", { "a": null }, "a"] } },
       "expected": true
     },
     {
       "description": "isObject: true for plain objects",
-      "body": {
-        "$return": { "$fn": ["isObject", { "a": 1 }] }
-      },
+      "body": { "$return": { "$fn": ["isObject", { "a": 1 }] } },
       "expected": true
     },
     {
       "description": "isObject: true for empty object",
-      "body": {
-        "$return": { "$fn": ["isObject", {}] }
-      },
+      "body": { "$return": { "$fn": ["isObject", {}] } },
       "expected": true
     },
     {
       "description": "isObject: false for arrays",
-      "body": {
-        "$return": { "$fn": ["isObject", [1, 2]] }
-      },
+      "body": { "$return": { "$fn": ["isObject", [1, 2]] } },
       "expected": false
     },
     {
@@ -134,44 +110,32 @@
     },
     {
       "description": "pick: selects specified keys",
-      "body": {
-        "$return": { "$fn": ["pick", { "a": 1, "b": 2, "c": 3 }, ["a", "c"]] }
-      },
+      "body": { "$return": { "$fn": ["pick", { "a": 1, "b": 2, "c": 3 }, ["a", "c"]] } },
       "expected": { "a": 1, "c": 3 }
     },
     {
       "description": "pick: ignores keys not present in the object",
-      "body": {
-        "$return": { "$fn": ["pick", { "a": 1 }, ["a", "z"]] }
-      },
+      "body": { "$return": { "$fn": ["pick", { "a": 1 }, ["a", "z"]] } },
       "expected": { "a": 1 }
     },
     {
       "description": "pick: empty key list returns empty object",
-      "body": {
-        "$return": { "$fn": ["pick", { "a": 1, "b": 2 }, []] }
-      },
+      "body": { "$return": { "$fn": ["pick", { "a": 1, "b": 2 }, []] } },
       "expected": {}
     },
     {
       "description": "omit: excludes specified keys",
-      "body": {
-        "$return": { "$fn": ["omit", { "a": 1, "b": 2, "c": 3 }, ["b"]] }
-      },
+      "body": { "$return": { "$fn": ["omit", { "a": 1, "b": 2, "c": 3 }, ["b"]] } },
       "expected": { "a": 1, "c": 3 }
     },
     {
       "description": "omit: ignores keys not present in the object",
-      "body": {
-        "$return": { "$fn": ["omit", { "a": 1, "b": 2 }, ["z"]] }
-      },
+      "body": { "$return": { "$fn": ["omit", { "a": 1, "b": 2 }, ["z"]] } },
       "expected": { "a": 1, "b": 2 }
     },
     {
       "description": "omit: omitting all keys returns empty object",
-      "body": {
-        "$return": { "$fn": ["omit", { "a": 1, "b": 2 }, ["a", "b"]] }
-      },
+      "body": { "$return": { "$fn": ["omit", { "a": 1, "b": 2 }, ["a", "b"]] } },
       "expected": {}
     },
     {
@@ -180,10 +144,7 @@
         "$return": {
           "$fn": [
             "mapValues",
-            {
-              "$params": ["v"],
-              "$return": { "$fn": ["mul", { "$var": "v" }, 2] }
-            },
+            { "$params": ["v"], "$return": { "$fn": ["mul", { "$var": "v" }, 2] } },
             { "x": 1, "y": 2, "z": 3 }
           ]
         }
@@ -205,23 +166,16 @@
     },
     {
       "description": "mapValues: works with named function",
-      "body": {
-        "$return": { "$fn": ["mapValues", { "$fn": "negate" }, { "a": 1, "b": -2 }] }
-      },
+      "body": { "$return": { "$fn": ["mapValues", { "$fn": "negate" }, { "a": 1, "b": -2 }] } },
       "functions": {
-        "negate": {
-          "$params": ["n"],
-          "$return": { "$fn": ["neg", { "$var": "n" }] }
-        }
+        "negate": { "$params": ["n"], "$return": { "$fn": ["neg", { "$var": "n" }] } }
       },
       "expected": { "a": -1, "b": 2 }
     },
     {
       "description": "mapValues: empty object returns empty object",
       "body": {
-        "$return": {
-          "$fn": ["mapValues", { "$params": ["v"], "$return": { "$var": "v" } }, {}]
-        }
+        "$return": { "$fn": ["mapValues", { "$params": ["v"], "$return": { "$var": "v" } }, {}] }
       },
       "expected": {}
     },
@@ -234,7 +188,7 @@
             "filter",
             {
               "$params": ["pair"],
-              "value": { "$var": "pair", "$get": 1 },
+              "value": { "$get": 1, "$from": { "$var": "pair" } },
               "$return": { "$fn": ["gt", { "$var": "value" }, 3] }
             },
             { "$var": "pairs" }
@@ -253,8 +207,8 @@
             "map",
             {
               "$params": ["pair"],
-              "k": { "$fn": ["upper", { "$var": "pair", "$get": 0 }] },
-              "v": { "$var": "pair", "$get": 1 },
+              "k": { "$fn": ["upper", { "$get": 0, "$from": { "$var": "pair" } }] },
+              "v": { "$get": 1, "$from": { "$var": "pair" } },
               "$return": [{ "$var": "k" }, { "$var": "v" }]
             },
             { "$var": "pairs" }

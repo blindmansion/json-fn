@@ -3,107 +3,77 @@
   "cases": [
     {
       "description": "head: returns first element",
-      "body": {
-        "$return": { "$fn": ["head", [10, 20, 30]] }
-      },
+      "body": { "$return": { "$fn": ["head", [10, 20, 30]] } },
       "expected": 10
     },
     {
       "description": "head: returns null for empty array",
-      "body": {
-        "$return": { "$fn": ["head", []] }
-      },
+      "body": { "$return": { "$fn": ["head", []] } },
       "expected": null
     },
     {
       "description": "head: single element array",
-      "body": {
-        "$return": { "$fn": ["head", [42]] }
-      },
+      "body": { "$return": { "$fn": ["head", [42]] } },
       "expected": 42
     },
     {
       "description": "head: works with mixed types",
-      "body": {
-        "$return": { "$fn": ["head", ["hello", 2, true]] }
-      },
+      "body": { "$return": { "$fn": ["head", ["hello", 2, true]] } },
       "expected": "hello"
     },
     {
       "description": "last: returns last element",
-      "body": {
-        "$return": { "$fn": ["last", [10, 20, 30]] }
-      },
+      "body": { "$return": { "$fn": ["last", [10, 20, 30]] } },
       "expected": 30
     },
     {
       "description": "last: returns null for empty array",
-      "body": {
-        "$return": { "$fn": ["last", []] }
-      },
+      "body": { "$return": { "$fn": ["last", []] } },
       "expected": null
     },
     {
       "description": "last: single element array",
-      "body": {
-        "$return": { "$fn": ["last", [42]] }
-      },
+      "body": { "$return": { "$fn": ["last", [42]] } },
       "expected": 42
     },
     {
       "description": "tail: returns all but the first element",
-      "body": {
-        "$return": { "$fn": ["tail", [10, 20, 30]] }
-      },
+      "body": { "$return": { "$fn": ["tail", [10, 20, 30]] } },
       "expected": [20, 30]
     },
     {
       "description": "tail: returns empty array for empty input",
-      "body": {
-        "$return": { "$fn": ["tail", []] }
-      },
+      "body": { "$return": { "$fn": ["tail", []] } },
       "expected": []
     },
     {
       "description": "tail: returns empty array for single element",
-      "body": {
-        "$return": { "$fn": ["tail", [42]] }
-      },
+      "body": { "$return": { "$fn": ["tail", [42]] } },
       "expected": []
     },
     {
       "description": "slice: array from start index",
-      "body": {
-        "$return": { "$fn": ["slice", [10, 20, 30, 40, 50], 2] }
-      },
+      "body": { "$return": { "$fn": ["slice", [10, 20, 30, 40, 50], 2] } },
       "expected": [30, 40, 50]
     },
     {
       "description": "slice: array with start and end",
-      "body": {
-        "$return": { "$fn": ["slice", [10, 20, 30, 40, 50], 1, 3] }
-      },
+      "body": { "$return": { "$fn": ["slice", [10, 20, 30, 40, 50], 1, 3] } },
       "expected": [20, 30]
     },
     {
       "description": "slice: negative start counts from end",
-      "body": {
-        "$return": { "$fn": ["slice", [10, 20, 30, 40, 50], -2] }
-      },
+      "body": { "$return": { "$fn": ["slice", [10, 20, 30, 40, 50], -2] } },
       "expected": [40, 50]
     },
     {
       "description": "slice: negative end counts from end",
-      "body": {
-        "$return": { "$fn": ["slice", [10, 20, 30, 40, 50], 1, -1] }
-      },
+      "body": { "$return": { "$fn": ["slice", [10, 20, 30, 40, 50], 1, -1] } },
       "expected": [20, 30, 40]
     },
     {
       "description": "slice: start beyond length returns empty",
-      "body": {
-        "$return": { "$fn": ["slice", [1, 2, 3], 10] }
-      },
+      "body": { "$return": { "$fn": ["slice", [1, 2, 3], 10] } },
       "expected": []
     },
     {
@@ -118,69 +88,47 @@
     },
     {
       "description": "reverse: reverses array order",
-      "body": {
-        "$return": { "$fn": ["reverse", [1, 2, 3, 4, 5]] }
-      },
+      "body": { "$return": { "$fn": ["reverse", [1, 2, 3, 4, 5]] } },
       "expected": [5, 4, 3, 2, 1]
     },
     {
       "description": "reverse: empty array returns empty array",
-      "body": {
-        "$return": { "$fn": ["reverse", []] }
-      },
+      "body": { "$return": { "$fn": ["reverse", []] } },
       "expected": []
     },
     {
       "description": "reverse: single element unchanged",
-      "body": {
-        "$return": { "$fn": ["reverse", [42]] }
-      },
+      "body": { "$return": { "$fn": ["reverse", [42]] } },
       "expected": [42]
     },
     {
       "description": "reverse: works with mixed types",
-      "body": {
-        "$return": { "$fn": ["reverse", ["a", 1, true, null]] }
-      },
+      "body": { "$return": { "$fn": ["reverse", ["a", 1, true, null]] } },
       "expected": [null, true, 1, "a"]
     },
     {
       "description": "indexOf: found in array",
-      "body": {
-        "$return": { "$fn": ["indexOf", [10, 20, 30, 40], 30] }
-      },
+      "body": { "$return": { "$fn": ["indexOf", [10, 20, 30, 40], 30] } },
       "expected": 2
     },
     {
       "description": "indexOf: not found in array returns -1",
-      "body": {
-        "$return": { "$fn": ["indexOf", [10, 20, 30], 99] }
-      },
+      "body": { "$return": { "$fn": ["indexOf", [10, 20, 30], 99] } },
       "expected": -1
     },
     {
       "description": "indexOf: returns first occurrence",
-      "body": {
-        "$return": { "$fn": ["indexOf", [1, 2, 3, 2, 1], 2] }
-      },
+      "body": { "$return": { "$fn": ["indexOf", [1, 2, 3, 2, 1], 2] } },
       "expected": 1
     },
     {
       "description": "indexOf: does not use structural equality for arrays",
-      "body": {
-        "$return": {
-          "$fn": ["indexOf", [[1]], [1]]
-        }
-      },
+      "body": { "$return": { "$fn": ["indexOf", [[1]], [1]] } },
       "expected": -1
     },
     {
       "description": "indexOf: does not use structural equality for objects",
-      "body": {
-        "$return": {
-          "$fn": ["indexOf", [{ "x": 1 }], { "x": 1 }]
-        }
-      },
+      "body": { "$return": { "$fn": ["indexOf", [{ "x": 1 }], { "x": 1 }] } },
       "expected": -1
     },
     {
@@ -195,34 +143,22 @@
     },
     {
       "description": "includes: true when element exists in array",
-      "body": {
-        "$return": { "$fn": ["includes", [1, 2, 3], 2] }
-      },
+      "body": { "$return": { "$fn": ["includes", [1, 2, 3], 2] } },
       "expected": true
     },
     {
       "description": "includes: false when element missing from array",
-      "body": {
-        "$return": { "$fn": ["includes", [1, 2, 3], 5] }
-      },
+      "body": { "$return": { "$fn": ["includes", [1, 2, 3], 5] } },
       "expected": false
     },
     {
       "description": "includes: does not use structural equality for arrays",
-      "body": {
-        "$return": {
-          "$fn": ["includes", [[1]], [1]]
-        }
-      },
+      "body": { "$return": { "$fn": ["includes", [[1]], [1]] } },
       "expected": false
     },
     {
       "description": "includes: does not use structural equality for objects",
-      "body": {
-        "$return": {
-          "$fn": ["includes", [{ "x": 1 }], { "x": 1 }]
-        }
-      },
+      "body": { "$return": { "$fn": ["includes", [{ "x": 1 }], { "x": 1 }] } },
       "expected": false
     },
     {

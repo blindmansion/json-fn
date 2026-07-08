@@ -1,16 +1,8 @@
 {
   "description": "calls and references (shorthand spec section 4)",
   "cases": [
-    {
-      "description": "named call",
-      "source": "add(3, 4)",
-      "expected": { "$fn": ["add", 3, 4] }
-    },
-    {
-      "description": "nullary call",
-      "source": "f()",
-      "expected": { "$fn": ["f"] }
-    },
+    { "description": "named call", "source": "add(3, 4)", "expected": { "$fn": ["add", 3, 4] } },
+    { "description": "nullary call", "source": "f()", "expected": { "$fn": ["f"] } },
     {
       "description": "call target from parenthesized variable",
       "source": "(fnName)(3, 4)",
@@ -45,24 +37,24 @@
       "description": "method call: access chain in call position is a call on the evaluated callee",
       "source": "caps.db.query(sql)",
       "expected": {
-        "$fn": [{ "$var": "caps", "$get": ["db", "query"] }, { "$var": "sql" }]
+        "$fn": [{ "$get": ["db", "query"], "$from": { "$var": "caps" } }, { "$var": "sql" }]
       }
     },
     {
       "description": "zero-arg method call",
       "source": "io.readLine()",
-      "expected": { "$fn": [{ "$var": "io", "$get": "readLine" }] }
+      "expected": { "$fn": [{ "$get": "readLine", "$from": { "$var": "io" } }] }
     },
     {
       "description": "single-dot method call",
       "source": "obj.method(x)",
-      "expected": { "$fn": [{ "$var": "obj", "$get": "method" }, { "$var": "x" }] }
+      "expected": { "$fn": [{ "$get": "method", "$from": { "$var": "obj" } }, { "$var": "x" }] }
     },
     {
       "description": "computed-key method call",
       "source": "caps[name](x)",
       "expected": {
-        "$fn": [{ "$var": "caps", "$get": { "$var": "name" } }, { "$var": "x" }]
+        "$fn": [{ "$get": { "$var": "name" }, "$from": { "$var": "caps" } }, { "$var": "x" }]
       }
     },
     {

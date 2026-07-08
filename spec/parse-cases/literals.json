@@ -67,10 +67,6 @@
       "source": "raw { \"$fn\": [\"not\", \"x\"] }",
       "expected": { "$raw": { "$fn": ["not", "x"] } }
     },
-    {
-      "description": "raw object requires quoted keys",
-      "source": "raw { fn: 1 }",
-      "error": true
-    }
+    { "description": "raw object requires quoted keys", "source": "raw { fn: 1 }", "error": true }
   ]
 }

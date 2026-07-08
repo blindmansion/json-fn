@@ -94,7 +94,7 @@ function render(node: JSONType, indent: string): Rendered {
 
 function renderObject(node: { [k: string]: JSONType }, indent: string): Rendered {
   if ("$fn" in node) return renderFn(node.$fn!, indent);
-  if ("$var" in node) return atom(renderVarAccess(node, indent));
+  if ("$var" in node) return atom(node.$var as string);
   if ("$get" in node && "$from" in node) return atom(renderFromAccess(node, indent));
   if ("$if" in node) return renderIf(node, indent);
   if ("$cond" in node) return renderCond(node, indent);
@@ -192,12 +192,6 @@ function escapeTemplateSpan(s: string): string {
 }
 
 // ----- variables and property access (spec §5) -----
-
-function renderVarAccess(node: { [k: string]: JSONType }, indent: string): string {
-  const name = node.$var as string;
-  if ("$get" in node) return name + renderGet(node.$get!, indent);
-  return name;
-}
 
 function renderFromAccess(node: { [k: string]: JSONType }, indent: string): string {
   return emit(node.$from!, P_ATOM, indent) + renderGet(node.$get!, indent);

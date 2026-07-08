@@ -4,17 +4,13 @@
   "cases": [
     {
       "description": "range exceeding maxValueSize is rejected",
-      "body": {
-        "$return": { "$fn": ["length", { "$fn": ["range", 100000] }] }
-      },
+      "body": { "$return": { "$fn": ["length", { "$fn": ["range", 100000] }] } },
       "limits": { "maxValueSize": 1000 },
       "error": "Maximum value size"
     },
     {
       "description": "range within maxValueSize succeeds",
-      "body": {
-        "$return": { "$fn": ["length", { "$fn": ["range", 500] }] }
-      },
+      "body": { "$return": { "$fn": ["length", { "$fn": ["range", 500] }] } },
       "limits": { "maxValueSize": 1000 },
       "expected": 500
     },

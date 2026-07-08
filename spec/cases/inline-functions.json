@@ -6,10 +6,7 @@
       "body": {
         "$return": {
           "$fn": [
-            {
-              "$params": ["x"],
-              "$return": { "$fn": ["mul", { "$var": "x" }, { "$var": "x" }] }
-            },
+            { "$params": ["x"], "$return": { "$fn": ["mul", { "$var": "x" }, { "$var": "x" }] } },
             5
           ]
         }

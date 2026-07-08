@@ -21,7 +21,7 @@
       "description": "$comment alongside $var with $get is ignored",
       "body": {
         "$params": ["obj"],
-        "$return": { "$comment": "look up the name", "$var": "obj", "$get": "name" }
+        "$return": { "$comment": "look up the name", "$get": "name", "$from": { "$var": "obj" } }
       },
       "args": [{ "name": "alice" }],
       "expected": "alice"

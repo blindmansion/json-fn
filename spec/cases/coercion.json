@@ -48,11 +48,7 @@
     },
     {
       "description": "num: used in arithmetic after coercion",
-      "body": {
-        "$return": {
-          "$fn": ["add", { "$fn": ["num", "10"] }, { "$fn": ["num", "20"] }]
-        }
-      },
+      "body": { "$return": { "$fn": ["add", { "$fn": ["num", "10"] }, { "$fn": ["num", "20"] }] } },
       "expected": 30
     }
   ]

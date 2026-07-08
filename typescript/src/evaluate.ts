@@ -16,7 +16,6 @@ import type {
   ComparisonOperator,
   NotExpression,
   PropertyAccess,
-  VarPropertyAccess,
   EvaluatedFunctionCall,
   PerfStats,
   CallState,
@@ -75,76 +74,6 @@ function cloneIfNeeded(value: JSONType, perf?: PerfStats): JSONType {
   return structuredClone(value);
 }
 
-type ParsedPath = { variable: string; path: (string | number)[] };
-const PATH_CACHE_MAX = 1024;
-const _pathCache = new Map<string, ParsedPath>();
-
-function cachePath(str: string, result: ParsedPath): ParsedPath {
-  if (_pathCache.size >= PATH_CACHE_MAX) _pathCache.delete(_pathCache.keys().next().value!);
-  _pathCache.set(str, result);
-  return result;
-}
-
-function parsePath(str: string): ParsedPath {
-  const cached = _pathCache.get(str);
-  if (cached) return cached;
-
-  const dotIdx = str.indexOf(".");
-  const bracketIdx = str.indexOf("[");
-
-  if (dotIdx === -1 && bracketIdx === -1) {
-    const result: ParsedPath = { variable: str, path: [] };
-    return cachePath(str, result);
-  }
-
-  let splitIdx: number;
-  if (dotIdx === -1) splitIdx = bracketIdx;
-  else if (bracketIdx === -1) splitIdx = dotIdx;
-  else splitIdx = Math.min(dotIdx, bracketIdx);
-
-  const variable = str.slice(0, splitIdx);
-  if (variable === "") {
-    throw new Error(`Invalid $var path: variable name cannot be empty in "${str}"`);
-  }
-
-  const path: (string | number)[] = [];
-  let i = splitIdx;
-
-  while (i < str.length) {
-    const ch = str[i];
-    if (ch === ".") {
-      i++;
-      let end = i;
-      while (end < str.length && str[end] !== "." && str[end] !== "[") {
-        end++;
-      }
-      if (end === i) {
-        throw new Error(`Invalid $var path: empty segment after "." in "${str}"`);
-      }
-      path.push(str.slice(i, end));
-      i = end;
-    } else if (ch === "[") {
-      i++;
-      const closeIdx = str.indexOf("]", i);
-      if (closeIdx === -1) {
-        throw new Error(`Invalid $var path: unclosed "[" in "${str}"`);
-      }
-      const inner = str.slice(i, closeIdx);
-      if (inner === "") {
-        throw new Error(`Invalid $var path: empty "[]" in "${str}"`);
-      }
-      const num = Number(inner);
-      path.push(Number.isInteger(num) && String(num) === inner ? num : inner);
-      i = closeIdx + 1;
-    } else {
-      throw new Error(`Invalid $var path: unexpected character "${ch}" in "${str}"`);
-    }
-  }
-
-  const result: ParsedPath = { variable, path };
-  return cachePath(str, result);
-}
-
 const EMPTY_LOCAL_FNS: ReadonlySet<string> = new Set();
 
 function isFnDeclaration(value: JSONType): value is FunctionDeclaration {
@@ -154,55 +83,23 @@ function isFnDeclaration(value: JSONType): value is FunctionDeclaration {
   );
 }
 
-function walkPath(value: JSONType, path: (string | number)[]): JSONType {
-  let current = value;
-  for (const segment of path) {
-    if (typeof current === "string") {
-      if (typeof segment === "number") {
-        const ch = current[segment];
-        current = ch === undefined ? null : ch;
-      } else {
-        return null;
-      }
-    } else if (current === null || typeof current !== "object") {
-      return null;
-    } else {
-      current = (current as any)[segment];
-      if (current === undefined) {
-        return null;
-      }
-    }
-  }
-  return current;
-}
-
 function resolveVar(
-  varPath: string,
+  name: string,
   getVar: (name: string) => JSONType | undefined,
   functions: FunctionRegistry,
   expression: JSONType,
 ): JSONType {
-  const parsed = parsePath(varPath);
-  const value = getVar(parsed.variable);
+  const value = getVar(name);
   if (value === undefined) {
     // P4: a bare identifier that isn't a lexical binding but *is* a registered
     // function resolves to its name reference (i.e. `map(length, xs)` ==
-    // `map(&length, xs)`), so `&` is optional. The path guard keeps `length.foo`
-    // an error rather than resolving the ref then walking into it.
-    if (parsed.path.length === 0 && functions[parsed.variable] !== undefined) {
-      return parsed.variable;
+    // `map(&length, xs)`), so `&` is optional.
+    if (functions[name] !== undefined) {
+      return name;
     }
-    exprError(expression, `Variable ${parsed.variable} not found.`);
+    exprError(expression, `Variable ${name} not found.`);
   }
-  return parsed.path.length > 0 ? walkPath(value, parsed.path) : value;
-}
-
-function validateParamName(name: string): void {
-  if (name.includes(".") || name.includes("[")) {
-    throw new Error(
-      `Parameter name "${name}" must not contain "." or "[". Use simple identifiers.`,
-    );
-  }
+  return value;
 }
 
 const DEFAULT_MAX_CALL_DEPTH = 256;
@@ -474,7 +371,6 @@ function buildScope(
   localFns: ReadonlySet<string>;
   attachFns: ReadonlySet<string>;
 } {
-  const { perf } = context;
   const { functions, getVar: getVarParent, limits, state } = context;
 
   const localFnKeys: string[] = [];
@@ -526,11 +422,9 @@ function buildScope(
       if (typeof slot === "string") {
         if (slot.startsWith("...")) {
           const restName = slot.slice(3);
-          validateParamName(restName);
           evaluatedVars[restName] = args.slice(i);
           break;
         }
-        validateParamName(slot);
         evaluatedVars[slot] = args[i] ?? null;
       } else {
         // Object pattern: destructure the i-th positional argument into named
@@ -539,7 +433,6 @@ function buildScope(
         const v = args[i] ?? null;
         const isPlainObject = typeof v === "object" && v !== null && !Array.isArray(v);
         for (const field of slot.$fields) {
-          validateParamName(field);
           evaluatedVars[field] = isPlainObject ? ((v as any)[field] ?? null) : null;
         }
       }
@@ -743,7 +636,7 @@ function evaluateExpression(expression: JSONType, context: EvaluationContext): J
       return !evaluateExpression((expression as NotExpression).$not, context);
 
     case ExpressionType.PropertyAccess:
-      return evaluatePropertyAccess(expression as PropertyAccess | VarPropertyAccess, context);
+      return evaluatePropertyAccess(expression as PropertyAccess, context);
 
     case ExpressionType.Raw:
       const rawValue = (expression as { $raw: JSONType }).$raw;
@@ -813,35 +706,8 @@ function replaceVars(
 
   if (typeof expression === "object" && expression !== null) {
     if ("$var" in expression && typeof expression.$var === "string") {
-      const parsed = parsePath(expression.$var);
-      if ("$get" in expression) {
-        const varValue = getVar(parsed.variable);
-        const replacedKey = replaceVars(
-          expression.$get,
-          getVar,
-          localFns,
-          attachFns,
-          localFnDefs,
-          context,
-        );
-        if (varValue !== undefined) {
-          if (parsed.path.length > 0) {
-            const pathKey: JSONType = parsed.path.length === 1 ? parsed.path[0]! : parsed.path;
-            return { $get: replacedKey, $from: { $get: pathKey, $from: varValue } };
-          }
-          return { $get: replacedKey, $from: varValue };
-        }
-        return { $var: expression.$var, $get: replacedKey };
-      }
-      const varValue = getVar(parsed.variable);
-      if (varValue === undefined) {
-        return expression;
-      }
-      if (parsed.path.length > 0) {
-        const pathKey: JSONType = parsed.path.length === 1 ? parsed.path[0]! : parsed.path;
-        return { $get: pathKey, $from: varValue };
-      }
-      return varValue;
+      const varValue = getVar(expression.$var);
+      return varValue === undefined ? expression : varValue;
     }
 
     if ("$return" in expression) {
@@ -1075,21 +941,9 @@ function evaluateComparisonExpression(
   }
 }
 
-function evaluatePropertyAccess(
-  expression: PropertyAccess | VarPropertyAccess,
-  context: EvaluationContext,
-): JSONType {
-  const { getVar } = context;
+function evaluatePropertyAccess(expression: PropertyAccess, context: EvaluationContext): JSONType {
   const evaluatedKey = evaluateExpression(expression.$get, context);
-  let evaluatedTarget: JSONType;
-  if ("$var" in expression) {
-    if (!getVar) {
-      exprError(expression, "getVar is not defined.");
-    }
-    evaluatedTarget = resolveVar(expression.$var, getVar, context.functions, expression);
-  } else {
-    evaluatedTarget = evaluateExpression(expression.$from, context);
-  }
+  const evaluatedTarget = evaluateExpression(expression.$from, context);
 
   if (
     evaluatedTarget === null ||
@@ -1110,18 +964,32 @@ function evaluatePropertyAccess(
   }
 
   if (Array.isArray(evaluatedKey)) {
+    // Walk a folded static path one segment at a time, with the same per-step
+    // semantics as a single `$get`: index into strings by number, return null
+    // for a missing object key, and throw on a non-object/non-string target.
+    // Keeping this in lockstep with the scalar case makes static-segment
+    // folding purely an optimization (it never changes results).
     let current: JSONType = evaluatedTarget;
     for (const segment of evaluatedKey) {
-      if (current === null || typeof current !== "object") {
+      if (typeof current === "string") {
+        if (typeof segment !== "number") {
+          throw new Error(
+            `Invalid $get key for string: expected number, got ${JSON.stringify(segment)}`,
+          );
+        }
+        const ch: JSONType | undefined = current[segment];
+        if (ch === undefined) return null;
+        current = ch;
+      } else if (current === null || typeof current !== "object") {
         throw new Error(
           `Invalid $get path traversal: cannot access property ${JSON.stringify(
             segment,
           )} on ${JSON.stringify(current)}`,
         );
-      }
-      current = (current as any)[segment as string | number];
-      if (current === undefined) {
-        return null;
+      } else {
+        const next: JSONType | undefined = (current as any)[segment as string | number];
+        if (next === undefined) return null;
+        current = next;
       }
     }
     return current;
@@ -1189,14 +1057,7 @@ function classifyExpressionType(json: JSONType): ExpressionType {
       if (typeof json.$var !== "string") {
         exprError(json, "Variable references must have a string $var property.");
       }
-      const keyCount = expressionKeyCount(json);
-      if ("$get" in json) {
-        if (keyCount > 2) {
-          exprError(json, "$var/$get property access cannot have other properties.");
-        }
-        return ExpressionType.PropertyAccess;
-      }
-      if (keyCount > 1) {
+      if (expressionKeyCount(json) > 1) {
         exprError(json, "Variable references cannot have other properties.");
       }
       return ExpressionType.VariableReference;
@@ -1224,9 +1085,8 @@ function classifyExpressionType(json: JSONType): ExpressionType {
           exprError(json, "$params must be an array.");
         }
         for (const p of params) {
-          if (typeof p === "string") {
-            validateParamName(p.startsWith("...") ? p.slice(3) : p);
-          } else if (p !== null && typeof p === "object" && !Array.isArray(p) && "$fields" in p) {
+          if (typeof p === "string") continue;
+          if (p !== null && typeof p === "object" && !Array.isArray(p) && "$fields" in p) {
             const fields = (p as { $fields: JSONType }).$fields;
             if (
               !Array.isArray(fields) ||
@@ -1235,10 +1095,9 @@ function classifyExpressionType(json: JSONType): ExpressionType {
             ) {
               exprError(json, "$fields must be a non-empty array of strings.");
             }
-            for (const f of fields as string[]) validateParamName(f);
-          } else {
-            exprError(json, "$params entries must be strings or { $fields: [...] } patterns.");
+            continue;
           }
+          exprError(json, "$params entries must be strings or { $fields: [...] } patterns.");
         }
       }
       return ExpressionType.FunctionBody;

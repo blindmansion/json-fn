@@ -4,15 +4,9 @@
     {
       "description": "arithmetic precedence (* binds tighter than +)",
       "source": "row * 8 + col",
-      "expected": {
-        "$fn": ["add", { "$fn": ["mul", { "$var": "row" }, 8] }, { "$var": "col" }]
-      }
+      "expected": { "$fn": ["add", { "$fn": ["mul", { "$var": "row" }, 8] }, { "$var": "col" }] }
     },
-    {
-      "description": "unary not",
-      "source": "!done",
-      "expected": { "$not": { "$var": "done" } }
-    },
+    { "description": "unary not", "source": "!done", "expected": { "$not": { "$var": "done" } } },
     {
       "description": "unary negation of variable",
       "source": "-x",
@@ -26,9 +20,7 @@
     {
       "description": "logical and flattens across comparisons",
       "source": "x > 0 && x < 100",
-      "expected": {
-        "$and": [{ "$gt": [{ "$var": "x" }, 0] }, { "$lt": [{ "$var": "x" }, 100] }]
-      }
+      "expected": { "$and": [{ "$gt": [{ "$var": "x" }, 0] }, { "$lt": [{ "$var": "x" }, 100] }] }
     },
     {
       "description": "logical and flattens chained operands",
@@ -40,17 +32,11 @@
       "source": "cached || compute(x)",
       "expected": { "$or": [{ "$var": "cached" }, { "$fn": ["compute", { "$var": "x" }] }] }
     },
-    {
-      "description": "comparisons are non-associative",
-      "source": "a < b < c",
-      "error": true
-    },
+    { "description": "comparisons are non-associative", "source": "a < b < c", "error": true },
     {
       "description": "concat operator flattens",
       "source": "a ++ b ++ c",
-      "expected": {
-        "$fn": ["strcat", { "$var": "a" }, { "$var": "b" }, { "$var": "c" }]
-      }
+      "expected": { "$fn": ["strcat", { "$var": "a" }, { "$var": "b" }, { "$var": "c" }] }
     },
     {
       "description": "template with leading text",
@@ -60,9 +46,7 @@
     {
       "description": "template with interleaved literals",
       "source": "`${firstName} ${lastName}`",
-      "expected": {
-        "$fn": ["strcat", { "$var": "firstName" }, " ", { "$var": "lastName" }]
-      }
+      "expected": { "$fn": ["strcat", { "$var": "firstName" }, " ", { "$var": "lastName" }] }
     },
     {
       "description": "template with single interpolation normalizes away strcat",

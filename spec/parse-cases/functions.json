@@ -24,17 +24,10 @@
       "source": "(state) => { output: boardSection(state, \"\"), exitCode: 0 }",
       "expected": {
         "$params": ["state"],
-        "$return": {
-          "output": { "$fn": ["boardSection", { "$var": "state" }, ""] },
-          "exitCode": 0
-        }
+        "$return": { "output": { "$fn": ["boardSection", { "$var": "state" }, ""] }, "exitCode": 0 }
       }
     },
-    {
-      "description": "no params",
-      "source": "() => 1",
-      "expected": { "$return": 1 }
-    },
+    { "description": "no params", "source": "() => 1", "expected": { "$return": 1 } },
     {
       "description": "rest params",
       "source": "(first, ...rest) => rest",

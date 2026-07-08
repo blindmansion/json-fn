@@ -1,10 +1,7 @@
 {
   "description": "named functions and recursion",
   "functions": {
-    "double": {
-      "$params": ["x"],
-      "$return": { "$fn": ["mul", { "$var": "x" }, 2] }
-    },
+    "double": { "$params": ["x"], "$return": { "$fn": ["mul", { "$var": "x" }, 2] } },
     "isEven": {
       "$params": ["n"],
       "remainder": { "$fn": ["mod", { "$var": "n" }, 2] },
@@ -19,9 +16,7 @@
           "$fn": [
             "mul",
             { "$var": "n" },
-            {
-              "$fn": ["fact", { "$fn": ["sub", { "$var": "n" }, 1] }]
-            }
+            { "$fn": ["fact", { "$fn": ["sub", { "$var": "n" }, 1] }] }
           ]
         }
       }
@@ -34,12 +29,8 @@
         "$else": {
           "$fn": [
             "add",
-            {
-              "$fn": ["fib", { "$fn": ["sub", { "$var": "n" }, 1] }]
-            },
-            {
-              "$fn": ["fib", { "$fn": ["sub", { "$var": "n" }, 2] }]
-            }
+            { "$fn": ["fib", { "$fn": ["sub", { "$var": "n" }, 1] }] },
+            { "$fn": ["fib", { "$fn": ["sub", { "$var": "n" }, 2] }] }
           ]
         }
       }
@@ -61,40 +52,16 @@
       "body": { "$return": { "$fn": ["isEven", 7] } },
       "expected": false
     },
-    {
-      "description": "fact(0)",
-      "body": { "$return": { "$fn": ["fact", 0] } },
-      "expected": 1
-    },
-    {
-      "description": "fact(1)",
-      "body": { "$return": { "$fn": ["fact", 1] } },
-      "expected": 1
-    },
-    {
-      "description": "fact(5)",
-      "body": { "$return": { "$fn": ["fact", 5] } },
-      "expected": 120
-    },
+    { "description": "fact(0)", "body": { "$return": { "$fn": ["fact", 0] } }, "expected": 1 },
+    { "description": "fact(1)", "body": { "$return": { "$fn": ["fact", 1] } }, "expected": 1 },
+    { "description": "fact(5)", "body": { "$return": { "$fn": ["fact", 5] } }, "expected": 120 },
     {
       "description": "fact(10)",
       "body": { "$return": { "$fn": ["fact", 10] } },
       "expected": 3628800
     },
-    {
-      "description": "fib(0)",
-      "body": { "$return": { "$fn": ["fib", 0] } },
-      "expected": 0
-    },
-    {
-      "description": "fib(1)",
-      "body": { "$return": { "$fn": ["fib", 1] } },
-      "expected": 1
-    },
-    {
-      "description": "fib(10)",
-      "body": { "$return": { "$fn": ["fib", 10] } },
-      "expected": 55
-    }
+    { "description": "fib(0)", "body": { "$return": { "$fn": ["fib", 0] } }, "expected": 0 },
+    { "description": "fib(1)", "body": { "$return": { "$fn": ["fib", 1] } }, "expected": 1 },
+    { "description": "fib(10)", "body": { "$return": { "$fn": ["fib", 10] } }, "expected": 55 }
   ]
 }

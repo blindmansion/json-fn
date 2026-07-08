@@ -7,10 +7,7 @@
         "$return": {
           "$fn": [
             "find",
-            {
-              "$params": ["x"],
-              "$return": { "$fn": ["gt", { "$var": "x" }, 3] }
-            },
+            { "$params": ["x"], "$return": { "$fn": ["gt", { "$var": "x" }, 3] } },
             [1, 2, 3, 4, 5]
           ]
         }
@@ -23,10 +20,7 @@
         "$return": {
           "$fn": [
             "find",
-            {
-              "$params": ["x"],
-              "$return": { "$fn": ["gt", { "$var": "x" }, 100] }
-            },
+            { "$params": ["x"], "$return": { "$fn": ["gt", { "$var": "x" }, 100] } },
             [1, 2, 3]
           ]
         }
@@ -39,10 +33,7 @@
         "$return": {
           "$fn": [
             "find",
-            {
-              "$params": ["x"],
-              "$return": { "$fn": ["gt", { "$var": "x" }, 2] }
-            },
+            { "$params": ["x"], "$return": { "$fn": ["gt", { "$var": "x" }, 2] } },
             [1, 5, 3, 4]
           ]
         }
@@ -51,11 +42,7 @@
     },
     {
       "description": "find: empty array returns null",
-      "body": {
-        "$return": {
-          "$fn": ["find", { "$params": ["x"], "$return": true }, []]
-        }
-      },
+      "body": { "$return": { "$fn": ["find", { "$params": ["x"], "$return": true }, []] } },
       "expected": null
     },
     {
@@ -66,7 +53,7 @@
             "find",
             {
               "$params": ["item"],
-              "$return": { "$fn": ["gt", { "$var": "item", "$get": "age" }, 30] }
+              "$return": { "$fn": ["gt", { "$get": "age", "$from": { "$var": "item" } }, 30] }
             },
             [
               { "name": "alice", "age": 25 },
@@ -84,10 +71,7 @@
         "$return": {
           "$fn": [
             "findIndex",
-            {
-              "$params": ["x"],
-              "$return": { "$fn": ["gt", { "$var": "x" }, 3] }
-            },
+            { "$params": ["x"], "$return": { "$fn": ["gt", { "$var": "x" }, 3] } },
             [1, 2, 3, 4, 5]
           ]
         }
@@ -100,10 +84,7 @@
         "$return": {
           "$fn": [
             "findIndex",
-            {
-              "$params": ["x"],
-              "$return": { "$fn": ["gt", { "$var": "x" }, 100] }
-            },
+            { "$params": ["x"], "$return": { "$fn": ["gt", { "$var": "x" }, 100] } },
             [1, 2, 3]
           ]
         }
@@ -112,11 +93,7 @@
     },
     {
       "description": "findIndex: empty array returns -1",
-      "body": {
-        "$return": {
-          "$fn": ["findIndex", { "$params": ["x"], "$return": true }, []]
-        }
-      },
+      "body": { "$return": { "$fn": ["findIndex", { "$params": ["x"], "$return": true }, []] } },
       "expected": -1
     },
     {
@@ -125,10 +102,7 @@
         "$return": {
           "$fn": [
             "findIndex",
-            {
-              "$params": ["x", "i"],
-              "$return": { "$fn": ["eq", { "$var": "i" }, 2] }
-            },
+            { "$params": ["x", "i"], "$return": { "$fn": ["eq", { "$var": "i" }, 2] } },
             ["a", "b", "c", "d"]
           ]
         }
@@ -141,10 +115,7 @@
         "$return": {
           "$fn": [
             "some",
-            {
-              "$params": ["x"],
-              "$return": { "$fn": ["gt", { "$var": "x" }, 3] }
-            },
+            { "$params": ["x"], "$return": { "$fn": ["gt", { "$var": "x" }, 3] } },
             [1, 2, 3, 4, 5]
           ]
         }
@@ -157,10 +128,7 @@
         "$return": {
           "$fn": [
             "some",
-            {
-              "$params": ["x"],
-              "$return": { "$fn": ["gt", { "$var": "x" }, 100] }
-            },
+            { "$params": ["x"], "$return": { "$fn": ["gt", { "$var": "x" }, 100] } },
             [1, 2, 3]
           ]
         }
@@ -169,11 +137,7 @@
     },
     {
       "description": "some: false for empty array",
-      "body": {
-        "$return": {
-          "$fn": ["some", { "$params": ["x"], "$return": true }, []]
-        }
-      },
+      "body": { "$return": { "$fn": ["some", { "$params": ["x"], "$return": true }, []] } },
       "expected": false
     },
     {
@@ -182,10 +146,7 @@
         "$return": {
           "$fn": [
             "every",
-            {
-              "$params": ["x"],
-              "$return": { "$fn": ["gt", { "$var": "x" }, 0] }
-            },
+            { "$params": ["x"], "$return": { "$fn": ["gt", { "$var": "x" }, 0] } },
             [1, 2, 3, 4, 5]
           ]
         }
@@ -198,10 +159,7 @@
         "$return": {
           "$fn": [
             "every",
-            {
-              "$params": ["x"],
-              "$return": { "$fn": ["gt", { "$var": "x" }, 3] }
-            },
+            { "$params": ["x"], "$return": { "$fn": ["gt", { "$var": "x" }, 3] } },
             [1, 2, 3, 4, 5]
           ]
         }
@@ -210,11 +168,7 @@
     },
     {
       "description": "every: true for empty array (vacuous truth)",
-      "body": {
-        "$return": {
-          "$fn": ["every", { "$params": ["x"], "$return": false }, []]
-        }
-      },
+      "body": { "$return": { "$fn": ["every", { "$params": ["x"], "$return": false }, []] } },
       "expected": true
     },
     {
@@ -292,8 +246,8 @@
               "$return": {
                 "$fn": [
                   "sub",
-                  { "$var": "a", "$get": "priority" },
-                  { "$var": "b", "$get": "priority" }
+                  { "$get": "priority", "$from": { "$var": "a" } },
+                  { "$get": "priority", "$from": { "$var": "b" } }
                 ]
               }
             },
@@ -315,10 +269,7 @@
       "description": "find + findIndex: consistent results",
       "body": {
         "arr": [10, 20, 30, 40, 50],
-        "pred": {
-          "$params": ["x"],
-          "$return": { "$fn": ["gte", { "$var": "x" }, 30] }
-        },
+        "pred": { "$params": ["x"], "$return": { "$fn": ["gte", { "$var": "x" }, 30] } },
         "found": { "$fn": ["find", { "$var": "pred" }, { "$var": "arr" }] },
         "idx": { "$fn": ["findIndex", { "$var": "pred" }, { "$var": "arr" }] },
         "$return": [{ "$var": "found" }, { "$var": "idx" }]

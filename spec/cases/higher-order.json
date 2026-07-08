@@ -1,10 +1,7 @@
 {
   "description": "higher-order functions",
   "functions": {
-    "double": {
-      "$params": ["x"],
-      "$return": { "$fn": ["mul", { "$var": "x" }, 2] }
-    },
+    "double": { "$params": ["x"], "$return": { "$fn": ["mul", { "$var": "x" }, 2] } },
     "isEven": {
       "$params": ["n"],
       "remainder": { "$fn": ["mod", { "$var": "n" }, 2] },
@@ -14,9 +11,7 @@
   "cases": [
     {
       "description": "map with a named function (double)",
-      "body": {
-        "$return": { "$fn": ["map", { "$fn": "double" }, [1, 2, 3, 4]] }
-      },
+      "body": { "$return": { "$fn": ["map", { "$fn": "double" }, [1, 2, 3, 4]] } },
       "expected": [2, 4, 6, 8]
     },
     {
@@ -25,10 +20,7 @@
         "$return": {
           "$fn": [
             "map",
-            {
-              "$params": ["x"],
-              "$return": { "$fn": ["mul", { "$var": "x" }, { "$var": "x" }] }
-            },
+            { "$params": ["x"], "$return": { "$fn": ["mul", { "$var": "x" }, { "$var": "x" }] } },
             [1, 2, 3, 4, 5]
           ]
         }
@@ -37,9 +29,7 @@
     },
     {
       "description": "map with a named JSON function (isEven)",
-      "body": {
-        "$return": { "$fn": ["map", { "$fn": "isEven" }, [1, 2, 3, 4]] }
-      },
+      "body": { "$return": { "$fn": ["map", { "$fn": "isEven" }, [1, 2, 3, 4]] } },
       "expected": [false, true, false, true]
     },
     {
@@ -60,9 +50,7 @@
     },
     {
       "description": "filter with a named JSON function (isEven)",
-      "body": {
-        "$return": { "$fn": ["filter", { "$fn": "isEven" }, [1, 2, 3, 4, 5, 6]] }
-      },
+      "body": { "$return": { "$fn": ["filter", { "$fn": "isEven" }, [1, 2, 3, 4, 5, 6]] } },
       "expected": [2, 4, 6]
     },
     {
@@ -71,10 +59,7 @@
         "$return": {
           "$fn": [
             "filter",
-            {
-              "$params": ["x"],
-              "$return": { "$fn": ["gt", { "$var": "x" }, 3] }
-            },
+            { "$params": ["x"], "$return": { "$fn": ["gt", { "$var": "x" }, 3] } },
             [1, 2, 3, 4, 5, 6]
           ]
         }
@@ -83,9 +68,7 @@
     },
     {
       "description": "reduce with a named external function (add)",
-      "body": {
-        "$return": { "$fn": ["reduce", { "$fn": "add" }, 0, [1, 2, 3, 4]] }
-      },
+      "body": { "$return": { "$fn": ["reduce", { "$fn": "add" }, 0, [1, 2, 3, 4]] } },
       "expected": 10
     },
     {
@@ -125,10 +108,7 @@
         "squares": {
           "$fn": [
             "map",
-            {
-              "$params": ["x"],
-              "$return": { "$fn": ["mul", { "$var": "x" }, { "$var": "x" }] }
-            },
+            { "$params": ["x"], "$return": { "$fn": ["mul", { "$var": "x" }, { "$var": "x" }] } },
             [1, 2, 3]
           ]
         },

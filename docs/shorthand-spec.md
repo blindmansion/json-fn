@@ -178,16 +178,16 @@ makeCountdown(42)(3)      // chained application (call the returned closure)
 ```
 
 ```json
-{ "$fn": [{ "$var": "caps", "$get": ["db", "query"] }, { "$var": "sql" }] }
-{ "$fn": [{ "$var": "io", "$get": "readLine" }] }
-{ "$fn": [{ "$var": "caps", "$get": { "$var": "name" } }, { "$var": "x" }] }
+{ "$fn": [{ "$get": ["db", "query"], "$from": { "$var": "caps" } }, { "$var": "sql" }] }
+{ "$fn": [{ "$get": "readLine", "$from": { "$var": "io" } }] }
+{ "$fn": [{ "$get": { "$var": "name" }, "$from": { "$var": "caps" } }, { "$var": "x" }] }
 { "$fn": [{ "$get": "method", "$from": { "$fn": ["f", { "$var": "x" }] } }, { "$var": "y" }] }
 { "$fn": [{ "$fn": ["makeCountdown", 42] }, 3] }
 ```
 
-The callee lowering is exactly the property-access lowering of §5 (a `$var`/`$get`
-chain rooted at a variable, or a `$get`/`$from` chain rooted at an expression),
-placed as the first element of the `$fn` call array.
+The callee lowering is exactly the property-access lowering of §5 (a `$get`/`$from`
+chain rooted at a variable or an arbitrary expression), placed as the first
+element of the `$fn` call array.
 
 > **Printer note (deferred).** These forms parse and evaluate today, but the
 > canonical pretty-printer currently wraps the callee in parentheses
@@ -225,8 +225,9 @@ bare equivalent. A lexical binding still wins over the registry, so a local name
 
 ## 5. Variables and property access
 
-A bare identifier is a variable. Access lowers to `$var` + `$get`; access on a
-non-variable expression lowers to `$get` + `$from`.
+A bare identifier is a variable (`{"$var":"x"}`). Any access on it lowers to a
+`$get`/`$from` chain rooted at that `$var`; access on a non-variable expression
+lowers to a `$get`/`$from` chain rooted at that expression.
 
 A bare identifier that is **not** a lexical binding but **is** a registered
 function resolves to that function _reference_ (i.e. `&`-free; see §4). The
@@ -236,10 +237,10 @@ then walking into it.
 
 ```jfn
 x                         // {"$var":"x"}
-a.b                       // {"$var":"a","$get":"b"}
-a.b.c                     // {"$var":"a","$get":["b","c"]}
-a[0]                      // {"$var":"a","$get":0}
-a[i]                      // {"$var":"a","$get":{"$var":"i"}}
+a.b                       // {"$get":"b","$from":{"$var":"a"}}
+a.b.c                     // {"$get":["b","c"],"$from":{"$var":"a"}}
+a[0]                      // {"$get":0,"$from":{"$var":"a"}}
+a[i]                      // {"$get":{"$var":"i"},"$from":{"$var":"a"}}
 f(x).b                    // {"$get":"b","$from":{"$fn":["f",{"$var":"x"}]}}
 ```
 
@@ -249,14 +250,14 @@ Lowering rules:
   **bare identifier or any other expression** is a **computed** key.
 - A run of consecutive **static** segments folds into one `$get` (a single
   string/number, or an array path for multiple): `a.b[0].c` →
-  `{"$var":"a","$get":["b",0,"c"]}`.
-- A **computed** segment cannot join a static array path; it starts a new
-  `$get`/`$from` wrapping the prior result: `a.b[i]` →
-  `{"$get":{"$var":"i"},"$from":{"$var":"a","$get":"b"}}`.
+  `{"$get":["b",0,"c"],"$from":{"$var":"a"}}`.
+- A **computed** segment gets its own `$get`, wrapping the prior result as its
+  `$from`: `a.b[i]` →
+  `{"$get":{"$var":"i"},"$from":{"$get":"b","$from":{"$var":"a"}}}`.
 
-Canonical JSON is always the `$var`/`$get` form (the older `$var` dotted
-path-string form is deprecated; see `shorthand-stdlib-changes.md` if we remove
-it from the interpreters).
+Canonical JSON is always the `$get`/`$from` form. There is no `$var` + `$get`
+pairing and no dotted `$var` path-string form: `$var` is a bare variable name,
+and every property access is a `$get`/`$from` pair.
 
 An access chain **in call position** is a method call: the chain evaluates to a
 function value that is then applied (`caps.db.query(sql)`). See §4.

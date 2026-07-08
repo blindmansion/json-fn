@@ -5,9 +5,7 @@
       "description": "inner variable shadows outer parameter of the same name",
       "body": {
         "$params": ["x"],
-        "$return": {
-          "$fn": [{ "x": 999, "$return": { "$var": "x" } }]
-        }
+        "$return": { "$fn": [{ "x": 999, "$return": { "$var": "x" } }] }
       },
       "args": [10],
       "expected": 999
@@ -17,13 +15,7 @@
       "body": {
         "$params": ["x"],
         "$return": {
-          "$fn": [
-            {
-              "$params": ["x"],
-              "$return": { "$fn": ["add", { "$var": "x" }, 1] }
-            },
-            50
-          ]
+          "$fn": [{ "$params": ["x"], "$return": { "$fn": ["add", { "$var": "x" }, 1] } }, 50]
         }
       },
       "args": [10],
@@ -35,10 +27,7 @@
         "$params": ["x"],
         "$return": {
           "$fn": [
-            {
-              "$params": ["y"],
-              "$return": { "$fn": ["add", { "$var": "x" }, { "$var": "y" }] }
-            },
+            { "$params": ["y"], "$return": { "$fn": ["add", { "$var": "x" }, { "$var": "y" }] } },
             5
           ]
         }
@@ -52,16 +41,10 @@
       "functions": {
         "makeAdder": {
           "$params": ["x"],
-          "$return": {
-            "$params": ["x"],
-            "$return": { "$fn": ["add", { "$var": "x" }, 1000] }
-          }
+          "$return": { "$params": ["x"], "$return": { "$fn": ["add", { "$var": "x" }, 1000] } }
         }
       },
-      "expected": {
-        "$params": ["x"],
-        "$return": { "$fn": ["add", { "$var": "x" }, 1000] }
-      }
+      "expected": { "$params": ["x"], "$return": { "$fn": ["add", { "$var": "x" }, 1000] } }
     },
     {
       "description": "returned closure preserves inner scope (call through)",
@@ -72,10 +55,7 @@
       "functions": {
         "makeAdder": {
           "$params": ["x"],
-          "$return": {
-            "$params": ["x"],
-            "$return": { "$fn": ["add", { "$var": "x" }, 1000] }
-          }
+          "$return": { "$params": ["x"], "$return": { "$fn": ["add", { "$var": "x" }, 1000] } }
         }
       },
       "expected": 1042
@@ -85,14 +65,7 @@
       "body": {
         "x": 1,
         "$return": {
-          "$fn": [
-            {
-              "x": 2,
-              "$return": {
-                "$fn": [{ "x": 3, "$return": { "$var": "x" } }]
-              }
-            }
-          ]
+          "$fn": [{ "x": 2, "$return": { "$fn": [{ "x": 3, "$return": { "$var": "x" } }] } }]
         }
       },
       "expected": 3
@@ -118,11 +91,7 @@
     },
     {
       "description": "shadowed name in closure is not prematurely substituted (call through)",
-      "body": {
-        "$return": {
-          "$fn": [{ "$fn": ["outer", 5] }, 7]
-        }
-      },
+      "body": { "$return": { "$fn": [{ "$fn": ["outer", 5] }, 7] } },
       "functions": {
         "outer": {
           "$params": ["n"],
@@ -151,9 +120,7 @@
       },
       "expected": {
         "$params": ["c"],
-        "$return": {
-          "$fn": ["add", 10, { "$fn": ["add", 20, { "$var": "c" }] }]
-        }
+        "$return": { "$fn": ["add", 10, { "$fn": ["add", 20, { "$var": "c" }] }] }
       }
     },
     {
@@ -163,10 +130,7 @@
         "y": 200,
         "$return": {
           "$fn": [
-            {
-              "$params": ["x"],
-              "$return": { "$fn": ["add", { "$var": "x" }, { "$var": "y" }] }
-            },
+            { "$params": ["x"], "$return": { "$fn": ["add", { "$var": "x" }, { "$var": "y" }] } },
             1
           ]
         }

@@ -4,31 +4,10 @@
     "$comment": "=========================================================================\nLayer 1 — Coordinate Utilities\n=========================================================================\npieceColor(piece) → null | \"w\" | \"b\"",
     "$params": ["piece"],
     "$return": {
-      "$if": {
-        "$fn": [
-          "isNull",
-          {
-            "$var": "piece"
-          }
-        ]
-      },
+      "$if": { "$fn": ["isNull", { "$var": "piece" }] },
       "$then": null,
       "$else": {
-        "$if": {
-          "$eq": [
-            {
-              "$var": "piece"
-            },
-            {
-              "$fn": [
-                "upper",
-                {
-                  "$var": "piece"
-                }
-              ]
-            }
-          ]
-        },
+        "$if": { "$eq": [{ "$var": "piece" }, { "$fn": ["upper", { "$var": "piece" }] }] },
         "$then": "w",
         "$else": "b"
       }
@@ -37,117 +16,31 @@
   "pieceType": {
     "$comment": "pieceType(piece) → \"P\"|\"N\"|\"B\"|\"R\"|\"Q\"|\"K\" (always uppercase)",
     "$params": ["piece"],
-    "$return": {
-      "$fn": [
-        "upper",
-        {
-          "$var": "piece"
-        }
-      ]
-    }
+    "$return": { "$fn": ["upper", { "$var": "piece" }] }
   },
   "otherColor": {
     "$comment": "otherColor(color) → \"w\" ↔ \"b\"",
     "$params": ["color"],
-    "$return": {
-      "$if": {
-        "$eq": [
-          {
-            "$var": "color"
-          },
-          "w"
-        ]
-      },
-      "$then": "b",
-      "$else": "w"
-    }
+    "$return": { "$if": { "$eq": [{ "$var": "color" }, "w"] }, "$then": "b", "$else": "w" }
   },
   "rowOf": {
     "$params": ["idx"],
-    "$return": {
-      "$fn": [
-        "floor",
-        {
-          "$fn": [
-            "div",
-            {
-              "$var": "idx"
-            },
-            8
-          ]
-        }
-      ]
-    }
+    "$return": { "$fn": ["floor", { "$fn": ["div", { "$var": "idx" }, 8] }] }
   },
-  "colOf": {
-    "$params": ["idx"],
-    "$return": {
-      "$fn": [
-        "mod",
-        {
-          "$var": "idx"
-        },
-        8
-      ]
-    }
-  },
+  "colOf": { "$params": ["idx"], "$return": { "$fn": ["mod", { "$var": "idx" }, 8] } },
   "toIdx": {
     "$params": ["row", "col"],
-    "$return": {
-      "$fn": [
-        "add",
-        {
-          "$fn": [
-            "mul",
-            {
-              "$var": "row"
-            },
-            8
-          ]
-        },
-        {
-          "$var": "col"
-        }
-      ]
-    }
+    "$return": { "$fn": ["add", { "$fn": ["mul", { "$var": "row" }, 8] }, { "$var": "col" }] }
   },
   "inBounds": {
     "$comment": "inBounds(row, col) → both in [0, 7]",
     "$params": ["row", "col"],
     "$return": {
       "$and": [
-        {
-          "$gte": [
-            {
-              "$var": "row"
-            },
-            0
-          ]
-        },
-        {
-          "$lte": [
-            {
-              "$var": "row"
-            },
-            7
-          ]
-        },
-        {
-          "$gte": [
-            {
-              "$var": "col"
-            },
-            0
-          ]
-        },
-        {
-          "$lte": [
-            {
-              "$var": "col"
-            },
-            7
-          ]
-        }
+        { "$gte": [{ "$var": "row" }, 0] },
+        { "$lte": [{ "$var": "row" }, 7] },
+        { "$gte": [{ "$var": "col" }, 0] },
+        { "$lte": [{ "$var": "col" }, 7] }
       ]
     }
   },
@@ -155,187 +48,46 @@
     "$comment": "makePiece(color, type) → uppercase if \"w\", lowercase if \"b\"",
     "$params": ["color", "type"],
     "$return": {
-      "$if": {
-        "$eq": [
-          {
-            "$var": "color"
-          },
-          "w"
-        ]
-      },
-      "$then": {
-        "$var": "type"
-      },
-      "$else": {
-        "$fn": [
-          "lower",
-          {
-            "$var": "type"
-          }
-        ]
-      }
+      "$if": { "$eq": [{ "$var": "color" }, "w"] },
+      "$then": { "$var": "type" },
+      "$else": { "$fn": ["lower", { "$var": "type" }] }
     }
   },
   "slideDir": {
     "$comment": "=========================================================================\nLayer 2 — Pseudo-Legal Move Generation\n=========================================================================\nslideDir(board, row, col, dr, dc, color) → [targetIdx...]\nRecursive: walk one direction collecting valid target squares.\nStops on board edge, own piece (exclusive), or enemy piece (inclusive).",
     "$params": ["board", "row", "col", "dr", "dc", "color"],
-    "nr": {
-      "$fn": [
-        "add",
-        {
-          "$var": "row"
-        },
-        {
-          "$var": "dr"
-        }
-      ]
-    },
-    "nc": {
-      "$fn": [
-        "add",
-        {
-          "$var": "col"
-        },
-        {
-          "$var": "dc"
-        }
-      ]
-    },
-    "ok": {
-      "$fn": [
-        "inBounds",
-        {
-          "$var": "nr"
-        },
-        {
-          "$var": "nc"
-        }
-      ]
-    },
-    "tIdx": {
-      "$fn": [
-        "toIdx",
-        {
-          "$var": "nr"
-        },
-        {
-          "$var": "nc"
-        }
-      ]
-    },
-    "target": {
-      "$var": "board",
-      "$get": {
-        "$var": "tIdx"
-      }
-    },
-    "empty": {
-      "$fn": [
-        "isNull",
-        {
-          "$var": "target"
-        }
-      ]
-    },
-    "ally": {
-      "$eq": [
-        {
-          "$fn": [
-            "pieceColor",
-            {
-              "$var": "target"
-            }
-          ]
-        },
-        {
-          "$var": "color"
-        }
-      ]
-    },
+    "nr": { "$fn": ["add", { "$var": "row" }, { "$var": "dr" }] },
+    "nc": { "$fn": ["add", { "$var": "col" }, { "$var": "dc" }] },
+    "ok": { "$fn": ["inBounds", { "$var": "nr" }, { "$var": "nc" }] },
+    "tIdx": { "$fn": ["toIdx", { "$var": "nr" }, { "$var": "nc" }] },
+    "target": { "$get": { "$var": "tIdx" }, "$from": { "$var": "board" } },
+    "empty": { "$fn": ["isNull", { "$var": "target" }] },
+    "ally": { "$eq": [{ "$fn": ["pieceColor", { "$var": "target" }] }, { "$var": "color" }] },
     "rest": {
       "$fn": [
         "slideDir",
-        {
-          "$var": "board"
-        },
-        {
-          "$var": "nr"
-        },
-        {
-          "$var": "nc"
-        },
-        {
-          "$var": "dr"
-        },
-        {
-          "$var": "dc"
-        },
-        {
-          "$var": "color"
-        }
+        { "$var": "board" },
+        { "$var": "nr" },
+        { "$var": "nc" },
+        { "$var": "dr" },
+        { "$var": "dc" },
+        { "$var": "color" }
       ]
     },
     "$return": {
       "$cond": [
-        [
-          {
-            "$not": {
-              "$var": "ok"
-            }
-          },
-          []
-        ],
-        [
-          {
-            "$var": "empty"
-          },
-          {
-            "$fn": [
-              "concat",
-              [
-                {
-                  "$var": "tIdx"
-                }
-              ],
-              {
-                "$var": "rest"
-              }
-            ]
-          }
-        ],
-        [
-          {
-            "$var": "ally"
-          },
-          []
-        ]
+        [{ "$not": { "$var": "ok" } }, []],
+        [{ "$var": "empty" }, { "$fn": ["concat", [{ "$var": "tIdx" }], { "$var": "rest" }] }],
+        [{ "$var": "ally" }, []]
       ],
-      "$else": [
-        {
-          "$var": "tIdx"
-        }
-      ]
+      "$else": [{ "$var": "tIdx" }]
     }
   },
   "slideMoves": {
     "$comment": "slideMoves(board, idx, color, dirs) → [targetIdx...]\nCalls slideDir for each direction, flattens results.",
     "$params": ["board", "idx", "color", "dirs"],
-    "row": {
-      "$fn": [
-        "rowOf",
-        {
-          "$var": "idx"
-        }
-      ]
-    },
-    "col": {
-      "$fn": [
-        "colOf",
-        {
-          "$var": "idx"
-        }
-      ]
-    },
+    "row": { "$fn": ["rowOf", { "$var": "idx" }] },
+    "col": { "$fn": ["colOf", { "$var": "idx" }] },
     "$return": {
       "$fn": [
         "flatMap",
@@ -344,460 +96,109 @@
           "$return": {
             "$fn": [
               "slideDir",
-              {
-                "$var": "board"
-              },
-              {
-                "$var": "row"
-              },
-              {
-                "$var": "col"
-              },
-              {
-                "$var": "d",
-                "$get": 0
-              },
-              {
-                "$var": "d",
-                "$get": 1
-              },
-              {
-                "$var": "color"
-              }
+              { "$var": "board" },
+              { "$var": "row" },
+              { "$var": "col" },
+              { "$get": 0, "$from": { "$var": "d" } },
+              { "$get": 1, "$from": { "$var": "d" } },
+              { "$var": "color" }
             ]
           }
         },
-        {
-          "$var": "dirs"
-        }
+        { "$var": "dirs" }
       ]
     }
   },
   "steppingMoves": {
     "$comment": "steppingMoves(board, idx, color, offsets) → [targetIdx...]\nNon-sliding pieces (knight, king): each offset is a single candidate step,\nkept when in bounds and not blocked by a friendly piece.",
     "$params": ["board", "idx", "color", "offsets"],
-    "row": {
-      "$fn": [
-        "rowOf",
-        {
-          "$var": "idx"
-        }
-      ]
-    },
-    "col": {
-      "$fn": [
-        "colOf",
-        {
-          "$var": "idx"
-        }
-      ]
-    },
+    "row": { "$fn": ["rowOf", { "$var": "idx" }] },
+    "col": { "$fn": ["colOf", { "$var": "idx" }] },
     "tryOff": {
       "$params": ["off"],
-      "r": {
-        "$fn": [
-          "add",
-          {
-            "$var": "row"
-          },
-          {
-            "$var": "off",
-            "$get": 0
-          }
-        ]
-      },
-      "c": {
-        "$fn": [
-          "add",
-          {
-            "$var": "col"
-          },
-          {
-            "$var": "off",
-            "$get": 1
-          }
-        ]
-      },
-      "ok": {
-        "$fn": [
-          "inBounds",
-          {
-            "$var": "r"
-          },
-          {
-            "$var": "c"
-          }
-        ]
-      },
-      "tIdx": {
-        "$fn": [
-          "toIdx",
-          {
-            "$var": "r"
-          },
-          {
-            "$var": "c"
-          }
-        ]
-      },
+      "r": { "$fn": ["add", { "$var": "row" }, { "$get": 0, "$from": { "$var": "off" } }] },
+      "c": { "$fn": ["add", { "$var": "col" }, { "$get": 1, "$from": { "$var": "off" } }] },
+      "ok": { "$fn": ["inBounds", { "$var": "r" }, { "$var": "c" }] },
+      "tIdx": { "$fn": ["toIdx", { "$var": "r" }, { "$var": "c" }] },
       "target": {
-        "$if": {
-          "$var": "ok"
-        },
-        "$then": {
-          "$var": "board",
-          "$get": {
-            "$var": "tIdx"
-          }
-        },
+        "$if": { "$var": "ok" },
+        "$then": { "$get": { "$var": "tIdx" }, "$from": { "$var": "board" } },
         "$else": null
       },
       "blocked": {
-        "$if": {
-          "$fn": [
-            "isNull",
-            {
-              "$var": "target"
-            }
-          ]
-        },
+        "$if": { "$fn": ["isNull", { "$var": "target" }] },
         "$then": false,
-        "$else": {
-          "$eq": [
-            {
-              "$fn": [
-                "pieceColor",
-                {
-                  "$var": "target"
-                }
-              ]
-            },
-            {
-              "$var": "color"
-            }
-          ]
-        }
+        "$else": { "$eq": [{ "$fn": ["pieceColor", { "$var": "target" }] }, { "$var": "color" }] }
       },
       "$return": {
-        "$if": {
-          "$and": [
-            {
-              "$var": "ok"
-            },
-            {
-              "$not": {
-                "$var": "blocked"
-              }
-            }
-          ]
-        },
-        "$then": [
-          {
-            "$var": "tIdx"
-          }
-        ],
+        "$if": { "$and": [{ "$var": "ok" }, { "$not": { "$var": "blocked" } }] },
+        "$then": [{ "$var": "tIdx" }],
         "$else": []
       }
     },
-    "$return": {
-      "$fn": [
-        "flatMap",
-        {
-          "$var": "tryOff"
-        },
-        {
-          "$var": "offsets"
-        }
-      ]
-    }
+    "$return": { "$fn": ["flatMap", { "$var": "tryOff" }, { "$var": "offsets" }] }
   },
   "pawnMoves": {
     "$comment": "pawnMoves(board, idx, color) → [targetIdx...]\nForward 1, forward 2 from start rank, diagonal captures.",
     "$params": ["board", "idx", "color"],
-    "row": {
-      "$fn": [
-        "rowOf",
-        {
-          "$var": "idx"
-        }
-      ]
-    },
-    "col": {
-      "$fn": [
-        "colOf",
-        {
-          "$var": "idx"
-        }
-      ]
-    },
-    "dir": {
-      "$if": {
-        "$eq": [
-          {
-            "$var": "color"
-          },
-          "w"
-        ]
-      },
-      "$then": 1,
-      "$else": -1
-    },
-    "startRank": {
-      "$if": {
-        "$eq": [
-          {
-            "$var": "color"
-          },
-          "w"
-        ]
-      },
-      "$then": 1,
-      "$else": 6
-    },
-    "fwd1Row": {
-      "$comment": "Forward 1",
-      "$fn": [
-        "add",
-        {
-          "$var": "row"
-        },
-        {
-          "$var": "dir"
-        }
-      ]
-    },
-    "fwd1Idx": {
-      "$fn": [
-        "toIdx",
-        {
-          "$var": "fwd1Row"
-        },
-        {
-          "$var": "col"
-        }
-      ]
-    },
+    "row": { "$fn": ["rowOf", { "$var": "idx" }] },
+    "col": { "$fn": ["colOf", { "$var": "idx" }] },
+    "dir": { "$if": { "$eq": [{ "$var": "color" }, "w"] }, "$then": 1, "$else": -1 },
+    "startRank": { "$if": { "$eq": [{ "$var": "color" }, "w"] }, "$then": 1, "$else": 6 },
+    "fwd1Row": { "$comment": "Forward 1", "$fn": ["add", { "$var": "row" }, { "$var": "dir" }] },
+    "fwd1Idx": { "$fn": ["toIdx", { "$var": "fwd1Row" }, { "$var": "col" }] },
     "fwd1Ok": {
       "$and": [
-        {
-          "$fn": [
-            "inBounds",
-            {
-              "$var": "fwd1Row"
-            },
-            {
-              "$var": "col"
-            }
-          ]
-        },
-        {
-          "$fn": [
-            "isNull",
-            {
-              "$var": "board",
-              "$get": {
-                "$var": "fwd1Idx"
-              }
-            }
-          ]
-        }
+        { "$fn": ["inBounds", { "$var": "fwd1Row" }, { "$var": "col" }] },
+        { "$fn": ["isNull", { "$get": { "$var": "fwd1Idx" }, "$from": { "$var": "board" } }] }
       ]
     },
-    "fwd1": {
-      "$if": {
-        "$var": "fwd1Ok"
-      },
-      "$then": [
-        {
-          "$var": "fwd1Idx"
-        }
-      ],
-      "$else": []
-    },
+    "fwd1": { "$if": { "$var": "fwd1Ok" }, "$then": [{ "$var": "fwd1Idx" }], "$else": [] },
     "fwd2Row": {
       "$comment": "Forward 2 from start rank",
-      "$fn": [
-        "add",
-        {
-          "$var": "row"
-        },
-        {
-          "$fn": [
-            "mul",
-            {
-              "$var": "dir"
-            },
-            2
-          ]
-        }
-      ]
+      "$fn": ["add", { "$var": "row" }, { "$fn": ["mul", { "$var": "dir" }, 2] }]
     },
-    "fwd2Idx": {
-      "$fn": [
-        "toIdx",
-        {
-          "$var": "fwd2Row"
-        },
-        {
-          "$var": "col"
-        }
-      ]
-    },
+    "fwd2Idx": { "$fn": ["toIdx", { "$var": "fwd2Row" }, { "$var": "col" }] },
     "fwd2Ok": {
       "$and": [
-        {
-          "$eq": [
-            {
-              "$var": "row"
-            },
-            {
-              "$var": "startRank"
-            }
-          ]
-        },
-        {
-          "$var": "fwd1Ok"
-        },
-        {
-          "$fn": [
-            "isNull",
-            {
-              "$var": "board",
-              "$get": {
-                "$var": "fwd2Idx"
-              }
-            }
-          ]
-        }
+        { "$eq": [{ "$var": "row" }, { "$var": "startRank" }] },
+        { "$var": "fwd1Ok" },
+        { "$fn": ["isNull", { "$get": { "$var": "fwd2Idx" }, "$from": { "$var": "board" } }] }
       ]
     },
-    "fwd2": {
-      "$if": {
-        "$var": "fwd2Ok"
-      },
-      "$then": [
-        {
-          "$var": "fwd2Idx"
-        }
-      ],
-      "$else": []
-    },
+    "fwd2": { "$if": { "$var": "fwd2Ok" }, "$then": [{ "$var": "fwd2Idx" }], "$else": [] },
     "captures": {
       "$comment": "Diagonal captures via flatMap over [-1, 1] column offsets",
       "$fn": [
         "flatMap",
         {
           "$params": ["dc"],
-          "cr": {
-            "$var": "fwd1Row"
-          },
-          "cc": {
-            "$fn": [
-              "add",
-              {
-                "$var": "col"
-              },
-              {
-                "$var": "dc"
-              }
-            ]
-          },
-          "cOk": {
-            "$fn": [
-              "inBounds",
-              {
-                "$var": "cr"
-              },
-              {
-                "$var": "cc"
-              }
-            ]
-          },
-          "cIdx": {
-            "$fn": [
-              "toIdx",
-              {
-                "$var": "cr"
-              },
-              {
-                "$var": "cc"
-              }
-            ]
-          },
+          "cr": { "$var": "fwd1Row" },
+          "cc": { "$fn": ["add", { "$var": "col" }, { "$var": "dc" }] },
+          "cOk": { "$fn": ["inBounds", { "$var": "cr" }, { "$var": "cc" }] },
+          "cIdx": { "$fn": ["toIdx", { "$var": "cr" }, { "$var": "cc" }] },
           "cTarget": {
-            "$if": {
-              "$var": "cOk"
-            },
-            "$then": {
-              "$var": "board",
-              "$get": {
-                "$var": "cIdx"
-              }
-            },
+            "$if": { "$var": "cOk" },
+            "$then": { "$get": { "$var": "cIdx" }, "$from": { "$var": "board" } },
             "$else": null
           },
           "isEnemy": {
-            "$if": {
-              "$fn": [
-                "isNull",
-                {
-                  "$var": "cTarget"
-                }
-              ]
-            },
+            "$if": { "$fn": ["isNull", { "$var": "cTarget" }] },
             "$then": false,
             "$else": {
-              "$neq": [
-                {
-                  "$fn": [
-                    "pieceColor",
-                    {
-                      "$var": "cTarget"
-                    }
-                  ]
-                },
-                {
-                  "$var": "color"
-                }
-              ]
+              "$neq": [{ "$fn": ["pieceColor", { "$var": "cTarget" }] }, { "$var": "color" }]
             }
           },
           "$return": {
-            "$if": {
-              "$and": [
-                {
-                  "$var": "cOk"
-                },
-                {
-                  "$var": "isEnemy"
-                }
-              ]
-            },
-            "$then": [
-              {
-                "$var": "cIdx"
-              }
-            ],
+            "$if": { "$and": [{ "$var": "cOk" }, { "$var": "isEnemy" }] },
+            "$then": [{ "$var": "cIdx" }],
             "$else": []
           }
         },
         [-1, 1]
       ]
     },
-    "$return": {
-      "$fn": [
-        "concat",
-        {
-          "$var": "fwd1"
-        },
-        {
-          "$var": "fwd2"
-        },
-        {
-          "$var": "captures"
-        }
-      ]
-    }
+    "$return": { "$fn": ["concat", { "$var": "fwd1" }, { "$var": "fwd2" }, { "$var": "captures" }] }
   },
   "knightMoves": {
     "$comment": "knightMoves(board, idx, color) → [targetIdx...]",
@@ -805,15 +206,9 @@
     "$return": {
       "$fn": [
         "steppingMoves",
-        {
-          "$var": "board"
-        },
-        {
-          "$var": "idx"
-        },
-        {
-          "$var": "color"
-        },
+        { "$var": "board" },
+        { "$var": "idx" },
+        { "$var": "color" },
         {
           "$raw": [
             [-2, -1],
@@ -835,15 +230,9 @@
     "$return": {
       "$fn": [
         "steppingMoves",
-        {
-          "$var": "board"
-        },
-        {
-          "$var": "idx"
-        },
-        {
-          "$var": "color"
-        },
+        { "$var": "board" },
+        { "$var": "idx" },
+        { "$var": "color" },
         {
           "$raw": [
             [-1, -1],
@@ -864,15 +253,9 @@
     "$return": {
       "$fn": [
         "slideMoves",
-        {
-          "$var": "board"
-        },
-        {
-          "$var": "idx"
-        },
-        {
-          "$var": "color"
-        },
+        { "$var": "board" },
+        { "$var": "idx" },
+        { "$var": "color" },
         {
           "$raw": [
             [-1, -1],
@@ -889,15 +272,9 @@
     "$return": {
       "$fn": [
         "slideMoves",
-        {
-          "$var": "board"
-        },
-        {
-          "$var": "idx"
-        },
-        {
-          "$var": "color"
-        },
+        { "$var": "board" },
+        { "$var": "idx" },
+        { "$var": "color" },
         {
           "$raw": [
             [-1, 0],
@@ -914,15 +291,9 @@
     "$return": {
       "$fn": [
         "slideMoves",
-        {
-          "$var": "board"
-        },
-        {
-          "$var": "idx"
-        },
-        {
-          "$var": "color"
-        },
+        { "$var": "board" },
+        { "$var": "idx" },
+        { "$var": "color" },
         {
           "$raw": [
             [-1, -1],
@@ -941,144 +312,38 @@
   "pieceMoves": {
     "$comment": "pieceMoves(board, idx) → [targetIdx...]\nDispatches to the appropriate move generator based on piece type.",
     "$params": ["board", "idx"],
-    "piece": {
-      "$var": "board",
-      "$get": {
-        "$var": "idx"
-      }
-    },
-    "color": {
-      "$fn": [
-        "pieceColor",
-        {
-          "$var": "piece"
-        }
-      ]
-    },
-    "type": {
-      "$fn": [
-        "pieceType",
-        {
-          "$var": "piece"
-        }
-      ]
-    },
+    "piece": { "$get": { "$var": "idx" }, "$from": { "$var": "board" } },
+    "color": { "$fn": ["pieceColor", { "$var": "piece" }] },
+    "type": { "$fn": ["pieceType", { "$var": "piece" }] },
     "$return": {
-      "$if": {
-        "$fn": [
-          "isNull",
-          {
-            "$var": "piece"
-          }
-        ]
-      },
+      "$if": { "$fn": ["isNull", { "$var": "piece" }] },
       "$then": [],
       "$else": {
-        "$match": {
-          "$var": "type"
-        },
+        "$match": { "$var": "type" },
         "$cases": [
           [
             "P",
-            {
-              "$fn": [
-                "pawnMoves",
-                {
-                  "$var": "board"
-                },
-                {
-                  "$var": "idx"
-                },
-                {
-                  "$var": "color"
-                }
-              ]
-            }
+            { "$fn": ["pawnMoves", { "$var": "board" }, { "$var": "idx" }, { "$var": "color" }] }
           ],
           [
             "N",
-            {
-              "$fn": [
-                "knightMoves",
-                {
-                  "$var": "board"
-                },
-                {
-                  "$var": "idx"
-                },
-                {
-                  "$var": "color"
-                }
-              ]
-            }
+            { "$fn": ["knightMoves", { "$var": "board" }, { "$var": "idx" }, { "$var": "color" }] }
           ],
           [
             "B",
-            {
-              "$fn": [
-                "bishopMoves",
-                {
-                  "$var": "board"
-                },
-                {
-                  "$var": "idx"
-                },
-                {
-                  "$var": "color"
-                }
-              ]
-            }
+            { "$fn": ["bishopMoves", { "$var": "board" }, { "$var": "idx" }, { "$var": "color" }] }
           ],
           [
             "R",
-            {
-              "$fn": [
-                "rookMoves",
-                {
-                  "$var": "board"
-                },
-                {
-                  "$var": "idx"
-                },
-                {
-                  "$var": "color"
-                }
-              ]
-            }
+            { "$fn": ["rookMoves", { "$var": "board" }, { "$var": "idx" }, { "$var": "color" }] }
           ],
           [
             "Q",
-            {
-              "$fn": [
-                "queenMoves",
-                {
-                  "$var": "board"
-                },
-                {
-                  "$var": "idx"
-                },
-                {
-                  "$var": "color"
-                }
-              ]
-            }
+            { "$fn": ["queenMoves", { "$var": "board" }, { "$var": "idx" }, { "$var": "color" }] }
           ],
           [
             "K",
-            {
-              "$fn": [
-                "kingMoves",
-                {
-                  "$var": "board"
-                },
-                {
-                  "$var": "idx"
-                },
-                {
-                  "$var": "color"
-                }
-              ]
-            }
+            { "$fn": ["kingMoves", { "$var": "board" }, { "$var": "idx" }, { "$var": "color" }] }
           ]
         ],
         "$else": []
@@ -1088,100 +353,24 @@
   "slideCheck": {
     "$comment": "=========================================================================\nLayer 3 — Check Detection\n\nUses the \"look from the target square\" strategy: from the square in\nquestion, look outward in all attack patterns to find enemy pieces.\n=========================================================================\nslideCheck(board, row, col, dr, dc) → piece | null\nWalk one direction and return the first piece found, or null.",
     "$params": ["board", "row", "col", "dr", "dc"],
-    "nr": {
-      "$fn": [
-        "add",
-        {
-          "$var": "row"
-        },
-        {
-          "$var": "dr"
-        }
-      ]
-    },
-    "nc": {
-      "$fn": [
-        "add",
-        {
-          "$var": "col"
-        },
-        {
-          "$var": "dc"
-        }
-      ]
-    },
-    "ok": {
-      "$fn": [
-        "inBounds",
-        {
-          "$var": "nr"
-        },
-        {
-          "$var": "nc"
-        }
-      ]
-    },
-    "tIdx": {
-      "$fn": [
-        "toIdx",
-        {
-          "$var": "nr"
-        },
-        {
-          "$var": "nc"
-        }
-      ]
-    },
-    "target": {
-      "$var": "board",
-      "$get": {
-        "$var": "tIdx"
-      }
-    },
+    "nr": { "$fn": ["add", { "$var": "row" }, { "$var": "dr" }] },
+    "nc": { "$fn": ["add", { "$var": "col" }, { "$var": "dc" }] },
+    "ok": { "$fn": ["inBounds", { "$var": "nr" }, { "$var": "nc" }] },
+    "tIdx": { "$fn": ["toIdx", { "$var": "nr" }, { "$var": "nc" }] },
+    "target": { "$get": { "$var": "tIdx" }, "$from": { "$var": "board" } },
     "$return": {
       "$cond": [
-        [
-          {
-            "$not": {
-              "$var": "ok"
-            }
-          },
-          null
-        ],
-        [
-          {
-            "$not": {
-              "$fn": [
-                "isNull",
-                {
-                  "$var": "target"
-                }
-              ]
-            }
-          },
-          {
-            "$var": "target"
-          }
-        ]
+        [{ "$not": { "$var": "ok" } }, null],
+        [{ "$not": { "$fn": ["isNull", { "$var": "target" }] } }, { "$var": "target" }]
       ],
       "$else": {
         "$fn": [
           "slideCheck",
-          {
-            "$var": "board"
-          },
-          {
-            "$var": "nr"
-          },
-          {
-            "$var": "nc"
-          },
-          {
-            "$var": "dr"
-          },
-          {
-            "$var": "dc"
-          }
+          { "$var": "board" },
+          { "$var": "nr" },
+          { "$var": "nc" },
+          { "$var": "dr" },
+          { "$var": "dc" }
         ]
       }
     }
@@ -1189,273 +378,71 @@
   "isAttacked": {
     "$comment": "isAttacked(board, idx, byColor) → boolean\nIs the square at idx attacked by any piece of byColor?",
     "$params": ["board", "idx", "byColor"],
-    "row": {
-      "$fn": [
-        "rowOf",
-        {
-          "$var": "idx"
-        }
-      ]
-    },
-    "col": {
-      "$fn": [
-        "colOf",
-        {
-          "$var": "idx"
-        }
-      ]
-    },
-    "ePawn": {
-      "$fn": [
-        "makePiece",
-        {
-          "$var": "byColor"
-        },
-        "P"
-      ]
-    },
-    "eKnight": {
-      "$fn": [
-        "makePiece",
-        {
-          "$var": "byColor"
-        },
-        "N"
-      ]
-    },
-    "eBishop": {
-      "$fn": [
-        "makePiece",
-        {
-          "$var": "byColor"
-        },
-        "B"
-      ]
-    },
-    "eRook": {
-      "$fn": [
-        "makePiece",
-        {
-          "$var": "byColor"
-        },
-        "R"
-      ]
-    },
-    "eQueen": {
-      "$fn": [
-        "makePiece",
-        {
-          "$var": "byColor"
-        },
-        "Q"
-      ]
-    },
-    "eKing": {
-      "$fn": [
-        "makePiece",
-        {
-          "$var": "byColor"
-        },
-        "K"
-      ]
-    },
+    "row": { "$fn": ["rowOf", { "$var": "idx" }] },
+    "col": { "$fn": ["colOf", { "$var": "idx" }] },
+    "ePawn": { "$fn": ["makePiece", { "$var": "byColor" }, "P"] },
+    "eKnight": { "$fn": ["makePiece", { "$var": "byColor" }, "N"] },
+    "eBishop": { "$fn": ["makePiece", { "$var": "byColor" }, "B"] },
+    "eRook": { "$fn": ["makePiece", { "$var": "byColor" }, "R"] },
+    "eQueen": { "$fn": ["makePiece", { "$var": "byColor" }, "Q"] },
+    "eKing": { "$fn": ["makePiece", { "$var": "byColor" }, "K"] },
     "pawnSrcRow": {
       "$comment": "Pawn attacks: white pawns attack from row-1, black from row+1",
-      "$if": {
-        "$eq": [
-          {
-            "$var": "byColor"
-          },
-          "w"
-        ]
-      },
-      "$then": {
-        "$fn": [
-          "sub",
-          {
-            "$var": "row"
-          },
-          1
-        ]
-      },
-      "$else": {
-        "$fn": [
-          "add",
-          {
-            "$var": "row"
-          },
-          1
-        ]
-      }
+      "$if": { "$eq": [{ "$var": "byColor" }, "w"] },
+      "$then": { "$fn": ["sub", { "$var": "row" }, 1] },
+      "$else": { "$fn": ["add", { "$var": "row" }, 1] }
     },
     "pawnAttL": {
       "$and": [
-        {
-          "$fn": [
-            "inBounds",
-            {
-              "$var": "pawnSrcRow"
-            },
-            {
-              "$fn": [
-                "sub",
-                {
-                  "$var": "col"
-                },
-                1
-              ]
-            }
-          ]
-        },
+        { "$fn": ["inBounds", { "$var": "pawnSrcRow" }, { "$fn": ["sub", { "$var": "col" }, 1] }] },
         {
           "$eq": [
             {
-              "$var": "board",
               "$get": {
-                "$fn": [
-                  "toIdx",
-                  {
-                    "$var": "pawnSrcRow"
-                  },
-                  {
-                    "$fn": [
-                      "sub",
-                      {
-                        "$var": "col"
-                      },
-                      1
-                    ]
-                  }
-                ]
-              }
+                "$fn": ["toIdx", { "$var": "pawnSrcRow" }, { "$fn": ["sub", { "$var": "col" }, 1] }]
+              },
+              "$from": { "$var": "board" }
             },
-            {
-              "$var": "ePawn"
-            }
+            { "$var": "ePawn" }
           ]
         }
       ]
     },
     "pawnAttR": {
       "$and": [
-        {
-          "$fn": [
-            "inBounds",
-            {
-              "$var": "pawnSrcRow"
-            },
-            {
-              "$fn": [
-                "add",
-                {
-                  "$var": "col"
-                },
-                1
-              ]
-            }
-          ]
-        },
+        { "$fn": ["inBounds", { "$var": "pawnSrcRow" }, { "$fn": ["add", { "$var": "col" }, 1] }] },
         {
           "$eq": [
             {
-              "$var": "board",
               "$get": {
-                "$fn": [
-                  "toIdx",
-                  {
-                    "$var": "pawnSrcRow"
-                  },
-                  {
-                    "$fn": [
-                      "add",
-                      {
-                        "$var": "col"
-                      },
-                      1
-                    ]
-                  }
-                ]
-              }
+                "$fn": ["toIdx", { "$var": "pawnSrcRow" }, { "$fn": ["add", { "$var": "col" }, 1] }]
+              },
+              "$from": { "$var": "board" }
             },
-            {
-              "$var": "ePawn"
-            }
+            { "$var": "ePawn" }
           ]
         }
       ]
     },
-    "pawnAtt": {
-      "$or": [
-        {
-          "$var": "pawnAttL"
-        },
-        {
-          "$var": "pawnAttR"
-        }
-      ]
-    },
+    "pawnAtt": { "$or": [{ "$var": "pawnAttL" }, { "$var": "pawnAttR" }] },
     "knightAtt": {
       "$comment": "Knight attacks",
       "$fn": [
         "some",
         {
           "$params": ["off"],
-          "r": {
-            "$fn": [
-              "add",
-              {
-                "$var": "row"
-              },
-              {
-                "$var": "off",
-                "$get": 0
-              }
-            ]
-          },
-          "c": {
-            "$fn": [
-              "add",
-              {
-                "$var": "col"
-              },
-              {
-                "$var": "off",
-                "$get": 1
-              }
-            ]
-          },
+          "r": { "$fn": ["add", { "$var": "row" }, { "$get": 0, "$from": { "$var": "off" } }] },
+          "c": { "$fn": ["add", { "$var": "col" }, { "$get": 1, "$from": { "$var": "off" } }] },
           "$return": {
             "$and": [
-              {
-                "$fn": [
-                  "inBounds",
-                  {
-                    "$var": "r"
-                  },
-                  {
-                    "$var": "c"
-                  }
-                ]
-              },
+              { "$fn": ["inBounds", { "$var": "r" }, { "$var": "c" }] },
               {
                 "$eq": [
                   {
-                    "$var": "board",
-                    "$get": {
-                      "$fn": [
-                        "toIdx",
-                        {
-                          "$var": "r"
-                        },
-                        {
-                          "$var": "c"
-                        }
-                      ]
-                    }
+                    "$get": { "$fn": ["toIdx", { "$var": "r" }, { "$var": "c" }] },
+                    "$from": { "$var": "board" }
                   },
-                  {
-                    "$var": "eKnight"
-                  }
+                  { "$var": "eKnight" }
                 ]
               }
             ]
@@ -1484,47 +471,17 @@
           "p": {
             "$fn": [
               "slideCheck",
-              {
-                "$var": "board"
-              },
-              {
-                "$var": "row"
-              },
-              {
-                "$var": "col"
-              },
-              {
-                "$var": "d",
-                "$get": 0
-              },
-              {
-                "$var": "d",
-                "$get": 1
-              }
+              { "$var": "board" },
+              { "$var": "row" },
+              { "$var": "col" },
+              { "$get": 0, "$from": { "$var": "d" } },
+              { "$get": 1, "$from": { "$var": "d" } }
             ]
           },
           "$return": {
             "$or": [
-              {
-                "$eq": [
-                  {
-                    "$var": "p"
-                  },
-                  {
-                    "$var": "eBishop"
-                  }
-                ]
-              },
-              {
-                "$eq": [
-                  {
-                    "$var": "p"
-                  },
-                  {
-                    "$var": "eQueen"
-                  }
-                ]
-              }
+              { "$eq": [{ "$var": "p" }, { "$var": "eBishop" }] },
+              { "$eq": [{ "$var": "p" }, { "$var": "eQueen" }] }
             ]
           }
         },
@@ -1547,47 +504,17 @@
           "p": {
             "$fn": [
               "slideCheck",
-              {
-                "$var": "board"
-              },
-              {
-                "$var": "row"
-              },
-              {
-                "$var": "col"
-              },
-              {
-                "$var": "d",
-                "$get": 0
-              },
-              {
-                "$var": "d",
-                "$get": 1
-              }
+              { "$var": "board" },
+              { "$var": "row" },
+              { "$var": "col" },
+              { "$get": 0, "$from": { "$var": "d" } },
+              { "$get": 1, "$from": { "$var": "d" } }
             ]
           },
           "$return": {
             "$or": [
-              {
-                "$eq": [
-                  {
-                    "$var": "p"
-                  },
-                  {
-                    "$var": "eRook"
-                  }
-                ]
-              },
-              {
-                "$eq": [
-                  {
-                    "$var": "p"
-                  },
-                  {
-                    "$var": "eQueen"
-                  }
-                ]
-              }
+              { "$eq": [{ "$var": "p" }, { "$var": "eRook" }] },
+              { "$eq": [{ "$var": "p" }, { "$var": "eQueen" }] }
             ]
           }
         },
@@ -1607,62 +534,18 @@
         "some",
         {
           "$params": ["off"],
-          "r": {
-            "$fn": [
-              "add",
-              {
-                "$var": "row"
-              },
-              {
-                "$var": "off",
-                "$get": 0
-              }
-            ]
-          },
-          "c": {
-            "$fn": [
-              "add",
-              {
-                "$var": "col"
-              },
-              {
-                "$var": "off",
-                "$get": 1
-              }
-            ]
-          },
+          "r": { "$fn": ["add", { "$var": "row" }, { "$get": 0, "$from": { "$var": "off" } }] },
+          "c": { "$fn": ["add", { "$var": "col" }, { "$get": 1, "$from": { "$var": "off" } }] },
           "$return": {
             "$and": [
-              {
-                "$fn": [
-                  "inBounds",
-                  {
-                    "$var": "r"
-                  },
-                  {
-                    "$var": "c"
-                  }
-                ]
-              },
+              { "$fn": ["inBounds", { "$var": "r" }, { "$var": "c" }] },
               {
                 "$eq": [
                   {
-                    "$var": "board",
-                    "$get": {
-                      "$fn": [
-                        "toIdx",
-                        {
-                          "$var": "r"
-                        },
-                        {
-                          "$var": "c"
-                        }
-                      ]
-                    }
+                    "$get": { "$fn": ["toIdx", { "$var": "r" }, { "$var": "c" }] },
+                    "$from": { "$var": "board" }
                   },
-                  {
-                    "$var": "eKing"
-                  }
+                  { "$var": "eKing" }
                 ]
               }
             ]
@@ -1685,102 +568,39 @@
     "$return": {
       "$comment": "Short-circuit: first truthy check wins.",
       "$or": [
-        {
-          "$var": "pawnAtt"
-        },
-        {
-          "$var": "knightAtt"
-        },
-        {
-          "$var": "diagAtt"
-        },
-        {
-          "$var": "straightAtt"
-        },
-        {
-          "$var": "kingAtt"
-        }
+        { "$var": "pawnAtt" },
+        { "$var": "knightAtt" },
+        { "$var": "diagAtt" },
+        { "$var": "straightAtt" },
+        { "$var": "kingAtt" }
       ]
     }
   },
   "findKing": {
     "$comment": "findKing(board, color) → index of king, or -1",
     "$params": ["board", "color"],
-    "king": {
-      "$if": {
-        "$eq": [
-          {
-            "$var": "color"
-          },
-          "w"
-        ]
-      },
-      "$then": "K",
-      "$else": "k"
-    },
+    "king": { "$if": { "$eq": [{ "$var": "color" }, "w"] }, "$then": "K", "$else": "k" },
     "$return": {
       "$fn": [
         "findIndex",
-        {
-          "$params": ["cell"],
-          "$return": {
-            "$eq": [
-              {
-                "$var": "cell"
-              },
-              {
-                "$var": "king"
-              }
-            ]
-          }
-        },
-        {
-          "$var": "board"
-        }
+        { "$params": ["cell"], "$return": { "$eq": [{ "$var": "cell" }, { "$var": "king" }] } },
+        { "$var": "board" }
       ]
     }
   },
   "isInCheck": {
     "$comment": "isInCheck(board, color) → boolean",
     "$params": ["board", "color"],
-    "kingPos": {
-      "$fn": [
-        "findKing",
-        {
-          "$var": "board"
-        },
-        {
-          "$var": "color"
-        }
-      ]
-    },
+    "kingPos": { "$fn": ["findKing", { "$var": "board" }, { "$var": "color" }] },
     "$return": {
-      "$if": {
-        "$eq": [
-          {
-            "$var": "kingPos"
-          },
-          -1
-        ]
-      },
+      "$if": { "$eq": [{ "$var": "kingPos" }, -1] },
       "$then": false,
       "$else": {
         "$fn": [
           "isAttacked",
-          {
-            "$var": "board"
-          },
-          {
-            "$var": "kingPos"
-          },
-          {
-            "$fn": [
-              "otherColor",
-              {
-                "$var": "color"
-              }
-            ]
-          }
+          { "$var": "board" },
+          { "$var": "kingPos" },
+          { "$fn": ["otherColor", { "$var": "color" }] }
         ]
       }
     }
@@ -1788,105 +608,26 @@
   "applyMove": {
     "$comment": "=========================================================================\nLayer 4 — Legal Moves and Game Status\n=========================================================================\napplyMove(board, from, to) → new board\nMoves the piece, clears the source, handles auto-promotion to queen.",
     "$params": ["board", "from", "to"],
-    "piece": {
-      "$var": "board",
-      "$get": {
-        "$var": "from"
-      }
-    },
-    "color": {
-      "$fn": [
-        "pieceColor",
-        {
-          "$var": "piece"
-        }
-      ]
-    },
-    "type": {
-      "$fn": [
-        "pieceType",
-        {
-          "$var": "piece"
-        }
-      ]
-    },
-    "toRow": {
-      "$fn": [
-        "rowOf",
-        {
-          "$var": "to"
-        }
-      ]
-    },
+    "piece": { "$get": { "$var": "from" }, "$from": { "$var": "board" } },
+    "color": { "$fn": ["pieceColor", { "$var": "piece" }] },
+    "type": { "$fn": ["pieceType", { "$var": "piece" }] },
+    "toRow": { "$fn": ["rowOf", { "$var": "to" }] },
     "isPromotion": {
       "$and": [
-        {
-          "$eq": [
-            {
-              "$var": "type"
-            },
-            "P"
-          ]
-        },
-        {
-          "$or": [
-            {
-              "$eq": [
-                {
-                  "$var": "toRow"
-                },
-                7
-              ]
-            },
-            {
-              "$eq": [
-                {
-                  "$var": "toRow"
-                },
-                0
-              ]
-            }
-          ]
-        }
+        { "$eq": [{ "$var": "type" }, "P"] },
+        { "$or": [{ "$eq": [{ "$var": "toRow" }, 7] }, { "$eq": [{ "$var": "toRow" }, 0] }] }
       ]
     },
     "placedPiece": {
-      "$if": {
-        "$var": "isPromotion"
-      },
-      "$then": {
-        "$fn": [
-          "makePiece",
-          {
-            "$var": "color"
-          },
-          "Q"
-        ]
-      },
-      "$else": {
-        "$var": "piece"
-      }
+      "$if": { "$var": "isPromotion" },
+      "$then": { "$fn": ["makePiece", { "$var": "color" }, "Q"] },
+      "$else": { "$var": "piece" }
     },
     "$return": {
       "$fn": [
         "setAt",
-        {
-          "$fn": [
-            "setAt",
-            {
-              "$var": "board"
-            },
-            {
-              "$var": "to"
-            },
-            {
-              "$var": "placedPiece"
-            }
-          ]
-        },
-        {
-          "$var": "from"
-        },
+        { "$fn": ["setAt", { "$var": "board" }, { "$var": "to" }, { "$var": "placedPiece" }] },
+        { "$var": "from" },
         null
       ]
     }
@@ -1894,107 +635,16 @@
   "isLegalMove": {
     "$comment": "isLegalMove(board, from, to, turn) → boolean\nValidates ownership, pseudo-legality, and that the king is not left in check.",
     "$params": ["board", "from", "to", "turn"],
-    "piece": {
-      "$var": "board",
-      "$get": {
-        "$var": "from"
-      }
-    },
-    "hasPiece": {
-      "$not": {
-        "$fn": [
-          "isNull",
-          {
-            "$var": "piece"
-          }
-        ]
-      }
-    },
-    "rightColor": {
-      "$eq": [
-        {
-          "$fn": [
-            "pieceColor",
-            {
-              "$var": "piece"
-            }
-          ]
-        },
-        {
-          "$var": "turn"
-        }
-      ]
-    },
-    "moves": {
-      "$fn": [
-        "pieceMoves",
-        {
-          "$var": "board"
-        },
-        {
-          "$var": "from"
-        }
-      ]
-    },
-    "inMoves": {
-      "$fn": [
-        "includes",
-        {
-          "$var": "moves"
-        },
-        {
-          "$var": "to"
-        }
-      ]
-    },
-    "newBoard": {
-      "$fn": [
-        "applyMove",
-        {
-          "$var": "board"
-        },
-        {
-          "$var": "from"
-        },
-        {
-          "$var": "to"
-        }
-      ]
-    },
-    "leavesCheck": {
-      "$fn": [
-        "isInCheck",
-        {
-          "$var": "newBoard"
-        },
-        {
-          "$var": "turn"
-        }
-      ]
-    },
+    "piece": { "$get": { "$var": "from" }, "$from": { "$var": "board" } },
+    "hasPiece": { "$not": { "$fn": ["isNull", { "$var": "piece" }] } },
+    "rightColor": { "$eq": [{ "$fn": ["pieceColor", { "$var": "piece" }] }, { "$var": "turn" }] },
+    "moves": { "$fn": ["pieceMoves", { "$var": "board" }, { "$var": "from" }] },
+    "inMoves": { "$fn": ["includes", { "$var": "moves" }, { "$var": "to" }] },
+    "newBoard": { "$fn": ["applyMove", { "$var": "board" }, { "$var": "from" }, { "$var": "to" }] },
+    "leavesCheck": { "$fn": ["isInCheck", { "$var": "newBoard" }, { "$var": "turn" }] },
     "$return": {
-      "$if": {
-        "$and": [
-          {
-            "$var": "hasPiece"
-          },
-          {
-            "$var": "rightColor"
-          }
-        ]
-      },
-      "$then": {
-        "$and": [
-          {
-            "$var": "inMoves"
-          },
-          {
-            "$not": {
-              "$var": "leavesCheck"
-            }
-          }
-        ]
-      },
+      "$if": { "$and": [{ "$var": "hasPiece" }, { "$var": "rightColor" }] },
+      "$then": { "$and": [{ "$var": "inMoves" }, { "$not": { "$var": "leavesCheck" } }] },
       "$else": false
     }
   },
@@ -2006,131 +656,45 @@
         "some",
         {
           "$params": ["from"],
-          "piece": {
-            "$var": "board",
-            "$get": {
-              "$var": "from"
-            }
-          },
+          "piece": { "$get": { "$var": "from" }, "$from": { "$var": "board" } },
           "isPiece": {
-            "$eq": [
-              {
-                "$fn": [
-                  "pieceColor",
-                  {
-                    "$var": "piece"
-                  }
-                ]
-              },
-              {
-                "$var": "color"
-              }
-            ]
+            "$eq": [{ "$fn": ["pieceColor", { "$var": "piece" }] }, { "$var": "color" }]
           },
-          "moves": {
-            "$fn": [
-              "pieceMoves",
-              {
-                "$var": "board"
-              },
-              {
-                "$var": "from"
-              }
-            ]
-          },
+          "moves": { "$fn": ["pieceMoves", { "$var": "board" }, { "$var": "from" }] },
           "hasLegal": {
             "$fn": [
               "some",
               {
                 "$params": ["to"],
                 "nb": {
-                  "$fn": [
-                    "applyMove",
-                    {
-                      "$var": "board"
-                    },
-                    {
-                      "$var": "from"
-                    },
-                    {
-                      "$var": "to"
-                    }
-                  ]
+                  "$fn": ["applyMove", { "$var": "board" }, { "$var": "from" }, { "$var": "to" }]
                 },
                 "$return": {
-                  "$not": {
-                    "$fn": [
-                      "isInCheck",
-                      {
-                        "$var": "nb"
-                      },
-                      {
-                        "$var": "color"
-                      }
-                    ]
-                  }
+                  "$not": { "$fn": ["isInCheck", { "$var": "nb" }, { "$var": "color" }] }
                 }
               },
-              {
-                "$var": "moves"
-              }
+              { "$var": "moves" }
             ]
           },
           "$return": {
-            "$if": {
-              "$var": "isPiece"
-            },
-            "$then": {
-              "$var": "hasLegal"
-            },
+            "$if": { "$var": "isPiece" },
+            "$then": { "$var": "hasLegal" },
             "$else": false
           }
         },
-        {
-          "$fn": ["range", 64]
-        }
+        { "$fn": ["range", 64] }
       ]
     }
   },
   "getStatus": {
     "$comment": "getStatus(board, turn) → \"playing\" | \"checkmate\" | \"stalemate\"",
     "$params": ["board", "turn"],
-    "hasLegal": {
-      "$fn": [
-        "hasAnyLegalMove",
-        {
-          "$var": "board"
-        },
-        {
-          "$var": "turn"
-        }
-      ]
-    },
-    "inCheck": {
-      "$fn": [
-        "isInCheck",
-        {
-          "$var": "board"
-        },
-        {
-          "$var": "turn"
-        }
-      ]
-    },
+    "hasLegal": { "$fn": ["hasAnyLegalMove", { "$var": "board" }, { "$var": "turn" }] },
+    "inCheck": { "$fn": ["isInCheck", { "$var": "board" }, { "$var": "turn" }] },
     "$return": {
       "$cond": [
-        [
-          {
-            "$var": "hasLegal"
-          },
-          "playing"
-        ],
-        [
-          {
-            "$var": "inCheck"
-          },
-          "checkmate"
-        ]
+        [{ "$var": "hasLegal" }, "playing"],
+        [{ "$var": "inCheck" }, "checkmate"]
       ],
       "$else": "stalemate"
     }
@@ -2138,101 +702,31 @@
   "playMove": {
     "$comment": "=========================================================================\nLayer 5 — Top-Level Entry Point\n=========================================================================\nplayMove(state, from, to) → new state\nValidates the game is still active and the move is legal.\nReturns the updated state on success, or the original state unchanged.",
     "$params": ["state", "from", "to"],
-    "board": {
-      "$var": "state.board"
-    },
-    "turn": {
-      "$var": "state.turn"
-    },
-    "status": {
-      "$var": "state.status"
-    },
-    "stillPlaying": {
-      "$eq": [
-        {
-          "$var": "status"
-        },
-        "playing"
-      ]
-    },
+    "board": { "$get": "board", "$from": { "$var": "state" } },
+    "turn": { "$get": "turn", "$from": { "$var": "state" } },
+    "status": { "$get": "status", "$from": { "$var": "state" } },
+    "stillPlaying": { "$eq": [{ "$var": "status" }, "playing"] },
     "legal": {
       "$fn": [
         "isLegalMove",
-        {
-          "$var": "board"
-        },
-        {
-          "$var": "from"
-        },
-        {
-          "$var": "to"
-        },
-        {
-          "$var": "turn"
-        }
+        { "$var": "board" },
+        { "$var": "from" },
+        { "$var": "to" },
+        { "$var": "turn" }
       ]
     },
-    "canMove": {
-      "$and": [
-        {
-          "$var": "stillPlaying"
-        },
-        {
-          "$var": "legal"
-        }
-      ]
-    },
-    "newBoard": {
-      "$fn": [
-        "applyMove",
-        {
-          "$var": "board"
-        },
-        {
-          "$var": "from"
-        },
-        {
-          "$var": "to"
-        }
-      ]
-    },
-    "nextTurn": {
-      "$fn": [
-        "otherColor",
-        {
-          "$var": "turn"
-        }
-      ]
-    },
-    "newStatus": {
-      "$fn": [
-        "getStatus",
-        {
-          "$var": "newBoard"
-        },
-        {
-          "$var": "nextTurn"
-        }
-      ]
-    },
+    "canMove": { "$and": [{ "$var": "stillPlaying" }, { "$var": "legal" }] },
+    "newBoard": { "$fn": ["applyMove", { "$var": "board" }, { "$var": "from" }, { "$var": "to" }] },
+    "nextTurn": { "$fn": ["otherColor", { "$var": "turn" }] },
+    "newStatus": { "$fn": ["getStatus", { "$var": "newBoard" }, { "$var": "nextTurn" }] },
     "$return": {
-      "$if": {
-        "$var": "canMove"
-      },
+      "$if": { "$var": "canMove" },
       "$then": {
-        "board": {
-          "$var": "newBoard"
-        },
-        "turn": {
-          "$var": "nextTurn"
-        },
-        "status": {
-          "$var": "newStatus"
-        }
+        "board": { "$var": "newBoard" },
+        "turn": { "$var": "nextTurn" },
+        "status": { "$var": "newStatus" }
       },
-      "$else": {
-        "$var": "state"
-      }
+      "$else": { "$var": "state" }
     }
   },
   "newGame": {
@@ -2313,343 +807,72 @@
   "parseSquare": {
     "$comment": "parseSquare(\"e2\") → 12, or null if invalid.\nUses indexOf on the file/rank alphabets in lieu of charCodeAt.",
     "$params": ["s"],
-    "len": {
-      "$fn": [
-        "length",
-        {
-          "$var": "s"
-        }
-      ]
-    },
-    "fileChar": {
-      "$fn": [
-        "slice",
-        {
-          "$var": "s"
-        },
-        0,
-        1
-      ]
-    },
-    "rankChar": {
-      "$fn": [
-        "slice",
-        {
-          "$var": "s"
-        },
-        1,
-        2
-      ]
-    },
-    "file": {
-      "$fn": [
-        "indexOf",
-        "abcdefgh",
-        {
-          "$var": "fileChar"
-        }
-      ]
-    },
-    "rank": {
-      "$fn": [
-        "indexOf",
-        "12345678",
-        {
-          "$var": "rankChar"
-        }
-      ]
-    },
+    "len": { "$fn": ["length", { "$var": "s" }] },
+    "fileChar": { "$fn": ["slice", { "$var": "s" }, 0, 1] },
+    "rankChar": { "$fn": ["slice", { "$var": "s" }, 1, 2] },
+    "file": { "$fn": ["indexOf", "abcdefgh", { "$var": "fileChar" }] },
+    "rank": { "$fn": ["indexOf", "12345678", { "$var": "rankChar" }] },
     "$return": {
       "$if": {
         "$and": [
-          {
-            "$eq": [
-              {
-                "$var": "len"
-              },
-              2
-            ]
-          },
-          {
-            "$gte": [
-              {
-                "$var": "file"
-              },
-              0
-            ]
-          },
-          {
-            "$gte": [
-              {
-                "$var": "rank"
-              },
-              0
-            ]
-          }
+          { "$eq": [{ "$var": "len" }, 2] },
+          { "$gte": [{ "$var": "file" }, 0] },
+          { "$gte": [{ "$var": "rank" }, 0] }
         ]
       },
-      "$then": {
-        "$fn": [
-          "add",
-          {
-            "$fn": [
-              "mul",
-              {
-                "$var": "rank"
-              },
-              8
-            ]
-          },
-          {
-            "$var": "file"
-          }
-        ]
-      },
+      "$then": { "$fn": ["add", { "$fn": ["mul", { "$var": "rank" }, 8] }, { "$var": "file" }] },
       "$else": null
     }
   },
   "squareName": {
     "$comment": "squareName(12) → \"e2\".",
     "$params": ["idx"],
-    "file": {
-      "$fn": [
-        "mod",
-        {
-          "$var": "idx"
-        },
-        8
-      ]
-    },
-    "rank": {
-      "$fn": [
-        "floor",
-        {
-          "$fn": [
-            "div",
-            {
-              "$var": "idx"
-            },
-            8
-          ]
-        }
-      ]
-    },
+    "file": { "$fn": ["mod", { "$var": "idx" }, 8] },
+    "rank": { "$fn": ["floor", { "$fn": ["div", { "$var": "idx" }, 8] }] },
     "fileChar": {
-      "$fn": [
-        "slice",
-        "abcdefgh",
-        {
-          "$var": "file"
-        },
-        {
-          "$fn": [
-            "add",
-            {
-              "$var": "file"
-            },
-            1
-          ]
-        }
-      ]
+      "$fn": ["slice", "abcdefgh", { "$var": "file" }, { "$fn": ["add", { "$var": "file" }, 1] }]
     },
-    "rankChar": {
-      "$fn": [
-        "str",
-        {
-          "$fn": [
-            "add",
-            {
-              "$var": "rank"
-            },
-            1
-          ]
-        }
-      ]
-    },
-    "$return": {
-      "$fn": [
-        "strcat",
-        {
-          "$var": "fileChar"
-        },
-        {
-          "$var": "rankChar"
-        }
-      ]
-    }
+    "rankChar": { "$fn": ["str", { "$fn": ["add", { "$var": "rank" }, 1] }] },
+    "$return": { "$fn": ["strcat", { "$var": "fileChar" }, { "$var": "rankChar" }] }
   },
   "parseMove": {
     "$comment": "parseMove(\"e2e4\") or parseMove(\"e2 e4\") → { \"from\": 12, \"to\": 28 }, or null.",
     "$params": ["s"],
-    "t": {
-      "$fn": [
-        "lower",
-        {
-          "$fn": [
-            "trim",
-            {
-              "$var": "s"
-            }
-          ]
-        }
-      ]
-    },
-    "len": {
-      "$fn": [
-        "length",
-        {
-          "$var": "t"
-        }
-      ]
-    },
-    "is4": {
-      "$eq": [
-        {
-          "$var": "len"
-        },
-        4
-      ]
-    },
-    "is5": {
-      "$eq": [
-        {
-          "$var": "len"
-        },
-        5
-      ]
-    },
+    "t": { "$fn": ["lower", { "$fn": ["trim", { "$var": "s" }] }] },
+    "len": { "$fn": ["length", { "$var": "t" }] },
+    "is4": { "$eq": [{ "$var": "len" }, 4] },
+    "is5": { "$eq": [{ "$var": "len" }, 5] },
     "shapeOk": {
       "$or": [
+        { "$var": "is4" },
         {
-          "$var": "is4"
-        },
-        {
-          "$and": [
-            {
-              "$var": "is5"
-            },
-            {
-              "$eq": [
-                {
-                  "$fn": [
-                    "slice",
-                    {
-                      "$var": "t"
-                    },
-                    2,
-                    3
-                  ]
-                },
-                " "
-              ]
-            }
-          ]
+          "$and": [{ "$var": "is5" }, { "$eq": [{ "$fn": ["slice", { "$var": "t" }, 2, 3] }, " "] }]
         }
       ]
     },
     "fromStr": {
-      "$if": {
-        "$var": "shapeOk"
-      },
-      "$then": {
-        "$fn": [
-          "slice",
-          {
-            "$var": "t"
-          },
-          0,
-          2
-        ]
-      },
+      "$if": { "$var": "shapeOk" },
+      "$then": { "$fn": ["slice", { "$var": "t" }, 0, 2] },
       "$else": null
     },
     "toStr": {
       "$cond": [
-        [
-          {
-            "$var": "is4"
-          },
-          {
-            "$fn": [
-              "slice",
-              {
-                "$var": "t"
-              },
-              2,
-              4
-            ]
-          }
-        ],
-        [
-          {
-            "$var": "is5"
-          },
-          {
-            "$fn": [
-              "slice",
-              {
-                "$var": "t"
-              },
-              3,
-              5
-            ]
-          }
-        ]
+        [{ "$var": "is4" }, { "$fn": ["slice", { "$var": "t" }, 2, 4] }],
+        [{ "$var": "is5" }, { "$fn": ["slice", { "$var": "t" }, 3, 5] }]
       ],
       "$else": null
     },
-    "from": {
-      "$fn": [
-        "parseSquare",
-        {
-          "$var": "fromStr"
-        }
-      ]
-    },
-    "to": {
-      "$fn": [
-        "parseSquare",
-        {
-          "$var": "toStr"
-        }
-      ]
-    },
+    "from": { "$fn": ["parseSquare", { "$var": "fromStr" }] },
+    "to": { "$fn": ["parseSquare", { "$var": "toStr" }] },
     "$return": {
       "$if": {
         "$and": [
-          {
-            "$var": "shapeOk"
-          },
-          {
-            "$not": {
-              "$fn": [
-                "isNull",
-                {
-                  "$var": "from"
-                }
-              ]
-            }
-          },
-          {
-            "$not": {
-              "$fn": [
-                "isNull",
-                {
-                  "$var": "to"
-                }
-              ]
-            }
-          }
+          { "$var": "shapeOk" },
+          { "$not": { "$fn": ["isNull", { "$var": "from" }] } },
+          { "$not": { "$fn": ["isNull", { "$var": "to" }] } }
         ]
       },
-      "$then": {
-        "from": {
-          "$var": "from"
-        },
-        "to": {
-          "$var": "to"
-        }
-      },
+      "$then": { "from": { "$var": "from" }, "to": { "$var": "to" } },
       "$else": null
     }
   },
@@ -2673,21 +896,9 @@
       }
     },
     "$return": {
-      "$if": {
-        "$fn": [
-          "isNull",
-          {
-            "$var": "piece"
-          }
-        ]
-      },
+      "$if": { "$fn": ["isNull", { "$var": "piece" }] },
       "$then": "·",
-      "$else": {
-        "$var": "PIECES",
-        "$get": {
-          "$var": "piece"
-        }
-      }
+      "$else": { "$get": { "$var": "piece" }, "$from": { "$var": "PIECES" } }
     }
   },
   "formatRank": {
@@ -2699,67 +910,23 @@
         {
           "$params": ["file"],
           "piece": {
-            "$var": "board",
             "$get": {
-              "$fn": [
-                "add",
-                {
-                  "$fn": [
-                    "mul",
-                    {
-                      "$var": "rank"
-                    },
-                    8
-                  ]
-                },
-                {
-                  "$var": "file"
-                }
-              ]
-            }
+              "$fn": ["add", { "$fn": ["mul", { "$var": "rank" }, 8] }, { "$var": "file" }]
+            },
+            "$from": { "$var": "board" }
           },
-          "$return": {
-            "$fn": [
-              "pieceGlyph",
-              {
-                "$var": "piece"
-              }
-            ]
-          }
+          "$return": { "$fn": ["pieceGlyph", { "$var": "piece" }] }
         },
-        {
-          "$fn": ["range", 8]
-        }
+        { "$fn": ["range", 8] }
       ]
     },
     "$return": {
       "$fn": [
         "strcat",
         " ",
-        {
-          "$fn": [
-            "str",
-            {
-              "$fn": [
-                "add",
-                {
-                  "$var": "rank"
-                },
-                1
-              ]
-            }
-          ]
-        },
+        { "$fn": ["str", { "$fn": ["add", { "$var": "rank" }, 1] }] },
         "  ",
-        {
-          "$fn": [
-            "join",
-            {
-              "$var": "cells"
-            },
-            "  "
-          ]
-        }
+        { "$fn": ["join", { "$var": "cells" }, "  "] }
       ]
     }
   },
@@ -2771,40 +938,15 @@
         "map",
         {
           "$params": ["rank"],
-          "$return": {
-            "$fn": [
-              "formatRank",
-              {
-                "$var": "board"
-              },
-              {
-                "$var": "rank"
-              }
-            ]
-          }
+          "$return": { "$fn": ["formatRank", { "$var": "board" }, { "$var": "rank" }] }
         },
-        {
-          "$fn": [
-            "reverse",
-            {
-              "$fn": ["range", 8]
-            }
-          ]
-        }
+        { "$fn": ["reverse", { "$fn": ["range", 8] }] }
       ]
     },
     "$return": {
       "$fn": [
         "join",
-        {
-          "$fn": [
-            "concat",
-            {
-              "$var": "rankLines"
-            },
-            ["", "    a  b  c  d  e  f  g  h"]
-          ]
-        },
+        { "$fn": ["concat", { "$var": "rankLines" }, ["", "    a  b  c  d  e  f  g  h"]] },
         "\n"
       ]
     }
@@ -2812,192 +954,60 @@
   "turnLabel": {
     "$comment": "turnLabel(\"w\") → \"White\", turnLabel(\"b\") → \"Black\".",
     "$params": ["turn"],
-    "$return": {
-      "$if": {
-        "$eq": [
-          {
-            "$var": "turn"
-          },
-          "w"
-        ]
-      },
-      "$then": "White",
-      "$else": "Black"
-    }
+    "$return": { "$if": { "$eq": [{ "$var": "turn" }, "w"] }, "$then": "White", "$else": "Black" }
   },
   "statusLine": {
     "$comment": "statusLine(state) → \"  White to move\", \"  White to move  [CHECK]\",\n\"  Checkmate — Black wins!\", \"  Stalemate — draw!\".",
     "$params": ["state"],
-    "turn": {
-      "$var": "state.turn"
-    },
-    "status": {
-      "$var": "state.status"
-    },
-    "label": {
-      "$fn": [
-        "turnLabel",
-        {
-          "$var": "turn"
-        }
-      ]
-    },
-    "winnerLabel": {
-      "$fn": [
-        "turnLabel",
-        {
-          "$fn": [
-            "otherColor",
-            {
-              "$var": "turn"
-            }
-          ]
-        }
-      ]
-    },
+    "turn": { "$get": "turn", "$from": { "$var": "state" } },
+    "status": { "$get": "status", "$from": { "$var": "state" } },
+    "label": { "$fn": ["turnLabel", { "$var": "turn" }] },
+    "winnerLabel": { "$fn": ["turnLabel", { "$fn": ["otherColor", { "$var": "turn" }] }] },
     "inCheck": {
-      "$fn": [
-        "isInCheck",
-        {
-          "$var": "state.board"
-        },
-        {
-          "$var": "turn"
-        }
-      ]
+      "$fn": ["isInCheck", { "$get": "board", "$from": { "$var": "state" } }, { "$var": "turn" }]
     },
     "$return": {
       "$cond": [
         [
-          {
-            "$eq": [
-              {
-                "$var": "status"
-              },
-              "checkmate"
-            ]
-          },
-          {
-            "$fn": [
-              "strcat",
-              "  Checkmate — ",
-              {
-                "$var": "winnerLabel"
-              },
-              " wins!"
-            ]
-          }
+          { "$eq": [{ "$var": "status" }, "checkmate"] },
+          { "$fn": ["strcat", "  Checkmate — ", { "$var": "winnerLabel" }, " wins!"] }
         ],
+        [{ "$eq": [{ "$var": "status" }, "stalemate"] }, "  Stalemate — draw!"],
         [
-          {
-            "$eq": [
-              {
-                "$var": "status"
-              },
-              "stalemate"
-            ]
-          },
-          "  Stalemate — draw!"
-        ],
-        [
-          {
-            "$var": "inCheck"
-          },
-          {
-            "$fn": [
-              "strcat",
-              "  ",
-              {
-                "$var": "label"
-              },
-              " to move  [CHECK]"
-            ]
-          }
+          { "$var": "inCheck" },
+          { "$fn": ["strcat", "  ", { "$var": "label" }, " to move  [CHECK]"] }
         ]
       ],
-      "$else": {
-        "$fn": [
-          "strcat",
-          "  ",
-          {
-            "$var": "label"
-          },
-          " to move"
-        ]
-      }
+      "$else": { "$fn": ["strcat", "  ", { "$var": "label" }, " to move"] }
     }
   },
   "boardSection": {
     "$comment": "boardSection(state, header) → \"\\n[header]\\n\\n[board]\\n\\n[status]\\n\"\nheader is an optional first line above the board (\"\" to omit).",
     "$params": ["state", "header"],
     "headerPart": {
-      "$if": {
-        "$eq": [
-          {
-            "$var": "header"
-          },
-          ""
-        ]
-      },
+      "$if": { "$eq": [{ "$var": "header" }, ""] },
       "$then": [""],
-      "$else": [
-        {
-          "$var": "header"
-        },
-        ""
-      ]
+      "$else": [{ "$var": "header" }, ""]
     },
     "lines": {
       "$fn": [
         "concat",
-        {
-          "$var": "headerPart"
-        },
+        { "$var": "headerPart" },
         [
-          {
-            "$fn": [
-              "formatBoard",
-              {
-                "$var": "state.board"
-              }
-            ]
-          },
+          { "$fn": ["formatBoard", { "$get": "board", "$from": { "$var": "state" } }] },
           "",
-          {
-            "$fn": [
-              "statusLine",
-              {
-                "$var": "state"
-              }
-            ]
-          },
+          { "$fn": ["statusLine", { "$var": "state" }] },
           ""
         ]
       ]
     },
-    "$return": {
-      "$fn": [
-        "join",
-        {
-          "$var": "lines"
-        },
-        "\n"
-      ]
-    }
+    "$return": { "$fn": ["join", { "$var": "lines" }, "\n"] }
   },
   "showResult": {
     "$comment": "showResult(state) → command result for the \"show\" subcommand.",
     "$params": ["state"],
     "$return": {
-      "output": {
-        "$fn": [
-          "boardSection",
-          {
-            "$var": "state"
-          },
-          ""
-        ]
-      },
+      "output": { "$fn": ["boardSection", { "$var": "state" }, ""] },
       "stderr": "",
       "newState": null,
       "reset": false,
@@ -3006,19 +1016,9 @@
   },
   "resetResult": {
     "$comment": "resetResult() → command result for \"reset\". Tells the host to delete\nthe state file; the next invocation will load newGame() afresh.",
-    "fresh": {
-      "$fn": ["newGame"]
-    },
+    "fresh": { "$fn": ["newGame"] },
     "$return": {
-      "output": {
-        "$fn": [
-          "boardSection",
-          {
-            "$var": "fresh"
-          },
-          "  New game."
-        ]
-      },
+      "output": { "$fn": ["boardSection", { "$var": "fresh" }, "  New game."] },
       "stderr": "",
       "newState": null,
       "reset": true,
@@ -3038,77 +1038,30 @@
   "moveResult": {
     "$comment": "moveResult(state, argv) → command result for any move-shaped argv.\nValidates parse, game-active, and legality; returns the appropriate\nresult object for each failure mode or the post-move board for success.\nThe \"illegal move\" check that used to live in the host is folded in\nhere via an explicit isLegalMove call.",
     "$params": ["state", "argv"],
-    "argc": {
-      "$fn": [
-        "length",
-        {
-          "$var": "argv"
-        }
-      ]
-    },
+    "argc": { "$fn": ["length", { "$var": "argv" }] },
     "moveInput": {
-      "$if": {
-        "$gte": [
-          {
-            "$var": "argc"
-          },
-          2
-        ]
-      },
+      "$if": { "$gte": [{ "$var": "argc" }, 2] },
       "$then": {
         "$fn": [
           "strcat",
-          {
-            "$var": "argv",
-            "$get": 0
-          },
+          { "$get": 0, "$from": { "$var": "argv" } },
           " ",
-          {
-            "$var": "argv",
-            "$get": 1
-          }
+          { "$get": 1, "$from": { "$var": "argv" } }
         ]
       },
-      "$else": {
-        "$var": "argv",
-        "$get": 0
-      }
+      "$else": { "$get": 0, "$from": { "$var": "argv" } }
     },
-    "move": {
-      "$fn": [
-        "parseMove",
-        {
-          "$var": "moveInput"
-        }
-      ]
-    },
-    "status": {
-      "$var": "state.status"
-    },
-    "isPlaying": {
-      "$eq": [
-        {
-          "$var": "status"
-        },
-        "playing"
-      ]
-    },
+    "move": { "$fn": ["parseMove", { "$var": "moveInput" }] },
+    "status": { "$get": "status", "$from": { "$var": "state" } },
+    "isPlaying": { "$eq": [{ "$var": "status" }, "playing"] },
     "legal": {
       "$comment": "Legality (only consulted when move parses and game is active).",
       "$fn": [
         "isLegalMove",
-        {
-          "$var": "state.board"
-        },
-        {
-          "$var": "move.from"
-        },
-        {
-          "$var": "move.to"
-        },
-        {
-          "$var": "state.turn"
-        }
+        { "$get": "board", "$from": { "$var": "state" } },
+        { "$get": "from", "$from": { "$var": "move" } },
+        { "$get": "to", "$from": { "$var": "move" } },
+        { "$get": "turn", "$from": { "$var": "state" } }
       ]
     },
     "badParseStderr": {
@@ -3116,9 +1069,7 @@
       "$fn": [
         "strcat",
         "  Invalid move format: \"",
-        {
-          "$var": "moveInput"
-        },
+        { "$var": "moveInput" },
         "\". Use algebraic notation like 'e2e4' or 'e2 e4'."
       ]
     },
@@ -3126,135 +1077,65 @@
       "$fn": [
         "strcat",
         "  Game is over (",
-        {
-          "$var": "status"
-        },
+        { "$var": "status" },
         "). Run 'reset' to start a new game."
       ]
     },
     "moveDesc": {
       "$fn": [
         "strcat",
-        {
-          "$fn": [
-            "squareName",
-            {
-              "$var": "move.from"
-            }
-          ]
-        },
+        { "$fn": ["squareName", { "$get": "from", "$from": { "$var": "move" } }] },
         " → ",
-        {
-          "$fn": [
-            "squareName",
-            {
-              "$var": "move.to"
-            }
-          ]
-        }
+        { "$fn": ["squareName", { "$get": "to", "$from": { "$var": "move" } }] }
       ]
     },
-    "illegalStderr": {
-      "$fn": [
-        "strcat",
-        "  Illegal move: ",
-        {
-          "$var": "moveDesc"
-        }
-      ]
-    },
+    "illegalStderr": { "$fn": ["strcat", "  Illegal move: ", { "$var": "moveDesc" }] },
     "nextState": {
       "$comment": "Successful move.",
       "$fn": [
         "playMove",
-        {
-          "$var": "state"
-        },
-        {
-          "$var": "move.from"
-        },
-        {
-          "$var": "move.to"
-        }
+        { "$var": "state" },
+        { "$get": "from", "$from": { "$var": "move" } },
+        { "$get": "to", "$from": { "$var": "move" } }
       ]
     },
     "moveLine": {
       "$fn": [
         "strcat",
         "  ",
-        {
-          "$fn": [
-            "turnLabel",
-            {
-              "$var": "state.turn"
-            }
-          ]
-        },
+        { "$fn": ["turnLabel", { "$get": "turn", "$from": { "$var": "state" } }] },
         " plays ",
-        {
-          "$var": "moveDesc"
-        }
+        { "$var": "moveDesc" }
       ]
     },
-    "successOutput": {
-      "$fn": [
-        "boardSection",
-        {
-          "$var": "nextState"
-        },
-        {
-          "$var": "moveLine"
-        }
-      ]
-    },
+    "successOutput": { "$fn": ["boardSection", { "$var": "nextState" }, { "$var": "moveLine" }] },
     "$return": {
       "$cond": [
         [
-          {
-            "$fn": [
-              "isNull",
-              {
-                "$var": "move"
-              }
-            ]
-          },
+          { "$fn": ["isNull", { "$var": "move" }] },
           {
             "output": "",
-            "stderr": {
-              "$var": "badParseStderr"
-            },
+            "stderr": { "$var": "badParseStderr" },
             "newState": null,
             "reset": false,
             "exitCode": 1
           }
         ],
         [
-          {
-            "$not": {
-              "$var": "isPlaying"
-            }
-          },
+          { "$not": { "$var": "isPlaying" } },
           {
             "output": "",
-            "stderr": {
-              "$var": "gameOverStderr"
-            },
+            "stderr": { "$var": "gameOverStderr" },
             "newState": null,
             "reset": false,
             "exitCode": 1
           }
         ],
         [
-          {
-            "$not": {
-              "$var": "legal"
-            }
-          },
+          { "$not": { "$var": "legal" } },
           {
             "output": "",
-            "stderr": {
-              "$var": "illegalStderr"
-            },
+            "stderr": { "$var": "illegalStderr" },
             "newState": null,
             "reset": false,
             "exitCode": 1
@@ -3262,13 +1143,9 @@
         ]
       ],
       "$else": {
-        "output": {
-          "$var": "successOutput"
-        },
+        "output": { "$var": "successOutput" },
         "stderr": "",
-        "newState": {
-          "$var": "nextState"
-        },
+        "newState": { "$var": "nextState" },
         "reset": false,
         "exitCode": 0
       }
@@ -3277,69 +1154,20 @@
   "handleCommand": {
     "$comment": "handleCommand(state, argv) → unified command result object:\n{ output: string, stderr: string, newState: state|null,\nreset: bool, exitCode: number }\nThe host's only job is to read state, call this, then act on the\nreturned fields (write/delete state file, print, exit).",
     "$params": ["state", "argv"],
-    "argc": {
-      "$fn": [
-        "length",
-        {
-          "$var": "argv"
-        }
-      ]
-    },
+    "argc": { "$fn": ["length", { "$var": "argv" }] },
     "cmd": {
-      "$if": {
-        "$eq": [
-          {
-            "$var": "argc"
-          },
-          0
-        ]
-      },
+      "$if": { "$eq": [{ "$var": "argc" }, 0] },
       "$then": "show",
-      "$else": {
-        "$var": "argv",
-        "$get": 0
-      }
+      "$else": { "$get": 0, "$from": { "$var": "argv" } }
     },
     "$return": {
-      "$match": {
-        "$var": "cmd"
-      },
+      "$match": { "$var": "cmd" },
       "$cases": [
-        [
-          "show",
-          {
-            "$fn": [
-              "showResult",
-              {
-                "$var": "state"
-              }
-            ]
-          }
-        ],
-        [
-          "reset",
-          {
-            "$fn": ["resetResult"]
-          }
-        ],
-        [
-          "help",
-          {
-            "$fn": ["helpResult"]
-          }
-        ]
+        ["show", { "$fn": ["showResult", { "$var": "state" }] }],
+        ["reset", { "$fn": ["resetResult"] }],
+        ["help", { "$fn": ["helpResult"] }]
       ],
-      "$else": {
-        "$fn": [
-          "moveResult",
-          {
-            "$var": "state"
-          },
-          {
-            "$var": "argv"
-          }
-        ]
-      }
+      "$else": { "$fn": ["moveResult", { "$var": "state" }, { "$var": "argv" }] }
     }
   }
 }

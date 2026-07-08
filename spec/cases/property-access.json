@@ -5,7 +5,7 @@
       "description": "single key access on an object",
       "body": {
         "person": { "name": "Ada", "age": 36 },
-        "$return": { "$var": "person", "$get": "name" }
+        "$return": { "$get": "name", "$from": { "$var": "person" } }
       },
       "expected": "Ada"
     },
@@ -18,7 +18,7 @@
       "description": "path access walks nested structure",
       "body": {
         "person": { "name": "Ada", "address": { "city": "London", "zip": "SW1" } },
-        "$return": { "$var": "person", "$get": ["address", "city"] }
+        "$return": { "$get": ["address", "city"], "$from": { "$var": "person" } }
       },
       "expected": "London"
     },
@@ -27,7 +27,7 @@
       "body": {
         "data": { "x": 100, "y": 200 },
         "field": "y",
-        "$return": { "$var": "data", "$get": { "$var": "field" } }
+        "$return": { "$get": { "$var": "field" }, "$from": { "$var": "data" } }
       },
       "expected": 200
     },
@@ -35,7 +35,7 @@
       "description": "dynamic key from function result",
       "body": {
         "data": { "hello": "world" },
-        "$return": { "$var": "data", "$get": { "$fn": ["strcat", "hel", "lo"] } }
+        "$return": { "$get": { "$fn": ["strcat", "hel", "lo"] }, "$from": { "$var": "data" } }
       },
       "expected": "world"
     },
@@ -43,38 +43,33 @@
       "description": "path with array index",
       "body": {
         "data": { "items": ["a", "b", "c"] },
-        "$return": { "$var": "data", "$get": ["items", 2] }
+        "$return": { "$get": ["items", 2], "$from": { "$var": "data" } }
       },
       "expected": "c"
     },
     {
       "description": "missing key returns null",
-      "body": { "obj": { "a": 1 }, "$return": { "$var": "obj", "$get": "z" } },
+      "body": { "obj": { "a": 1 }, "$return": { "$get": "z", "$from": { "$var": "obj" } } },
       "expected": null
     },
     {
       "description": "missing path segment returns null",
       "body": {
         "obj": { "a": { "b": 1 } },
-        "$return": { "$var": "obj", "$get": ["a", "missing", "deep"] }
+        "$return": { "$get": ["a", "missing", "deep"], "$from": { "$var": "obj" } }
       },
       "expected": null
     },
     {
       "description": "$get from function call result",
-      "body": {
-        "$return": {
-          "$get": 0,
-          "$from": { "$fn": ["concat", [10], [20]] }
-        }
-      },
+      "body": { "$return": { "$get": 0, "$from": { "$fn": ["concat", [10], [20]] } } },
       "expected": 10
     },
     {
       "description": "get field then transform",
       "body": {
         "person": { "name": "ada", "age": 36 },
-        "name": { "$var": "person", "$get": "name" },
+        "name": { "$get": "name", "$from": { "$var": "person" } },
         "$return": { "$fn": ["upper", { "$var": "name" }] }
       },
       "expected": "ADA"
@@ -83,7 +78,10 @@
       "description": "closure captures outer var for $get",
       "body": {
         "$params": ["data"],
-        "$return": { "$params": ["key"], "$return": { "$var": "data", "$get": { "$var": "key" } } }
+        "$return": {
+          "$params": ["key"],
+          "$return": { "$get": { "$var": "key" }, "$from": { "$var": "data" } }
+        }
       },
       "args": [{ "x": 10, "y": 20 }],
       "expected": {
@@ -97,7 +95,7 @@
         "$params": ["data"],
         "accessor": {
           "$params": ["key"],
-          "$return": { "$var": "data", "$get": { "$var": "key" } }
+          "$return": { "$get": { "$var": "key" }, "$from": { "$var": "data" } }
         },
         "$return": { "$fn": [{ "$var": "accessor" }, "y"] }
       },
@@ -106,27 +104,30 @@
     },
     {
       "description": "dot notation: single property access",
-      "body": { "person": { "name": "Ada", "age": 36 }, "$return": { "$var": "person.name" } },
+      "body": {
+        "person": { "name": "Ada", "age": 36 },
+        "$return": { "$get": "name", "$from": { "$var": "person" } }
+      },
       "expected": "Ada"
     },
     {
       "description": "dot notation: nested property access",
       "body": {
         "person": { "address": { "city": "London", "zip": "SW1" } },
-        "$return": { "$var": "person.address.city" }
+        "$return": { "$get": ["address", "city"], "$from": { "$var": "person" } }
       },
       "expected": "London"
     },
     {
       "description": "dot notation: bracket index on array",
-      "body": { "items": ["a", "b", "c"], "$return": { "$var": "items[1]" } },
+      "body": { "items": ["a", "b", "c"], "$return": { "$get": 1, "$from": { "$var": "items" } } },
       "expected": "b"
     },
     {
       "description": "dot notation: mixed dots and brackets",
       "body": {
         "data": { "items": [{ "name": "first" }, { "name": "second" }] },
-        "$return": { "$var": "data.items[1].name" }
+        "$return": { "$get": ["items", 1, "name"], "$from": { "$var": "data" } }
       },
       "expected": "second"
     },
@@ -137,7 +138,7 @@
           { "x": 10, "y": 20 },
           { "x": 30, "y": 40 }
         ],
-        "$return": { "$var": "rows[0].y" }
+        "$return": { "$get": [0, "y"], "$from": { "$var": "rows" } }
       },
       "expected": 20
     },
@@ -145,28 +146,31 @@
       "description": "dot notation: deeply nested path",
       "body": {
         "a": { "b": { "c": { "d": 42 } } },
-        "$return": { "$var": "a.b.c.d" }
+        "$return": { "$get": ["b", "c", "d"], "$from": { "$var": "a" } }
       },
       "expected": 42
     },
     {
       "description": "dot notation: missing key returns null",
-      "body": { "obj": { "a": 1 }, "$return": { "$var": "obj.z" } },
+      "body": { "obj": { "a": 1 }, "$return": { "$get": "z", "$from": { "$var": "obj" } } },
       "expected": null
     },
     {
       "description": "dot notation: missing intermediate returns null",
-      "body": { "obj": { "a": { "b": 1 } }, "$return": { "$var": "obj.missing.deep" } },
+      "body": {
+        "obj": { "a": { "b": 1 } },
+        "$return": { "$get": ["missing", "deep"], "$from": { "$var": "obj" } }
+      },
       "expected": null
     },
     {
-      "description": "dot notation: path into non-object returns null",
-      "body": { "obj": { "a": 42 }, "$return": { "$var": "obj.a.b" } },
-      "expected": null
+      "description": "dot notation: path into non-object throws",
+      "body": { "obj": { "a": 42 }, "$return": { "$get": ["a", "b"], "$from": { "$var": "obj" } } },
+      "error": "cannot access property"
     },
     {
       "description": "dot notation: out-of-bounds index returns null",
-      "body": { "items": [1, 2, 3], "$return": { "$var": "items[99]" } },
+      "body": { "items": [1, 2, 3], "$return": { "$get": 99, "$from": { "$var": "items" } } },
       "expected": null
     },
     {
@@ -178,7 +182,10 @@
             { "name": "Bob", "city": "Paris" }
           ]
         },
-        "$return": { "$var": "data.people[0]", "$get": "city" }
+        "$return": {
+          "$get": "city",
+          "$from": { "$get": ["people", 0], "$from": { "$var": "data" } }
+        }
       },
       "expected": "London"
     },
@@ -187,26 +194,32 @@
       "body": {
         "data": { "record": { "x": 100, "y": 200 } },
         "field": "y",
-        "$return": { "$var": "data.record", "$get": { "$var": "field" } }
+        "$return": {
+          "$get": { "$var": "field" },
+          "$from": { "$get": "record", "$from": { "$var": "data" } }
+        }
       },
       "expected": 200
     },
     {
       "description": "dot notation: non-numeric bracket is string key",
-      "body": { "data": { "my-key": 99 }, "$return": { "$var": "data[my-key]" } },
+      "body": {
+        "data": { "my-key": 99 },
+        "$return": { "$get": "my-key", "$from": { "$var": "data" } }
+      },
       "expected": 99
     },
     {
       "description": "dot notation: used in function argument",
       "body": {
         "person": { "name": "ada" },
-        "$return": { "$fn": ["upper", { "$var": "person.name" }] }
+        "$return": { "$fn": ["upper", { "$get": "name", "$from": { "$var": "person" } }] }
       },
       "expected": "ADA"
     },
     {
       "description": "dot notation: used with $params",
-      "body": { "$params": ["data"], "$return": { "$var": "data.name" } },
+      "body": { "$params": ["data"], "$return": { "$get": "name", "$from": { "$var": "data" } } },
       "args": [{ "name": "Ada", "age": 36 }],
       "expected": "Ada"
     },
@@ -214,7 +227,10 @@
       "description": "dot notation: closure captures variable used with dot path",
       "body": {
         "$params": ["person"],
-        "$return": { "$params": ["unused"], "$return": { "$var": "person.name" } }
+        "$return": {
+          "$params": ["unused"],
+          "$return": { "$get": "name", "$from": { "$var": "person" } }
+        }
       },
       "args": [{ "name": "Ada", "age": 36 }],
       "expected": {
@@ -226,7 +242,10 @@
       "description": "dot notation: closure-returned function with dot path works end-to-end",
       "body": {
         "$params": ["person"],
-        "getter": { "$params": ["unused"], "$return": { "$var": "person.name" } },
+        "getter": {
+          "$params": ["unused"],
+          "$return": { "$get": "name", "$from": { "$var": "person" } }
+        },
         "$return": { "$fn": [{ "$var": "getter" }, null] }
       },
       "args": [{ "name": "Ada", "age": 36 }],
@@ -238,7 +257,10 @@
         "$params": ["data"],
         "$return": {
           "$params": ["key"],
-          "$return": { "$var": "data.nested", "$get": { "$var": "key" } }
+          "$return": {
+            "$get": { "$var": "key" },
+            "$from": { "$get": "nested", "$from": { "$var": "data" } }
+          }
         }
       },
       "args": [{ "nested": { "x": 10, "y": 20 } }],
@@ -256,37 +278,15 @@
         "$params": ["data"],
         "accessor": {
           "$params": ["key"],
-          "$return": { "$var": "data.nested", "$get": { "$var": "key" } }
+          "$return": {
+            "$get": { "$var": "key" },
+            "$from": { "$get": "nested", "$from": { "$var": "data" } }
+          }
         },
         "$return": { "$fn": [{ "$var": "accessor" }, "y"] }
       },
       "args": [{ "nested": { "x": 10, "y": 20 } }],
       "expected": 20
-    },
-    {
-      "description": "dot notation: error on trailing dot",
-      "body": { "obj": { "a": 1 }, "$return": { "$var": "obj." } },
-      "error": "empty segment"
-    },
-    {
-      "description": "dot notation: error on unclosed bracket",
-      "body": { "obj": { "a": 1 }, "$return": { "$var": "obj[0" } },
-      "error": "unclosed"
-    },
-    {
-      "description": "dot notation: error on empty brackets",
-      "body": { "obj": { "a": 1 }, "$return": { "$var": "obj[]" } },
-      "error": "empty"
-    },
-    {
-      "description": "param name with dot is rejected",
-      "body": { "$params": ["a.b"], "$return": 1 },
-      "error": "must not contain"
-    },
-    {
-      "description": "param name with bracket is rejected",
-      "body": { "$params": ["a[0]"], "$return": 1 },
-      "error": "must not contain"
     },
     {
       "description": "$get on string: index 0",
@@ -310,14 +310,14 @@
     },
     {
       "description": "$get on string: via $var",
-      "body": { "s": "abcdef", "$return": { "$var": "s", "$get": 3 } },
+      "body": { "s": "abcdef", "$return": { "$get": 3, "$from": { "$var": "s" } } },
       "expected": "d"
     },
     {
       "description": "$get on string: computed index",
       "body": {
         "s": "world",
-        "$return": { "$var": "s", "$get": { "$fn": ["sub", 4, 2] } }
+        "$return": { "$get": { "$fn": ["sub", 4, 2] }, "$from": { "$var": "s" } }
       },
       "expected": "r"
     },
@@ -328,22 +328,25 @@
     },
     {
       "description": "$var bracket notation on string",
-      "body": { "s": "hello", "$return": { "$var": "s[0]" } },
+      "body": { "s": "hello", "$return": { "$get": 0, "$from": { "$var": "s" } } },
       "expected": "h"
     },
     {
       "description": "$var bracket notation on string: middle char",
-      "body": { "s": "world", "$return": { "$var": "s[3]" } },
+      "body": { "s": "world", "$return": { "$get": 3, "$from": { "$var": "s" } } },
       "expected": "l"
     },
     {
       "description": "$var bracket notation on string: out of bounds returns null",
-      "body": { "s": "hi", "$return": { "$var": "s[5]" } },
+      "body": { "s": "hi", "$return": { "$get": 5, "$from": { "$var": "s" } } },
       "expected": null
     },
     {
       "description": "$var dot path ending in string index",
-      "body": { "data": { "name": "Alice" }, "$return": { "$var": "data.name[0]" } },
+      "body": {
+        "data": { "name": "Alice" },
+        "$return": { "$get": ["name", 0], "$from": { "$var": "data" } }
+      },
       "expected": "A"
     }
   ]

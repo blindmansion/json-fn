@@ -24,9 +24,6 @@ type Seg =
   | { kind: "static"; value: JSONType } // literal key/index that folds into a `$get` path
   | { kind: "computed"; value: JSONType }; // computed key that breaks a static run
 
-/** The innermost thing a property-access chain is rooted at. */
-type Base = { kind: "var"; name: string } | { kind: "expr"; value: JSONType };
-
 const COMPARISON_OPS: Partial<Record<TokPunct, string>> = {
   eqeq: "$eq",
   bangeq: "$neq",
@@ -209,7 +206,7 @@ class Parser {
         name = null;
       } else if (type === "dot" || type === "lbracket") {
         const segs = this.gatherAccess();
-        const base: Base = name !== null ? { kind: "var", name } : { kind: "expr", value: val };
+        const base: JSONType = name !== null ? { $var: name } : val;
         name = null;
         val = buildAccess(base, segs);
       } else {
@@ -785,50 +782,25 @@ function pushArg(call: JSONType, arg: JSONType): void {
   }
 }
 
-/** Build a `$var`/`$get` (or `$get`/`$from`) property-access chain from a base
- * and its gathered segments, following the folding rules in spec section 5. */
-function buildAccess(base: Base, segs: Seg[]): JSONType {
+/** Build a `$get`/`$from` property-access chain from a base expression and its
+ * gathered segments, following the folding rules in spec section 5. Every step
+ * wraps the accumulated expression in a fresh `$get`/`$from`: a run of static
+ * segments folds into one `$get` (a scalar key, or an array path when there are
+ * several), and each computed key gets its own. */
+function buildAccess(base: JSONType, segs: Seg[]): JSONType {
+  let current = base;
   let i = 0;
-  const takeStaticRun = (): JSONType[] => {
-    const run: JSONType[] = [];
-    while (i < segs.length && segs[i]!.kind === "static") {
-      run.push(segs[i]!.value);
-      i++;
-    }
-    return run;
-  };
-
-  // Consume a leading run of static segments; how it attaches depends on
-  // whether the base is a variable or an arbitrary expression.
-  const leading = takeStaticRun();
-  let current: JSONType;
-  if (base.kind === "var") {
-    const map: Record<string, JSONType> = { $var: base.name };
-    if (leading.length > 0) {
-      map.$get = foldStatic(leading);
-    } else if (i < segs.length && segs[i]!.kind === "computed") {
-      // A computed key as the very first segment attaches straight to the
-      // variable as `$get` (e.g. `a[i]`); a computed key *after* a static path
-      // instead breaks into `$get`/`$from` below.
-      map.$get = segs[i]!.value;
-      i++;
-    }
-    current = map;
-  } else if (leading.length === 0) {
-    current = base.value;
-  } else {
-    current = { $get: foldStatic(leading), $from: base.value };
-  }
-
-  // Remaining segments: each computed key, or run of statics after a break,
-  // wraps the accumulated expression in a fresh `$get`/`$from`.
   while (i < segs.length) {
     const seg = segs[i]!;
-    i++;
     if (seg.kind === "computed") {
+      i++;
       current = { $get: seg.value, $from: current };
     } else {
-      const run = [seg.value, ...takeStaticRun()];
+      const run: JSONType[] = [];
+      while (i < segs.length && segs[i]!.kind === "static") {
+        run.push(segs[i]!.value);
+        i++;
+      }
       current = { $get: foldStatic(run), $from: current };
     }
   }

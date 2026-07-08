@@ -13,12 +13,8 @@
     },
     "fizzbuzz": {
       "$params": ["n"],
-      "divBy3": {
-        "$fn": ["eq", { "$fn": ["mod", { "$var": "n" }, 3] }, 0]
-      },
-      "divBy5": {
-        "$fn": ["eq", { "$fn": ["mod", { "$var": "n" }, 5] }, 0]
-      },
+      "divBy3": { "$fn": ["eq", { "$fn": ["mod", { "$var": "n" }, 3] }, 0] },
+      "divBy5": { "$fn": ["eq", { "$fn": ["mod", { "$var": "n" }, 5] }, 0] },
       "divBy15": { "$fn": ["and", { "$var": "divBy3" }, { "$var": "divBy5" }] },
       "$return": {
         "$cond": [
@@ -120,9 +116,7 @@
     },
     {
       "description": "$cond: single pair works as a guard",
-      "body": {
-        "$return": { "$cond": [[true, "always this"]] }
-      },
+      "body": { "$return": { "$cond": [[true, "always this"]] } },
       "expected": "always this"
     },
     {
@@ -140,16 +134,12 @@
     },
     {
       "description": "$cond: matched branch skips $else",
-      "body": {
-        "$return": { "$cond": [[true, "matched"]], "$else": { "$fn": ["div", 1, 0] } }
-      },
+      "body": { "$return": { "$cond": [[true, "matched"]], "$else": { "$fn": ["div", 1, 0] } } },
       "expected": "matched"
     },
     {
       "description": "$cond: no match without $else errors",
-      "body": {
-        "$return": { "$cond": [[false, "no"]] }
-      },
+      "body": { "$return": { "$cond": [[false, "no"]] } },
       "error": "No $cond branch matched"
     },
     {
@@ -159,9 +149,7 @@
     },
     {
       "description": "$cond: rejects malformed branches",
-      "body": {
-        "$return": { "$cond": [[true, "yes", "extra"]], "$else": "fallback" }
-      },
+      "body": { "$return": { "$cond": [[true, "yes", "extra"]], "$else": "fallback" } },
       "error": "Each $cond branch must be a [condition, result] pair"
     },
     {
@@ -205,23 +193,13 @@
     },
     {
       "description": "$match: rejects non-scalar match values",
-      "body": {
-        "$return": {
-          "$match": [1],
-          "$cases": [[[1], "array"]],
-          "$else": "fallback"
-        }
-      },
+      "body": { "$return": { "$match": [1], "$cases": [[[1], "array"]], "$else": "fallback" } },
       "error": "$match values must be null, boolean, number, or string"
     },
     {
       "description": "$match: rejects non-scalar case values",
       "body": {
-        "$return": {
-          "$match": "show",
-          "$cases": [[["show"], "array"]],
-          "$else": "fallback"
-        }
+        "$return": { "$match": "show", "$cases": [[["show"], "array"]], "$else": "fallback" }
       },
       "error": "$match values must be null, boolean, number, or string"
     },
@@ -257,9 +235,7 @@
     },
     {
       "description": "$match: requires $else",
-      "body": {
-        "$return": { "$match": "missing", "$cases": [["show", "display"]] }
-      },
+      "body": { "$return": { "$match": "missing", "$cases": [["show", "display"]] } },
       "error": "$match expressions must have $match, $cases, and $else properties"
     },
     {
@@ -285,11 +261,7 @@
     },
     {
       "description": "$and: short-circuits on first falsy",
-      "body": {
-        "$return": {
-          "$and": [1, 0, { "$fn": ["div", 1, 0] }]
-        }
-      },
+      "body": { "$return": { "$and": [1, 0, { "$fn": ["div", 1, 0] }] } },
       "expected": 0
     },
     {
@@ -319,11 +291,7 @@
     },
     {
       "description": "$or: short-circuits on first truthy",
-      "body": {
-        "$return": {
-          "$or": [false, "found", { "$fn": ["div", 1, 0] }]
-        }
-      },
+      "body": { "$return": { "$or": [false, "found", { "$fn": ["div", 1, 0] }] } },
       "expected": "found"
     },
     {
@@ -348,9 +316,7 @@
         "$return": {
           "$and": [
             { "$fn": ["gt", { "$var": "x" }, 0] },
-            {
-              "$or": [{ "$fn": ["eq", { "$var": "x" }, 42] }, "positive"]
-            }
+            { "$or": [{ "$fn": ["eq", { "$var": "x" }, 42] }, "positive"] }
           ]
         }
       },

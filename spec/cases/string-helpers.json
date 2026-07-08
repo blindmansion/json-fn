@@ -87,30 +87,22 @@
     },
     {
       "description": "join: joins strings with separator",
-      "body": {
-        "$return": { "$fn": ["join", ["a", "b", "c"], ", "] }
-      },
+      "body": { "$return": { "$fn": ["join", ["a", "b", "c"], ", "] } },
       "expected": "a, b, c"
     },
     {
       "description": "join: empty separator concatenates",
-      "body": {
-        "$return": { "$fn": ["join", ["x", "y", "z"], ""] }
-      },
+      "body": { "$return": { "$fn": ["join", ["x", "y", "z"], ""] } },
       "expected": "xyz"
     },
     {
       "description": "join: single element array",
-      "body": {
-        "$return": { "$fn": ["join", ["hello"], "-"] }
-      },
+      "body": { "$return": { "$fn": ["join", ["hello"], "-"] } },
       "expected": "hello"
     },
     {
       "description": "join: empty array returns empty string",
-      "body": {
-        "$return": { "$fn": ["join", [], ","] }
-      },
+      "body": { "$return": { "$fn": ["join", [], ","] } },
       "expected": ""
     },
     {

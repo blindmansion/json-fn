@@ -66,12 +66,7 @@
     {
       "description": "reMatch: case-insensitive flag",
       "body": { "$return": { "$fn": ["reMatch", "(?i)(hello) (world)", "Hello World"] } },
-      "expected": {
-        "match": "Hello World",
-        "index": 0,
-        "groups": ["Hello", "World"],
-        "named": {}
-      }
+      "expected": { "match": "Hello World", "index": 0, "groups": ["Hello", "World"], "named": {} }
     },
     {
       "description": "reMatchAll: find all digits",
@@ -139,7 +134,7 @@
             "\\w+",
             {
               "$params": ["m"],
-              "$return": { "$fn": ["upper", { "$var": "m", "$get": "match" }] }
+              "$return": { "$fn": ["upper", { "$get": "match", "$from": { "$var": "m" } }] }
             },
             "hello world"
           ]
@@ -156,8 +151,8 @@
             "(\\w+)=(\\w+)",
             {
               "$params": ["m"],
-              "key": { "$var": "m", "$get": ["groups", 0] },
-              "val": { "$var": "m", "$get": ["groups", 1] },
+              "key": { "$get": ["groups", 0], "$from": { "$var": "m" } },
+              "val": { "$get": ["groups", 1], "$from": { "$var": "m" } },
               "$return": {
                 "$fn": ["strcat", { "$fn": ["strcat", { "$var": "val" }, "="] }, { "$var": "key" }]
               }
@@ -184,7 +179,7 @@
         "$return": {
           "$if": { "$fn": ["isNull", { "$var": "m" }] },
           "$then": null,
-          "$else": { "$var": "m", "$get": "match" }
+          "$else": { "$get": "match", "$from": { "$var": "m" } }
         }
       },
       "expected": "123-456"
@@ -198,7 +193,7 @@
             "map",
             {
               "$params": ["m"],
-              "$return": { "$fn": ["num", { "$var": "m", "$get": "match" }] }
+              "$return": { "$fn": ["num", { "$get": "match", "$from": { "$var": "m" } }] }
             },
             { "$var": "matches" }
           ]

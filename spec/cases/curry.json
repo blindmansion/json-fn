@@ -93,10 +93,7 @@
         }
       },
       "args": [10],
-      "expected": {
-        "$params": ["y"],
-        "$return": { "$fn": ["add", 10, { "$var": "y" }] }
-      }
+      "expected": { "$params": ["y"], "$return": { "$fn": ["add", 10, { "$var": "y" }] } }
     },
     {
       "description": "makeAdder(10)(5) via nested inline call",
@@ -125,29 +122,20 @@
     },
     {
       "description": "dynamic dispatch: call function by name from args (add)",
-      "body": {
-        "$params": ["fnName"],
-        "$return": { "$fn": [{ "$var": "fnName" }, 3, 4] }
-      },
+      "body": { "$params": ["fnName"], "$return": { "$fn": [{ "$var": "fnName" }, 3, 4] } },
       "args": ["add"],
       "expected": 7
     },
     {
       "description": "dynamic dispatch: call function by name from args (mul)",
-      "body": {
-        "$params": ["fnName"],
-        "$return": { "$fn": [{ "$var": "fnName" }, 3, 4] }
-      },
+      "body": { "$params": ["fnName"], "$return": { "$fn": [{ "$var": "fnName" }, 3, 4] } },
       "args": ["mul"],
       "expected": 12
     },
     {
       "description": "partialAdd(10) returns a function",
       "body": { "$return": { "$fn": ["partialAdd", 10] } },
-      "expected": {
-        "$params": ["b"],
-        "$return": { "$fn": ["add", 10, { "$var": "b" }] }
-      }
+      "expected": { "$params": ["b"], "$return": { "$fn": ["add", 10, { "$var": "b" }] } }
     },
     {
       "description": "partialAdd(10)(7) = 17",

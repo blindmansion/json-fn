@@ -4,10 +4,7 @@
     {
       "description": "single field pattern",
       "source": "({ x }) => x",
-      "expected": {
-        "$params": [{ "$fields": ["x"] }],
-        "$return": { "$var": "x" }
-      }
+      "expected": { "$params": [{ "$fields": ["x"] }], "$return": { "$var": "x" } }
     },
     {
       "description": "two field pattern",
@@ -28,10 +25,7 @@
     {
       "description": "pattern slot followed by a rest parameter",
       "source": "({ x }, ...rest) => rest",
-      "expected": {
-        "$params": [{ "$fields": ["x"] }, "...rest"],
-        "$return": { "$var": "rest" }
-      }
+      "expected": { "$params": [{ "$fields": ["x"] }, "...rest"], "$return": { "$var": "rest" } }
     },
     {
       "description": "multiple pattern slots",
@@ -44,10 +38,7 @@
     {
       "description": "trailing comma inside a pattern normalizes away",
       "source": "({ x, y, }) => x",
-      "expected": {
-        "$params": [{ "$fields": ["x", "y"] }],
-        "$return": { "$var": "x" }
-      }
+      "expected": { "$params": [{ "$fields": ["x", "y"] }], "$return": { "$var": "x" } }
     },
     {
       "description": "pattern with a trailing where clause",
@@ -58,11 +49,7 @@
         "$return": { "$var": "doubled" }
       }
     },
-    {
-      "description": "empty pattern is rejected",
-      "source": "({}) => 1",
-      "error": true
-    },
+    { "description": "empty pattern is rejected", "source": "({}) => 1", "error": true },
     {
       "description": "field rename is not supported",
       "source": "({ from: f }) => f",
@@ -73,15 +60,7 @@
       "source": "({ a: { b } }) => b",
       "error": true
     },
-    {
-      "description": "rest pattern is not supported",
-      "source": "(...{ x }) => x",
-      "error": true
-    },
-    {
-      "description": "non-identifier field is rejected",
-      "source": "({ 1 }) => 1",
-      "error": true
-    }
+    { "description": "rest pattern is not supported", "source": "(...{ x }) => x", "error": true },
+    { "description": "non-identifier field is rejected", "source": "({ 1 }) => 1", "error": true }
   ]
 }

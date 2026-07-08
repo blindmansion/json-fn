@@ -58,20 +58,12 @@
     },
     {
       "description": "not: double negation returns original",
-      "body": {
-        "$return": {
-          "$fn": ["not", { "$fn": ["not", true] }]
-        }
-      },
+      "body": { "$return": { "$fn": ["not", { "$fn": ["not", true] }] } },
       "expected": true
     },
     {
       "description": "not: combined with comparison",
-      "body": {
-        "$return": {
-          "$fn": ["not", { "$fn": ["eq", 1, 2] }]
-        }
-      },
+      "body": { "$return": { "$fn": ["not", { "$fn": ["eq", 1, 2] }] } },
       "expected": true
     },
     {
@@ -80,10 +72,7 @@
         "$return": {
           "$fn": [
             "filter",
-            {
-              "$params": ["x"],
-              "$return": { "$fn": ["neq", { "$var": "x" }, 0] }
-            },
+            { "$params": ["x"], "$return": { "$fn": ["neq", { "$var": "x" }, 0] } },
             [0, 1, 0, 2, 0, 3]
           ]
         }
@@ -98,9 +87,7 @@
             "filter",
             {
               "$params": ["x"],
-              "$return": {
-                "$fn": ["not", { "$fn": ["gt", { "$var": "x" }, 3] }]
-              }
+              "$return": { "$fn": ["not", { "$fn": ["gt", { "$var": "x" }, 3] }] }
             },
             [1, 2, 3, 4, 5]
           ]
@@ -110,20 +97,12 @@
     },
     {
       "description": "$eq: true for equal evaluated values",
-      "body": {
-        "$return": {
-          "$eq": [{ "$fn": ["add", 1, 1] }, 2]
-        }
-      },
+      "body": { "$return": { "$eq": [{ "$fn": ["add", 1, 1] }, 2] } },
       "expected": true
     },
     {
       "description": "$neq: true for unequal evaluated values",
-      "body": {
-        "$return": {
-          "$neq": [{ "$fn": ["str", 1] }, 1]
-        }
-      },
+      "body": { "$return": { "$neq": [{ "$fn": ["str", 1] }, 1] } },
       "expected": true
     },
     {
@@ -170,69 +149,51 @@
     },
     {
       "description": "$eq: only uses strict scalar equality for arrays",
-      "body": {
-        "$return": { "$eq": [[1], [1]] }
-      },
+      "body": { "$return": { "$eq": [[1], [1]] } },
       "expected": false
     },
     {
       "description": "$eq: only uses strict scalar equality for objects",
-      "body": {
-        "$return": { "$eq": [{ "x": 1 }, { "x": 1 }] }
-      },
+      "body": { "$return": { "$eq": [{ "x": 1 }, { "x": 1 }] } },
       "expected": false
     },
     {
       "description": "eq: only uses strict scalar equality for arrays",
-      "body": {
-        "$return": { "$fn": ["eq", [1], [1]] }
-      },
+      "body": { "$return": { "$fn": ["eq", [1], [1]] } },
       "expected": false
     },
     {
       "description": "neq: true for structurally equal arrays",
-      "body": {
-        "$return": { "$fn": ["neq", [1], [1]] }
-      },
+      "body": { "$return": { "$fn": ["neq", [1], [1]] } },
       "expected": true
     },
     {
       "description": "eq: only uses strict scalar equality for objects",
-      "body": {
-        "$return": { "$fn": ["eq", { "x": 1 }, { "x": 1 }] }
-      },
+      "body": { "$return": { "$fn": ["eq", { "x": 1 }, { "x": 1 }] } },
       "expected": false
     },
     {
       "description": "neq: true for structurally equal objects",
-      "body": {
-        "$return": { "$fn": ["neq", { "x": 1 }, { "x": 1 }] }
-      },
+      "body": { "$return": { "$fn": ["neq", { "x": 1 }, { "x": 1 }] } },
       "expected": true
     },
     {
       "description": "jsonEq: true for structurally equal arrays",
       "body": {
-        "$return": {
-          "$fn": ["jsonEq", [1, { "x": [true, null] }], [1, { "x": [true, null] }]]
-        }
+        "$return": { "$fn": ["jsonEq", [1, { "x": [true, null] }], [1, { "x": [true, null] }]] }
       },
       "expected": true
     },
     {
       "description": "jsonEq: true for structurally equal objects regardless of key order",
       "body": {
-        "$return": {
-          "$fn": ["jsonEq", { "a": 1, "b": [2, 3] }, { "b": [2, 3], "a": 1 }]
-        }
+        "$return": { "$fn": ["jsonEq", { "a": 1, "b": [2, 3] }, { "b": [2, 3], "a": 1 }] }
       },
       "expected": true
     },
     {
       "description": "jsonEq: false when array order differs",
-      "body": {
-        "$return": { "$fn": ["jsonEq", [1, 2, 3], [3, 2, 1]] }
-      },
+      "body": { "$return": { "$fn": ["jsonEq", [1, 2, 3], [3, 2, 1]] } },
       "expected": false
     },
     {
@@ -251,11 +212,7 @@
         "$return": {
           "$and": [
             { "$fn": ["jsonNeq", { "x": 1 }, { "x": 2 }] },
-            {
-              "$not": {
-                "$fn": ["jsonNeq", { "x": [1] }, { "x": [1] }]
-              }
-            }
+            { "$not": { "$fn": ["jsonNeq", { "x": [1] }, { "x": [1] }] } }
           ]
         }
       },

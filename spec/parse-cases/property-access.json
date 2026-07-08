@@ -5,22 +5,22 @@
     {
       "description": "single dotted access",
       "source": "a.b",
-      "expected": { "$var": "a", "$get": "b" }
+      "expected": { "$get": "b", "$from": { "$var": "a" } }
     },
     {
       "description": "chained dotted access",
       "source": "a.b.c",
-      "expected": { "$var": "a", "$get": ["b", "c"] }
+      "expected": { "$get": ["b", "c"], "$from": { "$var": "a" } }
     },
     {
       "description": "numeric index",
       "source": "a[0]",
-      "expected": { "$var": "a", "$get": 0 }
+      "expected": { "$get": 0, "$from": { "$var": "a" } }
     },
     {
       "description": "dynamic index",
       "source": "a[i]",
-      "expected": { "$var": "a", "$get": { "$var": "i" } }
+      "expected": { "$get": { "$var": "i" }, "$from": { "$var": "a" } }
     },
     {
       "description": "access off a call result uses $from",
@@ -30,12 +30,12 @@
     {
       "description": "mixed dotted and numeric access collapses",
       "source": "a.b[0].c",
-      "expected": { "$var": "a", "$get": ["b", 0, "c"] }
+      "expected": { "$get": ["b", 0, "c"], "$from": { "$var": "a" } }
     },
     {
       "description": "dynamic index after dotted access uses $from",
       "source": "a.b[i]",
-      "expected": { "$get": { "$var": "i" }, "$from": { "$var": "a", "$get": "b" } }
+      "expected": { "$get": { "$var": "i" }, "$from": { "$get": "b", "$from": { "$var": "a" } } }
     }
   ]
 }

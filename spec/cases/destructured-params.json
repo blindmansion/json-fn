@@ -32,10 +32,7 @@
     },
     {
       "description": "absent key binds to null",
-      "body": {
-        "$params": [{ "$fields": ["from", "to"] }],
-        "$return": { "$var": "to" }
-      },
+      "body": { "$params": [{ "$fields": ["from", "to"] }], "$return": { "$var": "to" } },
       "args": [{ "from": 5 }],
       "expected": null
     },
@@ -99,10 +96,7 @@
       "description": "pattern slot followed by a rest parameter",
       "body": {
         "$params": [{ "$fields": ["x"] }, "...rest"],
-        "$return": {
-          "x": { "$var": "x" },
-          "rest": { "$var": "rest" }
-        }
+        "$return": { "x": { "$var": "x" }, "rest": { "$var": "rest" } }
       },
       "args": [{ "x": 1 }, 2, 3],
       "expected": { "x": 1, "rest": [2, 3] }
@@ -132,10 +126,7 @@
         "$params": [{ "$fields": ["x"] }],
         "$return": {
           "$fn": [
-            {
-              "$params": ["y"],
-              "$return": { "$fn": ["add", { "$var": "x" }, { "$var": "y" }] }
-            },
+            { "$params": ["y"], "$return": { "$fn": ["add", { "$var": "x" }, { "$var": "y" }] } },
             5
           ]
         }
@@ -147,9 +138,7 @@
       "description": "an inner parameter shadows an outer field of the same name",
       "body": {
         "$params": [{ "$fields": ["x"] }],
-        "$return": {
-          "$fn": [{ "$params": ["x"], "$return": { "$var": "x" } }, 99]
-        }
+        "$return": { "$fn": [{ "$params": ["x"], "$return": { "$var": "x" } }, 99] }
       },
       "args": [{ "x": 1 }],
       "expected": 99

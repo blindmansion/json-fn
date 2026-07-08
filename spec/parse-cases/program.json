@@ -7,16 +7,9 @@
       "expected": {
         "otherColor": {
           "$params": ["color"],
-          "$return": {
-            "$if": { "$eq": [{ "$var": "color" }, "w"] },
-            "$then": "b",
-            "$else": "w"
-          }
+          "$return": { "$if": { "$eq": [{ "$var": "color" }, "w"] }, "$then": "b", "$else": "w" }
         },
-        "pieceType": {
-          "$params": ["piece"],
-          "$return": { "$fn": ["upper", { "$var": "piece" }] }
-        }
+        "pieceType": { "$params": ["piece"], "$return": { "$fn": ["upper", { "$var": "piece" }] } }
       }
     }
   ]

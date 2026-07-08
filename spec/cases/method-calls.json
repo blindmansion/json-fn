@@ -58,9 +58,7 @@
             }
           }
         },
-        "$return": {
-          "$fn": [{ "$var": "caps", "$get": ["db", "query"] }, "SELECT 1"]
-        }
+        "$return": { "$fn": [{ "$get": ["db", "query"], "$from": { "$var": "caps" } }, "SELECT 1"] }
       },
       "expected": "ran: SELECT 1"
     },
@@ -68,7 +66,7 @@
       "description": "zero-arg method call: io.readLine()",
       "body": {
         "io": { "readLine": { "$return": "hello" } },
-        "$return": { "$fn": [{ "$var": "io", "$get": "readLine" }] }
+        "$return": { "$fn": [{ "$get": "readLine", "$from": { "$var": "io" } }] }
       },
       "expected": "hello"
     },
@@ -82,7 +80,7 @@
             "$return": { "$fn": ["strcat", "hi ", { "$var": "name" }] }
           }
         },
-        "$return": { "$fn": [{ "$var": "obj", "$get": "greet" }, "ada"] }
+        "$return": { "$fn": [{ "$get": "greet", "$from": { "$var": "obj" } }, "ada"] }
       },
       "expected": "hi ada"
     },
@@ -94,9 +92,7 @@
           "dbl": { "$params": ["n"], "$return": { "$fn": ["mul", { "$var": "n" }, 2] } }
         },
         "which": "dbl",
-        "$return": {
-          "$fn": [{ "$var": "caps", "$get": { "$var": "which" } }, 21]
-        }
+        "$return": { "$fn": [{ "$get": { "$var": "which" }, "$from": { "$var": "caps" } }, 21] }
       },
       "expected": 42
     },
@@ -111,9 +107,7 @@
             }
           }
         },
-        "$return": {
-          "$fn": [{ "$get": "print", "$from": { "$fn": ["makeIo"] } }, "done"]
-        }
+        "$return": { "$fn": [{ "$get": "print", "$from": { "$fn": ["makeIo"] } }, "done"] }
       },
       "expected": "out: done"
     },
@@ -121,16 +115,9 @@
       "description": "method call as a parameter-supplied capability record",
       "body": {
         "$params": ["io"],
-        "$return": { "$fn": [{ "$var": "io", "$get": "print" }, "x"] }
+        "$return": { "$fn": [{ "$get": "print", "$from": { "$var": "io" } }, "x"] }
       },
-      "args": [
-        {
-          "print": {
-            "$params": ["m"],
-            "$return": { "$fn": ["upper", { "$var": "m" }] }
-          }
-        }
-      ],
+      "args": [{ "print": { "$params": ["m"], "$return": { "$fn": ["upper", { "$var": "m" }] } } }],
       "expected": "X"
     }
   ]

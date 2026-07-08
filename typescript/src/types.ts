@@ -80,11 +80,6 @@ type PropertyAccess = {
   $from: JSONType;
 };
 
-type VarPropertyAccess = {
-  $var: string;
-  $get: JSONType;
-};
-
 const BUILTIN_MARKER = Symbol("builtin");
 const PURE_MARKER = Symbol("pure");
 const ARITY_MARKER = Symbol("arity");
@@ -217,7 +212,6 @@ export type {
   ComparisonExpression,
   NotExpression,
   PropertyAccess,
-  VarPropertyAccess,
   EvaluatedFunctionCall,
 };
 export { BUILTIN_MARKER, PURE_MARKER, ARITY_MARKER, ExpressionType };

@@ -69,7 +69,7 @@ describe("printer output shape", () => {
   });
 
   test("folded property path unfolds to dot/bracket access", () => {
-    expect(print({ $var: "a", $get: ["b", 0, "c"] })).toBe("a.b[0].c");
+    expect(print({ $get: ["b", 0, "c"], $from: { $var: "a" } })).toBe("a.b[0].c");
   });
 
   test("function reference and evaluated callee", () => {
@@ -159,8 +159,10 @@ describe("printer output shape", () => {
     expect(print({ month: { $var: "m" } })).toBe("{ month: m }");
   });
 
-  test("a $var with a $get path is not a pun", () => {
-    expect(print({ start: { $var: "start", $get: "year" } })).toBe("{ start: start.year }");
+  test("a property access is not a pun", () => {
+    expect(print({ start: { $get: "year", $from: { $var: "start" } } })).toBe(
+      "{ start: start.year }",
+    );
   });
 
   test("cond return with where locals needs no parens (brace-terminated)", () => {

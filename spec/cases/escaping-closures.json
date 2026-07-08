@@ -47,9 +47,7 @@
           },
           "$return": { "$var": "isEven" }
         },
-        "$return": {
-          "$fn": [{ "$fn": ["makeParity"] }, { "$var": "start" }]
-        }
+        "$return": { "$fn": [{ "$fn": ["makeParity"] }, { "$var": "start" }] }
       },
       "args": [10],
       "expected": true
@@ -77,9 +75,7 @@
           },
           "$return": { "$var": "isEven" }
         },
-        "$return": {
-          "$fn": [{ "$fn": ["makeParity"] }, { "$var": "start" }]
-        }
+        "$return": { "$fn": [{ "$fn": ["makeParity"] }, { "$var": "start" }] }
       },
       "args": [7],
       "expected": false
@@ -106,9 +102,7 @@
           },
           "$return": { "$var": "sumDown" }
         },
-        "$return": {
-          "$fn": [{ "$fn": ["adderFrom", { "$var": "base" }] }, { "$var": "start" }]
-        }
+        "$return": { "$fn": [{ "$fn": ["adderFrom", { "$var": "base" }] }, { "$var": "start" }] }
       },
       "args": [100, 3],
       "expected": 106
@@ -118,18 +112,13 @@
       "body": {
         "$params": ["xs"],
         "makeMapper": {
-          "triple": {
-            "$params": ["x"],
-            "$return": { "$fn": ["mul", { "$var": "x" }, 3] }
-          },
+          "triple": { "$params": ["x"], "$return": { "$fn": ["mul", { "$var": "x" }, 3] } },
           "$return": {
             "$params": ["ys"],
             "$return": { "$fn": ["map", { "$fn": "triple" }, { "$var": "ys" }] }
           }
         },
-        "$return": {
-          "$fn": [{ "$fn": ["makeMapper"] }, { "$var": "xs" }]
-        }
+        "$return": { "$fn": [{ "$fn": ["makeMapper"] }, { "$var": "xs" }] }
       },
       "args": [[1, 2, 3]],
       "expected": [3, 6, 9]
@@ -140,18 +129,10 @@
         "$params": ["base", "arg"],
         "makeShadow": {
           "$params": ["b"],
-          "go": {
-            "$params": ["x"],
-            "$return": { "$fn": ["add", { "$var": "x" }, 1000] }
-          },
-          "$return": {
-            "$params": ["go"],
-            "$return": { "$fn": ["go", { "$var": "b" }] }
-          }
+          "go": { "$params": ["x"], "$return": { "$fn": ["add", { "$var": "x" }, 1000] } },
+          "$return": { "$params": ["go"], "$return": { "$fn": ["go", { "$var": "b" }] } }
         },
-        "$return": {
-          "$fn": [{ "$fn": ["makeShadow", { "$var": "base" }] }, { "$var": "arg" }]
-        }
+        "$return": { "$fn": [{ "$fn": ["makeShadow", { "$var": "base" }] }, { "$var": "arg" }] }
       },
       "args": [1, { "$params": ["x"], "$return": { "$fn": ["mul", { "$var": "x" }, 3] } }],
       "expected": 3

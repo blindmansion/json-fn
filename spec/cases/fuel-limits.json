@@ -20,17 +20,13 @@
     },
     {
       "description": "op-bomb via reduce + pure-builtin callback is rejected at a tight budget",
-      "body": {
-        "$return": { "$fn": ["reduce", "add", 0, { "$fn": ["range", 1000] }] }
-      },
+      "body": { "$return": { "$fn": ["reduce", "add", 0, { "$fn": ["range", 1000] }] } },
       "limits": { "maxFuel": 1000 },
       "error": "Maximum fuel"
     },
     {
       "description": "same reduce program completes under an adequate budget",
-      "body": {
-        "$return": { "$fn": ["reduce", "add", 0, { "$fn": ["range", 1000] }] }
-      },
+      "body": { "$return": { "$fn": ["reduce", "add", 0, { "$fn": ["range", 1000] }] } },
       "limits": { "maxFuel": 10000000 },
       "expected": 499500
     },
@@ -88,9 +84,7 @@
     },
     {
       "description": "small program still runs under a modest budget (guards against over-charging)",
-      "body": {
-        "$return": { "$fn": ["map", "neg", [1, 2, 3]] }
-      },
+      "body": { "$return": { "$fn": ["map", "neg", [1, 2, 3]] } },
       "limits": { "maxFuel": 1000 },
       "expected": [-1, -2, -3]
     }
