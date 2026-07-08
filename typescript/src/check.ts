@@ -9,6 +9,14 @@
 // Sections implemented so far (see plans/type-sketch.md for the full design):
 //   B. Schema classification         — `classifySchema`
 //   C. Subschema check (S ⊆ T)        — `isSubschema`, plus `valueSatisfies`
+//   A. Check context / diagnostics    — `CheckContext`, `Diagnostic`
+//   D. Type environment / scope       — `buildTypeScope` (eager params +
+//                                        sibling sigs, lazy cycle-guarded locals)
+//   E. Term checking (synth-first)     — `synth` / `check` / `nodeKind`
+//   G. Module wiring (minimal)         — `checkModule`, `checkFunction`, `checkExpr`
+//
+// Not yet wired: the polymorphic builtin layer (§5.3) and contextual typing of
+// un-annotated inline lambdas (§4.3) — both degrade to `any` for now.
 
 import type { JSONType } from "./types";
 
@@ -43,7 +51,7 @@ enum SchemaKind {
   Opaque, // anything outside the tractable fragment
 }
 
-function isSchemaObject(s: Schema): s is Record<string, JSONType> {
+function isSchemaObject(s: Schema | undefined): s is Record<string, JSONType> {
   return typeof s === "object" && s !== null && !Array.isArray(s);
 }
 
@@ -596,5 +604,541 @@ function objectValueMatches(value: JSONType, o: Record<string, JSONType>, defs: 
   return true;
 }
 
-export { SchemaKind, classifySchema, isSubschema, valueSatisfies };
-export type { Schema, Defs };
+// ---------------------------------------------------------------------------
+// Section A — Check context, diagnostics, and signature helpers
+// ---------------------------------------------------------------------------
+//
+// The type-system counterpart to the runtime's `EvaluationContext`: one bag of
+// state threaded through the walk. Unlike the evaluator, the checker
+// *accumulates* diagnostics (recover-and-continue, assigning `any` on error)
+// rather than failing fast, and it is structured for bidirectional checking
+// (a `synth` mode and a `check`-against-expected mode).
+
+// A single type error, with a JSON-ish path to its location (§6).
+type Diagnostic = { path: string[]; message: string; expected?: Schema; actual?: Schema };
+
+// The term scope Γ: term name → type. A flat lookup with a parent chain,
+// mirroring the evaluator's `getVar`.
+type TypeEnv = { lookupType: (name: string) => Schema | undefined };
+
+type CheckContext = {
+  // The module `$types` pool ($defs), resolving `$ref`. The type-NAME scope.
+  defs: Defs;
+  // The term scope (Γ) — mirrors the evaluator's `buildScope`/`getVar`.
+  env: TypeEnv;
+  // Accumulate; never throw.
+  diagnostics: Diagnostic[];
+  // Current location, for messages.
+  path: string[];
+};
+
+// A function signature — the shape shared by a body's `$sig` and the inner of
+// a `$fnType` node (§2.8, §3.1). Reuses `FnTypeShape`.
+type Sig = FnTypeShape;
+
+const EMPTY_ENV: TypeEnv = { lookupType: () => undefined };
+
+function isBody(v: JSONType): v is Record<string, JSONType> {
+  return isSchemaObject(v) && "$return" in v;
+}
+
+// The declared signature of a function body, or null when unannotated.
+function sigOf(body: Record<string, JSONType>): Sig | null {
+  const sig = body.$sig;
+  if (!isSchemaObject(sig)) return null;
+  return {
+    params: Array.isArray(sig.params) ? (sig.params as Schema[]) : [],
+    rest: "rest" in sig ? sig.rest : undefined,
+    returns: "returns" in sig ? sig.returns! : true,
+  };
+}
+
+// The *type* of a function body as a value: its `$fnType` node, or `any` when
+// the body carries no `$sig` (unannotated — inferring it needs the contextual
+// typing deferred to a later milestone).
+function bodyFnTypeSchema(body: Record<string, JSONType>): Schema {
+  const sig = body.$sig;
+  return isSchemaObject(sig) ? { $fnType: sig } : true;
+}
+
+// Keys of an object-of-bindings that name a local binding (mirrors the
+// evaluator's filter in `buildScope`), excluding the reserved keys.
+function bindingKeys(body: Record<string, JSONType>): string[] {
+  return Object.keys(body).filter((k) => {
+    if (k === "$return" || k === "$params" || k === "$sig") return false;
+    if (k === "$comment" && typeof body[k] === "string") return false;
+    return true;
+  });
+}
+
+// Diagnostics helper: push a mismatch, extending the current path.
+function report(ctx: CheckContext, message: string, extra?: Partial<Diagnostic>): void {
+  ctx.diagnostics.push({ path: [...ctx.path], message, ...extra });
+}
+
+// A child context at a nested path segment (used when descending into args,
+// branches, elements, ...). Cheap object spread — same "thread the bag"
+// discipline as the evaluator's context.
+function at(ctx: CheckContext, segment: string): CheckContext {
+  return { ...ctx, path: [...ctx.path, segment] };
+}
+
+// ---------------------------------------------------------------------------
+// Section D — Type environment / scope (mirrors `buildScope` / `getVar`)
+// ---------------------------------------------------------------------------
+//
+// Two scopes, as in the design (§D of the plan):
+//   * Type-name scope: `resolveRef` over `ctx.defs` (flat; recursion guard
+//     lives in `subsumes`).
+//   * Term scope (Γ): this function, the structural mirror of `buildScope`.
+//
+// Params bind eagerly from the declared `$sig`. Sibling function declarations
+// bind eagerly to their `$fnType`. Other locals (un-annotated expression
+// bindings) are typed *lazily* at their first lookup — reusing the shape of
+// `getVar`'s `resolvingVars` cycle guard — because the dominant idiom binds
+// everything in a `where` block and only some bindings are ever forced.
+
+// The schema of property `k` in an object schema, for destructuring a param.
+function propertySchema(objSchema: Schema | undefined, k: string): Schema | undefined {
+  if (objSchema === undefined || !isSchemaObject(objSchema)) return undefined;
+  const props = properties(objSchema);
+  if (k in props) return props[k];
+  const mode = apMode(objSchema);
+  if (mode.kind === "map") return mode.schema;
+  if (mode.kind === "open") return true;
+  return undefined;
+}
+
+// Bind a body's `$params` to their declared `$sig` schemas.
+function bindParams(params: JSONType[], sig: Sig | null, eager: Record<string, Schema>): void {
+  const sigParams = sig?.params ?? [];
+  const rest = sig?.rest;
+  for (let i = 0; i < params.length; i++) {
+    const slot = params[i]!;
+    if (typeof slot === "string") {
+      if (slot.startsWith("...")) {
+        eager[slot.slice(3)] = { type: "array", items: rest ?? true };
+        break;
+      }
+      eager[slot] = sigParams[i] ?? true;
+    } else if (isSchemaObject(slot) && Array.isArray(slot.$fields)) {
+      const objSchema = sigParams[i];
+      for (const f of slot.$fields as string[]) {
+        eager[f] = propertySchema(objSchema, f) ?? true;
+      }
+    }
+  }
+}
+
+function buildTypeScope(
+  body: Record<string, JSONType>,
+  parent: TypeEnv | null,
+  ctx: CheckContext,
+): TypeEnv {
+  const eager: Record<string, Schema> = {};
+  const exprLocals: Record<string, JSONType> = {};
+
+  const sig = sigOf(body);
+  const params = Array.isArray(body.$params) ? (body.$params as JSONType[]) : [];
+  bindParams(params, sig, eager);
+
+  for (const key of bindingKeys(body)) {
+    const val = body[key]!;
+    if (isBody(val)) {
+      eager[key] = bodyFnTypeSchema(val); // sibling function: eager `$fnType`
+    } else {
+      exprLocals[key] = val; // un-annotated local: typed lazily below
+    }
+  }
+
+  const memo: Record<string, Schema> = {};
+  const resolving: string[] = [];
+
+  const env: TypeEnv = {
+    lookupType(name: string): Schema | undefined {
+      if (name in eager) return eager[name];
+      if (name in memo) return memo[name];
+      if (name in exprLocals) {
+        if (resolving.includes(name)) {
+          const cycle = [...resolving.slice(resolving.indexOf(name)), name].join(" -> ");
+          report(ctx, `Circular local type dependency: ${cycle}`);
+          return (memo[name] = true);
+        }
+        resolving.push(name);
+        try {
+          const s = synth(exprLocals[name]!, { ...ctx, env, path: [name] });
+          return (memo[name] = s);
+        } finally {
+          resolving.pop();
+        }
+      }
+      return parent?.lookupType(name);
+    },
+  };
+
+  return env;
+}
+
+// ---------------------------------------------------------------------------
+// Section E — Term checking (mirrors `evaluateExpression`)
+// ---------------------------------------------------------------------------
+//
+// Bidirectional: `synth` infers a schema for an expression; `check` verifies an
+// expression against an expected schema. This milestone is *synth-first* — it
+// types a fully-`$sig`-annotated module. Contextual typing of un-annotated
+// inline lambdas and the polymorphic builtin layer arrive in a later milestone;
+// until then an unknown callee or un-annotated lambda degrades to `any`.
+
+type NodeKind =
+  | "scalar"
+  | "array"
+  | "object"
+  | "var"
+  | "call"
+  | "ref"
+  | "body"
+  | "if"
+  | "cond"
+  | "match"
+  | "and"
+  | "or"
+  | "get"
+  | "raw";
+
+// A thin discriminant switch — not the evaluator's validating classifier, since
+// input is assumed well-formed. Ordering mirrors `classifyExpressionType`.
+function nodeKind(node: JSONType): NodeKind {
+  if (node === null) return "scalar";
+  if (Array.isArray(node)) return "array";
+  if (typeof node !== "object") return "scalar";
+  const o = node as Record<string, JSONType>;
+  if ("$var" in o) return "var";
+  if ("$get" in o || "$from" in o) return "get";
+  if ("$return" in o) return "body";
+  if ("$call" in o || "$args" in o) return "call";
+  if ("$fn" in o) return "ref";
+  if ("$cond" in o) return "cond";
+  if ("$match" in o || "$cases" in o) return "match";
+  if ("$if" in o || "$then" in o) return "if";
+  if ("$and" in o) return "and";
+  if ("$or" in o) return "or";
+  if ("$raw" in o) return "raw";
+  return "object";
+}
+
+// Build a union schema from branch/arm types, flattening + deduping. Kept
+// deliberately simple (an `anyOf`, which `subsumes` handles); the shorthand
+// printer owns the §2.3 enum/type-array canonicalization.
+function unionOf(schemas: Schema[]): Schema {
+  const arms: Schema[] = [];
+  for (const s of schemas) {
+    if (s === true) return true; // any absorbs
+    if (s === false) continue; // never drops out
+    const nested = isSchemaObject(s) && Array.isArray(s.anyOf) ? (s.anyOf as Schema[]) : [s];
+    for (const a of nested) {
+      if (!arms.some((existing) => deepEqual(existing, a))) arms.push(a);
+    }
+  }
+  if (arms.length === 0) return false;
+  if (arms.length === 1) return arms[0]!;
+  return { anyOf: arms };
+}
+
+// Structural type of literal JSON *data* (a `$raw` payload or a nested literal):
+// scalars become `const`, composites become closed tuples/objects.
+function synthData(v: JSONType): Schema {
+  if (v === null) return { type: "null" };
+  if (Array.isArray(v)) {
+    const items = v.map(synthData);
+    return { type: "array", prefixItems: items, items: false, minItems: items.length };
+  }
+  if (typeof v === "object") {
+    const props: Record<string, Schema> = {};
+    const required: string[] = [];
+    for (const [k, val] of Object.entries(v)) {
+      props[k] = synthData(val);
+      required.push(k);
+    }
+    return { type: "object", properties: props, required, additionalProperties: false };
+  }
+  return { const: v };
+}
+
+// Project the type of `target[key]` out of the target's schema. Handles the
+// common static cases (object property by literal string key, array/tuple
+// element by literal number key, static folded paths); anything dynamic or
+// out-of-fragment degrades to `any`.
+function projectField(target: Schema, key: JSONType, ctx: CheckContext): Schema {
+  let t = target;
+  while (classifySchema(t) === SchemaKind.Ref) t = resolveRef(t, ctx.defs);
+  if (t === true) return true;
+
+  if (typeof key === "string") {
+    if (classifySchema(t) !== SchemaKind.Object) return true;
+    const o = asObject(t);
+    const props = properties(o);
+    if (key in props) return props[key]!;
+    const mode = apMode(o);
+    if (mode.kind === "map") return mode.schema;
+    if (mode.kind === "open") return true;
+    // Closed object, missing key: the evaluator yields null at runtime.
+    return { type: "null" };
+  }
+
+  if (typeof key === "number") {
+    const k = classifySchema(t);
+    if (k === SchemaKind.Array) return itemsSchema(asObject(t));
+    if (k === SchemaKind.Tuple) {
+      const o = asObject(t);
+      const pi = prefixItems(o);
+      if (key >= 0 && key < pi.length) return pi[key]!;
+      return tupleRest(o) ?? { type: "null" };
+    }
+    return true;
+  }
+
+  if (Array.isArray(key)) {
+    let cur = target;
+    for (const seg of key) cur = projectField(cur, seg, ctx);
+    return cur;
+  }
+
+  return true; // dynamic key
+}
+
+// The signature of a callee, or null when it can't be resolved statically
+// (an unknown name — e.g. a builtin, deferred to the polymorphic layer — or a
+// non-function value).
+function resolveCalleeSig(callee: JSONType, ctx: CheckContext): Sig | null {
+  let s: Schema;
+  if (typeof callee === "string") {
+    const looked = ctx.env.lookupType(callee);
+    if (looked === undefined) return null; // unknown: defer (builtin layer)
+    s = looked;
+  } else {
+    s = synth(callee, ctx);
+  }
+  return classifySchema(s) === SchemaKind.FnType ? fnShape(asObject(s)) : null;
+}
+
+// The param schema at position `i` (the rest element once past the fixed
+// params), or null when the callee admits no param there.
+function paramAt(sig: Sig, i: number): Schema | null {
+  if (i < sig.params.length) return sig.params[i]!;
+  return sig.rest ?? null;
+}
+
+function checkArity(sig: Sig, argc: number, ctx: CheckContext): void {
+  const min = sig.params.length;
+  if (sig.rest === undefined) {
+    if (argc !== min) report(ctx, `Expected ${min} argument(s), got ${argc}.`);
+  } else if (argc < min) {
+    report(ctx, `Expected at least ${min} argument(s), got ${argc}.`);
+  }
+}
+
+// Infer a schema for an expression, accumulating diagnostics along the way.
+function synth(expr: JSONType, ctx: CheckContext): Schema {
+  switch (nodeKind(expr)) {
+    case "scalar":
+      return synthData(expr);
+
+    case "array": {
+      const arr = expr as JSONType[];
+      const items = arr.map((e, i) => synth(e, at(ctx, `[${i}]`)));
+      return { type: "array", prefixItems: items, items: false, minItems: items.length };
+    }
+
+    case "object": {
+      const o = expr as Record<string, JSONType>;
+      const props: Record<string, Schema> = {};
+      const required: string[] = [];
+      for (const [k, v] of Object.entries(o)) {
+        if (k === "$comment" && typeof v === "string") continue;
+        props[k] = synth(v, at(ctx, k));
+        required.push(k);
+      }
+      return { type: "object", properties: props, required, additionalProperties: false };
+    }
+
+    case "var": {
+      const name = (expr as { $var: string }).$var;
+      const t = ctx.env.lookupType(name);
+      // A miss is not necessarily an error: bare builtin/registry names resolve
+      // as function values (§P4). Until the builtin layer lands, degrade to any.
+      return t ?? true;
+    }
+
+    case "ref": {
+      const fn = (expr as { $fn: JSONType }).$fn;
+      if (typeof fn === "string") return ctx.env.lookupType(fn) ?? true;
+      return synth(fn, ctx);
+    }
+
+    case "body":
+      // A function value. Its type is its declared `$fnType`; unannotated
+      // bodies (lambdas) can only be typed contextually (later milestone).
+      return bodyFnTypeSchema(expr as Record<string, JSONType>);
+
+    case "call": {
+      const call = expr as { $call: JSONType; $args: JSONType[] };
+      const args = Array.isArray(call.$args) ? call.$args : [];
+      const sig = resolveCalleeSig(call.$call, ctx);
+      if (sig === null) {
+        // Unknown callee: still walk args to surface nested errors.
+        args.forEach((a, i) => synth(a, at(ctx, `$args[${i}]`)));
+        return true;
+      }
+      checkArity(sig, args.length, ctx);
+      args.forEach((a, i) => {
+        const param = paramAt(sig, i);
+        if (param === null) synth(a, at(ctx, `$args[${i}]`));
+        else check(a, param, at(ctx, `$args[${i}]`));
+      });
+      return sig.returns;
+    }
+
+    case "if": {
+      const c = expr as { $if: JSONType; $then: JSONType; $else: JSONType };
+      synth(c.$if, at(ctx, "$if"));
+      return unionOf([synth(c.$then, at(ctx, "$then")), synth(c.$else, at(ctx, "$else"))]);
+    }
+
+    case "cond": {
+      const c = expr as { $cond: [JSONType, JSONType][]; $else?: JSONType };
+      const arms: Schema[] = [];
+      c.$cond.forEach(([cond, result], i) => {
+        synth(cond, at(ctx, `$cond[${i}][0]`));
+        arms.push(synth(result, at(ctx, `$cond[${i}][1]`)));
+      });
+      if ("$else" in c) arms.push(synth(c.$else!, at(ctx, "$else")));
+      return unionOf(arms);
+    }
+
+    case "match": {
+      const m = expr as { $match: JSONType; $cases: [JSONType, JSONType][]; $else: JSONType };
+      synth(m.$match, at(ctx, "$match"));
+      const arms: Schema[] = [];
+      m.$cases.forEach(([, result], i) => arms.push(synth(result, at(ctx, `$cases[${i}][1]`))));
+      arms.push(synth(m.$else, at(ctx, "$else")));
+      return unionOf(arms);
+    }
+
+    case "and": {
+      const exprs = (expr as { $and: JSONType[] }).$and;
+      return unionOf(exprs.map((e, i) => synth(e, at(ctx, `$and[${i}]`))));
+    }
+
+    case "or": {
+      const exprs = (expr as { $or: JSONType[] }).$or;
+      return unionOf(exprs.map((e, i) => synth(e, at(ctx, `$or[${i}]`))));
+    }
+
+    case "get": {
+      const g = expr as { $get: JSONType; $from: JSONType };
+      const target = synth(g.$from, at(ctx, "$from"));
+      // Only literal keys project statically; dynamic keys degrade to any.
+      const key = nodeKind(g.$get) === "scalar" || Array.isArray(g.$get) ? g.$get : undefined;
+      if (key === undefined) {
+        synth(g.$get, at(ctx, "$get"));
+        return true;
+      }
+      return projectField(target, key, ctx);
+    }
+
+    case "raw":
+      return synthData((expr as { $raw: JSONType }).$raw);
+  }
+}
+
+// Verify an expression against an expected schema, reporting on mismatch.
+function check(expr: JSONType, expected: Schema, ctx: CheckContext): void {
+  // Un-annotated inline lambdas need contextual typing (later milestone); we
+  // can't yet check their bodies against `expected`, so defer silently rather
+  // than emit a spurious `any ⊄ (fn)` diagnostic.
+  if (nodeKind(expr) === "body" && sigOf(expr as Record<string, JSONType>) === null) return;
+
+  const actual = synth(expr, ctx);
+  if (!isSubschema(actual, expected, ctx.defs)) {
+    report(ctx, `${describe(actual)} is not assignable to ${describe(expected)}.`, {
+      expected,
+      actual,
+    });
+  }
+}
+
+function describe(schema: Schema): string {
+  return JSON.stringify(schema);
+}
+
+// ---------------------------------------------------------------------------
+// Section G (minimal) — Signature & module wiring (mirrors callFunction /
+// callProgram). Full diagnostics formatting is a later milestone.
+// ---------------------------------------------------------------------------
+
+// Check a single function body against its declared signature: build its Γ,
+// then check its `$return` against the declared return type. Nested function
+// locals are checked recursively in the body's own scope.
+function checkFunction(body: Record<string, JSONType>, ctx: CheckContext): void {
+  const sig = sigOf(body);
+  const env = buildTypeScope(body, ctx.env, ctx);
+  const bctx: CheckContext = { ...ctx, env };
+  check(body.$return!, sig?.returns ?? true, at(bctx, "$return"));
+  for (const key of bindingKeys(body)) {
+    const val = body[key]!;
+    if (isBody(val)) checkFunction(val, at(bctx, key));
+  }
+}
+
+// Public entry, mirroring `callProgram`: lift `$types` into the defs pool, wire
+// the module scope (function `$fnType`s eager, constants lazy), then check each
+// function body. Returns all accumulated diagnostics.
+function checkModule(module: Record<string, JSONType>): Diagnostic[] {
+  const defs: Defs = isSchemaObject(module.$types) ? (module.$types as Defs) : {};
+  const ctx: CheckContext = { defs, env: EMPTY_ENV, diagnostics: [], path: [] };
+  const env = buildTypeScope(withoutTypes(module), null, ctx);
+  ctx.env = env;
+
+  for (const key of bindingKeys(withoutTypes(module))) {
+    const val = module[key]!;
+    if (isBody(val)) {
+      checkFunction(val, { ...ctx, env, path: [key] });
+    } else {
+      // Force top-level constants so their bodies get walked for errors even
+      // when nothing references them.
+      env.lookupType(key);
+    }
+  }
+  return ctx.diagnostics;
+}
+
+// The module minus its reserved `$types` sibling, so the type pool is not
+// mistaken for a term binding.
+function withoutTypes(module: Record<string, JSONType>): Record<string, JSONType> {
+  if (!("$types" in module)) return module;
+  const { $types, ...rest } = module;
+  void $types;
+  return rest;
+}
+
+// Synthesize the type of a standalone expression (for the CLI/REPL). Returns
+// the inferred schema and any diagnostics gathered.
+function checkExpr(expr: JSONType, defs: Defs = {}): { type: Schema; diagnostics: Diagnostic[] } {
+  const ctx: CheckContext = { defs, env: EMPTY_ENV, diagnostics: [], path: [] };
+  return { type: synth(expr, ctx), diagnostics: ctx.diagnostics };
+}
+
+export {
+  SchemaKind,
+  classifySchema,
+  isSubschema,
+  valueSatisfies,
+  synth,
+  check,
+  checkFunction,
+  checkModule,
+  checkExpr,
+  buildTypeScope,
+  nodeKind,
+};
+export type { Schema, Defs, Diagnostic, TypeEnv, CheckContext, Sig };

@@ -1,6 +1,16 @@
 import { describe, expect, test } from "bun:test";
-import { classifySchema, isSubschema, SchemaKind, valueSatisfies } from "../src/check";
-import type { Defs, Schema } from "../src/check";
+import {
+  checkExpr,
+  checkModule,
+  classifySchema,
+  isSubschema,
+  nodeKind,
+  SchemaKind,
+  synth,
+  valueSatisfies,
+} from "../src/check";
+import type { CheckContext, Defs, Schema } from "../src/check";
+import type { JSONType } from "../src/types";
 
 // ---------------------------------------------------------------------------
 // Section B — classification
@@ -354,5 +364,239 @@ describe("valueSatisfies", () => {
     const tree = { value: 1, children: [{ value: 2, children: [] }] };
     expect(valueSatisfies(tree, { $ref: "#/$defs/Tree" }, defs)).toBe(true);
     expect(valueSatisfies({ value: 1 }, { $ref: "#/$defs/Tree" }, defs)).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Section E — nodeKind classifier
+// ---------------------------------------------------------------------------
+
+describe("nodeKind", () => {
+  const cases: [string, JSONType, ReturnType<typeof nodeKind>][] = [
+    ["scalar (number)", 42, "scalar"],
+    ["scalar (null)", null, "scalar"],
+    ["array literal", [1, 2], "array"],
+    ["var", { $var: "x" }, "var"],
+    ["call", { $call: "f", $args: [] }, "call"],
+    ["fn reference", { $fn: "f" }, "ref"],
+    ["function body", { $params: ["x"], $return: { $var: "x" } }, "body"],
+    ["if", { $if: true, $then: 1, $else: 2 }, "if"],
+    ["cond", { $cond: [[true, 1]], $else: 2 }, "cond"],
+    ["match", { $match: 1, $cases: [[1, "a"]], $else: "b" }, "match"],
+    ["and", { $and: [true, false] }, "and"],
+    ["or", { $or: [true, false] }, "or"],
+    ["get", { $get: "k", $from: { $var: "o" } }, "get"],
+    ["raw", { $raw: { $var: "not-evaluated" } }, "raw"],
+    ["object literal", { a: 1, b: 2 }, "object"],
+  ];
+  for (const [name, node, kind] of cases) {
+    test(name, () => expect(nodeKind(node)).toBe(kind));
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Section E — synth (standalone expressions via checkExpr)
+// ---------------------------------------------------------------------------
+
+describe("synth: literals & data", () => {
+  test("scalars synthesize as const (null as type)", () => {
+    expect(checkExpr(42).type).toEqual({ const: 42 });
+    expect(checkExpr("active").type).toEqual({ const: "active" });
+    expect(checkExpr(true).type).toEqual({ const: true });
+    expect(checkExpr(null).type).toEqual({ type: "null" });
+  });
+  test("array literal synthesizes as a closed tuple", () => {
+    expect(checkExpr([1, 2]).type).toEqual({
+      type: "array",
+      prefixItems: [{ const: 1 }, { const: 2 }],
+      items: false,
+      minItems: 2,
+    });
+  });
+  test("object literal synthesizes as a closed object", () => {
+    expect(checkExpr({ from: 1, to: 2 }).type).toEqual({
+      type: "object",
+      properties: { from: { const: 1 }, to: { const: 2 } },
+      required: ["from", "to"],
+      additionalProperties: false,
+    });
+  });
+  test("$raw payload is typed structurally, not evaluated", () => {
+    expect(checkExpr({ $raw: { $var: "x" } }).type).toEqual({
+      type: "object",
+      properties: { $var: { const: "x" } },
+      required: ["$var"],
+      additionalProperties: false,
+    });
+  });
+  test("a synthesized literal is a subtype of its declared refinement", () => {
+    expect(isSubschema(checkExpr(5).type, { type: "integer", minimum: 0 })).toBe(true);
+    expect(isSubschema(checkExpr(-5).type, { type: "integer", minimum: 0 })).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Sections D + E + G — module checking end to end
+// ---------------------------------------------------------------------------
+
+// Convenience: a `$sig`-annotated function body.
+const body = (
+  params: JSONType[],
+  sig: { params: Schema[]; returns: Schema; rest?: Schema },
+  ret: JSONType,
+  locals: Record<string, JSONType> = {},
+): Record<string, JSONType> => ({ $sig: sig, $params: params, ...locals, $return: ret });
+
+const I: Schema = { type: "integer" };
+const S: Schema = { type: "string" };
+
+describe("checkModule: clean programs", () => {
+  test("identity + a caller through the registry sig type-check", () => {
+    const mod = {
+      identity: body(["n"], { params: [I], returns: I }, { $var: "n" }),
+      caller: body(
+        ["n"],
+        { params: [I], returns: I },
+        { $call: "identity", $args: [{ $var: "n" }] },
+      ),
+    };
+    expect(checkModule(mod)).toEqual([]);
+  });
+
+  test("a $cond over literal results fits a string return", () => {
+    const mod = {
+      label: body(
+        ["n"],
+        { params: [I], returns: S },
+        {
+          $cond: [[{ $var: "n" }, "a"]],
+          $else: "b",
+        },
+      ),
+    };
+    expect(checkModule(mod)).toEqual([]);
+  });
+
+  test("$get projects a declared property type", () => {
+    const mod = {
+      $types: {
+        Color: { enum: ["w", "b"] },
+        State: {
+          type: "object",
+          properties: { board: { type: "array", items: I }, turn: { $ref: "#/$defs/Color" } },
+          required: ["board", "turn"],
+          additionalProperties: false,
+        },
+      },
+      getTurn: body(
+        ["s"],
+        { params: [{ $ref: "#/$defs/State" }], returns: { $ref: "#/$defs/Color" } },
+        {
+          $get: "turn",
+          $from: { $var: "s" },
+        },
+      ),
+    };
+    expect(checkModule(mod)).toEqual([]);
+  });
+});
+
+describe("checkModule: diagnostics", () => {
+  test("return type mismatch is reported", () => {
+    const mod = {
+      bad: body(["n"], { params: [I], returns: S }, { $var: "n" }),
+    };
+    const diags = checkModule(mod);
+    expect(diags.length).toBe(1);
+    expect(diags[0]!.path).toEqual(["bad", "$return"]);
+    expect(diags[0]!.expected).toEqual(S);
+    expect(diags[0]!.actual).toEqual(I);
+  });
+
+  test("argument type mismatch is reported at the arg path", () => {
+    const mod = {
+      wantString: body(["s"], { params: [S], returns: S }, { $var: "s" }),
+      caller: body(
+        ["n"],
+        { params: [I], returns: S },
+        {
+          $call: "wantString",
+          $args: [{ $var: "n" }],
+        },
+      ),
+    };
+    const diags = checkModule(mod);
+    expect(diags.length).toBe(1);
+    expect(diags[0]!.path).toEqual(["caller", "$return", "$args[0]"]);
+  });
+
+  test("arity mismatch is reported", () => {
+    const mod = {
+      identity: body(["n"], { params: [I], returns: I }, { $var: "n" }),
+      caller: body(
+        ["n"],
+        { params: [I], returns: I },
+        {
+          $call: "identity",
+          $args: [{ $var: "n" }, { $var: "n" }],
+        },
+      ),
+    };
+    const diags = checkModule(mod);
+    expect(diags.some((d) => /Expected 1 argument/.test(d.message))).toBe(true);
+  });
+
+  test("rest params accept extra arguments of the element type", () => {
+    const mod = {
+      variadic: body(["...xs"], { params: [], rest: I, returns: I }, 0),
+      caller: body([], { params: [], returns: I }, { $call: "variadic", $args: [1, 2, 3] }),
+    };
+    expect(checkModule(mod)).toEqual([]);
+  });
+
+  test("a rest arg of the wrong element type is reported", () => {
+    const mod = {
+      variadic: body(["...xs"], { params: [], rest: I, returns: I }, 0),
+      caller: body([], { params: [], returns: I }, { $call: "variadic", $args: [1, "two"] }),
+    };
+    const diags = checkModule(mod);
+    expect(diags.some((d) => d.path.join(".") === "caller.$return.$args[1]")).toBe(true);
+  });
+});
+
+describe("buildTypeScope: lazy locals & cycles", () => {
+  test("an un-annotated local is typed lazily from its expression", () => {
+    // `doubled` is a where-local with no signature; its type is synthesized on
+    // demand and must fit the declared return.
+    const mod = {
+      f: body(
+        ["n"],
+        { params: [I], returns: I },
+        { $var: "chosen" },
+        {
+          chosen: { $var: "n" },
+        },
+      ),
+    };
+    expect(checkModule(mod)).toEqual([]);
+  });
+
+  test("mutually recursive locals are caught as a cycle", () => {
+    const mod = { a: { $var: "b" }, b: { $var: "a" } };
+    const diags = checkModule(mod);
+    expect(diags.some((d) => /Circular local type dependency/.test(d.message))).toBe(true);
+  });
+});
+
+describe("synth: control-flow unions", () => {
+  test("$if synthesizes the union of its branches", () => {
+    const ctx: CheckContext = {
+      defs: {},
+      env: { lookupType: () => undefined },
+      diagnostics: [],
+      path: [],
+    };
+    const t = synth({ $if: true, $then: 1, $else: "x" }, ctx);
+    expect(t).toEqual({ anyOf: [{ const: 1 }, { const: "x" }] });
   });
 });
