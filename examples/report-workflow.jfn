@@ -1,0 +1,65 @@
+// report-workflow.jfn — a realistic effectful workflow built on effects-lib.jfn.
+//
+// This module is deliberately *not* self-contained: it calls the combinators
+// from examples/effects-lib.jfn (retry, orElse, forEachE, mapTask, attenuate).
+// Until json-fn grows a module system, "importing" means the host parses both
+// files and merges their function records into one registry — see
+// typescript/examples/report-workflow.ts, which also supplies the capabilities.
+//
+// The workflow: read a list of user ids, fetch each user over a *flaky* HTTP API
+// (transient 503s), retrying and then falling back to a local cache, and finally
+// log and persist a report. All failure handling is in-language — retry/orElse
+// over the `raise` effect — while the host answers only raw I/O.
+
+{
+  // A capability record: guest closures over `perform`. `get` reads, `post`
+  // writes. A record like this is the unit that `attenuate` narrows.
+  api: () => {
+    get: (url) => perform("http.get", [url]),
+    post: (url, body) => perform("http.post", [url, body])
+  },
+
+  // Least privilege: the fetch phase only needs to read, so it holds a narrowed
+  // view with just `get`. A POST is not merely forbidden — the method is not on
+  // the value it was handed.
+  reader: () => attenuate(api(), ["get"]),
+
+  // One HTTP GET, lifted into the task world. A non-200 becomes a typed `raise`
+  // so in-language retry/orElse can react; a host exception could not be caught
+  // in-language, so failures a program wants to handle must travel as data.
+  httpGet: (url) => do {
+    res <- reader().get(url),
+    if res.status == 200
+      then pure(res.body)
+      else raise({ tag: "HttpError", url: url, status: res.status })
+  },
+
+  cacheGet: (url) => do {
+    hit <- perform("cache.get", [url]),
+    if isNull(hit)
+      then raise({ tag: "CacheMiss", url: url })
+      else pure(hit)
+  },
+
+  // Enrich one user: try the live API (retrying transient failures), then fall
+  // back to the cache when that is exhausted. `mapTask` shapes each source into
+  // the same row, tagged with where it came from.
+  loadUser: (id) => orElse(
+    retry(2, mapTask((body) => { id: id, name: body.name, source: "live" },
+                     httpGet(`/users/${str(id)}`))),
+    mapTask((cached) => { id: id, name: cached.name, source: "cache" },
+            cacheGet(`/users/${str(id)}`))
+  ),
+
+  saveReport: (report) => api().post("/reports", report),
+
+  // The whole workflow as one task. `forEachE` sequences the per-user tasks in
+  // order and collects the rows; the rest is straight-line do-notation.
+  main: () => do {
+    ids      <- perform("db.userIds", []),
+    rows     <- forEachE(loadUser, ids),
+    _        <- perform("log", [`built ${str(length(rows))} report rows`]),
+    reportId <- saveReport({ count: length(rows), rows: rows }),
+    pure({ reportId: reportId, count: length(rows), rows: rows })
+  }
+}
