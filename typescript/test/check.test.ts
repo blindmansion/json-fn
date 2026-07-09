@@ -843,6 +843,15 @@ describe("Section F — builtin signatures", () => {
       expect(r.diagnostics.length).toBeGreaterThan(0);
       expect(r.diagnostics.some((d) => d.path.join(".") === "$args[0].$return")).toBe(true);
     });
+
+    test("a lambda at a non-function param position reports, not throws", () => {
+      // Swapped args: the lambda lands on `map`'s array param. Previously this
+      // destructured an absent `$fnType` and threw; it must be a diagnostic.
+      const lambda = { $params: ["n"], $return: call("add", { $var: "n" }, 1) };
+      const r = synthB(call("map", [1, 2, 3], lambda));
+      expect(r.diagnostics.some((d) => d.path.join(".") === "$args[1]")).toBe(true);
+      expect(r.diagnostics.some((d) => d.severity === "error")).toBe(true);
+    });
   });
 
   describe("through the module checker", () => {

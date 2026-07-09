@@ -193,7 +193,23 @@ function applyOverload(sig: BuiltinSig, argExprs: JSONType[], ctx: CheckContext)
   // Pass 2 — lambdas, now that input variables are known. Their returns bind
   // the output variables (or are checked against a concrete return template).
   for (const i of lambdas) {
-    const shape = fnShape(asObject(paramAt(sig, i)!));
+    const param = paramAt(sig, i)!;
+    // A lambda supplied where the expected param isn't a function type (e.g.
+    // args swapped, `map([1,2,3], (n) => n + 1)`) can't be contextually typed.
+    // Report the assignability error instead of destructuring an absent
+    // `$fnType`, which used to throw. Since an un-annotated lambda has no
+    // synthesizable type, describe it by its declared arity so the mismatch
+    // fires reliably rather than degrading to `any`.
+    if (classifySchema(param) !== SchemaKind.FnType) {
+      const lambda = argExprs[i] as Record<string, JSONType>;
+      const arity = Array.isArray(lambda.$params) ? lambda.$params.length : 0;
+      const actual: Schema = {
+        $fnType: { params: Array.from({ length: arity }, () => true), returns: true },
+      };
+      reportMismatch(at(ctx, `$args[${i}]`), actual, instantiate(param, bindings));
+      continue;
+    }
+    const shape = fnShape(asObject(param));
     const expectedFn: Schema = {
       $fnType: {
         params: shape.params.map((p) => instantiate(p, bindings)),

@@ -28,23 +28,6 @@ Worth stating up front, since most of this behaved:
 - Real errors caught: return-type mismatch, wrong arg type, extra/missing
   object field, arity.
 
-## Bugs
-
-### Checker crash on function literal at a non-function param position
-
-`map([1, 2, 3], (n) => n + 1)` (args swapped) throws instead of reporting a
-type error:
-
-```
-jfn: undefined is not an object (evaluating 'ft.params')
-```
-
-A function literal supplied where the expected param isn't a function type
-reaches `fnShape(asObject(paramAt(sig, i)!))` with `$fnType` undefined, so
-`asObject(o.$fnType!)` is undefined and `.params` throws. A type error should be
-a diagnostic, not an exception. Locations: `check/builtin-rules.ts:187`,
-`check/schema.ts:161`.
-
 ## Soundness gaps
 
 ### Optional fields drop optionality
@@ -64,11 +47,6 @@ The operators appear special-cased and skip operand checking + boolean result.
 ### `if` condition is not required to be boolean
 
 `if 1 then 10 else 20` type-checks; the condition type is unchecked.
-
-### `++` is untyped
-
-`"a" ++ 1` infers `true` (any) with no error; the operator isn't wired to a
-signature.
 
 ### `pipe` returns `any`
 
