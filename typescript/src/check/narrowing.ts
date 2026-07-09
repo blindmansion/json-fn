@@ -167,6 +167,60 @@ function excludeLiteral(s: Schema, v: JSONType, defs: Defs): Schema {
   }
 }
 
+// Truthiness (docs/language.md): `false`, `null`, `0`, and `""` are falsy;
+// every other value — including all arrays/objects, any non-zero number, and
+// any non-empty string — is truthy.
+function isFalsyValue(v: JSONType): boolean {
+  return v === false || v === null || v === 0 || v === "";
+}
+
+// Narrow a schema to just its truthy (`wantTruthy`) or falsy inhabitants — the
+// slice of a value that a short-circuit `$or`/`$and` operand contributes when
+// control passes through it. A *sound* refinement: categories we can't split
+// exactly (a bare `number`/`string` minus its single falsy value isn't
+// expressible) widen back to the whole type rather than under-approximate.
+function narrowTruthiness(s: Schema, wantTruthy: boolean, defs: Defs): Schema {
+  const t = resolveDeep(s, defs);
+  // any: its falsy side is exactly the four falsy literals; its truthy side has
+  // no finite complement, so it stays `any`.
+  if (t === true) return wantTruthy ? true : { enum: [false, null, 0, ""] };
+  if (t === false) return false; // never
+
+  const arms = unionArms(t);
+  if (arms) return unionOf(arms.map((a) => narrowTruthiness(a, wantTruthy, defs)));
+
+  switch (classifySchema(t)) {
+    case SchemaKind.Const:
+      return isFalsyValue(literalValues(t)[0]!) === !wantTruthy ? t : false;
+    case SchemaKind.Enum:
+      return fromLiterals(literalValues(t).filter((v) => isFalsyValue(v) === !wantTruthy));
+    case SchemaKind.Primitive: {
+      const type = asObject(t).type as string;
+      if (type === "null") return wantTruthy ? false : t; // null is always falsy
+      if (type === "boolean") return { const: wantTruthy }; // true vs. false
+      // number/integer split off only `0`; string splits off only `""`.
+      if (type === "number" || type === "integer") return wantTruthy ? t : { const: 0 };
+      if (type === "string") return wantTruthy ? t : { const: "" };
+      return t;
+    }
+    case SchemaKind.Array:
+    case SchemaKind.Tuple:
+    case SchemaKind.Object:
+    case SchemaKind.FnType:
+      return wantTruthy ? t : false; // composites & functions are always truthy
+    default:
+      return t; // Opaque: leave untouched (sound over-approximation)
+  }
+}
+
+function restrictToTruthy(s: Schema, defs: Defs): Schema {
+  return narrowTruthiness(s, true, defs);
+}
+
+function restrictToFalsy(s: Schema, defs: Defs): Schema {
+  return narrowTruthiness(s, false, defs);
+}
+
 // Predicate-name → the value-type category it tests (the `isType` family).
 const TYPE_PREDICATES: Record<string, string> = {
   isNull: "null",
@@ -403,5 +457,7 @@ export {
   currentType,
   restrictToLiteral,
   excludeLiteral,
+  restrictToTruthy,
+  restrictToFalsy,
   caseUniverse,
 };

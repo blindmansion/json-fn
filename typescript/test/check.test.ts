@@ -629,6 +629,56 @@ describe("synth: control-flow unions", () => {
   });
 });
 
+describe("synth: short-circuit $and / $or are value-returning", () => {
+  const ctx: CheckContext = {
+    defs: {},
+    env: { lookupType: () => undefined },
+    diagnostics: [],
+    path: [],
+  };
+
+  test("$and yields the last operand when earlier ones can't be falsy", () => {
+    // `1 && 2` evaluates to `2`; the truthy `1` can never be the result.
+    expect(synth({ $and: [1, 2] }, ctx)).toEqual({ const: 2 });
+  });
+
+  test("$or yields the last operand when earlier ones can't be truthy", () => {
+    // `0 || 5` evaluates to `5`; the falsy `0` can never be the result.
+    expect(synth({ $or: [0, 5] }, ctx)).toEqual({ const: 5 });
+  });
+
+  test("boolean operands split by truthiness (true && false : false)", () => {
+    expect(synth({ $and: [true, false] }, ctx)).toEqual({ const: false });
+  });
+
+  test("$or over a nullable subject drops null from the non-final operand", () => {
+    // The null-coalescing idiom: `(x: string | null) || "def"` is `string | "def"`.
+    const nctx: CheckContext = {
+      ...ctx,
+      env: { lookupType: (n) => (n === "x" ? { type: ["string", "null"] } : undefined) },
+    };
+    expect(synth({ $or: [{ $var: "x" }, "def"] }, nctx)).toEqual({
+      anyOf: [{ type: "string" }, { const: "def" }],
+    });
+  });
+
+  test("$and over a nullable subject keeps only its falsy slice, plus the tail", () => {
+    // `(x: string | null) && upper(x)` : the falsy slice of `x` is `"" | null`.
+    const nctx: CheckContext = {
+      ...ctx,
+      env: { lookupType: (n) => (n === "x" ? { type: ["string", "null"] } : undefined) },
+    };
+    expect(synth({ $and: [{ $var: "x" }, "tail"] }, nctx)).toEqual({
+      anyOf: [{ const: "" }, { type: "null" }, { const: "tail" }],
+    });
+  });
+
+  test("empty $and is true, empty $or is false", () => {
+    expect(synth({ $and: [] }, ctx)).toEqual({ const: true });
+    expect(synth({ $or: [] }, ctx)).toEqual({ const: false });
+  });
+});
+
 // ---------------------------------------------------------------------------
 // Section F — builtin signatures (the spec/builtins.json dialect, end to end)
 // ---------------------------------------------------------------------------

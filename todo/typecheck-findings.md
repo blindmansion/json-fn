@@ -30,13 +30,6 @@ Worth stating up front, since most of this behaved:
 
 ## Soundness gaps
 
-### `&&` / `||` are not boolean-checked
-
-`1 && 2` type-checks (result `anyOf[const 1, const 2]`), and `true && false`
-types as a literal union rather than `boolean`. Inconsistent with the `not` /
-`and` / `or` builtins, which *do* enforce booleans (`not(1)` correctly errors).
-The operators appear special-cased and skip operand checking + boolean result.
-
 ### `if` condition is not required to be boolean
 
 `if 1 then 10 else 20` type-checks; the condition type is unchecked.
@@ -98,3 +91,15 @@ Refinements are opaque: `s + 1` (an `integer`) is not assignable to
 `Score = integer & min(0) & max(100)`, and there's no narrowing/refinement path
 to produce a refined value. Expected given the model, but flagged for whenever
 refinement UX comes up.
+
+### `&&` / `||` are value-returning, not boolean (precision, not soundness)
+
+Originally filed as a soundness gap ("not boolean-checked"), but `&&`/`||` lower
+to the `$and`/`$or` special forms, which the spec defines as value-returning
+short-circuit operators (`$and` → first falsy or last; `$or` → first truthy or
+last), deliberately *not* the eager boolean stdlib `and`/`or`. So requiring
+boolean operands (would break the `x || default` idiom) or a boolean result
+would both be wrong, and `1 && 2 : 2` was already sound. The result rule now
+narrows each non-final operand to the slice that can stop the chain — falsy for
+`$and`, truthy for `$or` — so `(x: string | null) || d : string | typeof d`,
+`1 && 2 : 2`, and `true && false : false`. Purely a precision improvement.

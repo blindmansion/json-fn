@@ -30,6 +30,8 @@ import {
   currentType,
   restrictToLiteral,
   excludeLiteral,
+  restrictToTruthy,
+  restrictToFalsy,
   caseUniverse,
 } from "./narrowing";
 import {
@@ -268,6 +270,24 @@ function checkArity(sig: Sig, argc: number, ctx: CheckContext): boolean {
   return true;
 }
 
+// Result type of a short-circuit `$and`/`$or` (docs/language.md): these are
+// value-returning special forms, not boolean operators — the result is *an
+// operand*. A non-final operand reaches the result only when it stops the chain
+// (falsy for `$and`, truthy for `$or`), so it contributes just that slice of
+// its type; the final operand contributes its whole type. Every operand is
+// still synthesized (to surface nested errors). An empty `$and` evaluates to
+// `true`, an empty `$or` to `false`.
+function shortCircuitType(exprs: JSONType[], isAnd: boolean, ctx: CheckContext): Schema {
+  const key = isAnd ? "$and" : "$or";
+  if (exprs.length === 0) return { const: isAnd };
+  const arms = exprs.map((e, i) => {
+    const t = synth(e, at(ctx, `${key}[${i}]`));
+    if (i === exprs.length - 1) return t;
+    return isAnd ? restrictToFalsy(t, ctx.defs) : restrictToTruthy(t, ctx.defs);
+  });
+  return unionOf(arms);
+}
+
 // Infer a schema for an expression, accumulating diagnostics along the way.
 function synth(expr: JSONType, ctx: CheckContext): Schema {
   switch (nodeKind(expr)) {
@@ -443,15 +463,11 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
       return unionOf(arms);
     }
 
-    case "and": {
-      const exprs = (expr as { $and: JSONType[] }).$and;
-      return unionOf(exprs.map((e, i) => synth(e, at(ctx, `$and[${i}]`))));
-    }
+    case "and":
+      return shortCircuitType((expr as { $and: JSONType[] }).$and, true, ctx);
 
-    case "or": {
-      const exprs = (expr as { $or: JSONType[] }).$or;
-      return unionOf(exprs.map((e, i) => synth(e, at(ctx, `$or[${i}]`))));
-    }
+    case "or":
+      return shortCircuitType((expr as { $or: JSONType[] }).$or, false, ctx);
 
     case "get": {
       const g = expr as { $get: JSONType; $from: JSONType };
