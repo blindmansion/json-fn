@@ -1,6 +1,6 @@
 # §5.5 Narrowing — implementation plan
 
-Status: **build order — M0 ✅ + M1 ✅ + M2 ✅ landed, M3 next.** Scopes the single
+Status: **build order — M0 ✅ + M1 ✅ + M2 ✅ + M3 ✅ landed.** Scopes the single
 biggest remaining gap in the typechecker. Since this plan was written the
 monolithic `check.ts` has been split into the `typescript/src/check/` package
 (`checker.ts`, `narrowing.ts`, `context.ts`, `builtin-rules.ts`, `module.ts`,
@@ -415,7 +415,24 @@ design.
 
 ---
 
-## Milestone 3 — field-path & discriminant narrowing (stretch)
+## Milestone 3 — field-path & discriminant narrowing (stretch) **[✅ landed]**
+
+**As built:** the fact key space on `ctx.narrowings` generalized from bare var
+names to **static access paths**. `asPath` (`ast.ts`) canonicalizes a `$var` /
+literal-string `$get` chain to a dot-joined string (`"move.from"`, `"x.tag"`); a
+single-segment path is the plain var name, so M1/M2 bare-var facts are unchanged.
+`projectField` moved to `schema.ts` as a pure `(target, key, defs)` op so both
+`synth`'s `$get` case and narrowing can share it without a cycle. Production:
+`factsFromCondition`'s type-predicate branch now takes an `asPath` subject and
+computes its current type via `currentTypeOfExpr` (`narrowing.ts`, projects
+through the base), and `equalityFact` recognizes a `base.field == lit`
+discriminant, narrowing the *base* var via `restrictToDiscriminant` (keep arms
+whose `field` admits the literal on true; drop the exact-`const` arm on false).
+Consumption: `synth`'s `$get` case reads `ctx.narrowings[asPath(expr)]` before
+projecting (mirrors the `"var"` case). The M2 re-synth engine picks path facts up
+because `collectVars` now records the path string alongside its root var, so the
+free-var gate re-synthesizes a local that reaches through a narrowed path. Tests:
+`describe("chess fragments — Tier 4 …")` in `check.test.ts`. Original plan below.
 
 The tail: narrowing subjects that are **paths**, not bare vars.
 
@@ -461,8 +478,11 @@ recognized discriminant/isNull forms.
    redesign). *Exit met:* `pieceMoves`/`slideDir`/`parseMove` fragments clean;
    per-arm divergence test passes (memo split + diagnostic dedupe); no-narrowing
    fast path unchanged.
-4. **M3** ← next — field-path / discriminant narrowing + §5.6 exhaustiveness together.
-   *Exit:* `moveResult`/`parseMove` clean end to end.
+4. **M3** ✅ — field-path / discriminant narrowing. *Exit met:* nullable-field
+   (`isNull(move.from)` then `move.from`) and discriminated-union
+   (`s.tag == lit`) fragments clean; disjoint field use stays a hard error; lazy
+   local through a path narrows at its forcing site. (§5.6 exhaustiveness shares
+   the discriminant scan but is not built here — future work.)
 
 ## Open forks
 
@@ -482,7 +502,7 @@ recognized discriminant/isNull forms.
 
 Barrel exports as declared at the end of each file.
 
-- **`ast.ts`** — `nodeKind`, `asVarName`, `litOf`.
+- **`ast.ts`** — `nodeKind`, `asVarName`, `asPath`, `litOf`.
 - **`builtin-rules.ts`** — `synthBuiltinCall`.
 - **`builtin-types.ts`** — types: `TVarNode`, `BuiltinSig`, `BuiltinEntry`,
   `BuiltinTable`, `Bindings`.
@@ -498,6 +518,6 @@ Barrel exports as declared at the end of each file.
   values: `SchemaKind`, `isSchemaObject`, `classifySchema`, `asObject`,
   `refName`, `resolveRef`, `resolveDeep`, `unionArms`, `literalValues`,
   `deepEqual`, `itemsSchema`, `prefixItems`, `tupleRest`, `apMode`, `properties`,
-  `requiredKeys`, `fnShape`, `valueType`, `typeMatches`, `unionOf`.
+  `requiredKeys`, `fnShape`, `valueType`, `typeMatches`, `unionOf`, `projectField`.
 - **`subsumption.ts`** — `isSubschema`.
 - **`values.ts`** — `valueSatisfies`.

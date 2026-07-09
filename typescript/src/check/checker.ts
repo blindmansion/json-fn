@@ -10,7 +10,7 @@
 // everything in a `where` block and only some bindings are ever forced.
 
 import type { JSONType } from "../types";
-import { asVarName, litOf, nodeKind } from "./ast";
+import { asPath, asVarName, litOf, nodeKind } from "./ast";
 import {
   at,
   bindingKeys,
@@ -37,12 +37,10 @@ import {
   classifySchema,
   fnShape,
   isSchemaObject,
-  itemsSchema,
-  prefixItems,
+  projectField,
   properties,
   resolveRef,
   SchemaKind,
-  tupleRest,
   unionArms,
   unionOf,
   type Defs,
@@ -99,6 +97,14 @@ function collectVars(expr: JSONType, acc: Set<string>): void {
     return;
   }
   if ("$raw" in o) return;
+  // A static access path (`move.from`) is itself a narrowable subject (§5.5 M3),
+  // so record it alongside its root var — a local that reaches through it must
+  // re-synth when that path is narrowed. Then descend as usual (the root var is
+  // still collected from `$from`).
+  if (nodeKind(o) === "get") {
+    const p = asPath(o);
+    if (p !== null) acc.add(p);
+  }
   for (const val of Object.values(o)) collectVars(val, acc);
 }
 
@@ -218,48 +224,6 @@ function synthData(v: JSONType): Schema {
     return { type: "object", properties: props, required, additionalProperties: false };
   }
   return { const: v };
-}
-
-// Project the type of `target[key]` out of the target's schema. Handles the
-// common static cases (object property by literal string key, array/tuple
-// element by literal number key, static folded paths); anything dynamic or
-// out-of-fragment degrades to `any`.
-function projectField(target: Schema, key: JSONType, ctx: CheckContext): Schema {
-  let t = target;
-  while (classifySchema(t) === SchemaKind.Ref) t = resolveRef(t, ctx.defs);
-  if (t === true) return true;
-
-  if (typeof key === "string") {
-    if (classifySchema(t) !== SchemaKind.Object) return true;
-    const o = asObject(t);
-    const props = properties(o);
-    if (key in props) return props[key]!;
-    const mode = apMode(o);
-    if (mode.kind === "map") return mode.schema;
-    if (mode.kind === "open") return true;
-    // Closed object, missing key: the evaluator yields null at runtime.
-    return { type: "null" };
-  }
-
-  if (typeof key === "number") {
-    const k = classifySchema(t);
-    if (k === SchemaKind.Array) return itemsSchema(asObject(t));
-    if (k === SchemaKind.Tuple) {
-      const o = asObject(t);
-      const pi = prefixItems(o);
-      if (key >= 0 && key < pi.length) return pi[key]!;
-      return tupleRest(o) ?? { type: "null" };
-    }
-    return true;
-  }
-
-  if (Array.isArray(key)) {
-    let cur = target;
-    for (const seg of key) cur = projectField(cur, seg, ctx);
-    return cur;
-  }
-
-  return true; // dynamic key
 }
 
 // The signature of a callee, or null when it can't be resolved statically
@@ -446,6 +410,15 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
 
     case "get": {
       const g = expr as { $get: JSONType; $from: JSONType };
+      // A dominating guard may have narrowed this exact access path (§5.5 M3),
+      // e.g. `isNull(move.from)` refining `move.from` on the non-null arm. The
+      // path fact is already intersected with the projected type, so a hit is
+      // authoritative — mirror the `"var"` case and return it directly.
+      const path = asPath(expr);
+      if (path !== undefined && path !== null) {
+        const narrowed = ctx.narrowings?.[path];
+        if (narrowed !== undefined) return narrowed;
+      }
       const target = synth(g.$from, at(ctx, "$from"));
       // Only literal keys project statically; dynamic keys degrade to any.
       const key = nodeKind(g.$get) === "scalar" || Array.isArray(g.$get) ? g.$get : undefined;
@@ -453,7 +426,7 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
         synth(g.$get, at(ctx, "$get"));
         return true;
       }
-      return projectField(target, key, ctx);
+      return projectField(target, key, ctx.defs);
     }
 
     case "raw":

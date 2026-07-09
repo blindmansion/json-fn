@@ -1133,3 +1133,161 @@ describe("chess fragments — Tier 3: lazy-local & boolean-guard narrowing (§5.
     expect(diags[0]!.path).toEqual(["plain", "$return", "$args[0]"]);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Tier 4 — field-path & discriminant narrowing (§5.5 M3).
+//
+// M1/M2 narrow a bare `$var`. M3 extends narrowing to subjects that are
+// *paths* — a field/element reached *through* a value:
+//   * Nullable field: `isNull(move.from)` then `move.from` used as a `Piece`.
+//     The guard subject is the path `move.from`, keyed as such on
+//     `ctx.narrowings` and read back at the `$get` projection site.
+//   * Discriminated union: `s.tag == "circle"` narrows `s` to the union arm
+//     whose `tag` is `const "circle"`, so `s.r`/`s.side` project cleanly.
+// The M2 re-synth machinery (free-var gate, fact-keyed cache) is reused: a lazy
+// local that reaches through a narrowed path re-synthesizes under the path fact.
+// ---------------------------------------------------------------------------
+
+describe("chess fragments — Tier 4: field-path & discriminant narrowing (§5.5 M3)", () => {
+  const BT = loadBuiltinTable();
+  const c = (name: JSONType, ...args: JSONType[]): JSONType => ({ $call: name, $args: args });
+  const v = (name: string): JSONType => ({ $var: name });
+  const g = (key: JSONType, from: JSONType): JSONType => ({ $get: key, $from: from });
+
+  const Piece: Schema = { $ref: "#/$defs/Piece" };
+  const Cell: Schema = { $ref: "#/$defs/Cell" };
+  const StringOrNull: Schema = { anyOf: [S, { type: "null" }] };
+  const PieceOrNull: Schema = { anyOf: [Piece, { type: "null" }] };
+
+  // A move whose endpoints are *nullable* piece cells (the M3 field-path case:
+  // the guarded thing is `move.from`, not `move`).
+  const Move: Schema = {
+    type: "object",
+    properties: { from: Cell, to: Cell },
+    required: ["from", "to"],
+    additionalProperties: false,
+  };
+
+  const types: Defs = {
+    Piece: { enum: ["K", "Q", "R", "B", "N", "P", "k", "q", "r", "b", "n", "p"] },
+    Cell: { anyOf: [{ $ref: "#/$defs/Piece" }, { type: "null" }] },
+  };
+
+  test("nullable field: isNull(move.from) narrows the path move.from to Piece in the else-arm", () => {
+    // (move: Move) => if isNull(move.from) then null else upper(move.from)
+    // Without path narrowing, `move.from : Cell` (Piece | null), `upper` wants
+    // string → a narrowable warning. M3 narrows the *path* `move.from` to
+    // `Piece` on the else-arm, so `upper(move.from)` type-checks clean.
+    const mod = {
+      $types: types,
+      firstGlyph: body(
+        ["move"],
+        { params: [Move], returns: StringOrNull },
+        {
+          $if: c("isNull", g("from", v("move"))),
+          $then: null,
+          $else: c("upper", g("from", v("move"))),
+        },
+      ),
+    };
+    expect(checkModule(mod, BT)).toEqual([]);
+  });
+
+  test("discriminated union: s.tag == lit narrows s to the matching arm", () => {
+    // (s: Shape) => if s.tag == "circle" then s.r else s.side
+    // Without narrowing, `s` is the full union in both arms, so `s.r`/`s.side`
+    // project to `any` (union isn't an object) and `any ⊄ integer` is a hard
+    // error. M3 narrows `s` to the arm whose `tag` const matches, so each
+    // projection yields the declared `integer`.
+    const Circle: Schema = {
+      type: "object",
+      properties: { tag: { const: "circle" }, r: I },
+      required: ["tag", "r"],
+      additionalProperties: false,
+    };
+    const Square: Schema = {
+      type: "object",
+      properties: { tag: { const: "square" }, side: I },
+      required: ["tag", "side"],
+      additionalProperties: false,
+    };
+    const shapeTypes: Defs = { Shape: { anyOf: [Circle, Square] } };
+    const Shape: Schema = { $ref: "#/$defs/Shape" };
+    const mod = {
+      $types: shapeTypes,
+      area: body(
+        ["s"],
+        { params: [Shape], returns: I },
+        {
+          $if: c("eq", g("tag", v("s")), "circle"),
+          $then: g("r", v("s")),
+          $else: g("side", v("s")),
+        },
+      ),
+    };
+    expect(checkModule(mod, BT)).toEqual([]);
+  });
+
+  test("disjoint field use stays a hard error even after path narrowing", () => {
+    // Narrow `move.from` to `Piece`, then feed it where an integer is wanted.
+    // `Piece` is disjoint from `integer`, so this must remain a hard error —
+    // path narrowing must not silence a genuine mismatch.
+    const mod = {
+      $types: types,
+      needInt: body(["n"], { params: [I], returns: I }, v("n")),
+      badField: body(
+        ["move"],
+        { params: [Move], returns: I },
+        {
+          $if: c("not", c("isNull", g("from", v("move")))),
+          $then: c("needInt", g("from", v("move"))),
+          $else: 0,
+        },
+      ),
+    };
+    const diags = checkModule(mod, BT);
+    expect(diags.length).toBe(1);
+    expect(diags[0]!.severity).toBe("error");
+    expect(diags[0]!.path).toEqual(["badField", "$return", "$then", "$args[0]"]);
+  });
+
+  test("lazy local through a path: a where-local bound from move.from narrows at forcing", () => {
+    // (move: Move) => if isNull(move.from) then null else glyph
+    //   where glyph = upper(move.from)
+    // `glyph` reaches through the narrowed path `move.from` but is forced only
+    // in the non-null else-arm. The M2 re-synth engine (free-var gate widened to
+    // record path keys) re-types it under the `move.from : Piece` fact → clean.
+    const mod = {
+      $types: types,
+      firstGlyphLocal: body(
+        ["move"],
+        { params: [Move], returns: StringOrNull },
+        {
+          $if: c("isNull", g("from", v("move"))),
+          $then: null,
+          $else: v("glyph"),
+        },
+        { glyph: c("upper", g("from", v("move"))) },
+      ),
+    };
+    expect(checkModule(mod, BT)).toEqual([]);
+  });
+
+  test("negated field guard narrows to non-null on the then-arm", () => {
+    // (move: Move) => if !isNull(move.to) then move.to else null
+    // The truthy branch of `!isNull(move.to)` proves `move.to : Piece`.
+    const mod = {
+      $types: types,
+      target: body(
+        ["move"],
+        { params: [Move], returns: PieceOrNull },
+        {
+          $if: c("not", c("isNull", g("to", v("move")))),
+          $then: g("to", v("move")),
+          $else: null,
+        },
+      ),
+    };
+    expect(checkModule(mod, BT)).toEqual([]);
+  });
+});

@@ -181,6 +181,48 @@ function typeMatches(v: JSONType, t: string): boolean {
   return valueType(v) === t;
 }
 
+// Project the type of `target[key]` out of the target's schema. Handles the
+// common static cases (object property by literal string key, array/tuple
+// element by literal number key, static folded paths); anything dynamic or
+// out-of-fragment degrades to `any`. A pure schema operation (no checker
+// context) so both `synth`'s `$get` case and flow narrowing can share it.
+function projectField(target: Schema, key: JSONType, defs: Defs): Schema {
+  const t = resolveDeep(target, defs);
+  if (t === true) return true;
+
+  if (typeof key === "string") {
+    if (classifySchema(t) !== SchemaKind.Object) return true;
+    const o = asObject(t);
+    const props = properties(o);
+    if (key in props) return props[key]!;
+    const mode = apMode(o);
+    if (mode.kind === "map") return mode.schema;
+    if (mode.kind === "open") return true;
+    // Closed object, missing key: the evaluator yields null at runtime.
+    return { type: "null" };
+  }
+
+  if (typeof key === "number") {
+    const k = classifySchema(t);
+    if (k === SchemaKind.Array) return itemsSchema(asObject(t));
+    if (k === SchemaKind.Tuple) {
+      const o = asObject(t);
+      const pi = prefixItems(o);
+      if (key >= 0 && key < pi.length) return pi[key]!;
+      return tupleRest(o) ?? { type: "null" };
+    }
+    return true;
+  }
+
+  if (Array.isArray(key)) {
+    let cur = target;
+    for (const seg of key) cur = projectField(cur, seg, defs);
+    return cur;
+  }
+
+  return true; // dynamic key
+}
+
 // Build a union schema from branch/arm types, flattening + deduping. Kept
 // deliberately simple (an `anyOf`, which `subsumes` handles); the shorthand
 // printer owns the §2.3 enum/type-array canonicalization.
@@ -221,4 +263,5 @@ export {
   valueType,
   typeMatches,
   unionOf,
+  projectField,
 };

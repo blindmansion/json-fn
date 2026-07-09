@@ -14,7 +14,7 @@
 // (falling back to the M0 warning path), never a silent pass.
 
 import type { JSONType } from "../types";
-import { asVarName, litOf } from "./ast";
+import { asPath, asVarName, litOf, nodeKind } from "./ast";
 import { type CheckContext } from "./context";
 import {
   type Schema,
@@ -25,6 +25,7 @@ import {
   SchemaKind,
   asObject,
   literalValues,
+  projectField,
   unionArms,
   unionOf,
   deepEqual,
@@ -37,6 +38,30 @@ import { valueSatisfies } from "./values";
 // declared type from Γ. `undefined` when the name is unbound (can't narrow).
 function currentType(name: string, ctx: CheckContext): Schema | undefined {
   return ctx.narrowings?.[name] ?? ctx.env.lookupType(name);
+}
+
+// The type an access-path expression has *right now* (§5.5 M3): the path's own
+// active narrowing if any, else the declared type — a bare var from Γ, or a
+// static `$get` chain projected out of its base's current type. `undefined`
+// when the subject isn't a static path or its base is unbound.
+function currentTypeOfExpr(node: JSONType, ctx: CheckContext): Schema | undefined {
+  const path = asPath(node);
+  if (path === null) return undefined;
+  const narrowed = ctx.narrowings?.[path];
+  if (narrowed !== undefined) return narrowed;
+
+  const name = asVarName(node);
+  if (name !== null) return ctx.env.lookupType(name);
+
+  if (nodeKind(node) === "get") {
+    const o = node as { $get: JSONType; $from: JSONType };
+    const baseT = currentTypeOfExpr(o.$from, ctx);
+    if (baseT === undefined) return undefined;
+    if (typeof o.$get === "string" || Array.isArray(o.$get)) {
+      return projectField(baseT, o.$get, ctx.defs);
+    }
+  }
+  return undefined;
 }
 
 // A child context with extra narrowing facts merged in (later facts win). A
@@ -193,9 +218,11 @@ function factsFromCondition(
   if (name === "not" && args.length === 1) return factsFromCondition(args[0]!, !sense, ctx, seen);
 
   if (name in TYPE_PREDICATES && args.length === 1) {
-    const subject = asVarName(args[0]!);
+    // The subject may be a bare `$var` (M1) or a static access path like
+    // `move.from` (M3); both serialize to a `ctx.narrowings` key via `asPath`.
+    const subject = asPath(args[0]!);
     if (subject === null) return {};
-    const cur = currentType(subject, ctx);
+    const cur = currentTypeOfExpr(args[0]!, ctx);
     if (cur === undefined) return {};
     const typeName = TYPE_PREDICATES[name]!;
     const narrowed = sense
@@ -212,27 +239,68 @@ function factsFromCondition(
   return {};
 }
 
-// Fact from `x == <lit>` (either argument order). On the true branch the var is
-// pinned to the literal; on the false branch the literal is excluded.
+// Fact from `x == <lit>` (either argument order). The literal side is whichever
+// operand is a literal; the other is the subject. A *bare-var* subject is
+// pinned to (true) / stripped of (false) the literal. A *field-path* subject
+// (`x.tag == "A"`) is a discriminant: it narrows the base var `x` to the union
+// arm(s) whose `tag` admits the literal (§5.5 M3).
 function equalityFact(
   a: JSONType,
   b: JSONType,
   sense: boolean,
   ctx: CheckContext,
 ): Record<string, Schema> {
-  let subject = asVarName(a);
+  let subjectNode: JSONType = a;
   let lit = litOf(b);
-  if (subject === null || lit === null) {
-    subject = asVarName(b);
+  if (lit === null) {
+    subjectNode = b;
     lit = litOf(a);
   }
-  if (subject === null || lit === null) return {};
-  const cur = currentType(subject, ctx);
-  if (cur === undefined) return {};
-  const narrowed = sense
-    ? restrictToLiteral(cur, lit.v, ctx.defs)
-    : excludeLiteral(cur, lit.v, ctx.defs);
-  return { [subject]: narrowed };
+  if (lit === null) return {};
+
+  const name = asVarName(subjectNode);
+  if (name !== null) {
+    const cur = currentType(name, ctx);
+    if (cur === undefined) return {};
+    const narrowed = sense
+      ? restrictToLiteral(cur, lit.v, ctx.defs)
+      : excludeLiteral(cur, lit.v, ctx.defs);
+    return { [name]: narrowed };
+  }
+
+  // Discriminated-union narrowing: `base.field == lit` refines `base`.
+  if (nodeKind(subjectNode) === "get") {
+    const o = subjectNode as { $get: JSONType; $from: JSONType };
+    const base = asVarName(o.$from);
+    if (base === null || typeof o.$get !== "string") return {};
+    const cur = currentType(base, ctx);
+    if (cur === undefined) return {};
+    return { [base]: restrictToDiscriminant(cur, o.$get, lit.v, sense, ctx.defs) };
+  }
+  return {};
+}
+
+// Meet a union with "arm's `field` (dis)agrees with `lit`" (§5.5 M3). On the
+// true branch keep arms whose `field` could hold `lit`; on the false branch
+// drop arms whose `field` is *exactly* `const lit` (the discriminant match).
+// A no-op for non-unions (nothing to discriminate).
+function restrictToDiscriminant(
+  s: Schema,
+  field: string,
+  lit: JSONType,
+  sense: boolean,
+  defs: Defs,
+): Schema {
+  const arms = unionArms(resolveDeep(s, defs));
+  if (!arms) return s;
+  const kept = arms.filter((arm) => {
+    const fieldT = resolveDeep(projectField(arm, field, defs), defs);
+    if (sense) return valueSatisfies(lit, fieldT, defs);
+    const isExact =
+      classifySchema(fieldT) === SchemaKind.Const && deepEqual(asObject(fieldT).const!, lit);
+    return !isExact;
+  });
+  return unionOf(kept);
 }
 
 // Fold a `$and`/`$or` arm list into a single fact map, threading each arm's

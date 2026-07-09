@@ -49,6 +49,27 @@ function asVarName(node: JSONType): string | null {
   return nodeKind(node) === "var" ? (node as { $var: string }).$var : null;
 }
 
+// The canonical dot-joined path a node denotes when it is a *static access
+// path* — a bare `$var`, or a chain of literal-string `$get`s rooted at one
+// (§5.5 M3). `move.from`, `x.tag`, `x.a.b`. Returns null for anything dynamic
+// (a computed key, a numeric index, a non-var root). A single-segment path
+// serializes to the plain var name, so it is key-compatible with the M1/M2
+// bare-var narrowings on `ctx.narrowings`.
+function asPath(node: JSONType): string | null {
+  if (nodeKind(node) === "var") return (node as { $var: string }).$var;
+  if (nodeKind(node) === "get") {
+    const o = node as { $get: JSONType; $from: JSONType };
+    const base = asPath(o.$from);
+    if (base === null) return null;
+    if (typeof o.$get === "string") return `${base}.${o.$get}`;
+    if (Array.isArray(o.$get) && o.$get.every((k) => typeof k === "string")) {
+      return [base, ...(o.$get as string[])].join(".");
+    }
+    return null;
+  }
+  return null;
+}
+
 // A literal JSON value a node denotes (scalar node, or a scalar `$raw`
 // payload), boxed so a literal `null` is distinguishable from "not a literal".
 function litOf(node: JSONType): { v: JSONType } | null {
@@ -60,4 +81,4 @@ function litOf(node: JSONType): { v: JSONType } | null {
   return null;
 }
 
-export { nodeKind, asVarName, litOf };
+export { nodeKind, asVarName, asPath, litOf };
