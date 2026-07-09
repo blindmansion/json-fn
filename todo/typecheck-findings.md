@@ -30,13 +30,6 @@ Worth stating up front, since most of this behaved:
 
 ## Soundness gaps
 
-### Optional fields drop optionality
-
-Accessing an optional field yields the bare type, not `T | null`. With
-`type User = { id: string, score?: integer }`, `u.score` infers as `integer`
-(confirmed by forcing a mismatch against a `string` return). Absence is not
-reflected.
-
 ### `&&` / `||` are not boolean-checked
 
 `1 && 2` type-checks (result `anyOf[const 1, const 2]`), and `true && false`
@@ -52,6 +45,18 @@ The operators appear special-cased and skip operand checking + boolean result.
 
 `pipe(5, (n) => n + 1, (n) => n * 2)` infers `true`; the `pipe` rule doesn't
 propagate a result type.
+
+### Computed index access isn't integer-checked
+
+`arr[i]` (a language-level `$get` with a computed numeric key) is projected
+structurally without requiring the index to be an `integer`, so
+`arr[2.5]`-style access isn't rejected. The integer-demanding *builtin*
+positions (e.g. `setAt`'s index, the `+`/`/` overloads) already declare
+`integer` in `spec/builtins.json` and *are* checked; the gap is only the
+language-level `$get` path. Closing this makes indexing fully covered, which is
+the main thing the `integer`/`number` distinction buys us (whole-vs-fractional
+values are otherwise interchangeable — `2.0` correctly folds to `integer`, and
+that's a sound subtyping choice, not a bug).
 
 ## Diagnostics / ergonomics
 
@@ -86,17 +91,6 @@ isn't in the type) yields `null` with no error. Could mask typos.
 body's return expression (and its bindings *are* type-checked). The `let ... in`
 removal error explicitly recommends `expr where { ... }`, which then doesn't
 parse standalone — misleading message.
-
-### Tuple element access via `.0` doesn't parse
-
-`p.0` → `expected property name after '.', found number 0`. `p[0]` works and
-types correctly. Either document the bracket form or accept `.0`.
-
-### `2.0` collapses to `integer`
-
-`2.0 * 2 : integer` — the `2.0` literal is indistinguishable from `2` in JSON,
-so it loses its float-ness. Inherent to JSON numbers, but surprising given the
-`integer` / `number` distinction.
 
 ## Cosmetic (type rendering)
 

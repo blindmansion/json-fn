@@ -194,7 +194,13 @@ function projectField(target: Schema, key: JSONType, defs: Defs): Schema {
     if (classifySchema(t) !== SchemaKind.Object) return true;
     const o = asObject(t);
     const props = properties(o);
-    if (key in props) return props[key]!;
+    if (key in props) {
+      // An optional field (declared in `properties` but absent from `required`)
+      // may be missing at runtime, where the evaluator yields null. Reflect the
+      // absence as `T | null` so readers must account for it.
+      const propType = props[key]!;
+      return requiredKeys(o).includes(key) ? propType : unionOf([propType, { type: "null" }]);
+    }
     const mode = apMode(o);
     if (mode.kind === "map") return mode.schema;
     if (mode.kind === "open") return true;

@@ -497,6 +497,35 @@ describe("checkModule: clean programs", () => {
     };
     expect(checkModule(mod)).toEqual([]);
   });
+
+  test("$get on an optional field projects `T | null`", () => {
+    const $types = {
+      User: {
+        type: "object",
+        properties: { id: S, score: I },
+        required: ["id"], // `score` optional
+        additionalProperties: false,
+      },
+    };
+    const userRef = { $ref: "#/$defs/User" };
+    const scoreOf = (ret: Schema): Record<string, JSONType> => ({
+      $types,
+      f: body(["u"], { params: [userRef], returns: ret }, { $get: "score", $from: { $var: "u" } }),
+    });
+
+    // Optional access is `integer | null`, so it fits `integer | null` cleanly
+    // but not a bare `integer` (absence must be handled).
+    expect(checkModule(scoreOf({ type: ["integer", "null"] }))).toEqual([]);
+    expect(checkModule(scoreOf(I)).length).toBeGreaterThan(0);
+
+    // A required field keeps its bare type.
+    const idOf = body(
+      ["u"],
+      { params: [userRef], returns: S },
+      { $get: "id", $from: { $var: "u" } },
+    );
+    expect(checkModule({ $types, f: idOf })).toEqual([]);
+  });
 });
 
 describe("checkModule: diagnostics", () => {
