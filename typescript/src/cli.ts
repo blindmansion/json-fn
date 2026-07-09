@@ -1,10 +1,11 @@
 #!/usr/bin/env bun
 // jfn — a small CLI for poking at the json-fn language from a terminal.
 //
-// It exposes the three "directions" the language supports as subcommands:
+// It exposes the "directions" the language supports as subcommands:
 //   to-shorthand  canonical json-fn JSON  ->  .jfn shorthand
 //   to-json       .jfn shorthand          ->  canonical json-fn JSON
 //   eval          evaluate a .jfn expression (or module entry) and print it
+//   check         parse a .jfn expression/module and typecheck it
 //
 // Input is read from a positional argument, a --file, or stdin (in that order),
 // so all three compose well with pipes and heredocs.
@@ -52,9 +53,10 @@ eval options:
   -c, --compact       With --json, emit minified JSON
 
 check options:
-      Reads *canonical json-fn JSON* (there is no type-shorthand parser yet), so
-      $sig / $types must already be in JSON Schema form.
+      Parses .jfn shorthand (including type annotations) and typechecks it. By
+      default the input is treated as a module; use --expr for one expression.
   -e, --expr          Check a single expression and print its inferred type
+      --json          Read canonical json-fn JSON instead of .jfn shorthand
       --no-builtins   Don't load the builtin signature table (spec/builtins.json)
       --strict        Exit non-zero on warnings too (default: only on errors)
   -c, --compact       With --expr, emit the inferred type as minified JSON
@@ -65,8 +67,8 @@ Examples:
   jfn eval '(x) => x * x' --args '[9]'
   jfn eval 'map((n) => n + 1, [1, 2, 3])' --shorthand
   printf '{ inc: (n) => n + 1, main: () => inc(41) }' | jfn eval --entry main
-  jfn check --expr '{ "$call": "add", "$args": [1, 2] }'
-  jfn check --file module.json
+  jfn check --expr 'add(1, 2)'
+  jfn check --file ../examples/types.jfn
 `;
 
 type ParsedArgs = {
@@ -246,6 +248,7 @@ async function cmdCheck(argv: string[]): Promise<void> {
     {
       "-e": "expr",
       "--expr": "expr",
+      "--json": "json-input",
       "--no-builtins": "no-builtins",
       "--strict": "strict",
       "-c": "compact",
@@ -253,12 +256,23 @@ async function cmdCheck(argv: string[]): Promise<void> {
     },
   );
 
-  const raw = await readInput(parsed);
+  const src = await readInput(parsed);
   let json: JSONType;
-  try {
-    json = JSON.parse(raw) as JSONType;
-  } catch (e) {
-    fail(`invalid JSON input: ${errMessage(e)}`);
+  if (parsed.flags.has("json-input")) {
+    // Escape hatch: read canonical json-fn JSON directly, skipping the parser.
+    // Useful for `to-json | check` pipelines and canonical type modules that
+    // don't yet round-trip through the shorthand printer.
+    try {
+      json = JSON.parse(src) as JSONType;
+    } catch (e) {
+      fail(`invalid JSON input: ${errMessage(e)}`);
+    }
+  } else {
+    try {
+      json = parseShorthand(src);
+    } catch (e) {
+      fail(`could not parse shorthand: ${errMessage(e)}`);
+    }
   }
 
   // Builtins are on by default — most real code (the chess example, anything
