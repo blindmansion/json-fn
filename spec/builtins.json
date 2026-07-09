@@ -71,6 +71,26 @@
     "floor": [{ "params": [{ "type": "number" }], "returns": { "type": "integer" } }],
     "ceil": [{ "params": [{ "type": "number" }], "returns": { "type": "integer" } }],
     "round": [{ "params": [{ "type": "number" }], "returns": { "type": "integer" } }],
+    "max": [
+      {
+        "params": [{ "type": "array", "items": { "type": "integer" } }],
+        "returns": { "type": "integer" }
+      },
+      {
+        "params": [{ "type": "array", "items": { "type": "number" } }],
+        "returns": { "type": "number" }
+      }
+    ],
+    "min": [
+      {
+        "params": [{ "type": "array", "items": { "type": "integer" } }],
+        "returns": { "type": "integer" }
+      },
+      {
+        "params": [{ "type": "array", "items": { "type": "number" } }],
+        "returns": { "type": "number" }
+      }
+    ],
     "eq": [{ "params": [true, true], "returns": { "type": "boolean" } }],
     "neq": [{ "params": [true, true], "returns": { "type": "boolean" } }],
     "lt": [
@@ -98,10 +118,25 @@
     "isString": [{ "params": [true], "returns": { "type": "boolean" } }],
     "isArray": [{ "params": [true], "returns": { "type": "boolean" } }],
     "isObject": [{ "params": [true], "returns": { "type": "boolean" } }],
+    "isTask": [{ "params": [true], "returns": { "type": "boolean" } }],
     "str": [{ "params": [true], "returns": { "type": "string" } }],
+    "num": [{ "params": [true], "returns": { "type": "number" } }],
     "upper": [{ "params": [{ "type": "string" }], "returns": { "type": "string" } }],
     "lower": [{ "params": [{ "type": "string" }], "returns": { "type": "string" } }],
     "trim": [{ "params": [{ "type": "string" }], "returns": { "type": "string" } }],
+    "strcat": [{ "params": [], "rest": { "type": "string" }, "returns": { "type": "string" } }],
+    "split": [
+      {
+        "params": [{ "type": "string" }, { "type": "string" }],
+        "returns": { "type": "array", "items": { "type": "string" } }
+      }
+    ],
+    "join": [
+      {
+        "params": [{ "type": "array" }, { "type": "string" }],
+        "returns": { "type": "string" }
+      }
+    ],
     "length": [
       { "params": [{ "type": "array" }], "returns": { "type": "integer" } },
       { "params": [{ "type": "string" }], "returns": { "type": "integer" } }
@@ -113,12 +148,92 @@
         "returns": { "anyOf": [{ "$tvar": "T" }, { "type": "null" }] }
       }
     ],
+    "last": [
+      {
+        "typeParams": ["T"],
+        "params": [{ "type": "array", "items": { "$tvar": "T" } }],
+        "returns": { "anyOf": [{ "$tvar": "T" }, { "type": "null" }] }
+      }
+    ],
+    "tail": [
+      {
+        "typeParams": ["T"],
+        "params": [{ "type": "array", "items": { "$tvar": "T" } }],
+        "returns": { "type": "array", "items": { "$tvar": "T" } }
+      }
+    ],
+    "reverse": [
+      {
+        "typeParams": ["T"],
+        "params": [{ "type": "array", "items": { "$tvar": "T" } }],
+        "returns": { "type": "array", "items": { "$tvar": "T" } }
+      }
+    ],
+    "flatten": [
+      {
+        "typeParams": ["T"],
+        "params": [{ "type": "array", "items": { "type": "array", "items": { "$tvar": "T" } } }],
+        "returns": { "type": "array", "items": { "$tvar": "T" } }
+      }
+    ],
     "concat": [
       {
         "typeParams": ["T"],
         "params": [],
         "rest": { "type": "array", "items": { "$tvar": "T" } },
         "returns": { "type": "array", "items": { "$tvar": "T" } }
+      }
+    ],
+    "range": [
+      {
+        "params": [{ "type": "integer" }],
+        "returns": { "type": "array", "items": { "type": "integer" } }
+      }
+    ],
+    "slice": [
+      {
+        "typeParams": ["T"],
+        "params": [{ "type": "array", "items": { "$tvar": "T" } }, { "type": "integer" }],
+        "returns": { "type": "array", "items": { "$tvar": "T" } }
+      },
+      {
+        "typeParams": ["T"],
+        "params": [
+          { "type": "array", "items": { "$tvar": "T" } },
+          { "type": "integer" },
+          { "type": "integer" }
+        ],
+        "returns": { "type": "array", "items": { "$tvar": "T" } }
+      },
+      {
+        "params": [{ "type": "string" }, { "type": "integer" }],
+        "returns": { "type": "string" }
+      },
+      {
+        "params": [{ "type": "string" }, { "type": "integer" }, { "type": "integer" }],
+        "returns": { "type": "string" }
+      }
+    ],
+    "includes": [
+      {
+        "typeParams": ["T"],
+        "params": [{ "type": "array", "items": { "$tvar": "T" } }, { "$tvar": "T" }],
+        "returns": { "type": "boolean" }
+      },
+      {
+        "params": [{ "type": "string" }, { "type": "string" }],
+        "returns": { "type": "boolean" }
+      }
+    ],
+    "indexOf": [
+      {
+        "typeParams": ["T"],
+        "params": [{ "type": "array", "items": { "$tvar": "T" } }, { "$tvar": "T" }],
+        "returns": { "type": "integer" }
+      },
+      {
+        "params": [{ "type": "string" }, { "type": "string" }],
+        "returns": { "type": "integer" }
       }
     ],
     "setAt": [
@@ -130,6 +245,28 @@
           { "$tvar": "T" }
         ],
         "returns": { "type": "array", "items": { "$tvar": "T" } }
+      }
+    ],
+    "keys": [{ "params": [{ "type": "object" }], "returns": { "type": "array", "items": { "type": "string" } } }],
+    "values": [{ "params": [{ "type": "object" }], "returns": { "type": "array" } }],
+    "entries": [{ "params": [{ "type": "object" }], "returns": { "type": "array", "items": { "type": "array" } } }],
+    "fromEntries": [{ "params": [{ "type": "array" }], "returns": { "type": "object" } }],
+    "merge": [
+      { "params": [{ "type": "object" }, { "type": "object" }], "returns": { "type": "object" } }
+    ],
+    "hasKey": [
+      { "params": [{ "type": "object" }, { "type": "string" }], "returns": { "type": "boolean" } }
+    ],
+    "pick": [
+      {
+        "params": [{ "type": "object" }, { "type": "array", "items": { "type": "string" } }],
+        "returns": { "type": "object" }
+      }
+    ],
+    "omit": [
+      {
+        "params": [{ "type": "object" }, { "type": "array", "items": { "type": "string" } }],
+        "returns": { "type": "object" }
       }
     ],
     "map": [
@@ -162,12 +299,208 @@
         "returns": { "type": "array", "items": { "$tvar": "T" } }
       }
     ],
+    "reduce": [
+      {
+        "typeParams": ["T", "U"],
+        "params": [
+          {
+            "$fnType": {
+              "params": [{ "$tvar": "U" }, { "$tvar": "T" }, { "type": "integer" }],
+              "returns": { "$tvar": "U" }
+            }
+          },
+          { "$tvar": "U" },
+          { "type": "array", "items": { "$tvar": "T" } }
+        ],
+        "returns": { "$tvar": "U" }
+      }
+    ],
+    "find": [
+      {
+        "typeParams": ["T"],
+        "params": [
+          {
+            "$fnType": {
+              "params": [{ "$tvar": "T" }, { "type": "integer" }],
+              "returns": { "type": "boolean" }
+            }
+          },
+          { "type": "array", "items": { "$tvar": "T" } }
+        ],
+        "returns": { "anyOf": [{ "$tvar": "T" }, { "type": "null" }] }
+      }
+    ],
+    "findIndex": [
+      {
+        "typeParams": ["T"],
+        "params": [
+          {
+            "$fnType": {
+              "params": [{ "$tvar": "T" }, { "type": "integer" }],
+              "returns": { "type": "boolean" }
+            }
+          },
+          { "type": "array", "items": { "$tvar": "T" } }
+        ],
+        "returns": { "type": "integer" }
+      }
+    ],
+    "some": [
+      {
+        "typeParams": ["T"],
+        "params": [
+          {
+            "$fnType": {
+              "params": [{ "$tvar": "T" }, { "type": "integer" }],
+              "returns": { "type": "boolean" }
+            }
+          },
+          { "type": "array", "items": { "$tvar": "T" } }
+        ],
+        "returns": { "type": "boolean" }
+      }
+    ],
+    "every": [
+      {
+        "typeParams": ["T"],
+        "params": [
+          {
+            "$fnType": {
+              "params": [{ "$tvar": "T" }, { "type": "integer" }],
+              "returns": { "type": "boolean" }
+            }
+          },
+          { "type": "array", "items": { "$tvar": "T" } }
+        ],
+        "returns": { "type": "boolean" }
+      }
+    ],
+    "sort": [
+      {
+        "typeParams": ["T"],
+        "params": [
+          {
+            "$fnType": {
+              "params": [{ "$tvar": "T" }, { "$tvar": "T" }],
+              "returns": { "type": "number" }
+            }
+          },
+          { "type": "array", "items": { "$tvar": "T" } }
+        ],
+        "returns": { "type": "array", "items": { "$tvar": "T" } }
+      }
+    ],
+    "sortBy": [
+      {
+        "typeParams": ["T"],
+        "params": [
+          {
+            "$fnType": {
+              "params": [{ "$tvar": "T" }, { "type": "integer" }],
+              "returns": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+            }
+          },
+          { "type": "array", "items": { "$tvar": "T" } }
+        ],
+        "returns": { "type": "array", "items": { "$tvar": "T" } }
+      }
+    ],
+    "groupBy": [
+      {
+        "typeParams": ["T"],
+        "params": [
+          {
+            "$fnType": {
+              "params": [{ "$tvar": "T" }, { "type": "integer" }],
+              "returns": { "type": "string" }
+            }
+          },
+          { "type": "array", "items": { "$tvar": "T" } }
+        ],
+        "returns": {
+          "type": "object",
+          "additionalProperties": { "type": "array", "items": { "$tvar": "T" } }
+        }
+      }
+    ],
+    "flatMap": [
+      {
+        "typeParams": ["T", "U"],
+        "params": [
+          {
+            "$fnType": {
+              "params": [{ "$tvar": "T" }, { "type": "integer" }],
+              "returns": { "type": "array", "items": { "$tvar": "U" } }
+            }
+          },
+          { "type": "array", "items": { "$tvar": "T" } }
+        ],
+        "returns": { "type": "array", "items": { "$tvar": "U" } }
+      }
+    ],
+    "mapValues": [
+      {
+        "params": [
+          { "$fnType": { "params": [true, { "type": "string" }], "returns": true } },
+          { "type": "object" }
+        ],
+        "returns": { "type": "object" }
+      }
+    ],
+    "apply": { "rule": "apply" },
+    "pipe": { "rule": "pipe" },
+    "reTest": [
+      { "params": [{ "type": "string" }, { "type": "string" }], "returns": { "type": "boolean" } }
+    ],
     "reMatch": [
       {
         "params": [{ "type": "string" }, { "type": "string" }],
         "returns": { "anyOf": [{ "$ref": "#/$defs/Match" }, { "type": "null" }] }
       }
     ],
-    "pipe": { "rule": "pipe" }
+    "reMatchAll": [
+      {
+        "params": [{ "type": "string" }, { "type": "string" }],
+        "returns": { "type": "array", "items": { "$ref": "#/$defs/Match" } }
+      }
+    ],
+    "reReplace": [
+      {
+        "params": [{ "type": "string" }, { "type": "string" }, { "type": "string" }],
+        "returns": { "type": "string" }
+      }
+    ],
+    "reSplit": [
+      {
+        "params": [{ "type": "string" }, { "type": "string" }],
+        "returns": { "type": "array", "items": { "type": "string" } }
+      }
+    ],
+    "reReplaceWith": [
+      {
+        "params": [
+          { "type": "string" },
+          { "$fnType": { "params": [{ "$ref": "#/$defs/Match" }], "returns": { "type": "string" } } },
+          { "type": "string" }
+        ],
+        "returns": { "type": "string" }
+      }
+    ],
+    "perform": { "rule": "perform" },
+    "pure": { "rule": "pure" },
+    "bind": { "rule": "bind" },
+    "raise": { "rule": "raise" },
+    "handle": { "rule": "handle" },
+    "arity": [
+      { "params": [true], "returns": { "anyOf": [{ "type": "integer" }, { "type": "null" }] } }
+    ],
+    "log": [
+      { "typeParams": ["T"], "params": [{ "$tvar": "T" }], "returns": { "$tvar": "T" } },
+      {
+        "typeParams": ["T"],
+        "params": [{ "$tvar": "T" }, { "type": "string" }],
+        "returns": { "$tvar": "T" }
+      }
+    ]
   }
 }

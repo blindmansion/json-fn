@@ -38,8 +38,17 @@ function isTVar(s: Schema): s is TVarNode {
   return isSchemaObject(s) && "$tvar" in s;
 }
 
-function isUnboundTVar(s: Schema, bindings: Bindings): boolean {
-  return isTVar(s) && !(s.$tvar in bindings);
+// Does the template mention a type variable anywhere? Checked recursively so we
+// see vars nested in a callback's return template (e.g. `flatMap`'s `U[]`), not
+// just a bare top-level tvar (e.g. `map`'s `U`). A return that mentions a var is
+// *inferred* from the lambda body (binding output vars, joining into vars an
+// input already pinned — the `reduce` accumulator); a fully concrete return
+// (e.g. `filter`'s `boolean`, `sort`'s `number`) is instead strictly checked.
+function mentionsTVar(s: Schema): boolean {
+  if (isTVar(s)) return true;
+  if (Array.isArray(s)) return s.some(mentionsTVar);
+  if (isSchemaObject(s)) return Object.values(s).some((v) => mentionsTVar(v as Schema));
+  return false;
 }
 
 // Substitute bound type variables throughout a signature template. An unbound
@@ -194,7 +203,7 @@ function applyOverload(sig: BuiltinSig, argExprs: JSONType[], ctx: CheckContext)
     };
     const actx = at(ctx, `$args[${i}]`);
     const ret = inferLambdaReturn(argExprs[i]!, expectedFn, actx);
-    if (isUnboundTVar(shape.returns, bindings)) {
+    if (mentionsTVar(shape.returns)) {
       unifyTemplate(shape.returns, ret, bindings, ctx);
     } else {
       const inst = instantiate(shape.returns, bindings);
