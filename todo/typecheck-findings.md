@@ -30,28 +30,6 @@ Worth stating up front, since most of this behaved:
 
 ## Soundness gaps
 
-### Declared return type unchecked outside the module path (fixed)
-
-Previously a typed lambda's declared `-> type` was only verified against its
-inferred body on the `checkModule` path; two entry points skipped the check:
-
-- **`checkExpr` (CLI `--expr`).** `synth` on a function body just returned the
-  declared `$fnType` and trusted the annotation, so
-  `check --expr '(x: string | null) -> string => x'` reported no error.
-- **Inline typed lambdas in call position.** The contextual path
-  (`builtin-rules.ts` `inferLambdaReturn`) overwrote the lambda's `$sig` with the
-  callee's expected shape and checked the body against *that*, ignoring the
-  lambda's self-declared `-> type`, so `map((n: integer) -> string => n, …)`
-  passed.
-
-Fixed: the body-vs-declared-return check is now a shared `checkBody` helper
-(`checker.ts`) called from both the module entry *and* `synth`'s `body` case, so
-it fires for standalone/`--expr` lambdas and function literals in value/`$return`
-position; `inferLambdaReturn` additionally checks the body against the lambda's
-own declared return before contextual typing replaces its `$sig`. (Overlapping
-mismatches like `string | null ⊄ string` surface as a *warning* via
-`narrowableMismatch`, disjoint ones as an error — unchanged.)
-
 ### `pipe` returns `any`
 
 `pipe(5, (n) => n + 1, (n) => n * 2)` infers `true`; the `pipe` rule doesn't
@@ -88,6 +66,25 @@ Reading a field not declared on a closed object type (`u.name` where `name`
 isn't in the type) yields `null` with no error. Could mask typos.
 
 ## Language / parse quirks
+
+### A malformed typed-lambda return annotation reports a misleading error
+
+```
+$ jfn to-json '(x: integer) -> (integer -> string) => y'
+parse error at 1:3: expected ')', found 'colon'
+```
+
+The real mistake is the return type: a function type wraps its *parameter list*
+in parens (`(integer) -> string`), so this should be
+`-> ((integer) -> string)`. But the error points at the `:` in the parameter
+list (column 3), nowhere near the actual problem. Cause: `looksLikeFuncLit`
+gates the lambda interpretation on `returnTypeEndsInFatArrow`, which does a
+throwaway type-parse of the return annotation inside a `try { … } catch { return
+false }` (`parser.ts`). The malformed return type throws, the `catch` swallows
+it, so the whole `( … )` is no longer seen as a lambda header and falls through
+to the grouping-paren branch — which then fails at the first token an expression
+can't accept (the `:`). Surfacing the discarded type-parse error (or noting the
+`->`-without-a-valid-return-type shape) would point at the real fault.
 
 ### `where` only parses in function-body return position
 
