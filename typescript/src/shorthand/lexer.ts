@@ -38,6 +38,7 @@ export type TokPunct =
   | "star"
   | "slash"
   | "percent"
+  | "equals" //    =    (type declaration)
   | "eqeq" //      ==
   | "bangeq" //    !=
   | "lt"
@@ -46,6 +47,8 @@ export type TokPunct =
   | "gteq"
   | "andand" //    &&
   | "oror" //      ||
+  | "pipe" //      |    (type union)
+  | "question" //  ?    (optional object key)
   | "eof";
 
 /** A token plus its 1-based source position (start of the token). */
@@ -199,7 +202,9 @@ class Lexer {
           this.bump();
           return { type: "fatarrow" };
         }
-        throw this.err("unexpected '='; use '==' or '=>'");
+        // A lone `=` is the type-declaration separator (`type Name = …`); the
+        // term grammar only ever uses `==`/`=>`.
+        return { type: "equals" };
       case "<":
         if (n === "=") {
           this.bump();
@@ -223,7 +228,11 @@ class Lexer {
           this.bump();
           return { type: "oror" };
         }
-        throw this.err("unexpected '|'; use '||'");
+        // A lone `|` is the type-union operator (disjoint from the term grammar,
+        // which only ever asks for `||`).
+        return { type: "pipe" };
+      case "?":
+        return { type: "question" };
       default:
         throw this.err(`unexpected character '${c}'`);
     }

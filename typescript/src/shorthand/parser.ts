@@ -6,15 +6,17 @@
  */
 
 import type { JSONType, Param, FieldPattern } from "../types";
-import { ParseError } from "./error";
+import { TokenCursor, describe } from "./cursor";
 import { lex } from "./lexer";
-import type { TemplatePart, Tok, TokPunct, Token } from "./lexer";
+import type { TemplatePart, TokPunct } from "./lexer";
+import { TypeParser, arrayElement } from "./type-parser";
+import type { Schema } from "./type-parser";
 
 /** Parse a full `.jfn` expression, returning canonical json-fn JSON. */
 export function parse(src: string): JSONType {
   const tokens = lex(src);
   const p = new Parser(tokens);
-  const v = p.parseExpr();
+  const v = p.parseProgram();
   p.expect("eof", "end of input");
   return v;
 }
@@ -35,67 +37,19 @@ const COMPARISON_OPS: Partial<Record<TokPunct, string>> = {
   gteq: "gte",
 };
 
-class Parser {
-  private tokens: Token[];
-  private pos = 0;
+class Parser extends TokenCursor {
+  // ----- program entry (module object or bare expression) -----
 
-  constructor(tokens: Token[]) {
-    this.tokens = tokens;
-  }
-
-  private peek(): Tok {
-    return this.tokens[this.pos]!.tok;
-  }
-
-  private peekType(): Tok["type"] {
-    return this.peek().type;
-  }
-
-  private advance(): Tok {
-    const t = this.tokens[this.pos]!.tok;
-    if (this.pos + 1 < this.tokens.length) this.pos++;
-    return t;
-  }
-
-  private err(message: string): ParseError {
-    const t = this.tokens[this.pos]!;
-    return new ParseError(message, t.line, t.col);
-  }
-
-  expect(type: TokPunct, what: string): void {
-    if (this.peekType() === type) {
+  /** Parse a whole program: a top-level `{ … }` is a **module** (a data object
+   * that may also carry `type Name = …` declarations, lowered to `$types`);
+   * anything else is a bare top-level expression (which admits no `type`
+   * declarations). */
+  parseProgram(): JSONType {
+    if (this.peekType() === "lbrace") {
       this.advance();
-    } else {
-      throw this.err(`expected ${what}, found ${describe(this.peek())}`);
+      return this.parseModule();
     }
-  }
-
-  private isKeyword(kw: string): boolean {
-    const t = this.peek();
-    return t.type === "ident" && t.value === kw;
-  }
-
-  private eatKeyword(kw: string): boolean {
-    if (this.isKeyword(kw)) {
-      this.advance();
-      return true;
-    }
-    return false;
-  }
-
-  private expectKeyword(kw: string): void {
-    if (!this.eatKeyword(kw)) {
-      throw this.err(`expected '${kw}', found ${describe(this.peek())}`);
-    }
-  }
-
-  private expectIdent(what: string): string {
-    const t = this.peek();
-    if (t.type === "ident") {
-      this.advance();
-      return t.value;
-    }
-    throw this.err(`expected ${what}, found ${describe(t)}`);
+    return this.parseExpr();
   }
 
   // ----- expression precedence ladder (spec section 6) -----
@@ -366,49 +320,106 @@ class Parser {
       return map;
     }
     for (;;) {
-      const t = this.peek();
-      let key: string;
-      let bareIdent = false;
-      if (t.type === "ident" || t.type === "str") {
-        this.advance();
-        key = t.value;
-        bareIdent = t.type === "ident";
-      } else {
-        throw this.err(`expected data-object key, found ${describe(t)}`);
-      }
-      if (key.startsWith("$")) {
-        throw this.err(
-          `data-object key "${key}" must not start with '$'; use 'raw' for $-keyed data`,
-        );
-      }
-      // Shorthand-property punning: a bare identifier key not followed by `:`
-      // stands for `key: key`, lowering to a `$var` read of the same name.
-      if (bareIdent && (this.peekType() === "comma" || this.peekType() === "rbrace")) {
-        map[key] = { $var: key };
-      } else {
-        this.expect("colon", "':' after data-object key");
-        map[key] = this.parseExpr();
-      }
-      const type = this.peekType();
-      if (type === "comma") {
-        this.advance();
-        if (this.peekType() === "rbrace") {
-          this.advance();
-          break;
-        }
-      } else if (type === "rbrace") {
-        this.advance();
-        break;
-      } else {
-        throw this.err("expected ',' or '}' in data object");
-      }
+      this.parseDataEntry(map);
+      if (this.consumeObjectSep("data object")) break;
     }
     return map;
   }
 
+  /** Parse one ordinary object entry (binding / constant / pun) into `map`.
+   * Shared by `parseDataObject` and `parseModule`. */
+  private parseDataEntry(map: Record<string, JSONType>): void {
+    const t = this.peek();
+    let key: string;
+    let bareIdent = false;
+    if (t.type === "ident" || t.type === "str") {
+      this.advance();
+      key = t.value;
+      bareIdent = t.type === "ident";
+    } else {
+      throw this.err(`expected data-object key, found ${describe(t)}`);
+    }
+    if (key.startsWith("$")) {
+      throw this.err(
+        `data-object key "${key}" must not start with '$'; use 'raw' for $-keyed data`,
+      );
+    }
+    // Shorthand-property punning: a bare identifier key not followed by `:`
+    // stands for `key: key`, lowering to a `$var` read of the same name.
+    if (bareIdent && (this.peekType() === "comma" || this.peekType() === "rbrace")) {
+      map[key] = { $var: key };
+    } else {
+      this.expect("colon", "':' after data-object key");
+      map[key] = this.parseExpr();
+    }
+  }
+
+  /** Consume the `,`/`}` after an object entry. Returns `true` when the object
+   * has closed (a `}` was consumed), `false` to continue the loop. */
+  private consumeObjectSep(what: string): boolean {
+    const type = this.peekType();
+    if (type === "comma") {
+      this.advance();
+      if (this.peekType() === "rbrace") {
+        this.advance();
+        return true;
+      }
+      return false;
+    }
+    if (type === "rbrace") {
+      this.advance();
+      return true;
+    }
+    throw this.err(`expected ',' or '}' in ${what}`);
+  }
+
+  /** Parse the top-level module object (`{` already consumed): a superset of
+   * `parseDataObject` that also recognizes `type Name = <type>` declarations
+   * and lowers them into a reserved `$types` sibling (spec §8). */
+  private parseModule(): JSONType {
+    const map: Record<string, JSONType> = {};
+    const types: Record<string, Schema> = {};
+    if (this.peekType() === "rbrace") {
+      this.advance();
+      return map;
+    }
+    for (;;) {
+      // `type` is a contextual keyword only when followed by an identifier (the
+      // type name); `type: expr` and the `{ type }` pun stay data entries.
+      if (this.isKeyword("type") && this.peek2().type === "ident") {
+        this.advance();
+        const name = this.expectIdent("type name");
+        if (name in types) {
+          throw this.err(`duplicate type declaration '${name}'`);
+        }
+        this.expect("equals", "'=' in type declaration");
+        types[name] = this.parseTypeExpr();
+      } else {
+        this.parseDataEntry(map);
+      }
+      if (this.consumeObjectSep("module")) break;
+    }
+    if (Object.keys(types).length > 0) {
+      return { $types: types, ...map };
+    }
+    return map;
+  }
+
+  /** Spin up the type-expression sub-parser at the current cursor, parse one
+   * `<type>`, and resync the term parser to where types left off. */
+  private parseTypeExpr(): Schema {
+    const tp = new TypeParser(this.tokens, this.pos);
+    const schema = tp.parseType();
+    this.pos = tp.position();
+    return schema;
+  }
+
   // ----- function literals & let-bindings (spec section 8) -----
 
-  /** Peek whether the `(` at the cursor begins `( params ) =>`. */
+  /** Peek whether the `(` at the cursor begins a function literal: either
+   * `( params ) =>` (bare) or `( params ) -> <type> =>` (typed). The latter is
+   * confirmed by parsing the return type and checking for the `=>`, which
+   * distinguishes a typed lambda from a `cond`/`match` arm `(expr) -> result`. */
   private looksLikeFuncLit(): boolean {
     let depth = 0;
     let i = this.pos;
@@ -420,15 +431,38 @@ class Parser {
       } else if (t.type === "rparen") {
         depth--;
         if (depth === 0) {
-          return this.tokens[i + 1]?.tok.type === "fatarrow";
+          const next = this.tokens[i + 1]?.tok.type;
+          if (next === "fatarrow") return true;
+          if (next === "arrow") return this.returnTypeEndsInFatArrow(i + 2);
+          return false;
         }
       }
       i++;
     }
   }
 
+  /** Lookahead from `start` (just past a `->`): does a return type parse there
+   * and land on a `=>`? A throwaway `TypeParser` confirms a typed-lambda header
+   * without committing the cursor. */
+  private returnTypeEndsInFatArrow(start: number): boolean {
+    try {
+      const tp = new TypeParser(this.tokens, start);
+      tp.parseType();
+      return this.tokens[tp.position()]?.tok.type === "fatarrow";
+    } catch {
+      return false;
+    }
+  }
+
   private parseFuncLit(): JSONType {
-    const params = this.parseParams();
+    const parsed = this.parseParams();
+    // Optional `-> <type>` return annotation before the `=>`.
+    let returns: Schema | null = null;
+    if (this.peekType() === "arrow") {
+      this.advance();
+      returns = this.parseTypeExpr();
+    }
+    const sig = this.buildSig(parsed, returns);
     this.expect("fatarrow", "'=>'");
     // Body is `expr` optionally followed by a `where { ... }` clause supplying
     // the (lazy, order-independent) locals. `where` is not an operator, so
@@ -437,17 +471,57 @@ class Parser {
     const locals = this.eatKeyword("where") ? this.parseWhereBindings() : [];
     // A function body inlines its `where` locals directly (params + locals +
     // $return); no IIFE needed since this scope already exists.
-    return this.buildScope(params, locals, ret);
+    return this.buildScope(parsed.params, locals, ret, sig);
   }
 
-  /** Assemble a scope map (`$params`? + locals + `$return`) shared by function
-   * literals and expression-level `where` (spec section 8). */
+  /** Enforce all-or-nothing signatures (spec §7) and, when a function is fully
+   * typed, assemble its `$sig` node (positionally aligned with `$params`, with
+   * a rest param contributing `rest`). Returns `null` for a bare function. */
+  private buildSig(parsed: ParsedParams, returns: Schema | null): Schema | null {
+    const slots = parsed.params.length;
+    const annotated = parsed.slotSchemas.filter((s) => s !== null).length;
+    const hasReturn = returns !== null;
+
+    const fullyTyped = slots > 0 ? annotated === slots && hasReturn : hasReturn;
+    const bare = annotated === 0 && !hasReturn;
+    if (!fullyTyped && !bare) {
+      if (annotated > 0 && annotated < slots) {
+        throw this.err("all parameters must be typed, or none");
+      }
+      if (annotated === slots && slots > 0 && !hasReturn) {
+        throw this.err("a typed function must declare a return type with '-> <type>'");
+      }
+      throw this.err("all parameters must be typed when a return type is declared");
+    }
+    if (!fullyTyped) return null;
+
+    const params: Schema[] = [];
+    let rest: Schema | undefined;
+    for (let i = 0; i < parsed.params.length; i++) {
+      if (i === parsed.restIndex) {
+        rest = parsed.slotSchemas[i]!;
+      } else {
+        params.push(parsed.slotSchemas[i]!);
+      }
+    }
+    const sig: Record<string, JSONType> = { params };
+    if (rest !== undefined) sig.rest = rest;
+    sig.returns = returns!;
+    return sig;
+  }
+
+  /** Assemble a scope map (`$sig`? + `$params`? + locals + `$return`) shared by
+   * function literals and expression-level `where` (spec section 8). */
   private buildScope(
     params: Param[],
     locals: [string, JSONType][],
     ret: JSONType,
+    sig: Schema | null = null,
   ): Record<string, JSONType> {
     const map: Record<string, JSONType> = {};
+    if (sig !== null) {
+      map.$sig = sig;
+    }
     if (params.length > 0) {
       map.$params = params;
     }
@@ -473,23 +547,32 @@ class Parser {
     return { $call: this.buildScope([], locals, expr), $args: [] };
   }
 
-  private parseParams(): Param[] {
+  private parseParams(): ParsedParams {
     this.expect("lparen", "'('");
     const params: Param[] = [];
+    // `slotSchemas[i]` is the annotation on `params[i]` (a rest slot holds its
+    // *element* type, already unwrapped from the `T[]` surface), or `null` when
+    // unannotated. `restIndex` marks the sole `...rest` slot, if any.
+    const slotSchemas: (Schema | null)[] = [];
+    let restIndex = -1;
     if (this.peekType() === "rparen") {
       this.advance();
-      return params;
+      return { params, slotSchemas, restIndex };
     }
     for (;;) {
+      let isRest = false;
       if (this.peekType() === "dotdotdot") {
         this.advance();
         // A rest pattern `...{ x }` is unsupported: expectIdent rejects `{`.
         params.push(`...${this.expectIdent("rest parameter name")}`);
+        isRest = true;
+        restIndex = params.length - 1;
       } else if (this.peekType() === "lbrace") {
         params.push(this.parseFieldPattern());
       } else {
         params.push(this.expectIdent("parameter name"));
       }
+      slotSchemas.push(this.parseParamAnnotation(isRest));
       const type = this.peekType();
       if (type === "comma") {
         this.advance();
@@ -500,7 +583,22 @@ class Parser {
         throw this.err("expected ',' or ')' in parameter list");
       }
     }
-    return params;
+    return { params, slotSchemas, restIndex };
+  }
+
+  /** Parse an optional `: <type>` annotation on the param slot just read. A
+   * rest slot's annotation is written as `T[]` (matching how the args arrive)
+   * and unwrapped one array layer to its element schema (spec §7.1). */
+  private parseParamAnnotation(isRest: boolean): Schema | null {
+    if (this.peekType() !== "colon") return null;
+    this.advance();
+    const schema = this.parseTypeExpr();
+    if (!isRest) return schema;
+    const element = arrayElement(schema);
+    if (element === undefined) {
+      throw this.err("a rest parameter's type must be an array, e.g. ...xs: T[]");
+    }
+    return element;
   }
 
   /** Parse an object-pattern parameter `{ f1, f2, }` into `{ $fields: [...] }`.
@@ -892,6 +990,16 @@ class Parser {
 
 // ----- lowering helpers -----
 
+/** A parsed parameter list plus its per-slot type annotations (§4.2). */
+type ParsedParams = {
+  params: Param[];
+  // Parallel to `params`; `null` at unannotated slots. A rest slot holds its
+  // element schema (unwrapped from the surface `T[]`).
+  slotSchemas: (Schema | null)[];
+  // Index of the sole `...rest` slot in `params`, or -1 when there is none.
+  restIndex: number;
+};
+
 /** One parsed entry of a `do` block, before desugaring. */
 type DoEntry =
   | { kind: "effect"; name: string; value: JSONType } // `name <- expr`
@@ -953,20 +1061,4 @@ function buildAccess(base: JSONType, segs: Seg[]): JSONType {
  * path. */
 function foldStatic(run: JSONType[]): JSONType {
   return run.length === 1 ? run[0]! : run;
-}
-
-/** Human-readable token description for error messages. */
-function describe(tok: Tok): string {
-  switch (tok.type) {
-    case "num":
-      return `number ${tok.value}`;
-    case "str":
-      return `string ${JSON.stringify(tok.value)}`;
-    case "ident":
-      return `identifier '${tok.value}'`;
-    case "template":
-      return "template string";
-    default:
-      return `'${tok.type}'`;
-  }
 }

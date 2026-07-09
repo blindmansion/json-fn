@@ -473,7 +473,7 @@ function buildScope(
   const localFnKeys: string[] = [];
   let scopedFunctions = functions;
   for (const key of Object.keys(fn)) {
-    if (key === "$return" || key === "$params") continue;
+    if (key === "$return" || key === "$params" || key === "$sig" || key === "$types") continue;
     const val = fn[key];
     if (key === "$comment" && typeof val === "string") continue;
     if (typeof val === "object" && val !== null && !Array.isArray(val) && "$return" in val) {
@@ -804,7 +804,7 @@ function replaceVars(
     if ("$return" in expression) {
       const localNames = new Set(
         Object.keys(expression).filter((k) => {
-          if (k === "$return" || k === "$params") return false;
+          if (k === "$return" || k === "$params" || k === "$sig" || k === "$types") return false;
           if (k === "$comment" && typeof (expression as Record<string, JSONType>)[k] === "string")
             return false;
           return true;
@@ -937,7 +937,7 @@ function collectBodyLevelLocalFnRefs(
   out: Set<string>,
 ): void {
   for (const [key, value] of Object.entries(body)) {
-    if (key === "$params") continue;
+    if (key === "$params" || key === "$sig" || key === "$types") continue;
     if (key === "$comment" && typeof value === "string") continue;
     collectLocalFnRefs(value, attachFns, out);
   }

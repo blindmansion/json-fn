@@ -10,6 +10,7 @@ import {
   bindingKeys,
   EMPTY_ENV,
   isBody,
+  report,
   sigOf,
   stableStringify,
   type CheckContext,
@@ -29,10 +30,22 @@ function checkFunction(body: Record<string, JSONType>, ctx: CheckContext): void 
   }
 }
 
+// Options controlling optional (soft-rollout) module lints.
+type CheckModuleOptions = {
+  // §9: require every *top-level* function binding to carry a `$sig`. Nested
+  // helpers and inline lambdas stay tolerant (they degrade to `any`). Off by
+  // default so existing untyped modules keep checking clean.
+  requireTypedModuleFunctions?: boolean;
+};
+
 // Public entry, mirroring `callProgram`: lift `$types` into the defs pool, wire
 // the module scope (function `$fnType`s eager, constants lazy), then check each
 // function body. Returns all accumulated diagnostics.
-function checkModule(module: Record<string, JSONType>, builtins?: BuiltinTable): Diagnostic[] {
+function checkModule(
+  module: Record<string, JSONType>,
+  builtins?: BuiltinTable,
+  options: CheckModuleOptions = {},
+): Diagnostic[] {
   const moduleDefs: Defs = isSchemaObject(module.$types) ? (module.$types as Defs) : {};
   // Builtin-owned named types (`Match`, …) merge into the pool; module types
   // win on a name clash.
@@ -52,6 +65,14 @@ function checkModule(module: Record<string, JSONType>, builtins?: BuiltinTable):
   for (const key of bindingKeys(withoutTypes(module))) {
     const val = module[key]!;
     if (isBody(val)) {
+      // §9: top-level functions must be fully typed (opt-in). A missing `$sig`
+      // is reported here rather than in the parser, which lacks module context.
+      if (options.requireTypedModuleFunctions && sigOf(val) === null) {
+        report(
+          { ...ctx, path: [key] },
+          "module-level function must declare a signature (typed parameters and return)",
+        );
+      }
       checkFunction(val, { ...ctx, env, path: [key] });
     } else {
       // Force top-level constants so their bodies get walked for errors even
@@ -114,3 +135,4 @@ function checkExpr(
 }
 
 export { checkFunction, checkModule, checkExpr };
+export type { CheckModuleOptions };
