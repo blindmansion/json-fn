@@ -1,0 +1,165 @@
+// The checkable cousin of examples/thermostat.jfn — same thermostat controller,
+// same runtime behavior, but massaged to pass `jfn check` cleanly *today*.
+//
+// The goal file is written the way the type syntax *wants* to be used; this one
+// keeps every construct the checker already handles well and works around the
+// gaps it hits (all catalogued in todo/typecheck-findings.md). The domain stays
+// fully typed — `Config`/`Reading`/`State`/`Mode` records, the `Action`/`Fault`
+// discriminated unions, a typed `Device` capability record. Only the effect
+// boundary is loosened. The deltas from the goal, one per gap:
+//
+//   1. Effect kernel has no signatures -> every task expression is `any`, and a
+//      named `type Task = any` alias is *not* treated as top (a `$ref` to `any`
+//      isn't transparent), so effectful returns are annotated with the bare
+//      `any` keyword rather than a `Task` alias.
+//   2. `match` doesn't narrow a discriminated union (only `if`/`cond` do), so
+//      `decide`/`apply`/`describe`/`actuate` dispatch with `cond` on `.tag`.
+//   3. Reading a shared field off a union value degrades to `any` (`act.fault.tag`
+//      on the `Fault` union), so `faultTag` turns a `Fault` into a label with a
+//      `cond` over the discriminant instead of reading `.tag` as a value.
+//
+// Behavior is identical to the goal — same transcript, same fault ending:
+//   bun run typescript/src/cli.ts eval --file examples/thermostat-checked.jfn --entry demo
+//   bun run typescript/src/cli.ts check --file examples/thermostat-checked.jfn
+{
+  // ----- domain types -------------------------------------------------------
+  type Celsius = number,
+  type Percent = integer & min(0) & max(100),
+  type Mode    = "heat" | "cool" | "off",
+
+  type Config  = { target: Celsius, tolerance: number },
+  type Reading = { temp: Celsius, battery: Percent },
+  type State   = { config: Config, mode: Mode },
+
+  type Fault =
+      { tag: "OutOfRange", temp: Celsius }
+    | { tag: "LowBattery" },
+
+  type Action =
+      { tag: "hold" }
+    | { tag: "switch", to: Mode }
+    | { tag: "alarm",  fault: Fault },
+
+  // A typed capability record. Effect results are opaque (the kernel builtins
+  // have no signatures yet, and there is no `Task<T>`), so every method returns
+  // the bare `any` keyword — the one spot the effect boundary shows through.
+  type Device = {
+    read: () -> any,
+    set:  (Mode) -> any,
+    log:  (string) -> any
+  },
+
+  // ----- pure control logic -------------------------------------------------
+
+  // One reading -> one action. `cond` arms guard the sensor first (dead battery,
+  // implausible temperature), then steer toward `target` within `tolerance`.
+  decide: (cfg: Config, mode: Mode, reading: Reading) -> Action => cond {
+    reading.battery == 0                        -> { tag: "alarm", fault: { tag: "LowBattery" } },
+    reading.temp < -40 || reading.temp > 60     -> { tag: "alarm", fault: { tag: "OutOfRange", temp: reading.temp } },
+    reading.temp < cfg.target - cfg.tolerance   -> if mode == "heat" then { tag: "hold" } else { tag: "switch", to: "heat" },
+    reading.temp > cfg.target + cfg.tolerance   -> if mode == "cool" then { tag: "hold" } else { tag: "switch", to: "cool" },
+    mode != "off"                               -> { tag: "switch", to: "off" },
+    else                                        -> { tag: "hold" }
+  },
+
+  // Fold an action into the state. `cond` on `.tag` narrows the union so the
+  // `switch` arm can read `act.to`; `match` would leave it `any` (gap #2).
+  apply: (st: State, act: Action) -> State => cond {
+    act.tag == "switch" -> { config: st.config, mode: act.to },
+    else                -> st
+  },
+
+  // A `Fault` -> label without reading `.tag` as a *value* (gap #3): the `cond`
+  // discriminant is fine, only projecting the shared field off the union isn't.
+  faultTag: (f: Fault) -> string => cond {
+    f.tag == "LowBattery" -> "LowBattery",
+    else                  -> "OutOfRange"
+  },
+
+  // A human-readable transcript line for one action + the reading behind it.
+  describe: (act: Action, reading: Reading) -> string => cond {
+    act.tag == "switch" -> `${str(reading.temp)}C bat${str(reading.battery)}% -> ${act.to}`,
+    act.tag == "alarm"  -> `${str(reading.temp)}C bat${str(reading.battery)}% -> ALARM ${faultTag(act.fault)}`,
+    else                -> `${str(reading.temp)}C bat${str(reading.battery)}% -> hold`
+  },
+
+  // ----- IO as a typed capability record ------------------------------------
+  // The loop never names `perform`; it holds this narrow `Device` interface,
+  // which an outer handler is free to interpret however it likes.
+  dev: () -> Device => {
+    read: () -> any => perform("sensor.read", []),
+    set:  (mode: Mode) -> any => perform("hvac.set", [mode]),
+    log:  (msg: string) -> any => perform("log", [msg])
+  },
+
+  // Turn an action into its effect. `alarm` escalates as a typed `raise`, so an
+  // outer handler decides recovery; everything else pokes the HVAC (or nothing).
+  actuate: (action: Action) -> any => cond {
+    action.tag == "switch" -> dev().set(action.to),
+    action.tag == "alarm"  -> raise(action.fault),
+    else                   -> pure(null)
+  },
+
+  // ----- the control loop: straight-line do-notation ------------------------
+
+  onReading: (st: State, reading: Reading) -> any => do {
+    action: decide(st.config, st.mode, reading),
+    _ <- dev().log(describe(action, reading)),
+    _ <- actuate(action),
+    pure(apply(st, action))
+  },
+
+  // Read the sensor up to `fuel` times. A `null` reading (the sensor is out of
+  // data) ends the run gracefully with the final state.
+  loop: (st: State, fuel: integer) -> any =>
+    if fuel <= 0
+      then pure(st)
+      else bind(dev().read(), (reading) =>
+        if isNull(reading)
+          then pure(st)
+          else bind(onReading(st, reading), (next) => loop(next, fuel - 1))),
+
+  // ----- a scripted, in-language handler ------------------------------------
+  // One handler, three effects, one threaded record: `sensor.read` consumes the
+  // pending readings, `hvac.set`/`log` append to the transcript, `raise` ends
+  // the run with the fault tag. The clause lambdas are bare — they live inside
+  // an untyped `handle` call, so nothing constrains them.
+  runScript: (readings: Reading[], task: any) -> any => (handle task with {
+    "sensor.read": (resume) => (s) => (resume(next))(rest) where {
+      empty: length(s.pending) == 0,
+      next:  if empty then null else head(s.pending),
+      rest:  { pending: if empty then [] else tail(s.pending), out: s.out }
+    },
+    "hvac.set": (mode, resume) => (s) =>
+      (resume(null))({ pending: s.pending, out: concat(s.out, [`hvac := ${mode}`]) }),
+    "log": (msg, resume) => (s) =>
+      (resume(null))({ pending: s.pending, out: concat(s.out, [msg]) }),
+    raise: (fault, resume) => (s) => { ending: fault.tag, out: s.out },
+    return: (v) => (s) => { ending: v, out: s.out }
+  })({ pending: readings, out: [] }),
+
+  // ----- demos --------------------------------------------------------------
+
+  // A full run: cold -> heat, settle -> off, hot -> cool, settle -> off.
+  demoRun: () => runScript(script, loop(start, 10)) where {
+    start: { config: { target: 21, tolerance: 1.5 }, mode: "off" },
+    script: [
+      { temp: 18, battery: 90 },
+      { temp: 20, battery: 88 },
+      { temp: 24, battery: 85 },
+      { temp: 21, battery: 84 }
+    ]
+  },
+
+  // A run that trips a fault: an implausible reading `raise`s OutOfRange, which
+  // the handler turns into a fault-tagged ending instead of a state.
+  demoFault: () => runScript(
+    [{ temp: 99, battery: 50 }],
+    loop({ config: { target: 21, tolerance: 1.5 }, mode: "off" }, 10)
+  ),
+
+  demo: () => {
+    run:   demoRun(),
+    fault: demoFault()
+  }
+}
