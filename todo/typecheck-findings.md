@@ -60,12 +60,6 @@ that's a sound subtyping choice, not a bug).
 
 ## Diagnostics / ergonomics
 
-### Cascading errors
-
-`map((n) => n + 1)` reports the arity error *and* a spurious second error about
-the lambda's `$return` (the element type couldn't be inferred, so `n` became
-`any` and `n + 1` "failed"). One user error, two diagnostics.
-
 ### Overloaded-builtin failures only report the first overload
 
 `length(123)` complains it isn't an `array`, never mentioning the `string`

@@ -250,13 +250,22 @@ function paramAt(sig: Sig, i: number): Schema | null {
   return sig.rest ?? null;
 }
 
-function checkArity(sig: Sig, argc: number, ctx: CheckContext): void {
+// Report an arity mismatch, returning whether the count was acceptable. Callers
+// use the result to skip downstream, arity-dependent checks (e.g. contextual
+// lambda typing) that would otherwise pile spurious diagnostics onto the real
+// arity error.
+function checkArity(sig: Sig, argc: number, ctx: CheckContext): boolean {
   const min = sig.params.length;
   if (sig.rest === undefined) {
-    if (argc !== min) report(ctx, `Expected ${min} argument(s), got ${argc}.`);
+    if (argc !== min) {
+      report(ctx, `Expected ${min} argument(s), got ${argc}.`);
+      return false;
+    }
   } else if (argc < min) {
     report(ctx, `Expected at least ${min} argument(s), got ${argc}.`);
+    return false;
   }
+  return true;
 }
 
 // Infer a schema for an expression, accumulating diagnostics along the way.

@@ -881,6 +881,17 @@ describe("Section F — builtin signatures", () => {
       expect(r.diagnostics.some((d) => d.path.join(".") === "$args[1]")).toBe(true);
       expect(r.diagnostics.some((d) => d.severity === "error")).toBe(true);
     });
+
+    test("a wrong-arity call reports only the arity error, no lambda cascade", () => {
+      // `map` with the array argument missing: `T` never binds, so the lambda
+      // param would degrade to `any` and its body re-report. Only the arity
+      // error should surface — the body/return check is suppressed.
+      const addOne = { $params: ["n"], $return: call("add", { $var: "n" }, 1) };
+      const r = synthB(call("map", addOne));
+      expect(r.diagnostics.length).toBe(1);
+      expect(/Expected 2 argument/.test(r.diagnostics[0]!.message)).toBe(true);
+      expect(r.diagnostics.some((d) => d.path.join(".").includes("$return"))).toBe(false);
+    });
   });
 
   describe("through the module checker", () => {
