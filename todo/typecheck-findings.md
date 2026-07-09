@@ -30,9 +30,28 @@ Worth stating up front, since most of this behaved:
 
 ## Soundness gaps
 
-### `if` condition is not required to be boolean
+### Declared return type unchecked outside the module path
 
-`if 1 then 10 else 20` type-checks; the condition type is unchecked.
+A typed lambda's declared `-> type` is only verified against its inferred body
+on the `checkModule` → `checkFunction` path (`module.ts`, which calls
+`check($return, sig.returns)`). Two entry points skip that check:
+
+- **`checkExpr` (CLI `--expr`).** `synth` on a function body just returns the
+  declared `$fnType` (`checker.ts` `case "body"`) and trusts the annotation, so
+  `check --expr '(x: string | null) -> string => x'` reports no error even
+  though the body is `string | null`. Fix is to run `check($return, sig.returns)`
+  in the `checkExpr` path too.
+- **Inline typed lambdas in call position.** The contextual path
+  (`builtin-rules.ts` `inferLambdaReturn`) overwrites the lambda's `$sig` with
+  the callee's expected shape and checks the body against *that*, ignoring the
+  lambda's self-declared `-> type`. So `map((n: integer) -> string => n, …)`
+  passes.
+
+The parser lowers `-> type` to `$sig` correctly in both cases — the gap is
+purely which entry points invoke the return check. (Module-path mismatch is
+already covered by a passing test; overlapping mismatches like
+`string | null ⊄ string` surface as a *warning* via `narrowableMismatch`,
+disjoint ones as an error.)
 
 ### `pipe` returns `any`
 
@@ -91,6 +110,28 @@ Refinements are opaque: `s + 1` (an `integer`) is not assignable to
 `Score = integer & min(0) & max(100)`, and there's no narrowing/refinement path
 to produce a refined value. Expected given the model, but flagged for whenever
 refinement UX comes up.
+
+### `if` condition is truthiness-based, not boolean (precision, not soundness)
+
+Originally filed as a soundness gap ("`if 1 then 10 else 20` type-checks; the
+condition type is unchecked"). But `$if` is defined to branch on *truthiness*
+(`docs/language.md`: "`$if` is evaluated; if truthy, `$then` … otherwise
+`$else`"), exactly like `$and`/`$or`. So `1` is a legitimate condition and
+`if 1 then 10 else 20 : 10` was already sound — requiring a `boolean` condition
+would be wrong (it'd break `if x then … else default`-style truthiness checks).
+
+The precision win here is the `$if` analogue of the `$and`/`$or` fix below:
+narrow the condition *value* by its own truthiness inside each branch. A bare
+value / access-path condition now contributes its truthy slice to the
+then-branch and its falsy slice to the else-branch, via the same
+`restrictToTruthy`/`restrictToFalsy` helpers (new `truthinessFact` in
+`narrowing.ts`, applied through `factsFromCondition`, so `$cond` arms get it
+too). So `if x then x else "d"` with `x: string | null` is now `string | "d"`
+(null dropped in `then`), matching `x || "d"`. Predicate/comparison/discriminant
+narrowing (`if isNumber(x) …`) is unchanged. Purely a precision improvement.
+
+Still open (cosmetic, tracked under "Cosmetic" above): literal-union branch
+results aren't widened (`if … then 10 else 20 : anyOf[const 10, const 20]`).
 
 ### `&&` / `||` are value-returning, not boolean (precision, not soundness)
 
