@@ -18,7 +18,7 @@
 import type { JSONType } from "../types";
 import type { TVarNode, Bindings, BuiltinSig, BuiltinEntry } from "./builtin-types";
 import { buildTypeScope, checkArity, paramAt, reportMismatch, synth } from "./checker";
-import { at, type CheckContext, isBody } from "./context";
+import { at, type CheckContext, isBody, sigOf } from "./context";
 import {
   type Schema,
   isSchemaObject,
@@ -126,6 +126,10 @@ function unifyTemplate(
 // machinery by stamping a synthetic `$sig` onto the lambda body.
 function inferLambdaReturn(body: JSONType, expectedFn: Schema, ctx: CheckContext): Schema {
   const shape = fnShape(asObject(expectedFn));
+  // Contextual typing supplies the *parameter* types (inline lambdas usually
+  // omit them), but a lambda that declares its own `-> type` should still have
+  // its body checked against that annotation. Capture it before it's replaced.
+  const declaredReturn = sigOf(body as Record<string, JSONType>)?.returns;
   const withSig: Record<string, JSONType> = {
     ...(body as Record<string, JSONType>),
     $sig: {
@@ -136,7 +140,11 @@ function inferLambdaReturn(body: JSONType, expectedFn: Schema, ctx: CheckContext
   };
   const { env, guards } = buildTypeScope(withSig, ctx.env, ctx);
   const bctx: CheckContext = { ...ctx, env, guards, path: [...ctx.path, "$return"] };
-  return synth((body as Record<string, JSONType>).$return!, bctx);
+  const ret = synth((body as Record<string, JSONType>).$return!, bctx);
+  if (declaredReturn !== undefined && !isSubschema(ret, declaredReturn, ctx.defs)) {
+    reportMismatch(bctx, ret, declaredReturn);
+  }
+  return ret;
 }
 
 // Trial: can this overload accept the arguments? Binds type variables from the

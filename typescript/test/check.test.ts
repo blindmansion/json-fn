@@ -707,6 +707,42 @@ describe("synth: short-circuit $and / $or are value-returning", () => {
   });
 });
 
+describe("declared return type is enforced outside the module path", () => {
+  const BT = loadBuiltinTable();
+
+  test("checkExpr: a standalone typed lambda checks its body vs the declared return", () => {
+    // `(n: integer) -> string => n`: the body is integer, disjoint from string.
+    const { diagnostics } = checkExpr(body(["n"], { params: [I], returns: S }, { $var: "n" }));
+    expect(diagnostics.length).toBe(1);
+    expect(diagnostics[0]!.severity).toBe("error");
+    expect(diagnostics[0]!.path).toEqual(["$return"]);
+  });
+
+  test("checkExpr: a well-typed standalone lambda is clean", () => {
+    expect(checkExpr(body(["n"], { params: [I], returns: I }, { $var: "n" })).diagnostics).toEqual(
+      [],
+    );
+  });
+
+  test("inline typed lambda in a builtin call honors its own declared return", () => {
+    // `map((n: integer) -> string => n, [1,2,3])`: the callback body violates
+    // its self-declared `-> string`.
+    const call = {
+      $call: "map",
+      $args: [body(["n"], { params: [I], returns: S }, { $var: "n" }), [1, 2, 3]],
+    };
+    expect(checkExpr(call, {}, BT).diagnostics.some((d) => d.severity === "error")).toBe(true);
+  });
+
+  test("inline typed lambda with a matching declared return is clean", () => {
+    const call = {
+      $call: "map",
+      $args: [body(["n"], { params: [I], returns: I }, { $var: "n" }), [1, 2, 3]],
+    };
+    expect(checkExpr(call, {}, BT).diagnostics).toEqual([]);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // Section F — builtin signatures (the spec/builtins.json dialect, end to end)
 // ---------------------------------------------------------------------------

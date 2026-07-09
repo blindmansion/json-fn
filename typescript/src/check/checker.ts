@@ -334,10 +334,17 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
       return synth(fn, ctx);
     }
 
-    case "body":
-      // A function value. Its type is its declared `$fnType`; unannotated
-      // bodies (lambdas) can only be typed contextually (later milestone).
-      return bodyFnTypeSchema(expr as Record<string, JSONType>);
+    case "body": {
+      // A function value. Its type is its declared `$fnType`. When it declares
+      // a signature, also verify its body against the declared return type here
+      // — so the check fires for a standalone/`--expr` lambda or a function
+      // literal in value position, not only for module bindings. Un-annotated
+      // bodies (lambdas) can only be typed contextually (later milestone) and
+      // are left to the caller's contextual typing.
+      const body = expr as Record<string, JSONType>;
+      if (sigOf(body) !== null) checkBody(body, ctx);
+      return bodyFnTypeSchema(body);
+    }
 
     case "call": {
       const call = expr as { $call: JSONType; $args: JSONType[] };
@@ -541,4 +548,21 @@ function describe(schema: Schema): string {
   return JSON.stringify(schema);
 }
 
-export { buildTypeScope, synth, paramAt, checkArity, reportMismatch, check };
+// Check a function body against its declared signature: build its scope, verify
+// `$return` against the declared return type, then recurse into nested function
+// locals. Shared by the module entry (`checkModule`) and by `synth`'s body case,
+// so a declared `-> type` is enforced wherever a typed function literal appears
+// — a module binding, a value in `$return`/argument position, or a standalone
+// expression checked via `checkExpr` (`--expr`).
+function checkBody(body: Record<string, JSONType>, ctx: CheckContext): void {
+  const sig = sigOf(body);
+  const { env, guards } = buildTypeScope(body, ctx.env, ctx);
+  const bctx: CheckContext = { ...ctx, env, guards };
+  check(body.$return!, sig?.returns ?? true, at(bctx, "$return"));
+  for (const key of bindingKeys(body)) {
+    const val = body[key]!;
+    if (isBody(val)) checkBody(val, at(bctx, key));
+  }
+}
+
+export { buildTypeScope, synth, paramAt, checkArity, reportMismatch, check, checkBody };

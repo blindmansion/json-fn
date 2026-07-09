@@ -30,28 +30,27 @@ Worth stating up front, since most of this behaved:
 
 ## Soundness gaps
 
-### Declared return type unchecked outside the module path
+### Declared return type unchecked outside the module path (fixed)
 
-A typed lambda's declared `-> type` is only verified against its inferred body
-on the `checkModule` → `checkFunction` path (`module.ts`, which calls
-`check($return, sig.returns)`). Two entry points skip that check:
+Previously a typed lambda's declared `-> type` was only verified against its
+inferred body on the `checkModule` path; two entry points skipped the check:
 
-- **`checkExpr` (CLI `--expr`).** `synth` on a function body just returns the
-  declared `$fnType` (`checker.ts` `case "body"`) and trusts the annotation, so
-  `check --expr '(x: string | null) -> string => x'` reports no error even
-  though the body is `string | null`. Fix is to run `check($return, sig.returns)`
-  in the `checkExpr` path too.
+- **`checkExpr` (CLI `--expr`).** `synth` on a function body just returned the
+  declared `$fnType` and trusted the annotation, so
+  `check --expr '(x: string | null) -> string => x'` reported no error.
 - **Inline typed lambdas in call position.** The contextual path
-  (`builtin-rules.ts` `inferLambdaReturn`) overwrites the lambda's `$sig` with
-  the callee's expected shape and checks the body against *that*, ignoring the
-  lambda's self-declared `-> type`. So `map((n: integer) -> string => n, …)`
-  passes.
+  (`builtin-rules.ts` `inferLambdaReturn`) overwrote the lambda's `$sig` with the
+  callee's expected shape and checked the body against *that*, ignoring the
+  lambda's self-declared `-> type`, so `map((n: integer) -> string => n, …)`
+  passed.
 
-The parser lowers `-> type` to `$sig` correctly in both cases — the gap is
-purely which entry points invoke the return check. (Module-path mismatch is
-already covered by a passing test; overlapping mismatches like
-`string | null ⊄ string` surface as a *warning* via `narrowableMismatch`,
-disjoint ones as an error.)
+Fixed: the body-vs-declared-return check is now a shared `checkBody` helper
+(`checker.ts`) called from both the module entry *and* `synth`'s `body` case, so
+it fires for standalone/`--expr` lambdas and function literals in value/`$return`
+position; `inferLambdaReturn` additionally checks the body against the lambda's
+own declared return before contextual typing replaces its `$sig`. (Overlapping
+mismatches like `string | null ⊄ string` surface as a *warning* via
+`narrowableMismatch`, disjoint ones as an error — unchanged.)
 
 ### `pipe` returns `any`
 

@@ -4,9 +4,8 @@
 import type { JSONType } from "../types";
 import type { BuiltinTable } from "./builtin-types";
 import { synthBuiltinCall } from "./builtin-rules";
-import { buildTypeScope, check, synth } from "./checker";
+import { buildTypeScope, checkBody, synth } from "./checker";
 import {
-  at,
   bindingKeys,
   EMPTY_ENV,
   isBody,
@@ -17,18 +16,6 @@ import {
   type Diagnostic,
 } from "./context";
 import { type Defs, isSchemaObject, type Schema } from "./schema";
-
-// locals are checked recursively in the body's own scope.
-function checkFunction(body: Record<string, JSONType>, ctx: CheckContext): void {
-  const sig = sigOf(body);
-  const { env, guards } = buildTypeScope(body, ctx.env, ctx);
-  const bctx: CheckContext = { ...ctx, env, guards };
-  check(body.$return!, sig?.returns ?? true, at(bctx, "$return"));
-  for (const key of bindingKeys(body)) {
-    const val = body[key]!;
-    if (isBody(val)) checkFunction(val, at(bctx, key));
-  }
-}
 
 // Options controlling optional (soft-rollout) module lints.
 type CheckModuleOptions = {
@@ -73,7 +60,7 @@ function checkModule(
           "module-level function must declare a signature (typed parameters and return)",
         );
       }
-      checkFunction(val, { ...ctx, env, path: [key] });
+      checkBody(val, { ...ctx, env, path: [key] });
     } else {
       // Force top-level constants so their bodies get walked for errors even
       // when nothing references them.
@@ -134,5 +121,5 @@ function checkExpr(
   return { type: synth(expr, ctx), diagnostics: ctx.diagnostics };
 }
 
-export { checkFunction, checkModule, checkExpr };
+export { checkModule, checkExpr };
 export type { CheckModuleOptions };
