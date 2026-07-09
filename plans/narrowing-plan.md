@@ -1,7 +1,7 @@
 # §5.5 Narrowing — implementation plan
 
-Status: **build order — M0 ✅ + M1 ✅ + M2 ✅ + M3 ✅ landed.** Scopes the single
-biggest remaining gap in the typechecker. Since this plan was written the
+Status: **build order — M0 ✅ + M1 ✅ + M2 ✅ + M3 ✅ + §5.6 lint ✅ landed.**
+Scoped the single biggest gap in the typechecker. Since this plan was written the
 monolithic `check.ts` has been split into the `typescript/src/check/` package
 (`checker.ts`, `narrowing.ts`, `context.ts`, `builtin-rules.ts`, `module.ts`,
 `schema.ts`, `subsumption.ts`, `values.ts`, `ast.ts`); line references below use
@@ -452,6 +452,51 @@ recognized discriminant/isNull forms.
 
 ---
 
+## §5.6 — `$match` exhaustiveness & dead-case lints **[✅ landed]**
+
+A follow-on to M3, sharing its residual/discriminant machinery. Two lints, both
+`severity: "warning"` (json-fn's `$match`/`$cond` fall through at runtime, so a
+missed case is a *smell*, not unsound — same tier as the M0 narrowable warnings).
+
+**As built:** three helpers in `narrowing.ts` (`enumerateLiterals`,
+`discriminantValues`, exported `caseUniverse`) compute the **finite universe** of
+values a `$match` subject can take:
+
+- **Enum / union-of-consts / `null` / `boolean`** subjects → `enumerateLiterals`
+  over the synthesized subject type (an enum var, a `T | null`, etc.).
+- **Discriminant path** `base.field` → `discriminantValues` scans the base
+  union's arms and collects each arm's `field` const. This generalizes the
+  arm-scan in `restrictToDiscriminant` (M3): narrowing asked "which arm does this
+  narrow to?", the lint asks "what tags exist to cover?". It is *needed* because
+  `projectField` over a union collapses to `any`, so `synth(s.tag)` alone can't
+  see the tag set.
+- `caseUniverse` returns `null` when the universe isn't finite (a `string`/
+  `number` subject), so the lint stays quiet where exhaustiveness is undecidable.
+
+The `match` case of `synth` (`checker.ts`) now:
+
+- captures the subject type from the (already-issued) `synth(m.$match)` call and
+  computes `universe = caseUniverse(...)`;
+- collects `caseLiterals` (every literal case value) independently of the
+  bare-var narrowing, so path subjects (`s.tag`) participate;
+- **dead case:** a case literal not in `universe` → `Unreachable $match case …`
+  at `$cases[i][0]`;
+- **exhaustiveness:** when there is **no `$else`**, every case is a literal, and
+  `universe` has values no case covers → `Non-exhaustive $match: unhandled
+  case(s) …` at the match node. (Canonical `$match` requires `$else`, so this
+  fires only on the deliberately-elided shape — the checker is robust to it and
+  the lint is precisely about that shape; `$else` present ⇒ exhaustive by
+  construction, no warning.)
+
+The `$else` branch is now synthesized only when present (previously unconditional).
+
+Tests: `describe("chess fragments — Tier 5 …")` in `check.test.ts` — enum miss →
+one warning; full enum → clean; discriminated-union miss → warning; dead case →
+warning; `$else` present suppresses; infinite subject → no lint.
+
+**Not built:** `$cond` exhaustiveness (its `$else` *is* optional, but each arm's
+covered literal must be extracted from a guard predicate — fuzzier; deferred).
+
 ## Cross-cutting
 
 - **Soundness stance:** narrowing is a *sound refinement* (facts only ever
@@ -481,8 +526,11 @@ recognized discriminant/isNull forms.
 4. **M3** ✅ — field-path / discriminant narrowing. *Exit met:* nullable-field
    (`isNull(move.from)` then `move.from`) and discriminated-union
    (`s.tag == lit`) fragments clean; disjoint field use stays a hard error; lazy
-   local through a path narrows at its forcing site. (§5.6 exhaustiveness shares
-   the discriminant scan but is not built here — future work.)
+   local through a path narrows at its forcing site.
+5. **§5.6** ✅ — `$match` exhaustiveness & dead-case lints, reusing M3's
+   residual/discriminant scan. *Exit met:* enum/discriminated-union matches
+   missing a case warn; full matches are clean; dead cases warn; infinite
+   subjects are not linted.
 
 ## Open forks
 
@@ -513,7 +561,7 @@ Barrel exports as declared at the end of each file.
   `bodyFnTypeSchema`, `bindingKeys`, `stableStringify`.
 - **`module.ts`** — `checkFunction`, `checkModule`, `checkExpr`.
 - **`narrowing.ts`** — `withNarrowings`, `factsFromCondition`, `currentType`,
-  `restrictToLiteral`, `excludeLiteral`.
+  `restrictToLiteral`, `excludeLiteral`, `caseUniverse`.
 - **`schema.ts`** — types: `Schema`, `Defs`, `ApMode`, `FnTypeShape`, `Bound`;
   values: `SchemaKind`, `isSchemaObject`, `classifySchema`, `asObject`,
   `refName`, `resolveRef`, `resolveDeep`, `unionArms`, `literalValues`,

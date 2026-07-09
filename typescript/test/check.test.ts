@@ -1291,3 +1291,146 @@ describe("chess fragments — Tier 4: field-path & discriminant narrowing (§5.5
     expect(checkModule(mod, BT)).toEqual([]);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Tier 5 — $match exhaustiveness & dead-case lints (§5.6).
+//
+// The exhaustiveness lint reuses the residual that narrowing already computes:
+// if a `$match` subject has a *finite* set of possible values (an enum var, a
+// union of consts, or a `base.field` discriminant across union arms) and the
+// cases don't cover all of them with no catch-all `$else`, some input silently
+// falls through — a smell, so a `warning` (not an error, since `$match` has
+// runtime fall-through semantics). Conversely a case whose literal can never
+// occur in the subject's universe is dead code — a separate `warning`.
+// ---------------------------------------------------------------------------
+
+describe("chess fragments — Tier 5: $match exhaustiveness & dead cases (§5.6)", () => {
+  const BT = loadBuiltinTable();
+  const v = (name: string): JSONType => ({ $var: name });
+  const g = (key: JSONType, from: JSONType): JSONType => ({ $get: key, $from: from });
+
+  const Color: Schema = { $ref: "#/$defs/Color" };
+  const types: Defs = { Color: { enum: ["w", "b"] } };
+
+  // A discriminated union: two object arms distinguished by a `tag` const.
+  const Circle: Schema = {
+    type: "object",
+    properties: { tag: { const: "circle" }, r: I },
+    required: ["tag", "r"],
+    additionalProperties: false,
+  };
+  const Square: Schema = {
+    type: "object",
+    properties: { tag: { const: "square" }, side: I },
+    required: ["tag", "side"],
+    additionalProperties: false,
+  };
+  const shapeTypes: Defs = { Shape: { anyOf: [Circle, Square] } };
+  const Shape: Schema = { $ref: "#/$defs/Shape" };
+
+  test("enum match missing an arm warns (no $else, unhandled 'b')", () => {
+    // (color: Color) => match color { "w" -> 1 }   // no "b", no $else
+    const mod = {
+      $types: types,
+      f: body(["color"], { params: [Color], returns: I }, {
+        $match: v("color"),
+        $cases: [["w", 1]],
+      } as JSONType),
+    };
+    const diags = checkModule(mod, BT);
+    expect(diags.length).toBe(1);
+    expect(diags[0]!.severity).toBe("warning");
+    expect(diags[0]!.path).toEqual(["f", "$return"]);
+    expect(/unhandled case\(s\) "b"/.test(diags[0]!.message)).toBe(true);
+  });
+
+  test("a full enum match is clean even without an $else", () => {
+    // (color: Color) => match color { "w" -> 1, "b" -> 2 }   // covers all
+    const mod = {
+      $types: types,
+      f: body(["color"], { params: [Color], returns: I }, {
+        $match: v("color"),
+        $cases: [
+          ["w", 1],
+          ["b", 2],
+        ],
+      } as JSONType),
+    };
+    expect(checkModule(mod, BT)).toEqual([]);
+  });
+
+  test("a present $else suppresses the exhaustiveness warning", () => {
+    // (color: Color) => match color { "w" -> 1 } else 2
+    const mod = {
+      $types: types,
+      f: body(["color"], { params: [Color], returns: I }, {
+        $match: v("color"),
+        $cases: [["w", 1]],
+        $else: 2,
+      } as JSONType),
+    };
+    expect(checkModule(mod, BT)).toEqual([]);
+  });
+
+  test("discriminated-union match missing an arm warns (unhandled 'square')", () => {
+    // (s: Shape) => match s.tag { "circle" -> 1 }   // missing "square", no $else
+    const mod = {
+      $types: shapeTypes,
+      f: body(["s"], { params: [Shape], returns: I }, {
+        $match: g("tag", v("s")),
+        $cases: [["circle", 1]],
+      } as JSONType),
+    };
+    const diags = checkModule(mod, BT);
+    expect(diags.length).toBe(1);
+    expect(diags[0]!.severity).toBe("warning");
+    expect(/unhandled case\(s\) "square"/.test(diags[0]!.message)).toBe(true);
+  });
+
+  test("a full discriminated-union match is clean without an $else", () => {
+    // (s: Shape) => match s.tag { "circle" -> 1, "square" -> 2 }
+    const mod = {
+      $types: shapeTypes,
+      f: body(["s"], { params: [Shape], returns: I }, {
+        $match: g("tag", v("s")),
+        $cases: [
+          ["circle", 1],
+          ["square", 2],
+        ],
+      } as JSONType),
+    };
+    expect(checkModule(mod, BT)).toEqual([]);
+  });
+
+  test("a dead/impossible case warns (literal not in the enum)", () => {
+    // (color: Color) => match color { "w" -> 1, "x" -> 2 } else 3
+    // "x" is not a Color, so that case can never match.
+    const mod = {
+      $types: types,
+      f: body(["color"], { params: [Color], returns: I }, {
+        $match: v("color"),
+        $cases: [
+          ["w", 1],
+          ["x", 2],
+        ],
+        $else: 3,
+      } as JSONType),
+    };
+    const diags = checkModule(mod, BT);
+    expect(diags.length).toBe(1);
+    expect(diags[0]!.severity).toBe("warning");
+    expect(diags[0]!.path).toEqual(["f", "$return", "$cases[1][0]"]);
+    expect(/Unreachable \$match case/.test(diags[0]!.message)).toBe(true);
+  });
+
+  test("a match over an infinite subject is not linted (undecidable universe)", () => {
+    // (s: string) => match s { "hi" -> 1 }   // string is not finite → no lint
+    const mod = {
+      f: body(["s"], { params: [S], returns: I }, {
+        $match: v("s"),
+        $cases: [["hi", 1]],
+      } as JSONType),
+    };
+    expect(checkModule(mod, BT)).toEqual([]);
+  });
+});

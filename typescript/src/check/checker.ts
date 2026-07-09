@@ -30,11 +30,13 @@ import {
   currentType,
   restrictToLiteral,
   excludeLiteral,
+  caseUniverse,
 } from "./narrowing";
 import {
   apMode,
   asObject,
   classifySchema,
+  deepEqual,
   fnShape,
   isSchemaObject,
   projectField,
@@ -367,16 +369,35 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
     }
 
     case "match": {
-      const m = expr as { $match: JSONType; $cases: [JSONType, JSONType][]; $else: JSONType };
-      synth(m.$match, at(ctx, "$match"));
+      const m = expr as { $match: JSONType; $cases: [JSONType, JSONType][]; $else?: JSONType };
+      const subjectType = synth(m.$match, at(ctx, "$match"));
+      // The finite set of values the subject can take (an enum var, a union of
+      // consts, or a `base.field` discriminant), or null when it isn't a finite
+      // literal set. Drives the §5.6 exhaustiveness / dead-case lints below.
+      const universe = caseUniverse(m.$match, subjectType, ctx);
       // Narrow a bare-var subject per case: a literal case pins it to that
       // literal; `$else` sees the subject with every matched literal excluded.
       const subject = asVarName(m.$match);
-      const matched: JSONType[] = [];
+      const matched: JSONType[] = []; // narrowed literals (bare-var subject only)
+      const caseLiterals: JSONType[] = []; // every literal case value (for lints)
+      let allLiteral = true;
       const arms: Schema[] = [];
       m.$cases.forEach(([caseVal, result], i) => {
-        let armCtx = ctx;
         const lit = litOf(caseVal);
+        if (lit === null) allLiteral = false;
+        else {
+          caseLiterals.push(lit.v);
+          // Dead case: a literal the subject's finite universe can't produce, so
+          // it can never match. A lint (the runtime simply never takes it).
+          if (universe !== null && !universe.some((u) => deepEqual(u, lit.v))) {
+            report(
+              at(ctx, `$cases[${i}][0]`),
+              `Unreachable $match case: ${JSON.stringify(lit.v)} is not a possible value of the subject.`,
+              { severity: "warning" },
+            );
+          }
+        }
+        let armCtx = ctx;
         if (subject !== null && lit !== null) {
           const cur = currentType(subject, ctx);
           if (cur !== undefined) {
@@ -386,15 +407,30 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
         }
         arms.push(synth(result, at(armCtx, `$cases[${i}][1]`)));
       });
-      let elseCtx = ctx;
-      if (subject !== null && matched.length > 0) {
-        const cur = currentType(subject, ctx);
-        if (cur !== undefined) {
-          const excluded = matched.reduce((s, lit) => excludeLiteral(s, lit, ctx.defs), cur);
-          elseCtx = withNarrowings(ctx, { [subject]: excluded });
+
+      if ("$else" in m) {
+        let elseCtx = ctx;
+        if (subject !== null && matched.length > 0) {
+          const cur = currentType(subject, ctx);
+          if (cur !== undefined) {
+            const excluded = matched.reduce((s, lit) => excludeLiteral(s, lit, ctx.defs), cur);
+            elseCtx = withNarrowings(ctx, { [subject]: excluded });
+          }
+        }
+        arms.push(synth(m.$else!, at(elseCtx, "$else")));
+      } else if (allLiteral && universe !== null) {
+        // §5.6 exhaustiveness: no catch-all `$else`, yet the finite universe has
+        // values no case covers — those inputs silently fall through. A lint
+        // (the same tier as the M0 narrowable warnings), not a hard error.
+        const uncovered = universe.filter((u) => !caseLiterals.some((l) => deepEqual(l, u)));
+        if (uncovered.length > 0) {
+          report(
+            ctx,
+            `Non-exhaustive $match: unhandled case(s) ${uncovered.map((u) => JSON.stringify(u)).join(", ")}.`,
+            { severity: "warning" },
+          );
         }
       }
-      arms.push(synth(m.$else, at(elseCtx, "$else")));
       return unionOf(arms);
     }
 

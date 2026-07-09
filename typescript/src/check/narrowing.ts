@@ -303,6 +303,81 @@ function restrictToDiscriminant(
   return unionOf(kept);
 }
 
+// The finite set of scalar values a schema admits, or null when the schema is
+// not a finite literal set (an infinite primitive, `any`, or a composite). The
+// singleton `null`/`boolean` types count — their inhabitants *are* enumerable —
+// which lets a `T | null` subject be checked for a missing `null` case (§5.6).
+function enumerateLiterals(s: Schema, defs: Defs): JSONType[] | null {
+  const t = resolveDeep(s, defs);
+  switch (classifySchema(t)) {
+    case SchemaKind.Const:
+    case SchemaKind.Enum:
+      return literalValues(t);
+    case SchemaKind.Union: {
+      const arms = unionArms(t) ?? [];
+      const out: JSONType[] = [];
+      for (const arm of arms) {
+        const lits = enumerateLiterals(arm, defs);
+        if (lits === null) return null; // an infinite arm ⇒ not enumerable
+        out.push(...lits);
+      }
+      return out;
+    }
+    case SchemaKind.Primitive: {
+      const type = asObject(t).type;
+      if (type === "null") return [null];
+      if (type === "boolean") return [false, true];
+      return null; // string / number / integer are infinite
+    }
+    default:
+      return null;
+  }
+}
+
+// The finite set of literal values a `field` takes across the arms of a union
+// (a discriminant's tags), or null when it isn't a clean finite discriminant —
+// the base isn't a union, or some arm's `field` isn't a finite literal set.
+// Generalizes the arm-scan in `restrictToDiscriminant` for the §5.6 lint: there
+// it asked "which arm does this narrow to?", here "what tags exist to cover?".
+function discriminantValues(s: Schema, field: string, defs: Defs): JSONType[] | null {
+  const arms = unionArms(resolveDeep(s, defs));
+  if (!arms) return null;
+  const out: JSONType[] = [];
+  for (const arm of arms) {
+    const lits = enumerateLiterals(projectField(arm, field, defs), defs);
+    if (lits === null) return null;
+    out.push(...lits);
+  }
+  return out;
+}
+
+// The finite universe of scalar values a `$match` subject can take, for the
+// §5.6 exhaustiveness / dead-case lints. Two shapes are recognized:
+//   * a subject whose own type is a finite literal set (an enum var, a union of
+//     consts, `null`/`boolean`) — the enum-exhaustiveness case;
+//   * a discriminant path `base.field` where `base` is a union pinning `field`
+//     to a const per arm — the discriminated-union case. Projection over a
+//     union collapses to `any`, so this scans the arms directly (shared with
+//     discriminant narrowing).
+// Returns null when the universe is not a finite literal set, so exhaustiveness
+// is undecidable and the lint stays quiet (e.g. a `string`-typed subject).
+function caseUniverse(
+  subjectNode: JSONType,
+  subjectType: Schema,
+  ctx: CheckContext,
+): JSONType[] | null {
+  const direct = enumerateLiterals(subjectType, ctx.defs);
+  if (direct !== null) return direct;
+  if (nodeKind(subjectNode) === "get") {
+    const o = subjectNode as { $get: JSONType; $from: JSONType };
+    if (typeof o.$get === "string") {
+      const baseT = currentTypeOfExpr(o.$from, ctx);
+      if (baseT !== undefined) return discriminantValues(baseT, o.$get, ctx.defs);
+    }
+  }
+  return null;
+}
+
 // Fold a `$and`/`$or` arm list into a single fact map, threading each arm's
 // facts forward so a later arm refines an earlier one on the same var.
 function conjoin(
@@ -322,4 +397,11 @@ function conjoin(
   return acc;
 }
 
-export { withNarrowings, factsFromCondition, currentType, restrictToLiteral, excludeLiteral };
+export {
+  withNarrowings,
+  factsFromCondition,
+  currentType,
+  restrictToLiteral,
+  excludeLiteral,
+  caseUniverse,
+};
