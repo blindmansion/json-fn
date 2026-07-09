@@ -17,6 +17,10 @@ import {
   printShorthand,
   type JSONType,
 } from "./index";
+import { checkExpr, checkModule } from "./check/module";
+import type { Diagnostic } from "./check/context";
+import type { BuiltinTable } from "./check/builtin-types";
+import { loadBuiltinTable } from "./builtins";
 
 const HELP = `jfn — a CLI for the json-fn language
 
@@ -27,6 +31,7 @@ Commands:
   to-shorthand   Read canonical json-fn JSON, print .jfn shorthand   (alias: j2s, print)
   to-json        Read .jfn shorthand, print canonical json-fn JSON   (alias: s2j, parse)
   eval           Evaluate a .jfn expression and print the result     (alias: e)
+  check          Typecheck a canonical json-fn module or expression  (alias: c)
 
 Input:
   Pass the source as a positional argument, with --file <path>, or on stdin.
@@ -46,12 +51,22 @@ eval options:
   -s, --shorthand     Print the result as .jfn shorthand (best effort)
   -c, --compact       With --json, emit minified JSON
 
+check options:
+      Reads *canonical json-fn JSON* (there is no type-shorthand parser yet), so
+      $sig / $types must already be in JSON Schema form.
+  -e, --expr          Check a single expression and print its inferred type
+      --no-builtins   Don't load the builtin signature table (spec/builtins.json)
+      --strict        Exit non-zero on warnings too (default: only on errors)
+  -c, --compact       With --expr, emit the inferred type as minified JSON
+
 Examples:
   jfn to-json '1 + 2 * 3'
   echo '{ "$call": "add", "$args": [1, 2] }' | jfn to-shorthand
   jfn eval '(x) => x * x' --args '[9]'
   jfn eval 'map((n) => n + 1, [1, 2, 3])' --shorthand
   printf '{ inc: (n) => n + 1, main: () => inc(41) }' | jfn eval --entry main
+  jfn check --expr '{ "$call": "add", "$args": [1, 2] }'
+  jfn check --file module.json
 `;
 
 type ParsedArgs = {
@@ -224,6 +239,85 @@ async function cmdEval(argv: string[]): Promise<void> {
   }
 }
 
+async function cmdCheck(argv: string[]): Promise<void> {
+  const parsed = parseArgs(
+    argv,
+    { "-f": "file", "--file": "file" },
+    {
+      "-e": "expr",
+      "--expr": "expr",
+      "--no-builtins": "no-builtins",
+      "--strict": "strict",
+      "-c": "compact",
+      "--compact": "compact",
+    },
+  );
+
+  const raw = await readInput(parsed);
+  let json: JSONType;
+  try {
+    json = JSON.parse(raw) as JSONType;
+  } catch (e) {
+    fail(`invalid JSON input: ${errMessage(e)}`);
+  }
+
+  // Builtins are on by default — most real code (the chess example, anything
+  // using map/filter/arithmetic) is untypeable without them. `--no-builtins`
+  // mirrors the pre-Section-F behavior where builtin calls degrade to `any`.
+  let builtins: BuiltinTable | undefined;
+  if (!parsed.flags.has("no-builtins")) {
+    try {
+      builtins = loadBuiltinTable();
+    } catch (e) {
+      fail(`could not load builtin table: ${errMessage(e)}`);
+    }
+  }
+
+  const compact = parsed.flags.has("compact");
+  const strict = parsed.flags.has("strict");
+
+  if (parsed.flags.has("expr")) {
+    const { type, diagnostics } = checkExpr(json, {}, builtins);
+    console.log(`type: ${stringify(type, compact)}`);
+    reportDiagnostics(diagnostics);
+    exitFromDiagnostics(diagnostics, strict);
+    return;
+  }
+
+  if (typeof json !== "object" || json === null || Array.isArray(json)) {
+    fail("check expects a module object; pass --expr to check a single expression");
+  }
+
+  const diagnostics = checkModule(json as Record<string, JSONType>, builtins);
+  reportDiagnostics(diagnostics);
+  exitFromDiagnostics(diagnostics, strict);
+}
+
+// Print each diagnostic as `severity: location: message` (the message already
+// embeds the compact schemas), then a one-line summary.
+function reportDiagnostics(diags: Diagnostic[]): void {
+  for (const d of diags) {
+    const loc = d.path.length > 0 ? d.path.join(".") : "<root>";
+    console.log(`${d.severity}: ${loc}: ${d.message}`);
+  }
+  const errors = diags.filter((d) => d.severity === "error").length;
+  const warnings = diags.filter((d) => d.severity === "warning").length;
+  if (diags.length === 0) {
+    console.log("No type errors.");
+  } else {
+    console.log(
+      `\n${errors} error${errors === 1 ? "" : "s"}, ${warnings} warning${warnings === 1 ? "" : "s"}.`,
+    );
+  }
+}
+
+// Exit non-zero when the check found errors (or, under --strict, warnings).
+function exitFromDiagnostics(diags: Diagnostic[], strict: boolean): void {
+  const hasError = diags.some((d) => d.severity === "error");
+  const hasWarning = diags.some((d) => d.severity === "warning");
+  if (hasError || (strict && hasWarning)) process.exit(1);
+}
+
 function isFunctionBody(value: JSONType): value is { $return: JSONType } {
   return typeof value === "object" && value !== null && !Array.isArray(value) && "$return" in value;
 }
@@ -258,6 +352,10 @@ async function main(): Promise<void> {
     case "eval":
     case "e":
       await cmdEval(rest);
+      break;
+    case "check":
+    case "c":
+      await cmdCheck(rest);
       break;
     default:
       fail(`unknown command "${command}". Run "jfn --help" for usage.`);
