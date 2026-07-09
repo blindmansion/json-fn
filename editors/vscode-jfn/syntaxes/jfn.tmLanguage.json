@@ -10,6 +10,7 @@
     "expression": {
       "patterns": [
         { "include": "#comment" },
+        { "include": "#type-declaration" },
         { "include": "#template" },
         { "include": "#string" },
         { "include": "#constant" },
@@ -17,12 +18,16 @@
         { "include": "#raw" },
         { "include": "#number" },
         { "include": "#arrow" },
+        { "include": "#type-refinement" },
         { "include": "#function-reference" },
         { "include": "#function-call" },
         { "include": "#object-key" },
         { "include": "#property" },
         { "include": "#rest" },
         { "include": "#operator" },
+        { "include": "#type-union" },
+        { "include": "#type-optional" },
+        { "include": "#type-primitive" },
         { "include": "#identifier" },
         { "include": "#punctuation" }
       ]
@@ -172,6 +177,131 @@
         { "name": "punctuation.section.block.jfn", "match": "[{}]" },
         { "name": "punctuation.section.array.jfn", "match": "[\\[\\]]" },
         { "name": "punctuation.section.parens.jfn", "match": "[()]" },
+        { "name": "punctuation.separator.comma.jfn", "match": "," },
+        { "name": "punctuation.separator.colon.jfn", "match": ":" }
+      ]
+    },
+
+    "type-declaration": {
+      "begin": "(?<![\\w$])(type)\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*(=)",
+      "beginCaptures": {
+        "1": { "name": "keyword.declaration.type.jfn" },
+        "2": { "name": "entity.name.type.jfn" },
+        "3": { "name": "keyword.operator.assignment.jfn" }
+      },
+      "end": "(?=[,}])",
+      "patterns": [
+        { "include": "#type" }
+      ]
+    },
+
+    "type": {
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#type-primitive" },
+        { "include": "#type-refinement" },
+        { "include": "#type-union" },
+        { "include": "#type-arrow" },
+        { "include": "#string" },
+        { "include": "#number" },
+        { "include": "#constant" },
+        { "include": "#type-object" },
+        { "include": "#type-brackets" },
+        { "include": "#type-parens" },
+        { "include": "#rest" },
+        { "include": "#type-optional" },
+        { "include": "#type-punctuation" },
+        { "include": "#type-ref" }
+      ]
+    },
+
+    "type-primitive": {
+      "name": "support.type.primitive.jfn",
+      "match": "\\b(null|boolean|number|integer|string|any|never)\\b"
+    },
+
+    "type-ref": {
+      "name": "entity.name.type.ref.jfn",
+      "match": "\\b[A-Za-z_][A-Za-z0-9_]*\\b"
+    },
+
+    "type-union": {
+      "name": "keyword.operator.type.union.jfn",
+      "match": "\\|(?!\\|)"
+    },
+
+    "type-arrow": {
+      "name": "keyword.operator.type.arrow.jfn",
+      "match": "->"
+    },
+
+    "type-optional": {
+      "name": "keyword.operator.type.optional.jfn",
+      "match": "\\?"
+    },
+
+    "type-refinement": {
+      "match": "(&)\\s*(min|max|xmin|xmax|multipleOf|minLen|maxLen|pattern|format|minItems|maxItems|unique)\\b",
+      "captures": {
+        "1": { "name": "keyword.operator.type.refine.jfn" },
+        "2": { "name": "support.function.refinement.jfn" }
+      }
+    },
+
+    "type-object": {
+      "name": "meta.type.object.jfn",
+      "begin": "\\{",
+      "beginCaptures": {
+        "0": { "name": "punctuation.section.block.jfn" }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": { "name": "punctuation.section.block.jfn" }
+      },
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#rest" },
+        {
+          "match": "([A-Za-z_][A-Za-z0-9_]*)\\s*(\\?)?\\s*(?=:)",
+          "captures": {
+            "1": { "name": "variable.other.property.jfn" },
+            "2": { "name": "keyword.operator.type.optional.jfn" }
+          }
+        },
+        { "include": "#type" }
+      ]
+    },
+
+    "type-brackets": {
+      "begin": "\\[",
+      "beginCaptures": {
+        "0": { "name": "punctuation.section.array.jfn" }
+      },
+      "end": "\\]",
+      "endCaptures": {
+        "0": { "name": "punctuation.section.array.jfn" }
+      },
+      "patterns": [
+        { "include": "#type" }
+      ]
+    },
+
+    "type-parens": {
+      "begin": "\\(",
+      "beginCaptures": {
+        "0": { "name": "punctuation.section.parens.jfn" }
+      },
+      "end": "\\)",
+      "endCaptures": {
+        "0": { "name": "punctuation.section.parens.jfn" }
+      },
+      "patterns": [
+        { "include": "#type" }
+      ]
+    },
+
+    "type-punctuation": {
+      "patterns": [
         { "name": "punctuation.separator.comma.jfn", "match": "," },
         { "name": "punctuation.separator.colon.jfn", "match": ":" }
       ]

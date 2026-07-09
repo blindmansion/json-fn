@@ -14,6 +14,29 @@ no build step, no runtime — so it works with any color theme.
 - Function calls (`name(...)`) and function references (`&name`)
 - Object keys / `where` bindings and `.property` accessors
 - `// line comments`
+- **Types** (`docs/type-syntax-spec.md`):
+  - `type Name = <type>` declarations — the name, the `=`, and the whole type
+    expression are fully colored (see below)
+  - Type primitives (`null boolean number integer string any never`), named
+    refs, unions (`|`), the array suffix (`[]`), objects/tuples/maps, function
+    types, and optional keys (`?`)
+  - Refinements (`& min(0)`, `& pattern("^u_")`, `& unique`, …)
+
+### How type highlighting works (and its limits)
+
+Type highlighting comes in two tiers, because a TextMate grammar can't do the
+lookahead the real parser does:
+
+1. **`type Name = …` declarations** get a dedicated, self-terminating type
+   sub-grammar, so everything inside is colored precisely — including nested
+   objects, tuples, function types, and multi-line unions.
+2. **Signatures** (`(x: T) -> R =>`) are colored at the token level: primitives,
+   `[]`, `->`, `?`, and refinements light up, and param names read as
+   properties. Named type refs in a signature (e.g. `UserId`) can't be told
+   apart from ordinary identifiers there, so they get the plain variable color —
+   this is expected and degrades gracefully.
+
+See `examples/types.jfn` for a program that exercises the full type syntax.
 
 ## Install (local, unpublished)
 
