@@ -627,6 +627,34 @@ describe("synth: control-flow unions", () => {
     const t = synth({ $if: true, $then: 1, $else: "x" }, ctx);
     expect(t).toEqual({ anyOf: [{ const: 1 }, { const: "x" }] });
   });
+
+  test("$if narrows a bare-value condition by truthiness in each branch", () => {
+    // `if x then x else "d"` where `x: string | null`: the then-branch sees the
+    // truthy slice of `x` (null dropped), mirroring the `x || "d"` idiom.
+    const nctx: CheckContext = {
+      defs: {},
+      env: { lookupType: (n) => (n === "x" ? { type: ["string", "null"] } : undefined) },
+      diagnostics: [],
+      path: [],
+    };
+    expect(synth({ $if: { $var: "x" }, $then: { $var: "x" }, $else: "d" }, nctx)).toEqual({
+      anyOf: [{ type: "string" }, { const: "d" }],
+    });
+  });
+
+  test("$if surfaces the falsy slice on the else-branch", () => {
+    // `if x then "d" else x`: the else-branch keeps only `x`'s falsy slice
+    // (`"" | null`).
+    const nctx: CheckContext = {
+      defs: {},
+      env: { lookupType: (n) => (n === "x" ? { type: ["string", "null"] } : undefined) },
+      diagnostics: [],
+      path: [],
+    };
+    expect(synth({ $if: { $var: "x" }, $then: "d", $else: { $var: "x" } }, nctx)).toEqual({
+      anyOf: [{ const: "d" }, { const: "" }, { type: "null" }],
+    });
+  });
 });
 
 describe("synth: short-circuit $and / $or are value-returning", () => {

@@ -237,6 +237,18 @@ function isUnshadowed(name: string, ctx: CheckContext): boolean {
   return ctx.env.lookupType(name) === undefined;
 }
 
+// A raw value used as a condition narrows itself: it is truthy on the branch
+// where the condition holds (`sense`), falsy otherwise. Applies to any static
+// access path (a bare `$var` or a `base.field` chain); other expressions yield
+// no fact.
+function truthinessFact(expr: JSONType, sense: boolean, ctx: CheckContext): Record<string, Schema> {
+  const subject = asPath(expr);
+  if (subject === null) return {};
+  const cur = currentTypeOfExpr(expr, ctx);
+  if (cur === undefined) return {};
+  return { [subject]: sense ? restrictToTruthy(cur, ctx.defs) : restrictToFalsy(cur, ctx.defs) };
+}
+
 // Facts learned about bare vars when `cond` evaluates to `sense` (true on the
 // then/case branch, false on the else branch). Only forms whose subject is a
 // bare `$var` produce a fact; everything else yields `{}` (→ M0 warning path).
@@ -251,12 +263,17 @@ function factsFromCondition(
   // A bare-var condition may be a *named boolean guard* — a lazy local like
   // `empty: isNull(target)` used as `cond { empty -> … }` (§2.3). Recurse into
   // its binding expression; `seen` breaks alias cycles (`ok: not(empty)`,
-  // `empty: not(ok)`), falling those back to the M0 warning path.
+  // `empty: not(ok)`), which fall back to the plain truthiness fact below.
   const guardVar = asVarName(cond);
   if (guardVar !== null) {
     const guardExpr = ctx.guards?.[guardVar];
-    if (guardExpr === undefined || seen.includes(guardVar)) return {};
-    return factsFromCondition(guardExpr, sense, ctx, [...seen, guardVar]);
+    if (guardExpr !== undefined && !seen.includes(guardVar)) {
+      return factsFromCondition(guardExpr, sense, ctx, [...seen, guardVar]);
+    }
+    // Not a named boolean guard: the bare value *is* the condition, so it is
+    // known-truthy on the then-branch and known-falsy on the else-branch. This
+    // is the `$if`/`$or`/`$and`-idiom parallel (`if x then x` drops `null`).
+    return truthinessFact(cond, sense, ctx);
   }
 
   // `$and` learns a conjunction only when true; `$or` only when false. The dual
@@ -264,7 +281,9 @@ function factsFromCondition(
   if (Array.isArray(cond.$and)) return sense ? conjoin(cond.$and, true, ctx, seen) : {};
   if (Array.isArray(cond.$or)) return sense ? {} : conjoin(cond.$or, false, ctx, seen);
 
-  if (!("$call" in cond) || typeof cond.$call !== "string") return {};
+  // A non-call, non-var condition may still be a static access path (e.g.
+  // `u.active`): use the value's own truthiness as the fact.
+  if (!("$call" in cond) || typeof cond.$call !== "string") return truthinessFact(cond, sense, ctx);
   const name = cond.$call;
   const args = Array.isArray(cond.$args) ? cond.$args : [];
   if (!isUnshadowed(name, ctx)) return {};
