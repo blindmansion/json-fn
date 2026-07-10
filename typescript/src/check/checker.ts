@@ -41,8 +41,11 @@ import {
   deepEqual,
   fnShape,
   isSchemaObject,
+  keyCouldBe,
+  projectComputed,
   projectField,
   properties,
+  resolveDeep,
   resolveRef,
   SchemaKind,
   unionArms,
@@ -228,6 +231,37 @@ function synthData(v: JSONType): Schema {
     return { type: "object", properties: props, required, additionalProperties: false };
   }
   return { const: v };
+}
+
+// Check the key of a computed/literal index against its container: array/tuple
+// positions demand an `integer`, object/map keys a `string`. A key that could
+// still be the right category at runtime (an overlapping type like `number`,
+// where flow could produce a valid integer) is the §5.5 runtime-checkable
+// `warning`; a key that never can (a `string` index, a fractional literal) is a
+// hard `error`. Non-container / union / `any` targets and `any`/`never` keys are
+// left permissive — the projection already degrades those to `any`.
+function checkIndexKey(target: Schema, keyType: Schema, ctx: CheckContext): void {
+  const t = resolveDeep(target, ctx.defs);
+  const k = classifySchema(t);
+  const cat =
+    k === SchemaKind.Array || k === SchemaKind.Tuple
+      ? "integer"
+      : k === SchemaKind.Object
+        ? "string"
+        : null;
+  if (cat === null) return;
+
+  const kt = resolveDeep(keyType, ctx.defs);
+  if (kt === true || kt === false) return; // any/never key: stay permissive
+
+  const probe: Schema = { type: cat };
+  if (isSubschema(keyType, probe, ctx.defs)) return; // definitely a valid key
+  const overlaps = keyCouldBe(keyType, cat, ctx.defs);
+  report(ctx, `Index key must be ${cat === "integer" ? "an integer" : "a string"}.`, {
+    severity: overlaps ? "warning" : "error",
+    expected: probe,
+    actual: keyType,
+  });
 }
 
 // The signature of a callee, or null when it can't be resolved statically
@@ -488,13 +522,20 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
         if (narrowed !== undefined) return narrowed;
       }
       const target = synth(g.$from, at(ctx, "$from"));
-      // Only literal keys project statically; dynamic keys degrade to any.
-      const key = nodeKind(g.$get) === "scalar" || Array.isArray(g.$get) ? g.$get : undefined;
-      if (key === undefined) {
-        synth(g.$get, at(ctx, "$get"));
-        return true;
+      // A static nested string path (`x.a.b`, an array of keys) projects field
+      // by field; keys are strings by construction, so no index-type check.
+      if (Array.isArray(g.$get)) return projectField(target, g.$get, ctx.defs);
+      // A scalar literal key projects by value; still index-checked (e.g. to
+      // reject `xs[2.5]`).
+      if (nodeKind(g.$get) === "scalar") {
+        checkIndexKey(target, synthData(g.$get), at(ctx, "$get"));
+        return projectField(target, g.$get, ctx.defs);
       }
-      return projectField(target, key, ctx.defs);
+      // A computed key projects off the key's *type* (array `items` / tuple
+      // element / map value), and its type is checked against the container.
+      const keyType = synth(g.$get, at(ctx, "$get"));
+      checkIndexKey(target, keyType, at(ctx, "$get"));
+      return projectComputed(target, keyType, ctx.defs);
     }
 
     case "raw":

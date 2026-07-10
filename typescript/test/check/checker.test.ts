@@ -279,6 +279,87 @@ describe("synth: field projection over a union", () => {
   });
 });
 
+describe("synth: computed index / key projection", () => {
+  const N: Schema = { type: "number" };
+  const arr: Schema = { type: "array", items: I };
+  const map: Schema = { type: "object", additionalProperties: I };
+  const ctxWith = (env: Record<string, Schema>): CheckContext => ({
+    defs: {},
+    env: { lookupType: (n) => env[n] },
+    diagnostics: [],
+    path: [],
+  });
+  const get = (from: string, key: JSONType): JSONType => ({ $get: key, $from: { $var: from } });
+
+  test("an integer-typed index projects an array's element type", () => {
+    const ctx = ctxWith({ xs: arr, i: I });
+    expect(synth(get("xs", { $var: "i" }), ctx)).toEqual(I);
+    expect(ctx.diagnostics).toEqual([]);
+  });
+
+  test("a string-typed key projects a map's value type", () => {
+    const ctx = ctxWith({ m: map, k: S });
+    expect(synth(get("m", { $var: "k" }), ctx)).toEqual(I);
+    expect(ctx.diagnostics).toEqual([]);
+  });
+
+  test("a computed index over a union of arrays joins their elements", () => {
+    const ctx = ctxWith({
+      xs: {
+        anyOf: [
+          { type: "array", items: I },
+          { type: "array", items: S },
+        ],
+      },
+      i: I,
+    });
+    expect(synth(get("xs", { $var: "i" }), ctx)).toEqual({ anyOf: [I, S] });
+  });
+
+  test("a computed index over a tuple joins every slot with null (out-of-bounds)", () => {
+    const tuple: Schema = { type: "array", prefixItems: [I, S], items: false };
+    const ctx = ctxWith({ t: tuple, i: I });
+    expect(synth(get("t", { $var: "i" }), ctx)).toEqual({ anyOf: [I, S, { type: "null" }] });
+  });
+
+  test("a computed string key over a closed object joins its properties with null", () => {
+    const obj: Schema = {
+      type: "object",
+      properties: { a: I, b: S },
+      required: ["a", "b"],
+      additionalProperties: false,
+    };
+    const ctx = ctxWith({ o: obj, k: S });
+    expect(synth(get("o", { $var: "k" }), ctx)).toEqual({ anyOf: [I, S, { type: "null" }] });
+  });
+
+  test("a string index into an array is a hard error", () => {
+    const ctx = ctxWith({ xs: arr, k: S });
+    synth(get("xs", { $var: "k" }), ctx);
+    expect(ctx.diagnostics.some((d) => d.severity === "error")).toBe(true);
+  });
+
+  test("a number (integer-overlapping) index is a warning, not an error", () => {
+    const ctx = ctxWith({ xs: arr, i: N });
+    const t = synth(get("xs", { $var: "i" }), ctx);
+    expect(t).toEqual(I); // still projects the element
+    expect(ctx.diagnostics.length).toBe(1);
+    expect(ctx.diagnostics[0]!.severity).toBe("warning");
+  });
+
+  test("a fractional literal index is a hard error", () => {
+    const ctx = ctxWith({ xs: arr });
+    synth(get("xs", 2.5), ctx);
+    expect(ctx.diagnostics.some((d) => d.severity === "error")).toBe(true);
+  });
+
+  test("an any-typed key is permissive and still projects the container", () => {
+    const ctx = ctxWith({ xs: arr, k: true });
+    expect(synth(get("xs", { $var: "k" }), ctx)).toEqual(I);
+    expect(ctx.diagnostics).toEqual([]);
+  });
+});
+
 describe("synth: control-flow unions", () => {
   test("$if synthesizes the union of its branches", () => {
     const ctx: CheckContext = {

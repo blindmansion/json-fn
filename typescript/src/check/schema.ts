@@ -238,6 +238,73 @@ function projectField(target: Schema, key: JSONType, defs: Defs): Schema {
   return true; // dynamic key
 }
 
+// Could a value of `keyType` fall in the index/key category `cat` ("integer"
+// for array/tuple positions, "string" for object/map keys)? `any` matches
+// anything, `never` nothing; a union matches if any arm does. Const/enum use the
+// integer-aware `typeMatches` so `2.5` does *not* count as an integer. Shared by
+// the computed-index projection below and the checker's index-key check.
+function keyCouldBe(keyType: Schema, cat: "integer" | "string", defs: Defs): boolean {
+  const t = resolveDeep(keyType, defs);
+  if (t === true) return true;
+  if (t === false) return false;
+  const arms = unionArms(t);
+  if (arms !== null) return arms.some((a) => keyCouldBe(a, cat, defs));
+  switch (classifySchema(t)) {
+    case SchemaKind.Primitive: {
+      const ty = asObject(t).type as string;
+      return cat === "integer" ? ty === "integer" || ty === "number" : ty === cat;
+    }
+    case SchemaKind.Const:
+      return typeMatches(asObject(t).const!, cat);
+    case SchemaKind.Enum:
+      return literalValues(t).some((v) => typeMatches(v, cat));
+    default:
+      return false;
+  }
+}
+
+// Project `target[key]` when `key` is a *computed* expression, keyed on the
+// key's inferred type rather than a concrete value (the counterpart to
+// `projectField`, which needs a literal key). An integer-typed key projects an
+// array's `items` / a tuple's element union; a string-typed key projects a
+// map's `additionalProperties` / a closed object's property union. Mirrors
+// `projectField`'s union decomposition and its `T | null` conventions. Anything
+// unprojectable (a non-container target, a key that can't be the right
+// category) degrades to `any`, matching the pre-projection behavior.
+function projectComputed(target: Schema, keyType: Schema, defs: Defs): Schema {
+  const t = resolveDeep(target, defs);
+  if (t === true) return true;
+
+  const arms = unionArms(t);
+  if (arms !== null) return unionOf(arms.map((a) => projectComputed(a, keyType, defs)));
+
+  const k = classifySchema(t);
+  const results: Schema[] = [];
+
+  if (keyCouldBe(keyType, "integer", defs)) {
+    if (k === SchemaKind.Array) results.push(itemsSchema(asObject(t)));
+    else if (k === SchemaKind.Tuple) {
+      const o = asObject(t);
+      // A computed index may land on any declared slot or run past the end
+      // (where the evaluator yields null), so join every element with `null`.
+      results.push(...prefixItems(o), tupleRest(o) ?? { type: "null" }, { type: "null" });
+    }
+  }
+  if (keyCouldBe(keyType, "string", defs) && k === SchemaKind.Object) {
+    const o = asObject(t);
+    const mode = apMode(o);
+    const propVals = Object.values(properties(o));
+    if (mode.kind === "map") results.push(...propVals, mode.schema);
+    else if (mode.kind === "open") results.push(true);
+    // A computed key on a closed object may hit any declared property or miss
+    // entirely (null at runtime).
+    else results.push(...propVals, { type: "null" });
+  }
+
+  if (results.length === 0) return true;
+  return unionOf(results);
+}
+
 // Build a union schema from branch/arm types, flattening + deduping. Kept
 // deliberately simple (an `anyOf`, which `subsumes` handles); the shorthand
 // printer owns the §2.3 enum/type-array canonicalization.
@@ -279,4 +346,6 @@ export {
   typeMatches,
   unionOf,
   projectField,
+  projectComputed,
+  keyCouldBe,
 };

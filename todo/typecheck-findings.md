@@ -21,8 +21,8 @@ Each finding below falls into one of four buckets, roughly by effort:
 - **(B) Add a bounded type-level op to the engine** — computed-index projection,
   shared-field-off-union projection, structural `merge`, `$ref`-to-top. No
   recursion; each is a small, closed operation every impl must mirror.
-  _`$ref`-to-top and shared-field-off-union projection: **done** (see resolved
-  notes below). Computed-index projection and structural `merge` remain._
+  _`$ref`-to-top, shared-field-off-union projection, and computed-index
+  projection: **done** (see resolved notes below). Structural `merge` remains._
 - **(C) Extend narrowing coverage** — `match` narrowing, `where`-local
   narrowing, nested-access narrowing, the `x!` assertion (doesn't parse yet).
 - **(D) Needs a real type-system feature (defer)** — user-facing generics /
@@ -63,6 +63,15 @@ untyped" below.
 
 ### Computed index access isn't integer-checked
 
+> **Resolved** (with the computed-index projection below). The `$get` case now
+> checks the index/key type against its container (`checkIndexKey` in
+> `checker.ts`): array/tuple positions demand an `integer`, object/map keys a
+> `string`. A key that can never be the right category is a hard error
+> (`xs["k"]`, `xs[2.5]`); one that only overlaps (a `number` index, which could
+> be a valid integer at runtime) is a §5.5 `warning`; an `any`/`never` key stays
+> permissive. `keyCouldBe` (`schema.ts`) uses the integer-aware `typeMatches`, so
+> `2.5` correctly does *not* count as an integer.
+
 `arr[i]` (a language-level `$get` with a computed numeric key) is projected
 structurally without requiring the index to be an `integer`, so
 `arr[2.5]`-style access isn't rejected. The integer-demanding _builtin_
@@ -73,9 +82,10 @@ the main thing the `integer`/`number` distinction buys us (whole-vs-fractional
 values are otherwise interchangeable — `2.0` correctly folds to `integer`, and
 that's a sound subtyping choice, not a bug).
 
-> Superseded by "Computed index access degrades to `any`" below — the index
-> isn't structurally projected at all today, so the missing integer-check is
-> moot until value projection lands.
+> This shipped together with "Computed index access degrades to `any`" below:
+> the value projection (`projectComputed`) and the index-type check
+> (`checkIndexKey`) landed as one change, so the index is now both projected
+> _and_ integer-checked. See the resolved note above.
 
 ## Diagnostics / ergonomics
 
@@ -175,14 +185,27 @@ narrows each non-final operand to the slice that can stop the chain — falsy fo
 ## Gaps surfaced by `examples/ledger.jfn`
 
 `examples/ledger.jfn` is a reference program that **evaluates correctly**
-(`jfn eval --entry demo`) but does not yet pass `jfn check` (32 diagnostics: 15
+(`jfn eval --entry demo`) but does not yet pass `jfn check` (29 diagnostics: 12
 errors, 17 warnings — the count was originally 32 errors; several were
-downgraded to warnings by fixes landed since, noted inline below). It was
+downgraded to warnings, and 3 errors cleared by the computed-index projection
+fix, noted inline below). It was
 written to use the type syntax the natural way; each diagnostic below is the
 checker rejecting a sound program. The already-checkable cousin is
 `examples/pipeline.jfn`. Repros verified through `jfn check`.
 
 ### Computed index access degrades to `any` (arrays _and_ maps)
+
+> **Resolved.** `projectComputed` (`schema.ts`) projects `target[key]` off the
+> *key's type* (the counterpart to `projectField`, which needs a literal key):
+> an integer-typed index projects an array's `items` / a tuple's element union
+> (joined with `null` for out-of-bounds), a string-typed key projects a map's
+> `additionalProperties` / a closed object's property union (joined with `null`
+> for a possible miss). It mirrors `projectField`'s union decomposition, so a
+> union of containers joins per-arm. The `$get` case (`checker.ts`) now routes
+> computed keys through it (literal keys still use `projectField`), and pairs it
+> with the `checkIndexKey` index-type check noted above. Both repros below now
+> check clean (`xs[i] : integer`, `m[k] : integer`); `ledger.jfn` drops from 15
+> to 12 errors.
 
 Static keys project the element/field type; any **computed** key falls to `any`:
 
