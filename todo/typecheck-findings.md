@@ -21,6 +21,8 @@ Each finding below falls into one of four buckets, roughly by effort:
 - **(B) Add a bounded type-level op to the engine** — computed-index projection,
   shared-field-off-union projection, structural `merge`, `$ref`-to-top. No
   recursion; each is a small, closed operation every impl must mirror.
+  _`$ref`-to-top and shared-field-off-union projection: **done** (see resolved
+  notes below). Computed-index projection and structural `merge` remain._
 - **(C) Extend narrowing coverage** — `match` narrowing, `where`-local
   narrowing, nested-access narrowing, the `x!` assertion (doesn't parse yet).
 - **(D) Needs a real type-system feature (defer)** — user-facing generics /
@@ -284,8 +286,8 @@ the effect kernel.
 > clean: `{ type Task = any, f: () -> Task => perform("e", []) }` and the same
 > with the structural `{ "@task": string }` record. `handle` still returns `any`
 > (its result type is genuinely caller-dependent). The capability-record shape
-> (`Device.read : () -> Task`) still needs the shared-field-off-union projection
-> filed separately below to type the record's fields precisely.
+> (`Device.read : () -> Task`) is typed field-by-field via the now-resolved
+> shared-field-off-union projection filed below.
 
 The kernel builtins (`perform`, `pure`, `bind`, `raise`, `handle`) have no
 signatures, so every task expression is `any` (`true`). The bare `any` keyword
@@ -331,6 +333,17 @@ boundary: making a `$ref`-to-top transparent lets `type Task = any` work as the
 documented effect-boundary alias with zero new machinery.
 
 ### Reading a shared field off a union degrades to `any`
+
+> **Resolved.** `projectField` (`schema.ts`) now decomposes a union target and
+> projects the key off every arm, joining the results (`unionOf`). So a shared
+> discriminant projects to its literal union (`x.tag : "a" | "b"`), a field on
+> only some arms joins with the absent arms' `null` (`x.n : integer | null`),
+> and nested access through a union field (`w.f.tag`) resolves too — the last
+> works because `$ref` arms resolve via `resolveDeep` and the recursion handles
+> them. An arm that can't carry the field degrades that arm to `any`, which the
+> join then absorbs (matching the pre-union behavior for a non-object under a
+> string key). This also removes the `projectField`-collapses-to-`any` caveat
+> the `$match` exhaustiveness lint's `discriminantValues` was written around.
 
 Projecting a field that every arm of a union declares — including the very
 discriminant used to narrow — yields `any` instead of the union of the field's

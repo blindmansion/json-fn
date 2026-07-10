@@ -231,6 +231,54 @@ describe("buildTypeScope: lazy locals & cycles", () => {
   });
 });
 
+describe("synth: field projection over a union", () => {
+  // A tagged union whose arms share the `tag` discriminant; `n` lives on one arm.
+  const F: Schema = {
+    anyOf: [
+      {
+        type: "object",
+        properties: { tag: { const: "a" }, n: { type: "integer" } },
+        required: ["tag", "n"],
+        additionalProperties: false,
+      },
+      {
+        type: "object",
+        properties: { tag: { const: "b" } },
+        required: ["tag"],
+        additionalProperties: false,
+      },
+    ],
+  };
+  const ctxWith = (env: Record<string, Schema>): CheckContext => ({
+    defs: {},
+    env: { lookupType: (n) => env[n] },
+    diagnostics: [],
+    path: [],
+  });
+
+  test("a shared discriminant projects to the union of its per-arm literals", () => {
+    const t = synth({ $get: "tag", $from: { $var: "x" } }, ctxWith({ x: F }));
+    expect(t).toEqual({ anyOf: [{ const: "a" }, { const: "b" }] });
+  });
+
+  test("a field on only some arms projects to the join, absent arms contributing null", () => {
+    const t = synth({ $get: "n", $from: { $var: "x" } }, ctxWith({ x: F }));
+    expect(t).toEqual({ anyOf: [{ type: "integer" }, { type: "null" }] });
+  });
+
+  test("projection resolves through a $ref union alias", () => {
+    const ctx: CheckContext = {
+      defs: { F },
+      env: { lookupType: (n) => (n === "x" ? { $ref: "#/$defs/F" } : undefined) },
+      diagnostics: [],
+      path: [],
+    };
+    expect(synth({ $get: "tag", $from: { $var: "x" } }, ctx)).toEqual({
+      anyOf: [{ const: "a" }, { const: "b" }],
+    });
+  });
+});
+
 describe("synth: control-flow unions", () => {
   test("$if synthesizes the union of its branches", () => {
     const ctx: CheckContext = {

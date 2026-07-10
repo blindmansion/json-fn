@@ -190,6 +190,15 @@ function projectField(target: Schema, key: JSONType, defs: Defs): Schema {
   const t = resolveDeep(target, defs);
   if (t === true) return true;
 
+  // A union projects the field off every arm and joins the results: reading a
+  // shared field off `A | B` yields `A[key] | B[key]` (so a tagged union's
+  // common discriminant projects to its literal union, `"a" | "b"`), and
+  // indexing a union of arrays/tuples joins their elements. An arm that can't
+  // carry the field (a non-object under a string key, etc.) projects to `any`,
+  // which the join then absorbs — matching the pre-union degrade-to-`any`.
+  const arms = unionArms(t);
+  if (arms !== null) return unionOf(arms.map((a) => projectField(a, key, defs)));
+
   if (typeof key === "string") {
     if (classifySchema(t) !== SchemaKind.Object) return true;
     const o = asObject(t);
