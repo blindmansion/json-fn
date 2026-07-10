@@ -175,9 +175,11 @@ narrows each non-final operand to the slice that can stop the chain — falsy fo
 ## Gaps surfaced by `examples/ledger.jfn`
 
 `examples/ledger.jfn` is a reference program that **evaluates correctly**
-(`jfn eval --entry demo`) but does not yet pass `jfn check` (32 errors). It was
-written to use the type syntax the natural way; each error below is the checker
-rejecting a sound program. The already-checkable cousin is
+(`jfn eval --entry demo`) but does not yet pass `jfn check` (32 diagnostics: 15
+errors, 17 warnings — the count was originally 32 errors; several were
+downgraded to warnings by fixes landed since, noted inline below). It was
+written to use the type syntax the natural way; each diagnostic below is the
+checker rejecting a sound program. The already-checkable cousin is
 `examples/pipeline.jfn`. Repros verified through `jfn check`.
 
 ### Computed index access degrades to `any` (arrays _and_ maps)
@@ -214,13 +216,23 @@ properties, RHS wins, at least for a literal RHS) would recover it.
 ```jfn
 type E = { tag: "lit", v: number } | { tag: "bin", l: number, r: number }
 
-match e.tag { "lit" -> e.v, else -> e.l }    // ERR: e.v / e.l are any
+match e.tag { "lit" -> e.v, else -> e.l }    // WARN: e.v / e.l : number | null
 cond { e.tag == "lit" -> e.v, else -> e.l }  // OK — narrows
 if e.tag == "lit" then e.v else e.l          // OK — narrows
 ```
 
+> **Update:** the shared-field-off-union projection fix (below) means the
+> `match` case no longer hard-errors with `any` — `e.v`/`e.l` now project as
+> `number | null` (the field joined across arms, absent arm contributing
+> `null`), which only narrowly misses the declared `number` return, so this is
+> now a `warning`, not an `error`. The core gap is unchanged, though: `$match`
+> still doesn't narrow the *subject* (`e`) the way `if`/`cond`'s
+> `factsFromCondition` does for an equality-on-a-path condition, so the result
+> is imprecise rather than the fully-narrowed `number` the `if`/`cond` forms
+> get.
+
 The discriminated-union narrowing listed under "What landed well" fires for
-`if`/`cond` but not `$match`, so the most natural tagged-dispatch — `match subject.tag { … }` — degrades every arm's variant-specific fields to `any`.
+`if`/`cond` but not `$match`, so the most natural tagged-dispatch — `match subject.tag { … }` — doesn't narrow the subject to the matching variant(s).
 Matching a case value should narrow the subject to the variant(s) carrying that
 discriminant.
 
@@ -269,14 +281,21 @@ leniency inline lambdas already get.
 record, an `Action`/`Fault` discriminated union, and `-> Task` on every
 effectful function, over a `do`-notation loop (`perform`/`bind`/`pure`/`raise`)
 run in-language by a threaded-state `handle`. It **evaluates correctly**
-(`jfn eval --entry demo`) but does not yet pass `jfn check` (8 errors, 1
-warning). The already-checkable cousin is `examples/thermostat-checked.jfn`
-(byte-identical output). Repros verified through `jfn check`.
+(`jfn eval --entry demo`) but does not yet pass `jfn check` (4 errors, 3
+warnings — originally 8 errors, 1 warning; several were downgraded to
+warnings by fixes landed since, per the `match`-narrowing update above). The
+already-checkable cousin is `examples/thermostat-checked.jfn` (byte-identical
+output). Repros verified through `jfn check`.
 
-Two of its errors are the `match` **doesn't narrow** gap already filed under
-`ledger.jfn` (here on `describe`/`actuate`, where `match act.tag { … }` leaves
-`act.to` / `act.fault` as `any`); the rest are new and specific to typing over
-the effect kernel.
+Some of its diagnostics are the `match` **doesn't narrow** gap already filed
+under `ledger.jfn` (here on `describe`/`actuate`, where `match act.tag { … }`
+doesn't narrow `act`). With the shared-field-projection fix, a shallow access
+like `act.to` (`describe`'s `"switch"` case) is now only a `warning`
+(`Mode | null` vs. the declared `string`); a nested access like
+`act.fault.tag` (`describe`'s `"alarm"` case) still fully degrades to `any`
+and stays a hard `error` — the projection fix doesn't recurse through a
+second field hop. The rest are new and specific to typing over the effect
+kernel.
 
 ### The effect kernel is untyped, so `-> Task` can't be expressed
 
