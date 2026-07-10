@@ -8,7 +8,7 @@ monolithic `check.ts` has been split into the `typescript/src/check/` package
 the new files (the module-exports map at the bottom is the index). Grounded in
 the current code, the design sketch (`type-sketch.md` §5.5), and the
 empirically-confirmed wall in the Tier-2 chess tests
-(`typescript/test/check.test.ts`). Decisions marked **[D]**; open forks gathered
+(`typescript/test/check/chess.test.ts`). Decisions marked **[D]**; open forks gathered
 at the end.
 
 ---
@@ -39,7 +39,7 @@ positive fires. `check()` (`checker.ts:423`) and the builtin arg loop in
 no notion of a runtime-checkable mismatch.
 
 The Tier-2 tests now **assert the narrowed outcome** rather than pin the wall
-(`check.test.ts`, `describe("chess fragments — Tier 2")`): `pieceColor` asserts
+(`check/chess.test.ts`, `describe("chess fragments — Tier 2")`): `pieceColor` asserts
 **zero** diagnostics (M1), `makePiece` asserts a **warning** (M0), and a
 genuinely-disjoint case stays an **error**. Those assertions are the regression
 anchor — each milestone below flipped a specific one.
@@ -263,7 +263,7 @@ empty. `TypeEnv.lookupType` gained the optional `narrowings` arg (`context.ts`),
 `seen` list (covers the depth-2 `ok: not(empty)` alias and falls back on cycles).
 Divergent-force diagnostics are structurally de-duplicated at the end of
 `checkModule` via `dedupeDiagnostics`. Tests: `describe("chess fragments — Tier 3
-…")` in `check.test.ts`. Original plan below.
+…")` in `check/chess.test.ts`. Original plan below.
 
 This is where the bulk of chess lives, and where the current architecture
 actively fights us. M2 is fundamentally a **`buildTypeScope` redesign**
@@ -432,7 +432,7 @@ Consumption: `synth`'s `$get` case reads `ctx.narrowings[asPath(expr)]` before
 projecting (mirrors the `"var"` case). The M2 re-synth engine picks path facts up
 because `collectVars` now records the path string alongside its root var, so the
 free-var gate re-synthesizes a local that reaches through a narrowed path. Tests:
-`describe("chess fragments — Tier 4 …")` in `check.test.ts`. Original plan below.
+`describe("chess fragments — Tier 4 …")` in `check/chess.test.ts`. Original plan below.
 
 The tail: narrowing subjects that are **paths**, not bare vars.
 
@@ -490,7 +490,7 @@ The `match` case of `synth` (`checker.ts`) now:
 
 The `$else` branch is now synthesized only when present (previously unconditional).
 
-Tests: `describe("chess fragments — Tier 5 …")` in `check.test.ts` — enum miss →
+Tests: `describe("chess fragments — Tier 5 …")` in `check/chess.test.ts` — enum miss →
 one warning; full enum → clean; discriminated-union miss → warning; dead case →
 warning; `$else` present suppresses; infinite subject → no lint.
 

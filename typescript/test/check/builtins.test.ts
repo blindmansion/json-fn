@@ -1,0 +1,367 @@
+import { describe, expect, test } from "bun:test";
+import { loadBuiltinTable } from "../../src/builtins";
+import type { JSONType } from "../../src/types";
+import { classifySchema, SchemaKind, type Schema } from "../../src/check/schema";
+import { isSubschema } from "../../src/check/subsumption";
+import { checkExpr, checkModule } from "../../src/check/module";
+import { createStdlib } from "../../src/stdlib";
+
+// Convenience: a `$sig`-annotated function body.
+const body = (
+  params: JSONType[],
+  sig: { params: Schema[]; returns: Schema; rest?: Schema },
+  ret: JSONType,
+  locals: Record<string, JSONType> = {},
+): Record<string, JSONType> => ({ $sig: sig, $params: params, ...locals, $return: ret });
+
+const I: Schema = { type: "integer" };
+const S: Schema = { type: "string" };
+
+// ---------------------------------------------------------------------------
+// Section F — builtin signatures (the spec/builtins.json dialect, end to end)
+// ---------------------------------------------------------------------------
+
+describe("Section F — builtin signatures", () => {
+  const BT = loadBuiltinTable();
+  const call = (name: JSONType, ...args: JSONType[]): JSONType => ({ $call: name, $args: args });
+  const arrOfInt: Schema = { type: "array", items: { type: "integer" } };
+  const synthB = (expr: JSONType) => checkExpr(expr, {}, BT);
+
+  test("builtins are opt-in: no table means degrade to any", () => {
+    expect(checkExpr(call("add", 1, 2)).type).toBe(true);
+  });
+
+  test("overloads: add preserves integer, widens to number", () => {
+    expect(synthB(call("add", 1, 2)).type).toEqual({ type: "integer" });
+    expect(synthB(call("add", 1.5, 2)).type).toEqual({ type: "number" });
+  });
+
+  test("overloads: length accepts arrays and strings", () => {
+    expect(synthB(call("length", [1, 2, 3])).type).toEqual({ type: "integer" });
+    expect(synthB(call("length", "hello")).type).toEqual({ type: "integer" });
+  });
+
+  test("a no-overload-fits call reports a diagnostic", () => {
+    // gt : (number, number) -> boolean; strings fit neither overload.
+    expect(synthB(call("gt", "a", "b")).diagnostics.length).toBeGreaterThan(0);
+  });
+
+  test("type variables: head returns T | null", () => {
+    const { type } = synthB(call("head", [1, 2, 3]));
+    expect(isSubschema(type, { type: ["integer", "null"] })).toBe(true);
+  });
+
+  test("type variables: concat and setAt preserve the element type", () => {
+    expect(isSubschema(synthB(call("concat", [1, 2], [3, 4])).type, arrOfInt)).toBe(true);
+    expect(isSubschema(synthB(call("setAt", [1, 2, 3], 0, 9)).type, arrOfInt)).toBe(true);
+  });
+
+  test("named $defs type + union return: reMatch", () => {
+    expect(synthB(call("reMatch", "a", "b")).type).toEqual({
+      anyOf: [{ $ref: "#/$defs/Match" }, { type: "null" }],
+    });
+  });
+
+  test("escape hatch: a rule builtin yields any", () => {
+    expect(synthB(call("pipe", [], 1)).type).toBe(true);
+  });
+
+  test("coverage: every stdlib builtin has a table entry", () => {
+    const missing = Object.keys(createStdlib()).filter((name) => !(name in BT.builtins));
+    expect(missing).toEqual([]);
+  });
+
+  describe("tier 1 — monomorphic & concrete overloads", () => {
+    test("max/min preserve integer and widen to number", () => {
+      expect(synthB(call("max", [1, 2, 3])).type).toEqual({ type: "integer" });
+      expect(synthB(call("min", [1.5, 2])).type).toEqual({ type: "number" });
+    });
+
+    test("num/isTask/arity have concrete returns", () => {
+      expect(synthB(call("num", "5")).type).toEqual({ type: "number" });
+      expect(synthB(call("isTask", 1)).type).toEqual({ type: "boolean" });
+      expect(isSubschema(synthB(call("arity", 1)).type, { type: ["integer", "null"] })).toBe(true);
+    });
+
+    test("range/split/join/strcat", () => {
+      expect(isSubschema(synthB(call("range", 5)).type, arrOfInt)).toBe(true);
+      expect(isSubschema(synthB(call("split", "a,b", ",")).type, { type: "array", items: S })).toBe(
+        true,
+      );
+      expect(synthB(call("join", ["a", "b"], ",")).type).toEqual(S);
+      expect(synthB(call("strcat", "a", "b", "c")).type).toEqual(S);
+    });
+
+    test("strcat rejects a non-string arg", () => {
+      expect(synthB(call("strcat", "a", 1)).diagnostics.length).toBeGreaterThan(0);
+    });
+
+    test("regex families: reTest/reMatchAll/reReplace/reSplit", () => {
+      expect(synthB(call("reTest", "a", "b")).type).toEqual({ type: "boolean" });
+      expect(synthB(call("reMatchAll", "a", "b")).type).toEqual({
+        type: "array",
+        items: { $ref: "#/$defs/Match" },
+      });
+      expect(synthB(call("reReplace", "a", "b", "c")).type).toEqual(S);
+      expect(isSubschema(synthB(call("reSplit", "a", "b")).type, { type: "array", items: S })).toBe(
+        true,
+      );
+    });
+
+    test("log is identity on its value (both overloads)", () => {
+      expect(synthB(call("log", "hi")).type).toEqual({ const: "hi" });
+      expect(synthB(call("log", "hi", "label")).type).toEqual({ const: "hi" });
+    });
+  });
+
+  describe("tier 2 — array generics", () => {
+    test("last is T | null; tail/reverse are T[]", () => {
+      expect(isSubschema(synthB(call("last", [1, 2, 3])).type, { type: ["integer", "null"] })).toBe(
+        true,
+      );
+      expect(isSubschema(synthB(call("tail", [1, 2, 3])).type, arrOfInt)).toBe(true);
+      expect(isSubschema(synthB(call("reverse", [1, 2, 3])).type, arrOfInt)).toBe(true);
+    });
+
+    test("flatten unwraps one array level", () => {
+      // A literal `[[1,2],[3]]` synthesizes to a *tuple of tuples*, which the
+      // engine can't destructure; build a real `integer[][]` via map/range.
+      const nested = call(
+        "map",
+        { $params: ["n", "i"], $return: call("range", { $var: "n" }) },
+        [1, 2, 3],
+      );
+      expect(isSubschema(synthB(call("flatten", nested)).type, arrOfInt)).toBe(true);
+    });
+
+    test("slice: array arm stays generic, string arm returns string", () => {
+      expect(isSubschema(synthB(call("slice", [1, 2, 3], 1)).type, arrOfInt)).toBe(true);
+      expect(isSubschema(synthB(call("slice", [1, 2, 3], 1, 2)).type, arrOfInt)).toBe(true);
+      expect(synthB(call("slice", "hello", 1)).type).toEqual(S);
+      expect(synthB(call("slice", "hello", 1, 3)).type).toEqual(S);
+    });
+
+    test("includes/indexOf pick the right arm", () => {
+      expect(synthB(call("includes", [1, 2, 3], 2)).type).toEqual({ type: "boolean" });
+      expect(synthB(call("includes", "hi", "h")).type).toEqual({ type: "boolean" });
+      expect(synthB(call("indexOf", [1, 2, 3], 2)).type).toEqual({ type: "integer" });
+      expect(synthB(call("indexOf", "hi", "h")).type).toEqual({ type: "integer" });
+    });
+  });
+
+  describe("tier 3 — higher-order builtins", () => {
+    test("reduce infers U from init and threads the accumulator", () => {
+      const sum = {
+        $params: ["acc", "n", "i"],
+        $return: call("add", { $var: "acc" }, { $var: "n" }),
+      };
+      const r = synthB(call("reduce", sum, 0, [1, 2, 3]));
+      expect(r.diagnostics).toEqual([]);
+      // U joins the literal init `0` with the accumulator return, so the result
+      // is (equivalent to) integer — not pinned to the narrow `const 0`.
+      expect(isSubschema(r.type, I) && isSubschema(I, r.type)).toBe(true);
+    });
+
+    test("find is T | null; findIndex/some/every are integer/boolean", () => {
+      const gtOne = { $params: ["n", "i"], $return: call("gt", { $var: "n" }, 1) };
+      expect(
+        isSubschema(synthB(call("find", gtOne, [1, 2, 3])).type, { type: ["integer", "null"] }),
+      ).toBe(true);
+      expect(synthB(call("findIndex", gtOne, [1, 2, 3])).type).toEqual({ type: "integer" });
+      expect(synthB(call("some", gtOne, [1, 2, 3])).type).toEqual({ type: "boolean" });
+      expect(synthB(call("every", gtOne, [1, 2, 3])).type).toEqual({ type: "boolean" });
+    });
+
+    test("sort/sortBy preserve the element type", () => {
+      const cmp = { $params: ["a", "b"], $return: call("sub", { $var: "a" }, { $var: "b" }) };
+      expect(isSubschema(synthB(call("sort", cmp, [3, 1, 2])).type, arrOfInt)).toBe(true);
+      const keyFn = { $params: ["n", "i"], $return: { $var: "n" } };
+      expect(isSubschema(synthB(call("sortBy", keyFn, [3, 1, 2])).type, arrOfInt)).toBe(true);
+    });
+
+    test("groupBy returns a map of T[]", () => {
+      const keyFn = { $params: ["n", "i"], $return: call("str", { $var: "n" }) };
+      const r = synthB(call("groupBy", keyFn, [1, 2, 3]));
+      expect(r.diagnostics).toEqual([]);
+      expect(isSubschema(r.type, { type: "object", additionalProperties: arrOfInt })).toBe(true);
+    });
+
+    test("flatMap infers U from the callback's array return", () => {
+      const dup = {
+        $params: ["n", "i"],
+        $return: call("concat", [{ $var: "n" }], [{ $var: "n" }]),
+      };
+      const r = synthB(call("flatMap", dup, [1, 2, 3]));
+      expect(r.diagnostics).toEqual([]);
+      expect(isSubschema(r.type, arrOfInt)).toBe(true);
+    });
+
+    test("reReplaceWith types its Match callback", () => {
+      const cb = { $params: ["m"], $return: { $get: "match", $from: { $var: "m" } } };
+      const r = synthB(call("reReplaceWith", "a", cb, "banana"));
+      expect(r.diagnostics).toEqual([]);
+      expect(r.type).toEqual(S);
+    });
+  });
+
+  describe("tier 4 — object utilities & effect rules", () => {
+    test("keys returns string[]; values/entries return arrays", () => {
+      const obj = { a: 1, b: 2 };
+      expect(isSubschema(synthB(call("keys", obj)).type, { type: "array", items: S })).toBe(true);
+      expect(classifySchema(synthB(call("values", obj)).type)).toBe(SchemaKind.Array);
+      expect(classifySchema(synthB(call("entries", obj)).type)).toBe(SchemaKind.Array);
+    });
+
+    test("merge/pick/omit/mapValues return objects; hasKey a boolean", () => {
+      const obj = { a: 1, b: 2 };
+      expect(classifySchema(synthB(call("merge", obj, { c: 3 })).type)).toBe(SchemaKind.Object);
+      expect(classifySchema(synthB(call("pick", obj, ["a"])).type)).toBe(SchemaKind.Object);
+      expect(classifySchema(synthB(call("omit", obj, ["a"])).type)).toBe(SchemaKind.Object);
+      expect(synthB(call("hasKey", obj, "a")).type).toEqual({ type: "boolean" });
+      const inc = { $params: ["v", "k"], $return: call("add", { $var: "v" }, 1) };
+      expect(classifySchema(synthB(call("mapValues", inc, obj)).type)).toBe(SchemaKind.Object);
+    });
+
+    test("effect constructors return a Task ref; apply/handle/pipe yield any", () => {
+      const TASK = { $ref: "#/$defs/Task" };
+      expect(synthB(call("perform", "read", [])).type).toEqual(TASK);
+      expect(synthB(call("pure", 1)).type).toEqual(TASK);
+      expect(synthB(call("raise", "boom")).type).toEqual(TASK);
+      const cont = { $params: ["x"], $return: call("pure", { $var: "x" }) };
+      expect(synthB(call("bind", call("pure", 1), cont)).type).toEqual(TASK);
+      expect(synthB(call("apply", { $params: ["n"], $return: { $var: "n" } }, [1])).type).toBe(
+        true,
+      );
+      expect(synthB(call("pipe", [], 1)).type).toBe(true);
+    });
+  });
+
+  describe("escape-hatch rule floors", () => {
+    const errs = (expr: JSONType) => synthB(expr).diagnostics.filter((d) => d.severity === "error");
+
+    test("wrong arity is reported", () => {
+      expect(errs(call("pipe", [])).length).toBeGreaterThan(0);
+      expect(errs(call("perform", "e")).length).toBeGreaterThan(0);
+      expect(errs(call("pure", 1, 2)).length).toBeGreaterThan(0);
+    });
+
+    test("a disjoint arg shape is a hard error", () => {
+      // `pipe`'s first arg must be an array of functions; `5` cannot be.
+      expect(errs(call("pipe", 5, 1)).some((d) => d.path.join(".") === "$args[0]")).toBe(true);
+      // `apply`'s second arg must be an array.
+      expect(errs(call("apply", { $params: ["n"], $return: { $var: "n" } }, 5))).not.toEqual([]);
+      // `perform`'s effect name must be a string.
+      expect(errs(call("perform", 5, []))).not.toEqual([]);
+    });
+
+    test("an any-typed arg is exempt from shape checks", () => {
+      // A bare unknown var synthesizes to `any`; the floor must not flag it.
+      expect(synthB(call("pipe", { $var: "unknown" }, 1)).diagnostics).toEqual([]);
+    });
+
+    test("effectful functions can carry a Task / any return", () => {
+      const perform = call("perform", "e", []);
+      const fn = (returns: Schema): JSONType => ({
+        $params: [],
+        $sig: { params: [], returns },
+        $return: perform,
+      });
+      const noErr = (mod: JSONType) =>
+        checkModule(mod as Record<string, JSONType>, BT).filter((d) => d.severity === "error");
+      // `-> any`
+      expect(noErr({ f: fn(true) })).toEqual([]);
+      // `-> Task` aliased to any
+      expect(noErr({ $types: { Task: true }, f: fn({ $ref: "#/$defs/Task" }) })).toEqual([]);
+      // `-> Task` aliased to the structural task record
+      const structural = {
+        type: "object",
+        properties: { "@task": { type: "string" } },
+        required: ["@task"],
+      };
+      expect(noErr({ $types: { Task: structural }, f: fn({ $ref: "#/$defs/Task" }) })).toEqual([]);
+    });
+  });
+
+  describe("contextual lambda typing", () => {
+    test("map infers T from the array and U from the callback return", () => {
+      const identity = { $params: ["n"], $return: { $var: "n" } };
+      const r = synthB(call("map", identity, [1, 2, 3]));
+      expect(r.diagnostics).toEqual([]);
+      expect(isSubschema(r.type, arrOfInt)).toBe(true);
+    });
+
+    test("map callback bodies resolve nested builtins under the pushed param type", () => {
+      const addOne = { $params: ["n"], $return: call("add", { $var: "n" }, 1) };
+      const r = synthB(call("map", addOne, [1, 2, 3]));
+      expect(r.diagnostics).toEqual([]);
+      expect(isSubschema(r.type, arrOfInt)).toBe(true);
+    });
+
+    test("filter accepts a boolean-returning callback", () => {
+      const gtOne = { $params: ["n"], $return: call("gt", { $var: "n" }, 1) };
+      const r = synthB(call("filter", gtOne, [1, 2, 3]));
+      expect(r.diagnostics).toEqual([]);
+      expect(isSubschema(r.type, arrOfInt)).toBe(true);
+    });
+
+    test("filter reports a non-boolean callback return", () => {
+      const bad = { $params: ["n"], $return: { $var: "n" } };
+      const r = synthB(call("filter", bad, [1, 2, 3]));
+      expect(r.diagnostics.length).toBeGreaterThan(0);
+      expect(r.diagnostics.some((d) => d.path.join(".") === "$args[0].$return")).toBe(true);
+    });
+
+    test("a lambda at a non-function param position reports, not throws", () => {
+      // Swapped args: the lambda lands on `map`'s array param. Previously this
+      // destructured an absent `$fnType` and threw; it must be a diagnostic.
+      const lambda = { $params: ["n"], $return: call("add", { $var: "n" }, 1) };
+      const r = synthB(call("map", [1, 2, 3], lambda));
+      expect(r.diagnostics.some((d) => d.path.join(".") === "$args[1]")).toBe(true);
+      expect(r.diagnostics.some((d) => d.severity === "error")).toBe(true);
+    });
+
+    test("a wrong-arity call reports only the arity error, no lambda cascade", () => {
+      // `map` with the array argument missing: `T` never binds, so the lambda
+      // param would degrade to `any` and its body re-report. Only the arity
+      // error should surface — the body/return check is suppressed.
+      const addOne = { $params: ["n"], $return: call("add", { $var: "n" }, 1) };
+      const r = synthB(call("map", addOne));
+      expect(r.diagnostics.length).toBe(1);
+      expect(/Expected 2 argument/.test(r.diagnostics[0]!.message)).toBe(true);
+      expect(r.diagnostics.some((d) => d.path.join(".").includes("$return"))).toBe(false);
+    });
+  });
+
+  describe("through the module checker", () => {
+    test("map/add flow an integer[] cleanly to a declared integer[] return", () => {
+      const mod = {
+        doubleAll: body(
+          ["xs"],
+          { params: [arrOfInt], returns: arrOfInt },
+          call(
+            "map",
+            { $params: ["n"], $return: call("add", { $var: "n" }, { $var: "n" }) },
+            {
+              $var: "xs",
+            },
+          ),
+        ),
+      };
+      expect(checkModule(mod, BT)).toEqual([]);
+    });
+
+    test("a builtin result that mismatches the declared return is reported", () => {
+      const strArr: Schema = { type: "array", items: S };
+      const mod = {
+        wrong: body(
+          ["xs"],
+          { params: [arrOfInt], returns: strArr },
+          call("map", { $params: ["n"], $return: { $var: "n" } }, { $var: "xs" }),
+        ),
+      };
+      const diags = checkModule(mod, BT);
+      expect(diags.length).toBeGreaterThan(0);
+      expect(diags[0]!.path).toEqual(["wrong", "$return"]);
+    });
+  });
+});
