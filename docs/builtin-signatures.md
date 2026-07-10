@@ -127,10 +127,35 @@ cross-language even though the *resolution* is code:
 "pipe": { "rule": "pipe" }
 ```
 
-Each implementation decides how to handle a given rule name. Until one does, the
-call yields `any` (its arguments are still walked for nested errors). This is the
+Each implementation decides how to handle a given rule name. An unrecognized
+rule yields `any` (its arguments are still walked for nested errors). This is the
 deliberate release valve: prefer an escape hatch over distorting the shared
 format.
+
+### Recommended floors
+
+A rule need not be fully inert. The recommended baseline ("floor") pins the
+fixed arity, the result type, and the shape of the argument positions a data
+template *can* pin — enough to reject a wrong-arity/wrong-shape call and to give
+effectful functions a `Task` return, without a full code rule. An `any`-typed
+argument is exempt from shape checks (a strict `any ⊄ array` would hard-error on
+the dynamically typed values these builtins routinely accept):
+
+| rule      | arity | argument shapes            | returns |
+| --------- | ----- | -------------------------- | ------- |
+| `pipe`    | 2     | arg 0: `array`             | `any`   |
+| `apply`   | 2     | arg 1: `array`             | `any`   |
+| `handle`  | 2     | —                          | `any`   |
+| `perform` | 2     | arg 0: `string`, 1:`array` | `Task`  |
+| `pure`    | 1     | —                          | `Task`  |
+| `bind`    | 2     | —                          | `Task`  |
+| `raise`   | 1     | —                          | `Task`  |
+
+`Task` is the opaque effect node, defined in `$defs` as the tagged record shape
+`{ "@task": string, ... }` (see the kernel in the language reference). Returning
+it as a `$ref` lets a `-> Task` or `-> any` annotation on an effectful function
+be satisfied. Precision beyond the floor (e.g. threading `pipe`'s fold) is left
+to an optional per-impl code rule.
 
 ## What each implementation must provide
 

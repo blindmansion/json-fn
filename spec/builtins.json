@@ -1,6 +1,11 @@
 {
   "description": "Canonical type signatures for json-fn builtins. Shared across implementations to reduce drift. See docs/builtin-signatures.md for the dialect.",
   "$defs": {
+    "Task": {
+      "type": "object",
+      "properties": { "@task": { "type": "string" } },
+      "required": ["@task"]
+    },
     "Match": {
       "type": "object",
       "properties": {

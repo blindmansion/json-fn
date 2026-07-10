@@ -242,14 +242,68 @@ function applyOverload(sig: BuiltinSig, argExprs: JSONType[], ctx: CheckContext)
   return instantiate(sig.returns, bindings);
 }
 
+// The result floor for the effect constructors: an opaque task node, whose
+// runtime shape is a tagged record `{ "@task": string, ... }` (see `task.ts`).
+// Referenced by name (`Task`, defined in `spec/builtins.json`'s `$defs`) rather
+// than inlined, so it renders as `Task` *and* so a `-> Task` / `-> any`
+// annotation can satisfy it without the `$ref`-to-top work (a `$ref` result
+// resolves through subsumption; a bare `true` short-circuits before it can).
+const TASK_FLOOR: Schema = { $ref: "#/$defs/Task" };
+
+// Loose data floors for the `{ rule }` escape hatches (`pipe`/`apply`/effects).
+// A rule has no agnostic template, but leaving it fully inert means no arity or
+// shape checking and a bare-`any` result. Each floor pins the fixed arity, the
+// result type, and (optionally) the shape of individual argument positions —
+// just enough that a wrong-arity/wrong-shape call like `pipe(5, f)` is caught
+// and effectful functions can carry a `Task` return. A per-impl code rule can
+// still layer precision on top later.
+type RuleFloor = { arity: number; returns: Schema; shapes?: Record<number, Schema> };
+
+const RULE_FLOORS: Record<string, RuleFloor> = {
+  pipe: { arity: 2, returns: true, shapes: { 0: { type: "array" } } },
+  apply: { arity: 2, returns: true, shapes: { 1: { type: "array" } } },
+  handle: { arity: 2, returns: true },
+  perform: {
+    arity: 2,
+    returns: TASK_FLOOR,
+    shapes: { 0: { type: "string" }, 1: { type: "array" } },
+  },
+  pure: { arity: 1, returns: TASK_FLOOR },
+  bind: { arity: 2, returns: TASK_FLOOR },
+  raise: { arity: 1, returns: TASK_FLOOR },
+};
+
+// Apply an escape-hatch rule's floor: walk every arg for nested errors, check
+// arity, then shape-check the pinned positions. An `any`-typed argument is
+// exempt from shape checks — a strict `any ⊄ array` would hard-error on the
+// many dynamically typed values that legitimately reach these builtins, so
+// leniency here mirrors what an untyped escape hatch used to allow. Shape
+// checks are skipped when arity is already wrong (one mistake, one diagnostic).
+function synthRule(rule: string, argExprs: JSONType[], ctx: CheckContext): Schema {
+  const argTypes = argExprs.map((a, i) => synth(a, at(ctx, `$args[${i}]`)));
+  const floor = RULE_FLOORS[rule];
+  if (floor === undefined) return true; // unknown rule: legacy `any`
+  const aritySig = {
+    params: Array.from({ length: floor.arity }, () => true as Schema),
+    returns: true,
+  };
+  const arityOk = checkArity(aritySig, argExprs.length, ctx);
+  if (arityOk && floor.shapes) {
+    for (const [pos, expected] of Object.entries(floor.shapes)) {
+      const i = Number(pos);
+      const actual = argTypes[i];
+      if (actual === undefined || actual === true) continue;
+      if (!isSubschema(actual, expected, ctx.defs)) {
+        reportMismatch(at(ctx, `$args[${i}]`), actual, expected);
+      }
+    }
+  }
+  return floor.returns;
+}
+
 // Dispatch a builtin call by its table entry.
 function synthBuiltinCall(entry: BuiltinEntry, argExprs: JSONType[], ctx: CheckContext): Schema {
-  if (!Array.isArray(entry)) {
-    // `{ rule: ... }` escape hatch: no agnostic template. Walk args for nested
-    // errors and yield `any` (a per-impl code rule may refine this later).
-    argExprs.forEach((a, i) => synth(a, at(ctx, `$args[${i}]`)));
-    return true;
-  }
+  if (!Array.isArray(entry)) return synthRule(entry.rule, argExprs, ctx); // `{ rule }` escape hatch
   const chosen = entry.find((ov) => tryBindOverload(ov, argExprs, ctx) !== null) ?? entry[0]!;
   return applyOverload(chosen, argExprs, ctx);
 }

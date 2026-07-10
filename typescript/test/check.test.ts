@@ -948,13 +948,63 @@ describe("Section F — builtin signatures", () => {
       expect(classifySchema(synthB(call("mapValues", inc, obj)).type)).toBe(SchemaKind.Object);
     });
 
-    test("effect constructors and apply are rule escape hatches (any)", () => {
-      expect(synthB(call("perform", "read", [])).type).toBe(true);
-      expect(synthB(call("pure", 1)).type).toBe(true);
-      expect(synthB(call("raise", "boom")).type).toBe(true);
+    test("effect constructors return a Task ref; apply/handle/pipe yield any", () => {
+      const TASK = { $ref: "#/$defs/Task" };
+      expect(synthB(call("perform", "read", [])).type).toEqual(TASK);
+      expect(synthB(call("pure", 1)).type).toEqual(TASK);
+      expect(synthB(call("raise", "boom")).type).toEqual(TASK);
+      const cont = { $params: ["x"], $return: call("pure", { $var: "x" }) };
+      expect(synthB(call("bind", call("pure", 1), cont)).type).toEqual(TASK);
       expect(synthB(call("apply", { $params: ["n"], $return: { $var: "n" } }, [1])).type).toBe(
         true,
       );
+      expect(synthB(call("pipe", [], 1)).type).toBe(true);
+    });
+  });
+
+  describe("escape-hatch rule floors", () => {
+    const errs = (expr: JSONType) => synthB(expr).diagnostics.filter((d) => d.severity === "error");
+
+    test("wrong arity is reported", () => {
+      expect(errs(call("pipe", [])).length).toBeGreaterThan(0);
+      expect(errs(call("perform", "e")).length).toBeGreaterThan(0);
+      expect(errs(call("pure", 1, 2)).length).toBeGreaterThan(0);
+    });
+
+    test("a disjoint arg shape is a hard error", () => {
+      // `pipe`'s first arg must be an array of functions; `5` cannot be.
+      expect(errs(call("pipe", 5, 1)).some((d) => d.path.join(".") === "$args[0]")).toBe(true);
+      // `apply`'s second arg must be an array.
+      expect(errs(call("apply", { $params: ["n"], $return: { $var: "n" } }, 5))).not.toEqual([]);
+      // `perform`'s effect name must be a string.
+      expect(errs(call("perform", 5, []))).not.toEqual([]);
+    });
+
+    test("an any-typed arg is exempt from shape checks", () => {
+      // A bare unknown var synthesizes to `any`; the floor must not flag it.
+      expect(synthB(call("pipe", { $var: "unknown" }, 1)).diagnostics).toEqual([]);
+    });
+
+    test("effectful functions can carry a Task / any return", () => {
+      const perform = call("perform", "e", []);
+      const fn = (returns: Schema): JSONType => ({
+        $params: [],
+        $sig: { params: [], returns },
+        $return: perform,
+      });
+      const noErr = (mod: JSONType) =>
+        checkModule(mod as Record<string, JSONType>, BT).filter((d) => d.severity === "error");
+      // `-> any`
+      expect(noErr({ f: fn(true) })).toEqual([]);
+      // `-> Task` aliased to any
+      expect(noErr({ $types: { Task: true }, f: fn({ $ref: "#/$defs/Task" }) })).toEqual([]);
+      // `-> Task` aliased to the structural task record
+      const structural = {
+        type: "object",
+        properties: { "@task": { type: "string" } },
+        required: ["@task"],
+      };
+      expect(noErr({ $types: { Task: structural }, f: fn({ $ref: "#/$defs/Task" }) })).toEqual([]);
     });
   });
 
