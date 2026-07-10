@@ -419,6 +419,100 @@ describe("synth: computed index / key projection", () => {
   });
 });
 
+describe("synth: missing closed-object field → hard error", () => {
+  const closed = (props: Record<string, Schema>, required: string[]): Schema => ({
+    type: "object",
+    properties: props,
+    required,
+    additionalProperties: false,
+  });
+  const ctxWith = (
+    env: Record<string, Schema>,
+    defs: Record<string, Schema> = {},
+  ): CheckContext => ({
+    defs,
+    env: { lookupType: (n) => env[n] },
+    diagnostics: [],
+    path: [],
+  });
+  const get = (from: string, key: JSONType): JSONType => ({ $get: key, $from: { $var: from } });
+
+  test("a literal string key absent from a closed object is a hard error", () => {
+    const ctx = ctxWith({ o: closed({ name: S }, ["name"]) });
+    synth(get("o", "nmae"), ctx);
+    expect(ctx.diagnostics.length).toBe(1);
+    expect(ctx.diagnostics[0]!.severity).toBe("error");
+    expect(ctx.diagnostics[0]!.message).toContain("nmae");
+    expect(ctx.diagnostics[0]!.path).toEqual(["$get"]);
+  });
+
+  test("a present required key is fine", () => {
+    const ctx = ctxWith({ o: closed({ name: S }, ["name"]) });
+    expect(synth(get("o", "name"), ctx)).toEqual(S);
+    expect(ctx.diagnostics).toEqual([]);
+  });
+
+  test("a declared-but-optional key is fine (projects T | null)", () => {
+    const ctx = ctxWith({ o: closed({ name: S, score: I }, ["name"]) });
+    expect(synth(get("o", "score"), ctx)).toEqual({ anyOf: [I, { type: "null" }] });
+    expect(ctx.diagnostics).toEqual([]);
+  });
+
+  test("an open object stays permissive (no error, degrades to any)", () => {
+    const open: Schema = { type: "object", properties: { name: S }, required: ["name"] };
+    const ctx = ctxWith({ o: open });
+    expect(synth(get("o", "whatever"), ctx)).toBe(true);
+    expect(ctx.diagnostics).toEqual([]);
+  });
+
+  test("a map object stays permissive (no error, projects the value type)", () => {
+    const map: Schema = { type: "object", additionalProperties: I };
+    const ctx = ctxWith({ o: map });
+    expect(synth(get("o", "any-key"), ctx)).toEqual(I);
+    expect(ctx.diagnostics).toEqual([]);
+  });
+
+  test("a union where one arm supplies the key is fine (honest T | null)", () => {
+    const u: Schema = {
+      anyOf: [closed({ name: S, n: I }, ["name", "n"]), closed({ name: S }, ["name"])],
+    };
+    const ctx = ctxWith({ o: u });
+    expect(synth(get("o", "n"), ctx)).toEqual({ anyOf: [I, { type: "null" }] });
+    expect(ctx.diagnostics).toEqual([]);
+  });
+
+  test("a union where every arm is closed-missing is a hard error", () => {
+    const u: Schema = { anyOf: [closed({ a: I }, ["a"]), closed({ b: S }, ["b"])] };
+    const ctx = ctxWith({ o: u });
+    synth(get("o", "c"), ctx);
+    expect(ctx.diagnostics.length).toBe(1);
+    expect(ctx.diagnostics[0]!.severity).toBe("error");
+  });
+
+  test("the error resolves through a $ref alias", () => {
+    const ctx = ctxWith({ o: { $ref: "#/$defs/Rec" } }, { Rec: closed({ name: S }, ["name"]) });
+    synth(get("o", "nmae"), ctx);
+    expect(ctx.diagnostics.some((d) => d.severity === "error")).toBe(true);
+  });
+
+  test("a nested path errors at the first closed segment that lacks its key", () => {
+    const inner = closed({ x: I }, ["x"]);
+    const outer = closed({ a: inner }, ["a"]);
+    const ctx = ctxWith({ o: outer });
+    // `o.a.y`: `a` exists, but `y` is missing on the (closed) inner object.
+    synth({ $get: ["a", "y"], $from: { $var: "o" } }, ctx);
+    expect(ctx.diagnostics.length).toBe(1);
+    expect(ctx.diagnostics[0]!.severity).toBe("error");
+    expect(ctx.diagnostics[0]!.message).toContain("y");
+  });
+
+  test("an any / unknown target stays permissive", () => {
+    const ctx = ctxWith({});
+    expect(synth(get("o", "whatever"), ctx)).toBe(true);
+    expect(ctx.diagnostics).toEqual([]);
+  });
+});
+
 describe("synth: control-flow unions", () => {
   test("$if synthesizes the union of its branches", () => {
     const ctx: CheckContext = {

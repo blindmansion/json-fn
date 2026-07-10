@@ -57,7 +57,7 @@ Files: `typescript/src/check/module.ts` (new pass in `checkModule`),
   pass); no dangling-ref fallout across `examples/` (pre-existing `check` failures
   there are unrelated type errors, not from this pass).
 
-### 2. Missing-field access on a closed object → hard error
+### 2. Missing-field access on a closed object → hard error — ✅ done
 
 Accessing a field absent from a closed object silently types as `null`, which
 masks typos. Make it an error when the object type is closed
@@ -67,6 +67,35 @@ Open objects and index-into-map types keep their current behavior.
 Files: `typescript/src/check/checker.ts` (the index/member-access synth case,
 near `checkIndexKey`), `typescript/src/check/schema.ts` (closed-object /
 property-lookup helpers).
+
+**Implementation notes:**
+
+- `schema.ts` gained `isClosedMissingKey(target, key, defs)`: resolves through
+  `$ref`s and reports whether reading literal string `key` off `target` is a
+  *guaranteed* miss — a closed object (or a union whose **every** arm is one)
+  that never declares the key. `any`/non-object/open/map targets and a present
+  (even optional) key are all *not* misses, so they keep `projectField`'s
+  permissive projection untouched.
+- Key design call — **unions error only when no arm can supply the key.** A
+  union where at least one arm declares the field keeps the honest `T | null`
+  projection (the legitimate partial-arm / tagged-union read, already blessed by
+  the `synth: field projection over a union` tests); it is *not* silent, so it
+  isn't a §2 lie. Only a target where the access can *never* yield a real value
+  (single closed object missing it, or all-arms-closed-missing) is the masked
+  typo that errors.
+- The check fires at the checker call site, not inside `projectField` — that
+  helper is a pure schema op shared with flow narrowing and has no `ctx`.
+  `checker.ts` gained `reportClosedMissing`, invoked from the `"get"` case for a
+  literal string key and, folding left, for each string segment of a static
+  `x.a.b` path (so the first segment that can never carry its key is the
+  reported one). The narrowing early-return at the top of the `"get"` case still
+  wins first, so a narrowed access never spuriously errors.
+- Diagnostic: `Field "<key>" does not exist on a closed object type.`
+  (`severity: "error"`, `actual` = the object type); path is the `$get` site.
+- Tests: `typescript/test/check/checker.test.ts` → `describe("synth: missing
+  closed-object field → hard error")` (10 cases). Full `bun run check` + `bun
+  test` green (1035 pass); `jfn check` over all 19 `examples/*.jfn` surfaces no
+  new closed-missing errors.
 
 ### 3. `requireTypedModuleFunctions: true` by default
 
@@ -120,7 +149,7 @@ degradation sites across `checker.ts` / `builtin-rules.ts`,
 ## Landing checklist
 
 - [x] Dangling `$ref` errors; `type X = any` alias still clean.
-- [ ] Missing closed-object field errors; open/map access unaffected.
+- [x] Missing closed-object field errors; open/map access unaffected.
 - [ ] Untyped top-level functions error by default; opt-out flag works.
 - [ ] Every remaining degrade emits a counted info diagnostic.
 - [ ] `jfn check` prints a coverage/degradation summary.

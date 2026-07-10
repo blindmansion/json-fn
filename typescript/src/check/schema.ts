@@ -284,6 +284,26 @@ function projectField(target: Schema, key: JSONType, defs: Defs): Schema {
   return true; // dynamic key
 }
 
+// Would reading the literal string `key` off `target` be a *guaranteed* miss —
+// a closed object (or a union whose every arm is one) that never declares it?
+// Such an access can only ever yield null at runtime, so it masks a typo rather
+// than reading a real field (Priority-1 §2). Everything else stays permissive,
+// matching `projectField`'s degrade behavior: an `any` target, a present (even
+// optional) key, and open / map / non-object arms are all *not* guaranteed
+// misses. A union is a guaranteed miss only when **every** arm is — if one arm
+// can supply the key, the read is the legitimate partial-arm / tagged-union
+// pattern that honestly projects to `T | null`.
+function isClosedMissingKey(target: Schema, key: string, defs: Defs): boolean {
+  const t = resolveDeep(target, defs);
+  if (t === true || t === false) return false;
+  const arms = unionArms(t);
+  if (arms !== null) return arms.length > 0 && arms.every((a) => isClosedMissingKey(a, key, defs));
+  if (classifySchema(t) !== SchemaKind.Object) return false;
+  const o = asObject(t);
+  if (key in properties(o)) return false;
+  return apMode(o).kind === "closed";
+}
+
 // Could a value of `keyType` fall in the index/key category `cat` ("integer"
 // for array/tuple positions, "string" for object/map keys)? `any` matches
 // anything, `never` nothing; a union matches if any arm does. Const/enum use the
@@ -484,6 +504,7 @@ export {
   unionOf,
   projectField,
   projectComputed,
+  isClosedMissingKey,
   keyCouldBe,
   mergeSchemas,
 };

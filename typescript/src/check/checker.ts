@@ -40,6 +40,7 @@ import {
   classifySchema,
   deepEqual,
   fnShape,
+  isClosedMissingKey,
   isSchemaObject,
   keyCouldBe,
   projectComputed,
@@ -261,6 +262,18 @@ function checkIndexKey(target: Schema, keyType: Schema, ctx: CheckContext): void
     severity: overlaps ? "warning" : "error",
     expected: probe,
     actual: keyType,
+  });
+}
+
+// Reading a literal string field off a closed object that never declares it can
+// only yield null at runtime — a masked typo, not a real access (§2). Report it
+// as a hard error. Open / map / union-with-a-supplying-arm targets are left to
+// `projectField`'s permissive projection (`isClosedMissingKey` returns false).
+function reportClosedMissing(target: Schema, key: string, ctx: CheckContext): void {
+  if (!isClosedMissingKey(target, key, ctx.defs)) return;
+  report(ctx, `Field "${key}" does not exist on a closed object type.`, {
+    severity: "error",
+    actual: target,
   });
 }
 
@@ -524,11 +537,22 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
       const target = synth(g.$from, at(ctx, "$from"));
       // A static nested string path (`x.a.b`, an array of keys) projects field
       // by field; keys are strings by construction, so no index-type check.
-      if (Array.isArray(g.$get)) return projectField(target, g.$get, ctx.defs);
+      // Each segment is closed-miss checked against the type reached so far, so
+      // the first segment that can never carry its key is the reported one.
+      if (Array.isArray(g.$get)) {
+        let cur = target;
+        for (const seg of g.$get) {
+          if (typeof seg === "string") reportClosedMissing(cur, seg, at(ctx, "$get"));
+          cur = projectField(cur, seg, ctx.defs);
+        }
+        return cur;
+      }
       // A scalar literal key projects by value; still index-checked (e.g. to
-      // reject `xs[2.5]`).
+      // reject `xs[2.5]`). A literal string key that a closed object never
+      // declares is a typo — a hard error rather than a silent null (§2).
       if (nodeKind(g.$get) === "scalar") {
         checkIndexKey(target, synthData(g.$get), at(ctx, "$get"));
+        if (typeof g.$get === "string") reportClosedMissing(target, g.$get, at(ctx, "$get"));
         return projectField(target, g.$get, ctx.defs);
       }
       // A computed key projects off the key's *type* (array `items` / tuple
