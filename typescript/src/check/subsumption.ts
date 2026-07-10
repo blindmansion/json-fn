@@ -33,10 +33,30 @@ function isSubschema(sub: Schema, sup: Schema, defs: Defs = {}): boolean {
   return subsumes(sub, sup, { defs, seen: new Set() });
 }
 
+// Follow a `$ref` chain to see whether it bottoms out at `true` (top), so a
+// `$ref` to an `any` alias (`type Task = any`) counts as top. Guards against
+// cyclic aliases, which never resolve to a boolean. A missing def resolves to
+// `true` (see `resolveRef`), so a dangling alias is treated as top too.
+function refsToTop(s: Schema, defs: Defs): boolean {
+  const seen = new Set<string>();
+  let cur = s;
+  while (classifySchema(cur) === SchemaKind.Ref) {
+    const name = refName(cur);
+    if (seen.has(name)) return false;
+    seen.add(name);
+    cur = resolveRef(cur, defs);
+  }
+  return cur === true;
+}
+
 function subsumes(sub: Schema, sup: Schema, ctx: SubCtx): boolean {
   // Boolean-schema base cases (no ref resolution needed).
   if (sup === true) return true; // T = any
-  if (sub === true) return false; // any ⊆ (non-any)
+  // `sub` is top: only ⊆ sup if sup is also top — directly, or through a `$ref`
+  // alias that bottoms out at `any` (`type Task = any`). Without seeing through
+  // the alias, a bare-`any` value (an effect task, `apply(...)`) could never
+  // satisfy a `-> Task`/`-> T` annotation whose target resolves to top.
+  if (sub === true) return refsToTop(sup, ctx.defs);
   if (sub === false) return true; // never ⊆ T
   if (sup === false) return false; // (non-never) ⊆ never
 

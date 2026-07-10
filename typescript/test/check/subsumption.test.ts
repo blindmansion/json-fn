@@ -276,3 +276,31 @@ describe("named types & recursion (via $defs)", () => {
     expect(isSubschema({ $ref: "#/$defs/Json" }, { $ref: "#/$defs/Json" }, defs)).toBe(true);
   });
 });
+
+describe("$ref to an `any` alias is treated as top", () => {
+  const defs: Defs = {
+    Top: true,
+    Alias: { $ref: "#/$defs/Top" }, // chained alias to top
+    Score: { type: "integer" },
+    LoopA: { $ref: "#/$defs/LoopB" }, // cyclic alias pair — never resolves to a bool
+    LoopB: { $ref: "#/$defs/LoopA" },
+  };
+
+  test("any ⊆ $ref-to-top (direct and chained)", () => {
+    expect(isSubschema(true, { $ref: "#/$defs/Top" }, defs)).toBe(true);
+    expect(isSubschema(true, { $ref: "#/$defs/Alias" }, defs)).toBe(true);
+  });
+  test("any ⊄ $ref-to-concrete", () => {
+    expect(isSubschema(true, { $ref: "#/$defs/Score" }, defs)).toBe(false);
+  });
+  test("a dangling $ref resolves to top", () => {
+    expect(isSubschema(true, { $ref: "#/$defs/Missing" }, defs)).toBe(true);
+  });
+  test("a cyclic alias is not top (guard terminates, no infinite loop)", () => {
+    expect(isSubschema(true, { $ref: "#/$defs/LoopA" }, defs)).toBe(false);
+  });
+  test("concrete still ⊆ $ref-to-top; never ⊆ $ref-to-top", () => {
+    expect(isSubschema({ type: "string" }, { $ref: "#/$defs/Top" }, defs)).toBe(true);
+    expect(isSubschema(false, { $ref: "#/$defs/Top" }, defs)).toBe(true);
+  });
+});

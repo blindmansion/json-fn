@@ -17,6 +17,7 @@ Each finding below falls into one of four buckets, roughly by effort:
 
 - **(A) Tighten a loose data signature** — `merge` erasing records; the
   escape-hatch floors (`pipe`/`apply`/effects). Data-only, no engine change.
+  _Escape-hatch floors: **done** (see resolved note below). `merge` remains._
 - **(B) Add a bounded type-level op to the engine** — computed-index projection,
   shared-field-off-union projection, structural `merge`, `$ref`-to-top. No
   recursion; each is a small, closed operation every impl must mirror.
@@ -33,6 +34,14 @@ piece of work, not four.
 ## Soundness gaps
 
 ### Escape-hatch builtins return `any` and check nothing
+
+> **Resolved.** Each `{ rule }` builtin now carries a loose data floor
+> (`RULE_FLOORS` in `builtin-rules.ts`): fixed arity, a pinned result type, and
+> select argument shapes. Wrong-arity/wrong-shape calls are caught
+> (`pipe([])` → arity error; `pipe(5, …)` → `$args[0]` shape error), the effect
+> ops return the opaque `Task` node (`$defs/Task` in `spec/builtins.json`), and
+> `any`-typed args stay exempt from shape checks. A per-impl code rule can still
+> layer precision on top. See `docs/builtin-signatures.md` § "Recommended floors".
 
 Builtins registered as `{ "rule": "<name>" }` in `spec/builtins.json` —
 `pipe`, `apply`, and the effect ops (`perform`/`pure`/`bind`/`raise`/`handle`)
@@ -269,6 +278,15 @@ the effect kernel.
 
 ### The effect kernel is untyped, so `-> Task` can't be expressed
 
+> **Resolved** (via the escape-hatch floors above). `perform`/`pure`/`bind`/`raise`
+> now return `$defs/Task` (the opaque tagged-record node), so an effectful
+> function can carry a `-> Task` / `-> any` return. Both repros below now check
+> clean: `{ type Task = any, f: () -> Task => perform("e", []) }` and the same
+> with the structural `{ "@task": string }` record. `handle` still returns `any`
+> (its result type is genuinely caller-dependent). The capability-record shape
+> (`Device.read : () -> Task`) still needs the shared-field-off-union projection
+> filed separately below to type the record's fields precisely.
+
 The kernel builtins (`perform`, `pure`, `bind`, `raise`, `handle`) have no
 signatures, so every task expression is `any` (`true`). The bare `any` keyword
 absorbs that fine, but there is no way to give an effectful function a named
@@ -286,6 +304,14 @@ boundary can only be typed as the bare `any` keyword, which erases the
 capability-record shape a `Device`/`Api` type is meant to document.
 
 ### A `$ref` to an `any` alias isn't treated as top
+
+> **Resolved.** `subsumes` (`subsumption.ts`) now peels a `$ref` chain on the
+> `sup` side when `sub` is top: `any ⊆ $ref` holds iff the alias bottoms out at
+> `true` (`refsToTop`, with a cycle guard; a dangling ref resolves to top too).
+> So `{ type T = any, f: (x: integer) -> T => apply(...) }` — a bare-`any` value
+> against a named `any` alias — now checks clean, while `type T = integer`
+> correctly still rejects it. This is the general fix; the effect ops above no
+> longer rely only on their `$ref`-result workaround.
 
 Sharpening the item above: `any` **works inline** but **not through a named
 alias**. `type Task = any` lowers to `true`, yet a `$ref` to it is not
