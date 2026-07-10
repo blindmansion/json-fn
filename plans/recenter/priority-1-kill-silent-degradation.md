@@ -15,7 +15,7 @@ most damaging failure mode for the agent repair loop.
 
 ## Work items
 
-### 1. Dangling `$ref` → hard error
+### 1. Dangling `$ref` → hard error — ✅ done
 
 A `$ref` to an undeclared type name currently resolves to top, so
 `f: () -> Reprot => true` checks clean. Add a declare-before-use pass over all
@@ -31,6 +31,31 @@ A `$ref` to an undeclared type name currently resolves to top, so
 Files: `typescript/src/check/module.ts` (new pass in `checkModule`),
 `typescript/src/check/schema.ts` (ref resolution/walk helpers),
 `typescript/src/check/subsumption.ts` (confirm current resolve-to-top site).
+
+**Implementation notes:**
+
+- `schema.ts` gained `collectSchemaRefs(schema, into)` — a *structural* walk over
+  the tractable fragment (`$ref`, `$fnType`, `anyOf`/type-array, array `items`,
+  tuple `prefixItems`/rest, object `properties` + map `additionalProperties`). It
+  deliberately does **not** descend into `const`/`enum` literal payloads or opaque
+  (out-of-fragment) schemas, so a data value carrying a `$ref`-shaped key is never
+  mistaken for a type reference.
+- `module.ts` gained `checkDanglingRefs`, run at the *top* of `checkModule` (before
+  the body walk, so structural errors lead the stream). Types live in exactly two
+  positions (per `docs/type-syntax-spec.md` §1), so the pass collects from just
+  those rather than blindly scanning term data: the `$types` pool bodies, and every
+  `$sig` found by a term-tree walk (`walkSigRefs`) that reaches top-level bindings,
+  nested `where`-locals, and inline lambdas (skipping `$raw` payloads).
+- The undefined check is `!(name in defs)` against the merged pool, so a
+  defined-but-top alias (`type X = any`) is silent by construction — no special
+  case needed. `resolveRef`'s permissive missing-def→top behavior was left intact
+  (subsumption still depends on it mid-check); detection is a separate up-front pass.
+- Diagnostic message: `reference to undefined type "<Name>"`; path is the schema
+  root (`["$types", <Def>]` or `[...bindingPath, "$sig"]`).
+- Tests: `typescript/test/check/checker.test.ts` → `describe("checkModule: dangling
+  $ref → hard error")` (5 cases). Full `bun run check` + `bun test` green (1025
+  pass); no dangling-ref fallout across `examples/` (pre-existing `check` failures
+  there are unrelated type errors, not from this pass).
 
 ### 2. Missing-field access on a closed object → hard error
 
@@ -94,10 +119,10 @@ degradation sites across `checker.ts` / `builtin-rules.ts`,
 
 ## Landing checklist
 
-- Dangling `$ref` errors; `type X = any` alias still clean.
-- Missing closed-object field errors; open/map access unaffected.
-- Untyped top-level functions error by default; opt-out flag works.
-- Every remaining degrade emits a counted info diagnostic.
-- `jfn check` prints a coverage/degradation summary.
-- Retriage `examples/` and `spec/cases/` fallout; `test-all.sh` (TS scope)
-  green.
+- [x] Dangling `$ref` errors; `type X = any` alias still clean.
+- [ ] Missing closed-object field errors; open/map access unaffected.
+- [ ] Untyped top-level functions error by default; opt-out flag works.
+- [ ] Every remaining degrade emits a counted info diagnostic.
+- [ ] `jfn check` prints a coverage/degradation summary.
+- [ ] Retriage `examples/` and `spec/cases/` fallout; `test-all.sh` (TS scope)
+  green. *(item 1 introduced no fallout; TS scope green.)*

@@ -15,7 +15,7 @@ import {
   type CheckContext,
   type Diagnostic,
 } from "./context";
-import { type Defs, isSchemaObject, type Schema } from "./schema";
+import { collectSchemaRefs, type Defs, isSchemaObject, type Schema } from "./schema";
 
 // Options controlling optional (soft-rollout) module lints.
 type CheckModuleOptions = {
@@ -45,6 +45,12 @@ function checkModule(
     builtins: builtins?.builtins,
     synthBuiltinCall,
   };
+  // Declare-before-use: a `$ref` to an undeclared type name would otherwise
+  // resolve to top (`resolveRef`), so a typo like `-> Reprot` checks clean.
+  // Flag every dangling `$ref` reachable from the module up front, before the
+  // body walk, so structural errors lead the diagnostic stream.
+  checkDanglingRefs(module, defs, ctx);
+
   const { env, guards } = buildTypeScope(withoutTypes(module), null, ctx);
   ctx.env = env;
   ctx.guards = guards;
@@ -91,6 +97,61 @@ function dedupeDiagnostics(diags: Diagnostic[]): Diagnostic[] {
     out.push(d);
   }
   return out;
+}
+
+// Declare-before-use pass: report every `$ref` (reachable from the module)
+// whose target name is absent from the merged defs pool. `$ref`s live only in
+// schema positions — the `$types` pool bodies and the `$sig` nodes on function
+// bodies (top-level, nested `where`-locals, and inline lambdas) — so we collect
+// from those two sources rather than blindly scanning term data. A name present
+// in the pool but resolving to `true`/`any` (the intentional `type X = any`
+// alias) is *not* flagged: only undefined names error.
+function checkDanglingRefs(module: Record<string, JSONType>, defs: Defs, ctx: CheckContext): void {
+  const types = isSchemaObject(module.$types) ? module.$types : {};
+  for (const name of Object.keys(types)) {
+    reportMissingRefs(types[name]!, ["$types", name], defs, ctx);
+  }
+  walkSigRefs(withoutTypes(module), [], defs, ctx);
+}
+
+// Collect the `$ref`s in a single schema and report each undefined target at
+// `path`.
+function reportMissingRefs(schema: Schema, path: string[], defs: Defs, ctx: CheckContext): void {
+  const names = new Set<string>();
+  collectSchemaRefs(schema, names);
+  for (const name of names) {
+    if (!(name in defs)) {
+      report({ ...ctx, path }, `reference to undefined type "${name}"`);
+    }
+  }
+}
+
+// Walk the term tree looking for `$sig` nodes, checking each signature's
+// param/rest/return schemas for dangling `$ref`s. `$raw` payloads are verbatim
+// data (no annotations), so they are not descended into.
+function walkSigRefs(node: JSONType, path: string[], defs: Defs, ctx: CheckContext): void {
+  if (Array.isArray(node)) {
+    node.forEach((el, i) => walkSigRefs(el, [...path, String(i)], defs, ctx));
+    return;
+  }
+  if (!isSchemaObject(node)) return;
+  if ("$raw" in node) return;
+
+  const sig = node.$sig;
+  if (isSchemaObject(sig)) {
+    const sigPath = [...path, "$sig"];
+    const params = Array.isArray(sig.params) ? sig.params : [];
+    for (const p of params) reportMissingRefs(p, sigPath, defs, ctx);
+    if ("rest" in sig && sig.rest !== undefined) reportMissingRefs(sig.rest, sigPath, defs, ctx);
+    if ("returns" in sig && sig.returns !== undefined) {
+      reportMissingRefs(sig.returns, sigPath, defs, ctx);
+    }
+  }
+
+  for (const key of Object.keys(node)) {
+    if (key === "$sig") continue; // schemas, already handled above
+    walkSigRefs(node[key]!, [...path, key], defs, ctx);
+  }
 }
 
 // The module minus its reserved `$types` sibling, so the type pool is not

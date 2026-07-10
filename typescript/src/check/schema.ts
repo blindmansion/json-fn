@@ -89,6 +89,52 @@ function resolveDeep(s: Schema, defs: Defs): Schema {
   return t;
 }
 
+// Collect the names of every `$ref` reachable *within a schema* (a type
+// expression), structurally walking the tractable fragment. Powers the
+// declare-before-use pass that turns a dangling `$ref` into a hard error rather
+// than a silent resolve-to-top (`resolveRef`). Deliberately does *not* descend
+// into `const`/`enum` literal payloads — those are data values, so a literal
+// object that happens to carry a `$ref`-shaped key is not mistaken for a type
+// reference. Opaque (out-of-fragment) schemas are skipped too: the checker
+// treats them as `any`, so their contents are never resolved.
+function collectSchemaRefs(s: Schema, into: Set<string>): void {
+  if (!isSchemaObject(s)) return;
+  switch (classifySchema(s)) {
+    case SchemaKind.Ref:
+      into.add(refName(s));
+      return;
+    case SchemaKind.FnType: {
+      const { params, rest, returns } = fnShape(s);
+      for (const p of params) collectSchemaRefs(p, into);
+      if (rest !== undefined) collectSchemaRefs(rest, into);
+      collectSchemaRefs(returns, into);
+      return;
+    }
+    case SchemaKind.Union: {
+      const arms = unionArms(s);
+      if (arms !== null) for (const a of arms) collectSchemaRefs(a, into);
+      return;
+    }
+    case SchemaKind.Array:
+      collectSchemaRefs(itemsSchema(s), into);
+      return;
+    case SchemaKind.Tuple: {
+      for (const p of prefixItems(s)) collectSchemaRefs(p, into);
+      const rest = tupleRest(s);
+      if (rest !== null) collectSchemaRefs(rest, into);
+      return;
+    }
+    case SchemaKind.Object: {
+      for (const v of Object.values(properties(s))) collectSchemaRefs(v, into);
+      const mode = apMode(s);
+      if (mode.kind === "map") collectSchemaRefs(mode.schema, into);
+      return;
+    }
+    default:
+      return; // Primitive / Const / Enum / Any / Never / Opaque carry no type refs
+  }
+}
+
 // Decompose a union into its arms. `anyOf` → its arms verbatim; a type-array →
 // one bare-primitive schema per listed type. Returns null for non-unions
 // (Const/Enum are handled separately, value-wise).
@@ -422,6 +468,7 @@ export {
   refName,
   resolveRef,
   resolveDeep,
+  collectSchemaRefs,
   unionArms,
   literalValues,
   deepEqual,

@@ -207,6 +207,65 @@ describe("checkModule: diagnostics", () => {
   });
 });
 
+describe("checkModule: dangling $ref → hard error", () => {
+  const ref = (name: string): Schema => ({ $ref: `#/$defs/${name}` });
+
+  test("a `$ref` to an undeclared type in a sig is an error, not a silent top", () => {
+    const mod = { f: body([], { params: [], returns: ref("Reprot") }, true) };
+    const diags = checkModule(mod);
+    expect(diags.length).toBe(1);
+    expect(diags[0]!.severity).toBe("error");
+    expect(diags[0]!.path).toEqual(["f", "$sig"]);
+    expect(diags[0]!.message).toContain("Reprot");
+  });
+
+  test("an intentional `type X = any` alias still checks clean", () => {
+    const mod = { $types: { X: true }, g: body([], { params: [], returns: ref("X") }, 1) };
+    expect(checkModule(mod)).toEqual([]);
+  });
+
+  test("a dangling `$ref` inside a `$types` body is reported at the def", () => {
+    const mod = {
+      $types: { User: { type: "object", properties: { id: ref("Missing") }, required: ["id"] } },
+      main: body([], { params: [], returns: I }, 1),
+    };
+    const diags = checkModule(mod);
+    expect(diags.some((d) => d.path.join(".") === "$types.User" && /Missing/.test(d.message))).toBe(
+      true,
+    );
+  });
+
+  test("refs are covered inside arrays, unions, and `$fnType` leaves", () => {
+    const mod = {
+      f: body(
+        ["xs", "cb"],
+        {
+          params: [
+            { type: "array", items: ref("Foo") },
+            { $fnType: { params: [], returns: ref("Bar") } },
+          ],
+          returns: { anyOf: [ref("Baz"), { type: "null" }] },
+        },
+        1,
+      ),
+    };
+    const names = new Set(checkModule(mod).map((d) => d.message.match(/"([^"]+)"/)?.[1]));
+    expect(names).toEqual(new Set(["Foo", "Bar", "Baz"]));
+  });
+
+  test("a nested `where`-local signature is covered too", () => {
+    const mod = {
+      main: body([], { params: [], returns: I }, 1, {
+        helper: body(["x"], { params: [ref("Qux")], returns: I }, { $var: "x" }),
+      }),
+    };
+    const diags = checkModule(mod);
+    expect(
+      diags.some((d) => d.path.join(".") === "main.helper.$sig" && /Qux/.test(d.message)),
+    ).toBe(true);
+  });
+});
+
 describe("buildTypeScope: lazy locals & cycles", () => {
   test("an un-annotated local is typed lazily from its expression", () => {
     // `doubled` is a where-local with no signature; its type is synthesized on
