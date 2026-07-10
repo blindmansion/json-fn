@@ -296,7 +296,15 @@ describe("Section F — builtin signatures", () => {
 
     test("an any-typed arg is exempt from shape checks", () => {
       // A bare unknown var synthesizes to `any`; the floor must not flag it.
-      expect(synthB(call("pipe", { $var: "unknown" }, 1)).diagnostics).toEqual([]);
+      const diagnostics = synthB(call("pipe", { $var: "unknown" }, 1)).diagnostics;
+      expect(diagnostics.some((d) => d.severity === "error")).toBe(false);
+      expect(diagnostics).toEqual([
+        {
+          path: ["$args[0]"],
+          message: 'expression degraded to `any` because variable "unknown" is unresolved.',
+          severity: "info",
+        },
+      ]);
     });
 
     test("effectful functions can carry a Task / any return", () => {

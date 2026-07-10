@@ -371,8 +371,16 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
       // down for re-synth under them (§5.5 M2).
       const t = ctx.env.lookupType(name, ctx.narrowings);
       // A miss is not necessarily an error: bare builtin/registry names resolve
-      // as function values (§P4). Until the builtin layer lands, degrade to any.
-      return t ?? true;
+      // as function values (§P4). Until the builtin layer lands, degrade to any,
+      // but report the lost coverage so callers can distinguish it from a
+      // fully-checked expression.
+      if (t === undefined) {
+        report(ctx, `expression degraded to \`any\` because variable "${name}" is unresolved.`, {
+          severity: "info",
+        });
+        return true;
+      }
+      return t;
     }
 
     case "ref": {
@@ -414,6 +422,9 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
       if (sig === null) {
         // Unknown callee: still walk args to surface nested errors.
         args.forEach((a, i) => synth(a, at(ctx, `$args[${i}]`)));
+        report(ctx, "expression degraded to `any` because the callee has no known function type.", {
+          severity: "info",
+        });
         return true;
       }
       checkArity(sig, args.length, ctx);

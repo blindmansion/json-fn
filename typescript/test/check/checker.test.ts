@@ -48,6 +48,48 @@ describe("synth: literals & data", () => {
   });
 });
 
+describe("synth: visible `any` degradation", () => {
+  test("an unresolved variable degrades to any with an info diagnostic", () => {
+    const result = checkExpr({ $var: "missing" });
+    expect(result.type).toBe(true);
+    expect(result.diagnostics).toEqual([
+      {
+        path: [],
+        message: 'expression degraded to `any` because variable "missing" is unresolved.',
+        severity: "info",
+      },
+    ]);
+  });
+
+  test("an unknown callee degrades to any with an info diagnostic", () => {
+    const result = checkExpr({ $call: "missing", $args: [] });
+    expect(result.type).toBe(true);
+    expect(result.diagnostics).toEqual([
+      {
+        path: [],
+        message: "expression degraded to `any` because the callee has no known function type.",
+        severity: "info",
+      },
+    ]);
+  });
+
+  test("an unknown callee still walks its arguments", () => {
+    const { diagnostics } = checkExpr({
+      $call: "missing",
+      $args: [{ $var: "alsoMissing" }],
+    });
+    expect(diagnostics.map((d) => [d.path, d.severity])).toEqual([
+      [["$args[0]"], "info"],
+      [[], "info"],
+    ]);
+  });
+
+  test("a builtin call with a loaded typing rule does not degrade", () => {
+    const call: JSONType = { $call: "add", $args: [1, 2] };
+    expect(checkExpr(call, {}, loadBuiltinTable()).diagnostics).toEqual([]);
+  });
+});
+
 // ---------------------------------------------------------------------------
 // Sections D + E + G — module checking end to end
 // ---------------------------------------------------------------------------
@@ -295,7 +337,15 @@ describe("checkModule: require typed module functions (on by default)", () => {
         },
       ),
     };
-    expect(checkModule(mod)).toEqual([]);
+    const diagnostics = checkModule(mod);
+    expect(diagnostics.some((d) => d.severity === "error")).toBe(false);
+    expect(diagnostics).toEqual([
+      {
+        path: ["main", "$return"],
+        message: "expression degraded to `any` because the callee has no known function type.",
+        severity: "info",
+      },
+    ]);
   });
 });
 
@@ -542,7 +592,13 @@ describe("synth: missing closed-object field → hard error", () => {
   test("an any / unknown target stays permissive", () => {
     const ctx = ctxWith({});
     expect(synth(get("o", "whatever"), ctx)).toBe(true);
-    expect(ctx.diagnostics).toEqual([]);
+    expect(ctx.diagnostics).toEqual([
+      {
+        path: ["$from"],
+        message: 'expression degraded to `any` because variable "o" is unresolved.',
+        severity: "info",
+      },
+    ]);
   });
 });
 

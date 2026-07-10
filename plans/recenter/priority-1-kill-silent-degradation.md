@@ -145,7 +145,7 @@ affected `examples/*.jfn` and `spec/cases/*`.
   there under current tooling. Triage (annotate or opt out per file) is
   deferred to the landing-checklist retriage item, not done in this pass.
 
-### 4. Unknown callee / unknown var — keep degrade, but count + report
+### 4. Unknown callee / unknown var — keep degrade, but count + report — ✅ done
 
 These stay as `any` (removing them is out of scope) but must stop being
 invisible. Emit an info-tier diagnostic at each site: "expression degraded to
@@ -155,6 +155,24 @@ invisible. Emit an info-tier diagnostic at each site: "expression degraded to
 
 Files: `typescript/src/check/checker.ts` (var + call synth cases),
 `typescript/src/check/context.ts` (`Severity`).
+
+**Implementation notes:**
+
+- `context.ts`: `Severity` now includes `"info"`, reserved for permissive
+  fallbacks that are not type errors but mean the expression was not fully
+  checked.
+- `checker.ts`: a failed variable lookup still returns `any`, but now emits
+  `expression degraded to \`any\` because variable "<name>" is unresolved.`
+  at the variable site.
+- An unresolved or non-function-typed callee still walks every argument (so
+  nested diagnostics are preserved) and returns `any`, but now emits
+  `expression degraded to \`any\` because the callee has no known function
+  type.` at the call site. Builtins with loaded typing rules and declared
+  function bindings do not emit the diagnostic.
+- Tests: `typescript/test/check/checker.test.ts` →
+  `describe("synth: visible \`any\` degradation")` (4 cases), with existing
+  permissive-fallback expectations updated in `checker.test.ts` and
+  `builtins.test.ts`. Full `bun run check` + `bun test` green (1043 pass).
 
 ### 5. Coverage reporting
 
@@ -184,7 +202,9 @@ degradation sites across `checker.ts` / `builtin-rules.ts`,
 - [x] Dangling `$ref` errors; `type X = any` alias still clean.
 - [x] Missing closed-object field errors; open/map access unaffected.
 - [x] Untyped top-level functions error by default; opt-out flag works.
-- [ ] Every remaining degrade emits a counted info diagnostic.
+- [ ] Every remaining degrade emits a counted info diagnostic. *(Unknown
+  variable and unknown callee sites are covered; the remaining fallback audit
+  belongs to item 5.)*
 - [ ] `jfn check` prints a coverage/degradation summary.
 - [ ] Retriage `examples/` and `spec/cases/` fallout; `test-all.sh` (TS scope)
   green. *(items 1-2 introduced no fallout; item 3 adds 309 new

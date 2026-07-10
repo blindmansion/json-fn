@@ -8,13 +8,14 @@ import type { BuiltinEntry } from "./builtin-types";
 import type { JSONType } from "../types";
 import { type Schema, type Defs, type FnTypeShape, isSchemaObject } from "./schema";
 
-// The tier of a diagnostic. A `warning` marks a mismatch the checker cannot
-// *prove* wrong statically but that is checkable at runtime — the §5.5 stand-in
-// for flow narrowing: a value like `Piece | null` used where `string` is wanted
-// is a hard error only if the two are disjoint; if they overlap, a guard could
-// make it pass, so we downgrade to a runtime-checked warning (§6) instead of a
-// false positive.
-type Severity = "error" | "warning";
+// The tier of a diagnostic. An `info` makes a permissive fallback visible
+// without claiming the program is wrong. A `warning` marks a mismatch the
+// checker cannot *prove* wrong statically but that is checkable at runtime —
+// the §5.5 stand-in for flow narrowing: a value like `Piece | null` used where
+// `string` is wanted is a hard error only if the two are disjoint; if they
+// overlap, a guard could make it pass, so we downgrade to a runtime-checked
+// warning (§6) instead of a false positive.
+type Severity = "error" | "warning" | "info";
 
 // A single type diagnostic, with a JSON-ish path to its location (§6).
 type Diagnostic = {
@@ -75,8 +76,8 @@ type Sig = FnTypeShape;
 const EMPTY_ENV: TypeEnv = { lookupType: () => undefined };
 
 // Diagnostics helper: push a diagnostic at the current path. Severity defaults
-// to `error`; callers pass `severity: "warning"` (via `extra`) for the §5.5
-// runtime-checkable downgrade.
+// to `error`; callers override it for runtime-checkable warnings and visible
+// permissive fallbacks.
 function report(ctx: CheckContext, message: string, extra?: Partial<Diagnostic>): void {
   ctx.diagnostics.push({ path: [...ctx.path], message, severity: "error", ...extra });
 }
