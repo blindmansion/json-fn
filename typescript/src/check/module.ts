@@ -19,9 +19,12 @@ import { collectSchemaRefs, type Defs, isSchemaObject, type Schema } from "./sch
 
 // Options controlling optional (soft-rollout) module lints.
 type CheckModuleOptions = {
-  // §9: require every *top-level* function binding to carry a `$sig`. Nested
-  // helpers and inline lambdas stay tolerant (they degrade to `any`). Off by
-  // default so existing untyped modules keep checking clean.
+  // §9 / recenter §1.3: require every *top-level* function binding to carry a
+  // `$sig`. Nested helpers and inline lambdas stay tolerant (they degrade to
+  // `any`). On by default — an untyped top-level function is walked without a
+  // meaningful contract (`any` params and return mask real errors), which is
+  // exactly the silent degradation this pass exists to kill. Pass `false` (CLI:
+  // `--allow-untyped-functions`) for the soft-rollout escape hatch.
   requireTypedModuleFunctions?: boolean;
 };
 
@@ -58,9 +61,10 @@ function checkModule(
   for (const key of bindingKeys(withoutTypes(module))) {
     const val = module[key]!;
     if (isBody(val)) {
-      // §9: top-level functions must be fully typed (opt-in). A missing `$sig`
-      // is reported here rather than in the parser, which lacks module context.
-      if (options.requireTypedModuleFunctions && sigOf(val) === null) {
+      // §9: top-level functions must be fully typed (on by default). A missing
+      // `$sig` is reported here rather than in the parser, which lacks module
+      // context.
+      if (options.requireTypedModuleFunctions !== false && sigOf(val) === null) {
         report(
           { ...ctx, path: [key] },
           "module-level function must declare a signature (typed parameters and return)",

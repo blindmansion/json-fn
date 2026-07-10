@@ -266,6 +266,39 @@ describe("checkModule: dangling $ref → hard error", () => {
   });
 });
 
+describe("checkModule: require typed module functions (on by default)", () => {
+  test("an unannotated top-level function errors by default", () => {
+    const mod = { f: { $params: ["n"], $return: { $var: "n" } } };
+    const diags = checkModule(mod);
+    expect(diags.some((d) => d.severity === "error" && d.path.join(".") === "f")).toBe(true);
+    expect(diags.some((d) => /must declare a signature/.test(d.message))).toBe(true);
+  });
+
+  test("a `$sig`-annotated top-level function is unaffected", () => {
+    const mod = { f: body(["n"], { params: [I], returns: I }, { $var: "n" }) };
+    expect(checkModule(mod)).toEqual([]);
+  });
+
+  test("`requireTypedModuleFunctions: false` restores the old permissive default", () => {
+    const mod = { f: { $params: ["n"], $return: { $var: "n" } } };
+    expect(checkModule(mod, undefined, { requireTypedModuleFunctions: false })).toEqual([]);
+  });
+
+  test("nested `where`-locals and inline lambdas stay exempt", () => {
+    const mod = {
+      main: body(
+        [],
+        { params: [], returns: true },
+        { $call: "helper", $args: [1] },
+        {
+          helper: { $params: ["x"], $return: { $var: "x" } },
+        },
+      ),
+    };
+    expect(checkModule(mod)).toEqual([]);
+  });
+});
+
 describe("buildTypeScope: lazy locals & cycles", () => {
   test("an un-annotated local is typed lazily from its expression", () => {
     // `doubled` is a where-local with no signature; its type is synthesized on

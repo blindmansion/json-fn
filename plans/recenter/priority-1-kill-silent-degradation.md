@@ -97,11 +97,12 @@ property-lookup helpers).
   test` green (1035 pass); `jfn check` over all 19 `examples/*.jfn` surfaces no
   new closed-missing errors.
 
-### 3. `requireTypedModuleFunctions: true` by default
+### 3. `requireTypedModuleFunctions: true` by default — ✅ done
 
 The flag already exists and is wired in `checkModule`; today an un-annotated
-top-level function has its body unchecked and its value is `any`. Flip the
-default to on and thread a CLI opt-out.
+top-level function is walked without a meaningful contract (`any` parameters
+and return) and its value is `any`. Flip the default to on and thread a CLI
+opt-out.
 
 - Flip default in `CheckModuleOptions` handling in `module.ts`.
 - Add a `--allow-untyped-functions` (or similar) escape hatch on
@@ -111,6 +112,38 @@ default to on and thread a CLI opt-out.
 
 Files: `typescript/src/check/module.ts`, `typescript/src/cli.ts`,
 affected `examples/*.jfn` and `spec/cases/*`.
+
+**Implementation notes:**
+
+- `module.ts`: the guard flipped from `options.requireTypedModuleFunctions &&
+  …` to `options.requireTypedModuleFunctions !== false && …`, so the default
+  (option omitted) is now "require". `CheckModuleOptions` doc comment updated
+  to describe the new default and the opt-out.
+- `cli.ts`: `cmdCheck` gained a `--allow-untyped-functions` boolean flag
+  (documented in `--help`) and now always passes an explicit
+  `{ requireTypedModuleFunctions: !parsed.flags.has("allow-untyped-functions") }`
+  to `checkModule`, rather than relying on the default.
+- `checkExpr` (standalone-expression path) is untouched — the option is
+  module-only, since a bare expression has no top-level bindings.
+- Tests: `typescript/test/check/checker.test.ts` →
+  `describe("checkModule: require typed module functions (on by default)")`
+  (4 cases: default-on errors, `$sig`-annotated fn unaffected, `false` opt-out
+  restores old behavior, nested `where`-locals/inline lambdas stay exempt).
+  Full `bun run check` + `bun test` green (1039 pass).
+- **Fallout triage (manual `jfn check` over `examples/*.jfn`, not run by
+  `test-all.sh`):** 18 of 19 example files gained new
+  `module-level function must declare a signature` errors — 309 total, purely
+  additive (no other error/warning counts shifted, since an unsigned
+  function's params still degrade to `any` rather than cascading new
+  mismatches). Only `types.jfn` stayed clean. Three files that were fully
+  clean before (`pipeline.jfn`, `report-workflow.jfn`,
+  `thermostat-checked.jfn` — the last being the already-tightened thermostat
+  rewrite) now have 1, 7, and 3 errors respectively, all from un-annotated
+  `demo*`/entrypoint functions. `spec/cases/*` are per-case function bodies
+  run through the evaluator conformance suite (`spec.test.ts`), not modules
+  ever passed to `checkModule`/`jfn check`, so this pass produces no fallout
+  there under current tooling. Triage (annotate or opt out per file) is
+  deferred to the landing-checklist retriage item, not done in this pass.
 
 ### 4. Unknown callee / unknown var — keep degrade, but count + report
 
@@ -150,8 +183,12 @@ degradation sites across `checker.ts` / `builtin-rules.ts`,
 
 - [x] Dangling `$ref` errors; `type X = any` alias still clean.
 - [x] Missing closed-object field errors; open/map access unaffected.
-- [ ] Untyped top-level functions error by default; opt-out flag works.
+- [x] Untyped top-level functions error by default; opt-out flag works.
 - [ ] Every remaining degrade emits a counted info diagnostic.
 - [ ] `jfn check` prints a coverage/degradation summary.
 - [ ] Retriage `examples/` and `spec/cases/` fallout; `test-all.sh` (TS scope)
-  green. *(item 1 introduced no fallout; TS scope green.)*
+  green. *(items 1-2 introduced no fallout; item 3 adds 309 new
+  missing-signature errors across 18/19 `examples/*.jfn` files — not yet
+  triaged. `spec/cases/*` are eval-only fixtures, never passed through
+  `checkModule`, so no fallout there. TS scope (`bun run check` + `bun test`)
+  is green regardless, since neither exercises `jfn check` over `examples/`.)*

@@ -58,6 +58,8 @@ check options:
   -e, --expr          Check a single expression and print its inferred type
       --json          Read canonical json-fn JSON instead of .jfn shorthand
       --no-builtins   Don't load the builtin signature table (spec/builtins.json)
+      --allow-untyped-functions
+                      Don't require top-level functions to declare a $sig
       --strict        Exit non-zero on warnings too (default: only on errors)
   -c, --compact       With --expr, emit the inferred type as minified JSON
 
@@ -250,6 +252,7 @@ async function cmdCheck(argv: string[]): Promise<void> {
       "--expr": "expr",
       "--json": "json-input",
       "--no-builtins": "no-builtins",
+      "--allow-untyped-functions": "allow-untyped-functions",
       "--strict": "strict",
       "-c": "compact",
       "--compact": "compact",
@@ -302,7 +305,9 @@ async function cmdCheck(argv: string[]): Promise<void> {
     fail("check expects a module object; pass --expr to check a single expression");
   }
 
-  const diagnostics = checkModule(json as Record<string, JSONType>, builtins);
+  const diagnostics = checkModule(json as Record<string, JSONType>, builtins, {
+    requireTypedModuleFunctions: !parsed.flags.has("allow-untyped-functions"),
+  });
   reportDiagnostics(diagnostics);
   exitFromDiagnostics(diagnostics, strict);
 }
