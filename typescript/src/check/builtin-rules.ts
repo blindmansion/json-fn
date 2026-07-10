@@ -18,7 +18,7 @@
 import type { JSONType } from "../types";
 import type { TVarNode, Bindings, BuiltinSig, BuiltinEntry } from "./builtin-types";
 import { buildTypeScope, checkArity, paramAt, reportMismatch, synth } from "./checker";
-import { at, type CheckContext, isBody, sigOf } from "./context";
+import { at, type CheckContext, isBody, reportDegradation, sigOf } from "./context";
 import {
   type Schema,
   isSchemaObject,
@@ -283,7 +283,10 @@ const RULE_FLOORS: Record<string, RuleFloor> = {
 function synthRule(rule: string, argExprs: JSONType[], ctx: CheckContext): Schema {
   const argTypes = argExprs.map((a, i) => synth(a, at(ctx, `$args[${i}]`)));
   const floor = RULE_FLOORS[rule];
-  if (floor === undefined) return true; // unknown rule: legacy `any`
+  if (floor === undefined) {
+    reportDegradation(ctx, `builtin rule "${rule}" is unsupported`);
+    return true;
+  }
   const aritySig = {
     params: Array.from({ length: floor.arity }, () => true as Schema),
     returns: true,
@@ -298,6 +301,9 @@ function synthRule(rule: string, argExprs: JSONType[], ctx: CheckContext): Schem
         reportMismatch(at(ctx, `$args[${i}]`), actual, expected);
       }
     }
+  }
+  if (floor.returns === true) {
+    reportDegradation(ctx, `builtin rule "${rule}" has no precise return type`);
   }
   return floor.returns;
 }

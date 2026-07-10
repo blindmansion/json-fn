@@ -82,6 +82,13 @@ function report(ctx: CheckContext, message: string, extra?: Partial<Diagnostic>)
   ctx.diagnostics.push({ path: [...ctx.path], message, severity: "error", ...extra });
 }
 
+// Record a checker fallback to `any` without turning it into a type error. Keep
+// the prefix stable so CLI output and agent harnesses can identify degradation
+// reasons consistently.
+function reportDegradation(ctx: CheckContext, reason: string): void {
+  report(ctx, `expression degraded to \`any\` because ${reason}.`, { severity: "info" });
+}
+
 // A deterministic JSON stringify (object keys sorted), for content-addressing
 // schemas: the M2 fact-keyed re-synth cache keys on it and the end-of-module
 // diagnostic dedupe compares by it. Key order can differ between two structurally
@@ -135,4 +142,14 @@ function bindingKeys(body: Record<string, JSONType>): string[] {
 }
 
 export type { CheckContext, TypeEnv, Diagnostic, Severity, Sig };
-export { EMPTY_ENV, report, at, isBody, sigOf, bodyFnTypeSchema, bindingKeys, stableStringify };
+export {
+  EMPTY_ENV,
+  report,
+  reportDegradation,
+  at,
+  isBody,
+  sigOf,
+  bodyFnTypeSchema,
+  bindingKeys,
+  stableStringify,
+};

@@ -61,6 +61,8 @@ check options:
       --allow-untyped-functions
                       Don't require top-level functions to declare a $sig
       --strict        Exit non-zero on warnings too (default: only on errors)
+      --require-full-coverage
+                      Exit non-zero when any expression degrades to any
   -c, --compact       With --expr, emit the inferred type as minified JSON
 
 Examples:
@@ -254,6 +256,7 @@ async function cmdCheck(argv: string[]): Promise<void> {
       "--no-builtins": "no-builtins",
       "--allow-untyped-functions": "allow-untyped-functions",
       "--strict": "strict",
+      "--require-full-coverage": "require-full-coverage",
       "-c": "compact",
       "--compact": "compact",
     },
@@ -292,12 +295,13 @@ async function cmdCheck(argv: string[]): Promise<void> {
 
   const compact = parsed.flags.has("compact");
   const strict = parsed.flags.has("strict");
+  const requireFullCoverage = parsed.flags.has("require-full-coverage");
 
   if (parsed.flags.has("expr")) {
     const { type, diagnostics } = checkExpr(json, {}, builtins);
     console.log(`type: ${stringify(type, compact)}`);
     reportDiagnostics(diagnostics);
-    exitFromDiagnostics(diagnostics, strict);
+    exitFromDiagnostics(diagnostics, strict, requireFullCoverage);
     return;
   }
 
@@ -309,11 +313,11 @@ async function cmdCheck(argv: string[]): Promise<void> {
     requireTypedModuleFunctions: !parsed.flags.has("allow-untyped-functions"),
   });
   reportDiagnostics(diagnostics);
-  exitFromDiagnostics(diagnostics, strict);
+  exitFromDiagnostics(diagnostics, strict, requireFullCoverage);
 }
 
 // Print each diagnostic as `severity: location: message` (the message already
-// embeds the compact schemas), then a one-line summary.
+// embeds the compact schemas), then error/warning and coverage summaries.
 function reportDiagnostics(diags: Diagnostic[]): void {
   for (const d of diags) {
     const loc = d.path.length > 0 ? d.path.join(".") : "<root>";
@@ -321,6 +325,7 @@ function reportDiagnostics(diags: Diagnostic[]): void {
   }
   const errors = diags.filter((d) => d.severity === "error").length;
   const warnings = diags.filter((d) => d.severity === "warning").length;
+  const degradations = diags.filter((d) => d.severity === "info").length;
   if (diags.length === 0) {
     console.log("No type errors.");
   } else {
@@ -328,13 +333,27 @@ function reportDiagnostics(diags: Diagnostic[]): void {
       `\n${errors} error${errors === 1 ? "" : "s"}, ${warnings} warning${warnings === 1 ? "" : "s"}.`,
     );
   }
+  if (degradations === 0) {
+    console.log("Coverage: fully checked.");
+  } else {
+    console.log(
+      `Coverage: not fully checked (${degradations} degradation site${degradations === 1 ? "" : "s"}).`,
+    );
+  }
 }
 
-// Exit non-zero when the check found errors (or, under --strict, warnings).
-function exitFromDiagnostics(diags: Diagnostic[], strict: boolean): void {
+// Exit non-zero for errors, optionally warnings, or optionally lost coverage.
+function exitFromDiagnostics(
+  diags: Diagnostic[],
+  strict: boolean,
+  requireFullCoverage: boolean,
+): void {
   const hasError = diags.some((d) => d.severity === "error");
   const hasWarning = diags.some((d) => d.severity === "warning");
-  if (hasError || (strict && hasWarning)) process.exit(1);
+  const hasDegradation = diags.some((d) => d.severity === "info");
+  if (hasError || (strict && hasWarning) || (requireFullCoverage && hasDegradation)) {
+    process.exit(1);
+  }
 }
 
 function isFunctionBody(value: JSONType): value is { $return: JSONType } {

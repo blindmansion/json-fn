@@ -28,7 +28,15 @@ describe("Section F — builtin signatures", () => {
   const synthB = (expr: JSONType) => checkExpr(expr, {}, BT);
 
   test("builtins are opt-in: no table means degrade to any", () => {
-    expect(checkExpr(call("add", 1, 2)).type).toBe(true);
+    const result = checkExpr(call("add", 1, 2));
+    expect(result.type).toBe(true);
+    expect(result.diagnostics).toEqual([
+      {
+        path: [],
+        message: "expression degraded to `any` because the callee has no known function type.",
+        severity: "info",
+      },
+    ]);
   });
 
   test("overloads: add preserves integer, widens to number", () => {
@@ -63,7 +71,28 @@ describe("Section F — builtin signatures", () => {
   });
 
   test("escape hatch: a rule builtin yields any", () => {
-    expect(synthB(call("pipe", [], 1)).type).toBe(true);
+    const result = synthB(call("pipe", [], 1));
+    expect(result.type).toBe(true);
+    expect(result.diagnostics).toEqual([
+      {
+        path: [],
+        message:
+          'expression degraded to `any` because builtin rule "pipe" has no precise return type.',
+        severity: "info",
+      },
+    ]);
+  });
+
+  test("an unsupported builtin rule reports its degradation", () => {
+    const result = checkExpr(call("mystery"), {}, { builtins: { mystery: { rule: "mystery" } } });
+    expect(result.type).toBe(true);
+    expect(result.diagnostics).toEqual([
+      {
+        path: [],
+        message: 'expression degraded to `any` because builtin rule "mystery" is unsupported.',
+        severity: "info",
+      },
+    ]);
   });
 
   test("coverage: every stdlib builtin has a table entry", () => {
@@ -302,6 +331,12 @@ describe("Section F — builtin signatures", () => {
         {
           path: ["$args[0]"],
           message: 'expression degraded to `any` because variable "unknown" is unresolved.',
+          severity: "info",
+        },
+        {
+          path: [],
+          message:
+            'expression degraded to `any` because builtin rule "pipe" has no precise return type.',
           severity: "info",
         },
       ]);

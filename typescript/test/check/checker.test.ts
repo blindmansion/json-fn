@@ -84,6 +84,31 @@ describe("synth: visible `any` degradation", () => {
     ]);
   });
 
+  test("an unresolved string function reference reports its own degradation", () => {
+    const result = checkExpr({ $fn: "missing" });
+    expect(result.type).toBe(true);
+    expect(result.diagnostics).toEqual([
+      {
+        path: [],
+        message: 'expression degraded to `any` because function reference "missing" is unresolved.',
+        severity: "info",
+      },
+    ]);
+  });
+
+  test("an unannotated function value reports its missing signature", () => {
+    const result = checkExpr({ $params: ["x"], $return: { $var: "x" } });
+    expect(result.type).toBe(true);
+    expect(result.diagnostics).toEqual([
+      {
+        path: [],
+        message:
+          "expression degraded to `any` because the function value has no declared signature.",
+        severity: "info",
+      },
+    ]);
+  });
+
   test("a builtin call with a loaded typing rule does not degrade", () => {
     const call: JSONType = { $call: "add", $args: [1, 2] };
     expect(checkExpr(call, {}, loadBuiltinTable()).diagnostics).toEqual([]);
@@ -321,9 +346,16 @@ describe("checkModule: require typed module functions (on by default)", () => {
     expect(checkModule(mod)).toEqual([]);
   });
 
-  test("`requireTypedModuleFunctions: false` restores the old permissive default", () => {
+  test("`requireTypedModuleFunctions: false` stays permissive but reports lost coverage", () => {
     const mod = { f: { $params: ["n"], $return: { $var: "n" } } };
-    expect(checkModule(mod, undefined, { requireTypedModuleFunctions: false })).toEqual([]);
+    expect(checkModule(mod, undefined, { requireTypedModuleFunctions: false })).toEqual([
+      {
+        path: ["f"],
+        message:
+          'expression degraded to `any` because module function "f" has no declared signature.',
+        severity: "info",
+      },
+    ]);
   });
 
   test("nested `where`-locals and inline lambdas stay exempt", () => {
@@ -340,6 +372,12 @@ describe("checkModule: require typed module functions (on by default)", () => {
     const diagnostics = checkModule(mod);
     expect(diagnostics.some((d) => d.severity === "error")).toBe(false);
     expect(diagnostics).toEqual([
+      {
+        path: ["main", "helper"],
+        message:
+          'expression degraded to `any` because function binding "helper" has no declared signature.',
+        severity: "info",
+      },
       {
         path: ["main", "$return"],
         message: "expression degraded to `any` because the callee has no known function type.",

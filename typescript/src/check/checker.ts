@@ -17,6 +17,7 @@ import {
   bodyFnTypeSchema,
   isBody,
   report,
+  reportDegradation,
   sigOf,
   stableStringify,
   type CheckContext,
@@ -120,6 +121,7 @@ function buildTypeScope(
   body: Record<string, JSONType>,
   parent: TypeEnv | null,
   ctx: CheckContext,
+  reportUntypedBodies = true,
 ): { env: TypeEnv; guards: Record<string, JSONType> } {
   const eager: Record<string, Schema> = {};
   const exprLocals: Record<string, JSONType> = {};
@@ -131,6 +133,9 @@ function buildTypeScope(
   for (const key of bindingKeys(body)) {
     const val = body[key]!;
     if (isBody(val)) {
+      if (reportUntypedBodies && sigOf(val) === null) {
+        reportDegradation(at(ctx, key), `function binding "${key}" has no declared signature`);
+      }
       eager[key] = bodyFnTypeSchema(val); // sibling function: eager `$fnType`
     } else {
       exprLocals[key] = val; // un-annotated local: typed lazily below
@@ -375,9 +380,7 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
       // but report the lost coverage so callers can distinguish it from a
       // fully-checked expression.
       if (t === undefined) {
-        report(ctx, `expression degraded to \`any\` because variable "${name}" is unresolved.`, {
-          severity: "info",
-        });
+        reportDegradation(ctx, `variable "${name}" is unresolved`);
         return true;
       }
       return t;
@@ -385,7 +388,14 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
 
     case "ref": {
       const fn = (expr as { $fn: JSONType }).$fn;
-      if (typeof fn === "string") return ctx.env.lookupType(fn) ?? true;
+      if (typeof fn === "string") {
+        const t = ctx.env.lookupType(fn);
+        if (t === undefined) {
+          reportDegradation(ctx, `function reference "${fn}" is unresolved`);
+          return true;
+        }
+        return t;
+      }
       return synth(fn, ctx);
     }
 
@@ -397,7 +407,11 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
       // bodies (lambdas) can only be typed contextually (later milestone) and
       // are left to the caller's contextual typing.
       const body = expr as Record<string, JSONType>;
-      if (sigOf(body) !== null) checkBody(body, ctx);
+      if (sigOf(body) !== null) {
+        checkBody(body, ctx);
+      } else {
+        reportDegradation(ctx, "the function value has no declared signature");
+      }
       return bodyFnTypeSchema(body);
     }
 
@@ -422,9 +436,7 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
       if (sig === null) {
         // Unknown callee: still walk args to surface nested errors.
         args.forEach((a, i) => synth(a, at(ctx, `$args[${i}]`)));
-        report(ctx, "expression degraded to `any` because the callee has no known function type.", {
-          severity: "info",
-        });
+        reportDegradation(ctx, "the callee has no known function type");
         return true;
       }
       checkArity(sig, args.length, ctx);

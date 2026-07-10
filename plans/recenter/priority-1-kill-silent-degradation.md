@@ -174,7 +174,7 @@ Files: `typescript/src/check/checker.ts` (var + call synth cases),
   permissive-fallback expectations updated in `checker.test.ts` and
   `builtins.test.ts`. Full `bun run check` + `bun test` green (1043 pass).
 
-### 5. Coverage reporting
+### 5. Coverage reporting — ✅ done
 
 `jfn check` should report how much of the module was actually checked so a
 harness can gate on "fully checked," not just "zero errors."
@@ -191,6 +191,32 @@ Files: `typescript/src/check/context.ts` (`Severity`, `report`),
 degradation sites across `checker.ts` / `builtin-rules.ts`,
 `typescript/src/cli.ts` (summary line + exit-code policy).
 
+**Implementation notes:**
+
+- `context.ts` gained `reportDegradation(ctx, reason)`, which owns the stable
+  info message shape (`expression degraded to \`any\` because <reason>.`) so
+  fallback sites cannot drift.
+- The remaining expression-level fallback audit now reports unresolved string
+  `$fn` references, unannotated function values/bindings (including the
+  `--allow-untyped-functions` module escape hatch), unsupported builtin rules,
+  and the intentionally imprecise return floors for `pipe`, `apply`, and
+  `handle`. A missing builtin table already reaches the unknown-callee report
+  from item 4. Declared `any`, pure schema projection/union behavior, and
+  recover-to-continue after a hard error are not coverage losses and remain
+  uncounted.
+- This pass only makes `handle` and IIFE/do-block loss visible; it does not add
+  their deferred typing machinery (§6 and §3 respectively).
+- `jfn check` now always prints `Coverage: fully checked.` or
+  `Coverage: not fully checked (<N> degradation site[s]).` The existing default
+  exit policy is unchanged; `--strict` still gates warnings, while the new
+  `--require-full-coverage` flag exits non-zero when any info degradation is
+  present.
+- Tests: checker and builtin tests cover each fallback and stable reason, and
+  `typescript/test/cli-check.test.ts` exercises summaries plus default,
+  `--strict`, hard-error, and full-coverage exit behavior. Full `bun run check`
+  + `bun test` green (1052 pass); manual CLI probes confirm full/partial
+  summaries and exit 0/1 under the coverage gate.
+
 ## Out of scope (handled elsewhere)
 
 - `handle` degradation → §6 (annotated `handle`).
@@ -202,10 +228,8 @@ degradation sites across `checker.ts` / `builtin-rules.ts`,
 - [x] Dangling `$ref` errors; `type X = any` alias still clean.
 - [x] Missing closed-object field errors; open/map access unaffected.
 - [x] Untyped top-level functions error by default; opt-out flag works.
-- [ ] Every remaining degrade emits a counted info diagnostic. *(Unknown
-  variable and unknown callee sites are covered; the remaining fallback audit
-  belongs to item 5.)*
-- [ ] `jfn check` prints a coverage/degradation summary.
+- [x] Every remaining degrade emits a counted info diagnostic.
+- [x] `jfn check` prints a coverage/degradation summary.
 - [ ] Retriage `examples/` and `spec/cases/` fallout; `test-all.sh` (TS scope)
   green. *(items 1-2 introduced no fallout; item 3 adds 309 new
   missing-signature errors across 18/19 `examples/*.jfn` files — not yet

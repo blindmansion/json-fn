@@ -10,6 +10,7 @@ import {
   EMPTY_ENV,
   isBody,
   report,
+  reportDegradation,
   sigOf,
   stableStringify,
   type CheckContext,
@@ -54,7 +55,7 @@ function checkModule(
   // body walk, so structural errors lead the diagnostic stream.
   checkDanglingRefs(module, defs, ctx);
 
-  const { env, guards } = buildTypeScope(withoutTypes(module), null, ctx);
+  const { env, guards } = buildTypeScope(withoutTypes(module), null, ctx, false);
   ctx.env = env;
   ctx.guards = guards;
 
@@ -64,11 +65,18 @@ function checkModule(
       // §9: top-level functions must be fully typed (on by default). A missing
       // `$sig` is reported here rather than in the parser, which lacks module
       // context.
-      if (options.requireTypedModuleFunctions !== false && sigOf(val) === null) {
-        report(
-          { ...ctx, path: [key] },
-          "module-level function must declare a signature (typed parameters and return)",
-        );
+      if (sigOf(val) === null) {
+        if (options.requireTypedModuleFunctions !== false) {
+          report(
+            { ...ctx, path: [key] },
+            "module-level function must declare a signature (typed parameters and return)",
+          );
+        } else {
+          reportDegradation(
+            { ...ctx, path: [key] },
+            `module function "${key}" has no declared signature`,
+          );
+        }
       }
       checkBody(val, { ...ctx, env, path: [key] });
     } else {
