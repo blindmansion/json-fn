@@ -114,7 +114,6 @@
   // pending readings, `hvac.set`/`log` append to the transcript, `raise` ends
   // the run with the fault tag. Same function-awaiting-state trick as the
   // dungeon's `runScript`.
-  type Trace  = { pending: Reading[], out: string[] },
   type Report = { ending: State | string, out: string[] },
 
   runScript: (readings: Reading[], task: Task) -> Report => (handle task with {

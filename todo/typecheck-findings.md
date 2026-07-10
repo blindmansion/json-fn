@@ -191,6 +191,15 @@ run in-language by a threaded-state `handle`. It **evaluates correctly**
 warnings). The already-checkable cousin is `examples/thermostat-checked.jfn`
 (byte-identical output). Repros verified through `jfn check`.
 
+To see just the checkability-driven deltas between the goal and its cousin
+(stripping comment lines, which diverge throughout for narration):
+
+```sh
+diff --unified \
+  <(rg -v '^\s*//' examples/thermostat.jfn) \
+  <(rg -v '^\s*//' examples/thermostat-checked.jfn)
+```
+
 Its 7 diagnostics split across four causes. All were pinned down while tightening
 the checkable cousin, which now types every effectful boundary (`-> Task` on the
 `Device` methods, `dev`, `actuate`, `loop`, and — after the restructure below —

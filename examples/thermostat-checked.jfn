@@ -47,14 +47,6 @@
   // whose body is directly one of them can be annotated `-> Task`.
   type Task = { "@task": string, ... },
 
-  // A typed capability record. Its methods return `Task` (their bodies are bare
-  // `perform` calls). Only `bind`/`handle`-bodied functions still fall to `any`.
-  type Device = {
-    read: () -> Task,
-    set:  (Mode) -> Task,
-    log:  (string) -> Task
-  },
-
   // ----- pure control logic -------------------------------------------------
 
   // One reading -> one action. `cond` arms guard the sensor first (dead battery,
@@ -91,6 +83,14 @@
     read: () -> Task => perform("sensor.read", []),
     set:  (mode: Mode) -> Task => perform("hvac.set", [mode]),
     log:  (msg: string) -> Task => perform("log", [msg])
+  },
+
+  // A typed capability record. Its methods return `Task` (their bodies are bare
+  // `perform` calls). Only `bind`/`handle`-bodied functions still fall to `any`.
+  type Device = {
+    read: () -> Task,
+    set:  (Mode) -> Task,
+    log:  (string) -> Task
   },
 
   // Turn an action into its effect. `alarm` escalates as a typed `raise`, so an
