@@ -3,92 +3,25 @@
 Notes from an exploratory pass over the type system through the `jfn check`
 CLI, after wiring `check` to parse `.jfn` shorthand (so the pipeline is
 `parse -> lower -> check` in one step, `--json` to feed canonical JSON, `--expr`
-for a single expression). These are observations, **not** yet triaged fixes.
-Line references are to `typescript/` at time of writing.
+for a single expression). Line references are to `typescript/` at time of
+writing.
 
-Context: only the builtins in `spec/builtins.json` have signatures today
-(arithmetic, comparisons, `not`/`and`/`or`, `isX`, `str`/`upper`/`lower`/`trim`,
-`length`, `head`, `concat`, `setAt`, `map`, `filter`, `reMatch`, `pipe (rule stub)`). Things like `reduce` are absent, so anything using them degrades to
-`any` — out of scope here.
+Context: nearly the whole stdlib now has signatures in `spec/builtins.json`
+(arithmetic/comparison/logic, `isX`, the string and regex families, and the full
+array/object suite — `map`/`filter`/`reduce`/`find`/`sort`/`groupBy`/`flatMap`,
+`keys`/`values`/`entries`/`fromEntries`/`merge`/`pick`/`omit`, etc.). The only
+builtins still without a real signature are the escape-hatch `{ "rule": … }` ops
+— `apply`, `pipe`, and the effect kernel (`perform`/`pure`/`bind`/`raise`/`handle`)
+— which carry loose data floors (`RULE_FLOORS`) rather than full types.
 
 ## Fix classes (triage)
 
-Each finding below falls into one of four buckets, roughly by effort:
+Remaining findings fall into two buckets, roughly by effort:
 
-- **(A) Tighten a loose data signature** — `merge` erasing records; the
-  escape-hatch floors (`pipe`/`apply`/effects). Data-only, no engine change.
-  _Escape-hatch floors: **done** (see resolved note below). `merge` also
-  **done**, but as the bucket-(B) structural op rather than a data-signature
-  tweak — its return is arg-dependent, so it needed a computed type-level merge._
-- **(B) Add a bounded type-level op to the engine** — computed-index projection,
-  shared-field-off-union projection, structural `merge`, `$ref`-to-top. No
-  recursion; each is a small, closed operation every impl must mirror.
-  _All four **done** (see resolved notes below): `$ref`-to-top,
-  shared-field-off-union projection, computed-index projection, and structural
-  `merge`._
 - **(C) Extend narrowing coverage** — `match` narrowing, `where`-local
   narrowing, nested-access narrowing, the `x!` assertion (doesn't parse yet).
 - **(D) Needs a real type-system feature (defer)** — user-facing generics /
   `Task<A>`, effect rows, `pipe`/`apply`'s variadic fold.
-
-Note: escape-hatch soundness and the effect-kernel section share one root  
-(builtins that punt to `any`). Bucket (B) items also share one root — the  
-engine can't yet _compute_ a projected/combined type — so they're likely one  
-piece of work, not four.
-
-## Soundness gaps
-
-### Escape-hatch builtins return `any` and check nothing
-
-> **Resolved.** Each `{ rule }` builtin now carries a loose data floor
-> (`RULE_FLOORS` in `builtin-rules.ts`): fixed arity, a pinned result type, and
-> select argument shapes. Wrong-arity/wrong-shape calls are caught
-> (`pipe([])` → arity error; `pipe(5, …)` → `$args[0]` shape error), the effect
-> ops return the opaque `Task` node (`$defs/Task` in `spec/builtins.json`), and
-> `any`-typed args stay exempt from shape checks. A per-impl code rule can still
-> layer precision on top. See `docs/builtin-signatures.md` § "Recommended floors".
-
-Builtins registered as `{ "rule": "<name>" }` in `spec/builtins.json` —
-`pipe`, `apply`, and the effect ops (`perform`/`pure`/`bind`/`raise`/`handle`)
-— hit `synthBuiltinCall`'s non-array branch (`builtin-rules.ts`), which returns
-`true` (`any`) after only walking args for _nested_ errors. The `rule` name is
-inert: no per-impl code handler was ever written, so there's no result type
-_and_ no arity/shape checking. `pipe()`, `apply()`, `pipe(1,2,3,4,5)` all pass.
-
-Note `pipe`'s real signature is `pipe(fns, init)` (function array first); the
-escape hatch means even a wrong-arity/wrong-shape call like
-`pipe(5, (n) => n + 1)` is accepted (and it doesn't even evaluate at runtime —
-`pipe` wants an array of functions). Minimal fix: give each a _loose data
-floor_ (arity + "arg 0 is an array of functions" for `pipe`; nominal `Task`
-return for the effect ops) so checking never silently vanishes, then layer a
-code rule for precision. This is the same root as "The effect kernel is
-untyped" below.
-
-### Computed index access isn't integer-checked
-
-> **Resolved** (with the computed-index projection below). The `$get` case now
-> checks the index/key type against its container (`checkIndexKey` in
-> `checker.ts`): array/tuple positions demand an `integer`, object/map keys a
-> `string`. A key that can never be the right category is a hard error
-> (`xs["k"]`, `xs[2.5]`); one that only overlaps (a `number` index, which could
-> be a valid integer at runtime) is a §5.5 `warning`; an `any`/`never` key stays
-> permissive. `keyCouldBe` (`schema.ts`) uses the integer-aware `typeMatches`, so
-> `2.5` correctly does *not* count as an integer.
-
-`arr[i]` (a language-level `$get` with a computed numeric key) is projected
-structurally without requiring the index to be an `integer`, so
-`arr[2.5]`-style access isn't rejected. The integer-demanding _builtin_
-positions (e.g. `setAt`'s index, the `+`/`/` overloads) already declare
-`integer` in `spec/builtins.json` and _are_ checked; the gap is only the
-language-level `$get` path. Closing this makes indexing fully covered, which is
-the main thing the `integer`/`number` distinction buys us (whole-vs-fractional
-values are otherwise interchangeable — `2.0` correctly folds to `integer`, and
-that's a sound subtyping choice, not a bug).
-
-> This shipped together with "Computed index access degrades to `any`" below:
-> the value projection (`projectComputed`) and the index-type check
-> (`checkIndexKey`) landed as one change, so the index is now both projected
-> _and_ integer-checked. See the resolved note above.
 
 ## Diagnostics / ergonomics
 
@@ -107,6 +40,19 @@ field, or missing a required field) dump both full schemas as
 
 Reading a field not declared on a closed object type (`u.name` where `name`
 isn't in the type) yields `null` with no error. Could mask typos.
+
+### An undefined type reference silently resolves to top
+
+A `$ref` to a type that was never declared (a typo'd or missing alias) resolves
+to top rather than erroring, so an annotation like `-> Report` when no
+`type Report` exists accepts *any* value — `true` included. It's the same
+`refsToTop`/dangling-ref rule that (intentionally) makes `type X = any` usable as
+top, seen from the other side: a misspelled return/parameter type silently
+becomes an escape hatch. A defined-but-wrong annotation (`-> State`) still
+rejects correctly; only the *undefined* name leaks. A "reference to undeclared
+type" diagnostic would close the footgun. (This bit during the cousin tightening:
+`runScript -> Report` looked like it type-checked until `Report` was actually
+declared, at which point it failed like the goal.)
 
 ## Language / parse quirks
 
@@ -149,111 +95,16 @@ Refinements are opaque: `s + 1` (an `integer`) is not assignable to
 to produce a refined value. Expected given the model, but flagged for whenever
 refinement UX comes up.
 
-### `if` condition is truthiness-based, not boolean (precision, not soundness)
-
-Originally filed as a soundness gap ("`if 1 then 10 else 20` type-checks; the
-condition type is unchecked"). But `$if` is defined to branch on _truthiness_
-(`docs/language.md`: "`$if` is evaluated; if truthy, `$then` … otherwise
-`$else`"), exactly like `$and`/`$or`. So `1` is a legitimate condition and
-`if 1 then 10 else 20 : 10` was already sound — requiring a `boolean` condition
-would be wrong (it'd break `if x then … else default`-style truthiness checks).
-
-The precision win here is the `$if` analogue of the `$and`/`$or` fix below:
-narrow the condition _value_ by its own truthiness inside each branch. A bare
-value / access-path condition now contributes its truthy slice to the
-then-branch and its falsy slice to the else-branch, via the same
-`restrictToTruthy`/`restrictToFalsy` helpers (new `truthinessFact` in
-`narrowing.ts`, applied through `factsFromCondition`, so `$cond` arms get it
-too). So `if x then x else "d"` with `x: string | null` is now `string | "d"`
-(null dropped in `then`), matching `x || "d"`. Predicate/comparison/discriminant
-narrowing (`if isNumber(x) …`) is unchanged. Purely a precision improvement.
-
-Still open (cosmetic, tracked under "Cosmetic" above): literal-union branch
-results aren't widened (`if … then 10 else 20 : anyOf[const 10, const 20]`).
-
-### `&&` / `||` are value-returning, not boolean (precision, not soundness)
-
-Originally filed as a soundness gap ("not boolean-checked"), but `&&`/`||` lower
-to the `$and`/`$or` special forms, which the spec defines as value-returning
-short-circuit operators (`$and` → first falsy or last; `$or` → first truthy or
-last), deliberately _not_ the eager boolean stdlib `and`/`or`. So requiring
-boolean operands (would break the `x || default` idiom) or a boolean result
-would both be wrong, and `1 && 2 : 2` was already sound. The result rule now
-narrows each non-final operand to the slice that can stop the chain — falsy for
-`$and`, truthy for `$or` — so `(x: string | null) || d : string | typeof d`,
-`1 && 2 : 2`, and `true && false : false`. Purely a precision improvement.
-
 ---
 
 ## Gaps surfaced by `examples/ledger.jfn`
 
 `examples/ledger.jfn` is a reference program that **evaluates correctly**
 (`jfn eval --entry demo`) but does not yet pass `jfn check` (29 diagnostics: 12
-errors, 17 warnings — the count was originally 32 errors; several were
-downgraded to warnings, and 3 errors cleared by the computed-index projection
-fix, noted inline below). It was
-written to use the type syntax the natural way; each diagnostic below is the
-checker rejecting a sound program. The already-checkable cousin is
-`examples/pipeline.jfn`. Repros verified through `jfn check`.
-
-### Computed index access degrades to `any` (arrays _and_ maps)
-
-> **Resolved.** `projectComputed` (`schema.ts`) projects `target[key]` off the
-> *key's type* (the counterpart to `projectField`, which needs a literal key):
-> an integer-typed index projects an array's `items` / a tuple's element union
-> (joined with `null` for out-of-bounds), a string-typed key projects a map's
-> `additionalProperties` / a closed object's property union (joined with `null`
-> for a possible miss). It mirrors `projectField`'s union decomposition, so a
-> union of containers joins per-arm. The `$get` case (`checker.ts`) now routes
-> computed keys through it (literal keys still use `projectField`), and pairs it
-> with the `checkIndexKey` index-type check noted above. Both repros below now
-> check clean (`xs[i] : integer`, `m[k] : integer`); `ledger.jfn` drops from 15
-> to 12 errors.
-
-Static keys project the element/field type; any **computed** key falls to `any`:
-
-```jfn
-{ f: (xs: integer[]) -> integer => xs[0] }                                  // OK  : integer
-{ f: (xs: integer[], i: integer) -> integer => xs[i] }                      // ERR : true (any)
-{ type M = { [string]: integer }, get: (m: M, k: string) -> integer => m[k] } // ERR : true (any)
-```
-
-Both the array `items` schema and the map `additionalProperties` schema are in
-hand and should flow through a computed `$get`. This **sharpens/corrects the
-"Computed index access isn't integer-checked" note above**, which asserts
-`arr[i]` "is projected structurally" — today it isn't projected at all, it
-degrades to `any` (so the missing `integer`-check on the index is moot until the
-value projection lands).
-
-### `merge` erases the record type
-
-> **Resolved.** `merge` keeps its `(object, object) -> object` signature for
-> argument checking, but its *return* is now recomputed structurally by a code
-> rule (`mergeSchemas` in `schema.ts`, dispatched by name in
-> `synthBuiltinCall`): the type-level `{ ...a, ...b }`, RHS-wins. So the repro
-> below now checks clean (`upd : A`), a bad override is caught
-> (`merge(a, { n: "s" })` → error), a closed record rejects a stray field
-> (`merge(a, { extra: 1 })` → error, sound: `A` is closed), and a map LHS keeps
-> its value type (`merge(m, { a: 1 }) : M`). Unions distribute per arm; a
-> non-object/`any` operand degrades. See `docs/builtin-signatures.md`
-> § "Arg-dependent returns".
->
-> Note this doesn't by itself clear `ledger.jfn`'s two `merge` sites: each is
-> blocked by a *second*, unrelated gap — `merge(acct, { balance: … })` hits the
-> opaque-refinement wall (`integer ⊄ Cents`, see the design note), and
-> `merge(books.ledger, fromEntries(…))` needs `fromEntries` to preserve the map
-> value type (its signature returns a bare object). Structural merge is
-> necessary but not sufficient there.
-
-```jfn
-{ type A = { id: string, n: integer }, upd: (a: A) -> A => merge(a, { n: a.n + 1 }) }
-// ERR: {"type":"object"} is not assignable to {"$ref":"#/$defs/A"}
-```
-
-`merge`'s signature returns bare `{"type":"object"}`, so the copy-with-one-field
--changed idiom (pervasive in pure state updates) can never satisfy a declared
-record return type. A structural merge of two object schemas (union of
-properties, RHS wins, at least for a literal RHS) would recover it.
+errors, 17 warnings). It was written to use the type syntax the natural way;
+each diagnostic below is the checker rejecting a sound program. The
+already-checkable cousin is `examples/pipeline.jfn`. Repros verified through
+`jfn check`.
 
 ### Object-producing builtins erase the map value type (`fromEntries`, …)
 
@@ -265,14 +116,14 @@ properties, RHS wins, at least for a literal RHS) would recover it.
 
 `fromEntries` (and the object-building cousins) return bare `{"type":"object"}`,
 so a map-typed return (`{ [string]: T }`) is never satisfied — the value type is
-gone. This is the *second* gap blocking `ledger.jfn`'s
-`merge(books.ledger, fromEntries([[id, acct]]))` line: even with structural
-`merge` now preserving the map through the merge, the `fromEntries` operand is
-already a bare object, so the map's `Account` value type is lost before `merge`
-sees it. A polymorphic signature (`fromEntries : ([string, V][]) -> { [string]: V }`)
-would recover it — the same type-variable machinery the array builtins already
-use, just projecting the pair's second element into `additionalProperties`.
-Bucket (A)/(D)-ish: a signature-precision job, not the structural `merge` op.
+gone. This blocks `ledger.jfn`'s
+`merge(books.ledger, fromEntries([[id, acct]]))` line: structural `merge` now
+preserves the map through the merge, but the `fromEntries` operand is already a
+bare object, so the map's `Account` value type is lost before `merge` sees it. A
+polymorphic signature (`fromEntries : ([string, V][]) -> { [string]: V }`) would
+recover it — the same type-variable machinery the array builtins already use,
+just projecting the pair's second element into `additionalProperties`. A
+signature-precision job, not a structural-op one.
 
 ### `match` doesn't narrow a discriminated union (`if` / `cond` do)
 
@@ -284,20 +135,12 @@ cond { e.tag == "lit" -> e.v, else -> e.l }  // OK — narrows
 if e.tag == "lit" then e.v else e.l          // OK — narrows
 ```
 
-> **Update:** the shared-field-off-union projection fix (below) means the
-> `match` case no longer hard-errors with `any` — `e.v`/`e.l` now project as
-> `number | null` (the field joined across arms, absent arm contributing
-> `null`), which only narrowly misses the declared `number` return, so this is
-> now a `warning`, not an `error`. The core gap is unchanged, though: `$match`
-> still doesn't narrow the *subject* (`e`) the way `if`/`cond`'s
-> `factsFromCondition` does for an equality-on-a-path condition, so the result
-> is imprecise rather than the fully-narrowed `number` the `if`/`cond` forms
-> get.
-
-The discriminated-union narrowing listed under "What landed well" fires for
-`if`/`cond` but not `$match`, so the most natural tagged-dispatch — `match subject.tag { … }` — doesn't narrow the subject to the matching variant(s).
-Matching a case value should narrow the subject to the variant(s) carrying that
-discriminant.
+`$match` doesn't narrow its subject (`e`) the way `if`/`cond`'s
+`factsFromCondition` does for an equality-on-a-path condition, so the most
+natural tagged-dispatch — `match subject.tag { … }` — leaves `e.v`/`e.l` as
+`number | null` (a `warning` against the declared `number`) instead of the
+fully-narrowed `number`. Matching a case value should narrow the subject to the
+variant(s) carrying that discriminant.
 
 ### Flow narrowing doesn't reach `where`-locals
 
@@ -345,101 +188,43 @@ record, an `Action`/`Fault` discriminated union, and `-> Task` on every
 effectful function, over a `do`-notation loop (`perform`/`bind`/`pure`/`raise`)
 run in-language by a threaded-state `handle`. It **evaluates correctly**
 (`jfn eval --entry demo`) but does not yet pass `jfn check` (4 errors, 3
-warnings — originally 8 errors, 1 warning; several were downgraded to
-warnings by fixes landed since, per the `match`-narrowing update above). The
-already-checkable cousin is `examples/thermostat-checked.jfn` (byte-identical
-output). Repros verified through `jfn check`.
+warnings). The already-checkable cousin is `examples/thermostat-checked.jfn`
+(byte-identical output). Repros verified through `jfn check`.
 
-Some of its diagnostics are the `match` **doesn't narrow** gap already filed
-under `ledger.jfn` (here on `describe`/`actuate`, where `match act.tag { … }`
-doesn't narrow `act`). With the shared-field-projection fix, a shallow access
-like `act.to` (`describe`'s `"switch"` case) is now only a `warning`
-(`Mode | null` vs. the declared `string`); a nested access like
-`act.fault.tag` (`describe`'s `"alarm"` case) still fully degrades to `any`
-and stays a hard `error` — the projection fix doesn't recurse through a
-second field hop. The rest are new and specific to typing over the effect
-kernel.
+Its 7 diagnostics split across four causes. All were pinned down while tightening
+the checkable cousin, which now types every effectful boundary (`-> Task` on the
+`Device` methods, `dev`, `actuate`, `loop`, and — after the restructure below —
+`onReading`) except the two genuinely-blocked spots called out here.
 
-### The effect kernel is untyped, so `-> Task` can't be expressed
+**`match` doesn't narrow the subject (1 error + 3 warnings)** — the gap already
+filed under `ledger.jfn`, here on `describe`/`actuate`/`apply`, where
+`match act.tag { … }` doesn't narrow `act`. A shallow access like `act.to`
+(`describe`'s `"switch"` case, `actuate`, and `apply`'s returned `mode`) only
+misses to `Mode | null` and stays a `warning`; the nested `act.fault.tag`
+(`describe`'s `"alarm"` case) fully degrades to `any` and is a hard `error`,
+since field projection off a union doesn't recurse through a second field hop.
 
-> **Resolved** (via the escape-hatch floors above). `perform`/`pure`/`bind`/`raise`
-> now return `$defs/Task` (the opaque tagged-record node), so an effectful
-> function can carry a `-> Task` / `-> any` return. Both repros below now check
-> clean: `{ type Task = any, f: () -> Task => perform("e", []) }` and the same
-> with the structural `{ "@task": string }` record. `handle` still returns `any`
-> (its result type is genuinely caller-dependent). The capability-record shape
-> (`Device.read : () -> Task`) is typed field-by-field via the now-resolved
-> shared-field-off-union projection filed below.
+**A `do`-block with a local `let` binding erases to `any` (1 error)** — blocks
+`onReading`. Note first that `bind`/`perform`/`pure`/`raise` all return the
+`Task` node (only `handle` returns top — below), so an explicit `bind` chain is
+`Task`: `loop`'s `if … then pure(st) else bind(…)` body checks against `-> Task`
+fine. The failure is specific to `do`-notation with a plain local: `do { action: …, _ <- … }`
+lowers to an *immediately-invoked scope* — `{ $call: { action: …, $return: bind(…) }, $args: [] }`
+— and calling that inline bindings-object doesn't propagate its `$return` type,
+so the call synths to `true`. A `let`-free `do` lowers to a bare `bind` and keeps
+`Task`; hoisting the local into a function-body `where` (leaving the `do` with no
+binding) recovers `-> Task`. General gap, not effect-specific: any IIFE-style
+call of an inline scope-object loses its `$return` type.
 
-The kernel builtins (`perform`, `pure`, `bind`, `raise`, `handle`) have no
-signatures, so every task expression is `any` (`true`). The bare `any` keyword
-absorbs that fine, but there is no way to give an effectful function a named
-`Task` return type — every `-> Task`/`-> Device`/`-> Report` annotation in the
-goal file is rejected:
+**`handle` returns top (1 error)** — blocks `runScript`. Unlike the other kernel
+ops, `handle`'s floor result is `true` (its result is genuinely
+handler-dependent), so a `handle` expression can't satisfy a named return like
+`-> Report` and stays `any`. (A `task: Task` *parameter* is fine, since `loop`
+now returns a concrete `Task`.)
 
-```jfn
-{ f: (x: integer) -> any => perform("e", []) }              // OK  (bare any absorbs the task)
-{ type Task = any, f: () -> Task => perform("e", []) }      // ERR : true not assignable to $ref Task
-{ dev: () -> Device => { read: () => perform("s", []), … } } // ERR : bare-lambda field is `true`, not (…) -> Task
-```
-
-Until tasks carry a type (even an opaque, un-parameterized `Task`), the effect
-boundary can only be typed as the bare `any` keyword, which erases the
-capability-record shape a `Device`/`Api` type is meant to document.
-
-### A `$ref` to an `any` alias isn't treated as top
-
-> **Resolved.** `subsumes` (`subsumption.ts`) now peels a `$ref` chain on the
-> `sup` side when `sub` is top: `any ⊆ $ref` holds iff the alias bottoms out at
-> `true` (`refsToTop`, with a cycle guard; a dangling ref resolves to top too).
-> So `{ type T = any, f: (x: integer) -> T => apply(...) }` — a bare-`any` value
-> against a named `any` alias — now checks clean, while `type T = integer`
-> correctly still rejects it. This is the general fix; the effect ops above no
-> longer rely only on their `$ref`-result workaround.
-
-Sharpening the item above: `any` **works inline** but **not through a named
-alias**. `type Task = any` lowers to `true`, yet a `$ref` to it is not
-recognized as top, so an `any`-valued expression fails to satisfy it:
-
-```jfn
-{ f: (x: integer) -> any => perform("e", []) }               // OK
-{ type T = any, f: (x: integer) -> T => perform("e", []) }   // ERR : true not assignable to $ref T
-```
-
-Dereferencing a `$ref` whose target is `true` (or short-circuiting
-assignability when the _target_ resolves to top) would make `type Task = any`
-usable as the documented effect-boundary alias.
-
-This is the cheapest fix in this doc and a prerequisite for the opaque-`Task`
-boundary: making a `$ref`-to-top transparent lets `type Task = any` work as the
-documented effect-boundary alias with zero new machinery.
-
-### Reading a shared field off a union degrades to `any`
-
-> **Resolved.** `projectField` (`schema.ts`) now decomposes a union target and
-> projects the key off every arm, joining the results (`unionOf`). So a shared
-> discriminant projects to its literal union (`x.tag : "a" | "b"`), a field on
-> only some arms joins with the absent arms' `null` (`x.n : integer | null`),
-> and nested access through a union field (`w.f.tag`) resolves too — the last
-> works because `$ref` arms resolve via `resolveDeep` and the recursion handles
-> them. An arm that can't carry the field degrades that arm to `any`, which the
-> join then absorbs (matching the pre-union behavior for a non-object under a
-> string key). This also removes the `projectField`-collapses-to-`any` caveat
-> the `$match` exhaustiveness lint's `discriminantValues` was written around.
-
-Projecting a field that every arm of a union declares — including the very
-discriminant used to narrow — yields `any` instead of the union of the field's
-types across arms:
-
-```jfn
-{ type F = { tag: "a", n: integer } | { tag: "b" },
-  g: (x: F) -> string => x.tag }                             // ERR : true (any), want "a" | "b"
-```
-
-Narrowing doesn't rescue it either — inside a `cond`/`if` arm, a nested access
-like `w.f.tag` (where `w.f : F`) is still `any`. This is why the checkable
-cousin needs a `faultTag: (f: Fault) -> string` helper that discriminates with a
-`cond` over `f.tag` (reading `.tag` as a _condition_ is fine — that's how
-narrowing works) rather than using `f.tag` as a _value_. A union-typed value
-should project a shared field to the join of that field across its arms (and the
-common discriminant to its literal union).
+**Bare capability-record lambdas synth to `any` (1 error)** — `dev`'s
+`{ read: () => perform(…), set: (mode) => …, log: (msg) => … }` fields come out
+as `true` rather than `() -> Task`, so the object isn't assignable to the
+declared `Device`. An unannotated lambda in object-literal field position isn't
+inferred against the field's expected function type, so a typed capability
+record can't be populated by bare handler lambdas.

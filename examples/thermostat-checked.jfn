@@ -3,20 +3,22 @@
 //
 // The goal file is written the way the type syntax *wants* to be used; this one
 // keeps every construct the checker already handles well and works around the
-// gaps it hits (all catalogued in todo/typecheck-findings.md). The domain stays
-// fully typed — `Config`/`Reading`/`State`/`Mode` records, the `Action`/`Fault`
-// discriminated unions, a typed `Device` capability record. Only the effect
-// boundary is loosened. The deltas from the goal, one per gap:
+// gaps it still hits (all catalogued in todo/typecheck-findings.md). The domain
+// is fully typed — `Config`/`Reading`/`State`/`Mode` records, the `Action`/`Fault`
+// discriminated unions, a typed `Device` capability record — and, now that the
+// effect kernel carries `Task`-typed floors (`perform`/`pure`/`raise`/`bind` all
+// return `Task`), the effect boundary is typed too: `-> Task` on the `Device`
+// methods, `dev`, `actuate`, and `loop`. Three deltas from the goal remain, one
+// per still-open gap:
 //
-//   1. Effect kernel has no signatures -> every task expression is `any`, and a
-//      named `type Task = any` alias is *not* treated as top (a `$ref` to `any`
-//      isn't transparent), so effectful returns are annotated with the bare
-//      `any` keyword rather than a `Task` alias.
-//   2. `match` doesn't narrow a discriminated union (only `if`/`cond` do), so
-//      `decide`/`apply`/`describe`/`actuate` dispatch with `cond` on `.tag`.
-//   3. Reading a shared field off a union value degrades to `any` (`act.fault.tag`
-//      on the `Fault` union), so `faultTag` turns a `Fault` into a label with a
-//      `cond` over the discriminant instead of reading `.tag` as a value.
+//   1. `match` doesn't narrow a discriminated union (only `if`/`cond` do), so
+//      `apply`/`describe`/`actuate` dispatch with `cond` on `.tag` — which then
+//      lets `describe` read the shared `act.fault.tag` directly (no helper).
+//   2. A `do`-block with a local `let` binding erases to `any` (the inline scope
+//      it lowers to loses its `$return` type), so `onReading` hoists its `action`
+//      let into a `where`, leaving a let-free `do` that keeps its `Task` type.
+//   3. `handle` erases to `any` (its result is handler-dependent), so `runScript`
+//      returns the bare `any` keyword rather than a named `Report`.
 //
 // Behavior is identical to the goal — same transcript, same fault ending:
 //   bun run typescript/src/cli.ts eval --file examples/thermostat-checked.jfn --entry demo
@@ -40,13 +42,17 @@
     | { tag: "switch", to: Mode }
     | { tag: "alarm",  fault: Fault },
 
-  // A typed capability record. Effect results are opaque (the kernel builtins
-  // have no signatures yet, and there is no `Task<T>`), so every method returns
-  // the bare `any` keyword — the one spot the effect boundary shows through.
+  // An opaque effect description (`$defs/Task`: a tagged `@task` object).
+  // `perform`/`pure`/`raise` now carry this as their return type, so a function
+  // whose body is directly one of them can be annotated `-> Task`.
+  type Task = { "@task": string, ... },
+
+  // A typed capability record. Its methods return `Task` (their bodies are bare
+  // `perform` calls). Only `bind`/`handle`-bodied functions still fall to `any`.
   type Device = {
-    read: () -> any,
-    set:  (Mode) -> any,
-    log:  (string) -> any
+    read: () -> Task,
+    set:  (Mode) -> Task,
+    log:  (string) -> Task
   },
 
   // ----- pure control logic -------------------------------------------------
@@ -63,23 +69,18 @@
   },
 
   // Fold an action into the state. `cond` on `.tag` narrows the union so the
-  // `switch` arm can read `act.to`; `match` would leave it `any` (gap #2).
+  // `switch` arm can read `act.to`; `match` would leave it `any` (gap #1).
   apply: (st: State, act: Action) -> State => cond {
     act.tag == "switch" -> { config: st.config, mode: act.to },
     else                -> st
   },
 
-  // A `Fault` -> label without reading `.tag` as a *value* (gap #3): the `cond`
-  // discriminant is fine, only projecting the shared field off the union isn't.
-  faultTag: (f: Fault) -> string => cond {
-    f.tag == "LowBattery" -> "LowBattery",
-    else                  -> "OutOfRange"
-  },
-
   // A human-readable transcript line for one action + the reading behind it.
+  // The `cond` narrows `act` per arm, so reading the shared discriminant off the
+  // narrowed `Fault` union (`act.fault.tag`) now projects to its literal union.
   describe: (act: Action, reading: Reading) -> string => cond {
     act.tag == "switch" -> `${str(reading.temp)}C bat${str(reading.battery)}% -> ${act.to}`,
-    act.tag == "alarm"  -> `${str(reading.temp)}C bat${str(reading.battery)}% -> ALARM ${faultTag(act.fault)}`,
+    act.tag == "alarm"  -> `${str(reading.temp)}C bat${str(reading.battery)}% -> ALARM ${act.fault.tag}`,
     else                -> `${str(reading.temp)}C bat${str(reading.battery)}% -> hold`
   },
 
@@ -87,14 +88,14 @@
   // The loop never names `perform`; it holds this narrow `Device` interface,
   // which an outer handler is free to interpret however it likes.
   dev: () -> Device => {
-    read: () -> any => perform("sensor.read", []),
-    set:  (mode: Mode) -> any => perform("hvac.set", [mode]),
-    log:  (msg: string) -> any => perform("log", [msg])
+    read: () -> Task => perform("sensor.read", []),
+    set:  (mode: Mode) -> Task => perform("hvac.set", [mode]),
+    log:  (msg: string) -> Task => perform("log", [msg])
   },
 
   // Turn an action into its effect. `alarm` escalates as a typed `raise`, so an
   // outer handler decides recovery; everything else pokes the HVAC (or nothing).
-  actuate: (action: Action) -> any => cond {
+  actuate: (action: Action) -> Task => cond {
     action.tag == "switch" -> dev().set(action.to),
     action.tag == "alarm"  -> raise(action.fault),
     else                   -> pure(null)
@@ -102,16 +103,18 @@
 
   // ----- the control loop: straight-line do-notation ------------------------
 
-  onReading: (st: State, reading: Reading) -> any => do {
-    action: decide(st.config, st.mode, reading),
+  // `action` is bound in a `where`, not as a `do`-local: a `do` with a `let`
+  // binding lowers to an inline scope-call that erases to `any` (gap #2), so the
+  // `do` is kept let-free to preserve its `Task` type.
+  onReading: (st: State, reading: Reading) -> Task => do {
     _ <- dev().log(describe(action, reading)),
     _ <- actuate(action),
     pure(apply(st, action))
-  },
+  } where { action: decide(st.config, st.mode, reading) },
 
   // Read the sensor up to `fuel` times. A `null` reading (the sensor is out of
   // data) ends the run gracefully with the final state.
-  loop: (st: State, fuel: integer) -> any =>
+  loop: (st: State, fuel: integer) -> Task =>
     if fuel <= 0
       then pure(st)
       else bind(dev().read(), (reading) =>
@@ -122,9 +125,10 @@
   // ----- a scripted, in-language handler ------------------------------------
   // One handler, three effects, one threaded record: `sensor.read` consumes the
   // pending readings, `hvac.set`/`log` append to the transcript, `raise` ends
-  // the run with the fault tag. The clause lambdas are bare — they live inside
-  // an untyped `handle` call, so nothing constrains them.
-  runScript: (readings: Reading[], task: any) -> any => (handle task with {
+  // the run with the fault tag. `handle` erases to `any` (its result is genuinely
+  // handler-dependent), so `runScript`'s return can't be a named `Report` yet;
+  // the `task` param, though, is now the concrete `Task` that `loop` returns.
+  runScript: (readings: Reading[], task: Task) -> any => (handle task with {
     "sensor.read": (resume) => (s) => (resume(next))(rest) where {
       empty: length(s.pending) == 0,
       next:  if empty then null else head(s.pending),
