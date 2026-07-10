@@ -394,7 +394,7 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
         call.$call in ctx.builtins
       ) {
         if (ctx.env.lookupType(call.$call) === undefined) {
-          return ctx.synthBuiltinCall(ctx.builtins[call.$call]!, args, ctx);
+          return ctx.synthBuiltinCall(call.$call, ctx.builtins[call.$call]!, args, ctx);
         }
       }
       const sig = resolveCalleeSig(call.$call, ctx);

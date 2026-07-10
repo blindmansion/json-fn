@@ -236,6 +236,46 @@ describe("Section F — builtin signatures", () => {
     });
   });
 
+  describe("structural merge (merge's arg-dependent return)", () => {
+    const closed = (props: Record<string, Schema>, required: string[]): Schema => ({
+      type: "object",
+      properties: props,
+      ...(required.length ? { required } : {}),
+      additionalProperties: false,
+    });
+    const errs = (mod: JSONType) =>
+      checkModule(mod as Record<string, JSONType>, BT).filter((d) => d.severity === "error");
+    const refA = { $ref: "#/$defs/A" };
+    const updBody = (rhs: JSONType) =>
+      body(["a"], { params: [refA], returns: refA }, call("merge", { $var: "a" }, rhs));
+
+    test("the copy-with-one-field-changed idiom satisfies a declared record type", () => {
+      const A = closed({ id: S, n: I }, ["id", "n"]);
+      const inc = { n: call("add", { $get: "n", $from: { $var: "a" } }, 1) };
+      expect(errs({ $types: { A }, upd: updBody(inc) })).toEqual([]);
+    });
+
+    test("merging an extra field onto a closed record is rejected", () => {
+      const A = closed({ id: S, n: I }, ["id", "n"]);
+      expect(errs({ $types: { A }, upd: updBody({ extra: 1 }) }).length).toBeGreaterThan(0);
+    });
+
+    test("RHS wins on a shared key: a bad override type is caught", () => {
+      const A = closed({ id: S, n: I }, ["id", "n"]);
+      // Overriding n with a string violates the declared integer field.
+      expect(errs({ $types: { A }, upd: updBody({ n: "oops" }) }).length).toBeGreaterThan(0);
+    });
+
+    test("a map LHS keeps its value type through the merge", () => {
+      const M: Schema = { type: "object", additionalProperties: I };
+      const refM = { $ref: "#/$defs/M" };
+      const fBody = (rhs: JSONType) =>
+        body(["m"], { params: [refM], returns: refM }, call("merge", { $var: "m" }, rhs));
+      expect(errs({ $types: { M }, f: fBody({ a: 1 }) })).toEqual([]);
+      expect(errs({ $types: { M }, f: fBody({ a: "s" }) }).length).toBeGreaterThan(0);
+    });
+  });
+
   describe("escape-hatch rule floors", () => {
     const errs = (expr: JSONType) => synthB(expr).diagnostics.filter((d) => d.severity === "error");
 

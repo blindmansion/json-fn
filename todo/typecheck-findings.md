@@ -17,12 +17,15 @@ Each finding below falls into one of four buckets, roughly by effort:
 
 - **(A) Tighten a loose data signature** — `merge` erasing records; the
   escape-hatch floors (`pipe`/`apply`/effects). Data-only, no engine change.
-  _Escape-hatch floors: **done** (see resolved note below). `merge` remains._
+  _Escape-hatch floors: **done** (see resolved note below). `merge` also
+  **done**, but as the bucket-(B) structural op rather than a data-signature
+  tweak — its return is arg-dependent, so it needed a computed type-level merge._
 - **(B) Add a bounded type-level op to the engine** — computed-index projection,
   shared-field-off-union projection, structural `merge`, `$ref`-to-top. No
   recursion; each is a small, closed operation every impl must mirror.
-  _`$ref`-to-top, shared-field-off-union projection, and computed-index
-  projection: **done** (see resolved notes below). Structural `merge` remains._
+  _All four **done** (see resolved notes below): `$ref`-to-top,
+  shared-field-off-union projection, computed-index projection, and structural
+  `merge`._
 - **(C) Extend narrowing coverage** — `match` narrowing, `where`-local
   narrowing, nested-access narrowing, the `x!` assertion (doesn't parse yet).
 - **(D) Needs a real type-system feature (defer)** — user-facing generics /
@@ -224,6 +227,24 @@ value projection lands).
 
 ### `merge` erases the record type
 
+> **Resolved.** `merge` keeps its `(object, object) -> object` signature for
+> argument checking, but its *return* is now recomputed structurally by a code
+> rule (`mergeSchemas` in `schema.ts`, dispatched by name in
+> `synthBuiltinCall`): the type-level `{ ...a, ...b }`, RHS-wins. So the repro
+> below now checks clean (`upd : A`), a bad override is caught
+> (`merge(a, { n: "s" })` → error), a closed record rejects a stray field
+> (`merge(a, { extra: 1 })` → error, sound: `A` is closed), and a map LHS keeps
+> its value type (`merge(m, { a: 1 }) : M`). Unions distribute per arm; a
+> non-object/`any` operand degrades. See `docs/builtin-signatures.md`
+> § "Arg-dependent returns".
+>
+> Note this doesn't by itself clear `ledger.jfn`'s two `merge` sites: each is
+> blocked by a *second*, unrelated gap — `merge(acct, { balance: … })` hits the
+> opaque-refinement wall (`integer ⊄ Cents`, see the design note), and
+> `merge(books.ledger, fromEntries(…))` needs `fromEntries` to preserve the map
+> value type (its signature returns a bare object). Structural merge is
+> necessary but not sufficient there.
+
 ```jfn
 { type A = { id: string, n: integer }, upd: (a: A) -> A => merge(a, { n: a.n + 1 }) }
 // ERR: {"type":"object"} is not assignable to {"$ref":"#/$defs/A"}
@@ -233,6 +254,25 @@ value projection lands).
 -changed idiom (pervasive in pure state updates) can never satisfy a declared
 record return type. A structural merge of two object schemas (union of
 properties, RHS wins, at least for a literal RHS) would recover it.
+
+### Object-producing builtins erase the map value type (`fromEntries`, …)
+
+```jfn
+{ type M = { [string]: integer },
+  f: (id: string, n: integer) -> M => fromEntries([[id, n]]) }
+// ERR: {"type":"object"} is not assignable to {"$ref":"#/$defs/M"}
+```
+
+`fromEntries` (and the object-building cousins) return bare `{"type":"object"}`,
+so a map-typed return (`{ [string]: T }`) is never satisfied — the value type is
+gone. This is the *second* gap blocking `ledger.jfn`'s
+`merge(books.ledger, fromEntries([[id, acct]]))` line: even with structural
+`merge` now preserving the map through the merge, the `fromEntries` operand is
+already a bare object, so the map's `Account` value type is lost before `merge`
+sees it. A polymorphic signature (`fromEntries : ([string, V][]) -> { [string]: V }`)
+would recover it — the same type-variable machinery the array builtins already
+use, just projecting the pair's second element into `additionalProperties`.
+Bucket (A)/(D)-ish: a signature-precision job, not the structural `merge` op.
 
 ### `match` doesn't narrow a discriminated union (`if` / `cond` do)
 

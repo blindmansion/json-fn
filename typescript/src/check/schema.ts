@@ -305,6 +305,96 @@ function projectComputed(target: Schema, keyType: Schema, defs: Defs): Schema {
   return unionOf(results);
 }
 
+// One object schema's view of a key `k`: the schema a value at `k` would carry,
+// and whether the key is guaranteed present. `null` means `k` can never occur
+// (a closed object that doesn't declare it). A named property uses its declared
+// type + required-ness; an undeclared key falls to the additional-properties
+// rule (open → `any`, map → the map's value schema), never guaranteed present.
+function keyView(
+  o: Record<string, JSONType>,
+  k: string,
+): { schema: Schema; required: boolean } | null {
+  const props = properties(o);
+  if (k in props) return { schema: props[k]!, required: requiredKeys(o).includes(k) };
+  const mode = apMode(o);
+  if (mode.kind === "closed") return null;
+  if (mode.kind === "open") return { schema: true, required: false };
+  return { schema: mode.schema, required: false };
+}
+
+// The additional-properties rule of `{ ...a, ...b }` for keys named in neither
+// side: a stray key takes `b`'s value if `b` supplies one, else `a`'s. `b` open
+// makes the result open (arbitrary `any` keys); `b` map joins with `a`'s own
+// extra-key rule (open wins, else the map value schemas union, else just `b`'s);
+// `b` closed leaves `a`'s rule untouched.
+function mergeApMode(a: Record<string, JSONType>, b: Record<string, JSONType>): ApMode {
+  const am = apMode(a);
+  const bm = apMode(b);
+  if (bm.kind === "open") return { kind: "open" };
+  if (bm.kind === "map") {
+    if (am.kind === "open") return { kind: "open" };
+    if (am.kind === "map") return { kind: "map", schema: unionOf([am.schema, bm.schema]) };
+    return { kind: "map", schema: bm.schema };
+  }
+  return am; // b closed: inherit a's rule
+}
+
+// Structural merge of two *object* schemas, modeling the `merge` builtin's
+// shallow spread `{ ...a, ...b }` (b wins on conflict) at the type level. For
+// each named key: b guarantees it (required) → b's type; b may supply it
+// (optional / via b's extra-key rule) → the union of b's and a's contributions,
+// required only if a guarantees a fallback. Extra keys follow `mergeApMode`.
+function mergeObjects(a: Record<string, JSONType>, b: Record<string, JSONType>): Schema {
+  const keys = new Set([...Object.keys(properties(a)), ...Object.keys(properties(b))]);
+  const props: Record<string, Schema> = {};
+  const required: string[] = [];
+  for (const k of keys) {
+    const av = keyView(a, k);
+    const bv = keyView(b, k);
+    if (bv !== null && bv.required) {
+      props[k] = bv.schema; // b definitely wins
+      required.push(k);
+      continue;
+    }
+    // b doesn't guarantee k: the value is b's when present, else a's.
+    const parts: Schema[] = [];
+    if (bv !== null) parts.push(bv.schema);
+    if (av !== null) parts.push(av.schema);
+    if (parts.length === 0) continue; // neither side can carry k
+    props[k] = unionOf(parts);
+    if (av !== null && av.required) required.push(k); // only a can guarantee it
+  }
+
+  const out: Record<string, JSONType> = { type: "object", properties: props };
+  if (required.length > 0) out.required = required;
+  const mode = mergeApMode(a, b);
+  if (mode.kind === "closed") out.additionalProperties = false;
+  else if (mode.kind === "map") out.additionalProperties = mode.schema;
+  // open: leave additionalProperties unset (open-by-default).
+  return out;
+}
+
+// Merge two schemas as `merge`'s shallow spread would (b wins). Unions
+// distribute (a per-arm join, mirroring `projectField`); a non-object side (or
+// `any`) can't be structurally merged, so the result degrades to `any` / a bare
+// object floor — matching the pre-structural behavior. Ref identity is dropped
+// (the result is a fresh structural type), like the other schema surgeries.
+function mergeSchemas(a: Schema, b: Schema, defs: Defs): Schema {
+  const ra = resolveDeep(a, defs);
+  const rb = resolveDeep(b, defs);
+  if (ra === true || rb === true) return true;
+
+  const aArms = unionArms(ra);
+  if (aArms !== null) return unionOf(aArms.map((arm) => mergeSchemas(arm, rb, defs)));
+  const bArms = unionArms(rb);
+  if (bArms !== null) return unionOf(bArms.map((arm) => mergeSchemas(ra, arm, defs)));
+
+  if (classifySchema(ra) !== SchemaKind.Object || classifySchema(rb) !== SchemaKind.Object) {
+    return { type: "object" }; // non-object operand: fall back to the loose floor
+  }
+  return mergeObjects(asObject(ra), asObject(rb));
+}
+
 // Build a union schema from branch/arm types, flattening + deduping. Kept
 // deliberately simple (an `anyOf`, which `subsumes` handles); the shorthand
 // printer owns the §2.3 enum/type-array canonicalization.
@@ -348,4 +438,5 @@ export {
   projectField,
   projectComputed,
   keyCouldBe,
+  mergeSchemas,
 };

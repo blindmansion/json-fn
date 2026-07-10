@@ -31,6 +31,7 @@ import {
   unionOf,
   prefixItems,
   fnShape,
+  mergeSchemas,
 } from "./schema";
 import { isSubschema } from "./subsumption";
 
@@ -301,11 +302,35 @@ function synthRule(rule: string, argExprs: JSONType[], ctx: CheckContext): Schem
   return floor.returns;
 }
 
+// A handful of builtins have a data signature good enough for argument checking
+// but a *result* that depends structurally on the argument types — no agnostic
+// template can express it. After the ordinary overload pass (which still emits
+// the arg/arity diagnostics), a code rule keyed by name recomputes the return.
+// `merge` is the sole member today: its declared `object` return is replaced by
+// the structural spread of its two operands, so `merge(a, { … })` can satisfy a
+// declared record type. Args are re-synthed silently (no duplicate diagnostics).
+const CODE_RETURNS: Record<string, (argExprs: JSONType[], ctx: CheckContext) => Schema> = {
+  merge: (argExprs, ctx) => {
+    if (argExprs.length !== 2) return { type: "object" };
+    const silent: CheckContext = { ...ctx, diagnostics: [] };
+    const a = synth(argExprs[0]!, silent);
+    const b = synth(argExprs[1]!, silent);
+    return mergeSchemas(a, b, ctx.defs);
+  },
+};
+
 // Dispatch a builtin call by its table entry.
-function synthBuiltinCall(entry: BuiltinEntry, argExprs: JSONType[], ctx: CheckContext): Schema {
+function synthBuiltinCall(
+  name: string,
+  entry: BuiltinEntry,
+  argExprs: JSONType[],
+  ctx: CheckContext,
+): Schema {
   if (!Array.isArray(entry)) return synthRule(entry.rule, argExprs, ctx); // `{ rule }` escape hatch
   const chosen = entry.find((ov) => tryBindOverload(ov, argExprs, ctx) !== null) ?? entry[0]!;
-  return applyOverload(chosen, argExprs, ctx);
+  const result = applyOverload(chosen, argExprs, ctx);
+  const code = CODE_RETURNS[name];
+  return code ? code(argExprs, ctx) : result;
 }
 
 export { synthBuiltinCall };

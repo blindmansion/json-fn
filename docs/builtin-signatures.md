@@ -171,3 +171,23 @@ per-implementation **instantiation engine** (the algorithm, not the data):
 In TypeScript this lives in section F of `typescript/src/check.ts`, loaded via
 `typescript/src/builtins.ts`. Other implementations may bundle or codegen the
 table; that choice is left to each.
+
+### Arg-dependent returns (structural `merge`)
+
+A few builtins keep an ordinary overload signature (good enough for argument
+checking) but have a **result that depends structurally on the argument types**,
+which no data template can express. After the ordinary overload pass runs (so
+the arg/arity diagnostics still fire), a per-impl code rule keyed by name may
+recompute the return.
+
+`merge(a, b)` is the canonical case: its declared `object` return is replaced by
+the **structural spread** of its two operands — `{ ...a, ...b }` at the type
+level, RHS wins on conflict. For each key, `b` decides it if it guarantees the
+key; otherwise the value is the union of `b`'s and `a`'s contributions, required
+only if `a` guarantees a fallback. Extra keys follow the combined
+additional-properties rule (`b` open ⇒ open, `b` map joins with `a`'s, `b`
+closed ⇒ inherit `a`'s). Unions distribute per arm; a non-object or `any`
+operand degrades to `any` / a bare `object` floor. This lets the pervasive
+copy-with-one-field-changed update (`merge(rec, { field: v })`) satisfy a
+declared record return. In TypeScript this is `mergeSchemas` (`check/schema.ts`),
+dispatched by name in `synthBuiltinCall` (`check/builtin-rules.ts`).

@@ -51,7 +51,12 @@ type CheckContext = {
   // core term checker never imports the builtin engine — that would close a
   // cycle (`synth` → dispatch → `synth`). Absent ⇒ builtin calls degrade to
   // `any` even when `builtins` is present.
-  synthBuiltinCall?: (entry: BuiltinEntry, argExprs: JSONType[], ctx: CheckContext) => Schema;
+  synthBuiltinCall?: (
+    name: string,
+    entry: BuiltinEntry,
+    argExprs: JSONType[],
+    ctx: CheckContext,
+  ) => Schema;
   // Flow-narrowing facts in scope (§5.5): var name → the type it has been
   // refined to by a dominating guard, already intersected with its declared
   // type. Present only inside a guarded control-flow arm; `synth`'s `"var"`
