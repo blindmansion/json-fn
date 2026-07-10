@@ -36,7 +36,7 @@ lookahead the real parser does:
    apart from ordinary identifiers there, so they get the plain variable color —
    this is expected and degrades gracefully.
 
-See `examples/types.jfn` for a program that exercises the full type syntax.
+See `examples/typed/types.jfn` for a program that exercises the full type syntax.
 
 ## Install (local, unpublished)
 

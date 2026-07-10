@@ -1,4 +1,4 @@
-// The checkable cousin of examples/thermostat.jfn — same thermostat controller,
+// The checkable cousin of examples/typed/thermostat.jfn — same thermostat controller,
 // same runtime behavior, but massaged to pass `jfn check` cleanly *today*.
 //
 // The goal file is written the way the type syntax *wants* to be used; this one
@@ -21,8 +21,8 @@
 //      returns the bare `any` keyword rather than a named `Report`.
 //
 // Behavior is identical to the goal — same transcript, same fault ending:
-//   bun run typescript/src/cli.ts eval --file examples/thermostat-checked.jfn --entry demo
-//   bun run typescript/src/cli.ts check --file examples/thermostat-checked.jfn
+//   bun run typescript/src/cli.ts eval --file examples/typed/thermostat-checked.jfn --entry demo
+//   bun run typescript/src/cli.ts check --file examples/typed/thermostat-checked.jfn
 {
   // ----- domain types -------------------------------------------------------
   type Celsius = number,

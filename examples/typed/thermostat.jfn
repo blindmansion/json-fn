@@ -11,10 +11,10 @@
 // effect layer erases to an opaque `Task`, `match` not narrowing the `Action`
 // union, bare handler-clause lambdas, `where`-local narrowing) are the checker's
 // to close — see todo/typecheck-findings.md. The already-checkable cousin of
-// this program lives in examples/thermostat-checked.jfn.
+// this program lives in examples/typed/thermostat-checked.jfn.
 //
 // Try it (pure interpretation — every effect answered in-language):
-//   bun run typescript/src/cli.ts eval --file examples/thermostat.jfn --entry demo
+//   bun run typescript/src/cli.ts eval --file examples/typed/thermostat.jfn --entry demo
 {
   // ----- domain types -------------------------------------------------------
   type Celsius = number,

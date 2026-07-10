@@ -22,7 +22,7 @@ files it touches — not a detailed implementation plan.
 5. §5 signature templates; §6 annotated `handle`.
 6. Priority 1 coverage reporting; §4 narrowing spec + table tests.
 
-Success criterion: `examples/ledger.jfn` and `examples/thermostat.jfn` check
+Success criterion: `examples/typed/ledger.jfn` and `examples/typed/thermostat.jfn` check
 clean without their `-checked` cousins' restructurings (modulo explicit `!`),
 and a fully-`any` module no longer reports `No type errors` without also
 reporting what it didn't check.

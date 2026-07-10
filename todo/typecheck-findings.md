@@ -97,13 +97,13 @@ refinement UX comes up.
 
 ---
 
-## Gaps surfaced by `examples/ledger.jfn`
+## Gaps surfaced by `examples/typed/ledger.jfn`
 
-`examples/ledger.jfn` is a reference program that **evaluates correctly**
+`examples/typed/ledger.jfn` is a reference program that **evaluates correctly**
 (`jfn eval --entry demo`) but does not yet pass `jfn check` (29 diagnostics: 12
 errors, 17 warnings). It was written to use the type syntax the natural way;
 each diagnostic below is the checker rejecting a sound program. The
-already-checkable cousin is `examples/pipeline.jfn`. Repros verified through
+already-checkable cousin is `examples/typed/pipeline.jfn`. Repros verified through
 `jfn check`.
 
 ### Object-producing builtins erase the map value type (`fromEntries`, …)
@@ -180,15 +180,15 @@ leniency inline lambdas already get.
 
 ---
 
-## Gaps surfaced by `examples/thermostat.jfn`
+## Gaps surfaced by `examples/typed/thermostat.jfn`
 
-`examples/thermostat.jfn` is a reference program in the same spirit as
+`examples/typed/thermostat.jfn` is a reference program in the same spirit as
 `ledger.jfn`, but exercising the **effect kernel**: a typed `Device` capability
 record, an `Action`/`Fault` discriminated union, and `-> Task` on every
 effectful function, over a `do`-notation loop (`perform`/`bind`/`pure`/`raise`)
 run in-language by a threaded-state `handle`. It **evaluates correctly**
 (`jfn eval --entry demo`) but does not yet pass `jfn check` (4 errors, 3
-warnings). The already-checkable cousin is `examples/thermostat-checked.jfn`
+warnings). The already-checkable cousin is `examples/typed/thermostat-checked.jfn`
 (byte-identical output). Repros verified through `jfn check`.
 
 To see just the checkability-driven deltas between the goal and its cousin
@@ -196,8 +196,8 @@ To see just the checkability-driven deltas between the goal and its cousin
 
 ```sh
 diff --unified \
-  <(rg -v '^\s*//' examples/thermostat.jfn) \
-  <(rg -v '^\s*//' examples/thermostat-checked.jfn)
+  <(rg -v '^\s*//' examples/typed/thermostat.jfn) \
+  <(rg -v '^\s*//' examples/typed/thermostat-checked.jfn)
 ```
 
 Its 7 diagnostics split across four causes. All were pinned down while tightening

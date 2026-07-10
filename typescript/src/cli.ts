@@ -72,7 +72,7 @@ Examples:
   jfn eval 'map((n) => n + 1, [1, 2, 3])' --shorthand
   printf '{ inc: (n) => n + 1, main: () => inc(41) }' | jfn eval --entry main
   jfn check --expr 'add(1, 2)'
-  jfn check --file ../examples/types.jfn
+  jfn check --file ../examples/typed/types.jfn
 `;
 
 type ParsedArgs = {

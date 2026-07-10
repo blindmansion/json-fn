@@ -8,7 +8,7 @@
 // `merge` losing the record type, `match` not narrowing a union, null-narrowing,
 // callback-arity leniency for bare function refs) are the checker's to close —
 // see todo/typecheck-findings.md. The already-checkable cousin of this program
-// lives in examples/pipeline.jfn.
+// lives in examples/typed/pipeline.jfn.
 {
   type Cents     = integer & min(0),
   type AccountId = string & pattern("^acc_"),

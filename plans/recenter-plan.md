@@ -209,7 +209,7 @@ feature, and it resolves the last hard blocker in `thermostat.jfn`
 5. §5 `fromEntries`-family templates; §6 annotated `handle`.
 6. §2 coverage reporting; §4.1 narrowing spec + table tests.
 
-Success criterion: `examples/ledger.jfn` and `examples/thermostat.jfn` check
+Success criterion: `examples/typed/ledger.jfn` and `examples/typed/thermostat.jfn` check
 clean **without** their `-checked` cousins' restructurings (modulo explicit
 `!` where a local union is discharged), and a fully-`any` module no longer
 reports `No type errors` without also reporting what it didn't check.

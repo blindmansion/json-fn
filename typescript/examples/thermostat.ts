@@ -1,4 +1,4 @@
-// thermostat.ts — host driver for examples/thermostat-checked.jfn.
+// thermostat.ts — host driver for examples/typed/thermostat-checked.jfn.
 //
 // The controller's `loop` performs exactly three effects — `sensor.read` (get
 // the next reading), `hvac.set` (actuate), and `log` (narrate) — through the
@@ -8,8 +8,9 @@
 // sensor rig via `runTask`, so the same pure control logic drives "real" gear.
 //
 // The (checkable) example is loaded here on purpose: the version a host ships
-// is the one that passes `jfn check`. Its untyped twin, examples/thermostat.jfn,
-// is the goal we are typing toward — it evaluates identically but doesn't check.
+// is the one that passes `jfn check`. Its typed reference twin,
+// examples/typed/thermostat.jfn, is the goal we are typing toward — it evaluates
+// identically but doesn't check.
 //
 // A `null` reading (the sensor rig is out of data) ends the run gracefully via
 // the loop's own `isNull` guard. A dead battery or implausible temperature is
@@ -23,7 +24,7 @@ import { readFileSync } from "fs";
 import { join } from "path";
 
 const source = readFileSync(
-  join(import.meta.dir, "../../examples/thermostat-checked.jfn"),
+  join(import.meta.dir, "../../examples/typed/thermostat-checked.jfn"),
   "utf-8",
 );
 const controller = parseShorthand(source) as Record<string, JSONType>;
