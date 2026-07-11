@@ -86,7 +86,7 @@
       header: `ledger — ${str(length(accts))} account(s):`
     },
 
-  demo: () => {
+  demo: () -> { report: string, solvent: boolean, balances: { ... } } => {
     report:   summary(final),
     solvent:  allAbove(final, 0),
     balances: mapValues((a) => a.balance, final.ledger)

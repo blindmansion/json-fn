@@ -268,7 +268,8 @@ function factsFromCondition(
   if (guardVar !== null) {
     const guardExpr = ctx.guards?.[guardVar];
     if (guardExpr !== undefined && !seen.includes(guardVar)) {
-      return factsFromCondition(guardExpr, sense, ctx, [...seen, guardVar]);
+      const facts = factsFromCondition(guardExpr, sense, ctx, [...seen, guardVar]);
+      if (Object.keys(facts).length > 0) return facts;
     }
     // Not a named boolean guard: the bare value *is* the condition, so it is
     // known-truthy on the then-branch and known-falsy on the else-branch. This
@@ -310,6 +311,66 @@ function factsFromCondition(
   }
 
   return {};
+}
+
+function discriminantSubject(
+  subjectNode: JSONType,
+  ctx: CheckContext,
+): { base: string; field: string; type: Schema } | null {
+  if (nodeKind(subjectNode) !== "get") return null;
+  const o = subjectNode as { $get: JSONType; $from: JSONType };
+  const base = asVarName(o.$from);
+  if (base === null || typeof o.$get !== "string") return null;
+  const type = currentType(base, ctx);
+  if (type === undefined) return null;
+  return { base, field: o.$get, type };
+}
+
+function matchCaseFact(
+  subjectNode: JSONType,
+  lit: JSONType,
+  ctx: CheckContext,
+): Record<string, Schema> {
+  const subject = asVarName(subjectNode);
+  if (subject !== null) {
+    const cur = currentType(subject, ctx);
+    if (cur === undefined) return {};
+    return { [subject]: restrictToLiteral(cur, lit, ctx.defs) };
+  }
+
+  const discriminant = discriminantSubject(subjectNode, ctx);
+  if (discriminant === null) return {};
+  return {
+    [discriminant.base]: restrictToDiscriminant(
+      discriminant.type,
+      discriminant.field,
+      lit,
+      true,
+      ctx.defs,
+    ),
+  };
+}
+
+function matchElseFact(
+  subjectNode: JSONType,
+  matched: JSONType[],
+  ctx: CheckContext,
+): Record<string, Schema> {
+  const subject = asVarName(subjectNode);
+  if (subject !== null) {
+    const cur = currentType(subject, ctx);
+    if (cur === undefined) return {};
+    return { [subject]: matched.reduce((s, lit) => excludeLiteral(s, lit, ctx.defs), cur) };
+  }
+
+  const discriminant = discriminantSubject(subjectNode, ctx);
+  if (discriminant === null) return {};
+  return {
+    [discriminant.base]: matched.reduce(
+      (s, lit) => restrictToDiscriminant(s, discriminant.field, lit, false, ctx.defs),
+      discriminant.type,
+    ),
+  };
 }
 
 // Fact from `x == <lit>` (either argument order). The literal side is whichever
@@ -479,4 +540,6 @@ export {
   restrictToTruthy,
   restrictToFalsy,
   caseUniverse,
+  matchCaseFact,
+  matchElseFact,
 };

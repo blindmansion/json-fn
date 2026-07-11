@@ -10,7 +10,7 @@
 // everything in a `where` block and only some bindings are ever forced.
 
 import type { JSONType } from "../types";
-import { asPath, asVarName, litOf, nodeKind } from "./ast";
+import { asPath, litOf, nodeKind } from "./ast";
 import {
   at,
   bindingKeys,
@@ -28,12 +28,11 @@ import {
 import {
   withNarrowings,
   factsFromCondition,
-  currentType,
-  restrictToLiteral,
-  excludeLiteral,
   restrictToTruthy,
   restrictToFalsy,
   caseUniverse,
+  matchCaseFact,
+  matchElseFact,
 } from "./narrowing";
 import {
   apMode,
@@ -481,10 +480,10 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
       // consts, or a `base.field` discriminant), or null when it isn't a finite
       // literal set. Drives the §5.6 exhaustiveness / dead-case lints below.
       const universe = caseUniverse(m.$match, subjectType, ctx);
-      // Narrow a bare-var subject per case: a literal case pins it to that
-      // literal; `$else` sees the subject with every matched literal excluded.
-      const subject = asVarName(m.$match);
-      const matched: JSONType[] = []; // narrowed literals (bare-var subject only)
+      // Narrow the subject per case. Literal cases pin a bare var to that
+      // literal, or refine a discriminated-union base for `match base.tag`.
+      // `$else` sees every matched literal excluded.
+      const matched: JSONType[] = [];
       const caseLiterals: JSONType[] = []; // every literal case value (for lints)
       let allLiteral = true;
       const arms: Schema[] = [];
@@ -504,24 +503,18 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
           }
         }
         let armCtx = ctx;
-        if (subject !== null && lit !== null) {
-          const cur = currentType(subject, ctx);
-          if (cur !== undefined) {
-            armCtx = withNarrowings(ctx, { [subject]: restrictToLiteral(cur, lit.v, ctx.defs) });
-            matched.push(lit.v);
-          }
+        if (lit !== null) {
+          const facts = matchCaseFact(m.$match, lit.v, ctx);
+          armCtx = withNarrowings(ctx, facts);
+          if (Object.keys(facts).length > 0) matched.push(lit.v);
         }
         arms.push(synth(result, at(armCtx, `$cases[${i}][1]`)));
       });
 
       if ("$else" in m) {
         let elseCtx = ctx;
-        if (subject !== null && matched.length > 0) {
-          const cur = currentType(subject, ctx);
-          if (cur !== undefined) {
-            const excluded = matched.reduce((s, lit) => excludeLiteral(s, lit, ctx.defs), cur);
-            elseCtx = withNarrowings(ctx, { [subject]: excluded });
-          }
+        if (matched.length > 0) {
+          elseCtx = withNarrowings(ctx, matchElseFact(m.$match, matched, ctx));
         }
         arms.push(synth(m.$else!, at(elseCtx, "$else")));
       } else if (allLiteral && universe !== null) {

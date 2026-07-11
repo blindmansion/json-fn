@@ -133,7 +133,7 @@
   // ----- demos --------------------------------------------------------------
 
   // A full run: cold -> heat, settle -> off, hot -> cool, settle -> off.
-  demoRun: () => runScript(script, loop(start, 10)) where {
+  demoRun: () -> Report => runScript(script, loop(start, 10)) where {
     start: { config: { target: 21, tolerance: 1.5 }, mode: "off" },
     script: [
       { temp: 18, battery: 90 },
@@ -145,12 +145,12 @@
 
   // A run that trips a fault: an implausible reading `raise`s OutOfRange, which
   // the handler turns into a fault-tagged ending instead of a state.
-  demoFault: () => runScript(
+  demoFault: () -> Report => runScript(
     [{ temp: 99, battery: 50 }],
     loop({ config: { target: 21, tolerance: 1.5 }, mode: "off" }, 10)
   ),
 
-  demo: () => {
+  demo: () -> { run: Report, fault: Report } => {
     run:   demoRun(),
     fault: demoFault()
   }

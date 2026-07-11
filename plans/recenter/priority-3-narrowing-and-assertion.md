@@ -24,7 +24,7 @@ Files: new `docs/` section (or `plans/narrowing-plan.md` promoted/trimmed),
 table tests in `typescript/test/check/`. Behavior lives in
 `typescript/src/check/narrowing.ts`.
 
-## 2. Fix the `factsFromCondition` fallback bug (one-liner)
+## 2. Fix the `factsFromCondition` fallback bug (one-liner) — ✅ done
 
 A bare-var condition that resolves as a named boolean guard recurses into the
 binding expression and returns `{}` when that yields no facts, instead of
@@ -42,7 +42,15 @@ Fix: if the recursion returns `{}`, fall back to
 `truthinessFact(cond, sense, ctx)` on the guard var. File:
 `typescript/src/check/narrowing.ts`.
 
-## 3. `match` subject narrowing
+**Implementation notes:**
+
+- `factsFromCondition` now recurses into a named guard local only when that
+  recursion produces at least one fact; otherwise the bare local itself is
+  treated as the condition and narrowed by truthiness.
+- Covered by `typescript/test/check/chess.test.ts` with a `where`-local
+  condition whose initializer is a typed call rather than a recognized guard.
+
+## 3. `match` subject narrowing — ✅ done
 
 Include `match` subject narrowing in the frozen set. It's the same
 discriminant machinery `cond` already has (this is absence, not difficulty),
@@ -52,6 +60,17 @@ constantly.
 Files: `typescript/src/check/narrowing.ts` (reuse `equalityFact` /
 discriminant logic), the `$match` synth/check case in
 `typescript/src/check/checker.ts`.
+
+**Implementation notes:**
+
+- `$match` now asks `narrowing.ts` for per-case and `$else` facts. Bare-var
+  subjects keep the existing literal pin/exclude behavior; discriminant-path
+  subjects (`match s.tag { ... }`) now narrow the base `s` to the matching
+  union arm in each case.
+- The finite-universe `$match` exhaustiveness/dead-case lints remain separate
+  diagnostics; projection helpers stay pure and do not report checker errors.
+- Covered by `typescript/test/check/chess.test.ts` with a discriminated-union
+  `match s.tag` whose arms read variant-specific fields (`s.r` / `s.side`).
 
 ## 4. Ship the `x!` assertion operator (type spec §9)
 
@@ -93,6 +112,22 @@ mechanical; agents will just do it, and the subtyping rule stays simpler.
 This is an explicit non-change (reverses the earlier loosen-for-idiom
 recommendation) — call it out so it isn't "fixed" later.
 
+## Current target-example status
+
+After Priority 1 made module-level function signatures the default contract,
+the typed target examples were aligned with that broad constraint:
+
+- `examples/typed/ledger.jfn`: `demo` now has an explicit return contract.
+- `examples/typed/thermostat.jfn`: `demoRun`, `demoFault`, and `demo` now have
+  explicit return contracts.
+
+Validation after items 2-3:
+
+- `ledger.jfn`: `7 errors, 0 warnings`, `Coverage: fully checked.`
+- `thermostat.jfn`: `3 errors, 0 warnings`, with known coverage degradations
+  from inline/effect forms that belong to Priority 2 / annotated `handle`, not
+  more narrowing.
+
 ## Note on existing machinery
 
 The narrowed-memo / free-var re-synthesis machinery for lazy locals can stay
@@ -101,9 +136,9 @@ as-is or be simplified once narrowing is frozen — it no longer needs to grow.
 ## Landing checklist
 
 - Frozen narrowing set documented and table-tested.
-- `factsFromCondition` falls back to truthiness for named-guard locals;
+- [x] `factsFromCondition` falls back to truthiness for named-guard locals;
   `if h then h else 0` narrows for a `where`-local.
-- `match` subject narrowing works.
+- [x] `match` subject narrowing works.
 - `x!` parses, checks, round-trips, and inserts a runtime-checked cast.
 - Narrowable-mismatch warnings and `$match` lints are errors.
 - Callback arity rule unchanged.

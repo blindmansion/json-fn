@@ -364,6 +364,26 @@ describe("chess fragments — Tier 3: lazy-local & boolean-guard narrowing (§5.
     expect(checkModule(mod, BT)).toEqual([]);
   });
 
+  test("bare where-local condition falls back to truthiness when its initializer is not a guard", () => {
+    // (x: string | null) => if h then h else ""
+    //   where h = maybe(x), maybe: (string | null) -> string | null
+    // The local initializer is a typed call, not a recognized guard, so
+    // `factsFromCondition(h)` must fall back to the truthiness of `h` itself.
+    const mod = {
+      $types: types,
+      localTruthy: body(
+        ["x"],
+        { params: [StringOrNull], returns: S },
+        { $if: v("h"), $then: v("h"), $else: "" },
+        {
+          h: c("maybe", v("x")),
+          maybe: body(["y"], { params: [StringOrNull], returns: StringOrNull }, v("y")),
+        },
+      ),
+    };
+    expect(checkModule(mod, BT)).toEqual([]);
+  });
+
   test("parseMove: !isNull(from) && !isNull(to) narrows both before object construction", () => {
     // (from: Cell, to: Cell) => if !isNull(from) && !isNull(to)
     //                           then { from, to } else null
@@ -699,6 +719,22 @@ describe("chess fragments — Tier 5: $match exhaustiveness & dead cases (§5.6)
         $cases: [
           ["circle", 1],
           ["square", 2],
+        ],
+      } as JSONType),
+    };
+    expect(checkModule(mod, BT)).toEqual([]);
+  });
+
+  test("discriminated-union match narrows the base in each case arm", () => {
+    // (s: Shape) => match s.tag { "circle" -> s.r, "square" -> s.side }
+    // Each arm can project the field unique to the matched object variant.
+    const mod = {
+      $types: shapeTypes,
+      f: body(["s"], { params: [Shape], returns: I }, {
+        $match: g("tag", v("s")),
+        $cases: [
+          ["circle", g("r", v("s"))],
+          ["square", g("side", v("s"))],
         ],
       } as JSONType),
     };
