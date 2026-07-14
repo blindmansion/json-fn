@@ -57,12 +57,15 @@ check options:
       default the input is treated as a module; use --expr for one expression.
   -e, --expr          Check a single expression and print its inferred type
       --json          Read canonical json-fn JSON instead of .jfn shorthand
+      --json-diagnostics
+                      Emit diagnostics as a JSON array (path/message/severity/
+                      expected/actual) instead of prose
       --no-builtins   Don't load the builtin signature table (spec/builtins.json)
       --allow-untyped-functions
                       Don't require top-level functions to declare a $sig
       --require-full-coverage
                       Exit non-zero when any expression degrades to any
-  -c, --compact       With --expr, emit the inferred type as minified JSON
+  -c, --compact       Emit JSON output (inferred type, --json-diagnostics) minified
 
 Examples:
   jfn to-json '1 + 2 * 3'
@@ -252,6 +255,7 @@ async function cmdCheck(argv: string[]): Promise<void> {
       "-e": "expr",
       "--expr": "expr",
       "--json": "json-input",
+      "--json-diagnostics": "json-diagnostics",
       "--no-builtins": "no-builtins",
       "--allow-untyped-functions": "allow-untyped-functions",
       "--require-full-coverage": "require-full-coverage",
@@ -293,11 +297,16 @@ async function cmdCheck(argv: string[]): Promise<void> {
 
   const compact = parsed.flags.has("compact");
   const requireFullCoverage = parsed.flags.has("require-full-coverage");
+  const jsonDiagnostics = parsed.flags.has("json-diagnostics");
 
   if (parsed.flags.has("expr")) {
     const { type, diagnostics } = checkExpr(json, {}, builtins);
-    console.log(`type: ${stringify(type, compact)}`);
-    reportDiagnostics(diagnostics);
+    if (jsonDiagnostics) {
+      reportDiagnosticsJson(diagnostics, compact);
+    } else {
+      console.log(`type: ${stringify(type, compact)}`);
+      reportDiagnostics(diagnostics);
+    }
     exitFromDiagnostics(diagnostics, requireFullCoverage);
     return;
   }
@@ -309,8 +318,21 @@ async function cmdCheck(argv: string[]): Promise<void> {
   const diagnostics = checkModule(json as Record<string, JSONType>, builtins, {
     requireTypedModuleFunctions: !parsed.flags.has("allow-untyped-functions"),
   });
-  reportDiagnostics(diagnostics);
+  if (jsonDiagnostics) {
+    reportDiagnosticsJson(diagnostics, compact);
+  } else {
+    reportDiagnostics(diagnostics);
+  }
   exitFromDiagnostics(diagnostics, requireFullCoverage);
+}
+
+// Emit the raw `Diagnostic[]` as JSON (pretty by default, minified with
+// --compact). Every field is stable: `path`, `message`, `severity`, and the
+// optional `expected` / `actual` schemas. This is the machine-readable
+// counterpart to `reportDiagnostics`; consumers can jump straight to a
+// diagnostic's `path` and inspect the schemas rather than parsing prose.
+function reportDiagnosticsJson(diags: Diagnostic[], compact: boolean): void {
+  console.log(compact ? JSON.stringify(diags) : JSON.stringify(diags, null, 2));
 }
 
 // Print each diagnostic as `severity: location: message` (the message already

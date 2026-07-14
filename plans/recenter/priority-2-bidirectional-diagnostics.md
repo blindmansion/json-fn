@@ -203,6 +203,7 @@ Files: `typescript/src/cli.ts`.
     the expected return, nested errors pinpointed inside the body).
 - `thermostat.jfn` capability-record lambdas check against `() -> Task`.
 - [x] `do`-block IIFE returns its body's `$return` type, not `any`.
-- `jfn check --json` emits `Diagnostic[]`.
+- [x] `jfn check --json-diagnostics` emits `Diagnostic[]` (distinct from the
+  `--json` input flag; honors `--compact`; prose stays the default).
 - Overloaded-builtin failures list all/nearest arms.
 - Malformed return annotations report at the annotation, not the param colon.
