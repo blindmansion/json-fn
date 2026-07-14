@@ -203,10 +203,11 @@ describe("Section F — builtin signatures", () => {
     });
 
     test("includes/indexOf pick the right arm", () => {
+      const intOrNull = { type: ["integer", "null"] };
       expect(synthB(call("includes", [1, 2, 3], 2)).type).toEqual({ type: "boolean" });
       expect(synthB(call("includes", "hi", "h")).type).toEqual({ type: "boolean" });
-      expect(synthB(call("indexOf", [1, 2, 3], 2)).type).toEqual({ type: "integer" });
-      expect(synthB(call("indexOf", "hi", "h")).type).toEqual({ type: "integer" });
+      expect(isSubschema(synthB(call("indexOf", [1, 2, 3], 2)).type, intOrNull)).toBe(true);
+      expect(isSubschema(synthB(call("indexOf", "hi", "h")).type, intOrNull)).toBe(true);
     });
   });
 
@@ -223,12 +224,16 @@ describe("Section F — builtin signatures", () => {
       expect(isSubschema(r.type, I) && isSubschema(I, r.type)).toBe(true);
     });
 
-    test("find is T | null; findIndex/some/every are integer/boolean", () => {
+    test("find/findIndex are T|null / integer|null; some/every are boolean", () => {
       const gtOne = { $params: ["n", "i"], $return: call("gt", { $var: "n" }, 1) };
       expect(
         isSubschema(synthB(call("find", gtOne, [1, 2, 3])).type, { type: ["integer", "null"] }),
       ).toBe(true);
-      expect(synthB(call("findIndex", gtOne, [1, 2, 3])).type).toEqual({ type: "integer" });
+      const idx = synthB(call("findIndex", gtOne, [1, 2, 3])).type;
+      expect(isSubschema(idx, { type: ["integer", "null"] })).toBe(true);
+      expect(isSubschema({ type: "integer" }, idx) && isSubschema({ type: "null" }, idx)).toBe(
+        true,
+      );
       expect(synthB(call("some", gtOne, [1, 2, 3])).type).toEqual({ type: "boolean" });
       expect(synthB(call("every", gtOne, [1, 2, 3])).type).toEqual({ type: "boolean" });
     });

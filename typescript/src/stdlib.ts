@@ -165,9 +165,11 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
     includes: pure((arr: any[] | string, value: any) =>
       typeof arr === "string" ? arr.includes(value) : arr.some((el) => jsonEqual(el, value)),
     ),
-    indexOf: pure((arr: any[] | string, value: any) =>
-      typeof arr === "string" ? arr.indexOf(value) : arr.findIndex((el) => jsonEqual(el, value)),
-    ),
+    indexOf: pure((arr: any[] | string, value: any) => {
+      const i =
+        typeof arr === "string" ? arr.indexOf(value) : arr.findIndex((el) => jsonEqual(el, value));
+      return i === -1 ? null : i;
+    }),
     flatten: pure((arr: any[]) => arr.flat()),
     setAt: pure((arr: any[], idx: number, value: any) => {
       if (idx < 0 || idx >= arr.length)
@@ -248,7 +250,7 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
       for (let i = 0; i < arr.length; i++) {
         if (call(callback!, [arr[i]!, i])) return i;
       }
-      return -1;
+      return null;
     }, 2),
     some: builtin((args, call, _functions, meter) => {
       const [callback, arr] = args;

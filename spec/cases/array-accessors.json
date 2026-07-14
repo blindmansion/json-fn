@@ -112,9 +112,9 @@
       "expected": 2
     },
     {
-      "description": "indexOf: not found in array returns -1",
+      "description": "indexOf: not found in array returns null",
       "body": { "$return": { "$call": "indexOf", "$args": [[10, 20, 30], 99] } },
-      "expected": -1
+      "expected": null
     },
     {
       "description": "indexOf: returns first occurrence",
@@ -137,9 +137,9 @@
       "expected": 6
     },
     {
-      "description": "indexOf: not found in string returns -1",
+      "description": "indexOf: not found in string returns null",
       "body": { "$return": { "$call": "indexOf", "$args": ["hello", "xyz"] } },
-      "expected": -1
+      "expected": null
     },
     {
       "description": "includes: true when element exists in array",

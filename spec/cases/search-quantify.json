@@ -84,7 +84,7 @@
       "expected": 3
     },
     {
-      "description": "findIndex: returns -1 when no match",
+      "description": "findIndex: returns null when no match",
       "body": {
         "$return": {
           "$call": "findIndex",
@@ -94,14 +94,14 @@
           ]
         }
       },
-      "expected": -1
+      "expected": null
     },
     {
-      "description": "findIndex: empty array returns -1",
+      "description": "findIndex: empty array returns null",
       "body": {
         "$return": { "$call": "findIndex", "$args": [{ "$params": ["x"], "$return": true }, []] }
       },
-      "expected": -1
+      "expected": null
     },
     {
       "description": "findIndex: callback receives index",

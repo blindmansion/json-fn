@@ -650,7 +650,7 @@
     },
   },
 
-  // findKing(board, color) → index of king, or -1
+  // findKing(board, color) → index of king, or null
   "findKing": {
     "$params": ["board", "color"],
     "king": {
@@ -675,7 +675,7 @@
     "$params": ["board", "color"],
     "kingPos": { "$fn": ["findKing", { "$var": "board" }, { "$var": "color" }] },
     "$return": {
-      "$if": { "$eq": [{ "$var": "kingPos" }, -1] },
+      "$if": { "$eq": [{ "$var": "kingPos" }, null] },
       "$then": false,
       "$else": {
         "$fn": [
@@ -883,8 +883,8 @@
       "$if": {
         "$and": [
           { "$eq": [{ "$var": "len" }, 2] },
-          { "$gte": [{ "$var": "file" }, 0] },
-          { "$gte": [{ "$var": "rank" }, 0] },
+          { "$neq": [{ "$var": "file" }, null] },
+          { "$neq": [{ "$var": "rank" }, null] },
         ],
       },
       "$then": { "$fn": ["add", { "$fn": ["mul", { "$var": "rank" }, 8] }, { "$var": "file" }] },

@@ -120,7 +120,7 @@
   findKing: (board, color) => findIndex((cell) => cell == king, board) where {
     king: if color == "w" then "K" else "k"
   },
-  isInCheck: (board, color) => (if kingPos == -1 then false else isAttacked(board, kingPos, otherColor(color))) where {
+  isInCheck: (board, color) => (if kingPos == null then false else isAttacked(board, kingPos, otherColor(color))) where {
     kingPos: findKing(board, color)
   },
   applyMove: (board, from, to) => setAt(setAt(board, to, placedPiece), from, null) where {
@@ -176,7 +176,7 @@
     turn: "w",
     status: "playing"
   },
-  parseSquare: (s) => (if len == 2 && file >= 0 && rank >= 0 then rank * 8 + file else null) where {
+  parseSquare: (s) => (if len == 2 && file != null && rank != null then rank * 8 + file else null) where {
     len: length(s),
     fileChar: slice(s, 0, 1),
     rankChar: slice(s, 1, 2),

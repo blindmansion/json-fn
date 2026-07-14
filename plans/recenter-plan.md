@@ -162,9 +162,10 @@ stay as-is or be simplified — it no longer needs to grow.
   (structural spread), and `values`/`entries` now project the object's value
   type (`V[]` / `[string, V][]`) via `CODE_RETURNS` + an `objectValueType`
   helper, so `fromEntries(entries(map))` round-trips.
-- Stdlib sentinel cleanup: `find` already returns `T | null`. The open items
-  are the index-returners `findIndex`/`indexOf` (still `-1`), where the honest
-  type is `integer | null`.
+- Stdlib sentinel cleanup: **done**. `find` already returned `T | null`; the
+  index-returners `findIndex`/`indexOf` now return `integer | null` (dropping
+  the `-1` sentinel), updated across runtime, signatures, docs, conformance
+  cases, and examples.
 
 ---
 

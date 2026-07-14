@@ -27,7 +27,7 @@
 
   // ---- Card + hand basics ----------------------------------------------
 
-  rankValue: (card) => indexOf(RANKS, card[0]) + 2,   // 2..14 (A high)
+  rankValue: (card) => indexOf(RANKS, card[0])! + 2,   // 2..14 (A high); card rank is always valid
   suitOf: (card) => card[1],
   parseHand: (source) => split(source, " "),
 

@@ -78,7 +78,7 @@
     n: length(s),
     loop: (i, acc) => cond {
       i == n -> acc,
-      d < 0 -> null,
+      d == null -> null,
       else -> loop(i + 1, acc * 10 + d)
     } where {
       ch: slice(s, i, i + 1),

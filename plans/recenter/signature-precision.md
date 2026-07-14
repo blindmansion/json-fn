@@ -53,24 +53,36 @@ Files touched: `typescript/src/check/schema.ts` (`objectValueType`),
 `typescript/src/check/builtin-rules.ts` (`CODE_RETURNS`), tests in
 `typescript/test/check/builtins.test.ts`.
 
-## 3. Stdlib pressure away from `-1` sentinels
+## 3. Stdlib pressure away from `-1` sentinels — DONE
 
-`find` is **already done**: it returns `T | null` in both the runtime and its
+`find` was **already done**: it returns `T | null` in both the runtime and its
 signature (`anyOf [T, null]`), pairing with the narrowing/`!` discharge path
 from Priority 3.
 
-What remains are the *index*-returning members, `findIndex` and `indexOf`,
-which still return `-1` at runtime and bare `integer` in their signatures. Note
-these return an index, so the honest type is `integer | null`, **not**
-`T | null`. Decide per function: switch to `integer | null`, or document why
-`-1` stays. Either way `docs/language.md` still documents `-1` (the `indexOf`
-row and the `findIndex` row).
+The *index*-returning members `findIndex` and `indexOf` are **now done too**:
+both return `integer | null` (`null` on "not found"), replacing the `-1`
+sentinel. The honest type is `integer | null`, **not** `T | null`, since they
+return an index. This was a behavior change touched across all the required
+layers together:
 
-Any change here is a behavior change, so it needs runtime + signature + docs +
-conformance-case updates together.
+- **runtime** (`typescript/src/stdlib.ts`): `findIndex` returns `null` instead
+  of `-1`; `indexOf` maps its `-1` (array `findIndex` / string `indexOf`) to
+  `null`.
+- **signatures** (`spec/builtins.json`): both returns → `anyOf [integer, null]`.
+- **docs** (`docs/language.md`): the `indexOf` and `findIndex` rows now say
+  `null` if missing.
+- **conformance cases** (`spec/cases/search-quantify.json`,
+  `array-accessors.json`): the not-found / empty expectations flipped from `-1`
+  to `null`.
+- **examples**: the `-1` idioms were rewritten — `>= 0` "found?" checks became
+  `!= null` (`calc.jfn`, `chess`), a `< 0` guard became `== null` (`life.jfn`),
+  an `== -1` check became `== null` (`chess` `isInCheck`), and an
+  always-found arithmetic site took an `!` (`poker.jfn` `rankValue`). Runtime
+  spot-checks confirm the rewrites behave identically for the found case and
+  degrade to `null` cleanly.
 
-Files: `typescript/src/stdlib.ts`, `spec/builtins.json`, `docs/language.md`,
-`spec/cases/`.
+Note the Go/Python/Rust runtimes still return `-1` (they're known out of spec);
+only TypeScript + the shared spec/docs/examples were updated, per AGENTS.md.
 
 ## Scope note
 
@@ -88,7 +100,7 @@ is engine plumbing, not a new schema construct.
 - [x] Object-producing builtins audited (`merge` already done); `values`/
   `entries` now project the object's value type (`V[]` / `[string, V][]`) via
   `CODE_RETURNS` + `objectValueType`.
-- `findIndex`/`indexOf` sentinel decision made (`integer | null` or keep `-1`)
-  and, where changed, signatures + runtime + docs + conformance cases updated
-  together. (`find` already returns `T | null`.)
-- `builtins.test.ts` green.
+- [x] `findIndex`/`indexOf` switched to `integer | null` (dropping the `-1`
+  sentinel) with signatures + runtime + docs + conformance cases + examples
+  updated together. (`find` already returned `T | null`.)
+- [x] `builtins.test.ts` green.

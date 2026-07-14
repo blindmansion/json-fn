@@ -33,7 +33,7 @@
     spaced: reReplace("([-+*/(),])", " $1 ", source)
   },
 
-  isDigit: (ch) => indexOf("0123456789", ch) >= 0,
+  isDigit: (ch) => indexOf("0123456789", ch) != null,
   isNumberToken: (tok) => isDigit(tok[0]),
 
   // ---- 2. Parser (recursive descent) -----------------------------------

@@ -234,11 +234,11 @@
       {
         "typeParams": ["T"],
         "params": [{ "type": "array", "items": { "$tvar": "T" } }, { "$tvar": "T" }],
-        "returns": { "type": "integer" }
+        "returns": { "anyOf": [{ "type": "integer" }, { "type": "null" }] }
       },
       {
         "params": [{ "type": "string" }, { "type": "string" }],
-        "returns": { "type": "integer" }
+        "returns": { "anyOf": [{ "type": "integer" }, { "type": "null" }] }
       }
     ],
     "setAt": [
@@ -347,7 +347,7 @@
           },
           { "type": "array", "items": { "$tvar": "T" } }
         ],
-        "returns": { "type": "integer" }
+        "returns": { "anyOf": [{ "type": "integer" }, { "type": "null" }] }
       }
     ],
     "some": [

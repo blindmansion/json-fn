@@ -617,7 +617,7 @@ All functions listed below are available in the standard library.
 | `slice`    | `(arr, start, end?)` | slice                                    |
 | `reverse`  | `(arr)`              | reversed copy                            |
 | `includes` | `(arr, value)`       | structural contains check (substring check on strings) |
-| `indexOf`  | `(arr, value)`       | structural index of value, -1 if missing (substring index on strings) |
+| `indexOf`  | `(arr, value)`       | structural index of value, `null` if missing (substring index on strings) |
 | `flatten`  | `(arr)`              | flatten one level                        |
 | `setAt`    | `(arr, idx, value)`  | new array with element at idx replaced   |
 
@@ -671,7 +671,7 @@ Higher-order functions can invoke json-fn callbacks. The callback argument can b
 | `filter`        | `(callback, arr)`          | filter. Callback receives `(item, index)`.                                       |
 | `reduce`        | `(callback, init, arr)`    | reduce. Callback receives `(acc, item, index)`.                                  |
 | `find`          | `(callback, arr)`          | first match or `null`. Callback receives `(item, index)`.                        |
-| `findIndex`     | `(callback, arr)`          | index of first match or `-1`. Callback receives `(item, index)`.                 |
+| `findIndex`     | `(callback, arr)`          | index of first match or `null`. Callback receives `(item, index)`.               |
 | `some`          | `(callback, arr)`          | any match. Callback receives `(item, index)`.                                    |
 | `every`         | `(callback, arr)`          | all match. Callback receives `(item, index)`.                                    |
 | `sort`          | `(comparator, arr)`        | sorted copy. Comparator receives `(a, b)`, returns number.                       |
