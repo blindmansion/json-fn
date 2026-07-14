@@ -31,9 +31,9 @@ propagates expectations into un-annotated lambdas.
 Fill in check-mode cases in `check()` so the expected type is pushed inward
 instead of always deferring to `synth`:
 
-- **Objects**: push expected field types into each field; report field-level
-  errors ("field `extra` not permitted", "required field `name` missing")
-  instead of dumping both whole schemas.
+- **Objects** — ✅ done: push expected field types into each field; report
+  field-level errors ("field `extra` not permitted", "required field `name`
+  missing") instead of dumping both whole schemas.
 - **Arrays**: push the expected element type into each element.
 - **Branches**: push the expected type into `$if`/`$cond`/`$match` arms, so
   arms are checked (not synthesized-then-unioned) — this also kills the
@@ -57,6 +57,25 @@ Files: `typescript/src/check/checker.ts` (`check`, `checkBody`, the composite
 synth cases it mirrors), `typescript/src/check/context.ts`
 (`bodyFnTypeSchema` interaction), `typescript/src/check/subsumption.ts`
 (reuse structural comparison to locate the mismatching field/element).
+
+**Implementation notes (objects):**
+
+- `check()` now recurses into an object *literal* whenever its expected type
+  resolves (through `$ref`) to a single object schema, via `checkObjectLiteral`
+  in `checker.ts`. A union / non-object / `any` expected still falls through to
+  the exact synth-then-subsume comparison, so nothing regresses.
+- Field-level diagnostics: a key the expected type forbids reports at that key's
+  path (`Field "k" is not permitted…`); a required key the literal omits reports
+  at the object (`Required field "k" is missing.`, with the expected field
+  schema attached); a per-field type mismatch reports at the field's path and
+  recurses, so nested literals pinpoint the deep field.
+- Parity-exact with `objectSubsumes` for object literals (which always
+  synthesize to closed objects with every key required) — pass/fail is
+  unchanged, only diagnostic locality improves. Covered by the
+  `check: bidirectional object literals (Part A)` block in
+  `typescript/test/check/checker.test.ts`.
+- Still open in Part A: arrays, `$if`/`$cond`/`$match` arms, contextual
+  un-annotated lambdas, and the `do`-block IIFE `$return`.
 
 ## Part B — `jfn check --json`
 
@@ -97,6 +116,9 @@ Files: `typescript/src/cli.ts`.
 
 - `check()` pushes expectations into objects, arrays, branch arms, and
   un-annotated lambdas; object errors are field-level.
+  - [x] Objects: field-level errors (extra key, missing required, per-field
+    mismatch, nested pinpointing).
+  - [ ] Arrays, branch arms, un-annotated lambdas.
 - `thermostat.jfn` capability-record lambdas check against `() -> Task`.
 - `do`-block IIFE returns its body's `$return` type, not `any`.
 - `jfn check --json` emits `Diagnostic[]`.

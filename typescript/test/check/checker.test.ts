@@ -288,6 +288,92 @@ describe("checkModule: diagnostics", () => {
   });
 });
 
+describe("check: bidirectional object literals (Part A)", () => {
+  const closed = (props: Record<string, Schema>, required: string[]): Schema => ({
+    type: "object",
+    properties: props,
+    required,
+    additionalProperties: false,
+  });
+  // A function returning the given object-literal expression, checked against
+  // the given expected object return type.
+  const returning = (ret: JSONType, expected: Schema): Record<string, JSONType> => ({
+    f: body([], { params: [], returns: expected }, ret),
+  });
+
+  test("a well-typed object literal checks clean", () => {
+    const mod = returning({ a: 1, b: "s" }, closed({ a: I, b: S }, ["a", "b"]));
+    expect(checkModule(mod)).toEqual([]);
+  });
+
+  test("an extra field is reported at the offending key, not as a whole-schema dump", () => {
+    const mod = returning({ a: 1, b: 2 }, closed({ a: I }, ["a"]));
+    const diags = checkModule(mod);
+    expect(diags.length).toBe(1);
+    expect(diags[0]!.severity).toBe("error");
+    expect(diags[0]!.path).toEqual(["f", "$return", "b"]);
+    expect(diags[0]!.message).toContain("not permitted");
+  });
+
+  test("a missing required field is reported at the object", () => {
+    const mod = returning({ a: 1 }, closed({ a: I, b: S }, ["a", "b"]));
+    const diags = checkModule(mod);
+    expect(diags.length).toBe(1);
+    expect(diags[0]!.severity).toBe("error");
+    expect(diags[0]!.path).toEqual(["f", "$return"]);
+    expect(diags[0]!.message).toContain('Required field "b"');
+    expect(diags[0]!.expected).toEqual(S);
+  });
+
+  test("a field type mismatch is pinpointed to that field", () => {
+    const mod = returning({ a: "x" }, closed({ a: I }, ["a"]));
+    const diags = checkModule(mod);
+    expect(diags.length).toBe(1);
+    expect(diags[0]!.path).toEqual(["f", "$return", "a"]);
+    expect(diags[0]!.expected).toEqual(I);
+    expect(diags[0]!.actual).toEqual({ const: "x" });
+  });
+
+  test("a nested object mismatch pinpoints the deep field", () => {
+    const inner = closed({ x: I }, ["x"]);
+    const mod = returning({ a: { x: "y" } }, closed({ a: inner }, ["a"]));
+    const diags = checkModule(mod);
+    expect(diags.length).toBe(1);
+    expect(diags[0]!.path).toEqual(["f", "$return", "a", "x"]);
+  });
+
+  test("a map (additionalProperties) expected pushes the value type into each key", () => {
+    const map: Schema = { type: "object", additionalProperties: I };
+    const clean = returning({ a: 1, b: 2 }, map);
+    expect(checkModule(clean)).toEqual([]);
+
+    const bad = returning({ a: 1, b: "x" }, map);
+    const diags = checkModule(bad);
+    expect(diags.length).toBe(1);
+    expect(diags[0]!.path).toEqual(["f", "$return", "b"]);
+    expect(diags[0]!.expected).toEqual(I);
+  });
+
+  test("expected resolves through a $ref alias", () => {
+    const mod = {
+      $types: { Rec: closed({ a: I }, ["a"]) },
+      f: body([], { params: [], returns: { $ref: "#/$defs/Rec" } }, { a: "nope" }),
+    };
+    const diags = checkModule(mod);
+    expect(diags.length).toBe(1);
+    expect(diags[0]!.path).toEqual(["f", "$return", "a"]);
+  });
+
+  test("a union or non-object expected falls back to whole-schema subsumption", () => {
+    // Expected is a union; check-mode doesn't decompose it, but the whole-object
+    // comparison still reports the mismatch (at the object, not a field).
+    const mod = returning({ a: 1 }, { anyOf: [I, S] });
+    const diags = checkModule(mod);
+    expect(diags.length).toBe(1);
+    expect(diags[0]!.path).toEqual(["f", "$return"]);
+  });
+});
+
 describe("checkModule: dangling $ref → hard error", () => {
   const ref = (name: string): Schema => ({ $ref: `#/$defs/${name}` });
 

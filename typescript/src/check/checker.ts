@@ -45,6 +45,7 @@ import {
   projectComputed,
   projectField,
   properties,
+  requiredKeys,
   resolveDeep,
   SchemaKind,
   unionOf,
@@ -592,11 +593,58 @@ function reportMismatch(ctx: CheckContext, actual: Schema, expected: Schema): vo
   });
 }
 
+// The schema an expected *object* type assigns to key `k` (its own property,
+// else its additional-properties rule), or null when the object forbids `k`.
+// Mirrors `subsumption.ts`'s `supSchemaForKey` — reused here so check-mode can
+// push the expected field type inward instead of comparing whole schemas.
+function expectedFieldSchema(exp: Record<string, JSONType>, k: string): Schema | null {
+  const props = properties(exp);
+  if (k in props) return props[k]!;
+  const mode = apMode(exp);
+  if (mode.kind === "closed") return null;
+  if (mode.kind === "open") return true;
+  return mode.schema;
+}
+
+// Check an object *literal* against an expected object schema field by field, so
+// a mismatch is pinpointed to the offending key (Priority 2 — Part A) rather
+// than dumped as two whole schemas. This is parity-exact with `objectSubsumes`
+// for object literals — which always synthesize to closed objects with every
+// key required — while producing field-level diagnostics: a key the expected
+// type forbids, a required key the literal omits, and a per-field type mismatch
+// (recursively, so nested literals pinpoint too).
+function checkObjectLiteral(
+  o: Record<string, JSONType>,
+  exp: Record<string, JSONType>,
+  ctx: CheckContext,
+): void {
+  const present = new Set<string>();
+  for (const [k, v] of Object.entries(o)) {
+    if (k === "$comment" && typeof v === "string") continue;
+    present.add(k);
+    const fieldSchema = expectedFieldSchema(exp, k);
+    if (fieldSchema === null) {
+      report(at(ctx, k), `Field "${k}" is not permitted on the expected object type.`, {
+        actual: synth(v, at(ctx, k)),
+      });
+      continue;
+    }
+    check(v, fieldSchema, at(ctx, k));
+  }
+  for (const rk of requiredKeys(exp)) {
+    if (!present.has(rk)) {
+      report(ctx, `Required field "${rk}" is missing.`, { expected: properties(exp)[rk] });
+    }
+  }
+}
+
 // Verify an expression against an expected schema, reporting on mismatch.
 //
-// NOTE (Priority 2 — bidirectional `check()`): when this grows check-mode
-// recursion into `$if`/`$cond`/`$match` arms, it must thread the same
-// per-arm narrowing facts the `synth` cases already do (`factsFromCondition` +
+// Check-mode pushes the expected type structurally into composite *literals* so
+// diagnostics are field/element-local (Priority 2 — Part A). Objects are done;
+// arrays, `$if`/`$cond`/`$match` arms, and contextual un-annotated lambdas are
+// follow-on chunks. When arm recursion lands it must thread the same per-arm
+// narrowing facts the `synth` cases already do (`factsFromCondition` +
 // `withNarrowings`, above) — otherwise a guarded arm loses its narrowing in
 // checked position. The frozen fact set is documented in `docs/narrowing.md`.
 function check(expr: JSONType, expected: Schema, ctx: CheckContext): void {
@@ -604,6 +652,18 @@ function check(expr: JSONType, expected: Schema, ctx: CheckContext): void {
   // can't yet check their bodies against `expected`, so defer silently rather
   // than emit a spurious `any ⊄ (fn)` diagnostic.
   if (nodeKind(expr) === "body" && sigOf(expr as Record<string, JSONType>) === null) return;
+
+  // Object literal against an expected object type: recurse field by field.
+  // Only a single object expected takes this path; a union / non-object
+  // expected (or `any`, which subsumes anything) falls through to the exact
+  // synth-then-subsume comparison below.
+  if (nodeKind(expr) === "object") {
+    const exp = resolveDeep(expected, ctx.defs);
+    if (classifySchema(exp) === SchemaKind.Object) {
+      checkObjectLiteral(expr as Record<string, JSONType>, asObject(exp), ctx);
+      return;
+    }
+  }
 
   const actual = synth(expr, ctx);
   if (!isSubschema(actual, expected, ctx.defs)) reportMismatch(ctx, actual, expected);
