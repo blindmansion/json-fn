@@ -337,6 +337,107 @@ function shortCircuitType(exprs: JSONType[], isAnd: boolean, ctx: CheckContext):
   return unionOf(arms);
 }
 
+// Arm traversal shared by `synth` (which unions the arm types) and `check`
+// (which pushes the expected type into each arm). A single visitor per branch
+// construct emits the control-flow lints exactly once and threads the same
+// per-arm narrowing facts (§5.5; the frozen fact set is documented in
+// `docs/narrowing.md`), then hands each arm's result expression and its
+// narrowed context to `onArm`. Keeping this in one place is what lets check-mode
+// push expectations into branches without re-implementing (and drifting from)
+// the exhaustiveness / dead-case / narrowing logic.
+type ArmVisitor = (result: JSONType, armCtx: CheckContext) => void;
+
+function visitIfArms(
+  c: { $if: JSONType; $then: JSONType; $else: JSONType },
+  ctx: CheckContext,
+  onArm: ArmVisitor,
+): void {
+  synth(c.$if, at(ctx, "$if"));
+  // The guard narrows its subject in the matching arm (§5.5).
+  const thenCtx = withNarrowings(ctx, factsFromCondition(c.$if, true, ctx));
+  const elseCtx = withNarrowings(ctx, factsFromCondition(c.$if, false, ctx));
+  onArm(c.$then, at(thenCtx, "$then"));
+  onArm(c.$else, at(elseCtx, "$else"));
+}
+
+function visitCondArms(
+  c: { $cond: [JSONType, JSONType][]; $else?: JSONType },
+  ctx: CheckContext,
+  onArm: ArmVisitor,
+): void {
+  // A `$cond` arm is reached only when every earlier condition was false, so it
+  // accumulates their negated facts (dominating guards) plus its own positive
+  // fact. `$else` inherits all conditions negated.
+  let acc = ctx;
+  c.$cond.forEach(([cond, result], i) => {
+    synth(cond, at(acc, `$cond[${i}][0]`));
+    const armCtx = withNarrowings(acc, factsFromCondition(cond, true, acc));
+    onArm(result, at(armCtx, `$cond[${i}][1]`));
+    acc = withNarrowings(acc, factsFromCondition(cond, false, acc));
+  });
+  if ("$else" in c) onArm(c.$else!, at(acc, "$else"));
+}
+
+function visitMatchArms(
+  m: { $match: JSONType; $cases: [JSONType, JSONType][]; $else?: JSONType },
+  ctx: CheckContext,
+  onArm: ArmVisitor,
+): void {
+  const subjectType = synth(m.$match, at(ctx, "$match"));
+  // The finite set of values the subject can take (an enum var, a union of
+  // consts, or a `base.field` discriminant), or null when it isn't a finite
+  // literal set. Drives the §5.6 exhaustiveness / dead-case lints below.
+  const universe = caseUniverse(m.$match, subjectType, ctx);
+  // Narrow the subject per case. Literal cases pin a bare var to that literal,
+  // or refine a discriminated-union base for `match base.tag`. `$else` sees
+  // every matched literal excluded.
+  const matched: JSONType[] = [];
+  const caseLiterals: JSONType[] = []; // every literal case value (for lints)
+  let allLiteral = true;
+  m.$cases.forEach(([caseVal, result], i) => {
+    const lit = litOf(caseVal);
+    if (lit === null) allLiteral = false;
+    else {
+      caseLiterals.push(lit.v);
+      // Dead case: a literal the subject's finite universe can't produce, so it
+      // can never match. A hard error (§4.5) — dead code the author should
+      // remove or fix.
+      if (universe !== null && !universe.some((u) => deepEqual(u, lit.v))) {
+        report(
+          at(ctx, `$cases[${i}][0]`),
+          `Unreachable $match case: ${JSON.stringify(lit.v)} is not a possible value of the subject.`,
+        );
+      }
+    }
+    let armCtx = ctx;
+    if (lit !== null) {
+      const facts = matchCaseFact(m.$match, lit.v, ctx);
+      armCtx = withNarrowings(ctx, facts);
+      if (Object.keys(facts).length > 0) matched.push(lit.v);
+    }
+    onArm(result, at(armCtx, `$cases[${i}][1]`));
+  });
+
+  if ("$else" in m) {
+    let elseCtx = ctx;
+    if (matched.length > 0) {
+      elseCtx = withNarrowings(ctx, matchElseFact(m.$match, matched, ctx));
+    }
+    onArm(m.$else!, at(elseCtx, "$else"));
+  } else if (allLiteral && universe !== null) {
+    // §5.6 exhaustiveness: no catch-all `$else`, yet the finite universe has
+    // values no case covers — those inputs silently fall through. A hard error
+    // (§4.5): add the missing cases or an explicit `$else`.
+    const uncovered = universe.filter((u) => !caseLiterals.some((l) => deepEqual(l, u)));
+    if (uncovered.length > 0) {
+      report(
+        ctx,
+        `Non-exhaustive $match: unhandled case(s) ${uncovered.map((u) => JSON.stringify(u)).join(", ")}.`,
+      );
+    }
+  }
+}
+
 // Infer a schema for an expression, accumulating diagnostics along the way.
 function synth(expr: JSONType, ctx: CheckContext): Schema {
   switch (nodeKind(expr)) {
@@ -447,86 +548,22 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
 
     case "if": {
       const c = expr as { $if: JSONType; $then: JSONType; $else: JSONType };
-      synth(c.$if, at(ctx, "$if"));
-      // The guard narrows its subject in the matching arm (§5.5).
-      const thenCtx = withNarrowings(ctx, factsFromCondition(c.$if, true, ctx));
-      const elseCtx = withNarrowings(ctx, factsFromCondition(c.$if, false, ctx));
-      return unionOf([synth(c.$then, at(thenCtx, "$then")), synth(c.$else, at(elseCtx, "$else"))]);
+      const arms: Schema[] = [];
+      visitIfArms(c, ctx, (result, armCtx) => arms.push(synth(result, armCtx)));
+      return unionOf(arms);
     }
 
     case "cond": {
       const c = expr as { $cond: [JSONType, JSONType][]; $else?: JSONType };
       const arms: Schema[] = [];
-      // A `$cond` arm is reached only when every earlier condition was false, so
-      // it accumulates their negated facts (dominating guards) plus its own
-      // positive fact. `$else` inherits all conditions negated.
-      let acc = ctx;
-      c.$cond.forEach(([cond, result], i) => {
-        synth(cond, at(acc, `$cond[${i}][0]`));
-        const armCtx = withNarrowings(acc, factsFromCondition(cond, true, acc));
-        arms.push(synth(result, at(armCtx, `$cond[${i}][1]`)));
-        acc = withNarrowings(acc, factsFromCondition(cond, false, acc));
-      });
-      if ("$else" in c) arms.push(synth(c.$else!, at(acc, "$else")));
+      visitCondArms(c, ctx, (result, armCtx) => arms.push(synth(result, armCtx)));
       return unionOf(arms);
     }
 
     case "match": {
       const m = expr as { $match: JSONType; $cases: [JSONType, JSONType][]; $else?: JSONType };
-      const subjectType = synth(m.$match, at(ctx, "$match"));
-      // The finite set of values the subject can take (an enum var, a union of
-      // consts, or a `base.field` discriminant), or null when it isn't a finite
-      // literal set. Drives the §5.6 exhaustiveness / dead-case lints below.
-      const universe = caseUniverse(m.$match, subjectType, ctx);
-      // Narrow the subject per case. Literal cases pin a bare var to that
-      // literal, or refine a discriminated-union base for `match base.tag`.
-      // `$else` sees every matched literal excluded.
-      const matched: JSONType[] = [];
-      const caseLiterals: JSONType[] = []; // every literal case value (for lints)
-      let allLiteral = true;
       const arms: Schema[] = [];
-      m.$cases.forEach(([caseVal, result], i) => {
-        const lit = litOf(caseVal);
-        if (lit === null) allLiteral = false;
-        else {
-          caseLiterals.push(lit.v);
-          // Dead case: a literal the subject's finite universe can't produce, so
-          // it can never match. A hard error (§4.5) — dead code the author
-          // should remove or fix.
-          if (universe !== null && !universe.some((u) => deepEqual(u, lit.v))) {
-            report(
-              at(ctx, `$cases[${i}][0]`),
-              `Unreachable $match case: ${JSON.stringify(lit.v)} is not a possible value of the subject.`,
-            );
-          }
-        }
-        let armCtx = ctx;
-        if (lit !== null) {
-          const facts = matchCaseFact(m.$match, lit.v, ctx);
-          armCtx = withNarrowings(ctx, facts);
-          if (Object.keys(facts).length > 0) matched.push(lit.v);
-        }
-        arms.push(synth(result, at(armCtx, `$cases[${i}][1]`)));
-      });
-
-      if ("$else" in m) {
-        let elseCtx = ctx;
-        if (matched.length > 0) {
-          elseCtx = withNarrowings(ctx, matchElseFact(m.$match, matched, ctx));
-        }
-        arms.push(synth(m.$else!, at(elseCtx, "$else")));
-      } else if (allLiteral && universe !== null) {
-        // §5.6 exhaustiveness: no catch-all `$else`, yet the finite universe has
-        // values no case covers — those inputs silently fall through. A hard
-        // error (§4.5): add the missing cases or an explicit `$else`.
-        const uncovered = universe.filter((u) => !caseLiterals.some((l) => deepEqual(l, u)));
-        if (uncovered.length > 0) {
-          report(
-            ctx,
-            `Non-exhaustive $match: unhandled case(s) ${uncovered.map((u) => JSON.stringify(u)).join(", ")}.`,
-          );
-        }
-      }
+      visitMatchArms(m, ctx, (result, armCtx) => arms.push(synth(result, armCtx)));
       return unionOf(arms);
     }
 
@@ -715,24 +752,50 @@ function checkArrayLiteral(
 
 // Verify an expression against an expected schema, reporting on mismatch.
 //
-// Check-mode pushes the expected type structurally into composite *literals* so
-// diagnostics are field/element-local (Priority 2 — Part A). Objects and arrays
-// are done; `$if`/`$cond`/`$match` arms and contextual un-annotated lambdas are
-// follow-on chunks. When arm recursion lands it must thread the same per-arm
-// narrowing facts the `synth` cases already do (`factsFromCondition` +
-// `withNarrowings`, above) — otherwise a guarded arm loses its narrowing in
-// checked position. The frozen fact set is documented in `docs/narrowing.md`.
+// Check-mode pushes the expected type structurally inward (Priority 2 — Part A)
+// so diagnostics are local: composite *literals* recurse field/element-by-
+// field/element, and branch (`$if`/`$cond`/`$match`) arms are each checked
+// against the expected type instead of being synthesized-then-unioned. Because
+// `unionOf(arms) ⊆ expected` iff every arm is (the union-sub rule in
+// `subsumes`), per-arm checking is pass/fail-identical to the old whole-union
+// comparison, but pinpoints the offending arm and avoids literal-union widening
+// (`if … then 10 else 20` no longer widens to `10 | 20` before the check). Arm
+// traversal reuses the `visit*Arms` visitors, so the same narrowing facts the
+// `synth` cases thread reach each arm in checked position too. Contextual
+// un-annotated lambdas are the remaining Part A chunk.
 function check(expr: JSONType, expected: Schema, ctx: CheckContext): void {
+  const kind = nodeKind(expr);
+
   // Un-annotated inline lambdas need contextual typing (later milestone); we
   // can't yet check their bodies against `expected`, so defer silently rather
   // than emit a spurious `any ⊄ (fn)` diagnostic.
-  if (nodeKind(expr) === "body" && sigOf(expr as Record<string, JSONType>) === null) return;
+  if (kind === "body" && sigOf(expr as Record<string, JSONType>) === null) return;
+
+  // Branch constructs: push the expected type into each arm so arms are checked,
+  // not synthesized-then-unioned.
+  if (kind === "if") {
+    visitIfArms(expr as Parameters<typeof visitIfArms>[0], ctx, (r, armCtx) =>
+      check(r, expected, armCtx),
+    );
+    return;
+  }
+  if (kind === "cond") {
+    visitCondArms(expr as Parameters<typeof visitCondArms>[0], ctx, (r, armCtx) =>
+      check(r, expected, armCtx),
+    );
+    return;
+  }
+  if (kind === "match") {
+    visitMatchArms(expr as Parameters<typeof visitMatchArms>[0], ctx, (r, armCtx) =>
+      check(r, expected, armCtx),
+    );
+    return;
+  }
 
   // Composite literal against a matching expected type: recurse element/field by
   // element/field. Only a single object/array expected takes this path; a union
   // / non-matching / `any` expected (which subsumes anything) falls through to
   // the exact synth-then-subsume comparison below.
-  const kind = nodeKind(expr);
   if (kind === "object" || kind === "array") {
     const exp = resolveDeep(expected, ctx.defs);
     const expK = classifySchema(exp);

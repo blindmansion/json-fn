@@ -36,8 +36,8 @@ instead of always deferring to `synth`:
   missing") instead of dumping both whole schemas.
 - **Arrays** — ✅ done: push the expected element type into each element (array
   and tuple), so a mismatch is pinpointed to its index.
-- **Branches**: push the expected type into `$if`/`$cond`/`$match` arms, so
-  arms are checked (not synthesized-then-unioned) — this also kills the
+- **Branches** — ✅ done: push the expected type into `$if`/`$cond`/`$match`
+  arms, so arms are checked (not synthesized-then-unioned) — this also kills the
   literal-union widening cosmetic (`if … then 10 else 20`).
 - **Un-annotated lambdas**: push an expected `$fnType` into the lambda in any
   checked position, then check its body against the expected `$return`. This
@@ -75,6 +75,7 @@ synth cases it mirrors), `typescript/src/check/context.ts`
   unchanged, only diagnostic locality improves. Covered by the
   `check: bidirectional object literals (Part A)` block in
   `typescript/test/check/checker.test.ts`.
+
 **Implementation notes (arrays):**
 
 - `check()` now recurses into an array *literal* whenever its expected type
@@ -92,8 +93,24 @@ synth cases it mirrors), `typescript/src/check/context.ts`
   unchanged — including the latent `arrayLengthOk` wart where a closed literal
   never carries `maxItems`. Covered by the `check: bidirectional array literals
   (Part A)` block in `typescript/test/check/checker.test.ts`.
-- Still open in Part A: `$if`/`$cond`/`$match` arms, contextual un-annotated
-  lambdas, and the `do`-block IIFE `$return`.
+**Implementation notes (branches):**
+
+- The `$if`/`$cond`/`$match` arm traversal is now factored into shared
+  `visitIfArms` / `visitCondArms` / `visitMatchArms` visitors in `checker.ts`.
+  Each emits the control-flow lints (dead-case, exhaustiveness) exactly once and
+  threads the same per-arm narrowing facts, then hands each arm to a callback:
+  `synth` unions the arm types; `check` pushes the expected type into each arm.
+- Per-arm checking is pass/fail-identical to the old whole-union comparison —
+  `unionOf(arms) ⊆ expected` iff every arm is (the union-sub rule in
+  `subsumes`) — but pinpoints the offending arm (`…$return.$else`,
+  `…$cases[i][1]`) and kills the literal-union widening cosmetic, since arms are
+  never widened into a union before the check. Narrowing reaches arms in checked
+  position too (e.g. a truthiness/`isNull` guard drops `null` in the checked
+  arm). Covered by the `check: bidirectional branch arms (Part A)` block, and
+  the two chess fragments whose expected paths tightened from `$return` to the
+  specific arm.
+- Still open in Part A: contextual un-annotated lambdas and the `do`-block IIFE
+  `$return`.
 
 ## Part B — `jfn check --json`
 
@@ -138,7 +155,10 @@ Files: `typescript/src/cli.ts`.
     mismatch, nested pinpointing).
   - [x] Arrays: element-level errors (per-index mismatch, extra/missing tuple
     positions, nested pinpointing).
-  - [ ] Branch arms, un-annotated lambdas.
+  - [x] Branch arms: each `$if`/`$cond`/`$match` arm checked against the
+    expected type (per-arm pinpointing, no literal-union widening, narrowing
+    threaded).
+  - [ ] Un-annotated lambdas.
 - `thermostat.jfn` capability-record lambdas check against `() -> Task`.
 - `do`-block IIFE returns its body's `$return` type, not `any`.
 - `jfn check --json` emits `Diagnostic[]`.

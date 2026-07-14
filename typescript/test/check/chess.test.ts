@@ -269,7 +269,9 @@ describe("chess fragments — Tier 2: nullability & narrowing", () => {
     const diags = checkModule(mod, BT);
     expect(diags.length).toBe(1);
     expect(diags[0]!.severity).toBe("error");
-    expect(diags[0]!.path).toEqual(["makePiece", "$return"]);
+    // Check-mode pushes `Piece` into each arm, so the mismatch pinpoints the
+    // offending `$else` (the `lower(type)` result), not the whole `$return`.
+    expect(diags[0]!.path).toEqual(["makePiece", "$return", "$else"]);
     expect(eqJson(diags[0]!.expected, Piece)).toBe(true);
   });
 
@@ -438,7 +440,9 @@ describe("chess fragments — Tier 3: lazy-local & boolean-guard narrowing (§5.
     // 2 (not 1) means the else-arm re-synthesized `d` under its own fact.
     expect(diags.length).toBe(2);
     expect(diags.every((d) => d.severity === "error")).toBe(true);
-    expect(diags.some((d) => d.path.join(".") === "divergent.$return")).toBe(true);
+    // Check-mode pushes the tuple return into each arm, so the return mismatch
+    // pinpoints the diverging `$else` arm rather than the whole `$return`.
+    expect(diags.some((d) => d.path.join(".") === "divergent.$return.$else")).toBe(true);
     expect(diags.some((d) => d.path[0] === "d")).toBe(true);
   });
 

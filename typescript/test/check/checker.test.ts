@@ -475,6 +475,112 @@ describe("check: bidirectional array literals (Part A)", () => {
   });
 });
 
+describe("check: bidirectional branch arms (Part A)", () => {
+  const returning = (ret: JSONType, expected: Schema): Record<string, JSONType> => ({
+    f: body([], { params: [], returns: expected }, ret),
+  });
+
+  test("$if: arms that both fit the expected type check clean", () => {
+    expect(checkModule(returning({ $if: true, $then: 1, $else: 2 }, I))).toEqual([]);
+  });
+
+  test("$if: a mismatching arm is pinpointed to that arm, not the whole $return", () => {
+    const diags = checkModule(returning({ $if: true, $then: 1, $else: "x" }, I));
+    expect(diags.length).toBe(1);
+    expect(diags[0]!.path).toEqual(["f", "$return", "$else"]);
+    expect(diags[0]!.expected).toEqual(I);
+    expect(diags[0]!.actual).toEqual({ const: "x" });
+  });
+
+  test("$if: arms recurse into composite literals (no literal-union widening)", () => {
+    const obj: Schema = {
+      type: "object",
+      properties: { a: I },
+      required: ["a"],
+      additionalProperties: false,
+    };
+    const diags = checkModule(returning({ $if: true, $then: { a: 1 }, $else: { a: "x" } }, obj));
+    expect(diags.length).toBe(1);
+    expect(diags[0]!.path).toEqual(["f", "$return", "$else", "a"]);
+  });
+
+  test("$if: truthiness narrowing threads into the checked arm", () => {
+    // x : string | null. On the then-arm `x` is narrowed to string (null dropped
+    // by truthiness), so checking each arm against `string` is clean — the fact
+    // set reaches check-mode, not only synth.
+    const nullable: Schema = { anyOf: [S, { type: "null" }] };
+    const mod = {
+      f: body(
+        ["x"],
+        { params: [nullable], returns: S },
+        {
+          $if: { $var: "x" },
+          $then: { $var: "x" },
+          $else: "",
+        },
+      ),
+    };
+    expect(checkModule(mod)).toEqual([]);
+  });
+
+  test("$cond: a mismatching arm is pinpointed to that arm", () => {
+    const diags = checkModule(
+      returning(
+        {
+          $cond: [
+            [true, 1],
+            [false, "x"],
+          ],
+          $else: 3,
+        },
+        I,
+      ),
+    );
+    expect(diags.length).toBe(1);
+    expect(diags[0]!.path).toEqual(["f", "$return", "$cond[1][1]"]);
+    expect(diags[0]!.expected).toEqual(I);
+  });
+
+  test("$match: a mismatching case arm is pinpointed to that arm", () => {
+    const p: Schema = { enum: ["a", "b"] };
+    const mod = {
+      f: body(
+        ["p"],
+        { params: [p], returns: I },
+        {
+          $match: { $var: "p" },
+          $cases: [
+            ["a", 1],
+            ["b", "x"],
+          ],
+        },
+      ),
+    };
+    const diags = checkModule(mod);
+    expect(diags.length).toBe(1);
+    expect(diags[0]!.path).toEqual(["f", "$return", "$cases[1][1]"]);
+    expect(diags[0]!.expected).toEqual(I);
+  });
+
+  test("$match: exhaustiveness lint still fires in checked position", () => {
+    const p: Schema = { enum: ["a", "b"] };
+    const mod = {
+      f: body(
+        ["p"],
+        { params: [p], returns: I },
+        {
+          $match: { $var: "p" },
+          $cases: [["a", 1]],
+        },
+      ),
+    };
+    const diags = checkModule(mod);
+    expect(diags.length).toBe(1);
+    expect(diags[0]!.path).toEqual(["f", "$return"]);
+    expect(diags[0]!.message).toContain("Non-exhaustive");
+  });
+});
+
 describe("checkModule: dangling $ref → hard error", () => {
   const ref = (name: string): Schema => ({ $ref: `#/$defs/${name}` });
 
