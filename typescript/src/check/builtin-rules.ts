@@ -34,6 +34,7 @@ import {
   prefixItems,
   fnShape,
   mergeSchemas,
+  objectValueType,
 } from "./schema";
 import { isSubschema } from "./subsumption";
 
@@ -344,6 +345,10 @@ function synthRule(rule: string, argExprs: JSONType[], ctx: CheckContext): Schem
 //   * `fromEntries` — declared `object` return replaced by a map projecting the
 //     entry pairs' value type into `additionalProperties`, so
 //     `fromEntries([["a", 1]])` types as `{ [string]: integer }`.
+//   * `values` / `entries` — declared bare `array` return replaced by an array
+//     of the object's value type `V` (`entries` pairs it as `[string, V]`), the
+//     inverse of `fromEntries`, so `values({ a: 1 })` types as `integer[]` and
+//     `entries({ a: 1 })` as `[string, integer][]`.
 const CODE_RETURNS: Record<string, (argExprs: JSONType[], ctx: CheckContext) => Schema> = {
   merge: (argExprs, ctx) => {
     if (argExprs.length !== 2) return { type: "object" };
@@ -363,6 +368,23 @@ const CODE_RETURNS: Record<string, (argExprs: JSONType[], ctx: CheckContext) => 
     if (value === true) return { type: "object" };
     const result: Schema = { type: "object", additionalProperties: value };
     return result;
+  },
+  values: (argExprs, ctx) => {
+    if (argExprs.length !== 1) return { type: "array" };
+    const silent: CheckContext = { ...ctx, diagnostics: [] };
+    const value = objectValueType(synth(argExprs[0]!, silent), ctx.defs);
+    // An unknown value type is a bare array (the current imprecise floor).
+    if (value === true) return { type: "array" };
+    const result: Schema = { type: "array", items: value };
+    return result;
+  },
+  entries: (argExprs, ctx) => {
+    const bare: Schema = { type: "array", items: { type: "array" } };
+    if (argExprs.length !== 1) return bare;
+    const silent: CheckContext = { ...ctx, diagnostics: [] };
+    const value = objectValueType(synth(argExprs[0]!, silent), ctx.defs);
+    if (value === true) return bare;
+    return { type: "array", items: { type: "array", prefixItems: [{ type: "string" }, value] } };
   },
 };
 

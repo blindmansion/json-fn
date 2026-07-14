@@ -373,6 +373,55 @@ describe("Section F — builtin signatures", () => {
     });
   });
 
+  describe("structural values/entries (arg-dependent return)", () => {
+    const errs = (mod: JSONType) =>
+      checkModule(mod as Record<string, JSONType>, BT).filter((d) => d.severity === "error");
+    const arrOf = (v: Schema): Schema => ({ type: "array", items: v });
+    const entryArr = (v: Schema): Schema => ({
+      type: "array",
+      items: { type: "array", prefixItems: [S, v] },
+    });
+    const mapOf = (v: Schema): Schema => ({ type: "object", additionalProperties: v });
+    const vBody = (param: Schema, returns: Schema) =>
+      body(["o"], { params: [param], returns }, call("values", { $var: "o" }));
+    const eBody = (param: Schema, returns: Schema) =>
+      body(["o"], { params: [param], returns }, call("entries", { $var: "o" }));
+
+    test("values projects a map's value type into the array items", () => {
+      expect(errs({ f: vBody(mapOf(I), arrOf(I)) })).toEqual([]);
+      expect(errs({ f: vBody(mapOf(I), arrOf(S)) }).length).toBeGreaterThan(0);
+    });
+
+    test("values of a closed record is the union of its field types", () => {
+      const rec: Schema = {
+        type: "object",
+        properties: { a: I, b: S },
+        required: ["a", "b"],
+        additionalProperties: false,
+      };
+      expect(errs({ f: vBody(rec, arrOf({ anyOf: [I, S] })) })).toEqual([]);
+      expect(errs({ f: vBody(rec, arrOf(I)) }).length).toBeGreaterThan(0);
+    });
+
+    test("entries pairs the value type as [string, V]", () => {
+      expect(errs({ f: eBody(mapOf(I), entryArr(I)) })).toEqual([]);
+      expect(errs({ f: eBody(mapOf(I), entryArr(S)) }).length).toBeGreaterThan(0);
+    });
+
+    test("values/entries round-trips through fromEntries", () => {
+      // fromEntries(entries(map)) recovers the same map value type.
+      const r = synthB(call("fromEntries", call("entries", { a: 1, b: 2 })));
+      expect(isSubschema(r.type, mapOf(I))).toBe(true);
+    });
+
+    test("an open object degrades values/entries to their bare floor", () => {
+      const open: Schema = { type: "object" };
+      // No precise value type: the declared bare `array` still satisfies.
+      expect(errs({ f: vBody(open, { type: "array" }) })).toEqual([]);
+      expect(errs({ f: eBody(open, { type: "array", items: { type: "array" } }) })).toEqual([]);
+    });
+  });
+
   describe("escape-hatch rule floors", () => {
     const errs = (expr: JSONType) => synthB(expr).diagnostics.filter((d) => d.severity === "error");
 

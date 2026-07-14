@@ -155,12 +155,13 @@ stay as-is or be simplified — it no longer needs to grow.
 
 ## 5. Signature-precision work (fits the existing design cleanly)
 
-- `fromEntries : ([string, V][]) -> { [string]: V }` — projecting the pair's
-  second element into `additionalProperties`. This needs a small `CODE_RETURNS`
-  rule (or a tuple case in `unifyTemplate`), *not* just a signature edit: the
-  current template resolver can't bind a var inside a tuple/object. Also audit
-  the remaining bare object-producers — `merge` is already done via a
-  `CODE_RETURNS` rule; `values`/`entries` remain and hit the same gap.
+- `fromEntries : ([string, V][]) -> { [string]: V }` — **done**: projects the
+  pair's second element into `additionalProperties` via a small `CODE_RETURNS`
+  rule, *not* a signature edit (the template resolver can't bind a var inside a
+  tuple/object). The sibling bare object-producers are **done too**: `merge`
+  (structural spread), and `values`/`entries` now project the object's value
+  type (`V[]` / `[string, V][]`) via `CODE_RETURNS` + an `objectValueType`
+  helper, so `fromEntries(entries(map))` round-trips.
 - Stdlib sentinel cleanup: `find` already returns `T | null`. The open items
   are the index-returners `findIndex`/`indexOf` (still `-1`), where the honest
   type is `integer | null`.

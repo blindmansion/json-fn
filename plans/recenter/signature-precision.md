@@ -30,17 +30,27 @@ All the precision lives in the return.
 Files touched: `typescript/src/check/builtin-rules.ts` (`CODE_RETURNS` +
 `pairValueType`), tests in `typescript/test/check/builtins.test.ts`.
 
-## 2. Audit sibling object-producing builtins
+## 2. Audit sibling object-producing builtins — DONE
 
-`merge` is **already done** — it returns the structural spread of its operands
-via the `CODE_RETURNS['merge']` rule, not a bare `object`. The remaining bare
-ones near lines 255–261 are `values` (returns bare `array`, no items) and
-`entries` (`array items array`). Both want the value type `V` bound from the
-object's `additionalProperties` — which hits the *same* missing-object-case gap
-in `unifyTemplate` as `fromEntries` (§1), so they also need a `CODE_RETURNS`
-rule or an engine extension, not a plain template.
+`merge` was **already done** — it returns the structural spread of its operands
+via the `CODE_RETURNS['merge']` rule, not a bare `object`.
 
-Files: `spec/builtins.json`, `typescript/src/check/builtin-rules.ts`, tests in
+`values` and `entries` are **now done too**. They were the remaining bare ones
+(`values` returned a bare `array`, `entries` an `array items array`). Both want
+the object's value type `V` — which hit the *same* missing-object-case gap in
+`unifyTemplate` as `fromEntries` (§1), so they also take a `CODE_RETURNS` rule
+rather than a template. A new `objectValueType` helper in `schema.ts` (the
+inverse of `pairValueType`) joins a closed object's declared property value
+types with its map's `additionalProperties` value, degrading to `any` for an
+open object. `values` returns `V[]`; `entries` returns `[string, V][]`, so
+`fromEntries(entries(map))` now round-trips the value type. An open object (no
+precise `V`) degrades each back to its bare floor.
+
+The params stay permissive (`{ "type": "object" }`); all the precision lives in
+the return, matching `fromEntries`.
+
+Files touched: `typescript/src/check/schema.ts` (`objectValueType`),
+`typescript/src/check/builtin-rules.ts` (`CODE_RETURNS`), tests in
 `typescript/test/check/builtins.test.ts`.
 
 ## 3. Stdlib pressure away from `-1` sentinels
@@ -75,8 +85,9 @@ is engine plumbing, not a new schema construct.
 
 - [x] `fromEntries` projects the value type into `additionalProperties` (via a
   `CODE_RETURNS` rule).
-- Object-producing builtins audited (`merge` already done); `values`/`entries`
-  bare returns reduced where feasible.
+- [x] Object-producing builtins audited (`merge` already done); `values`/
+  `entries` now project the object's value type (`V[]` / `[string, V][]`) via
+  `CODE_RETURNS` + `objectValueType`.
 - `findIndex`/`indexOf` sentinel decision made (`integer | null` or keep `-1`)
   and, where changed, signatures + runtime + docs + conformance cases updated
   together. (`find` already returns `T | null`.)

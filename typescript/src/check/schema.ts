@@ -371,6 +371,27 @@ function projectComputed(target: Schema, keyType: Schema, defs: Defs): Schema {
   return unionOf(results);
 }
 
+// The value type carried by an object's entries: the union of its declared
+// property value types plus (for a map) its `additionalProperties` value
+// schema. An open object — or `any` — yields `any`, degrading a `values`/
+// `entries` result to its bare floor; a closed object with no properties yields
+// `never` (it has no values). Unions distribute per arm. Counterpart to
+// `pairValueType`, letting `values`/`entries` project the map value into their
+// array element the way `fromEntries` projects it back into a map.
+function objectValueType(obj: Schema, defs: Defs): Schema {
+  const t = resolveDeep(obj, defs);
+  if (t === true) return true;
+  const arms = unionArms(t);
+  if (arms !== null) return unionOf(arms.map((a) => objectValueType(a, defs)));
+  if (classifySchema(t) !== SchemaKind.Object) return true;
+  const o = asObject(t);
+  const propVals = Object.values(properties(o));
+  const mode = apMode(o);
+  if (mode.kind === "open") return true;
+  if (mode.kind === "map") return unionOf([...propVals, mode.schema]);
+  return unionOf(propVals); // closed: exactly the declared property values
+}
+
 // One object schema's view of a key `k`: the schema a value at `k` would carry,
 // and whether the key is guaranteed present. `null` means `k` can never occur
 // (a closed object that doesn't declare it). A named property uses its declared
@@ -504,6 +525,7 @@ export {
   unionOf,
   projectField,
   projectComputed,
+  objectValueType,
   isClosedMissingKey,
   keyCouldBe,
   mergeSchemas,
