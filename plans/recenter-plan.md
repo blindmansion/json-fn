@@ -155,12 +155,15 @@ stay as-is or be simplified — it no longer needs to grow.
 
 ## 5. Signature-precision work (fits the existing design cleanly)
 
-- `fromEntries : ([string, V][]) -> { [string]: V }` — a `$tvar` template
-  projecting the pair's second element into `additionalProperties`; the table
-  already supports everything needed. Audit the other object-producing
-  builtins returning bare `{"type":"object"}` at the same time.
-- Continue the stdlib pressure toward `T | null` variants over `-1` sentinels
-  (`find`-family), so signatures can be honest.
+- `fromEntries : ([string, V][]) -> { [string]: V }` — projecting the pair's
+  second element into `additionalProperties`. This needs a small `CODE_RETURNS`
+  rule (or a tuple case in `unifyTemplate`), *not* just a signature edit: the
+  current template resolver can't bind a var inside a tuple/object. Also audit
+  the remaining bare object-producers — `merge` is already done via a
+  `CODE_RETURNS` rule; `values`/`entries` remain and hit the same gap.
+- Stdlib sentinel cleanup: `find` already returns `T | null`. The open items
+  are the index-returners `findIndex`/`indexOf` (still `-1`), where the honest
+  type is `integer | null`.
 
 ---
 
