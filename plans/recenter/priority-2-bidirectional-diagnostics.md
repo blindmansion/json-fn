@@ -207,4 +207,6 @@ Files: `typescript/src/cli.ts`.
   `--json` input flag; honors `--compact`; prose stays the default).
 - [x] Overloaded-builtin failures list every failed arm (not just the first),
   with a structured `anyOf`-of-`$fnType` expected + the call's own arg shape.
-- Malformed return annotations report at the annotation, not the param colon.
+- [x] Malformed return annotations report at the annotation, not the param
+  colon (typed-lambda header recognized structurally, so the type-parse error
+  is surfaced instead of swallowed).

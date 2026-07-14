@@ -447,16 +447,36 @@ class Parser extends TokenCursor {
     }
   }
 
-  /** Lookahead from `start` (just past a `->`): does a return type parse there
-   * and land on a `=>`? A throwaway `TypeParser` confirms a typed-lambda header
-   * without committing the cursor. */
+  /** Lookahead from `start` (just past a `->`): is this the return annotation of
+   * a typed-lambda header — i.e. is there a `=>` after the return type at the
+   * same bracket depth the `->` sits at?
+   *
+   * We scan tokens with bracket tracking rather than speculatively *parsing* the
+   * return type. The type never contains a top-level `=>` (function types use
+   * `->`) or a top-level `,`/closer (unions/intersections have none; tuples,
+   * objects, and function params are bracketed), so the first depth-0 `=>` is
+   * this lambda's arrow, while a depth-0 `,`/closer/EOF means we're in a
+   * `cond`/`match` arm `(guard) -> result` and never reach one.
+   *
+   * Scanning (not parsing) is deliberate: a *malformed* return annotation still
+   * looks like a typed-lambda header, so it routes into `parseFuncLit` and its
+   * `parseTypeExpr` surfaces the real type error *at the annotation* — instead
+   * of the old try/catch swallowing it, dropping back to a parenthesized
+   * expression, and mis-reporting at the parameter colon. */
   private returnTypeEndsInFatArrow(start: number): boolean {
-    try {
-      const tp = new TypeParser(this.tokens, start);
-      tp.parseType();
-      return this.tokens[tp.position()]?.tok.type === "fatarrow";
-    } catch {
-      return false;
+    let depth = 0;
+    for (let i = start; ; i++) {
+      const t = this.tokens[i]?.tok;
+      if (t === undefined || t.type === "eof") return false;
+      if (t.type === "lparen" || t.type === "lbracket" || t.type === "lbrace") {
+        depth++;
+      } else if (t.type === "rparen" || t.type === "rbracket" || t.type === "rbrace") {
+        if (depth === 0) return false; // the enclosing group closed: an arm, not a lambda
+        depth--;
+      } else if (depth === 0) {
+        if (t.type === "fatarrow") return true;
+        if (t.type === "comma") return false; // end of this arm / element
+      }
     }
   }
 
