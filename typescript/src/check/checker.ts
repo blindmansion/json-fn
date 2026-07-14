@@ -750,26 +750,84 @@ function checkArrayLiteral(
   }
 }
 
+// Contextually type an *un-annotated* lambda against an expected function type
+// (Priority 2 — Part A). An inline lambda usually omits its param/return
+// annotations, so its own type is un-synthesizable (`bodyFnTypeSchema` → `any`);
+// in checked position we stamp the expected signature onto a copy of the body so
+// its params bind to the expected param types, then reuse `checkBody` to verify
+// its `$return` against the expected return type (recursing structurally) and
+// recurse into its nested locals — exactly as an annotated body is checked. This
+// is what finally lets a bare capability-record lambda (`() => task`) check
+// against a field's declared `() -> Task` instead of erasing to `any` and then
+// dumping a spurious `any ⊄ (fn)`. Arity is strict (mirroring `fnSubsumes`,
+// modulo rest); a mismatch is reported here rather than deferred, since the
+// un-annotated lambda has no synthesizable type for the whole-schema fallback.
+function checkLambda(
+  body: Record<string, JSONType>,
+  exp: Record<string, JSONType>,
+  ctx: CheckContext,
+): void {
+  const shape = fnShape(exp);
+  const params = Array.isArray(body.$params) ? (body.$params as JSONType[]) : [];
+  let fixed = 0;
+  let hasRest = false;
+  for (const p of params) {
+    if (typeof p === "string" && p.startsWith("...")) {
+      hasRest = true;
+      break;
+    }
+    fixed++;
+  }
+  if (fixed !== shape.params.length || hasRest !== (shape.rest !== undefined)) {
+    const actual: Schema = {
+      $fnType: {
+        params: Array.from({ length: fixed }, () => true as Schema),
+        ...(hasRest ? { rest: true } : {}),
+        returns: true,
+      },
+    };
+    reportMismatch(ctx, actual, exp);
+    return;
+  }
+  const withSig: Record<string, JSONType> = {
+    ...body,
+    $sig: {
+      params: shape.params,
+      ...(shape.rest !== undefined ? { rest: shape.rest } : {}),
+      returns: shape.returns,
+    },
+  };
+  checkBody(withSig, ctx);
+}
+
 // Verify an expression against an expected schema, reporting on mismatch.
 //
 // Check-mode pushes the expected type structurally inward (Priority 2 — Part A)
 // so diagnostics are local: composite *literals* recurse field/element-by-
-// field/element, and branch (`$if`/`$cond`/`$match`) arms are each checked
-// against the expected type instead of being synthesized-then-unioned. Because
-// `unionOf(arms) ⊆ expected` iff every arm is (the union-sub rule in
+// field/element, branch (`$if`/`$cond`/`$match`) arms are each checked against
+// the expected type instead of being synthesized-then-unioned, and an
+// un-annotated lambda is contextually typed against an expected function type.
+// Because `unionOf(arms) ⊆ expected` iff every arm is (the union-sub rule in
 // `subsumes`), per-arm checking is pass/fail-identical to the old whole-union
 // comparison, but pinpoints the offending arm and avoids literal-union widening
 // (`if … then 10 else 20` no longer widens to `10 | 20` before the check). Arm
 // traversal reuses the `visit*Arms` visitors, so the same narrowing facts the
-// `synth` cases thread reach each arm in checked position too. Contextual
-// un-annotated lambdas are the remaining Part A chunk.
+// `synth` cases thread reach each arm in checked position too. The `do`-block
+// IIFE `$return` is the remaining Part A chunk.
 function check(expr: JSONType, expected: Schema, ctx: CheckContext): void {
   const kind = nodeKind(expr);
 
-  // Un-annotated inline lambdas need contextual typing (later milestone); we
-  // can't yet check their bodies against `expected`, so defer silently rather
-  // than emit a spurious `any ⊄ (fn)` diagnostic.
-  if (kind === "body" && sigOf(expr as Record<string, JSONType>) === null) return;
+  // Un-annotated inline lambda: contextually type it against an expected
+  // function type (see `checkLambda`). A non-fn-type expected (`any`, or a
+  // non-function) can't supply param types, so defer silently rather than emit
+  // a spurious `any ⊄ …` for a value whose own type is un-synthesizable.
+  if (kind === "body" && sigOf(expr as Record<string, JSONType>) === null) {
+    const exp = resolveDeep(expected, ctx.defs);
+    if (classifySchema(exp) === SchemaKind.FnType) {
+      checkLambda(expr as Record<string, JSONType>, asObject(exp), ctx);
+    }
+    return;
+  }
 
   // Branch constructs: push the expected type into each arm so arms are checked,
   // not synthesized-then-unioned.

@@ -581,6 +581,128 @@ describe("check: bidirectional branch arms (Part A)", () => {
   });
 });
 
+describe("check: bidirectional un-annotated lambdas (Part A)", () => {
+  const fn = (params: Schema[], returns: Schema, rest?: Schema): Schema => ({
+    $fnType: { params, ...(rest !== undefined ? { rest } : {}), returns },
+  });
+  // An un-annotated inline lambda: `$params` names only, no `$sig`.
+  const lambda = (params: JSONType[], ret: JSONType): Record<string, JSONType> => ({
+    $params: params,
+    $return: ret,
+  });
+  // A function returning `ret` (a lambda), checked against an expected fn type.
+  const returning = (ret: JSONType, expected: Schema): Record<string, JSONType> => ({
+    f: body([], { params: [], returns: expected }, ret),
+  });
+
+  test("a zero-arg lambda checks against an expected () -> T (capability record)", () => {
+    // `() => 1` against `() -> integer` — the field's expected fn type reaches
+    // the un-annotated lambda, which previously erased to `any`.
+    expect(checkModule(returning(lambda([], 1), fn([], I)))).toEqual([]);
+  });
+
+  test("param types flow in: the body checks against the expected params", () => {
+    // `(x) => x` against `(integer) -> integer`: `x` binds to integer, clean.
+    expect(checkModule(returning(lambda(["x"], { $var: "x" }), fn([I], I)))).toEqual([]);
+  });
+
+  test("a body that violates the expected return is pinpointed at the lambda's $return", () => {
+    const diags = checkModule(returning(lambda(["x"], { $var: "x" }), fn([I], S)));
+    expect(diags.length).toBe(1);
+    expect(diags[0]!.severity).toBe("error");
+    expect(diags[0]!.path).toEqual(["f", "$return", "$return"]);
+    expect(diags[0]!.expected).toEqual(S);
+    expect(diags[0]!.actual).toEqual(I);
+  });
+
+  test("the expected return recurses structurally into a composite body", () => {
+    const obj: Schema = {
+      type: "object",
+      properties: { a: I },
+      required: ["a"],
+      additionalProperties: false,
+    };
+    const diags = checkModule(returning(lambda([], { a: "x" }), fn([], obj)));
+    expect(diags.length).toBe(1);
+    expect(diags[0]!.path).toEqual(["f", "$return", "$return", "a"]);
+  });
+
+  test("an arity mismatch is reported at the lambda, not deferred to `any`", () => {
+    const diags = checkModule(returning(lambda(["x"], { $var: "x" }), fn([], I)));
+    expect(diags.length).toBe(1);
+    expect(diags[0]!.severity).toBe("error");
+    expect(diags[0]!.path).toEqual(["f", "$return"]);
+    expect(diags[0]!.actual).toEqual(fn([true], true));
+    expect(diags[0]!.expected).toEqual(fn([], I));
+  });
+
+  test("a rest param satisfies an expected rest signature", () => {
+    expect(checkModule(returning(lambda(["...xs"], 1), fn([], I, I)))).toEqual([]);
+    // …but a fixed-arity lambda does not satisfy an expected rest signature.
+    const diags = checkModule(returning(lambda(["x"], { $var: "x" }), fn([], I, I)));
+    expect(diags.length).toBe(1);
+    expect(diags[0]!.path).toEqual(["f", "$return"]);
+  });
+
+  test("the expected fn type resolves through a $ref alias", () => {
+    const mod = {
+      $types: { Thunk: fn([], I) },
+      f: body([], { params: [], returns: { $ref: "#/$defs/Thunk" } }, lambda([], "nope")),
+    };
+    const diags = checkModule(mod);
+    expect(diags.length).toBe(1);
+    expect(diags[0]!.path).toEqual(["f", "$return", "$return"]);
+    expect(diags[0]!.expected).toEqual(I);
+  });
+
+  test("a non-fn-type expected defers silently (no spurious `any ⊄ …`)", () => {
+    // `any` expected can't supply param types; the un-annotated lambda is left
+    // untyped rather than dumping a mismatch.
+    expect(checkModule(returning(lambda(["x"], { $var: "x" }), true))).toEqual([]);
+  });
+
+  test("a lambda argument to a user function is contextually typed", () => {
+    // `apply(f, cb)` where `cb`'s param is `(integer) -> integer`; the inline
+    // lambda body is checked against integer → clean, or pinpointed on mismatch.
+    const mod = {
+      apply: body(
+        ["cb"],
+        { params: [fn([I], I)], returns: I },
+        { $call: { $var: "cb" }, $args: [1] },
+      ),
+      good: body(
+        [],
+        { params: [], returns: I },
+        {
+          $call: "apply",
+          $args: [lambda(["n"], { $var: "n" })],
+        },
+      ),
+    };
+    expect(checkModule(mod)).toEqual([]);
+
+    const bad = {
+      apply: body(
+        ["cb"],
+        { params: [fn([I], I)], returns: I },
+        { $call: { $var: "cb" }, $args: [1] },
+      ),
+      caller: body(
+        [],
+        { params: [], returns: I },
+        {
+          $call: "apply",
+          $args: [lambda(["n"], "x")],
+        },
+      ),
+    };
+    const diags = checkModule(bad);
+    expect(diags.length).toBe(1);
+    expect(diags[0]!.path).toEqual(["caller", "$return", "$args[0]", "$return"]);
+    expect(diags[0]!.expected).toEqual(I);
+  });
+});
+
 describe("checkModule: dangling $ref → hard error", () => {
   const ref = (name: string): Schema => ({ $ref: `#/$defs/${name}` });
 

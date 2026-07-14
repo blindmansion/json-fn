@@ -39,9 +39,9 @@ instead of always deferring to `synth`:
 - **Branches** — ✅ done: push the expected type into `$if`/`$cond`/`$match`
   arms, so arms are checked (not synthesized-then-unioned) — this also kills the
   literal-union widening cosmetic (`if … then 10 else 20`).
-- **Un-annotated lambdas**: push an expected `$fnType` into the lambda in any
-  checked position, then check its body against the expected `$return`. This
-  replaces the current silent-defer on line 582.
+- **Un-annotated lambdas** — ✅ done: push an expected `$fnType` into the lambda
+  in any checked position, then check its body against the expected `$return`.
+  This replaces the former silent-defer.
 - **`do`-block IIFE**: an inline body callee should propagate its `$return`
   type (synthesize/check the body, return its return type) instead of falling
   through `bodyFnTypeSchema → true → sig === null` and erasing to `any`.
@@ -109,8 +109,27 @@ synth cases it mirrors), `typescript/src/check/context.ts`
   arm). Covered by the `check: bidirectional branch arms (Part A)` block, and
   the two chess fragments whose expected paths tightened from `$return` to the
   specific arm.
-- Still open in Part A: contextual un-annotated lambdas and the `do`-block IIFE
-  `$return`.
+**Implementation notes (un-annotated lambdas):**
+
+- An inline lambda usually omits its annotations, so its own type is
+  un-synthesizable (`bodyFnTypeSchema → any`) — the former silent-defer existed
+  only to suppress the resulting spurious `any ⊄ (fn)`. `check()` now, when the
+  expected type resolves (through `$ref`) to a `$fnType`, stamps that signature
+  onto a copy of the body and reuses `checkBody`: params bind to the expected
+  param types and the body's `$return` is checked (structurally) against the
+  expected return, recursing into nested locals like any annotated body. So a
+  bare capability-record lambda (`() => task`) finally checks against a field's
+  declared `() -> Task`, and a lambda argument to a user function is
+  contextually typed at its call site.
+- Arity is strict (mirroring `fnSubsumes`, modulo rest): a mismatch is reported
+  at the lambda (an `$fnType` of its declared arity vs the expected) rather than
+  deferred, since there's no synthesizable lambda type for the whole-schema
+  fallback to compare. A non-fn-type expected (`any`, or a non-function) still
+  defers silently — it can't supply param types. Covered by the
+  `check: bidirectional un-annotated lambdas (Part A)` block in
+  `typescript/test/check/checker.test.ts`.
+- Still open in Part A: the `do`-block IIFE `$return` (an inline body callee
+  should propagate its body's return type instead of erasing to `any`).
 
 ## Part B — `jfn check --json`
 
@@ -158,7 +177,8 @@ Files: `typescript/src/cli.ts`.
   - [x] Branch arms: each `$if`/`$cond`/`$match` arm checked against the
     expected type (per-arm pinpointing, no literal-union widening, narrowing
     threaded).
-  - [ ] Un-annotated lambdas.
+  - [x] Un-annotated lambdas: contextually typed against an expected `$fnType`
+    (params bound, body checked against the expected return, strict arity).
 - `thermostat.jfn` capability-record lambdas check against `() -> Task`.
 - `do`-block IIFE returns its body's `$return` type, not `any`.
 - `jfn check --json` emits `Diagnostic[]`.
