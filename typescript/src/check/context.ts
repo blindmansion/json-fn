@@ -8,14 +8,15 @@ import type { BuiltinEntry } from "./builtin-types";
 import type { JSONType } from "../types";
 import { type Schema, type Defs, type FnTypeShape, isSchemaObject } from "./schema";
 
-// The tier of a diagnostic. An `info` makes a permissive fallback visible
-// without claiming the program is wrong. A `warning` marks a mismatch the
-// checker cannot *prove* wrong statically but that is checkable at runtime —
-// the §5.5 stand-in for flow narrowing: a value like `Piece | null` used where
-// `string` is wanted is a hard error only if the two are disjoint; if they
-// overlap, a guard could make it pass, so we downgrade to a runtime-checked
-// warning (§6) instead of a false positive.
-type Severity = "error" | "warning" | "info";
+// The tier of a diagnostic. An `error` is a definite type failure; an `info`
+// makes a permissive fallback visible (a `→ any` degradation) without claiming
+// the program is wrong. There is deliberately no `warning` tier (§4.5): the
+// former runtime-checkable downgrade was anti-false-positive-fatigue design for
+// human authors, but an agent reads a warning as an ambiguous signal. A
+// mismatch the checker can't prove safe is now a hard `error` — prove it with a
+// recognized guard, or discharge it with the `x!` assertion and eat a
+// runtime-checked cast.
+type Severity = "error" | "info";
 
 // A single type diagnostic, with a JSON-ish path to its location (§6).
 type Diagnostic = {

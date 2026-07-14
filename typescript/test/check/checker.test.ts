@@ -533,12 +533,12 @@ describe("synth: computed index / key projection", () => {
     expect(ctx.diagnostics.some((d) => d.severity === "error")).toBe(true);
   });
 
-  test("a number (integer-overlapping) index is a warning, not an error", () => {
+  test("a number (integer-overlapping) index is a hard error (§4.5)", () => {
     const ctx = ctxWith({ xs: arr, i: N });
     const t = synth(get("xs", { $var: "i" }), ctx);
     expect(t).toEqual(I); // still projects the element
     expect(ctx.diagnostics.length).toBe(1);
-    expect(ctx.diagnostics[0]!.severity).toBe("warning");
+    expect(ctx.diagnostics[0]!.severity).toBe("error");
   });
 
   test("a fractional literal index is a hard error", () => {

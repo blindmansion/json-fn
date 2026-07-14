@@ -98,7 +98,7 @@ Files: `typescript/src/shorthand/lexer.ts`, `typescript/src/shorthand/parser.ts`
 - Parser/printer conformance, checker synthesis, and runtime success/failure are
   covered by shared parse/evaluation cases and TypeScript checker tests.
 
-## 5. Collapse the warning tier → errors
+## 5. Collapse the warning tier → errors — ✅ done
 
 With `!` available, the anti-false-positive-fatigue warning downgrade is no
 longer justified for agents (a warning is an ambiguous signal). Convert the
@@ -114,6 +114,18 @@ dead-case lints errors too.
 Files: `typescript/src/check/context.ts` (`Severity`, `report`),
 `typescript/src/check/checker.ts` (`reportMismatch` / mismatch sites),
 `$match` lint site.
+
+**Implementation notes:**
+
+- `Severity` is now `"error" | "info"` — the `warning` tier is removed
+  entirely, not just left unproduced. `reportMismatch` always reports an
+  `error`; the `narrowableMismatch` / `decomposeArms` overlap-detection helpers
+  are deleted (dead once the downgrade is gone).
+- The `checkIndexKey` integer/string-key mismatch and both `$match` lints
+  (dead case, non-exhaustive) now report `error` instead of `warning`.
+- The CLI drops the now-dead `--strict` gate: with no warnings, the summary is
+  just `N error(s).` and the exit code keys on errors (plus `--require-full-coverage`
+  for the info/coverage tier). `info`/coverage reporting is unchanged.
 
 ## 6. Do not loosen callback arity
 
@@ -131,12 +143,14 @@ the typed target examples were aligned with that broad constraint:
 - `examples/typed/thermostat.jfn`: `demoRun`, `demoFault`, and `demo` now have
   explicit return contracts.
 
-Validation after items 2-3:
+Validation after items 2-5 (the warning tier is gone, so the summary is now
+just an error count; both examples already had 0 warnings, so counts are
+unchanged):
 
-- `ledger.jfn`: `7 errors, 0 warnings`, `Coverage: fully checked.`
-- `thermostat.jfn`: `3 errors, 0 warnings`, with known coverage degradations
-  from inline/effect forms that belong to Priority 2 / annotated `handle`, not
-  more narrowing.
+- `ledger.jfn`: `7 errors`, `Coverage: fully checked.`
+- `thermostat.jfn`: `3 errors`, with known coverage degradations from
+  inline/effect forms that belong to Priority 2 / annotated `handle`, not more
+  narrowing.
 
 ## Note on existing machinery
 
@@ -150,5 +164,6 @@ as-is or be simplified once narrowing is frozen — it no longer needs to grow.
   `if h then h else 0` narrows for a `where`-local.
 - [x] `match` subject narrowing works.
 - [x] `x!` parses, checks, round-trips, and inserts a runtime-checked cast.
-- Narrowable-mismatch warnings and `$match` lints are errors.
+- [x] Narrowable-mismatch warnings and `$match` lints are errors; the `warning`
+  tier and the CLI `--strict` gate are removed.
 - Callback arity rule unchanged.

@@ -21,7 +21,6 @@ import {
   sigOf,
   stableStringify,
   type CheckContext,
-  type Severity,
   type Sig,
   type TypeEnv,
 } from "./context";
@@ -43,16 +42,12 @@ import {
   fnShape,
   isClosedMissingKey,
   isSchemaObject,
-  keyCouldBe,
   projectComputed,
   projectField,
   properties,
   resolveDeep,
-  resolveRef,
   SchemaKind,
-  unionArms,
   unionOf,
-  type Defs,
   type Schema,
 } from "./schema";
 import { isSubschema } from "./subsumption";
@@ -240,12 +235,12 @@ function synthData(v: JSONType): Schema {
 }
 
 // Check the key of a computed/literal index against its container: array/tuple
-// positions demand an `integer`, object/map keys a `string`. A key that could
-// still be the right category at runtime (an overlapping type like `number`,
-// where flow could produce a valid integer) is the §5.5 runtime-checkable
-// `warning`; a key that never can (a `string` index, a fractional literal) is a
-// hard `error`. Non-container / union / `any` targets and `any`/`never` keys are
-// left permissive — the projection already degrades those to `any`.
+// positions demand an `integer`, object/map keys a `string`. A key not provably
+// in the right category is a hard `error` (§4.5) — an overlapping type like
+// `number`, where flow could produce a valid integer, must be discharged with a
+// guard or an `x!` assertion. Non-container / union / `any` targets and
+// `any`/`never` keys are left permissive — the projection already degrades
+// those to `any`.
 function checkIndexKey(target: Schema, keyType: Schema, ctx: CheckContext): void {
   const t = resolveDeep(target, ctx.defs);
   const k = classifySchema(t);
@@ -262,9 +257,7 @@ function checkIndexKey(target: Schema, keyType: Schema, ctx: CheckContext): void
 
   const probe: Schema = { type: cat };
   if (isSubschema(keyType, probe, ctx.defs)) return; // definitely a valid key
-  const overlaps = keyCouldBe(keyType, cat, ctx.defs);
   report(ctx, `Index key must be ${cat === "integer" ? "an integer" : "a string"}.`, {
-    severity: overlaps ? "warning" : "error",
     expected: probe,
     actual: keyType,
   });
@@ -494,12 +487,12 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
         else {
           caseLiterals.push(lit.v);
           // Dead case: a literal the subject's finite universe can't produce, so
-          // it can never match. A lint (the runtime simply never takes it).
+          // it can never match. A hard error (§4.5) — dead code the author
+          // should remove or fix.
           if (universe !== null && !universe.some((u) => deepEqual(u, lit.v))) {
             report(
               at(ctx, `$cases[${i}][0]`),
               `Unreachable $match case: ${JSON.stringify(lit.v)} is not a possible value of the subject.`,
-              { severity: "warning" },
             );
           }
         }
@@ -520,14 +513,13 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
         arms.push(synth(m.$else!, at(elseCtx, "$else")));
       } else if (allLiteral && universe !== null) {
         // §5.6 exhaustiveness: no catch-all `$else`, yet the finite universe has
-        // values no case covers — those inputs silently fall through. A lint
-        // (the same tier as the M0 narrowable warnings), not a hard error.
+        // values no case covers — those inputs silently fall through. A hard
+        // error (§4.5): add the missing cases or an explicit `$else`.
         const uncovered = universe.filter((u) => !caseLiterals.some((l) => deepEqual(l, u)));
         if (uncovered.length > 0) {
           report(
             ctx,
             `Non-exhaustive $match: unhandled case(s) ${uncovered.map((u) => JSON.stringify(u)).join(", ")}.`,
-            { severity: "warning" },
           );
         }
       }
@@ -589,34 +581,14 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
   }
 }
 
-// Break a schema into the arms a guard could narrow it down to: union arms
-// (recursively, resolving `$ref`s), else the schema itself. Enums/consts stay
-// whole — every literal already fits or fails a `sup` together.
-function decomposeArms(s: Schema, defs: Defs): Schema[] {
-  let t = s;
-  while (classifySchema(t) === SchemaKind.Ref) t = resolveRef(t, defs);
-  const arms = unionArms(t);
-  if (arms) return arms.flatMap((a) => decomposeArms(a, defs));
-  return [t];
-}
-
-// Is a failed `actual ⊆ expected` check *narrowable* rather than a hard error?
-// True when the two types overlap — some arm of `actual` already fits
-// `expected` — so a guard (or an explicit assertion) could make the value pass.
-// Such mismatches are the §5.5 wall: without flow narrowing we can't prove them
-// safe statically, so we downgrade them to runtime-checked warnings (§6) rather
-// than emit a false positive. Disjoint mismatches (no arm fits) stay errors.
-function narrowableMismatch(actual: Schema, expected: Schema, defs: Defs): boolean {
-  return decomposeArms(actual, defs).some((arm) => isSubschema(arm, expected, defs));
-}
-
-// Report an `actual ⊄ expected` mismatch, choosing the severity per §5.5.
+// Report an `actual ⊄ expected` mismatch as a hard error. §4.5 removed the
+// former runtime-checkable "warning" downgrade for overlapping (narrowable)
+// mismatches: an agent must prove the value with a recognized guard, or
+// discharge it with the `x!` assertion and accept a runtime-checked cast.
 function reportMismatch(ctx: CheckContext, actual: Schema, expected: Schema): void {
-  const severity: Severity = narrowableMismatch(actual, expected, ctx.defs) ? "warning" : "error";
   report(ctx, `${describe(actual)} is not assignable to ${describe(expected)}.`, {
     expected,
     actual,
-    severity,
   });
 }
 

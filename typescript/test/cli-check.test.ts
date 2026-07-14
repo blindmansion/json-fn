@@ -35,7 +35,7 @@ describe("jfn check coverage reporting", () => {
     expect(result.stdout).toContain(
       'info: <root>: expression degraded to `any` because variable "missing" is unresolved.',
     );
-    expect(result.stdout).toContain("0 errors, 0 warnings.");
+    expect(result.stdout).toContain("0 errors.");
     expect(result.stdout).toContain("Coverage: not fully checked (1 degradation site).");
   });
 
@@ -64,11 +64,13 @@ describe("jfn check coverage reporting", () => {
     const mod = { f: { $params: [], $return: 1 } };
     const result = runCheck(["--json", asJsonArg(mod)]);
     expect(result.exitCode).toBe(1);
-    expect(result.stdout).toContain("1 error, 0 warnings.");
+    expect(result.stdout).toContain("1 error.");
     expect(result.stdout).toContain("Coverage: fully checked.");
   });
 
-  test("--strict remains the warning gate", () => {
+  test("a former narrowable warning is now a hard error (§4.5)", () => {
+    // A `number`-typed index into a tuple used to degrade to a runtime-checkable
+    // warning; the warning tier is gone, so it now exits non-zero as an error.
     const mod = {
       f: {
         $params: ["i"],
@@ -76,12 +78,10 @@ describe("jfn check coverage reporting", () => {
         $return: { $get: { $var: "i" }, $from: [1, 2] },
       },
     };
-    const args = ["--json", asJsonArg(mod)];
-    const normal = runCheck(args);
-    const strict = runCheck(["--strict", ...args]);
-    expect(normal.exitCode).toBe(0);
-    expect(strict.exitCode).toBe(1);
-    expect(normal.stdout).toContain("0 errors, 1 warning.");
-    expect(normal.stdout).toContain("Coverage: fully checked.");
+    const result = runCheck(["--json", asJsonArg(mod)]);
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toContain("error:");
+    expect(result.stdout).toContain("1 error.");
+    expect(result.stdout).toContain("Coverage: fully checked.");
   });
 });

@@ -142,8 +142,9 @@ describe("chess fragments — Tier 1: coordinate layer", () => {
 // fact holds within one `$if`/`$cond`/`$match` arm. So `pieceColor`'s
 // `isNull(piece)` guard narrows `piece` from `Cell` to `Piece` in the
 // else-branch, and `upper(piece)` type-checks clean. Cases narrowing *can't*
-// reach (a builtin-result precision loss like `makePiece`) still land on the
-// M0 warning path; genuinely disjoint mismatches stay hard errors.
+// reach (a builtin-result precision loss like `makePiece`) are now hard errors
+// too (§4.5 removed the warning downgrade) — discharge them with a guard or an
+// `x!` assertion.
 // ---------------------------------------------------------------------------
 
 describe("chess fragments — Tier 2: nullability & narrowing", () => {
@@ -250,9 +251,9 @@ describe("chess fragments — Tier 2: nullability & narrowing", () => {
     // The argument `lower(type)` type-checks (PieceType ⊆ string), but `lower`'s
     // result schema is the generic `string`, so the `if` union
     // `PieceType | string` no longer fits the declared `Piece` return. This is a
-    // *builtin result precision* limit, distinct from the narrowing wall above —
-    // but it too overlaps `Piece` (the `PieceType` arm fits), so M0 downgrades it
-    // to a warning rather than a hard error.
+    // *builtin result precision* limit, distinct from the narrowing wall above.
+    // §4.5 removed the overlapping-mismatch "warning" downgrade, so this is now
+    // a hard error (discharge it with a guard or an `x!` assertion).
     const mod = {
       $types: types,
       makePiece: body(
@@ -267,7 +268,7 @@ describe("chess fragments — Tier 2: nullability & narrowing", () => {
     };
     const diags = checkModule(mod, BT);
     expect(diags.length).toBe(1);
-    expect(diags[0]!.severity).toBe("warning");
+    expect(diags[0]!.severity).toBe("error");
     expect(diags[0]!.path).toEqual(["makePiece", "$return"]);
     expect(eqJson(diags[0]!.expected, Piece)).toBe(true);
   });
@@ -416,8 +417,8 @@ describe("chess fragments — Tier 3: lazy-local & boolean-guard narrowing (§5.
     // `d` is forced under two distinct facts — p : "w" (case) and p : "b"
     // (else). The memo split gives `d` two element types ("w" vs "b"), whose
     // union no longer fits the declared `[string, "w"]` return → one return
-    // warning (absent if the two arms had collapsed onto one memo). Meanwhile
-    // `upper(q)` (q never narrowed) warns inside *each* re-synth of `d`, but the
+    // error (absent if the two arms had collapsed onto one memo). Meanwhile
+    // `upper(q)` (q never narrowed) errors inside *each* re-synth of `d`, but the
     // two are structurally identical, so the end-of-module dedupe keeps one.
     const Color: Schema = { $ref: "#/$defs/Color" };
     const mod = {
@@ -433,26 +434,26 @@ describe("chess fragments — Tier 3: lazy-local & boolean-guard narrowing (§5.
       ),
     };
     const diags = checkModule(mod, BT);
-    // Exactly two: 1 (not 3) means the duplicate `upper(q)` warning was deduped;
+    // Exactly two: 1 (not 3) means the duplicate `upper(q)` error was deduped;
     // 2 (not 1) means the else-arm re-synthesized `d` under its own fact.
     expect(diags.length).toBe(2);
-    expect(diags.every((d) => d.severity === "warning")).toBe(true);
+    expect(diags.every((d) => d.severity === "error")).toBe(true);
     expect(diags.some((d) => d.path.join(".") === "divergent.$return")).toBe(true);
     expect(diags.some((d) => d.path[0] === "d")).toBe(true);
   });
 
   test("fast path: a module with no narrowing is unaffected by the gate/dedupe", () => {
-    // A plain guard-free use: `upper(q)` on a `Cell` warns (Cell ⊄ string,
-    // narrowable). No narrowing is in play, so the free-var gate returns the
-    // un-narrowed memo and the dedupe is a no-op — the diagnostic is exactly the
-    // single M0 warning, unchanged.
+    // A plain guard-free use: `upper(q)` on a `Cell` errors (Cell ⊄ string).
+    // No narrowing is in play, so the free-var gate returns the un-narrowed memo
+    // and the dedupe is a no-op — the diagnostic is exactly the single mismatch
+    // error, unchanged.
     const mod = {
       $types: types,
       plain: body(["q"], { params: [Cell], returns: S }, c("upper", v("q"))),
     };
     const diags = checkModule(mod, BT);
     expect(diags.length).toBe(1);
-    expect(diags[0]!.severity).toBe("warning");
+    expect(diags[0]!.severity).toBe("error");
     expect(diags[0]!.path).toEqual(["plain", "$return", "$args[0]"]);
   });
 });
@@ -499,8 +500,8 @@ describe("chess fragments — Tier 4: field-path & discriminant narrowing (§5.5
   test("nullable field: isNull(move.from) narrows the path move.from to Piece in the else-arm", () => {
     // (move: Move) => if isNull(move.from) then null else upper(move.from)
     // Without path narrowing, `move.from : Cell` (Piece | null), `upper` wants
-    // string → a narrowable warning. M3 narrows the *path* `move.from` to
-    // `Piece` on the else-arm, so `upper(move.from)` type-checks clean.
+    // string → a hard error. M3 narrows the *path* `move.from` to `Piece` on the
+    // else-arm, so `upper(move.from)` type-checks clean.
     const mod = {
       $types: types,
       firstGlyph: body(
@@ -622,9 +623,9 @@ describe("chess fragments — Tier 4: field-path & discriminant narrowing (§5.5
 // if a `$match` subject has a *finite* set of possible values (an enum var, a
 // union of consts, or a `base.field` discriminant across union arms) and the
 // cases don't cover all of them with no catch-all `$else`, some input silently
-// falls through — a smell, so a `warning` (not an error, since `$match` has
-// runtime fall-through semantics). Conversely a case whose literal can never
-// occur in the subject's universe is dead code — a separate `warning`.
+// falls through — a hard `error` (§4.5), not a warning. Conversely a case whose
+// literal can never occur in the subject's universe is dead code — a separate
+// `error`.
 // ---------------------------------------------------------------------------
 
 describe("chess fragments — Tier 5: $match exhaustiveness & dead cases (§5.6)", () => {
@@ -651,7 +652,7 @@ describe("chess fragments — Tier 5: $match exhaustiveness & dead cases (§5.6)
   const shapeTypes: Defs = { Shape: { anyOf: [Circle, Square] } };
   const Shape: Schema = { $ref: "#/$defs/Shape" };
 
-  test("enum match missing an arm warns (no $else, unhandled 'b')", () => {
+  test("enum match missing an arm errors (no $else, unhandled 'b')", () => {
     // (color: Color) => match color { "w" -> 1 }   // no "b", no $else
     const mod = {
       $types: types,
@@ -662,7 +663,7 @@ describe("chess fragments — Tier 5: $match exhaustiveness & dead cases (§5.6)
     };
     const diags = checkModule(mod, BT);
     expect(diags.length).toBe(1);
-    expect(diags[0]!.severity).toBe("warning");
+    expect(diags[0]!.severity).toBe("error");
     expect(diags[0]!.path).toEqual(["f", "$return"]);
     expect(/unhandled case\(s\) "b"/.test(diags[0]!.message)).toBe(true);
   });
@@ -682,7 +683,7 @@ describe("chess fragments — Tier 5: $match exhaustiveness & dead cases (§5.6)
     expect(checkModule(mod, BT)).toEqual([]);
   });
 
-  test("a present $else suppresses the exhaustiveness warning", () => {
+  test("a present $else suppresses the exhaustiveness error", () => {
     // (color: Color) => match color { "w" -> 1 } else 2
     const mod = {
       $types: types,
@@ -695,7 +696,7 @@ describe("chess fragments — Tier 5: $match exhaustiveness & dead cases (§5.6)
     expect(checkModule(mod, BT)).toEqual([]);
   });
 
-  test("discriminated-union match missing an arm warns (unhandled 'square')", () => {
+  test("discriminated-union match missing an arm errors (unhandled 'square')", () => {
     // (s: Shape) => match s.tag { "circle" -> 1 }   // missing "square", no $else
     const mod = {
       $types: shapeTypes,
@@ -706,7 +707,7 @@ describe("chess fragments — Tier 5: $match exhaustiveness & dead cases (§5.6)
     };
     const diags = checkModule(mod, BT);
     expect(diags.length).toBe(1);
-    expect(diags[0]!.severity).toBe("warning");
+    expect(diags[0]!.severity).toBe("error");
     expect(/unhandled case\(s\) "square"/.test(diags[0]!.message)).toBe(true);
   });
 
@@ -741,7 +742,7 @@ describe("chess fragments — Tier 5: $match exhaustiveness & dead cases (§5.6)
     expect(checkModule(mod, BT)).toEqual([]);
   });
 
-  test("a dead/impossible case warns (literal not in the enum)", () => {
+  test("a dead/impossible case errors (literal not in the enum)", () => {
     // (color: Color) => match color { "w" -> 1, "x" -> 2 } else 3
     // "x" is not a Color, so that case can never match.
     const mod = {
@@ -757,7 +758,7 @@ describe("chess fragments — Tier 5: $match exhaustiveness & dead cases (§5.6)
     };
     const diags = checkModule(mod, BT);
     expect(diags.length).toBe(1);
-    expect(diags[0]!.severity).toBe("warning");
+    expect(diags[0]!.severity).toBe("error");
     expect(diags[0]!.path).toEqual(["f", "$return", "$cases[1][0]"]);
     expect(/Unreachable \$match case/.test(diags[0]!.message)).toBe(true);
   });
