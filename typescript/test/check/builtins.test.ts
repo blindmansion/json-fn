@@ -54,6 +54,38 @@ describe("Section F — builtin signatures", () => {
     expect(synthB(call("gt", "a", "b")).diagnostics.length).toBeGreaterThan(0);
   });
 
+  test("a multi-overload no-match reports every arm, not just the first", () => {
+    // length : (array) | (string) -> integer; 123 fits neither. The diagnostic
+    // must mention the string arm too, not only the leading array arm.
+    const { diagnostics } = synthB(call("length", 123));
+    expect(diagnostics).toHaveLength(1);
+    const [d] = diagnostics;
+    expect(d!.severity).toBe("error");
+    expect(d!.path).toEqual([]);
+    expect(d!.message).toContain('"array"');
+    expect(d!.message).toContain('"string"');
+    // Structured, machine-readable fields: expected is the anyOf of the arms,
+    // actual is the call's own argument shape.
+    expect(d!.expected).toEqual({
+      anyOf: [
+        { $fnType: { params: [{ type: "array" }], returns: I } },
+        { $fnType: { params: [{ type: "string" }], returns: I } },
+      ],
+    });
+    expect(d!.actual).toEqual({ $fnType: { params: [{ const: 123 }], returns: true } });
+  });
+
+  test("no-match keeps a single call-level diagnostic and surfaces nested errors once", () => {
+    // add : (integer, integer) | (number, number); a boolean + string fits
+    // neither. The inner gt errors surface once each, plus one overload-set
+    // error at the call — no duplication from the silent bind trials.
+    const { diagnostics } = synthB(call("add", call("gt", "a", "b"), "x"));
+    const overloadErrors = diagnostics.filter((d) => d.message.startsWith("No overload"));
+    expect(overloadErrors).toHaveLength(1);
+    const nested = diagnostics.filter((d) => d.path.length > 0);
+    expect(nested).toHaveLength(2);
+  });
+
   test("type variables: head returns T | null", () => {
     const { type } = synthB(call("head", [1, 2, 3]));
     expect(isSubschema(type, { type: ["integer", "null"] })).toBe(true);

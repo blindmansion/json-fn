@@ -205,5 +205,6 @@ Files: `typescript/src/cli.ts`.
 - [x] `do`-block IIFE returns its body's `$return` type, not `any`.
 - [x] `jfn check --json-diagnostics` emits `Diagnostic[]` (distinct from the
   `--json` input flag; honors `--compact`; prose stays the default).
-- Overloaded-builtin failures list all/nearest arms.
+- [x] Overloaded-builtin failures list every failed arm (not just the first),
+  with a structured `anyOf`-of-`$fnType` expected + the call's own arg shape.
 - Malformed return annotations report at the annotation, not the param colon.

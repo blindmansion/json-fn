@@ -18,7 +18,7 @@
 import type { JSONType } from "../types";
 import type { TVarNode, Bindings, BuiltinSig, BuiltinEntry } from "./builtin-types";
 import { buildTypeScope, checkArity, paramAt, reportMismatch, synth } from "./checker";
-import { at, type CheckContext, isBody, reportDegradation, sigOf } from "./context";
+import { at, type CheckContext, isBody, report, reportDegradation, sigOf } from "./context";
 import {
   type Schema,
   isSchemaObject,
@@ -325,6 +325,49 @@ const CODE_RETURNS: Record<string, (argExprs: JSONType[], ctx: CheckContext) => 
   },
 };
 
+// Render a signature's parameter list as `(p0, p1, ...rest)` for a diagnostic.
+function paramList(sig: BuiltinSig): string {
+  const parts = sig.params.map((p) => JSON.stringify(p));
+  if (sig.rest !== undefined) parts.push(`...${JSON.stringify(sig.rest)}`);
+  return `(${parts.join(", ")})`;
+}
+
+// When *no* overload of a multi-arm builtin accepts the arguments, report the
+// whole failed overload set — not just the first arm. Reporting only `entry[0]`
+// (the old `?? entry[0]` fallback) means a call like `length(123)` complains it
+// wanted an `array` and never mentions the equally-valid `string` arm. We list
+// every arm's parameter signature and attach a structured `expected` (an
+// `anyOf` of the arms as `$fnType`s) / `actual` (the call's own arg shape) so
+// the JSON diagnostics stay machine-readable. Arguments are still synthesized in
+// the real context so nested errors inside them surface exactly once.
+function reportNoOverload(
+  name: string,
+  overloads: BuiltinSig[],
+  argExprs: JSONType[],
+  ctx: CheckContext,
+): Schema {
+  const actualParams = argExprs.map((a, i) => synth(a, at(ctx, `$args[${i}]`)));
+  const actual: Schema = { $fnType: { params: actualParams, returns: true } };
+  const expected: Schema = {
+    anyOf: overloads.map((ov) => ({
+      $fnType: {
+        params: ov.params,
+        ...(ov.rest !== undefined ? { rest: ov.rest } : {}),
+        returns: ov.returns,
+      },
+    })),
+  };
+  const got = `(${actualParams.map((p) => JSON.stringify(p)).join(", ")})`;
+  const arms = overloads.map(paramList).join(" or ");
+  report(ctx, `No overload of "${name}" matches arguments ${got}; expected ${arms}.`, {
+    expected,
+    actual,
+  });
+  // Best-effort return so downstream checking continues: the first arm's return
+  // with no bindings (unbound type variables collapse to `any`).
+  return instantiate(overloads[0]!.returns, {});
+}
+
 // Dispatch a builtin call by its table entry.
 function synthBuiltinCall(
   name: string,
@@ -333,8 +376,15 @@ function synthBuiltinCall(
   ctx: CheckContext,
 ): Schema {
   if (!Array.isArray(entry)) return synthRule(entry.rule, argExprs, ctx); // `{ rule }` escape hatch
-  const chosen = entry.find((ov) => tryBindOverload(ov, argExprs, ctx) !== null) ?? entry[0]!;
-  const result = applyOverload(chosen, argExprs, ctx);
+  const chosen = entry.find((ov) => tryBindOverload(ov, argExprs, ctx) !== null);
+  // No arm fits and there's more than one: report the whole overload set rather
+  // than blaming (and pinpointing against) just the first arm. A single-arm
+  // builtin still falls through to `applyOverload`, whose per-argument, arity,
+  // and return diagnostics are already precise.
+  if (chosen === undefined && entry.length > 1) {
+    return reportNoOverload(name, entry, argExprs, ctx);
+  }
+  const result = applyOverload(chosen ?? entry[0]!, argExprs, ctx);
   const code = CODE_RETURNS[name];
   return code ? code(argExprs, ctx) : result;
 }
