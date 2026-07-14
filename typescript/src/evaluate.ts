@@ -12,6 +12,7 @@ import type {
   Conditional,
   Cond,
   Match,
+  Cast,
   PropertyAccess,
   EvaluatedFunctionCall,
   PerfStats,
@@ -726,6 +727,14 @@ function evaluateExpression(expression: JSONType, context: EvaluationContext): J
       }
       return orResult;
 
+    case ExpressionType.Cast:
+      const cast = expression as Cast;
+      const castValue = evaluateExpression(cast.$cast, context);
+      if (castValue === null) {
+        exprError(expression, "Assertion failed: expected a non-null value.");
+      }
+      return castValue;
+
     case ExpressionType.PropertyAccess:
       return evaluatePropertyAccess(expression as PropertyAccess, context);
 
@@ -1297,6 +1306,13 @@ function classifyExpressionType(json: JSONType): ExpressionType {
         exprError(json, "$or must be an array of expressions.");
       }
       return ExpressionType.Or;
+    }
+
+    if ("$cast" in json) {
+      if (expressionKeyCount(json) > 1) {
+        exprError(json, "$cast expressions cannot have other properties.");
+      }
+      return ExpressionType.Cast;
     }
 
     if ("$raw" in json) {

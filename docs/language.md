@@ -57,6 +57,18 @@ Resolves a variable by name. `$var` must be the sole key, and its value is a pla
 { "$var": "x" }
 ```
 
+### Non-null assertion — `{ $cast }`
+
+Evaluates `$cast` and returns its value when non-null. If the value is `null`,
+evaluation fails. `$cast` must be the sole key.
+
+```json
+{ "$cast": { "$var": "x" } }
+```
+
+The checker removes `null` from the operand's inferred type. In shorthand this
+is written as the postfix operator `x!`.
+
 ### Property Access — `{ $get, $from }`
 
 All property access uses `$get`/`$from`. `$from` evaluates to the target and `$get` evaluates to the key read from it:

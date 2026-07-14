@@ -48,6 +48,20 @@ describe("synth: literals & data", () => {
   });
 });
 
+describe("synth: non-null assertion", () => {
+  test("$cast removes null from the operand type", () => {
+    const result = checkExpr({
+      $cast: { $if: true, $then: 1, $else: null },
+    });
+    expect(result.type).toEqual({ const: 1 });
+    expect(result.diagnostics).toEqual([]);
+  });
+
+  test("$cast of null synthesizes never", () => {
+    expect(checkExpr({ $cast: null }).type).toBe(false);
+  });
+});
+
 describe("synth: visible `any` degradation", () => {
   test("an unresolved variable degrades to any with an info diagnostic", () => {
     const result = checkExpr({ $var: "missing" });

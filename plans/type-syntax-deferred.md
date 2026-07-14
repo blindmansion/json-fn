@@ -25,9 +25,8 @@ So the deferred items read in context, v1 locks in:
    no annotations. The rule: annotations required iff the funcLit is the RHS of a
    `name:` binding.
 4. **`where`-locals are never annotated** — typed lazily by synthesis.
-5. **Assertion operator is in v1** as the escape hatch for the narrowing gap
-   (recommended spelling `x!`, lowering to a runtime-checked node; exact spelling
-   still to iterate).
+5. **Assertion operator is in v1** as the escape hatch for the narrowing gap:
+   postfix `x!`, lowering to the runtime-checked `{ "$cast": x }` node.
 6. **Host/builtin functions are injected, never user-declared.**
 
 ---
@@ -174,17 +173,9 @@ v1 is in hand.
 
 ---
 
-## 7. Narrowing vs. the assertion operator (spelling only)
+## 7. Narrowing vs. the assertion operator — settled
 
-The assertion operator itself is **in v1** (§5 of the reference decisions). What's
-deferred is finalizing:
-
-- **spelling** — `x!` (recommended) vs `x!!` vs `assert(x, T)`;
-- **runtime semantics** — whether `!` lowers to an actual runtime-check AST node
-  (recommended: yes, so the assertion fails loudly if wrong, matching
-  "types are validators") or is checker-only metadata.
-
-Once real flow-narrowing coverage is assessed against actual modules, revisit
-whether the operator is needed often enough to warrant sugar, or whether the
-existing `$cond`/`$if`/`$match` narrowing (`typescript/src/check/narrowing.ts`)
-already covers the compute-then-branch idiom.
+The operator is postfix `x!` and lowers to `{ "$cast": x }`. It removes `null`
+from the inferred type and performs the corresponding runtime check, raising
+when the operand evaluates to `null`. The spelling and runtime-node questions
+are no longer deferred.

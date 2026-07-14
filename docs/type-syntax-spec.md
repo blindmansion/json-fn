@@ -353,15 +353,15 @@ type Event =
 
 ## 9. Assertion operator (v1 escape hatch)
 
-Until flow narrowing covers the compute-then-branch idiom, `x!` narrows away
-`null` (and other overlap), silencing the runtime-checkable warning:
+`x!` narrows away `null` when a value is known to be non-null at its use site:
 
 ```jfn
 legal: isLegalMove(state.board, move!.from, move!.to, state.turn)   // move! : Move
 ```
 
-Spelling and whether `!` emits a runtime-check node are still open
-([deferred doc](../plans/type-syntax-deferred.md) §7).
+The operator lowers to `{ "$cast": x }`. Evaluation returns a non-null operand
+unchanged and raises an evaluation error when the operand is `null`, so the
+assertion remains sound at runtime.
 
 ---
 

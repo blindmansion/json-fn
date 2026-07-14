@@ -1,0 +1,20 @@
+{
+  "description": "runtime-checked non-null assertions",
+  "cases": [
+    {
+      "description": "$cast returns a non-null scalar unchanged",
+      "body": { "$return": { "$cast": 42 } },
+      "expected": 42
+    },
+    {
+      "description": "$cast returns a non-null object unchanged",
+      "body": { "$return": { "$cast": { "value": 42 } } },
+      "expected": { "value": 42 }
+    },
+    {
+      "description": "$cast fails on null",
+      "body": { "$return": { "$cast": null } },
+      "error": "Assertion failed: expected a non-null value"
+    }
+  ]
+}

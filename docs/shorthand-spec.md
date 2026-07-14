@@ -270,12 +270,13 @@ A closed set of operators. Precedence from highest to lowest:
 
 | Prec | Operators         | Assoc   | Lowers to                                        |
 | ---- | ----------------- | ------- | ------------------------------------------------ |
+| 0    | `x!` (assertion)  | postfix | `{ "$cast": x }`                                 |
 | 1    | `!x` `-x` (unary) | prefix  | `not(x)` · `neg(x)` (stdlib calls)               |
 | 2    | `*` `/` `%`       | left    | `mul` · `div` · `mod` (stdlib calls)             |
 | 3    | `+` `-` `++`      | left    | `add` · `sub` · `strcat` (stdlib calls)          |
 | 4    | `== != < <= > >=` | none    | `eq neq lt lte gt gte` (stdlib calls)            |
-| 5    | `&&`              | flatten | `$and` (short-circuit, variadic)                 |
-| 6    | `\|\|`            | flatten | `$or` (short-circuit, variadic)                  |
+| 5    | `&&`              | flatten | `$and` (short-circuit, variadic)                  |
+| 6    | `\|\|`            | flatten | `$or` (short-circuit, variadic)                   |
 
 ```jfn
 row * 8 + col
@@ -302,6 +303,9 @@ Rules and rationale:
 - Comparisons are **non-associative** (exactly two operands; no `a < b < c`).
   `==` is `eq`, which is **structural** (deep) equality — the only equality
   json-fn has; on scalars it is ordinary strict equality.
+- Postfix `x!` is a runtime-checked non-null assertion. It removes `null` from
+  the checker's inferred type, returns every non-null value unchanged, and
+  raises an evaluation error on `null`.
 - Only operators with a single unambiguous meaning and universal precedence are
   elevated. Everything else stays a named call.
 - The call form (`add(a, b)`) remains legal and parses identically, but the
@@ -592,7 +596,8 @@ unary       := ("!"|"-") unary | postfix
 postfix     := primary ( "." ident
                        | "[" (int | string) "]"      // static
                        | "[" expr "]"                // computed
-                       | "(" args ")" )*
+                       | "(" args ")"
+                       | "!" )*                      // non-null assertion
 primary     := number | string | template | "true" | "false" | "null"
              | ident                                 // variable, or fn name if called
              | "&" ident | "&" "(" expr ")"          // function reference

@@ -72,7 +72,7 @@ discriminant logic), the `$match` synth/check case in
 - Covered by `typescript/test/check/chess.test.ts` with a discriminated-union
   `match s.tag` whose arms read variant-specific fields (`s.r` / `s.side`).
 
-## 4. Ship the `x!` assertion operator (type spec §9)
+## 4. Ship the `x!` assertion operator (type spec §9) — ✅ done
 
 `x!` currently doesn't even parse. Ship it as the sanctioned discharge path
 for unions in locals:
@@ -87,6 +87,16 @@ Files: `typescript/src/shorthand/lexer.ts`, `typescript/src/shorthand/parser.ts`
 `typescript/src/check/checker.ts`, `typescript/src/evaluate.ts` (runtime cast),
 `typescript/src/shorthand/printer.ts` (round-trip), `docs/language.md` +
 `docs/shorthand-spec.md`, plus `spec/parse-cases/` and `spec/cases/`.
+
+**Implementation notes:**
+
+- Postfix `x!` lowers to `{ "$cast": x }`. Its deliberately narrow meaning is
+  non-null assertion: the checker removes `null` from the operand type, and the
+  evaluator raises if the operand produces `null`.
+- The operator composes with every other postfix form (`move!.from`, calls, and
+  indexing), and the shorthand printer preserves precedence on round-trip.
+- Parser/printer conformance, checker synthesis, and runtime success/failure are
+  covered by shared parse/evaluation cases and TypeScript checker tests.
 
 ## 5. Collapse the warning tier → errors
 
@@ -139,6 +149,6 @@ as-is or be simplified once narrowing is frozen — it no longer needs to grow.
 - [x] `factsFromCondition` falls back to truthiness for named-guard locals;
   `if h then h else 0` narrows for a `where`-local.
 - [x] `match` subject narrowing works.
-- `x!` parses, checks, round-trips, and inserts a runtime-checked cast.
+- [x] `x!` parses, checks, round-trips, and inserts a runtime-checked cast.
 - Narrowable-mismatch warnings and `$match` lints are errors.
 - Callback arity rule unchanged.

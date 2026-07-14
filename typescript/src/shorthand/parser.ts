@@ -165,6 +165,12 @@ class Parser extends TokenCursor {
         const base: JSONType = name !== null ? { $var: name } : val;
         name = null;
         val = buildAccess(base, segs);
+      } else if (type === "bang") {
+        // Postfix `!` is the runtime-checked non-null assertion. A bare
+        // identifier becomes a variable read before the assertion is wrapped.
+        this.advance();
+        val = { $cast: name !== null ? { $var: name } : val };
+        name = null;
       } else {
         return val;
       }

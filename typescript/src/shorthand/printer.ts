@@ -114,6 +114,7 @@ function renderObject(node: { [k: string]: JSONType }, indent: string): Rendered
   if ("$match" in node) return renderMatch(node, indent);
   if ("$and" in node) return renderVariadicLogic(node.$and!, "&&", P_AND, indent);
   if ("$or" in node) return renderVariadicLogic(node.$or!, "||", P_OR, indent);
+  if ("$cast" in node) return atom(`${emit(node.$cast!, P_ATOM, indent)}!`);
   if ("$raw" in node) return atom(`raw ${JSON.stringify(node.$raw)}`);
   if ("$return" in node) return renderFunctionBody(node, indent);
   return atom(renderDataObject(node, indent));

@@ -535,6 +535,7 @@ export {
   withNarrowings,
   factsFromCondition,
   currentType,
+  removeType,
   restrictToLiteral,
   excludeLiteral,
   restrictToTruthy,

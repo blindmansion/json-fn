@@ -28,6 +28,7 @@ import {
 import {
   withNarrowings,
   factsFromCondition,
+  removeType,
   restrictToTruthy,
   restrictToFalsy,
   caseUniverse,
@@ -538,6 +539,11 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
 
     case "or":
       return shortCircuitType((expr as { $or: JSONType[] }).$or, false, ctx);
+
+    case "cast": {
+      const inner = synth((expr as { $cast: JSONType }).$cast, at(ctx, "$cast"));
+      return removeType(inner, "null", ctx.defs);
+    }
 
     case "get": {
       const g = expr as { $get: JSONType; $from: JSONType };
