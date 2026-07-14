@@ -593,6 +593,12 @@ function reportMismatch(ctx: CheckContext, actual: Schema, expected: Schema): vo
 }
 
 // Verify an expression against an expected schema, reporting on mismatch.
+//
+// NOTE (Priority 2 — bidirectional `check()`): when this grows check-mode
+// recursion into `$if`/`$cond`/`$match` arms, it must thread the same
+// per-arm narrowing facts the `synth` cases already do (`factsFromCondition` +
+// `withNarrowings`, above) — otherwise a guarded arm loses its narrowing in
+// checked position. The frozen fact set is documented in `docs/narrowing.md`.
 function check(expr: JSONType, expected: Schema, ctx: CheckContext): void {
   // Un-annotated inline lambdas need contextual typing (later milestone); we
   // can't yet check their bodies against `expected`, so defer silently rather

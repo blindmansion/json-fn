@@ -7,7 +7,7 @@ warning tier into errors. This is a deliberate reversal of the
 human-authored recommendation: deterministic, simple rules are easier for
 models to learn and stay stable across model generations.
 
-## 1. Freeze narrowing + write a short spec
+## 1. Freeze narrowing + write a short spec — ✅ done
 
 Freeze the current working set — do not extend it:
 
@@ -23,6 +23,24 @@ listing which condition forms produce facts and how they compose under
 Files: new `docs/` section (or `plans/narrowing-plan.md` promoted/trimmed),
 table tests in `typescript/test/check/`. Behavior lives in
 `typescript/src/check/narrowing.ts`.
+
+**Implementation notes:**
+
+- The frozen set is documented in a new canonical `docs/narrowing.md`: the
+  soundness model, the static-path subject rule, the recognized condition forms
+  (truthiness, type predicates, literal-pin equality, discriminant equality,
+  `$match` subject), their then/else facts, composition under
+  `not` / `$and` / `$or` / named boolean guards, the control-flow wiring, and an
+  explicit non-goals list (the freeze). `plans/narrowing-plan.md` is left as the
+  build-order history (it predates the §4.5 warning-tier removal); `docs/` is the
+  reference of record.
+- Table-tested in `typescript/test/check/narrowing.test.ts` (34 rows): one row
+  per condition form × sense (then/else), the composition rules, the named
+  boolean-guard forms (including the `if h then h else 0` where-local
+  truthiness fallback from item 2), the `$match` case/else facts, and the
+  "no fact ⇒ never a silent pass" boundary (dynamic subject, unrecognized guard,
+  unbound var). Facts are asserted directly off `factsFromCondition` /
+  `matchCaseFact` / `matchElseFact`.
 
 ## 2. Fix the `factsFromCondition` fallback bug (one-liner) — ✅ done
 
@@ -159,7 +177,8 @@ as-is or be simplified once narrowing is frozen — it no longer needs to grow.
 
 ## Landing checklist
 
-- Frozen narrowing set documented and table-tested.
+- [x] Frozen narrowing set documented (`docs/narrowing.md`) and table-tested
+  (`typescript/test/check/narrowing.test.ts`).
 - [x] `factsFromCondition` falls back to truthiness for named-guard locals;
   `if h then h else 0` narrows for a `where`-local.
 - [x] `match` subject narrowing works.
