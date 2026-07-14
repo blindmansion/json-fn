@@ -703,6 +703,67 @@ describe("check: bidirectional un-annotated lambdas (Part A)", () => {
   });
 });
 
+describe("check: do-block / where IIFE (Part A)", () => {
+  // An inline *un-annotated* body callee invoked immediately — the shape the
+  // shorthand emits for `expr where { … }` and for a `do { … }` block with
+  // leading pure bindings: `{ $call: <body without $sig>, $args: [] }`.
+  const iife = (
+    ret: JSONType,
+    locals: Record<string, JSONType> = {},
+    params: JSONType[] = [],
+    args: JSONType[] = [],
+  ): JSONType => ({
+    $call: { ...(params.length ? { $params: params } : {}), ...locals, $return: ret },
+    $args: args,
+  });
+
+  test("synthesizes the body's $return type, not `any`", () => {
+    // `1 where { x: 1 }` → the IIFE result is `x`'s type, previously erased to
+    // `any` (callee had no known function type).
+    const r = checkExpr(iife({ $var: "x" }, { x: 1 }));
+    expect(r.type).toEqual({ const: 1 });
+    expect(r.diagnostics).toEqual([]);
+  });
+
+  test("params bind to the synthesized argument types", () => {
+    // `((n) => n)(5)` inline and un-annotated: `n` binds to the arg's type.
+    const r = checkExpr(iife({ $var: "n" }, {}, ["n"], [5]));
+    expect(r.type).toEqual({ const: 5 });
+    expect(r.diagnostics).toEqual([]);
+  });
+
+  test("a nested error inside the body is surfaced within the body scope", () => {
+    // The degradation is located at the body's `$return`, not lost at the call.
+    const r = checkExpr(iife({ $var: "missing" }));
+    expect(r.type).toBe(true);
+    expect(r.diagnostics.map((d) => [d.path, d.severity])).toEqual([[["$return"], "info"]]);
+  });
+
+  test("an arity mismatch is reported at the call", () => {
+    const r = checkExpr(iife({ $var: "n" }, {}, ["n"], []));
+    expect(r.diagnostics.some((d) => /Expected 1 argument\(s\), got 0\./.test(d.message))).toBe(
+      true,
+    );
+  });
+
+  test("the expected type is pushed into the body's $return (checked position)", () => {
+    // `f: () -> string` whose body is `1 where { x: 1 }`: the integer result is
+    // pinpointed at the IIFE body's `$return`, not dumped at the whole call.
+    const mod = { f: body([], { params: [], returns: S }, iife({ $var: "x" }, { x: 1 })) };
+    const diags = checkModule(mod);
+    expect(diags.length).toBe(1);
+    expect(diags[0]!.severity).toBe("error");
+    expect(diags[0]!.path).toEqual(["f", "$return", "$return"]);
+    expect(diags[0]!.expected).toEqual(S);
+    expect(diags[0]!.actual).toEqual({ const: 1 });
+  });
+
+  test("a body matching the expected type checks clean", () => {
+    const mod = { f: body([], { params: [], returns: I }, iife({ $var: "x" }, { x: 1 })) };
+    expect(checkModule(mod)).toEqual([]);
+  });
+});
+
 describe("checkModule: dangling $ref → hard error", () => {
   const ref = (name: string): Schema => ({ $ref: `#/$defs/${name}` });
 

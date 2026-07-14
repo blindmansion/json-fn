@@ -516,6 +516,16 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
     case "call": {
       const call = expr as { $call: JSONType; $args: JSONType[] };
       const args = Array.isArray(call.$args) ? call.$args : [];
+      // An inline *un-annotated* body callee is an IIFE — the zero-arg wrapper
+      // the shorthand emits for a standalone `expr where { … }` and for a
+      // `do { … }` block with leading pure bindings. It carries no `$sig`, so
+      // `resolveCalleeSig` can't recover a function type; synthesize the body's
+      // `$return` directly instead of degrading the whole call to `any`.
+      const callee = call.$call;
+      if (isBody(callee) && sigOf(callee) === null) {
+        const bctx = iifeBodyContext(callee, args, ctx);
+        return synth(callee.$return!, at(bctx, "$return"));
+      }
       // A bare builtin name that no local/module binding shadows dispatches to
       // the polymorphic builtin layer (§5.3); user bindings still win. The
       // dispatcher is injected (see `CheckContext.synthBuiltinCall`) so this
@@ -800,6 +810,48 @@ function checkLambda(
   checkBody(withSig, ctx);
 }
 
+// Type the body of an *un-annotated inline body callee* — an IIFE, e.g. the
+// zero-arg wrapper the shorthand emits for a standalone `expr where { … }` or a
+// `do { … }` block with leading pure bindings. Such a body has no `$sig`, so
+// `bodyFnTypeSchema` erases it to `any` and `resolveCalleeSig` can't recover a
+// function type; the call would otherwise degrade the whole expression to `any`
+// and drop the body's real return type. Instead bind the params to the
+// synthesized argument types, report any arity mismatch, and recurse into nested
+// function locals (so their bodies are still checked) — then hand back the body
+// context for the caller to synth/check the body's `$return` under. Mirrors
+// `checkBody`, minus the declared-return check (an IIFE declares none).
+function iifeBodyContext(
+  body: Record<string, JSONType>,
+  args: JSONType[],
+  ctx: CheckContext,
+): CheckContext {
+  const params = Array.isArray(body.$params) ? (body.$params as JSONType[]) : [];
+  const restIdx = params.findIndex((p) => typeof p === "string" && p.startsWith("..."));
+  const hasRest = restIdx !== -1;
+  const fixed = hasRest ? restIdx : params.length;
+
+  // Arguments are outer expressions, synthesized in the caller's scope; their
+  // types become the (otherwise un-annotated) fixed params' types.
+  const argTypes = args.map((a, i) => synth(a, at(ctx, `$args[${i}]`)));
+  if (!hasRest && args.length !== params.length) {
+    report(ctx, `Expected ${params.length} argument(s), got ${args.length}.`);
+  } else if (hasRest && args.length < fixed) {
+    report(ctx, `Expected at least ${fixed} argument(s), got ${args.length}.`);
+  }
+
+  const withSig: Record<string, JSONType> = {
+    ...body,
+    $sig: { params: argTypes.slice(0, fixed), returns: true },
+  };
+  const { env, guards } = buildTypeScope(withSig, ctx.env, ctx);
+  const bctx: CheckContext = { ...ctx, env, guards };
+  for (const key of bindingKeys(body)) {
+    const val = body[key]!;
+    if (isBody(val)) checkBody(val, at(bctx, key));
+  }
+  return bctx;
+}
+
 // Verify an expression against an expected schema, reporting on mismatch.
 //
 // Check-mode pushes the expected type structurally inward (Priority 2 — Part A)
@@ -812,8 +864,9 @@ function checkLambda(
 // comparison, but pinpoints the offending arm and avoids literal-union widening
 // (`if … then 10 else 20` no longer widens to `10 | 20` before the check). Arm
 // traversal reuses the `visit*Arms` visitors, so the same narrowing facts the
-// `synth` cases thread reach each arm in checked position too. The `do`-block
-// IIFE `$return` is the remaining Part A chunk.
+// `synth` cases thread reach each arm in checked position too. An IIFE (inline
+// un-annotated body callee — a `do { … }` block or `expr where { … }`) has its
+// body's `$return` checked against the expected type (see `iifeBodyContext`).
 function check(expr: JSONType, expected: Schema, ctx: CheckContext): void {
   const kind = nodeKind(expr);
 
@@ -827,6 +880,20 @@ function check(expr: JSONType, expected: Schema, ctx: CheckContext): void {
       checkLambda(expr as Record<string, JSONType>, asObject(exp), ctx);
     }
     return;
+  }
+
+  // An IIFE (inline un-annotated body callee, e.g. a standalone
+  // `expr where { … }` or a `do { … }` block) in checked position: push the
+  // expected type into the body's `$return` so a mismatch pinpoints there,
+  // mirroring the synth case rather than synthesizing-then-subsuming the call.
+  if (kind === "call") {
+    const callee = (expr as { $call: JSONType }).$call;
+    if (isBody(callee) && sigOf(callee) === null) {
+      const args = (expr as { $args?: JSONType[] }).$args;
+      const bctx = iifeBodyContext(callee, Array.isArray(args) ? args : [], ctx);
+      check(callee.$return!, expected, at(bctx, "$return"));
+      return;
+    }
   }
 
   // Branch constructs: push the expected type into each arm so arms are checked,

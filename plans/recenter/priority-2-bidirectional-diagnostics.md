@@ -42,9 +42,10 @@ instead of always deferring to `synth`:
 - **Un-annotated lambdas** — ✅ done: push an expected `$fnType` into the lambda
   in any checked position, then check its body against the expected `$return`.
   This replaces the former silent-defer.
-- **`do`-block IIFE**: an inline body callee should propagate its `$return`
-  type (synthesize/check the body, return its return type) instead of falling
-  through `bodyFnTypeSchema → true → sig === null` and erasing to `any`.
+- **`do`-block IIFE** — ✅ done: an inline un-annotated body callee now
+  propagates its `$return` type (synthesize/check the body, return its return
+  type) instead of falling through `bodyFnTypeSchema → true → sig === null` and
+  erasing to `any`.
 
 Findings this closes:
 
@@ -128,8 +129,26 @@ synth cases it mirrors), `typescript/src/check/context.ts`
   defers silently — it can't supply param types. Covered by the
   `check: bidirectional un-annotated lambdas (Part A)` block in
   `typescript/test/check/checker.test.ts`.
-- Still open in Part A: the `do`-block IIFE `$return` (an inline body callee
-  should propagate its body's return type instead of erasing to `any`).
+
+**Implementation notes (`do`-block IIFE):**
+
+- The shorthand emits an *IIFE* — `{ $call: <body without $sig>, $args: [] }` —
+  for a standalone `expr where { … }` and for a `do { … }` block with leading
+  pure bindings (the zero-arg wrapper from `buildScope([], …)`). The callee is
+  an un-annotated body, so `bodyFnTypeSchema → true`, `resolveCalleeSig → null`,
+  and the whole call used to degrade to `any` with a spurious "callee has no
+  known function type", dropping the body's real return type.
+- `synth`'s `call` case now detects an un-annotated inline body callee and hands
+  it to `iifeBodyContext` in `checker.ts`: it synthesizes the arguments in the
+  caller's scope, binds them as the (otherwise un-annotated) params' types via a
+  stamped synthetic `$sig`, reports any arity mismatch, recurses into nested
+  function locals (mirroring `checkBody`), and returns the body context. `synth`
+  then returns the body's synthesized `$return` type; `check` pushes the
+  expected type into that `$return`, so a mismatch pinpoints inside the body
+  (`$return.$return`, `$return.$args[i]`, …) rather than dumping at the call. An
+  annotated inline body callee is unchanged — it already resolves to a `$fnType`
+  through the normal call path. Covered by the `check: do-block / where IIFE
+  (Part A)` block in `typescript/test/check/checker.test.ts`.
 
 ## Part B — `jfn check --json`
 
@@ -179,8 +198,11 @@ Files: `typescript/src/cli.ts`.
     threaded).
   - [x] Un-annotated lambdas: contextually typed against an expected `$fnType`
     (params bound, body checked against the expected return, strict arity).
+  - [x] `do`-block / `where` IIFE: an un-annotated inline body callee returns
+    its body's `$return` type (params bound to arg types, body checked against
+    the expected return, nested errors pinpointed inside the body).
 - `thermostat.jfn` capability-record lambdas check against `() -> Task`.
-- `do`-block IIFE returns its body's `$return` type, not `any`.
+- [x] `do`-block IIFE returns its body's `$return` type, not `any`.
 - `jfn check --json` emits `Diagnostic[]`.
 - Overloaded-builtin failures list all/nearest arms.
 - Malformed return annotations report at the annotation, not the param colon.
