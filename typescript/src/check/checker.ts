@@ -42,12 +42,15 @@ import {
   fnShape,
   isClosedMissingKey,
   isSchemaObject,
+  itemsSchema,
+  prefixItems,
   projectComputed,
   projectField,
   properties,
   requiredKeys,
   resolveDeep,
   SchemaKind,
+  tupleRest,
   unionOf,
   type Schema,
 } from "./schema";
@@ -638,11 +641,83 @@ function checkObjectLiteral(
   }
 }
 
+// Check an array *literal* against an expected array/tuple schema element by
+// element, so a mismatch is pinpointed to the offending index (Priority 2 —
+// Part A) rather than dumped as two whole schemas. A literal synthesizes to a
+// closed tuple, so this mirrors `tupleSubsumesArray` / `tupleSubsumesTuple`:
+//
+// - Expected *array* (variable length): every element is checked against the
+//   element schema; a shortfall against `minItems` is a length error.
+// - Expected *tuple*: elements are checked positionally; a literal element past
+//   a closed tuple's declared arity is "not permitted", and a declared position
+//   the literal omits is "missing".
+//
+// Length/refinement constraints the structural pass can't phrase as an element
+// error (`maxItems`, `uniqueItems`, an explicit tuple `minItems`/`maxItems`)
+// fall back to the exact `isSubschema` verdict, so pass/fail stays identical to
+// the synth-then-subsume path — only diagnostic locality improves.
+function checkArrayLiteral(
+  arr: JSONType[],
+  exp: Record<string, JSONType>,
+  ctx: CheckContext,
+): void {
+  const before = ctx.diagnostics.length;
+
+  if (classifySchema(exp) === SchemaKind.Array) {
+    const elem = itemsSchema(exp);
+    arr.forEach((e, i) => check(e, elem, at(ctx, `[${i}]`)));
+    if (
+      ctx.diagnostics.length === before &&
+      "minItems" in exp &&
+      arr.length < (exp.minItems as number)
+    ) {
+      report(
+        ctx,
+        `Array has ${arr.length} element(s), but at least ${exp.minItems} are required.`,
+        {
+          expected: exp,
+          actual: synth(arr, ctx),
+        },
+      );
+    }
+  } else {
+    const pref = prefixItems(exp);
+    const rest = tupleRest(exp); // null when the tuple is closed
+    const upto = Math.max(arr.length, pref.length);
+    for (let i = 0; i < upto; i++) {
+      const supE = i < pref.length ? pref[i]! : rest;
+      const hasElem = i < arr.length;
+      if (supE === null) {
+        // Closed tuple, position past its declared arity: an extra element.
+        report(
+          at(ctx, `[${i}]`),
+          `Element ${i} is not permitted: the expected tuple has ${pref.length} element(s).`,
+          {
+            actual: synth(arr[i]!, at(ctx, `[${i}]`)),
+          },
+        );
+      } else if (!hasElem) {
+        report(ctx, `Tuple element ${i} is missing.`, { expected: supE });
+      } else {
+        check(arr[i]!, supE, at(ctx, `[${i}]`));
+      }
+    }
+  }
+
+  // Any remaining length/refinement constraint (maxItems, uniqueItems, explicit
+  // tuple bounds) that the element-level pass didn't already flag: defer to the
+  // exact subsumption verdict for parity, reporting at the array as a whole.
+  if (ctx.diagnostics.length === before) {
+    const actual = synth(arr, ctx);
+    if (!isSubschema(actual, exp, ctx.defs)) reportMismatch(ctx, actual, exp);
+  }
+}
+
 // Verify an expression against an expected schema, reporting on mismatch.
 //
 // Check-mode pushes the expected type structurally into composite *literals* so
-// diagnostics are field/element-local (Priority 2 — Part A). Objects are done;
-// arrays, `$if`/`$cond`/`$match` arms, and contextual un-annotated lambdas are
+// diagnostics are field/element-local (Priority 2 — Part A). Objects and arrays
+// are done; `$if`/`$cond`/`$match` arms and contextual un-annotated lambdas are
 // follow-on chunks. When arm recursion lands it must thread the same per-arm
 // narrowing facts the `synth` cases already do (`factsFromCondition` +
 // `withNarrowings`, above) — otherwise a guarded arm loses its narrowing in
@@ -653,14 +728,20 @@ function check(expr: JSONType, expected: Schema, ctx: CheckContext): void {
   // than emit a spurious `any ⊄ (fn)` diagnostic.
   if (nodeKind(expr) === "body" && sigOf(expr as Record<string, JSONType>) === null) return;
 
-  // Object literal against an expected object type: recurse field by field.
-  // Only a single object expected takes this path; a union / non-object
-  // expected (or `any`, which subsumes anything) falls through to the exact
-  // synth-then-subsume comparison below.
-  if (nodeKind(expr) === "object") {
+  // Composite literal against a matching expected type: recurse element/field by
+  // element/field. Only a single object/array expected takes this path; a union
+  // / non-matching / `any` expected (which subsumes anything) falls through to
+  // the exact synth-then-subsume comparison below.
+  const kind = nodeKind(expr);
+  if (kind === "object" || kind === "array") {
     const exp = resolveDeep(expected, ctx.defs);
-    if (classifySchema(exp) === SchemaKind.Object) {
+    const expK = classifySchema(exp);
+    if (kind === "object" && expK === SchemaKind.Object) {
       checkObjectLiteral(expr as Record<string, JSONType>, asObject(exp), ctx);
+      return;
+    }
+    if (kind === "array" && (expK === SchemaKind.Array || expK === SchemaKind.Tuple)) {
+      checkArrayLiteral(expr as JSONType[], asObject(exp), ctx);
       return;
     }
   }

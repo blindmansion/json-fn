@@ -34,7 +34,8 @@ instead of always deferring to `synth`:
 - **Objects** — ✅ done: push expected field types into each field; report
   field-level errors ("field `extra` not permitted", "required field `name`
   missing") instead of dumping both whole schemas.
-- **Arrays**: push the expected element type into each element.
+- **Arrays** — ✅ done: push the expected element type into each element (array
+  and tuple), so a mismatch is pinpointed to its index.
 - **Branches**: push the expected type into `$if`/`$cond`/`$match` arms, so
   arms are checked (not synthesized-then-unioned) — this also kills the
   literal-union widening cosmetic (`if … then 10 else 20`).
@@ -74,8 +75,25 @@ synth cases it mirrors), `typescript/src/check/context.ts`
   unchanged, only diagnostic locality improves. Covered by the
   `check: bidirectional object literals (Part A)` block in
   `typescript/test/check/checker.test.ts`.
-- Still open in Part A: arrays, `$if`/`$cond`/`$match` arms, contextual
-  un-annotated lambdas, and the `do`-block IIFE `$return`.
+**Implementation notes (arrays):**
+
+- `check()` now recurses into an array *literal* whenever its expected type
+  resolves (through `$ref`) to a single array or tuple schema, via
+  `checkArrayLiteral` in `checker.ts`. A union / non-array / `any` expected still
+  falls through to the exact synth-then-subsume comparison.
+- Element-level diagnostics: an expected variable-length array checks every
+  element against its `items` schema; an expected tuple checks positionally,
+  reporting an element past a closed tuple's arity (`Element i is not
+  permitted…`) and a declared position the literal omits (`Tuple element i is
+  missing.`). Nested literals recurse, so a deep element pinpoints.
+- Length/refinement constraints the element pass can't phrase (a `minItems`
+  shortfall gets its own message; `maxItems`, `uniqueItems`, and explicit tuple
+  bounds) fall back to the exact `isSubschema` verdict, so pass/fail is
+  unchanged — including the latent `arrayLengthOk` wart where a closed literal
+  never carries `maxItems`. Covered by the `check: bidirectional array literals
+  (Part A)` block in `typescript/test/check/checker.test.ts`.
+- Still open in Part A: `$if`/`$cond`/`$match` arms, contextual un-annotated
+  lambdas, and the `do`-block IIFE `$return`.
 
 ## Part B — `jfn check --json`
 
@@ -118,7 +136,9 @@ Files: `typescript/src/cli.ts`.
   un-annotated lambdas; object errors are field-level.
   - [x] Objects: field-level errors (extra key, missing required, per-field
     mismatch, nested pinpointing).
-  - [ ] Arrays, branch arms, un-annotated lambdas.
+  - [x] Arrays: element-level errors (per-index mismatch, extra/missing tuple
+    positions, nested pinpointing).
+  - [ ] Branch arms, un-annotated lambdas.
 - `thermostat.jfn` capability-record lambdas check against `() -> Task`.
 - `do`-block IIFE returns its body's `$return` type, not `any`.
 - `jfn check --json` emits `Diagnostic[]`.

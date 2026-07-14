@@ -374,6 +374,107 @@ describe("check: bidirectional object literals (Part A)", () => {
   });
 });
 
+describe("check: bidirectional array literals (Part A)", () => {
+  // A function returning the given array-literal expression, checked against the
+  // given expected array/tuple return type.
+  const returning = (ret: JSONType, expected: Schema): Record<string, JSONType> => ({
+    f: body([], { params: [], returns: expected }, ret),
+  });
+  const arrayOf = (items: Schema): Schema => ({ type: "array", items });
+  const tuple = (items: Schema[], rest?: Schema): Schema => ({
+    type: "array",
+    prefixItems: items,
+    items: rest ?? false,
+  });
+
+  test("a well-typed array literal checks clean", () => {
+    expect(checkModule(returning([1, 2, 3], arrayOf(I)))).toEqual([]);
+  });
+
+  test("an element mismatch is pinpointed to that index", () => {
+    const diags = checkModule(returning([1, "x", 3], arrayOf(I)));
+    expect(diags.length).toBe(1);
+    expect(diags[0]!.path).toEqual(["f", "$return", "[1]"]);
+    expect(diags[0]!.expected).toEqual(I);
+    expect(diags[0]!.actual).toEqual({ const: "x" });
+  });
+
+  test("a nested object-in-array mismatch pinpoints the deep field", () => {
+    const inner: Schema = {
+      type: "object",
+      properties: { x: I },
+      required: ["x"],
+      additionalProperties: false,
+    };
+    const diags = checkModule(returning([{ x: "y" }], arrayOf(inner)));
+    expect(diags.length).toBe(1);
+    expect(diags[0]!.path).toEqual(["f", "$return", "[0]", "x"]);
+  });
+
+  test("too few elements is a length error at the array", () => {
+    const diags = checkModule(returning([1, 2], { type: "array", items: I, minItems: 3 }));
+    expect(diags.length).toBe(1);
+    expect(diags[0]!.path).toEqual(["f", "$return"]);
+    expect(diags[0]!.message).toContain("at least 3");
+  });
+
+  test("a tuple literal checks positionally and clean", () => {
+    expect(checkModule(returning([1, "s"], tuple([I, S])))).toEqual([]);
+  });
+
+  test("a tuple element mismatch is pinpointed to that index", () => {
+    const diags = checkModule(returning([1, 2], tuple([I, S])));
+    expect(diags.length).toBe(1);
+    expect(diags[0]!.path).toEqual(["f", "$return", "[1]"]);
+    expect(diags[0]!.expected).toEqual(S);
+  });
+
+  test("an element past a closed tuple's arity is not permitted", () => {
+    const diags = checkModule(returning([1, 2], tuple([I])));
+    expect(diags.length).toBe(1);
+    expect(diags[0]!.path).toEqual(["f", "$return", "[1]"]);
+    expect(diags[0]!.message).toContain("not permitted");
+  });
+
+  test("a missing tuple position is reported at the array", () => {
+    const diags = checkModule(returning([1], tuple([I, S])));
+    expect(diags.length).toBe(1);
+    expect(diags[0]!.path).toEqual(["f", "$return"]);
+    expect(diags[0]!.message).toContain("element 1 is missing");
+    expect(diags[0]!.expected).toEqual(S);
+  });
+
+  test("a tuple rest element checks trailing items against the rest schema", () => {
+    expect(checkModule(returning([1, "a", "b"], tuple([I], S)))).toEqual([]);
+    const diags = checkModule(returning([1, 2], tuple([I], S)));
+    expect(diags.length).toBe(1);
+    expect(diags[0]!.path).toEqual(["f", "$return", "[1]"]);
+    expect(diags[0]!.expected).toEqual(S);
+  });
+
+  test("expected resolves through a $ref alias", () => {
+    const mod = {
+      $types: { Row: arrayOf(I) },
+      f: body([], { params: [], returns: { $ref: "#/$defs/Row" } }, ["x"]),
+    };
+    const diags = checkModule(mod);
+    expect(diags.length).toBe(1);
+    expect(diags[0]!.path).toEqual(["f", "$return", "[0]"]);
+  });
+
+  test("a union or non-array expected falls back to whole-schema subsumption", () => {
+    const diags = checkModule(returning([1], { anyOf: [arrayOf(S), S] }));
+    expect(diags.length).toBe(1);
+    expect(diags[0]!.path).toEqual(["f", "$return"]);
+  });
+
+  test("a uniqueItems constraint the literal can't prove falls back to whole-schema", () => {
+    const diags = checkModule(returning([1, 2], { type: "array", items: I, uniqueItems: true }));
+    expect(diags.length).toBe(1);
+    expect(diags[0]!.path).toEqual(["f", "$return"]);
+  });
+});
+
 describe("checkModule: dangling $ref → hard error", () => {
   const ref = (name: string): Schema => ({ $ref: `#/$defs/${name}` });
 
