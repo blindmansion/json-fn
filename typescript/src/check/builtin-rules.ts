@@ -25,9 +25,11 @@ import {
   classifySchema,
   SchemaKind,
   resolveRef,
+  resolveDeep,
   itemsSchema,
   asObject,
   tupleRest,
+  unionArms,
   unionOf,
   prefixItems,
   fnShape,
@@ -81,6 +83,28 @@ function elementSchemaOf(concrete: Schema, ctx: CheckContext): Schema | null {
     return unionOf(rest === null ? prefixItems(o) : [...prefixItems(o), rest]);
   }
   return null;
+}
+
+// The value type carried by an entry pair, for `fromEntries`'s structural
+// return. Each element of the argument array is a `[key, value]` pair: a tuple
+// projects its second slot (or its rest element for an under-length tuple); a
+// homogeneous `array` (e.g. `entries`'s bare `array items array`) projects its
+// element type; a union of pairs joins per-arm. Anything else — an untyped
+// array, `any` — yields `any`, degrading the result to a bare object.
+function pairValueType(pair: Schema, ctx: CheckContext): Schema {
+  const t = resolveDeep(pair, ctx.defs);
+  if (t === true) return true;
+  const arms = unionArms(t);
+  if (arms !== null) return unionOf(arms.map((a) => pairValueType(a, ctx)));
+  const k = classifySchema(t);
+  if (k === SchemaKind.Tuple) {
+    const o = asObject(t);
+    const pi = prefixItems(o);
+    if (pi.length >= 2) return pi[1]!;
+    return tupleRest(o) ?? true;
+  }
+  if (k === SchemaKind.Array) return itemsSchema(asObject(t));
+  return true;
 }
 
 // Match a signature template against a concrete argument schema: bind type
@@ -310,11 +334,16 @@ function synthRule(rule: string, argExprs: JSONType[], ctx: CheckContext): Schem
 
 // A handful of builtins have a data signature good enough for argument checking
 // but a *result* that depends structurally on the argument types — no agnostic
-// template can express it. After the ordinary overload pass (which still emits
-// the arg/arity diagnostics), a code rule keyed by name recomputes the return.
-// `merge` is the sole member today: its declared `object` return is replaced by
-// the structural spread of its two operands, so `merge(a, { … })` can satisfy a
-// declared record type. Args are re-synthed silently (no duplicate diagnostics).
+// template can express it (the `$tvar` resolver can't reach into a tuple or an
+// object's `additionalProperties`). After the ordinary overload pass (which
+// still emits the arg/arity diagnostics), a code rule keyed by name recomputes
+// the return. Args are re-synthed silently (no duplicate diagnostics).
+//
+//   * `merge` — declared `object` return replaced by the structural spread of
+//     its two operands, so `merge(a, { … })` can satisfy a declared record type.
+//   * `fromEntries` — declared `object` return replaced by a map projecting the
+//     entry pairs' value type into `additionalProperties`, so
+//     `fromEntries([["a", 1]])` types as `{ [string]: integer }`.
 const CODE_RETURNS: Record<string, (argExprs: JSONType[], ctx: CheckContext) => Schema> = {
   merge: (argExprs, ctx) => {
     if (argExprs.length !== 2) return { type: "object" };
@@ -322,6 +351,18 @@ const CODE_RETURNS: Record<string, (argExprs: JSONType[], ctx: CheckContext) => 
     const a = synth(argExprs[0]!, silent);
     const b = synth(argExprs[1]!, silent);
     return mergeSchemas(a, b, ctx.defs);
+  },
+  fromEntries: (argExprs, ctx) => {
+    if (argExprs.length !== 1) return { type: "object" };
+    const silent: CheckContext = { ...ctx, diagnostics: [] };
+    const arr = synth(argExprs[0]!, silent);
+    const pair = elementSchemaOf(arr, ctx);
+    if (pair === null) return { type: "object" };
+    const value = pairValueType(pair, ctx);
+    // An unknown value type is a plain object (open map == bare object floor).
+    if (value === true) return { type: "object" };
+    const result: Schema = { type: "object", additionalProperties: value };
+    return result;
   },
 };
 

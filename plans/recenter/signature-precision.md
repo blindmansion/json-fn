@@ -7,31 +7,28 @@ fits the existing data-driven builtin design — `spec/builtins.json` edits plus
 `CODE_RETURNS` code rule because the template resolver can't bind a type
 variable nested inside a tuple or object. See each section for specifics.
 
-## 1. `fromEntries` precise return
+## 1. `fromEntries` precise return — DONE
 
-Today it returns a bare object:
+`fromEntries : ([string, V][]) -> { [string]: V }` now projects the pair's
+second element into `additionalProperties`, so `fromEntries([["a", 1]])` types
+as `{ [string]: integer }`.
 
-```258:258:spec/builtins.json
-    "fromEntries": [{ "params": [{ "type": "array" }], "returns": { "type": "object" } }],
-```
+Implemented as a `CODE_RETURNS` entry in `builtin-rules.ts` (the return-recompute
+escape hatch `merge` uses), **not** a plain `$tvar` template: `unifyTemplate`
+can't bind a var nested inside a tuple/object, so a template like
+`array items [string, V]` never binds `V` and collapses to `any`. A
+`pairValueType` helper pulls `V` from the entry element (tuple second slot,
+homogeneous array element, or a per-arm union join) and the rule returns
+`{ type: "object", additionalProperties: V }`, degrading to a bare object when
+`V` is unknown.
 
-Target: `fromEntries : ([string, V][]) -> { [string]: V }` — projecting the
-pair's second element into `additionalProperties`.
+The param stays permissive (`{ "type": "array" }`), *not* the strict
+`[string, V][]` from the target signature: a closed 2-tuple param would reject
+`fromEntries(entries(obj))`, since `entries` yields an open `array items array`.
+All the precision lives in the return.
 
-**This needs engine work, not just a signature edit.** A plain `$tvar` template
-can't express it today: `unifyTemplate` in `builtin-rules.ts` only binds type
-variables nested in a bare `$tvar`, an `array items` template, or a `$fnType` —
-there is no tuple (`prefixItems`) or object (`additionalProperties`) case, so a
-var inside `[string, V]` falls through to the plain `isSubschema` branch, never
-binds, and collapses to `any`. Two options:
-
-- Add a `CODE_RETURNS` entry keyed on `fromEntries` (the return-recompute
-  escape hatch that `merge` already uses — normal overload pass for arg/arity
-  diagnostics, then recompute the return structurally). Preferred.
-- Or add a tuple case to `unifyTemplate` so the plain template resolves.
-
-Files: `spec/builtins.json`, `typescript/src/check/builtin-rules.ts`
-(the `CODE_RETURNS` table).
+Files touched: `typescript/src/check/builtin-rules.ts` (`CODE_RETURNS` +
+`pairValueType`), tests in `typescript/test/check/builtins.test.ts`.
 
 ## 2. Audit sibling object-producing builtins
 
@@ -76,8 +73,8 @@ is engine plumbing, not a new schema construct.
 
 ## Landing checklist
 
-- `fromEntries` projects the value type into `additionalProperties` (via a
-  `CODE_RETURNS` rule or an extended `unifyTemplate`).
+- [x] `fromEntries` projects the value type into `additionalProperties` (via a
+  `CODE_RETURNS` rule).
 - Object-producing builtins audited (`merge` already done); `values`/`entries`
   bare returns reduced where feasible.
 - `findIndex`/`indexOf` sentinel decision made (`integer | null` or keep `-1`)

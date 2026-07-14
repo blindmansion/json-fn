@@ -337,6 +337,42 @@ describe("Section F — builtin signatures", () => {
     });
   });
 
+  describe("structural fromEntries (arg-dependent return)", () => {
+    const errs = (mod: JSONType) =>
+      checkModule(mod as Record<string, JSONType>, BT).filter((d) => d.severity === "error");
+    // An array of `[string, v]` entry pairs (a closed 2-tuple element).
+    const entryArr = (v: Schema): Schema => ({
+      type: "array",
+      items: { type: "array", prefixItems: [S, v] },
+    });
+    const mapOf = (v: Schema): Schema => ({ type: "object", additionalProperties: v });
+    const fe = (param: Schema, returns: Schema) =>
+      body(["es"], { params: [param], returns }, call("fromEntries", { $var: "es" }));
+
+    test("projects the pair value type into additionalProperties", () => {
+      expect(errs({ f: fe(entryArr(I), mapOf(I)) })).toEqual([]);
+    });
+
+    test("a wrong declared value type is caught", () => {
+      expect(errs({ f: fe(entryArr(I), mapOf(S)) }).length).toBeGreaterThan(0);
+    });
+
+    test("a union of pair value types joins into the map value", () => {
+      // Entries whose values are `integer | string` produce `{ [string]: integer | string }`.
+      const mixed: Schema = { anyOf: [I, S] };
+      expect(errs({ f: fe(entryArr(mixed), mapOf(mixed)) })).toEqual([]);
+      expect(errs({ f: fe(entryArr(mixed), mapOf(I)) }).length).toBeGreaterThan(0);
+    });
+
+    test("an untyped entry array degrades to a bare object, not an error", () => {
+      // `entries(obj)` is `array items array` with no pair element type, so the
+      // result is a plain object — no precise value, but still an object.
+      const r = synthB(call("fromEntries", call("entries", { a: 1 })));
+      expect(classifySchema(r.type)).toBe(SchemaKind.Object);
+      expect(r.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+    });
+  });
+
   describe("escape-hatch rule floors", () => {
     const errs = (expr: JSONType) => synthB(expr).diagnostics.filter((d) => d.severity === "error");
 
