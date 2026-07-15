@@ -55,6 +55,33 @@ describe("unionOf", () => {
   test("a nested any arm absorbs the union", () => {
     expect(unionOf([{ type: "string" }, { anyOf: [{ type: "number" }, true] }])).toBe(true);
   });
+
+  test("removes scalar literals covered by primitive arms regardless of order", () => {
+    expect(unionOf([{ const: 0 }, { type: "integer" }])).toEqual({ type: "integer" });
+    expect(unionOf([{ type: "number" }, { const: 1 }])).toEqual({ type: "number" });
+    expect(unionOf([{ const: "x" }, { type: "string" }])).toEqual({ type: "string" });
+    expect(unionOf([{ type: "boolean" }, { const: true }])).toEqual({ type: "boolean" });
+    expect(unionOf([{ const: null }, { type: "null" }])).toEqual({ type: "null" });
+  });
+
+  test("removes finite literal arms covered by enums and type-array unions", () => {
+    expect(unionOf([{ const: "a" }, { enum: ["a", "b"] }])).toEqual({ enum: ["a", "b"] });
+    expect(unionOf([{ enum: [1, 2] }, { type: ["integer", "string"] }])).toEqual({
+      type: ["integer", "string"],
+    });
+  });
+
+  test("keeps literals not definitely covered by another arm", () => {
+    expect(unionOf([{ const: 0 }, { type: "string" }])).toEqual({
+      anyOf: [{ const: 0 }, { type: "string" }],
+    });
+    expect(unionOf([{ const: 0 }, { type: "integer", minimum: 1 }])).toEqual({
+      anyOf: [{ const: 0 }, { type: "integer", minimum: 1 }],
+    });
+    expect(unionOf([{ enum: ["a", 1] }, { type: "string" }])).toEqual({
+      anyOf: [{ enum: ["a", 1] }, { type: "string" }],
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------

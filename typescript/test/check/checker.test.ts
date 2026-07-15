@@ -1167,7 +1167,7 @@ describe("synth: control-flow unions", () => {
       path: [],
     };
     expect(synth({ $if: { $var: "x" }, $then: "d", $else: { $var: "x" } }, nctx)).toEqual({
-      anyOf: [{ type: "string" }, { const: "" }, { type: "null" }],
+      anyOf: [{ type: "string" }, { type: "null" }],
     });
   });
 });
@@ -1195,14 +1195,13 @@ describe("synth: short-circuit $and / $or are value-returning", () => {
   });
 
   test("$or over a nullable subject drops null from the non-final operand", () => {
-    // The null-coalescing idiom: `(x: string | null) || "def"` is `string | "def"`.
+    // The null-coalescing idiom: `(x: string | null) || "def"` is `string`;
+    // the primitive arm already contains the literal fallback.
     const nctx: CheckContext = {
       ...ctx,
       env: { lookupType: (n) => (n === "x" ? { type: ["string", "null"] } : undefined) },
     };
-    expect(synth({ $or: [{ $var: "x" }, "def"] }, nctx)).toEqual({
-      anyOf: [{ type: "string" }, { const: "def" }],
-    });
+    expect(synth({ $or: [{ $var: "x" }, "def"] }, nctx)).toEqual({ type: "string" });
   });
 
   test("$and over a nullable subject keeps only its falsy slice, plus the tail", () => {

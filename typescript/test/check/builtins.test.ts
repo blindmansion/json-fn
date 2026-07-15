@@ -225,9 +225,9 @@ describe("Section F — builtin signatures", () => {
       };
       const r = synthB(call("reduce", sum, 0, [1, 2, 3]));
       expect(r.diagnostics).toEqual([]);
-      // U joins the literal init `0` with the accumulator return, so the result
-      // is (equivalent to) integer — not pinned to the narrow `const 0`.
-      expect(isSubschema(r.type, I) && isSubschema(I, r.type)).toBe(true);
+      // U joins the literal init `0` with the integer accumulator return; union
+      // normalization drops the redundant literal arm.
+      expect(r.type).toEqual(I);
     });
 
     test("find/findIndex are T|null / integer|null; some/every are boolean", () => {

@@ -476,9 +476,49 @@ function mergeSchemas(a: Schema, b: Schema, defs: Defs): Schema {
   return mergeObjects(asObject(ra), asObject(rb));
 }
 
-// Build a union schema from branch/arm types, flattening + deduping. Kept
-// deliberately simple (an `anyOf`, which `subsumes` handles); the shorthand
-// printer owns the §2.3 enum/type-array canonicalization.
+// Conservative, defs-free membership for union normalization. This deliberately
+// understands only finite literal schemas, unrefined primitives, and unions of
+// those: refs and refined/structural schemas need the full subsumption engine.
+function simpleLiteralMatches(value: JSONType, schema: Schema): boolean {
+  const kind = classifySchema(schema);
+  if (kind === SchemaKind.Const) return deepEqual(value, asObject(schema).const!);
+  if (kind === SchemaKind.Enum) {
+    return literalValues(schema).some((candidate) => deepEqual(value, candidate));
+  }
+  if (kind === SchemaKind.Union) {
+    return (unionArms(schema) ?? []).some((arm) => simpleLiteralMatches(value, arm));
+  }
+  if (kind !== SchemaKind.Primitive) return false;
+
+  const object = asObject(schema);
+  if (Object.keys(object).some((key) => key !== "type")) return false;
+  switch (object.type) {
+    case "null":
+      return value === null;
+    case "boolean":
+      return typeof value === "boolean";
+    case "integer":
+      return typeof value === "number" && Number.isInteger(value);
+    case "number":
+      return typeof value === "number";
+    case "string":
+      return typeof value === "string";
+    default:
+      return false;
+  }
+}
+
+function literalArmCoveredBy(schema: Schema, candidate: Schema): boolean {
+  const kind = classifySchema(schema);
+  return (
+    (kind === SchemaKind.Const || kind === SchemaKind.Enum) &&
+    literalValues(schema).every((value) => simpleLiteralMatches(value, candidate))
+  );
+}
+
+// Build a union schema from branch/arm types, flattening, deduping, and removing
+// finite literal arms already covered by another directly-understood arm. The
+// shorthand printer owns the broader §2.3 enum/type-array canonicalization.
 function unionOf(schemas: Schema[]): Schema {
   const arms: Schema[] = [];
   const add = (s: Schema): boolean => {
@@ -496,9 +536,12 @@ function unionOf(schemas: Schema[]): Schema {
   for (const s of schemas) {
     if (add(s)) return true;
   }
-  if (arms.length === 0) return false;
-  if (arms.length === 1) return arms[0]!;
-  return { anyOf: arms };
+  const reduced = arms.filter(
+    (arm, i) => !arms.some((candidate, j) => i !== j && literalArmCoveredBy(arm, candidate)),
+  );
+  if (reduced.length === 0) return false;
+  if (reduced.length === 1) return reduced[0]!;
+  return { anyOf: reduced };
 }
 
 export type { Schema, Defs, ApMode, FnTypeShape, Bound };
