@@ -809,6 +809,23 @@ describe("Section F — builtin signatures", () => {
   });
 
   describe("through the module checker", () => {
+    const namedMapModule = (
+      callbackParams: Schema[],
+      callbackReturn: Schema,
+      mainReturn: Schema,
+    ): Record<string, JSONType> => ({
+      callback: body(
+        ["value", "index"],
+        { params: callbackParams, returns: callbackReturn },
+        { $var: "value" },
+      ),
+      main: body(
+        [],
+        { params: [], returns: mainReturn },
+        call("map", { $var: "callback" }, [1, 2]),
+      ),
+    });
+
     test("map/add flow an integer[] cleanly to a declared integer[] return", () => {
       const mod = {
         doubleAll: body(
@@ -838,6 +855,44 @@ describe("Section F — builtin signatures", () => {
       const diags = checkModule(mod, BT);
       expect(diags.length).toBeGreaterThan(0);
       expect(diags[0]!.path).toEqual(["wrong", "$return"]);
+    });
+
+    test("accepts a named callback matching the final instantiated type", () => {
+      expect(checkModule(namedMapModule([I, I], I, arrOfInt), BT)).toEqual([]);
+    });
+
+    test("accepts a contravariantly broader named callback", () => {
+      const N: Schema = { type: "number" };
+      const mod = {
+        callback: body(["value", "index"], { params: [N, I], returns: { type: "boolean" } }, true),
+        main: body(
+          [],
+          { params: [], returns: arrOfInt },
+          call("filter", { $var: "callback" }, [1, 2]),
+        ),
+      };
+      expect(checkModule(mod, BT)).toEqual([]);
+    });
+
+    test("rejects a named callback narrower than the final data type", () => {
+      const result = checkModule(namedMapModule([S, I], S, { type: "array", items: S }), BT);
+      expect(result).toContainEqual(
+        expect.objectContaining({
+          path: ["main", "$return", "$args[0]"],
+          actual: { $fnType: { params: [S, I], returns: S } },
+          expected: { $fnType: { params: [I, I], returns: S } },
+          severity: "error",
+        }),
+      );
+    });
+
+    test("infers a named callback's return into the map result", () => {
+      const strArr: Schema = { type: "array", items: S };
+      const mod = {
+        callback: body(["value", "index"], { params: [I, I], returns: S }, "value"),
+        main: body([], { params: [], returns: strArr }, call("map", { $var: "callback" }, [1, 2])),
+      };
+      expect(checkModule(mod, BT)).toEqual([]);
     });
   });
 });

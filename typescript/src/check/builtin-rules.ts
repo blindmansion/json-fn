@@ -195,9 +195,11 @@ function unifyTemplateInto(
     const a = fnShape(asObject(template));
     const b = fnShape(asObject(resolved));
     if (a.params.length !== b.params.length) return false;
-    for (let i = 0; i < a.params.length; i++) {
-      if (!unifyTemplateInto(a.params[i]!, b.params[i]!, bindings, ctx)) return false;
-    }
+    // Callback parameters are contravariant constraints, not inference
+    // sources. Bind output variables from the covariant return, then validate
+    // the complete concrete function against the finally instantiated type.
+    // Data arguments therefore determine T in `(T) -> U`, while the callback
+    // return can still determine U.
     return unifyTemplateInto(a.returns, b.returns, bindings, ctx);
   }
 
@@ -246,8 +248,9 @@ function inferLambdaReturn(body: JSONType, expectedFn: Schema, ctx: CheckContext
   return ret;
 }
 
-// Trial: can this overload accept the arguments? Binds type variables from the
-// concrete (non-lambda) args; lambdas are deferred to `applyOverload`. Returns
+// Trial: can this overload accept the arguments? Synthesizes every concrete
+// argument first, then binds from all of them before validating any one against
+// its instantiated parameter. Lambdas are deferred to `applyOverload`. Returns
 // the bindings on success, null on a concrete mismatch or arity failure. Runs
 // silently — diagnostics are emitted only for the chosen overload.
 function tryBindOverload(
@@ -262,13 +265,22 @@ function tryBindOverload(
   }
   const bindings: Bindings = {};
   const silent: CheckContext = { ...ctx, diagnostics: [] };
+  const concrete: { param: Schema; schema: Schema }[] = [];
+
   for (let i = 0; i < argExprs.length; i++) {
     const param = paramAt(sig, i);
     if (param === null) return null;
     if (isBody(argExprs[i]!)) continue; // lambda: defer
-    const argSchema = synth(argExprs[i]!, silent);
-    if (!unifyTemplate(param, argSchema, bindings, ctx)) return null;
+    concrete.push({ param, schema: synth(argExprs[i]!, silent) });
   }
+
+  for (const arg of concrete) {
+    if (!unifyTemplate(arg.param, arg.schema, bindings, ctx)) return null;
+  }
+  for (const arg of concrete) {
+    if (!isSubschema(arg.schema, instantiate(arg.param, bindings), ctx.defs)) return null;
+  }
+
   return bindings;
 }
 
@@ -278,8 +290,10 @@ function applyOverload(sig: BuiltinSig, argExprs: JSONType[], ctx: CheckContext)
   const arityOk = checkArity(sig, argExprs.length, ctx);
   const bindings: Bindings = {};
   const lambdas: number[] = [];
+  const concrete: { param: Schema; schema: Schema; ctx: CheckContext }[] = [];
 
-  // Pass 1 — concrete args bind the input type variables.
+  // Pass 1 — synthesize every concrete arg without validating against bindings
+  // that later arguments may still widen.
   for (let i = 0; i < argExprs.length; i++) {
     const param = paramAt(sig, i);
     const actx = at(ctx, `$args[${i}]`);
@@ -291,13 +305,21 @@ function applyOverload(sig: BuiltinSig, argExprs: JSONType[], ctx: CheckContext)
       lambdas.push(i);
       continue;
     }
-    const argSchema = synth(argExprs[i]!, actx);
-    unifyTemplate(param, argSchema, bindings, ctx);
-    const inst = instantiate(param, bindings);
-    if (!isSubschema(argSchema, inst, ctx.defs)) reportMismatch(actx, argSchema, inst);
+    concrete.push({ param, schema: synth(argExprs[i]!, actx), ctx: actx });
   }
 
-  // Pass 2 — lambdas, now that input variables are known. Their returns bind
+  // Pass 2 — collect one final binding environment from all concrete args.
+  for (const arg of concrete) {
+    unifyTemplate(arg.param, arg.schema, bindings, ctx);
+  }
+
+  // Pass 3 — validate every concrete arg against that final environment.
+  for (const arg of concrete) {
+    const inst = instantiate(arg.param, bindings);
+    if (!isSubschema(arg.schema, inst, ctx.defs)) reportMismatch(arg.ctx, arg.schema, inst);
+  }
+
+  // Pass 4 — lambdas, now that input variables are known. Their returns bind
   // the output variables (or are checked against a concrete return template).
   // Skip this entirely when arity was wrong: a missing argument leaves input
   // type variables unbound, so lambda params degrade to `any` and typing the
