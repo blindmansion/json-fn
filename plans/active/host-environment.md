@@ -2,13 +2,15 @@
 
 ## Goal
 
-An operator defines an **environment** — a bundle of named types, typed
-capabilities, and an entrypoint contract — and hands it to both the checker and
-the runtime. An agent then writes guest `.jfn` code against that environment:
+An operator defines an **environment** — a bundle of named types, direct
+callable contracts, typed effect capabilities, and an entrypoint contract — and
+hands it to both the checker and the runtime. An agent then writes guest `.jfn`
+code against that environment:
 
 - it references the operator's types as if they were built in;
-- it calls the operator's capabilities and gets precise result types back, so it
-  understands the API surface it is coding against; and
+- it calls the operator's direct functions and effect capabilities and gets
+  precise result types back, so it understands the API surface it is coding
+  against; and
 - it implements an entrypoint whose signature the operator declared.
 
 The information flows operator → agent. The operator is the source of truth for
@@ -30,6 +32,11 @@ This use case is the strongest driver for the typed environment (a large,
 complex capability surface the agent must understand) and for `Task<A>` (results
 pipelined through `bind` are useless as opaque `Task`). It also adds a durable
 execution requirement covered by workstream B6.
+
+The portable callable format and host-language type-rule extension point are
+planned separately in [callable-contracts.md](callable-contracts.md). The
+cross-plan sequencing is summarized in
+[typed-environment-roadmap.md](typed-environment-roadmap.md).
 
 ## Context in the code
 
@@ -137,26 +144,50 @@ the `Task` erasure.
 
 ## Plan
 
-Six workstreams. B1 is foundational and small; B2–B5 are a co-dependent epic
-that only delivers the typed-environment goal together. B6 is the durable driver
-for the orchestration use case; it builds on the same primitives but is
-independent of the type work and can proceed in parallel.
+B1 is foundational and small. B1.5 establishes the callable-contract and
+host-language rule substrate needed before operators can add typed direct
+functions or complex HOFs. B2–B5 are a co-dependent epic that only delivers the
+typed-environment goal together. B6 is the durable driver for the orchestration
+use case; it builds on the same primitives but is independent of most type work
+and can proceed in parallel.
 
 ```
-B1 unify def pool ─┬─> B2 effect manifest ─┬─> B3 Task<A> index ─┐
-                   │                        │                     ├─> B5 migrate examples
-                   └────────────────────────┴─> B4 entry contract ┘
+B1 unify def pool ─> B1.5 callable contracts/rules ─┬─> B2 effect manifest ─┐
+                                                    ├─> B3 Task<A> index ───┼─> B4 environment/entry ─> B5
+                                                    └─> host functions ─────┘
 
 B6 durable driver   (uses serializeTask/hydrateTask + the manifest; parallel track)
 ```
 
 ### B1 — Unify the definition pool
 
-Thread builtin `$defs` (and later the manifest's `$defs`) into `runtime.defs`,
+Thread builtin `$defs` (and later the environment's `$defs`) into `runtime.defs`,
 which today carries module `$types` only. Fix precedence explicitly:
-`builtin $defs` < `manifest $defs` < `module $types`. Everything that resolves
+`builtin $defs` < `environment $defs` < `module $types`. Everything that resolves
 `$ref` at the runtime boundary depends on the runtime and checker agreeing on
 this pool. Mostly plumbing in `evaluate.ts` and the runtime-contract context.
+
+### B1.5 — Portable callable contracts and type rules
+
+Complete the substrate in
+[callable-contracts.md](callable-contracts.md) before B2–B4:
+
+- every core or host callable has validated portable fallback signatures;
+- complex call-dependent typing is named by an optional, namespaced rule;
+- checker entrypoints receive an injected rule registry instead of switching on
+  a closed set of rule names;
+- current hardcoded rule floors and name-based return refinements migrate to
+  that mechanism; and
+- core and operator callable tables merge through a public, explicit API.
+
+An unavailable rule retains its fallback checks and reports a coverage
+degradation. This keeps the environment useful across implementations while
+accepting that precise rules for `pipe`, `perform`, `bind`, or a host-defined
+HOF must be implemented in the host language.
+
+The HOF correctness work in
+[hof-type-corrections.md](hof-type-corrections.md) is mostly independent.
+`flatMap` is intentionally the first precision rule built on B1.5.
 
 ### B2 — Effect manifest
 
@@ -165,8 +196,8 @@ positional argument schemas and its result schema, reusing the same tractable
 schema fragment and `$defs` vocabulary as the checker and runtime validator.
 
 - **Checker:** a literal `perform("name", args)` checks its arguments and
-  recovers the effect's result schema (a code rule alongside the existing
-  `handle` rule in `typescript/src/check/builtin-rules.ts`).
+  recovers the effect's result schema through the environment-aware
+  `core.perform` rule established by B1.5.
 - **Runtime:** `runTask` validates outgoing effect arguments before invoking the
   capability and validates the returned value before resuming, using
   `runtime-contract.ts`. No schema lives inside a capability function.
@@ -190,14 +221,25 @@ The orchestration use case makes this concrete — a pipeline that binds a
 subagent `Handle` and then its `AgentResult` is unusable if both erase to opaque
 `Task`.
 
-### B4 — Environment and entry contract
+### B4 — Environment, direct functions, and entry contract
 
-Package `{ $defs, effects, entry }` as the operator-owned artifact, where
-`entry` declares `{ name, params, returns }`. `runTask` (and the CLI) take the
-environment; the checker verifies the guest entry matches the declared signature
-and validates the entry/initial-state arguments at the boundary. Optional
-stretch: hand the agent a capability record derived from the manifest so it
-never writes raw `perform` strings.
+Package `{ $defs, functions, effects, entry }` as the operator-owned artifact:
+
+- `functions` declares direct host-callable contracts using B1.5's portable
+  fallback signatures and optional rule IDs;
+- `effects` declares host capability argument and result schemas;
+- `entry` declares `{ name, params, returns }`; and
+- `$defs` supplies the shared domain vocabulary used by all three.
+
+Runtime function implementations, effect capabilities, and host-language type
+rules remain a separate host configuration matched against this portable
+artifact. `runTask` (and the CLI) take the environment; the checker verifies the
+guest entry and validates entry/initial-state arguments at the boundary.
+Tractable direct host-function arguments/results use the existing runtime
+contract machinery.
+
+Optional stretch: hand the agent a capability record derived from the effect
+manifest so it never writes raw `perform` strings.
 
 ### B5 — Migrate the examples
 
@@ -253,6 +295,14 @@ const env = {
                              battery: { type: "integer", minimum: 0, maximum: 100 } } },
     State:   { type: "object", required: ["config", "mode"], properties: { /* … */ } },
   },
+  functions: {
+    "reading.label": {
+      signatures: [{
+        params: [{ $ref: "#/$defs/Reading" }],
+        returns: { type: "string" }
+      }]
+    }
+  },
   effects: {
     "sensor.read": { params: [], returns: { anyOf: [{ $ref: "#/$defs/Reading" }, { type: "null" }] } },
     "hvac.set":    { params: [{ $ref: "#/$defs/Mode" }], returns: { type: "null" } },
@@ -263,11 +313,16 @@ const env = {
            returns: { task: { $ref: "#/$defs/State" } } },
 };
 
-await runTask(controller, env, [start, 100], createStdlib(), capabilities);
+await runTask(controller, env, [start, 100], {
+  registry: { ...createStdlib(), "reading.label": readingLabel },
+  capabilities,
+  typeRules,
+});
 ```
 
-The agent no longer declares `Task`, `Reading`, `Mode`, or the `perform`
-wiring — those are injected. Capability results carry their types:
+The agent no longer declares `Task`, `Reading`, `Mode`, direct host-function
+types, or the `perform` wiring — those are injected. Capability results carry
+their types:
 
 ```jfn
 // Reading, Mode, State, and Task<_> come from the environment.
@@ -323,17 +378,23 @@ suspension point:
 
 - **Now (with recenter):** B1. It is small, and it closes a latent soundness gap
   between checker and runtime `$ref` resolution.
-- **Epic:** B2 → B3 → B4 → B5, tracked as one unit.
+- **Callable prerequisite:** B1.5, tracked in
+  `plans/active/callable-contracts.md`.
+- **Epic:** B2 + B3 → B4 → B5, tracked as one unit.
 - **Durable driver:** B6, a parallel track on the same primitives; sequence
   against the orchestration use case rather than the typed-environment milestone.
 
 ## Open decisions
 
-- **Manifest ownership and merging.** The manifest lives in `spec/` as data, but
-  a host must be able to select or extend it. Settle how manifest `$defs` merge
-  with builtin `$defs` and module `$types` in both checker and runtime contexts
-  (the B1 precedence rule is the starting point), and whether effect names are
-  globally qualified.
+- **Environment ownership and merging.** Core contracts live in `spec/`, but a
+  host must be able to select or extend callable and effect contracts. Settle
+  collision policy for names, enforce the B1 definition precedence in checker
+  and runtime, and decide whether host function/effect names are globally
+  qualified.
+- **Type-rule delivery and trust.** Decide how a checker host supplies
+  namespaced rule implementations, how rule API versions are negotiated, and
+  which runtime validations remain possible for a callable whose precise type
+  is computed by host-language code.
 - **`Task<A>` surface.** Whether guest signatures may write a concrete
   `Task<Report>` or only bare `Task` (erased to `Task<unknown>`); whether a
   residual task preserves only its completion type. Start checker-internal with
