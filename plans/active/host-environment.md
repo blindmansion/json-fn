@@ -16,6 +16,21 @@ the environment, and the checker the agent uses is preloaded with it. This
 matters most for capabilities with large API surfaces and complex types, where
 the agent cannot be expected to already know the shapes involved.
 
+### Primary use case: durable agent orchestration
+
+A motivating target is agents writing orchestration scripts that spawn
+subagents. Those subagents run asynchronously and may take minutes or hours; the
+script pipelines their results and spawns further work. The operator defines the
+capabilities for spawning agents and reading their state/output; the guest script
+orchestrates. Such a script must be **durable**: stored, rehydrated, and resumed
+across process boundaries over long periods, not held in a live process while it
+waits.
+
+This use case is the strongest driver for the typed environment (a large,
+complex capability surface the agent must understand) and for `Task<A>` (results
+pipelined through `bind` are useless as opaque `Task`). It also adds a durable
+execution requirement covered by workstream B6.
+
 ## Context in the code
 
 ### The effect kernel
@@ -44,6 +59,28 @@ schemas — arguments and results are untyped `JSONType`.
 `requiredCapabilities` provides name-level admission only (which effect names a
 program can reach). It does not carry types and does not subtract effects
 discharged by an in-language `handle`.
+
+### Durability primitives already exist
+
+When a task suspends on an effect, `stepTask` folds the remaining work into a
+plain-JSON `resume` closure (escaping-closure capture, `buildStepResume` in
+`task.ts`), so continuations are self-contained JSON. `serializeTask` /
+`hydrateTask` (`typescript/src/host.ts`) round-trip a task across process
+boundaries; `hydrateTask` re-marks `@task` nodes as inert (the `raw()` marks live
+in a `WeakSet` and do not survive JSON). The kernel was designed for
+suspend → persist → rehydrate → resume.
+
+Two facts constrain the orchestration use case:
+
+- **`stepTask` suspends on one effect at a time** — a task has a single
+  continuation stack, not parallel branches. Real concurrency therefore lives in
+  the host: `spawn` returns a handle immediately (subagent runs out-of-band), and
+  a join effect (`await` / `awaitAll`) is the suspension point. The script owns
+  orchestration; the host owns concurrency and durability.
+- **`runTask` is run-to-completion in a single process.** It `await`s each
+  capability inline and never persists mid-run. It suits fast effects, not an
+  hours-long `await`. Its own doc comment already notes the at-least-once /
+  idempotency-key reality of durable resume.
 
 ### The shared runtime validator already exists
 
@@ -100,13 +137,17 @@ the `Task` erasure.
 
 ## Plan
 
-Five workstreams. B1 is foundational and small; B2–B5 are a co-dependent epic
-that only delivers the goal together.
+Six workstreams. B1 is foundational and small; B2–B5 are a co-dependent epic
+that only delivers the typed-environment goal together. B6 is the durable driver
+for the orchestration use case; it builds on the same primitives but is
+independent of the type work and can proceed in parallel.
 
 ```
 B1 unify def pool ─┬─> B2 effect manifest ─┬─> B3 Task<A> index ─┐
                    │                        │                     ├─> B5 migrate examples
                    └────────────────────────┴─> B4 entry contract ┘
+
+B6 durable driver   (uses serializeTask/hydrateTask + the manifest; parallel track)
 ```
 
 ### B1 — Unify the definition pool
@@ -145,6 +186,9 @@ generics. Track only the completion type, not an effect set.
 
 This is a co-requisite of B2, not optional follow-up: without it, the manifest's
 result types are known but never reach the agent's `bind`/`do` continuations.
+The orchestration use case makes this concrete — a pipeline that binds a
+subagent `Handle` and then its `AgentResult` is unusable if both erase to opaque
+`Task`.
 
 ### B4 — Environment and entry contract
 
@@ -161,6 +205,39 @@ Convert `thermostat` and `dungeon` to consume the environment. Delete the
 `type Task = { "@task": string, ... }` stand-ins, the guest-authored
 `dev()`/`io()` wiring, and the `-checked` cousin where the `Task` erasure was its
 only reason to exist. This is the acceptance test for the epic.
+
+### B6 — Durable orchestration driver
+
+A driver, distinct from run-to-completion `runTask`, that persists and resumes a
+workflow across process boundaries. It builds on `stepTask` and
+`serializeTask`/`hydrateTask`, adding:
+
+- **A suspension-point policy.** The manifest (or host config) marks which
+  effects suspend (e.g. `agent.await`, `agent.awaitAll`) versus which run inline
+  and fast (e.g. `agent.spawn`, `log`). On a suspending effect the driver
+  persists the continuation and returns control instead of blocking; on an
+  external completion event it rehydrates and resumes.
+- **A resume-continuation serializer** alongside `serializeTask`/`hydrateTask`.
+  `stepTask`'s `resume` is self-contained JSON; the driver needs to persist and
+  restore it (re-marking `@task` nodes via the existing `remark` walk), not only
+  a top-level task value.
+- **Workflow/handle identity and storage.** A store maps a subagent `Handle` to
+  the suspended workflow it should resume, holds the persisted continuation, and
+  records completion/failure. Storage is the host's; the driver defines the
+  contract it needs.
+- **Concurrency/join conventions.** Because the kernel suspends one effect at a
+  time, fan-out is `spawn`-all-then-join: `spawn` returns a handle immediately and
+  standard `awaitAll`/`awaitAny` join capabilities resolve when the underlying
+  subagents finish. These conventions belong in the manifest.
+- **Idempotency / at-least-once guidance.** A crash between running a capability
+  and persisting the resumed workflow reruns the effect on recovery. Capabilities
+  with external side effects (spawning especially) need idempotency keys or
+  deterministic handles. Promote this from the current `runTask` comment into the
+  contract.
+
+The same script runs under a mock in-language `handle` (deterministic tests with
+canned results) and the durable driver (production), because effects bubble to
+whichever handler is outermost. That testability is a property to preserve.
 
 ## Target state
 
@@ -205,11 +282,50 @@ loop: (st: State, fuel: integer) -> Task<State> =>
 declared entry signature; outgoing args and capability results are validated at
 runtime.
 
+### Orchestration target state
+
+With the same machinery plus B6, an orchestration script references injected
+types (`AgentSpec`, `Handle`, `AgentResult`, `Report`) and pipelines subagents.
+`spawn` is fast and non-blocking; each `await`/`awaitAll` is a durable
+suspension point:
+
+```jfn
+// AgentSpec, Handle, AgentResult, Report and the effect signatures are injected.
+{
+  spawn:    (spec: AgentSpec) -> Task<Handle>        => perform("agent.spawn", [spec]),
+  await:    (h: Handle)       -> Task<AgentResult>   => perform("agent.await", [h]),
+  awaitAll: (hs: Handle[])    -> Task<AgentResult[]> => perform("agent.awaitAll", [hs]),
+
+  // pipelining: researcher output feeds the writer
+  writeReport: (topic: string) -> Task<Report> => do {
+    rh       <- spawn({ role: "researcher", input: topic }),
+    research <- await(rh),                       // research : AgentResult
+    wh       <- spawn({ role: "writer", input: research.output }),
+    draft    <- await(wh),
+    pure({ topic: topic, draft: draft.output })
+  },
+
+  // fan-out / fan-in: spawn all (concurrent out-of-band), then one join
+  spawnAll: (specs: AgentSpec[]) -> Task<Handle[]> =>
+    if length(specs) == 0 then pure([])
+    else bind(spawn(head(specs)!), (h) =>
+         bind(spawnAll(tail(specs)), (rest) => pure(concat([h], rest)))),
+
+  research: (topics: string[]) -> Task<Report[]> => do {
+    handles <- spawnAll(map((t) => { role: "researcher", input: t }, topics)),
+    results <- awaitAll(handles),                // suspends until all finish
+    pure(map((r) => { topic: r.topic, draft: r.output }, results))
+  }
+}
+```
+
 ## Scope
 
 - **Now (with recenter):** B1. It is small, and it closes a latent soundness gap
   between checker and runtime `$ref` resolution.
 - **Epic:** B2 → B3 → B4 → B5, tracked as one unit.
+- **Durable driver:** B6, a parallel track on the same primitives; sequence
+  against the orchestration use case rather than the typed-environment milestone.
 
 ## Open decisions
 
@@ -224,3 +340,7 @@ runtime.
   bare `Task` in guest code.
 - **Capability record delivery.** Whether B4 hands the agent a manifest-derived
   capability record or leaves it writing `perform` directly.
+- **Suspension-point declaration.** Whether an effect being a suspension point is
+  declared in the manifest, in host driver config, or inferred — and how join
+  capabilities (`awaitAll`/`awaitAny`) are represented so the driver and the
+  checker agree on them.
