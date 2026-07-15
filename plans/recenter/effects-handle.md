@@ -34,7 +34,7 @@ rule; validation cannot simply treat every current return path as `Report`.
   unmatched effects bubble and the checker synthesizes top.
 - Add a three-argument annotated form
   `handle(task, handlers, raw(resultSchema))`. In shorthand it is written
-  `handle task with { ... } -> ResultType`. The checker treats the third
+  `handle task -> ResultType with { ... }`. The checker treats the third
   argument as type syntax, not as an inferred guest value, and synthesizes that
   schema as the type of the immediate `handle` expression.
 - The **runtime validates the produced value against that annotation at the
@@ -63,9 +63,9 @@ contract unsound or unusable.
 ### Canonical and shorthand form
 
 ```jfn
-handle task with {
+handle task -> string with {
   "read": (resume) => resume("value")
-} -> string
+}
 ```
 
 lowers to:
@@ -98,7 +98,7 @@ The immediate result of `handle` is therefore a function, not `Report`. Its
 annotation must describe that value, for example:
 
 ```jfn
-(handle task with { ... } -> (ScriptState) -> Report)(initialState)
+(handle task -> (ScriptState) -> Report with { ... })(initialState)
 ```
 
 Consequently the runtime validator cannot stop at concrete data schemas.

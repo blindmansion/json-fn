@@ -35,6 +35,9 @@ import {
   fnShape,
   mergeSchemas,
   objectValueType,
+  collectSchemaRefs,
+  properties,
+  apMode,
 } from "./schema";
 import { isSubschema } from "./subsumption";
 
@@ -288,7 +291,6 @@ type RuleFloor = { arity: number; returns: Schema; shapes?: Record<number, Schem
 const RULE_FLOORS: Record<string, RuleFloor> = {
   pipe: { arity: 2, returns: true, shapes: { 0: { type: "array" } } },
   apply: { arity: 2, returns: true, shapes: { 1: { type: "array" } } },
-  handle: { arity: 2, returns: true },
   perform: {
     arity: 2,
     returns: TASK_FLOOR,
@@ -306,6 +308,8 @@ const RULE_FLOORS: Record<string, RuleFloor> = {
 // leniency here mirrors what an untyped escape hatch used to allow. Shape
 // checks are skipped when arity is already wrong (one mistake, one diagnostic).
 function synthRule(rule: string, argExprs: JSONType[], ctx: CheckContext): Schema {
+  if (rule === "handle") return synthHandle(argExprs, ctx);
+
   const argTypes = argExprs.map((a, i) => synth(a, at(ctx, `$args[${i}]`)));
   const floor = RULE_FLOORS[rule];
   if (floor === undefined) {
@@ -331,6 +335,114 @@ function synthRule(rule: string, argExprs: JSONType[], ctx: CheckContext): Schem
     reportDegradation(ctx, `builtin rule "${rule}" has no precise return type`);
   }
   return floor.returns;
+}
+
+// `handle(task, handlers)` is deliberately partial and imprecise. The
+// three-argument form carries a raw schema contract and is total at runtime, so
+// its immediate result type is exactly that schema.
+function synthHandle(argExprs: JSONType[], ctx: CheckContext): Schema {
+  for (let i = 0; i < Math.min(argExprs.length, 2); i++) {
+    synth(argExprs[i]!, at(ctx, `$args[${i}]`));
+  }
+
+  if (argExprs.length !== 2 && argExprs.length !== 3) {
+    for (let i = 2; i < argExprs.length; i++) synth(argExprs[i]!, at(ctx, `$args[${i}]`));
+    report(ctx, `Expected 2 or 3 arguments, got ${argExprs.length}.`);
+    return true;
+  }
+
+  if (argExprs.length === 2) {
+    reportDegradation(ctx, 'builtin rule "handle" has no precise return type');
+    return true;
+  }
+
+  const annotationExpr = argExprs[2]!;
+  if (
+    !isSchemaObject(annotationExpr) ||
+    Object.keys(annotationExpr).length !== 1 ||
+    !("$raw" in annotationExpr)
+  ) {
+    report(at(ctx, "$args[2]"), "annotated handle requires a raw result-type schema");
+    return true;
+  }
+
+  const schema = annotationExpr.$raw!;
+  if (!isTractableHandleSchema(schema)) {
+    report(
+      at(at(ctx, "$args[2]"), "$raw"),
+      "handle result annotation is outside the tractable type fragment",
+    );
+    return true;
+  }
+
+  const refs = new Set<string>();
+  collectSchemaRefs(schema, refs);
+  for (const name of refs) {
+    if (!(name in ctx.defs)) {
+      report(at(at(ctx, "$args[2]"), "$raw"), `reference to undefined type "${name}"`);
+    }
+  }
+  return schema;
+}
+
+function isLiteralSchemaValue(value: JSONType): boolean {
+  return value === null || ["boolean", "number", "string"].includes(typeof value);
+}
+
+// Validate the same recursive schema fragment the shorthand type parser emits.
+// This protects hand-authored canonical JSON; shorthand input is valid by
+// construction.
+function isTractableHandleSchema(schema: Schema): boolean {
+  switch (classifySchema(schema)) {
+    case SchemaKind.Any:
+    case SchemaKind.Never:
+      return true;
+    case SchemaKind.Ref:
+      return typeof asObject(schema).$ref === "string";
+    case SchemaKind.Const:
+      return isLiteralSchemaValue(asObject(schema).const!);
+    case SchemaKind.Enum: {
+      const values = asObject(schema).enum;
+      return Array.isArray(values) && values.every(isLiteralSchemaValue);
+    }
+    case SchemaKind.Union: {
+      const arms = unionArms(schema);
+      return arms !== null && arms.every(isTractableHandleSchema);
+    }
+    case SchemaKind.Primitive:
+      return ["null", "boolean", "number", "integer", "string"].includes(
+        String(asObject(schema).type),
+      );
+    case SchemaKind.Array:
+      return isTractableHandleSchema(itemsSchema(asObject(schema)));
+    case SchemaKind.Tuple: {
+      const object = asObject(schema);
+      const rest = tupleRest(object);
+      return (
+        prefixItems(object).every(isTractableHandleSchema) &&
+        (rest === null || isTractableHandleSchema(rest))
+      );
+    }
+    case SchemaKind.Object: {
+      const object = asObject(schema);
+      const mode = apMode(object);
+      return (
+        Object.values(properties(object)).every(isTractableHandleSchema) &&
+        (mode.kind !== "map" || isTractableHandleSchema(mode.schema))
+      );
+    }
+    case SchemaKind.FnType: {
+      if (!isSchemaObject(asObject(schema).$fnType)) return false;
+      const shape = fnShape(asObject(schema));
+      return (
+        shape.params.every(isTractableHandleSchema) &&
+        (shape.rest === undefined || isTractableHandleSchema(shape.rest)) &&
+        isTractableHandleSchema(shape.returns)
+      );
+    }
+    case SchemaKind.Opaque:
+      return false;
+  }
 }
 
 // A handful of builtins have a data signature good enough for argument checking

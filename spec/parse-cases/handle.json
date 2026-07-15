@@ -54,6 +54,49 @@
           { "get": { "$params": ["resume"], "$return": { "$call": "resume", "$args": [1] } } }
         ]
       }
+    },
+    {
+      "description": "a total handle with a function result annotation",
+      "source": "handle task -> (State) -> Report with {\n  return: (value) => (state) => value\n}",
+      "expected": {
+        "$call": "handle",
+        "$args": [
+          { "$var": "task" },
+          {
+            "return": {
+              "$params": ["value"],
+              "$return": {
+                "$params": ["state"],
+                "$return": { "$var": "value" }
+              }
+            }
+          },
+          {
+            "$raw": {
+              "$fnType": {
+                "params": [{ "$ref": "#/$defs/State" }],
+                "returns": { "$ref": "#/$defs/Report" }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "description": "an unannotated handle remains usable as a cond guard",
+      "source": "cond {\n  handle task with {} -> true,\n  else -> false\n}",
+      "expected": {
+        "$cond": [
+          [
+            {
+              "$call": "handle",
+              "$args": [{ "$var": "task" }, {}]
+            },
+            true
+          ]
+        ],
+        "$else": false
+      }
     }
   ]
 }

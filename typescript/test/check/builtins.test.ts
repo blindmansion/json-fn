@@ -300,6 +300,51 @@ describe("Section F — builtin signatures", () => {
       );
       expect(synthB(call("pipe", [], 1)).type).toBe(true);
     });
+
+    test("annotated handle returns its declared immediate result type", () => {
+      const stateToReport: Schema = {
+        $fnType: { params: [{ type: "object" }], returns: { type: "string" } },
+      };
+      const result = synthB(call("handle", call("pure", 1), {}, { $raw: stateToReport }));
+      expect(result.type).toEqual(stateToReport);
+      expect(result.diagnostics).toEqual([]);
+
+      const applied = synthB(
+        call(call("handle", call("pure", 1), {}, { $raw: stateToReport }), {}),
+      );
+      expect(applied.type).toEqual({ type: "string" });
+      expect(applied.diagnostics).toEqual([]);
+    });
+
+    test("annotated handle requires a raw tractable schema", () => {
+      const missingRaw = synthB(call("handle", call("pure", 1), {}, { type: "string" }));
+      expect(missingRaw.type).toBe(true);
+      expect(missingRaw.diagnostics.some((d) => d.path.join(".") === "$args[2]")).toBe(true);
+
+      const opaque = synthB(call("handle", call("pure", 1), {}, { $raw: { unknown: true } }));
+      expect(opaque.type).toBe(true);
+      expect(opaque.diagnostics.some((d) => d.path.join(".") === "$args[2].$raw")).toBe(true);
+
+      const nestedOpaque = synthB(
+        call("handle", call("pure", 1), {}, { $raw: { type: "array", items: { unknown: true } } }),
+      );
+      expect(nestedOpaque.type).toBe(true);
+      expect(nestedOpaque.diagnostics.some((d) => d.path.join(".") === "$args[2].$raw")).toBe(true);
+    });
+
+    test("annotated handle reports an undefined named result type", () => {
+      const result = synthB(
+        call("handle", call("pure", 1), {}, { $raw: { $ref: "#/$defs/Missing" } }),
+      );
+      expect(result.type).toEqual({ $ref: "#/$defs/Missing" });
+      expect(result.diagnostics).toEqual([
+        {
+          path: ["$args[2]", "$raw"],
+          message: 'reference to undefined type "Missing"',
+          severity: "error",
+        },
+      ]);
+    });
   });
 
   describe("structural merge (merge's arg-dependent return)", () => {

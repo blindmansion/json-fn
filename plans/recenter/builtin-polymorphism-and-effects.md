@@ -184,7 +184,7 @@ effects bubble and its static result stays top. The new annotated form is total:
 an unmatched effect is a runtime contract failure, so no residual task is
 presented as the declared result.
 
-The shorthand is `handle task with { ... } -> ResultType`, lowering to a third
+The shorthand is `handle task -> ResultType with { ... }`, lowering to a third
 `raw(resultSchema)` argument on the builtin call. The schema types the immediate
 result of `handle`. State-handler encodings return a function at that point, so
 their annotation is a function type whose eventual result is `Report`, not

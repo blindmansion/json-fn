@@ -8,9 +8,9 @@ lowers deterministically to that schema, and the schema pretty-prints back.
 - **Types describe JSON values.** The value universe is JSON, so the type
   universe is null / boolean / number / integer / string / arrays / objects,
   plus unions, literals, and refinements over them.
-- **Types live only in signatures.** No standalone value annotations. Checking is
-  derived from signatures (check bodies against declared signatures, check call
-  sites against callee signatures).
+- **Types live only in contracts.** They appear in function signatures and the
+  result contract on a total annotated `handle`; there are no general
+  standalone value annotations. Checking is derived from these contracts.
 - **Every type is also a runtime validator.** The same schema that types a call
   statically validates an `any` value at a function boundary.
 - **The shorthand is a gate.** It can only emit a tractable fragment of JSON
@@ -24,16 +24,18 @@ annotated locals) are tracked in [`plans/type-syntax-deferred.md`](../plans/type
 
 ## 1. Where types appear
 
-Exactly two positions:
+Exactly three positions:
 
 1. **Module-level type declarations** — `type Name = <type>` entries in the
    file's top-level object, lowering to the reserved `$types` sibling (§8).
 2. **Function signatures** — inline param annotations `name: <type>` and a return
    type `-> <type>` on a function literal header (§7).
+3. **Total effect handlers** — `handle task -> <type> with { … }` declares the
+   immediate result contract of the handler.
 
 Type *declarations* are module-top-level only. Type *expressions* (the `<type>`
-grammar, §2–§6) appear in both positions, so they can occur inside nested
-function headers too.
+grammar, §2–§6) appear in all three positions, so they can occur inside nested
+function headers and handler expressions too.
 
 ---
 

@@ -727,7 +727,7 @@ immediately followed by an **adjacent** `-` token (same line, next column).
 Everywhere else `< -` is an ordinary comparison against a negated operand, so a
 `do` result like `r < -1` is unaffected.
 
-### `handle … with { … }` — in-language effect interpreter
+### `handle … (-> Type)? with { … }` — in-language effect interpreter
 
 `handle <task> with { "name": clause, … }` lowers to
 `handle(task, { …clauses… })`. The clause record follows **data-object key
@@ -735,6 +735,12 @@ rules** (§3), so dotted effect names (`io.readLine`), the `"*"` wildcard, and t
 `"return"` clause must be quoted. Clause semantics — named clauses, `"*"`,
 `"return"`, bubbling, and multi-shot `resume` — are specified in the language
 reference.
+
+The total annotated form `handle <task> -> <type> with { … }` lowers the type
+schema as a raw third argument:
+`handle(task, { …clauses… }, raw(<result-schema>))`. The annotation precedes
+`with` so the grammar remains distinct from a `cond` arm whose guard happens to
+be an unannotated `handle` expression.
 
 ```jfn
 handle greet(io) with {
@@ -762,6 +768,7 @@ The printer folds **only exact desugar images**, preserving the
 bijective-by-normal-form guarantee (`parse(print(x)) === x`): a `bind` call whose
 continuation is a function literal prints as `do { … }` (folding nested binds and
 their where-locals back into `<-` / `:` / discard entries), and a `handle` call
-with a literal clause object prints as `handle … with { … }`. Any other shape —
-e.g. a `bind` with a `&`-referenced continuation, or a `handle` whose clauses are
-a computed expression — prints as a plain call.
+with a literal clause object prints as `handle … with { … }`; a third
+`raw(schema)` argument prints as `handle … -> Type with { … }`. Any other
+shape — e.g. a `bind` with a `&`-referenced continuation, or a `handle` whose
+clauses are a computed expression — prints as a plain call.

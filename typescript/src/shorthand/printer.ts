@@ -22,6 +22,7 @@
  */
 
 import type { JSONType } from "../types";
+import { printType } from "./type-printer";
 
 /** Pretty-print canonical json-fn JSON as `.jfn` shorthand source. */
 export function print(node: JSONType): string {
@@ -132,12 +133,17 @@ function renderRef(fn: JSONType, indent: string): Rendered {
  * `callee(args)` application. */
 function renderCall(head: JSONType, args: JSONType[], indent: string): Rendered {
   if (typeof head === "string") {
-    // `handle(task, { …clauses… })` prints as `handle task with { … }` (spec
-    // §13). `handle` is a contextual keyword, so it can never print as a bare
-    // call; this fold is what makes such nodes round-trip. Only a literal
-    // clause object (no `$`-keys) is expressible with `with { … }`.
-    if (head === "handle" && args.length === 2 && isDataObject(args[1]!)) {
-      return renderHandle(args[0]!, args[1] as { [k: string]: JSONType }, indent);
+    // Partial `handle(task, { …clauses… })` and total annotated
+    // `handle(task, { …clauses… }, raw(schema))` print through the contextual
+    // handle syntax. Only a literal clause object is expressible after `with`.
+    if (head === "handle" && (args.length === 2 || args.length === 3) && isDataObject(args[1]!)) {
+      const annotation =
+        args.length === 3 && isPlainObject(args[2]!) && "$raw" in args[2]!
+          ? (args[2]!.$raw as JSONType)
+          : null;
+      if (args.length === 2 || annotation !== null) {
+        return renderHandle(args[0]!, args[1] as { [k: string]: JSONType }, annotation, indent);
+      }
     }
     // Unary negation: `-x`, but only when it cannot fold back into a numeric
     // literal (`-5` would parse as the number, not `neg(5)`).
@@ -311,10 +317,15 @@ function renderDo(entries: DoEntry[], indent: string): Rendered {
 function renderHandle(
   task: JSONType,
   handlers: { [k: string]: JSONType },
+  annotation: JSONType | null,
   indent: string,
 ): Rendered {
   const clauses = renderDataObject(handlers, indent);
-  return { text: `handle ${emit(task, P_BLOCK, indent)} with ${clauses}`, prec: P_BLOCK };
+  const resultType = annotation === null ? "" : ` -> ${printType(annotation)}`;
+  return {
+    text: `handle ${emit(task, P_BLOCK, indent)}${resultType} with ${clauses}`,
+    prec: P_BLOCK,
+  };
 }
 
 /** Whether `value` is a plain object with no `$`-prefixed keys — the shape that

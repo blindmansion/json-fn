@@ -858,16 +858,25 @@ class Parser extends TokenCursor {
     return { $call: "bind", $args: [entry.value, k] };
   }
 
-  /** `handle <task> with { "name": clause, ... }` → `handle(task, clauses)`.
+  /** `handle <task> (-> <type>)? with { "name": clause, ... }` lowers to the
+   * partial two-argument or total annotated three-argument `handle` call.
    * Clause keys follow data-object key rules (dotted names like `io.readLine`
    * and the `*` wildcard need quotes). */
   private parseHandle(): JSONType {
     // `handle` already consumed.
     const task = this.parseExpr();
+    let annotation: Schema | null = null;
+    if (this.peekType() === "arrow") {
+      this.advance();
+      annotation = this.parseTypeExpr();
+    }
     this.expectKeyword("with");
     this.expect("lbrace", "'{' after 'with'");
     const handlers = this.parseDataObject();
-    return { $call: "handle", $args: [task, handlers] };
+    return {
+      $call: "handle",
+      $args: annotation === null ? [task, handlers] : [task, handlers, { $raw: annotation }],
+    };
   }
 
   // ----- raw JSON islands (spec section 3) -----
