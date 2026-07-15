@@ -253,9 +253,45 @@
       }
     ],
     "keys": [{ "params": [{ "type": "object" }], "returns": { "type": "array", "items": { "type": "string" } } }],
-    "values": [{ "params": [{ "type": "object" }], "returns": { "type": "array" } }],
-    "entries": [{ "params": [{ "type": "object" }], "returns": { "type": "array", "items": { "type": "array" } } }],
-    "fromEntries": [{ "params": [{ "type": "array" }], "returns": { "type": "object" } }],
+    "values": [
+      {
+        "typeParams": ["V"],
+        "params": [{ "type": "object", "additionalProperties": { "$tvar": "V" } }],
+        "returns": { "type": "array", "items": { "$tvar": "V" } }
+      }
+    ],
+    "entries": [
+      {
+        "typeParams": ["V"],
+        "params": [{ "type": "object", "additionalProperties": { "$tvar": "V" } }],
+        "returns": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "prefixItems": [{ "type": "string" }, { "$tvar": "V" }],
+            "items": false,
+            "minItems": 2
+          }
+        }
+      }
+    ],
+    "fromEntries": [
+      {
+        "typeParams": ["V"],
+        "params": [
+          {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "prefixItems": [{ "type": "string" }, { "$tvar": "V" }],
+              "items": false,
+              "minItems": 2
+            }
+          }
+        ],
+        "returns": { "type": "object", "additionalProperties": { "$tvar": "V" } }
+      }
+    ],
     "merge": [
       { "params": [{ "type": "object" }, { "type": "object" }], "returns": { "type": "object" } }
     ],

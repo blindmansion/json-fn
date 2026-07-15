@@ -529,7 +529,7 @@ describe("Section F — builtin signatures", () => {
     // An array of `[string, v]` entry pairs (a closed 2-tuple element).
     const entryArr = (v: Schema): Schema => ({
       type: "array",
-      items: { type: "array", prefixItems: [S, v] },
+      items: { type: "array", prefixItems: [S, v], items: false, minItems: 2 },
     });
     const mapOf = (v: Schema): Schema => ({ type: "object", additionalProperties: v });
     const fe = (param: Schema, returns: Schema) =>
@@ -550,9 +550,7 @@ describe("Section F — builtin signatures", () => {
       expect(errs({ f: fe(entryArr(mixed), mapOf(I)) }).length).toBeGreaterThan(0);
     });
 
-    test("an untyped entry array degrades to a bare object, not an error", () => {
-      // `entries(obj)` is `array items array` with no pair element type, so the
-      // result is a plain object — no precise value, but still an object.
+    test("accepts the exact pair tuples returned by entries", () => {
       const r = synthB(call("fromEntries", call("entries", { a: 1 })));
       expect(classifySchema(r.type)).toBe(SchemaKind.Object);
       expect(r.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
@@ -565,7 +563,7 @@ describe("Section F — builtin signatures", () => {
     const arrOf = (v: Schema): Schema => ({ type: "array", items: v });
     const entryArr = (v: Schema): Schema => ({
       type: "array",
-      items: { type: "array", prefixItems: [S, v] },
+      items: { type: "array", prefixItems: [S, v], items: false, minItems: 2 },
     });
     const mapOf = (v: Schema): Schema => ({ type: "object", additionalProperties: v });
     const vBody = (param: Schema, returns: Schema) =>
