@@ -442,8 +442,8 @@ func BenchmarkTicTacToe5Empty(b *testing.B) {
 	stdlib := buildTicTacToeStdlib()
 	board := []any{"O", nil, "X", nil, "X", nil, "O", nil, nil}
 	program := map[string]any{"$return": map[string]any{"$fn": []any{"bestMove", board, "O"}}}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		_, err := CallFunction(program, []any{}, stdlib, nil)
 		if err != nil {
 			b.Fatal(err)
@@ -455,8 +455,8 @@ func BenchmarkTicTacToe7Empty(b *testing.B) {
 	stdlib := buildTicTacToeStdlib()
 	board := []any{"X", nil, nil, nil, nil, nil, nil, nil, "O"}
 	program := map[string]any{"$return": map[string]any{"$fn": []any{"bestMove", board, "O"}}}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		_, err := CallFunction(program, []any{}, stdlib, nil)
 		if err != nil {
 			b.Fatal(err)
