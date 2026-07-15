@@ -58,6 +58,12 @@ function mentionsTVar(s: Schema): boolean {
   return false;
 }
 
+// Only an unannotated inline body needs contextual typing. A body with `$sig`
+// is a concrete function value whose declared type must survive unchanged.
+function isContextualLambda(expr: JSONType): expr is Record<string, JSONType> {
+  return isBody(expr) && sigOf(expr) === null;
+}
+
 // Substitute bound type variables throughout a signature template. An unbound
 // variable collapses to `any` — a template hole no argument pinned down.
 function instantiate(schema: Schema, bindings: Bindings): Schema {
@@ -227,10 +233,6 @@ function unifyTemplate(
 // machinery by stamping a synthetic `$sig` onto the lambda body.
 function inferLambdaReturn(body: JSONType, expectedFn: Schema, ctx: CheckContext): Schema {
   const shape = fnShape(asObject(expectedFn));
-  // Contextual typing supplies the *parameter* types (inline lambdas usually
-  // omit them), but a lambda that declares its own `-> type` should still have
-  // its body checked against that annotation. Capture it before it's replaced.
-  const declaredReturn = sigOf(body as Record<string, JSONType>)?.returns;
   const withSig: Record<string, JSONType> = {
     ...(body as Record<string, JSONType>),
     $sig: {
@@ -241,11 +243,7 @@ function inferLambdaReturn(body: JSONType, expectedFn: Schema, ctx: CheckContext
   };
   const { env, guards } = buildTypeScope(withSig, ctx.env, ctx);
   const bctx: CheckContext = { ...ctx, env, guards, path: [...ctx.path, "$return"] };
-  const ret = synth((body as Record<string, JSONType>).$return!, bctx);
-  if (declaredReturn !== undefined && !isSubschema(ret, declaredReturn, ctx.defs)) {
-    reportMismatch(bctx, ret, declaredReturn);
-  }
-  return ret;
+  return synth((body as Record<string, JSONType>).$return!, bctx);
 }
 
 // Trial: can this overload accept the arguments? Synthesizes every concrete
@@ -270,7 +268,7 @@ function tryBindOverload(
   for (let i = 0; i < argExprs.length; i++) {
     const param = paramAt(sig, i);
     if (param === null) return null;
-    if (isBody(argExprs[i]!)) continue; // lambda: defer
+    if (isContextualLambda(argExprs[i]!)) continue;
     concrete.push({ param, schema: synth(argExprs[i]!, silent) });
   }
 
@@ -301,7 +299,7 @@ function applyOverload(sig: BuiltinSig, argExprs: JSONType[], ctx: CheckContext)
       synth(argExprs[i]!, actx); // surplus arg (no param): still walk for errors
       continue;
     }
-    if (isBody(argExprs[i]!)) {
+    if (isContextualLambda(argExprs[i]!)) {
       lambdas.push(i);
       continue;
     }

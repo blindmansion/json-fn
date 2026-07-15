@@ -1244,7 +1244,7 @@ describe("declared return type is enforced outside the module path", () => {
     // its self-declared `-> string`.
     const call = {
       $call: "map",
-      $args: [body(["n"], { params: [I], returns: S }, { $var: "n" }), [1, 2, 3]],
+      $args: [body(["n", "i"], { params: [I, I], returns: S }, { $var: "n" }), [1, 2, 3]],
     };
     expect(checkExpr(call, {}, BT).diagnostics.some((d) => d.severity === "error")).toBe(true);
   });
@@ -1252,7 +1252,7 @@ describe("declared return type is enforced outside the module path", () => {
   test("inline typed lambda with a matching declared return is clean", () => {
     const call = {
       $call: "map",
-      $args: [body(["n"], { params: [I], returns: I }, { $var: "n" }), [1, 2, 3]],
+      $args: [body(["n", "i"], { params: [I, I], returns: I }, { $var: "n" }), [1, 2, 3]],
     };
     expect(checkExpr(call, {}, BT).diagnostics).toEqual([]);
   });

@@ -787,6 +787,26 @@ describe("Section F — builtin signatures", () => {
       expect(r.diagnostics.some((d) => d.path.join(".") === "$args[0].$return")).toBe(true);
     });
 
+    test("an annotated callback keeps its declared parameter types", () => {
+      const callback = body(["n", "i"], { params: [S, I], returns: I }, 1);
+      const r = synthB(call("map", callback, [10, 20]));
+      expect(r.diagnostics).toContainEqual(
+        expect.objectContaining({
+          path: ["$args[0]"],
+          actual: { $fnType: { params: [S, I], returns: I } },
+          expected: { $fnType: { params: [I, I], returns: I } },
+          severity: "error",
+        }),
+      );
+    });
+
+    test("a compatibly annotated callback remains valid and precise", () => {
+      const callback = body(["n", "i"], { params: [I, I], returns: I }, { $var: "n" });
+      const r = synthB(call("map", callback, [10, 20]));
+      expect(r.diagnostics).toEqual([]);
+      expect(isSubschema(r.type, arrOfInt)).toBe(true);
+    });
+
     test("a lambda at a non-function param position reports, not throws", () => {
       // Swapped args: the lambda lands on `map`'s array param. Previously this
       // destructured an absent `$fnType` and threw; it must be a diagnostic.
