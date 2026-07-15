@@ -301,14 +301,12 @@ describe("Section F — builtin signatures", () => {
       expect(classifySchema(synthB(call("entries", obj)).type)).toBe(SchemaKind.Array);
     });
 
-    test("merge/pick/omit/mapValues return objects; hasKey a boolean", () => {
+    test("merge/pick/omit return objects; hasKey a boolean", () => {
       const obj = { a: 1, b: 2 };
       expect(classifySchema(synthB(call("merge", obj, { c: 3 })).type)).toBe(SchemaKind.Object);
       expect(classifySchema(synthB(call("pick", obj, ["a"])).type)).toBe(SchemaKind.Object);
       expect(classifySchema(synthB(call("omit", obj, ["a"])).type)).toBe(SchemaKind.Object);
       expect(synthB(call("hasKey", obj, "a")).type).toEqual({ type: "boolean" });
-      const inc = { $params: ["v", "k"], $return: call("add", { $var: "v" }, 1) };
-      expect(classifySchema(synthB(call("mapValues", inc, obj)).type)).toBe(SchemaKind.Object);
     });
 
     test("effect constructors return a Task ref; apply/handle/pipe yield any", () => {
@@ -755,6 +753,74 @@ describe("Section F — builtin signatures", () => {
         required: ["@task"],
       };
       expect(noErr({ $types: { Task: structural }, f: fn({ $ref: "#/$defs/Task" }) })).toEqual([]);
+    });
+  });
+
+  describe("polymorphic mapValues", () => {
+    const mapOf = (items: Schema): Schema => ({ type: "object", additionalProperties: items });
+
+    test("types a closed record's values and callback result", () => {
+      const inc = { $params: ["v", "k"], $return: call("add", { $var: "v" }, 1) };
+      const r = synthB(call("mapValues", inc, { a: 1, b: 2 }));
+      expect(r.diagnostics).toEqual([]);
+      expect(r.type).toEqual(mapOf(I));
+    });
+
+    test("joins mixed closed-record values through an identity callback", () => {
+      const identity = { $params: ["v"], $return: { $var: "v" } };
+      const r = synthB(call("mapValues", identity, { a: 1, b: "x" }));
+      expect(r.diagnostics).toEqual([]);
+      expect(r.type).toEqual(mapOf({ anyOf: [{ const: 1 }, { const: "x" }] }));
+    });
+
+    test("types the callback key as string", () => {
+      const key = { $params: ["v", "k"], $return: { $var: "k" } };
+      const r = synthB(call("mapValues", key, { a: 1 }));
+      expect(r.diagnostics).toEqual([]);
+      expect(r.type).toEqual(mapOf(S));
+    });
+
+    test("flows a typed map value through the module checker", () => {
+      const mapOfInt = mapOf(I);
+      const inc = { $params: ["v"], $return: call("add", { $var: "v" }, 1) };
+      const mod = {
+        transform: body(
+          ["obj"],
+          { params: [mapOfInt], returns: mapOfInt },
+          call("mapValues", inc, { $var: "obj" }),
+        ),
+      };
+      expect(checkModule(mod, BT).filter((d) => d.severity === "error")).toEqual([]);
+    });
+
+    test("keeps a precise callback result for an open input object", () => {
+      const constant = { $params: ["v"], $return: "ok" };
+      const mod = {
+        transform: body(
+          ["obj"],
+          { params: [{ type: "object" }], returns: mapOf({ const: "ok" }) },
+          call("mapValues", constant, { $var: "obj" }),
+        ),
+      };
+      expect(checkModule(mod, BT).filter((d) => d.severity === "error")).toEqual([]);
+    });
+
+    test("reports an annotated callback whose body violates its declared return", () => {
+      const bad = body(["v", "k"], { params: [I, S], returns: S }, { $var: "v" });
+      const r = synthB(call("mapValues", bad, { a: 1 }));
+      expect(r.diagnostics).toContainEqual(
+        expect.objectContaining({
+          path: ["$args[0]", "$return"],
+          severity: "error",
+        }),
+      );
+    });
+
+    test("an empty closed record gives the callback a never value", () => {
+      const inc = { $params: ["v"], $return: call("add", { $var: "v" }, 1) };
+      const r = synthB(call("mapValues", inc, {}));
+      expect(r.diagnostics).toEqual([]);
+      expect(r.type).toEqual(mapOf(I));
     });
   });
 

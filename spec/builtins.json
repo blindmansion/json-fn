@@ -481,11 +481,17 @@
     ],
     "mapValues": [
       {
+        "typeParams": ["T", "U"],
         "params": [
-          { "$fnType": { "params": [true, { "type": "string" }], "returns": true } },
-          { "type": "object" }
+          {
+            "$fnType": {
+              "params": [{ "$tvar": "T" }, { "type": "string" }],
+              "returns": { "$tvar": "U" }
+            }
+          },
+          { "type": "object", "additionalProperties": { "$tvar": "T" } }
         ],
-        "returns": { "type": "object" }
+        "returns": { "type": "object", "additionalProperties": { "$tvar": "U" } }
       }
     ],
     "apply": { "rule": "apply" },

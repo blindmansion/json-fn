@@ -183,13 +183,21 @@ function unifyTemplateInto(
       // additionalProperties applies only to keys the template does not name.
       // For a closed concrete record this joins all such field types; a map
       // contributes its tail schema, and an open object degrades the variable
-      // to `any`.
-      for (const [key, cs] of Object.entries(cp)) {
-        if (!(key in tp) && !unifyTemplateInto(tm.schema, cs, bindings, ctx)) return false;
+      // to `any`. An empty closed tail contributes `never`, matching the
+      // element type inferred from an empty tuple.
+      const unmatched = Object.entries(cp).filter(([key]) => !(key in tp));
+      for (const [, cs] of unmatched) {
+        if (!unifyTemplateInto(tm.schema, cs, bindings, ctx)) return false;
       }
       if (cm.kind === "map" && !unifyTemplateInto(tm.schema, cm.schema, bindings, ctx))
         return false;
       if (cm.kind === "open" && !unifyTemplateInto(tm.schema, true, bindings, ctx)) return false;
+      if (
+        cm.kind === "closed" &&
+        unmatched.length === 0 &&
+        !unifyTemplateInto(tm.schema, false, bindings, ctx)
+      )
+        return false;
     }
 
     return isSubschema(resolved, instantiate(template, bindings), ctx.defs);
