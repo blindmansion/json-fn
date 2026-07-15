@@ -52,9 +52,10 @@ to TypeScript functions. There is currently no shared schema table connecting
 an effect name to its argument and result types. `requiredCapabilities` provides
 conservative name-level admission checking, not type checking.
 
-`handle` currently synthesizes top. It can also return either a final value or
-a residual `Task` when an unhandled effect bubbles. Any more precise signature
-must account for both outcomes.
+The two-argument `handle` still synthesizes top and may return either a final
+value or a residual `Task` when an unhandled effect bubbles. The implemented
+three-argument form is different: it takes `raw(resultSchema)`, synthesizes that
+schema, rejects bubbling, and validates its result at runtime.
 
 ### Guest signatures are monomorphic
 
@@ -130,9 +131,63 @@ effect names.
 Concrete function signatures and a concrete result annotation on `handle`
 remain the preferred near-term discharge mechanism. The checker may trust a
 concrete schema only where the runtime validates the corresponding untrusted
-value. Runtime schema validation at function/host boundaries is designed but
-is not generally wired into evaluation yet; the `handle` work must not assume
-that infrastructure already exists.
+value.
+
+The annotated-`handle` work has now introduced the first shared runtime
+boundary implementation:
+
+- `typescript/src/runtime-contract.ts` validates concrete data using the same
+  schema vocabulary as the checker;
+- function schemas install serializable callable wrappers that validate
+  eventual arguments and return values;
+- active module `$types` are threaded through evaluator calls in a runtime
+  context and resolve `$ref`s during validation; and
+- `RuntimeContractError` distinguishes a failed declared boundary, including
+  an unmatched effect in a total handler.
+
+This path is currently wired to annotated `handle`, not generally to host
+inputs, outputs, or capabilities. The effect-manifest work should reuse and
+generalize it rather than introduce a second validator.
+
+### Lessons from the completed `handle` implementation
+
+Several implementation details constrain the larger builtin/effect work:
+
+1. **Static and runtime definitions need one explicit merge rule.** The checker
+   sees builtin `$defs` plus module `$types`; the runtime contract context
+   currently carries module `$types` only. An operator manifest may introduce a
+   third definition pool. Its precedence, ownership, and serialization must be
+   settled rather than letting checker and runtime resolution drift.
+2. **Builtins now have a runtime context channel.** The builtin call interface
+   receives active runtime definitions separately from evaluated arguments.
+   Manifest-backed builtins should use that channel (or a deliberate successor)
+   instead of hiding schemas in the function registry or guest values.
+3. **Callable validation transforms values.** A function contract cannot be a
+   boolean shape test: it returns a wrapper that checks later calls. Any shared
+   host-boundary API therefore needs a validator that can return a contracted
+   value, not only `valueSatisfies(...)`.
+4. **Contract wrappers must be evaluator-native and serializable.** The
+   implementation stores a target plus schema/definitions in an ordinary JSON
+   function body and dispatches the target directly. It deliberately does not
+   call a named helper such as `apply`, because guest/module names can shadow
+   builtins. Capability-result wrappers should preserve the same property.
+5. **`raw(schema)` is transport, not the runtime value shape.** Evaluation
+   unwraps the third argument before `handle` receives it. Future builtin rules
+   should distinguish canonical AST transport from the evaluated builtin API
+   when specifying schema-valued arguments.
+6. **Concrete examples confirm the remaining precision gap.** Typed thermostat
+   and dungeon handlers now have sound `(ScriptState) -> Report` contracts and
+   check with zero errors, but their `bind` continuations and handler clauses
+   still report degradation because opaque `Task` carries no completion type.
+   Improving ordinary `$tvar` matching alone will not recover that information;
+   the manifest needs specialized task-result propagation (or an equivalent
+   code rule) if callback parameters are to become precise.
+
+The host examples also make the boundary distinction concrete: `runTask`
+currently receives a bare map from effect names to TypeScript functions.
+Nothing automatically injects schemas from that table, and guest capability
+record types are not authoritative for the host. The operator manifest remains
+the missing source of truth for endowed capability argument/result contracts.
 
 ## Open decisions
 
@@ -150,7 +205,9 @@ Decide:
   host policy.
 
 The manifest must remain data, must contain only concrete schemas from the
-tractable fragment, and must be usable for runtime validation.
+tractable fragment, and must be usable for runtime validation. It should also
+define how its named schemas merge with builtin `$defs` and module `$types` in
+both checker and runtime contexts.
 
 ### Specialized task result indexing
 
@@ -188,9 +245,9 @@ The shorthand is `handle task -> ResultType with { ... }`, lowering to a third
 `raw(resultSchema)` argument on the builtin call. The schema types the immediate
 result of `handle`. State-handler encodings return a function at that point, so
 their annotation is a function type whose eventual result is `Report`, not
-`Report` itself. Runtime support must therefore enforce callable boundary
-contracts as well as concrete data schemas. See
-[`effects-handle.md`](effects-handle.md) for the canonical shape and work items.
+`Report` itself. Runtime support now enforces callable boundary contracts as
+well as concrete data schemas. See [`effects-handle.md`](effects-handle.md) for
+the canonical shape and implementation status.
 
 Effect-set tracking could eventually prove totality statically, but it is not
 required for this contract and remains outside recenter.
@@ -205,11 +262,11 @@ typed modules round-trip.
 
 ## Recommended sequence
 
-1. Finish the existing recenter checker work.
+1. Finish the remaining recenter checker work.
 2. Extend builtin template matching through tuples and objects; retain code
    rules where the return is a true schema computation.
-3. Implement the resolved total annotated-`handle` form and its runtime
-   contract.
+3. ~~Implement the resolved total annotated-`handle` form and its runtime
+   contract.~~ Done; reuse its runtime contract/context path.
 4. Design the operator effect manifest and wire checker plus host validation
    from the same data.
 5. Evaluate specialized `Task<A>` indexing using real effectful examples.
