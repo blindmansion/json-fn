@@ -16,6 +16,8 @@
  */
 
 import type { JSONType, Meter } from "./types";
+import type { Defs, Schema } from "./check/schema";
+import { enforceRuntimeContract, RuntimeContractError } from "./runtime-contract";
 import { raw } from "./utils";
 
 /** The reserved tag key marking a value as a task node. */
@@ -110,12 +112,30 @@ function buildStepResume(ks: JSONType[]): JSONType {
  * of a bubbled effect. Multi-shot is free: each call rebuilds the task from
  * inert JSON and re-runs `handle`.
  */
-function wrapResume(stepResume: JSONType, handlers: JSONType): JSONType {
+function handleArgs(
+  task: JSONType,
+  handlers: JSONType,
+  annotation: Schema | undefined,
+): JSONType[] {
+  const args: JSONType[] = [task, { $raw: handlers }];
+  if (annotation !== undefined) args.push({ $raw: annotation });
+  return args;
+}
+
+function wrapResume(
+  stepResume: JSONType,
+  handlers: JSONType,
+  annotation: Schema | undefined,
+): JSONType {
   return raw({
     $params: [RESUME_PARAM],
     $return: {
       $call: "handle",
-      $args: [{ $call: { $raw: stepResume }, $args: [{ $var: RESUME_PARAM }] }, { $raw: handlers }],
+      $args: handleArgs(
+        { $call: { $raw: stepResume }, $args: [{ $var: RESUME_PARAM }] },
+        handlers,
+        annotation,
+      ),
     },
   });
 }
@@ -208,37 +228,50 @@ function bubble(
  * value (through a `"return"` clause if present) or dispatch the first effect to
  * a matching clause. Named clauses get the effect args spread plus `resume` last;
  * a reserved `"*"` wildcard clause gets `({ name, args }, resume)`. An unmatched
- * effect bubbles outward as a new task.
+ * effect bubbles outward in the partial form and is a contract error in the
+ * annotated form.
  */
 export function runHandle(
   task: JSONType,
   handlers: JSONType,
   call: (fn: JSONType, args: JSONType[]) => JSONType,
   meter: Meter,
+  annotation?: Schema,
+  defs: Defs = {},
 ): JSONType {
   if (!isPlainObject(handlers)) {
     throw new Error("handle: second argument must be a record of handler clauses");
   }
 
+  const finish = (value: JSONType): JSONType =>
+    annotation === undefined
+      ? value
+      : enforceRuntimeContract(value, annotation, defs, "handle result");
+
   const s = stepTask(task, call, meter);
   if ("done" in s) {
     const ret = handlers["return"];
-    if (ret !== undefined && isFnDecl(ret)) return call(ret, [s.done]);
-    return s.done;
+    if (ret !== undefined && isFnDecl(ret)) return finish(call(ret, [s.done]));
+    return finish(s.done);
   }
 
   const { name, args, resume } = s.pending;
-  const handleResume = wrapResume(resume, handlers);
+  const handleResume = wrapResume(resume, handlers, annotation);
 
   const named = handlers[name];
   if (named !== undefined && isFnDecl(named)) {
-    return call(named, [...args, handleResume]);
+    return finish(call(named, [...args, handleResume]));
   }
 
   const wild = handlers["*"];
   if (wild !== undefined && isFnDecl(wild)) {
-    return call(wild, [{ name, args }, handleResume]);
+    return finish(call(wild, [{ name, args }, handleResume]));
   }
 
+  if (annotation !== undefined) {
+    throw new RuntimeContractError(
+      `handle result contract failed: unmatched effect ${JSON.stringify(name)}`,
+    );
+  }
   return bubble(name, args, resume, handlers);
 }

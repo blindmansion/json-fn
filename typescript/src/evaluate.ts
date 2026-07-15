@@ -30,6 +30,12 @@ import {
   isRaw,
   raw,
 } from "./utils";
+import {
+  CONTRACT_KEY,
+  enforceRuntimeContractReturn,
+  prepareRuntimeContractCall,
+  readRuntimeFunctionContract,
+} from "./runtime-contract";
 
 export function createPerfStats(): PerfStats {
   return {
@@ -159,6 +165,10 @@ export function callProgram(
     deadline,
   };
   const perf = limits?.perf;
+  const runtimeDefs =
+    typeof module.$types === "object" && module.$types !== null && !Array.isArray(module.$types)
+      ? (module.$types as Record<string, JSONType>)
+      : {};
   try {
     // The module is a function body with no `$params` and no `$return`.
     const { getVar, scopedFunctions, localFns, attachFns } = buildScope(
@@ -169,6 +179,7 @@ export function callProgram(
         limits: resolved,
         state,
         perf,
+        runtimeDefs,
       },
     );
 
@@ -200,6 +211,7 @@ export function callProgram(
       limits: resolved,
       state,
       perf,
+      runtimeDefs,
     });
   } finally {
     if (usage) usage.fuel = state.fuel;
@@ -250,13 +262,17 @@ export function prepareProgram(
     deadline: hasTimeout ? Date.now() + timeoutMs! : Infinity,
   };
   const perf = limits?.perf;
+  const runtimeDefs =
+    typeof module.$types === "object" && module.$types !== null && !Array.isArray(module.$types)
+      ? (module.$types as Record<string, JSONType>)
+      : {};
 
   // The module is a function body with no `$params`/`$return`; build its scope
   // once (mirrors `callProgram`).
   const { getVar, scopedFunctions, localFns, attachFns } = buildScope(
     module as unknown as FunctionBody,
     [],
-    { functions: baseRegistry, limits: resolved, state, perf },
+    { functions: baseRegistry, limits: resolved, state, perf, runtimeDefs },
   );
 
   const context: EvaluationContext = {
@@ -267,6 +283,7 @@ export function prepareProgram(
     limits: resolved,
     state,
     perf,
+    runtimeDefs,
   };
 
   const syncUsage = (): void => {
@@ -397,7 +414,7 @@ function callFunctionInternal(
             charge: (amount: number) => chargeFuel(context, amount),
             guardSize: (size: number) => guardValueSize(context, size),
           };
-          result = entry(args, call, functions, meter);
+          result = entry(args, call, functions, meter, { defs: context.runtimeDefs ?? {} });
         } else {
           result = callExternalFunction(entry, args, fn, context);
         }
@@ -407,6 +424,7 @@ function callFunctionInternal(
           limits: context.limits,
           state: context.state,
           perf,
+          runtimeDefs: context.runtimeDefs,
         });
       }
     } else {
@@ -474,7 +492,14 @@ function buildScope(
   const localFnKeys: string[] = [];
   let scopedFunctions = functions;
   for (const key of Object.keys(fn)) {
-    if (key === "$return" || key === "$params" || key === "$sig" || key === "$types") continue;
+    if (
+      key === "$return" ||
+      key === "$params" ||
+      key === "$sig" ||
+      key === "$types" ||
+      key === CONTRACT_KEY
+    )
+      continue;
     const val = fn[key];
     if (key === "$comment" && typeof val === "string") continue;
     if (typeof val === "object" && val !== null && !Array.isArray(val) && "$return" in val) {
@@ -560,6 +585,8 @@ function buildScope(
           attachFns,
           limits,
           state,
+          perf: context.perf,
+          runtimeDefs: context.runtimeDefs,
         });
         evaluatedVars[name] = evaluated;
         return evaluated;
@@ -600,6 +627,16 @@ function callJSONFunction(fn: FunctionBody, args: JSONType[], context: Evaluatio
   const { perf } = context;
   if (perf) perf.callJSONFunction++;
   const { limits, state } = context;
+  const contract = readRuntimeFunctionContract(fn);
+  if (contract !== null) {
+    const prepared = prepareRuntimeContractCall(contract, args);
+    const result = callFunctionInternal(
+      contract.target as FunctionDeclaration,
+      prepared.args,
+      context,
+    );
+    return enforceRuntimeContractReturn(result, prepared.returns, contract.defs);
+  }
 
   const { getVar, scopedFunctions, localFns, attachFns } = buildScope(fn, args, context);
 
@@ -611,6 +648,7 @@ function callJSONFunction(fn: FunctionBody, args: JSONType[], context: Evaluatio
     limits,
     state,
     perf,
+    runtimeDefs: context.runtimeDefs,
   });
 }
 
@@ -813,7 +851,14 @@ function replaceVars(
     if ("$return" in expression) {
       const localNames = new Set(
         Object.keys(expression).filter((k) => {
-          if (k === "$return" || k === "$params" || k === "$sig" || k === "$types") return false;
+          if (
+            k === "$return" ||
+            k === "$params" ||
+            k === "$sig" ||
+            k === "$types" ||
+            k === CONTRACT_KEY
+          )
+            return false;
           if (k === "$comment" && typeof (expression as Record<string, JSONType>)[k] === "string")
             return false;
           return true;
@@ -946,7 +991,7 @@ function collectBodyLevelLocalFnRefs(
   out: Set<string>,
 ): void {
   for (const [key, value] of Object.entries(body)) {
-    if (key === "$params" || key === "$sig" || key === "$types") continue;
+    if (key === "$params" || key === "$sig" || key === "$types" || key === CONTRACT_KEY) continue;
     if (key === "$comment" && typeof value === "string") continue;
     collectLocalFnRefs(value, attachFns, out);
   }

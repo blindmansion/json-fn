@@ -115,8 +115,9 @@
   // the run with the fault tag. Same function-awaiting-state trick as the
   // dungeon's `runScript`.
   type Report = { ending: State | string, out: string[] },
+  type ScriptState = { pending: Reading[], out: string[] },
 
-  runScript: (readings: Reading[], task: Task) -> Report => (handle task with {
+  runScript: (readings: Reading[], task: Task) -> Report => (handle task -> (ScriptState) -> Report with {
     "sensor.read": (resume) => (s) => (resume(next))(rest) where {
       empty: length(s.pending) == 0,
       next:  if empty then null else head(s.pending),

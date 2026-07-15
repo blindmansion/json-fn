@@ -1,4 +1,18 @@
 {
+  type RoomId = "cell" | "hall" | "gate",
+  type Room = {
+    name: string,
+    blurb: string,
+    exits: { [string]: RoomId },
+    item: string | null
+  },
+  type PlayerState = { at: RoomId, held: string[] },
+  type Turn = { state: PlayerState, message: string, done: boolean },
+  type Task = { "@task": string, ... },
+  type Io = { ask: () -> Task, say: (string) -> Task },
+  type ScriptState = { pending: string[], transcript: string[] },
+  type ScriptReport = { ending: string, transcript: string[] },
+
   // ---- The map: plain JSON all the way down ------------------------------
   // Rooms are inert data. Nothing here knows how to *do* anything; behavior
   // lives entirely in the functions below, so the world could be loaded,
@@ -29,33 +43,34 @@
   // Player state is a record { at, held }; every turn returns a fresh
   // { state, message, done } — no mutation anywhere.
 
-  roomOf: (st) => world[st.at],
+  roomOf: (st: PlayerState) -> Room => world[st.at]!,
 
-  look: (st) => `${room.name} — ${room.blurb}${note}` where {
+  look: (st: PlayerState) -> string => `${room.name} — ${room.blurb}${note}` where {
     room: roomOf(st),
     seen: !isNull(room.item) && !includes(st.held, room.item),
     note: if seen then ` You see a ${room.item}.` else ""
   },
 
-  stay: (st, msg) => { state: st, message: msg, done: false },
+  stay: (st: PlayerState, msg: string) -> Turn =>
+    { state: st, message: msg, done: false },
 
-  move: (st, dir) => cond {
+  move: (st: PlayerState, dir: string | null) -> Turn => cond {
     isNull(dir)  -> stay(st, "Go where? Try \"go north\"."),
     isNull(dest) -> stay(st, `There is no exit "${dir}".`),
     else         -> stay(next, look(next))
   } where {
-    dest: roomOf(st).exits[dir],
+    dest: roomOf(st).exits[dir!],
     next: { at: dest, held: st.held }
   },
 
-  take: (st) => (if isNull(item) || includes(st.held, item)
+  take: (st: PlayerState) -> Turn => (if isNull(item) || includes(st.held, item)
     then stay(st, "There is nothing here worth taking.")
     else stay(richer, `You pocket the ${item}.`)) where {
     item: roomOf(st).item,
     richer: { at: st.at, held: concat(st.held, [item]) }
   },
 
-  unlock: (st) => cond {
+  unlock: (st: PlayerState) -> Turn => cond {
     st.at != "gate" -> stay(st, "Nothing here is locked."),
     includes(st.held, "rusty key") ->
       { state: st, message: "The key grinds, the gate swings wide. You are free!", done: true },
@@ -64,7 +79,7 @@
 
   // One command -> one turn. The verb is data, dispatched by `match`;
   // tokenizing mirrors the calculator's whitespace-splitting trick.
-  step: (st, cmd) => match verb {
+  step: (st: PlayerState, cmd: string) -> Turn => match verb {
     "look"   -> stay(st, look(st)),
     "go"     -> move(st, parts[1]),
     "take"   -> take(st),
@@ -80,14 +95,14 @@
   // narrow interface, which an outer handler is free to interpret however it
   // likes (a terminal, a test script, a chat bot...).
 
-  io: () => {
+  io: () -> Io => {
     ask: () => perform("input", []),
     say: (msg) => perform("print", [msg])
   },
 
   // ---- The game loop: straight-line do-notation ----------------------------
 
-  play: (st) => do {
+  play: (st: PlayerState) -> Task => do {
     _   <- io().say(look(st)),
     cmd <- io().ask(),
     if isNull(cmd)
@@ -95,7 +110,7 @@
       else playTurn(st, cmd)
   },
 
-  playTurn: (st, cmd) => do {
+  playTurn: (st: PlayerState, cmd: string) -> Task => do {
     _ <- io().say(turn.message),
     if turn.done then pure(turn.message) else play(turn.state)
   } where {
@@ -106,8 +121,8 @@
   // One handler, two effects, one threaded state record: `input` consumes the
   // pending script, `print` appends to the transcript. Same function-awaiting-
   // state trick as `withState`, just with a record instead of a bare value.
-
-  runScript: (cmds, task) => (handle task with {
+  runScript: (cmds: string[], task: Task) -> ScriptReport =>
+    (handle task -> (ScriptState) -> ScriptReport with {
     input: (resume) => (s) => (resume(cmd))(rest) where {
       empty: length(s.pending) == 0,
       cmd:   if empty then null else head(s.pending),
@@ -121,7 +136,7 @@
   // ---- Demos -----------------------------------------------------------------
 
   // A full playthrough, including one wrong turn and one pointless verb.
-  demoEscape: () => runScript(script, play(start)) where {
+  demoEscape: () -> ScriptReport => runScript(script, play(start)) where {
     start: { at: "cell", held: [] },
     script: [
       "take",          // rusty key
@@ -136,14 +151,14 @@
 
   // The same game, starved of input: the loop ends gracefully via the
   // handler's `null` sentinel instead of crashing.
-  demoSilence: () => runScript([], play({ at: "cell", held: [] })),
+  demoSilence: () -> ScriptReport => runScript([], play({ at: "cell", held: [] })),
 
   // Dry-run flavor: count how chatty a playthrough is without caring what it
   // says — a wildcard handler that only tallies `print`s and feeds `input`
   // from a closed-over script would go here; left as an exercise for the
   // hypothetical reader of this hypothetical language.
 
-  demo: () => {
+  demo: () -> { escape: ScriptReport, silence: ScriptReport } => {
     escape:  demoEscape(),
     silence: demoSilence()
   }

@@ -193,6 +193,14 @@ Key mechanics:
   `bind(perform(name, args), (v) => handle(bind(pure(v), k), handlers))`
   (same JSON-construction trick). This *is* the answer to the sketch's open
   question about re-wrapping the surrounding continuation — pin it in spec cases.
+- **Annotated totality:** the later three-argument form
+  `handle(task, handlers, raw(resultSchema))` retains the annotation in every
+  generated `resume`, validates each final result, and raises
+  `RuntimeContractError` rather than bubbling an unmatched effect. Runtime
+  `$ref`s resolve through the active module `$types`. A `$fnType` result installs
+  a serializable callable boundary that checks eventual arguments and returns.
+  The original two-argument form remains partial and keeps the bubbling
+  semantics above.
 
 Spec (`spec/cases/effects-handle.json`):
 
@@ -247,9 +255,13 @@ Parser:
   *before* the first entry wrap the whole chain in a zero-arg IIFE, exactly like
   expression-level `where` (`parseBody`, parser.ts ~line 462). `_` is an
   ordinary parameter name.
-- `handle expr with { "name": clause, … }` lowers to
-  `{ $fn: ["handle", expr, { …clauses… }] }`. Clause keys follow data-object
-  key rules (dotted names like `io.readLine` need quotes).
+- `handle expr with { "name": clause, … }` lowers to the partial
+  `{ $call: "handle", $args: [expr, { …clauses… }] }`.
+  `handle expr -> Type with { … }` lowers to the total annotated form with
+  `{ $raw: <parsed Type schema> }` as its third argument. Putting the annotation
+  before `with` avoids ambiguity when an unannotated handle is a `cond` guard.
+  Clause keys follow data-object key rules (dotted names like `io.readLine`
+  need quotes).
 
 Printer (`printer.ts`): sugar-print only exact desugar shapes, preserving the
 bijective-by-normal-form guarantee that `print-spec.test.ts` enforces
@@ -337,8 +349,9 @@ wrong — fix `handle`/`stepTask`, don't add a primitive.
 ### Phase 6 — Docs & conformance handoff
 
 - `docs/language.md`: new "Tasks & Effects" section (representation, the four
-  constructors, `handle` semantics incl. bubbling + multi-shot + `"return"`
-  clause, laziness interaction), stdlib entries, Execution Limits cost rows.
+  constructors, partial `handle` bubbling, annotated totality and runtime
+  contracts, multi-shot + `"return"` clause, laziness interaction), stdlib
+  entries, Execution Limits cost rows.
   Host-integration guidance must state the idempotency caveat explicitly:
   capabilities with external side effects should take idempotency keys,
   because durable suspend/resume implies at-least-once execution and the

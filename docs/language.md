@@ -498,7 +498,9 @@ Running a task normalizes it — walking the `bind` spine — to exactly one of 
 
 ### `handle` — interpreting effects in-language
 
-`handle(task, clauses)` runs a task, dispatching each effect it performs to a matching clause in the `clauses` record. This is a pure, in-language interpreter for effects — no host involved — which is what makes effectful code testable.
+`handle(task, clauses)` runs a task, dispatching each effect it performs to a matching clause in the `clauses` record. This is a pure, in-language interpreter for effects — no host involved — which is what makes effectful code testable. This two-argument form is **partial**: unmatched effects bubble.
+
+`handle(task, clauses, raw(resultSchema))` is the **total annotated** form, written in shorthand as `handle task -> ResultType with { … }`. Its immediate result is checked against `resultSchema` at runtime, and the checker gives the expression that declared type. An unmatched effect is a `RuntimeContractError` instead of a residual task. The annotation is retained by every generated `resume`, and named types resolve through the active module's `$types`.
 
 Clause lookup is by effect name:
 
@@ -508,7 +510,15 @@ Clause lookup is by effect name:
 
 `resume` is itself plain JSON built by `handle`, so continuations stay serializable mid-handle and multi-shot resumption is free: calling `resume` twice re-runs the rest of the task twice (the basis for nondeterminism, retry, and backtracking combinators).
 
-**Bubbling.** An effect with no matching clause (and no `"*"`) is *not* an error: `handle` re-performs it, wrapping the surrounding continuation so it re-enters the same handler afterward. The effect bubbles outward to the next enclosing `handle`, and ultimately to the host. This is what lets a handler discharge only the effects it cares about while staying transparent to the rest of the effect set.
+**Bubbling.** In the partial form, an effect with no matching clause (and no `"*"`) is *not* an error: `handle` re-performs it, wrapping the surrounding continuation so it re-enters the same handler afterward. The effect bubbles outward to the next enclosing `handle`, and ultimately to the host. This is what lets a partial handler discharge only the effects it cares about while staying transparent to the rest of the effect set. The annotated form is total and rejects the same unmatched effect.
+
+For a function result annotation such as `(State) -> Report`, validation installs a serializable callable boundary. The function value is checked when produced; each eventual argument and return value is checked when it is called. This is what lets a state handler declare its actual immediate result:
+
+```jfn
+(handle task -> (ScriptState) -> Report with {
+  // clauses return functions awaiting ScriptState
+})(initialState)
+```
 
 ```jfn
 handle greet(mockIo()) with {
@@ -693,7 +703,7 @@ These build and run **tasks** — the effect representation described under [Tas
 | `pure`    | `(value)`         | build a completed task carrying `value`                                                              |
 | `bind`    | `(task, k)`       | sequence: run `task`, pass its result to continuation `k`, which returns the next task               |
 | `raise`   | `(err)`           | build a `raise` effect task (convenience for `perform("raise", [err])`)                              |
-| `handle`  | `(task, clauses)` | run `task`, interpreting each effect via the `clauses` record; unmatched effects bubble outward      |
+| `handle`  | `(task, clauses[, raw(resultSchema)])` | run `task`, interpreting effects via `clauses`; the optional annotation makes the handler total and runtime-validated |
 
 `isTask(a)` (listed under [Type Checking](#type-checking)) reports whether a value is a task.
 

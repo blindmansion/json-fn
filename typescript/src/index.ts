@@ -15,6 +15,7 @@ export type { StdlibOptions, LogFn } from "./stdlib";
 export { parse as parseShorthand, print as printShorthand, ParseError } from "./shorthand";
 export { isTask, stepTask, runHandle, TASK_TAG } from "./task";
 export type { TaskNode, EffectTask, PureTask, BindTask, Suspended } from "./task";
+export { RuntimeContractError } from "./runtime-contract";
 export {
   runTask,
   serializeTask,

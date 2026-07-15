@@ -361,6 +361,119 @@
       "expected": 10
     },
     {
+      "description": "an annotated handle validates a matching handled result",
+      "body": {
+        "$return": {
+          "$call": "handle",
+          "$args": [
+            { "$call": "perform", "$args": ["ask", []] },
+            {
+              "ask": {
+                "$params": ["resume"],
+                "$return": { "$call": { "$var": "resume" }, "$args": [10] }
+              }
+            },
+            { "$raw": { "type": "integer" } }
+          ]
+        }
+      },
+      "expected": 10
+    },
+    {
+      "description": "a wildcard clause makes an annotated handle total",
+      "body": {
+        "$return": {
+          "$call": "handle",
+          "$args": [
+            { "$call": "perform", "$args": ["unknown", [1]] },
+            {
+              "*": {
+                "$params": ["effect", "resume"],
+                "$return": { "$get": "name", "$from": { "$var": "effect" } }
+              }
+            },
+            { "$raw": { "type": "string" } }
+          ]
+        }
+      },
+      "expected": "unknown"
+    },
+    {
+      "description": "an annotated handle validates the return-clause transformation",
+      "body": {
+        "$return": {
+          "$call": "handle",
+          "$args": [
+            { "$call": "pure", "$args": [5] },
+            {
+              "return": {
+                "$params": ["v"],
+                "$return": { "$call": "str", "$args": [{ "$var": "v" }] }
+              }
+            },
+            { "$raw": { "type": "string" } }
+          ]
+        }
+      },
+      "expected": "5"
+    },
+    {
+      "description": "an annotated handle is total and rejects an unmatched effect",
+      "body": {
+        "$return": {
+          "$call": "handle",
+          "$args": [
+            { "$call": "perform", "$args": ["missing", []] },
+            {},
+            { "$raw": { "type": "string" } }
+          ]
+        }
+      },
+      "error": "unmatched effect \"missing\""
+    },
+    {
+      "description": "an annotated handle rejects a result outside its declared schema",
+      "body": {
+        "$return": {
+          "$call": "handle",
+          "$args": [{ "$call": "pure", "$args": ["wrong"] }, {}, { "$raw": { "type": "integer" } }]
+        }
+      },
+      "error": "handle result contract failed"
+    },
+    {
+      "description": "a function-valued annotated handle checks the eventual call result",
+      "body": {
+        "$return": {
+          "$call": {
+            "$call": "handle",
+            "$args": [
+              { "$call": "pure", "$args": [5] },
+              {
+                "return": {
+                  "$params": ["v"],
+                  "$return": {
+                    "$params": ["state"],
+                    "$return": { "$call": "add", "$args": [{ "$var": "v" }, { "$var": "state" }] }
+                  }
+                }
+              },
+              {
+                "$raw": {
+                  "$fnType": {
+                    "params": [{ "type": "integer" }],
+                    "returns": { "type": "integer" }
+                  }
+                }
+              }
+            ]
+          },
+          "$args": [3]
+        }
+      },
+      "expected": 8
+    },
+    {
       "description": "load-bearing: a recursive nested where-local effectful loop whose suspended continuation escapes handle still works (escaping-closures x bind chains)",
       "body": {
         "$params": ["start"],

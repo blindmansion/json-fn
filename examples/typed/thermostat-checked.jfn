@@ -1,14 +1,15 @@
-// The checkable cousin of examples/typed/thermostat.jfn — same thermostat controller,
-// same runtime behavior, but massaged to pass `jfn check` cleanly *today*.
+// The conservative cousin of examples/typed/thermostat.jfn — same thermostat
+// controller and runtime behavior, retaining the explicit checker-friendly
+// shapes that were needed while narrowing and annotated handles were landing.
 //
-// The goal file is written the way the type syntax *wants* to be used; this one
-// keeps every construct the checker already handles well and works around the
-// gaps it still hits (all catalogued in todo/typecheck-findings.md). The domain
+// Both files now check with zero errors. This one remains a regression fixture
+// for the `cond` and let-free `do` alternatives catalogued in
+// todo/typecheck-findings.md. The domain
 // is fully typed — `Config`/`Reading`/`State`/`Mode` records, the `Action`/`Fault`
 // discriminated unions, a typed `Device` capability record — and, now that the
 // effect kernel carries `Task`-typed floors (`perform`/`pure`/`raise`/`bind` all
 // return `Task`), the effect boundary is typed too: `-> Task` on the `Device`
-// methods, `dev`, `actuate`, and `loop`. Three deltas from the goal remain, one
+// methods, `dev`, `actuate`, and `loop`. Two deltas from the goal remain, one
 // per still-open gap:
 //
 //   1. `match` doesn't narrow a discriminated union (only `if`/`cond` do), so
@@ -17,9 +18,6 @@
 //   2. A `do`-block with a local `let` binding erases to `any` (the inline scope
 //      it lowers to loses its `$return` type), so `onReading` hoists its `action`
 //      let into a `where`, leaving a let-free `do` that keeps its `Task` type.
-//   3. `handle` erases to `any` (its result is handler-dependent), so `runScript`
-//      returns the bare `any` keyword rather than a named `Report`.
-//
 // Behavior is identical to the goal — same transcript, same fault ending:
 //   bun run typescript/src/cli.ts eval --file examples/typed/thermostat-checked.jfn --entry demo
 //   bun run typescript/src/cli.ts check --file examples/typed/thermostat-checked.jfn
@@ -46,6 +44,8 @@
   // `perform`/`pure`/`raise` now carry this as their return type, so a function
   // whose body is directly one of them can be annotated `-> Task`.
   type Task = { "@task": string, ... },
+  type Report = { ending: State | string, out: string[] },
+  type ScriptState = { pending: Reading[], out: string[] },
 
   // ----- pure control logic -------------------------------------------------
 
@@ -125,10 +125,10 @@
   // ----- a scripted, in-language handler ------------------------------------
   // One handler, three effects, one threaded record: `sensor.read` consumes the
   // pending readings, `hvac.set`/`log` append to the transcript, `raise` ends
-  // the run with the fault tag. `handle` erases to `any` (its result is genuinely
-  // handler-dependent), so `runScript`'s return can't be a named `Report` yet;
-  // the `task` param, though, is now the concrete `Task` that `loop` returns.
-  runScript: (readings: Reading[], task: Task) -> any => (handle task with {
+  // the run with the fault tag. The handler's immediate value is a function
+  // awaiting its private script state; the annotated total form validates that
+  // function's argument and eventual `Report`.
+  runScript: (readings: Reading[], task: Task) -> Report => (handle task -> (ScriptState) -> Report with {
     "sensor.read": (resume) => (s) => (resume(next))(rest) where {
       empty: length(s.pending) == 0,
       next:  if empty then null else head(s.pending),
@@ -145,7 +145,7 @@
   // ----- demos --------------------------------------------------------------
 
   // A full run: cold -> heat, settle -> off, hot -> cool, settle -> off.
-  demoRun: () => runScript(script, loop(start, 10)) where {
+  demoRun: () -> Report => runScript(script, loop(start, 10)) where {
     start: { config: { target: 21, tolerance: 1.5 }, mode: "off" },
     script: [
       { temp: 18, battery: 90 },
@@ -157,12 +157,12 @@
 
   // A run that trips a fault: an implausible reading `raise`s OutOfRange, which
   // the handler turns into a fault-tagged ending instead of a state.
-  demoFault: () => runScript(
+  demoFault: () -> Report => runScript(
     [{ temp: 99, battery: 50 }],
     loop({ config: { target: 21, tolerance: 1.5 }, mode: "off" }, 10)
   ),
 
-  demo: () => {
+  demo: () -> { run: Report, fault: Report } => {
     run:   demoRun(),
     fault: demoFault()
   }

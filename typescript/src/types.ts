@@ -86,11 +86,17 @@ type Meter = {
   guardSize: (size: number) => void;
 };
 
+type RuntimeContext = {
+  /** Active module `$types`, available to runtime boundary contracts. */
+  defs: Record<string, JSONType>;
+};
+
 type BuiltinFunction = ((
   args: JSONType[],
   call: (fn: JSONType, args: JSONType[]) => JSONType,
   functions: FunctionRegistry,
   meter: Meter,
+  runtime: RuntimeContext,
 ) => JSONType) & { [BUILTIN_MARKER]: true };
 
 type FunctionRegistry = Record<string, Function | FunctionBody>;
@@ -176,6 +182,8 @@ type EvaluationContext = {
   // super-exponentially. Seeded empty at the root/module scope
   // (`attachFns === undefined`); each nested scope adds its own local functions.
   attachFns?: ReadonlySet<string>;
+  /** Active module `$types`, propagated through calls for runtime contracts. */
+  runtimeDefs?: Record<string, JSONType>;
   limits: ResolvedLimits;
   state: CallState;
   perf?: PerfStats;
@@ -187,6 +195,7 @@ export type {
   FunctionReference,
   BuiltinFunction,
   Meter,
+  RuntimeContext,
   FunctionRegistry,
   FunctionDeclaration,
   FieldPattern,

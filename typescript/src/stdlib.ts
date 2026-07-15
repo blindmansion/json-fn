@@ -416,7 +416,8 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
     }, 2),
     raise: builtin((args) => effectTask("raise", [args[0] ?? null]), 1),
     handle: builtin(
-      (args, call, _functions, meter) => runHandle(args[0]!, args[1]!, call, meter),
+      (args, call, _functions, meter, runtime) =>
+        runHandle(args[0]!, args[1]!, call, meter, args[2], runtime.defs),
       2,
     ),
 
