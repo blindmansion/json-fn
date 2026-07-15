@@ -2,6 +2,20 @@
   "description": "trailing `where` in body positions (shorthand spec section 8)",
   "cases": [
     {
+      "description": "trailing where on a top-level expression lowers to an IIFE over the locals",
+      "source": "double(n) where { double: (x) => x * 2 }",
+      "expected": {
+        "$call": {
+          "double": {
+            "$params": ["x"],
+            "$return": { "$call": "mul", "$args": [{ "$var": "x" }, 2] }
+          },
+          "$return": { "$call": "double", "$args": [{ "$var": "n" }] }
+        },
+        "$args": []
+      }
+    },
+    {
       "description": "trailing where on a cond arm result lowers to an IIFE over the locals",
       "source": "cond {\n  n > 0 -> big(n) where { big: (x) => x * 100 },\n  else   -> 0\n}",
       "expected": {

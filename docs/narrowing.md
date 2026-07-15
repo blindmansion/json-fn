@@ -146,7 +146,8 @@ Recognized forms compose:
 
 - No narrowing on non-path subjects (call results, computed indices).
 - No arithmetic / refinement inference (`Score = integer & min(0)` stays opaque
-  to arithmetic; discharge with `x!` / boundary validation).
+  to arithmetic). `x!` only removes `null`; use an explicit runtime contract
+  boundary when a computed result must be validated as a refinement.
 - No single-subject fact from `$and`-false or `$or`-true.
 - No loosening of callback arity — the wrapper lambda (`map((x) => g(x), xs)`)
   stays required.

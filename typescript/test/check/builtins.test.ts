@@ -86,9 +86,14 @@ describe("Section F — builtin signatures", () => {
     expect(nested).toHaveLength(2);
   });
 
-  test("type variables: head returns T | null", () => {
-    const { type } = synthB(call("head", [1, 2, 3]));
-    expect(isSubschema(type, { type: ["integer", "null"] })).toBe(true);
+  test("type variables: head widens tuple elements and flattens T | null", () => {
+    expect(synthB(call("head", [1, 2, 3])).type).toEqual({
+      anyOf: [{ type: "integer" }, { type: "null" }],
+    });
+  });
+
+  test("type variables: head of an empty tuple simplifies to null", () => {
+    expect(synthB(call("head", [])).type).toEqual({ type: "null" });
   });
 
   test("type variables: concat and setAt preserve the element type", () => {

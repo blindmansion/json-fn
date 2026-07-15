@@ -69,6 +69,14 @@ evaluation fails. `$cast` must be the sole key.
 The checker removes `null` from the operand's inferred type. In shorthand this
 is written as the postfix operator `x!`.
 
+Refinements are intentionally opaque to arithmetic. For example, if
+`Score = integer & min(0)`, arithmetic involving a `Score` produces `integer`;
+the checker does not infer that the result still satisfies `min(0)`. Postfix
+`!` only removes `null` and does not establish a refinement. Keep such
+calculations at the primitive type and, when a refined result must be asserted,
+validate it at an explicit runtime contract boundary such as a total annotated
+`handle` result. Static arithmetic/refinement inference is not supported.
+
 ### Property Access — `{ $get, $from }`
 
 All property access uses `$get`/`$from`. `$from` evaluates to the target and `$get` evaluates to the key read from it:

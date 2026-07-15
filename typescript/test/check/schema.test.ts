@@ -5,6 +5,7 @@ import {
   SchemaKind,
   type Defs,
   type Schema,
+  unionOf,
 } from "../../src/check/schema";
 import { isSubschema } from "../../src/check/subsumption";
 
@@ -39,6 +40,21 @@ describe("classifySchema", () => {
   for (const [name, schema, kind] of cases) {
     test(name, () => expect(classifySchema(schema)).toBe(kind));
   }
+});
+
+describe("unionOf", () => {
+  test("recursively flattens nested anyOf and removes never arms", () => {
+    expect(
+      unionOf([
+        { type: "string" },
+        { anyOf: [false, { type: "number" }, { anyOf: [{ type: "string" }] }] },
+      ]),
+    ).toEqual({ anyOf: [{ type: "string" }, { type: "number" }] });
+  });
+
+  test("a nested any arm absorbs the union", () => {
+    expect(unionOf([{ type: "string" }, { anyOf: [{ type: "number" }, true] }])).toBe(true);
+  });
 });
 
 // ---------------------------------------------------------------------------

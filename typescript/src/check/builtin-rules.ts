@@ -38,6 +38,7 @@ import {
   collectSchemaRefs,
   properties,
   apMode,
+  widenLiteral,
 } from "./schema";
 import { isSubschema } from "./subsumption";
 
@@ -67,6 +68,9 @@ function instantiate(schema: Schema, bindings: Bindings): Schema {
   }
   if (Array.isArray(schema)) return schema.map((x) => instantiate(x, bindings));
   if (isSchemaObject(schema)) {
+    if (Array.isArray(schema.anyOf)) {
+      return unionOf((schema.anyOf as Schema[]).map((x) => instantiate(x, bindings)));
+    }
     const out: Record<string, JSONType> = {};
     for (const [k, v] of Object.entries(schema)) out[k] = instantiate(v as Schema, bindings);
     return out;
@@ -84,7 +88,8 @@ function elementSchemaOf(concrete: Schema, ctx: CheckContext): Schema | null {
   if (k === SchemaKind.Tuple) {
     const o = asObject(t);
     const rest = tupleRest(o);
-    return unionOf(rest === null ? prefixItems(o) : [...prefixItems(o), rest]);
+    const elements = rest === null ? prefixItems(o) : [...prefixItems(o), rest];
+    return unionOf(elements.map(widenLiteral));
   }
   return null;
 }

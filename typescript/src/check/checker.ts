@@ -52,6 +52,7 @@ import {
   SchemaKind,
   tupleRest,
   unionOf,
+  widenLiteral,
   type Schema,
 } from "./schema";
 import { isSubschema } from "./subsumption";
@@ -560,21 +561,21 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
       const c = expr as { $if: JSONType; $then: JSONType; $else: JSONType };
       const arms: Schema[] = [];
       visitIfArms(c, ctx, (result, armCtx) => arms.push(synth(result, armCtx)));
-      return unionOf(arms);
+      return unionOf(arms.map(widenLiteral));
     }
 
     case "cond": {
       const c = expr as { $cond: [JSONType, JSONType][]; $else?: JSONType };
       const arms: Schema[] = [];
       visitCondArms(c, ctx, (result, armCtx) => arms.push(synth(result, armCtx)));
-      return unionOf(arms);
+      return unionOf(arms.map(widenLiteral));
     }
 
     case "match": {
       const m = expr as { $match: JSONType; $cases: [JSONType, JSONType][]; $else?: JSONType };
       const arms: Schema[] = [];
       visitMatchArms(m, ctx, (result, armCtx) => arms.push(synth(result, armCtx)));
-      return unionOf(arms);
+      return unionOf(arms.map(widenLiteral));
     }
 
     case "and":

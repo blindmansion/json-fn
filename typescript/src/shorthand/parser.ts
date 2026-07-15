@@ -49,7 +49,7 @@ class Parser extends TokenCursor {
       this.advance();
       return this.parseModule();
     }
-    return this.parseExpr();
+    return this.parseBody();
   }
 
   // ----- expression precedence ladder (spec section 6) -----
@@ -270,7 +270,7 @@ class Parser extends TokenCursor {
           case "let":
             throw this.err("the 'let { ... } in expr' form is replaced by 'expr where { ... }'");
           case "where":
-            throw this.err("'where { ... }' is only valid immediately after a function body");
+            throw this.err("'where { ... }' must immediately follow an expression");
           default:
             this.advance();
             return { value: { $var: t.value }, name: t.value };
@@ -561,9 +561,9 @@ class Parser extends TokenCursor {
   /** Parse an expression that may carry a trailing `expr where { ... }` clause.
    * With a `where`, the expression lowers to a zero-arg IIFE over a scope so the
    * existing `buildScope`/`callJSONFunction` machinery evaluates the locals —
-   * no evaluator changes (spec section 8). Used wherever a trailing `where`
-   * should attach: `where`-binding values, `cond`/`match` arm results, and
-   * `if/then/else` branches. */
+   * no evaluator changes (spec section 8). Used at the program top level and
+   * wherever a trailing `where` should attach: `where`-binding values,
+   * `cond`/`match` arm results, and `if/then/else` branches. */
   private parseBody(): JSONType {
     const expr = this.parseExpr();
     if (!this.eatKeyword("where")) {

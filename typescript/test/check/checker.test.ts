@@ -53,7 +53,7 @@ describe("synth: non-null assertion", () => {
     const result = checkExpr({
       $cast: { $if: true, $then: 1, $else: null },
     });
-    expect(result.type).toEqual({ const: 1 });
+    expect(result.type).toEqual({ type: "integer" });
     expect(result.diagnostics).toEqual([]);
   });
 
@@ -1131,7 +1131,7 @@ describe("synth: missing closed-object field → hard error", () => {
 });
 
 describe("synth: control-flow unions", () => {
-  test("$if synthesizes the union of its branches", () => {
+  test("$if widens literal branch results before joining them", () => {
     const ctx: CheckContext = {
       defs: {},
       env: { lookupType: () => undefined },
@@ -1139,7 +1139,8 @@ describe("synth: control-flow unions", () => {
       path: [],
     };
     const t = synth({ $if: true, $then: 1, $else: "x" }, ctx);
-    expect(t).toEqual({ anyOf: [{ const: 1 }, { const: "x" }] });
+    expect(t).toEqual({ anyOf: [{ type: "integer" }, { type: "string" }] });
+    expect(synth({ $if: true, $then: 10, $else: 20 }, ctx)).toEqual({ type: "integer" });
   });
 
   test("$if narrows a bare-value condition by truthiness in each branch", () => {
@@ -1152,7 +1153,7 @@ describe("synth: control-flow unions", () => {
       path: [],
     };
     expect(synth({ $if: { $var: "x" }, $then: { $var: "x" }, $else: "d" }, nctx)).toEqual({
-      anyOf: [{ type: "string" }, { const: "d" }],
+      type: "string",
     });
   });
 
@@ -1166,7 +1167,7 @@ describe("synth: control-flow unions", () => {
       path: [],
     };
     expect(synth({ $if: { $var: "x" }, $then: "d", $else: { $var: "x" } }, nctx)).toEqual({
-      anyOf: [{ const: "d" }, { const: "" }, { type: "null" }],
+      anyOf: [{ type: "string" }, { const: "" }, { type: "null" }],
     });
   });
 });

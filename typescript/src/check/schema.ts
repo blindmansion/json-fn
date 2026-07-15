@@ -152,6 +152,21 @@ function literalValues(s: Schema): JSONType[] {
   return (o.enum as JSONType[]) ?? [];
 }
 
+// Widen a synthesized scalar literal to its primitive category when it
+// participates in a join. Literal schemas remain precise everywhere else
+// (notably discriminants and narrowing facts).
+function widenLiteral(s: Schema): Schema {
+  if (classifySchema(s) !== SchemaKind.Const) return s;
+  const value = asObject(s).const;
+  if (typeof value === "number") {
+    return { type: Number.isInteger(value) ? "integer" : "number" };
+  }
+  if (typeof value === "string" || typeof value === "boolean") {
+    return { type: typeof value };
+  }
+  return s;
+}
+
 function deepEqual(a: JSONType, b: JSONType): boolean {
   if (a === b) return true;
   if (typeof a !== typeof b) return false;
@@ -487,13 +502,20 @@ function mergeSchemas(a: Schema, b: Schema, defs: Defs): Schema {
 // printer owns the §2.3 enum/type-array canonicalization.
 function unionOf(schemas: Schema[]): Schema {
   const arms: Schema[] = [];
-  for (const s of schemas) {
+  const add = (s: Schema): boolean => {
     if (s === true) return true; // any absorbs
-    if (s === false) continue; // never drops out
-    const nested = isSchemaObject(s) && Array.isArray(s.anyOf) ? (s.anyOf as Schema[]) : [s];
-    for (const a of nested) {
-      if (!arms.some((existing) => deepEqual(existing, a))) arms.push(a);
+    if (s === false) return false; // never drops out
+    if (isSchemaObject(s) && Array.isArray(s.anyOf)) {
+      for (const nested of s.anyOf as Schema[]) {
+        if (add(nested)) return true;
+      }
+      return false;
     }
+    if (!arms.some((existing) => deepEqual(existing, s))) arms.push(s);
+    return false;
+  };
+  for (const s of schemas) {
+    if (add(s)) return true;
   }
   if (arms.length === 0) return false;
   if (arms.length === 1) return arms[0]!;
@@ -512,6 +534,7 @@ export {
   collectSchemaRefs,
   unionArms,
   literalValues,
+  widenLiteral,
   deepEqual,
   itemsSchema,
   prefixItems,
