@@ -807,6 +807,39 @@ describe("Section F — builtin signatures", () => {
       expect(isSubschema(r.type, arrOfInt)).toBe(true);
     });
 
+    test("a bare callback may omit trailing supplied parameters", () => {
+      const callback = { $params: ["n"], $return: { $var: "n" } };
+      const r = synthB(call("map", callback, [10, 20]));
+      expect(r.diagnostics).toEqual([]);
+      expect(isSubschema(r.type, arrOfInt)).toBe(true);
+    });
+
+    test("a bare callback rejects more fixed parameters than the builtin supplies", () => {
+      const callback = {
+        $params: ["n", "i", "extra"],
+        $return: call("add", { $var: "extra" }, 1),
+      };
+      const r = synthB(call("map", callback, [10, 20]));
+      expect(r.diagnostics).toEqual([
+        expect.objectContaining({
+          path: ["$args[0]"],
+          message: expect.stringContaining("declares 3 fixed parameter(s)"),
+          severity: "error",
+        }),
+      ]);
+    });
+
+    test("a bare callback rest parameter collects remaining supplied types", () => {
+      const callback = { $params: ["n", "...rest"], $return: { $var: "rest" } };
+      const r = synthB(call("map", callback, [10, 20]));
+      const arrayOfArraysOfInt: Schema = {
+        type: "array",
+        items: { type: "array", items: I },
+      };
+      expect(r.diagnostics).toEqual([]);
+      expect(isSubschema(r.type, arrayOfArraysOfInt)).toBe(true);
+    });
+
     test("a lambda at a non-function param position reports, not throws", () => {
       // Swapped args: the lambda lands on `map`'s array param. Previously this
       // destructured an absent `$fnType` and threw; it must be a diagnostic.

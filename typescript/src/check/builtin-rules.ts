@@ -229,15 +229,33 @@ function unifyTemplate(
 }
 
 // Type an inline-lambda argument under the (instantiated) parameter types the
-// builtin demands, returning its synthesized body type. Reuses the term-scope
-// machinery by stamping a synthetic `$sig` onto the lambda body.
-function inferLambdaReturn(body: JSONType, expectedFn: Schema, ctx: CheckContext): Schema {
+// builtin supplies, returning its synthesized body type. A lambda may ignore
+// trailing callback arguments, but it cannot require more fixed arguments than
+// the builtin supplies. A rest parameter collects the remaining supplied
+// schemas rather than silently degrading to `any[]`. Returns null after an
+// arity error so the body is not checked under a bogus scope.
+function inferLambdaReturn(body: JSONType, expectedFn: Schema, ctx: CheckContext): Schema | null {
   const shape = fnShape(asObject(expectedFn));
+  const params = Array.isArray((body as Record<string, JSONType>).$params)
+    ? ((body as Record<string, JSONType>).$params as JSONType[])
+    : [];
+  const restIndex = params.findIndex((p) => typeof p === "string" && p.startsWith("..."));
+  const fixed = restIndex === -1 ? params.length : restIndex;
+  if (fixed > shape.params.length) {
+    report(
+      ctx,
+      `Inline callback declares ${fixed} fixed parameter(s), but the builtin supplies at most ${shape.params.length}.`,
+    );
+    return null;
+  }
+
+  const remaining = shape.params.slice(fixed);
+  if (shape.rest !== undefined) remaining.push(shape.rest);
   const withSig: Record<string, JSONType> = {
     ...(body as Record<string, JSONType>),
     $sig: {
-      params: shape.params,
-      ...(shape.rest !== undefined ? { rest: shape.rest } : {}),
+      params: shape.params.slice(0, fixed),
+      ...(restIndex !== -1 ? { rest: unionOf(remaining) } : {}),
       returns: shape.returns,
     },
   };
@@ -350,6 +368,7 @@ function applyOverload(sig: BuiltinSig, argExprs: JSONType[], ctx: CheckContext)
     };
     const actx = at(ctx, `$args[${i}]`);
     const ret = inferLambdaReturn(argExprs[i]!, expectedFn, actx);
+    if (ret === null) continue;
     if (mentionsTVar(shape.returns)) {
       if (!unifyTemplate(shape.returns, ret, bindings, ctx)) {
         reportMismatch(at(actx, "$return"), ret, instantiate(shape.returns, bindings));
