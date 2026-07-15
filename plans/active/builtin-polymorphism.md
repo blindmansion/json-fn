@@ -78,7 +78,7 @@ it is a separate builtin-only construct.
 
 ## Plan
 
-### A1 — Extend template matching through tuples and objects
+### A1 — Extend template matching through tuples and objects (complete)
 
 Extend `unifyTemplate` to bind `$tvar`s reached through:
 
@@ -88,6 +88,20 @@ Extend `unifyTemplate` to bind `$tvar`s reached through:
 This lets more builtins express an honest argument/return relationship directly
 in `spec/builtins.json` instead of a per-implementation code rule.
 
+Completed in the TypeScript checker. Structural matching now:
+
+- resolves concrete refs and distributes over concrete unions;
+- preserves homogeneous `array items T` widening while matching tuple templates
+  positionally, including tuple rest;
+- matches named object properties and feeds unnamed fields plus map/open tails
+  into schema-valued `additionalProperties`;
+- keeps the final `isSubschema` check, so binding does not relax structural
+  compatibility.
+
+Open objects bind a map value variable to `any`; closed records bind it to the
+union of their applicable field types. Focused synthetic-signature tests cover
+these paths without changing the shared builtin table.
+
 ### A2 — Retire code rules that become expressible
 
 Once A1 lands, convert the `CODE_RETURNS` entries that become plain templates
@@ -95,6 +109,12 @@ Once A1 lands, convert the `CODE_RETURNS` entries that become plain templates
 TypeScript-only logic. Keep code rules only where the return is a genuine schema
 computation that no template can express — `merge` (structural spread) stays a
 code rule.
+
+Implementation note for A2: use a positional `[string, V]` tuple under array
+`items` for `fromEntries`, and an object `additionalProperties: V` parameter for
+`values` / `entries`. Preserve the current open-object floors when `V` becomes
+`any`, delete `pairValueType` / `objectValueType` imports or helpers only after
+their final callers are gone, and leave `merge` in `CODE_RETURNS`.
 
 The language-agnostic table remains the common signature floor. It should not
 grow into a general schema-programming language to eliminate small

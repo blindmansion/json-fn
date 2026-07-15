@@ -132,18 +132,90 @@ function unifyTemplate(
     return true;
   }
 
+  const resolved = resolveDeep(concrete, ctx.defs);
+
+  // A concrete union must fit as a whole. Walk every arm into the same binding
+  // environment so variables collect the union of the schemas seen per arm.
+  const concreteArms = unionArms(resolved);
+  if (concreteArms !== null) {
+    return concreteArms.every((arm) => unifyTemplate(template, arm, bindings, ctx));
+  }
+
   const tk = classifySchema(template);
 
   if (tk === SchemaKind.Array) {
-    const elem = elementSchemaOf(concrete, ctx);
-    if (elem === null) return concrete === true; // only `any` fits a non-array
+    if (resolved === true) return true;
+    const elem = elementSchemaOf(resolved, ctx);
+    if (elem === null) return false;
     return unifyTemplate(itemsSchema(asObject(template)), elem, bindings, ctx);
   }
 
+  if (tk === SchemaKind.Tuple) {
+    if (resolved === true) return true;
+    const ck = classifySchema(resolved);
+    if (ck !== SchemaKind.Tuple) return false;
+
+    const t = asObject(template);
+    const c = asObject(resolved);
+    const tp = prefixItems(t);
+    const cp = prefixItems(c);
+    const tr = tupleRest(t);
+    const cr = tupleRest(c);
+
+    // A prefix slot can be supplied by the other tuple's rest. Missing and
+    // surplus positions are left to the final compatibility check below.
+    for (let i = 0; i < Math.max(tp.length, cp.length); i++) {
+      const ts = tp[i] ?? tr;
+      const cs = cp[i] ?? cr;
+      if (ts !== null && ts !== undefined && cs !== null && cs !== undefined) {
+        if (!unifyTemplate(ts, cs, bindings, ctx)) return false;
+      }
+    }
+    if (tr !== null && cr !== null && !unifyTemplate(tr, cr, bindings, ctx)) return false;
+
+    return isSubschema(resolved, instantiate(template, bindings), ctx.defs);
+  }
+
+  if (tk === SchemaKind.Object) {
+    if (resolved === true) return true;
+    if (classifySchema(resolved) !== SchemaKind.Object) return false;
+
+    const t = asObject(template);
+    const c = asObject(resolved);
+    const tp = properties(t);
+    const cp = properties(c);
+    const cm = apMode(c);
+
+    // Named template properties bind from the concrete property's own schema,
+    // or from the concrete additional-properties rule when the key is not
+    // explicitly declared there.
+    for (const [key, ts] of Object.entries(tp)) {
+      const cs =
+        key in cp ? cp[key]! : cm.kind === "map" ? cm.schema : cm.kind === "open" ? true : null;
+      if (cs !== null && !unifyTemplate(ts, cs, bindings, ctx)) return false;
+    }
+
+    const tm = apMode(t);
+    if (tm.kind === "map") {
+      // additionalProperties applies only to keys the template does not name.
+      // For a closed concrete record this joins all such field types; a map
+      // contributes its tail schema, and an open object degrades the variable
+      // to `any`.
+      for (const [key, cs] of Object.entries(cp)) {
+        if (!(key in tp) && !unifyTemplate(tm.schema, cs, bindings, ctx)) return false;
+      }
+      if (cm.kind === "map" && !unifyTemplate(tm.schema, cm.schema, bindings, ctx)) return false;
+      if (cm.kind === "open" && !unifyTemplate(tm.schema, true, bindings, ctx)) return false;
+    }
+
+    return isSubschema(resolved, instantiate(template, bindings), ctx.defs);
+  }
+
   if (tk === SchemaKind.FnType) {
-    if (classifySchema(concrete) !== SchemaKind.FnType) return concrete === true;
+    if (resolved === true) return true;
+    if (classifySchema(resolved) !== SchemaKind.FnType) return false;
     const a = fnShape(asObject(template));
-    const b = fnShape(asObject(concrete));
+    const b = fnShape(asObject(resolved));
     if (a.params.length !== b.params.length) return false;
     for (let i = 0; i < a.params.length; i++) {
       if (!unifyTemplate(a.params[i]!, b.params[i]!, bindings, ctx)) return false;
@@ -152,7 +224,7 @@ function unifyTemplate(
   }
 
   // No type variables to bind here — a plain compatibility check.
-  return isSubschema(concrete, instantiate(template, bindings), ctx.defs);
+  return isSubschema(resolved, instantiate(template, bindings), ctx.defs);
 }
 
 // Type an inline-lambda argument under the (instantiated) parameter types the

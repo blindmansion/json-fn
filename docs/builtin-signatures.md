@@ -105,6 +105,24 @@ into `returns`:
 `(T, integer) -> U` is then pushed into the inline callback (contextual typing,
 §4.3), and `U` is inferred from the callback's synthesized return.
 
+#### Structural matching
+
+Template matching follows type variables through the tractable container
+shapes, rather than binding only a whole argument:
+
+- homogeneous array `items`;
+- tuple `prefixItems` positionally and tuple `items` as the rest element;
+- object `properties` by key and schema-valued `additionalProperties`;
+- function parameters and returns.
+
+Repeated occurrences join with a union. Concrete union arms are all matched,
+also joining their bindings. For an object map template, concrete fields not
+named by the template contribute to its `additionalProperties` variable; a
+closed record therefore infers the union of those field types, while an open
+object contributes `any`. Matching still ends with the ordinary subschema
+check, so structural inference does not loosen tuple lengths, required fields,
+or open/closed-object compatibility.
+
 ### Variadic `rest`
 
 ```json

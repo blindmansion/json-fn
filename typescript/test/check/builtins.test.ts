@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { loadBuiltinTable } from "../../src/builtins";
 import type { JSONType } from "../../src/types";
+import type { BuiltinTable } from "../../src/check/builtin-types";
 import { classifySchema, SchemaKind, type Schema } from "../../src/check/schema";
 import { isSubschema } from "../../src/check/subsumption";
 import { checkExpr, checkModule } from "../../src/check/module";
@@ -349,6 +350,136 @@ describe("Section F — builtin signatures", () => {
           severity: "error",
         },
       ]);
+    });
+  });
+
+  describe("A1 — structural type-variable binding", () => {
+    const T = (name: string): Schema => ({ $tvar: name }) as Schema;
+    const structural: BuiltinTable = {
+      builtins: {
+        pairSecond: [
+          {
+            typeParams: ["V"],
+            params: [
+              {
+                type: "array",
+                items: {
+                  type: "array",
+                  prefixItems: [S, T("V")],
+                  items: false,
+                },
+              },
+            ],
+            returns: T("V"),
+          },
+        ],
+        tupleRestValues: [
+          {
+            typeParams: ["T"],
+            params: [{ type: "array", prefixItems: [S], items: T("T") }],
+            returns: { type: "array", items: T("T") },
+          },
+        ],
+        propertyValue: [
+          {
+            typeParams: ["T"],
+            params: [{ type: "object", properties: { payload: T("T") } }],
+            returns: T("T"),
+          },
+        ],
+        objectValues: [
+          {
+            typeParams: ["V"],
+            params: [{ type: "object", additionalProperties: T("V") }],
+            returns: { type: "array", items: T("V") },
+          },
+        ],
+      },
+    };
+    const synth = (expr: JSONType) => checkExpr(expr, {}, structural);
+    const errors = (mod: JSONType) =>
+      checkModule(mod as Record<string, JSONType>, structural).filter(
+        (d) => d.severity === "error",
+      );
+
+    test("binds tuple prefixItems positionally through array items", () => {
+      const result = synth(call("pairSecond", [["a", 1]]));
+      expect(result.diagnostics).toEqual([]);
+      expect(result.type).toEqual({ const: 1 });
+    });
+
+    test("joins a repeated tuple slot variable across concrete union arms", () => {
+      const result = synth(
+        call("pairSecond", [
+          ["a", 1],
+          ["b", "x"],
+        ]),
+      );
+      expect(result.diagnostics).toEqual([]);
+      expect(result.type).toEqual({ anyOf: [{ const: 1 }, { const: "x" }] });
+    });
+
+    test("binds tuple rest from every trailing position", () => {
+      const result = synth(call("tupleRestValues", ["head", 1, "x"]));
+      expect(result.diagnostics).toEqual([]);
+      expect(result.type).toEqual({
+        type: "array",
+        items: { anyOf: [{ const: 1 }, { const: "x" }] },
+      });
+    });
+
+    test("binds a named object property", () => {
+      const result = synth(call("propertyValue", { payload: 42 }));
+      expect(result.diagnostics).toEqual([]);
+      expect(result.type).toEqual({ const: 42 });
+    });
+
+    test("binds additionalProperties from every closed-record field", () => {
+      const result = synth(call("objectValues", { a: 1, b: "x" }));
+      expect(result.diagnostics).toEqual([]);
+      expect(result.type).toEqual({
+        type: "array",
+        items: { anyOf: [{ const: 1 }, { const: "x" }] },
+      });
+    });
+
+    test("binds additionalProperties through a referenced map and a union", () => {
+      const mapI: Schema = { type: "object", additionalProperties: I };
+      const mapS: Schema = { type: "object", additionalProperties: S };
+      const maps: Schema = { anyOf: [{ $ref: "#/$defs/MI" }, { $ref: "#/$defs/MS" }] };
+      const vals: Schema = { type: "array", items: { anyOf: [I, S] } };
+      expect(
+        errors({
+          $types: { MI: mapI, MS: mapS, Maps: maps },
+          f: body(
+            ["m"],
+            { params: [{ $ref: "#/$defs/Maps" }], returns: vals },
+            call("objectValues", { $var: "m" }),
+          ),
+        }),
+      ).toEqual([]);
+    });
+
+    test("accepts an open object by degrading its value variable to any", () => {
+      expect(
+        errors({
+          f: body(
+            ["o"],
+            { params: [{ type: "object" }], returns: { type: "array" } },
+            call("objectValues", { $var: "o" }),
+          ),
+        }),
+      ).toEqual([]);
+    });
+
+    test("rejects a concrete element that cannot match a tuple template", () => {
+      const result = synth(call("pairSecond", [1, 2]));
+      expect(result.diagnostics.some((d) => d.severity === "error")).toBe(true);
+    });
+
+    test("does not make any compatible with monomorphic primitive overloads", () => {
+      const result = synthB(call("add", { $var: "unknown" }, 1));
+      expect(result.diagnostics.some((d) => d.message.startsWith("No overload"))).toBe(true);
     });
   });
 
