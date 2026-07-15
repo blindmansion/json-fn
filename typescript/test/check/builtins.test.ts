@@ -268,6 +268,23 @@ describe("Section F — builtin signatures", () => {
       expect(isSubschema(r.type, arrOfInt)).toBe(true);
     });
 
+    test("flatMap rejects a scalar callback return", () => {
+      const scalar = {
+        $params: ["n", "i"],
+        $return: call("add", { $var: "n" }, 1),
+      };
+      const r = synthB(call("flatMap", scalar, [1, 2, 3]));
+      expect(r.type).toEqual({ type: "array", items: true });
+      expect(r.diagnostics).toContainEqual(
+        expect.objectContaining({
+          path: ["$args[0]", "$return"],
+          actual: I,
+          expected: { type: "array", items: true },
+          severity: "error",
+        }),
+      );
+    });
+
     test("reReplaceWith types its Match callback", () => {
       const cb = { $params: ["m"], $return: { $get: "match", $from: { $var: "m" } } };
       const r = synthB(call("reReplaceWith", "a", cb, "banana"));
@@ -480,6 +497,81 @@ describe("Section F — builtin signatures", () => {
     test("does not make any compatible with monomorphic primitive overloads", () => {
       const result = synthB(call("add", { $var: "unknown" }, 1));
       expect(result.diagnostics.some((d) => d.message.startsWith("No overload"))).toBe(true);
+    });
+  });
+
+  describe("transactional callback-return binding", () => {
+    const T = (name: string): Schema => ({ $tvar: name }) as Schema;
+    const callbackReturn = (returns: Schema): BuiltinTable => ({
+      builtins: {
+        testCallback: [
+          {
+            typeParams: ["U"],
+            params: [{ $fnType: { params: [], returns } }],
+            returns: T("U"),
+          },
+        ],
+      },
+    });
+    const run = (returns: Schema, value: JSONType) =>
+      checkExpr(call("testCallback", { $params: [], $return: value }), {}, callbackReturn(returns));
+    const returnError = (result: ReturnType<typeof run>) =>
+      result.diagnostics.find((d) => d.path.join(".") === "$args[0].$return");
+
+    test("rejects a scalar against an array return template", () => {
+      const result = run({ type: "array", items: T("U") }, 1);
+      expect(result.type).toBe(true);
+      expect(returnError(result)).toEqual(
+        expect.objectContaining({
+          actual: { const: 1 },
+          expected: { type: "array", items: true },
+          severity: "error",
+        }),
+      );
+    });
+
+    test("rolls back an early tuple binding when a later slot fails", () => {
+      const returns: Schema = {
+        type: "array",
+        prefixItems: [T("U"), S],
+        items: false,
+        minItems: 2,
+      };
+      const result = run(returns, [1, 2]);
+      expect(result.type).toBe(true);
+      expect(returnError(result)).toEqual(
+        expect.objectContaining({
+          expected: {
+            type: "array",
+            prefixItems: [true, S],
+            items: false,
+            minItems: 2,
+          },
+          severity: "error",
+        }),
+      );
+    });
+
+    test("rolls back an early object binding when a later property fails", () => {
+      const returns: Schema = {
+        type: "object",
+        properties: { value: T("U"), label: S },
+        required: ["value", "label"],
+        additionalProperties: false,
+      };
+      const result = run(returns, { value: 1, label: 2 });
+      expect(result.type).toBe(true);
+      expect(returnError(result)).toEqual(
+        expect.objectContaining({
+          expected: {
+            type: "object",
+            properties: { value: true, label: S },
+            required: ["value", "label"],
+            additionalProperties: false,
+          },
+          severity: "error",
+        }),
+      );
     });
   });
 

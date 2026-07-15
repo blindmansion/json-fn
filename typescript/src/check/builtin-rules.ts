@@ -97,7 +97,7 @@ function elementSchemaOf(concrete: Schema, ctx: CheckContext): Schema | null {
 // variables where the template has them, and verify compatibility where it
 // doesn't. Returns false only on a definite concrete mismatch, which lets
 // overload selection reject an arm.
-function unifyTemplate(
+function unifyTemplateInto(
   template: Schema,
   concrete: Schema,
   bindings: Bindings,
@@ -115,7 +115,7 @@ function unifyTemplate(
   // environment so variables collect the union of the schemas seen per arm.
   const concreteArms = unionArms(resolved);
   if (concreteArms !== null) {
-    return concreteArms.every((arm) => unifyTemplate(template, arm, bindings, ctx));
+    return concreteArms.every((arm) => unifyTemplateInto(template, arm, bindings, ctx));
   }
 
   const tk = classifySchema(template);
@@ -124,7 +124,7 @@ function unifyTemplate(
     if (resolved === true) return true;
     const elem = elementSchemaOf(resolved, ctx);
     if (elem === null) return false;
-    return unifyTemplate(itemsSchema(asObject(template)), elem, bindings, ctx);
+    return unifyTemplateInto(itemsSchema(asObject(template)), elem, bindings, ctx);
   }
 
   if (tk === SchemaKind.Tuple) {
@@ -145,10 +145,10 @@ function unifyTemplate(
       const ts = tp[i] ?? tr;
       const cs = cp[i] ?? cr;
       if (ts !== null && ts !== undefined && cs !== null && cs !== undefined) {
-        if (!unifyTemplate(ts, cs, bindings, ctx)) return false;
+        if (!unifyTemplateInto(ts, cs, bindings, ctx)) return false;
       }
     }
-    if (tr !== null && cr !== null && !unifyTemplate(tr, cr, bindings, ctx)) return false;
+    if (tr !== null && cr !== null && !unifyTemplateInto(tr, cr, bindings, ctx)) return false;
 
     return isSubschema(resolved, instantiate(template, bindings), ctx.defs);
   }
@@ -169,7 +169,7 @@ function unifyTemplate(
     for (const [key, ts] of Object.entries(tp)) {
       const cs =
         key in cp ? cp[key]! : cm.kind === "map" ? cm.schema : cm.kind === "open" ? true : null;
-      if (cs !== null && !unifyTemplate(ts, cs, bindings, ctx)) return false;
+      if (cs !== null && !unifyTemplateInto(ts, cs, bindings, ctx)) return false;
     }
 
     const tm = apMode(t);
@@ -179,10 +179,11 @@ function unifyTemplate(
       // contributes its tail schema, and an open object degrades the variable
       // to `any`.
       for (const [key, cs] of Object.entries(cp)) {
-        if (!(key in tp) && !unifyTemplate(tm.schema, cs, bindings, ctx)) return false;
+        if (!(key in tp) && !unifyTemplateInto(tm.schema, cs, bindings, ctx)) return false;
       }
-      if (cm.kind === "map" && !unifyTemplate(tm.schema, cm.schema, bindings, ctx)) return false;
-      if (cm.kind === "open" && !unifyTemplate(tm.schema, true, bindings, ctx)) return false;
+      if (cm.kind === "map" && !unifyTemplateInto(tm.schema, cm.schema, bindings, ctx))
+        return false;
+      if (cm.kind === "open" && !unifyTemplateInto(tm.schema, true, bindings, ctx)) return false;
     }
 
     return isSubschema(resolved, instantiate(template, bindings), ctx.defs);
@@ -195,13 +196,28 @@ function unifyTemplate(
     const b = fnShape(asObject(resolved));
     if (a.params.length !== b.params.length) return false;
     for (let i = 0; i < a.params.length; i++) {
-      if (!unifyTemplate(a.params[i]!, b.params[i]!, bindings, ctx)) return false;
+      if (!unifyTemplateInto(a.params[i]!, b.params[i]!, bindings, ctx)) return false;
     }
-    return unifyTemplate(a.returns, b.returns, bindings, ctx);
+    return unifyTemplateInto(a.returns, b.returns, bindings, ctx);
   }
 
   // No type variables to bind here — a plain compatibility check.
   return isSubschema(resolved, instantiate(template, bindings), ctx.defs);
+}
+
+// Structural matching can bind variables before a later part of the same
+// template fails. Keep those tentative bindings isolated and publish them only
+// when the complete template matches.
+function unifyTemplate(
+  template: Schema,
+  concrete: Schema,
+  bindings: Bindings,
+  ctx: CheckContext,
+): boolean {
+  const candidate = { ...bindings };
+  if (!unifyTemplateInto(template, concrete, candidate, ctx)) return false;
+  Object.assign(bindings, candidate);
+  return true;
 }
 
 // Type an inline-lambda argument under the (instantiated) parameter types the
@@ -315,7 +331,9 @@ function applyOverload(sig: BuiltinSig, argExprs: JSONType[], ctx: CheckContext)
     const actx = at(ctx, `$args[${i}]`);
     const ret = inferLambdaReturn(argExprs[i]!, expectedFn, actx);
     if (mentionsTVar(shape.returns)) {
-      unifyTemplate(shape.returns, ret, bindings, ctx);
+      if (!unifyTemplate(shape.returns, ret, bindings, ctx)) {
+        reportMismatch(at(actx, "$return"), ret, instantiate(shape.returns, bindings));
+      }
     } else {
       const inst = instantiate(shape.returns, bindings);
       if (!isSubschema(ret, inst, ctx.defs)) reportMismatch(at(actx, "$return"), ret, inst);
