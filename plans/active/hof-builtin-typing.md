@@ -1,5 +1,20 @@
 # Higher-order builtin typing
 
+Status: **complete** (2026-07-15). Retained as implementation rationale; the
+gap descriptions and “current result” examples below document the
+pre-implementation behavior.
+
+Implemented outcomes:
+
+- callback-return template matching is transactional and enforced;
+- concrete callbacks are validated against final call-site bindings;
+- annotated function signatures are preserved while bare lambdas remain
+  contextual;
+- contextual callback arity and rest parameters are checked;
+- `mapValues` propagates input and output value types through a map-shaped
+  result; and
+- redundant finite literal union arms are normalized conservatively.
+
 ## Goal
 
 Make higher-order builtin calls sound and predictably precise in the canonical

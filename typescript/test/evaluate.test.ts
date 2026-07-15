@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { callFunction, createPerfStats, createStdlib } from "../src";
-import type { FunctionRegistry } from "../src";
+import type { FunctionRegistry, JSONType } from "../src";
 
 const functions: FunctionRegistry = createStdlib();
 
@@ -27,6 +27,29 @@ describe("evaluation state", () => {
 
     expect(stats.evaluateExpression).toBeGreaterThan(0);
     expect(unusedStats.evaluateExpression).toBe(0);
+  });
+});
+
+describe("stdlib mapValues", () => {
+  test("passes each value and key while preserving the input keys", () => {
+    const expression: JSONType = {
+      $call: "mapValues",
+      $args: [
+        {
+          $params: ["value", "key"],
+          $return: {
+            value: { $call: "add", $args: [{ $var: "value" }, 1] },
+            key: { $var: "key" },
+          },
+        },
+        { a: 1, b: 2 },
+      ],
+    };
+
+    expect(callFunction({ $return: expression }, [], functions)).toEqual({
+      a: { value: 2, key: "a" },
+      b: { value: 3, key: "b" },
+    });
   });
 });
 

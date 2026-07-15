@@ -1,8 +1,7 @@
 # Builtin type signatures
 
-Status: **draft / first pass.** Currently only the TypeScript checker consumes
-this; the format is being validated on a small representative set before it is
-filled out for every builtin.
+Status: **implemented in the canonical TypeScript checker.** The other
+implementations may lag while the language is still evolving.
 
 ## Why this exists
 
@@ -105,6 +104,21 @@ into `returns`:
 `(T, integer) -> U` is then pushed into the inline callback (contextual typing,
 §4.3), and `U` is inferred from the callback's synthesized return.
 
+#### Contextual lambdas and concrete functions
+
+Only a bare inline body with no `$sig` is contextually typed. Its declared
+parameters receive the callback argument schemas supplied by the builtin. It
+may omit trailing parameters it does not use, but may not declare more fixed
+parameters than the builtin supplies; a rest parameter collects the remaining
+supplied schemas.
+
+An annotated inline body or referenced/named function is instead a concrete
+function value. Its declared signature is preserved, its body is checked
+against its declared return, and the complete function type is validated after
+all call-site type-variable bindings are final. Function parameters remain
+contravariant: a callback may accept a broader input type than the builtin
+passes, but not a narrower one.
+
 #### Structural matching
 
 Template matching follows type variables through the tractable container
@@ -113,7 +127,8 @@ shapes, rather than binding only a whole argument:
 - homogeneous array `items`;
 - tuple `prefixItems` positionally and tuple `items` as the rest element;
 - object `properties` by key and schema-valued `additionalProperties`;
-- function parameters and returns.
+- function returns (parameters are compatibility constraints, not inference
+  sources).
 
 Repeated occurrences join with a union. Concrete union arms are all matched,
 also joining their bindings. For an object map template, concrete fields not
@@ -122,6 +137,29 @@ closed record therefore infers the union of those field types, while an open
 object contributes `any`. Matching still ends with the ordinary subschema
 check, so structural inference does not loosen tuple lengths, required fields,
 or open/closed-object compatibility.
+
+#### `mapValues`
+
+`mapValues` uses the same `T`/`U` machinery over object values:
+
+```json
+"mapValues": [{
+  "typeParams": ["T", "U"],
+  "params": [
+    { "$fnType": { "params": [{ "$tvar": "T" }, { "type": "string" }], "returns": { "$tvar": "U" } } },
+    { "type": "object", "additionalProperties": { "$tvar": "T" } }
+  ],
+  "returns": { "type": "object", "additionalProperties": { "$tvar": "U" } }
+}]
+```
+
+For a closed input record, `T` is the union of its value schemas; for a typed
+map, it is the map's value schema; and an open object contributes `any`. The
+callback receives `(value: T, key: string)` and determines `U`. The shared
+result is the honest map floor `{ [string]: U }`: `mapValues` preserves the
+input's exact keys at runtime, but exact key preservation requires an
+argument-dependent code computation and is intentionally not represented by
+this data template.
 
 ### Variadic `rest`
 
@@ -186,7 +224,8 @@ per-implementation **instantiation engine** (the algorithm, not the data):
    inline-lambda arguments; infer any output variables from their returns.
 4. Instantiate and return the result schema.
 
-In TypeScript this lives in section F of `typescript/src/check.ts`, loaded via
+In TypeScript this lives in
+`typescript/src/check/builtin-rules.ts`, loaded via
 `typescript/src/builtins.ts`. Other implementations may bundle or codegen the
 table; that choice is left to each.
 
