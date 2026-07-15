@@ -177,23 +177,23 @@ Open questions:
 
 This is optional follow-up work, not a prerequisite for the recenter milestone.
 
-### `handle` totality and bubbling
+### `handle` totality and bubbling — resolved for recenter
 
-An annotated `handle ... -> Report` cannot both promise `Report` and silently
-return a residual task. Choose one semantic contract:
+The existing two-argument `handle(task, handlers)` remains partial: unmatched
+effects bubble and its static result stays top. The new annotated form is total:
+an unmatched effect is a runtime contract failure, so no residual task is
+presented as the declared result.
 
-1. **Total annotated handle:** every effect must be handled; a bubbled task is a
-   runtime contract failure. Static handler coverage may initially be
-   conservative.
-2. **Partial handle:** the result type is `Report | Task` (or
-   `Report | Task<...>` if task indexing lands).
-3. **Effect-aware handle:** track effect sets and prove that the supplied
-   clauses discharge all possible effects before returning `Report`.
+The shorthand is `handle task with { ... } -> ResultType`, lowering to a third
+`raw(resultSchema)` argument on the builtin call. The schema types the immediate
+result of `handle`. State-handler encodings return a function at that point, so
+their annotation is a function type whose eventual result is `Report`, not
+`Report` itself. Runtime support must therefore enforce callable boundary
+contracts as well as concrete data schemas. See
+[`effects-handle.md`](effects-handle.md) for the canonical shape and work items.
 
-The third option is an effect-system project and is outside recenter. The first
-is the smallest sound interpretation of a concrete result annotation; the
-second preserves current bubbling but does not by itself unblock a function
-declared to return only `Report`.
+Effect-set tracking could eventually prove totality statically, but it is not
+required for this contract and remains outside recenter.
 
 ### General guest generics
 
@@ -208,8 +208,8 @@ typed modules round-trip.
 1. Finish the existing recenter checker work.
 2. Extend builtin template matching through tuples and objects; retain code
    rules where the return is a true schema computation.
-3. Resolve annotated-`handle` totality and annotation syntax, then implement its
-   runtime contract.
+3. Implement the resolved total annotated-`handle` form and its runtime
+   contract.
 4. Design the operator effect manifest and wire checker plus host validation
    from the same data.
 5. Evaluate specialized `Task<A>` indexing using real effectful examples.

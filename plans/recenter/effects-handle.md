@@ -30,16 +30,20 @@ rule; validation cannot simply treat every current return path as `Report`.
 
 ## Design
 
-- `handle` **takes (or requires) a declared result-type annotation**; the
-  checker trusts it statically as `handle`'s result type instead of returning
-  top.
+- Keep the existing two-argument `handle(task, handlers)` as the partial form:
+  unmatched effects bubble and the checker synthesizes top.
+- Add a three-argument annotated form
+  `handle(task, handlers, raw(resultSchema))`. In shorthand it is written
+  `handle task with { ... } -> ResultType`. The checker treats the third
+  argument as type syntax, not as an inferred guest value, and synthesizes that
+  schema as the type of the immediate `handle` expression.
 - The **runtime validates the produced value against that annotation at the
   boundary**. Handler-produced values are untrusted inputs from the contract's
   perspective, and a sandboxed embedding wants this validation anyway.
-- The annotation is meaningful only with an explicit **totality contract**.
-  The smallest sound interpretation is that an annotated `handle` is total:
-  if evaluation attempts to bubble an unmatched effect, the annotation
-  contract fails rather than returning a residual task as `Report`.
+- The annotated form is **total**: if evaluation attempts to bubble an
+  unmatched effect, it raises a runtime contract error instead of returning a
+  residual task as the declared result. Recursive calls made by `resume` retain
+  the annotation and the same totality rule.
 - `Task` stays opaque/nominal; `perform`/`pure`/`bind`/`raise` keep their
   current `Task`-returning floors for this work. A specialized erased
   `Task<A>` checker index may be evaluated later, independently of general
@@ -51,53 +55,82 @@ generally wired into evaluator or host boundaries yet. This work must introduce
 or share the concrete validator path; it must not assume host-input validation
 already exists.
 
-## Open decisions
+The annotation is allowed to reference module `$types`. Runtime validation
+therefore needs the active module definitions as well as the schema; treating a
+`$ref` as top or requiring callers to inline named types would make the
+contract unsound or unusable.
 
-### Totality and bubbling
+### Canonical and shorthand form
 
-Recommended for recenter: make an annotated `handle` total. A bubbled effect is
-a runtime contract failure, and the checker may return the declared result
-schema.
+```jfn
+handle task with {
+  "read": (resume) => resume("value")
+} -> string
+```
 
-Alternatives, if preserving bubbling on the annotated form is required:
+lowers to:
 
-- type the expression as `DeclaredResult | Task`, which does not unblock a
-  function returning only `DeclaredResult`; or
-- defer precision until effect-set tracking can prove all effects discharged,
-  which is outside recenter.
+```json
+{
+  "$call": "handle",
+  "$args": [
+    { "$var": "task" },
+    { "read": { "$params": ["resume"], "$return": { "$call": "resume", "$args": ["value"] } } },
+    { "$raw": { "type": "string" } }
+  ]
+}
+```
 
-Choose and record this before implementation. The unannotated two-argument
-`handle` may continue its current partial/bubbling behavior and synthesize top.
+The `$raw` wrapper is required because the schema is contract data, not a term
+to evaluate. In particular, schemas containing `$ref` or `$fnType` must not be
+classified as expression nodes. The wrapper is a canonical transport detail;
+the shorthand parser and printer expose only the type expression.
 
-### Annotation form
+### The thermostat target is a function contract
 
-Pick one and note it:
+`thermostat.jfn` uses the standard state-handler encoding:
 
-- an extra annotation argument / annotated form on the `handle` call, or
-- a dedicated node shape carrying the result type.
+```jfn
+(handle task with { ... })(initialState)
+```
 
-Whichever is chosen must round-trip through the shorthand and stay inside the
-tractable type fragment.
+The immediate result of `handle` is therefore a function, not `Report`. Its
+annotation must describe that value, for example:
+
+```jfn
+(handle task with { ... } -> (ScriptState) -> Report)(initialState)
+```
+
+Consequently the runtime validator cannot stop at concrete data schemas.
+`$fnType` validation must install or enforce a callable boundary contract so
+the eventual arguments and return value are checked; merely recognizing a
+closure or trusting an embedded `$sig` would not validate the handler-produced
+function. This is part of the shared boundary-validation prerequisite, not a
+reason to special-case `thermostat.jfn`.
 
 ## Work items
 
-- **Checker**: replace `handle`'s `returns: true` floor with logic that reads
-  the declared result type and returns it (likely a code rule rather than a
-  static `RuleFloor`, given the return depends on an annotation). Preserve a
-  distinct rule for an unannotated, partial `handle` if that form remains.
+- **Checker**: accept arity two or three. Preserve the current top-returning
+  floor for the partial two-argument form. For arity three, require a
+  `raw(schema)` annotation in the tractable fragment, resolve its references,
+  and return that schema (a code rule rather than a static `RuleFloor`).
   Files: `typescript/src/check/builtin-rules.ts`.
 - **Runtime**: validate a final `handle` result against the declared type and
-  raise on mismatch. If the annotated form is total, reject an unmatched effect
-  at the point it would otherwise bubble. Files: `typescript/src/evaluate.ts`
-  and/or `typescript/src/task.ts`, using a shared concrete schema validator.
+  raise on mismatch. Reject an unmatched effect in the annotated form at the
+  point it would otherwise bubble, and preserve the contract in generated
+  `resume` closures. Make active module `$types` available to the validator.
+  Function schemas require a callable contract boundary, not a shape-only
+  check. Files: `typescript/src/evaluate.ts` and/or `typescript/src/task.ts`,
+  using a shared concrete schema validator.
 - **Shorthand**: parse/print the annotation form. Files:
-  `typescript/src/shorthand/parser.ts`, `printer.ts`, and `type-parser.ts` if
-  the annotation is a type.
+  `typescript/src/shorthand/parser.ts`, `printer.ts`, and a shared type-schema
+  printer paired with `type-parser.ts`.
 - **Docs + spec**: `docs/language.md` (effects section),
   `plans/effects-implementation.md` (update), `spec/cases/` + `spec/parse-cases/`.
 - **Spec totality**: cover a matching handler, `"return"` transformation,
   wildcard totality, an unmatched effect, and a value that violates the
-  declared result schema. Pin whether the old unannotated form still bubbles.
+  declared result schema. Pin that the old unannotated form still bubbles.
+  Cover a named `$ref` annotation and a function-valued state-handler result.
 - **Validate**: `thermostat.jfn` `runScript -> Report` checks clean.
 
 ## Landing checklist
@@ -105,8 +138,8 @@ tractable type fragment.
 - `handle` result type comes from the declared annotation, not top.
 - Runtime validates the `handle` result at the boundary and raises on
   mismatch.
-- Annotated-handle bubbling semantics are explicit and tested; no residual
-  `Task` is statically presented as the declared result.
+- The annotated form is total and the unannotated form remains partial; no
+  residual `Task` is statically presented as the declared result.
 - Annotation form round-trips through the shorthand.
 - `Task` stays opaque for this milestone; no general guest generics introduced.
 - `thermostat.jfn` `runScript -> Report` no longer blocked.
