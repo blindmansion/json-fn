@@ -10,7 +10,8 @@ files it touches — not a detailed implementation plan.
 | [priority-2-bidirectional-diagnostics.md](priority-2-bidirectional-diagnostics.md) | §3 | Make `check()` recurse structurally; add `--json` structured diagnostics |
 | [priority-3-narrowing-and-assertion.md](priority-3-narrowing-and-assertion.md) | §4 | Freeze narrowing, fix the one bug, ship `x!`, collapse the warning tier |
 | [signature-precision.md](signature-precision.md) | §5 | Tighten `fromEntries`-family signatures; `T \| null` over sentinels |
-| [effects-handle.md](effects-handle.md) | §6 | Annotated `handle` validated at the runtime boundary; no user generics |
+| [effects-handle.md](effects-handle.md) | §6 | Annotated `handle` boundary validation with explicit totality/bubbling semantics |
+| [builtin-polymorphism-and-effects.md](builtin-polymorphism-and-effects.md) | §5–6 | Separate builtin polymorphism, operator effect contracts, task indexing, and guest generics |
 | [smaller-fixes.md](smaller-fixes.md) | §7 | `where` parsing, index/render ergonomics, refinement UX note |
 
 ## Suggested sequencing (from recenter-plan §8)
