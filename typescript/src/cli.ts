@@ -12,6 +12,7 @@
 
 import {
   callFunction,
+  callProgram,
   createStdlib,
   parseShorthand,
   printShorthand,
@@ -22,6 +23,7 @@ import { checkExpr, checkModule } from "./check/module";
 import type { Diagnostic } from "./check/context";
 import type { CallableTable } from "./check/builtin-types";
 import { loadBuiltinTable } from "./builtins";
+import { buildEffectNamespace, EFFECTS_BINDING } from "./effects";
 import { loadEnvironment, type Environment } from "./environment";
 
 const HELP = `jfn — a CLI for the json-fn language
@@ -49,6 +51,9 @@ to-json options:
 eval options:
       --environment <path>
                       Treat input as a module and run the environment entry
+      --function <name>
+                      Development mode: invoke another module function using
+                      the environment definitions and generated effects API
       --args <json>   JSON array of function/entry arguments (default: [])
   -j, --json          Print the result as JSON (default)
   -s, --shorthand     Print the result as .jfn shorthand (best effort)
@@ -77,6 +82,7 @@ Examples:
   jfn eval '(x) => x * x' --args '[9]'
   jfn eval 'map((n) => n + 1, [1, 2, 3])' --shorthand
   jfn eval --file module.jfn --environment module.environment.json
+  jfn eval --file module.jfn --environment module.environment.json --function demo
   jfn check --expr 'add(1, 2)'
   jfn check --file ../examples/typed/types.jfn
 `;
@@ -186,6 +192,7 @@ async function cmdEval(argv: string[]): Promise<void> {
       "-f": "file",
       "--file": "file",
       "--environment": "environment",
+      "--function": "function",
       "--args": "args",
     },
     {
@@ -232,6 +239,10 @@ async function cmdEval(argv: string[]): Promise<void> {
   let result: JSONType;
   try {
     const environmentPath = parsed.options.environment;
+    const functionName = parsed.options.function;
+    if (functionName !== undefined && environmentPath === undefined) {
+      fail("--function requires --environment");
+    }
     if (environmentPath !== undefined) {
       if (
         typeof parsedSource !== "object" ||
@@ -241,10 +252,31 @@ async function cmdEval(argv: string[]): Promise<void> {
         fail("--environment requires module input");
       }
       const environment = loadEnvironment(environmentPath, builtinDefs);
-      result = await runTask(parsedSource as Record<string, JSONType>, environment, args, {
-        registry: stdlib,
-        capabilities: {},
-      });
+      const module = parsedSource as Record<string, JSONType>;
+      if (functionName !== undefined) {
+        if (Object.prototype.hasOwnProperty.call(module, EFFECTS_BINDING)) {
+          fail(`"${EFFECTS_BINDING}" is reserved for environment-declared effects`);
+        }
+        result = callProgram(
+          {
+            ...module,
+            [EFFECTS_BINDING]: buildEffectNamespace(environment.effects),
+          },
+          functionName,
+          args,
+          stdlib,
+          undefined,
+          {
+            builtinDefs,
+            environmentDefs: environment.$defs,
+          },
+        );
+      } else {
+        result = await runTask(module, environment, args, {
+          registry: stdlib,
+          capabilities: {},
+        });
+      }
     } else if (isFunctionBody(parsedSource) && args.length > 0) {
       // A bare function literal applied to the supplied --args.
       result = callFunction(parsedSource, args, stdlib, undefined, definitions);

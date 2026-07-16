@@ -84,13 +84,13 @@
   // ---- The game loop: straight-line do-notation ----------------------------
 
   play: (st) => do {
-    _   <- perform("print", [look(st)]),
-    cmd <- perform("input", []),
+    _   <- effects.print(look(st)),
+    cmd <- effects.input(),
     if isNull(cmd)
       then pure("The narrator ran out of script mid-dungeon.")
       else do {
         turn: step(st, cmd),
-        _ <- perform("print", [turn.message]),
+        _ <- effects.print(turn.message),
         if turn.done
           then pure(turn.message)
           else play(turn.state)

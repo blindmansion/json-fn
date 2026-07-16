@@ -2,8 +2,8 @@
 //
 // The operator-owned environment supplies Celsius, Percent, Mode, Config,
 // Reading, State, the three effect contracts, and the loop entry contract.
-// This guest module owns only its internal control and demo types. Literal
-// `perform` calls let the checker carry each manifest result through `bind`.
+// This guest module owns only its internal control and demo types. The injected
+// `effects` namespace carries each manifest result through ordinary calls.
 //
 // Run it through the validated host environment:
 //   bun run typescript/examples/thermostat.ts
@@ -50,7 +50,7 @@
   // Turn an action into its effect. `alarm` escalates as a typed `raise`, so an
   // outer handler decides recovery; everything else pokes the HVAC (or nothing).
   actuate: (action: Action) -> Task<null> => match action.tag {
-    "switch" -> perform("hvac.set", [action.to]),
+    "switch" -> effects.hvac.set(action.to),
     "alarm"  -> raise(action.fault),
     else     -> pure(null)
   },
@@ -61,7 +61,7 @@
   // type at this helper boundary.
   onReading: (st: State, reading: Reading) -> Task<State> => do {
     action: decide(st.config, st.mode, reading),
-    _ <- perform("log", [describe(action, reading)]),
+    _ <- effects.log(describe(action, reading)),
     _ <- actuate(action),
     pure(apply(st, action))
   },
@@ -72,13 +72,15 @@
   loop: (st, fuel) =>
     if fuel <= 0
       then pure(st)
-      else bind(perform("sensor.read", []), (reading) =>
+      else do {
+        reading <- effects.sensor.read(),
         if isNull(reading)
           then pure(st)
           else do {
             next <- onReading(st, reading),
             loop(next, fuel - 1)
-          }),
+          }
+      },
 
   // ----- a scripted, in-language handler ------------------------------------
   // One handler, three effects, one threaded record: `sensor.read` consumes the

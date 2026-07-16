@@ -146,21 +146,27 @@ stale unannotated-function diagnostics. Non-literal records and clause names
 without configured contracts report coverage degradation. Partial handlers
 remain intentionally imprecise because they have no declared `R`.
 
-### 6. CLI execution does not consistently consume the environment
+### 6. CLI execution does not consistently consume the environment — ✅ resolved
 
-`jfn check --environment` loads operator definitions, while `jfn eval` does not.
-The thermostat's in-language demo consequently needs a lower-level API call to
-resolve `Reading` in its runtime handler contract.
+Compatibility removal had already made `jfn eval --environment` load the
+environment and run its authoritative entry through `runTask`, but it did not
+provide the distinct development path needed by in-language demos. The CLI
+could neither select `demo` nor install the environment definitions and
+generated `effects` namespace without also entering production capability
+admission.
 
-Under the compatibility-removal plan, make module execution environment-driven.
-Keep a clear distinction between:
+Resolved with two explicit environment-driven modes:
 
-- running the environment's authoritative entry with boundary validation; and
-- development evaluation of another named module function using the
-  environment's definitions and callable surface without claiming it satisfies
-  the production entry contract.
+- `jfn eval --environment <path>` runs the authoritative entry through
+  `runTask`, including boundary validation and host capability admission; and
+- adding `--function <name>` invokes that module function through `callProgram`
+  with the environment definition pool and manifest-derived `effects` value,
+  without claiming the function satisfies the production entry contract.
 
-Do not retain an environment-free module path merely to preserve the old CLI.
+The development mode requires an environment and does not invent
+implementations for direct host functions or effects that bubble out of
+in-language handlers. Thermostat and dungeon demos now execute directly through
+this path.
 
 ## Clean-break simplifications
 
@@ -188,8 +194,8 @@ Do not add ergonomic features to both old and new paths.
 4. ✅ Fix scope-call result synthesis and narrowing through `do` locals.
 5. ✅ Formalize fallback-versus-rule diagnostic ownership.
 6. ✅ Contextually type effect handlers.
-7. Make CLI checking and execution consistently environment-driven.
-8. Rewrite thermostat and dungeon in the intended natural style and remove the
+7. ✅ Make CLI checking and execution consistently environment-driven.
+8. ✅ Rewrite thermostat and dungeon in the intended natural style and remove the
    workaround shapes from their regression tests.
 
 Steps 2 and 3 should be designed together: generated effect calls are only
