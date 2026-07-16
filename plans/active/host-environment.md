@@ -34,8 +34,7 @@ pipelined through `bind` are useless as opaque `Task`). It also adds a durable
 execution requirement covered by workstream B6.
 
 The portable callable format and host-language type-rule extension point are
-planned separately in [callable-contracts.md](callable-contracts.md). The
-cross-plan sequencing is summarized in
+implemented. The cross-workstream sequencing is summarized in
 [typed-environment-roadmap.md](typed-environment-roadmap.md).
 
 ## Context in the code
@@ -181,7 +180,7 @@ three precedence layers and both checker/runtime resolution.
 Status: rule substrate complete; host callable-table composition remains part
 of B4 environment packaging.
 
-The substrate in [callable-contracts.md](callable-contracts.md) provides:
+The implemented callable substrate provides:
 
 - every core or host callable has validated portable fallback signatures;
 - complex call-dependent typing is named by an optional, namespaced rule;
@@ -197,9 +196,8 @@ degradation. This keeps the environment useful across implementations while
 accepting that precise rules for `pipe`, `perform`, `bind`, or a host-defined
 HOF must be implemented in the host language.
 
-The HOF correctness work in
-[hof-type-corrections.md](hof-type-corrections.md) is mostly independent.
-`flatMap` is intentionally the first precision rule built on B1.5.
+The completed HOF correctness work was mostly independent. `flatMap` is the
+first precision rule built on B1.5.
 
 ### B2 — Effect manifest
 
@@ -399,8 +397,8 @@ suspension point:
 
 - **Completed:** B1 closes the checker/runtime `$ref` resolution gap with one
   explicit definition-pool precedence.
-- **Completed prerequisite:** B1.5 rule substrate, tracked in
-  `plans/active/callable-contracts.md`; host callable composition joins B4.
+- **Completed prerequisite:** B1.5 rule substrate; host callable composition
+  joins B4.
 - **Completed:** B2 + B3 add portable effect contracts, checked/runtime
   boundaries, and an erased completion index.
 - **Completed:** B4 packages the environment and enforces direct-function,

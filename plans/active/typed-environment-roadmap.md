@@ -16,8 +16,6 @@ on behavior represented by the contracts and language documentation.
 
 ### 1. Correct the current HOF contracts
 
-See [hof-type-corrections.md](hof-type-corrections.md).
-
 Status: the contract-cleanup delivery slice is complete. `groupBy` and the
 HOF/runtime and coverage documentation are aligned, and `reduce` final-context
 validation and the rule-dependent `flatMap` correction are complete.
@@ -36,8 +34,6 @@ should prove the extensible rule mechanism rather than grow the data dialect
 solely for conditional one-level flattening.
 
 ### 2. Establish portable callable contracts and injectable rules
-
-See [callable-contracts.md](callable-contracts.md).
 
 Normalize builtin and host-function declarations around:
 
