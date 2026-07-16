@@ -36,8 +36,13 @@ appear in user-written types or in the schemas the checker infers; the checker
 {
   "$defs": { "Match": { "...": "shared builtin-owned named types" } },
   "builtins": {
-    "add": [ /* overload signatures */ ],
-    "pipe": { "rule": "pipe" }
+    "add": { "signatures": [ /* overload signatures */ ] },
+    "pipe": {
+      "signatures": [
+        { "params": [{ "type": "array" }, true], "returns": true }
+      ],
+      "rule": "core.pipe"
+    }
   }
 }
 ```
@@ -45,8 +50,9 @@ appear in user-written types or in the schemas the checker infers; the checker
 - **`$defs`** — named types owned by builtins (e.g. the regex `Match` record),
   referenced with ordinary `{"$ref": "#/$defs/Name"}`. Merged into the module's
   `$types` pool by the checker (module types win on a name clash).
-- **`builtins`** — a map from builtin name to either an **overload set** (an
-  array of signatures) or a **rule escape hatch** (`{"rule": "..."}`).
+- **`builtins`** — a map from builtin name to a callable contract containing a
+  non-empty portable fallback **`signatures`** set and, optionally, a
+  namespaced host-language **`rule`**.
 
 ### Load-time validation
 
@@ -59,8 +65,10 @@ provides the same validation for an already parsed value.
 References are checked against the table's `$defs`. Type variables must be
 declared by the containing signature, declarations must be unique and used, and
 only the tractable schema fragment described below is accepted. The current
-legacy rule identifiers remain valid until callable entries move to portable
-fallback signatures and namespaced rules.
+format requires every callable — including rule-backed callables — to provide at
+least one fallback signature. Rule identifiers are namespaced strings such as
+`core.merge` or `operator.groupLatest`; legacy overload arrays and rule-only
+entries are rejected.
 
 ## Signatures
 
@@ -77,19 +85,19 @@ A signature reuses the `$fnType` inner shape plus an optional `typeParams`:
 
 ### Overload sets
 
-Each builtin maps to an **array** of signatures, tried in order; the first whose
-concrete (non-lambda) arguments fit is chosen. Overloads express both ad-hoc
-polymorphism and type-directed refinement:
+Each callable contract contains a non-empty **array** of fallback signatures,
+tried in order; the first whose concrete (non-lambda) arguments fit is chosen.
+Overloads express both ad-hoc polymorphism and type-directed refinement:
 
 ```json
-"add": [
+"add": { "signatures": [
   { "params": [{ "type": "integer" }, { "type": "integer" }], "returns": { "type": "integer" } },
   { "params": [{ "type": "number" },  { "type": "number" }],  "returns": { "type": "number" } }
-],
-"length": [
+] },
+"length": { "signatures": [
   { "params": [{ "type": "array" }],  "returns": { "type": "integer" } },
   { "params": [{ "type": "string" }], "returns": { "type": "integer" } }
-]
+] }
 ```
 
 `add` preserves `integer` when both arguments are integers and widens to
@@ -104,14 +112,14 @@ matching the template against the concrete argument schemas, then substituted
 into `returns`:
 
 ```json
-"map": [{
+"map": { "signatures": [{
   "typeParams": ["T", "U"],
   "params": [
     { "$fnType": { "params": [{ "$tvar": "T" }, { "type": "integer" }], "returns": { "$tvar": "U" } } },
     { "type": "array", "items": { "$tvar": "T" } }
   ],
   "returns": { "type": "array", "items": { "$tvar": "U" } }
-}]
+}] }
 ```
 
 `T` is inferred from the array argument; the instantiated parameter type
@@ -163,14 +171,14 @@ or open/closed-object compatibility.
 `mapValues` uses the same `T`/`U` machinery over object values:
 
 ```json
-"mapValues": [{
+"mapValues": { "signatures": [{
   "typeParams": ["T", "U"],
   "params": [
     { "$fnType": { "params": [{ "$tvar": "T" }, { "type": "string" }], "returns": { "$tvar": "U" } } },
     { "type": "object", "additionalProperties": { "$tvar": "T" } }
   ],
   "returns": { "type": "object", "additionalProperties": { "$tvar": "U" } }
-}]
+}] }
 ```
 
 For a closed input record, `T` is the union of its value schemas; for a typed
@@ -209,48 +217,58 @@ information-level dynamic degradation is present.
 ### Variadic `rest`
 
 ```json
-"concat": [{
+"concat": { "signatures": [{
   "typeParams": ["T"],
   "params": [],
   "rest": { "type": "array", "items": { "$tvar": "T" } },
   "returns": { "type": "array", "items": { "$tvar": "T" } }
-}]
+}] }
 ```
 
-## Escape hatch
+## Host-language type rules
 
 Some builtins can't be captured by a data template (`pipe`, `apply`, the
 effects/`Task` constructors — arity threading, heterogeneous returns, etc.).
-They are listed with a named rule so the *set* of builtins stays canonical and
-cross-language even though the *resolution* is code:
+Their callable contract still carries a portable fallback, plus an optional
+namespaced rule for precision that only host-language code can provide:
 
 ```json
-"pipe": { "rule": "pipe" }
+"pipe": {
+  "signatures": [
+    { "params": [{ "type": "array" }, true], "returns": true }
+  ],
+  "rule": "core.pipe"
+}
 ```
 
-Each implementation decides how to handle a given rule name. An unrecognized
-rule yields `any` (its arguments are still walked for nested errors). This is the
-deliberate release valve: prefer an escape hatch over distorting the shared
-format.
+The fallback always runs first: it owns overload selection, arity and broad
+argument checks, contextual callback typing, and its portable result. An
+available rule may add diagnostics and return a narrower result. That result
+must remain inside the fallback type; otherwise the rule implementation and its
+portable contract disagree.
 
-### Recommended floors
+Rule implementations are supplied through an explicit registry. A declared rule
+that is unavailable leaves the fallback active and emits an information-level
+coverage degradation, so `--require-full-coverage` can reject the loss of
+precision without pretending a concrete fallback became `any`. Registry
+composition rejects duplicate identifiers rather than choosing precedence.
 
-A rule need not be fully inert. The recommended baseline ("floor") pins the
-fixed arity, the result type, and the shape of the argument positions a data
-template *can* pin — enough to reject a wrong-arity/wrong-shape call and to give
-effectful functions a `Task` return, without a full code rule. An `any`-typed
-argument is exempt from shape checks (a strict `any ⊄ array` would hard-error on
-the dynamically typed values these builtins routinely accept):
+### Core fallback signatures
+
+The core contracts pin the arity, result, and broad argument shapes that are
+portable. An `any`-typed argument remains exempt from a shape mismatch (a strict
+`any ⊄ array` would hard-error on dynamically typed values these callables
+legitimately accept):
 
 | rule      | arity | argument shapes            | returns |
 | --------- | ----- | -------------------------- | ------- |
-| `pipe`    | 2     | arg 0: `array`             | `any`   |
-| `apply`   | 2     | arg 1: `array`             | `any`   |
-| `handle`  | 2     | —                          | `any`   |
-| `perform` | 2     | arg 0: `string`, 1:`array` | `Task`  |
-| `pure`    | 1     | —                          | `Task`  |
-| `bind`    | 2     | —                          | `Task`  |
-| `raise`   | 1     | —                          | `Task`  |
+| `core.pipe`    | 2     | arg 0: `array`             | `any`   |
+| `core.apply`   | 2     | arg 1: `array`             | `any`   |
+| `core.handle`  | 2 or 3 | —                         | `any`   |
+| `core.perform` | 2     | arg 0: `string`, 1:`array` | `Task`  |
+| `core.pure`    | 1     | —                          | `Task`  |
+| `core.bind`    | 2     | —                          | `Task`  |
+| `core.raise`   | 1     | —                          | `Task`  |
 
 `Task` is the opaque effect node, defined in `$defs` as the tagged record shape
 `{ "@task": string, ... }` (see the kernel in the language reference). Returning
@@ -269,18 +287,20 @@ per-implementation **instantiation engine** (the algorithm, not the data):
    inline-lambda arguments; infer any output variables from their returns.
 4. Instantiate and return the result schema.
 
-In TypeScript this lives in
-`typescript/src/check/builtin-rules.ts`, loaded via
-`typescript/src/builtins.ts`. Other implementations may bundle or codegen the
-table; that choice is left to each.
+In TypeScript the fallback engine lives in
+`typescript/src/check/builtin-rules.ts`; the controlled V1 rule API and core
+registry live in `typescript/src/check/callable-rules.ts`. `checkModule` and
+`checkExpr` install the core registry by default or accept an explicitly
+composed registry. Other implementations may bundle or codegen the table and
+may lack a particular rule, in which case they retain fallback checking.
 
 ### Arg-dependent returns (structural `merge`)
 
 A few builtins keep an ordinary overload signature (good enough for argument
 checking) but have a **result that depends structurally on the argument types**,
-which no data template can express. After the ordinary overload pass runs (so
-the arg/arity diagnostics still fire), a per-impl code rule keyed by name may
-recompute the return.
+which no data template can express. After the ordinary fallback runs (so the
+argument and arity diagnostics still fire), `core.merge` computes a refined
+return.
 
 `merge(a, b)` is the canonical case: its declared `object` return is replaced by
 the **structural spread** of its two operands — `{ ...a, ...b }` at the type
@@ -292,4 +312,4 @@ closed ⇒ inherit `a`'s). Unions distribute per arm; a non-object or `any`
 operand degrades to `any` / a bare `object` floor. This lets the pervasive
 copy-with-one-field-changed update (`merge(rec, { field: v })`) satisfy a
 declared record return. In TypeScript this is `mergeSchemas` (`check/schema.ts`),
-dispatched by name in `synthBuiltinCall` (`check/builtin-rules.ts`).
+registered under `core.merge` rather than dispatched by builtin name.

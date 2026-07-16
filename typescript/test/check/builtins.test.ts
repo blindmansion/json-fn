@@ -1,7 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { loadBuiltinTable } from "../../src/builtins";
 import type { JSONType } from "../../src/types";
-import type { BuiltinTable } from "../../src/check/builtin-types";
+import type { BuiltinTable, BuiltinTypeRuleRegistry } from "../../src";
+import {
+  BuiltinTypeRuleContractError,
+  DuplicateBuiltinTypeRuleError,
+  mergeBuiltinTypeRuleRegistries,
+} from "../../src";
 import { classifySchema, SchemaKind, type Schema } from "../../src/check/schema";
 import { isSubschema } from "../../src/check/subsumption";
 import { checkExpr, checkModule } from "../../src/check/module";
@@ -121,16 +126,68 @@ describe("Section F — builtin signatures", () => {
     ]);
   });
 
-  test("an unsupported builtin rule reports its degradation", () => {
-    const result = checkExpr(call("mystery"), {}, { builtins: { mystery: { rule: "mystery" } } });
+  test("an unavailable builtin rule keeps its fallback and reports a coverage gap", () => {
+    const result = checkExpr(
+      call("mystery"),
+      {},
+      {
+        builtins: {
+          mystery: {
+            signatures: [{ params: [], returns: true }],
+            rule: "example.mystery",
+          },
+        },
+      },
+      { typeRules: {} },
+    );
     expect(result.type).toBe(true);
     expect(result.diagnostics).toEqual([
       {
         path: [],
-        message: 'expression degraded to `any` because builtin rule "mystery" is unsupported.',
+        message: 'type coverage degraded because callable rule "example.mystery" is unavailable.',
         severity: "info",
       },
     ]);
+  });
+
+  test("an injected namespaced rule refines its portable fallback", () => {
+    const table: BuiltinTable = {
+      builtins: {
+        answer: {
+          signatures: [{ params: [], returns: { type: "integer" } }],
+          rule: "example.answer",
+        },
+      },
+    };
+    const typeRules: BuiltinTypeRuleRegistry = {
+      "example.answer": () => ({ const: 42 }),
+    };
+    const result = checkExpr(call("answer"), {}, table, { typeRules });
+    expect(result.type).toEqual({ const: 42 });
+    expect(result.diagnostics).toEqual([]);
+  });
+
+  test("rule registry composition rejects duplicate identifiers", () => {
+    const rule = () => true as Schema;
+    expect(() =>
+      mergeBuiltinTypeRuleRegistries({ "example.rule": rule }, { "example.rule": rule }),
+    ).toThrow(DuplicateBuiltinTypeRuleError);
+  });
+
+  test("a rule result must remain inside its portable fallback", () => {
+    const table: BuiltinTable = {
+      builtins: {
+        bad: {
+          signatures: [{ params: [], returns: { type: "integer" } }],
+          rule: "example.bad",
+        },
+      },
+    };
+    expect(() =>
+      checkExpr(call("bad"), {}, table, {
+        typeRules: { "example.bad": () => ({ type: "string" }) },
+      }),
+    ).toThrow(BuiltinTypeRuleContractError);
   });
 
   test("coverage: every stdlib builtin has a table entry", () => {
@@ -412,43 +469,51 @@ describe("Section F — builtin signatures", () => {
     const T = (name: string): Schema => ({ $tvar: name }) as Schema;
     const structural: BuiltinTable = {
       builtins: {
-        pairSecond: [
-          {
-            typeParams: ["V"],
-            params: [
-              {
-                type: "array",
-                items: {
+        pairSecond: {
+          signatures: [
+            {
+              typeParams: ["V"],
+              params: [
+                {
                   type: "array",
-                  prefixItems: [S, T("V")],
-                  items: false,
+                  items: {
+                    type: "array",
+                    prefixItems: [S, T("V")],
+                    items: false,
+                  },
                 },
-              },
-            ],
-            returns: T("V"),
-          },
-        ],
-        tupleRestValues: [
-          {
-            typeParams: ["T"],
-            params: [{ type: "array", prefixItems: [S], items: T("T") }],
-            returns: { type: "array", items: T("T") },
-          },
-        ],
-        propertyValue: [
-          {
-            typeParams: ["T"],
-            params: [{ type: "object", properties: { payload: T("T") } }],
-            returns: T("T"),
-          },
-        ],
-        objectValues: [
-          {
-            typeParams: ["V"],
-            params: [{ type: "object", additionalProperties: T("V") }],
-            returns: { type: "array", items: T("V") },
-          },
-        ],
+              ],
+              returns: T("V"),
+            },
+          ],
+        },
+        tupleRestValues: {
+          signatures: [
+            {
+              typeParams: ["T"],
+              params: [{ type: "array", prefixItems: [S], items: T("T") }],
+              returns: { type: "array", items: T("T") },
+            },
+          ],
+        },
+        propertyValue: {
+          signatures: [
+            {
+              typeParams: ["T"],
+              params: [{ type: "object", properties: { payload: T("T") } }],
+              returns: T("T"),
+            },
+          ],
+        },
+        objectValues: {
+          signatures: [
+            {
+              typeParams: ["V"],
+              params: [{ type: "object", additionalProperties: T("V") }],
+              returns: { type: "array", items: T("V") },
+            },
+          ],
+        },
       },
     };
     const synth = (expr: JSONType) => checkExpr(expr, {}, structural);
@@ -542,13 +607,15 @@ describe("Section F — builtin signatures", () => {
     const T = (name: string): Schema => ({ $tvar: name }) as Schema;
     const callbackReturn = (returns: Schema): BuiltinTable => ({
       builtins: {
-        testCallback: [
-          {
-            typeParams: ["U"],
-            params: [{ $fnType: { params: [], returns } }],
-            returns: T("U"),
-          },
-        ],
+        testCallback: {
+          signatures: [
+            {
+              typeParams: ["U"],
+              params: [{ $fnType: { params: [], returns } }],
+              returns: T("U"),
+            },
+          ],
+        },
       },
     });
     const run = (returns: Schema, value: JSONType) =>

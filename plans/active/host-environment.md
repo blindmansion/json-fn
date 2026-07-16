@@ -178,8 +178,10 @@ three precedence layers and both checker/runtime resolution.
 
 ### B1.5 — Portable callable contracts and type rules
 
-Complete the substrate in
-[callable-contracts.md](callable-contracts.md) before B2–B4:
+Status: rule substrate complete; host callable-table composition remains part
+of B4 environment packaging.
+
+The substrate in [callable-contracts.md](callable-contracts.md) provides:
 
 - every core or host callable has validated portable fallback signatures;
 - complex call-dependent typing is named by an optional, namespaced rule;
@@ -187,7 +189,8 @@ Complete the substrate in
   a closed set of rule names;
 - current hardcoded rule floors and name-based return refinements migrate to
   that mechanism; and
-- core and operator callable tables merge through a public, explicit API.
+- explicit, collision-rejecting composition of core and operator rule
+  registries. Callable-table composition lands with the B4 environment API.
 
 An unavailable rule retains its fallback checks and reports a coverage
 degradation. This keeps the environment useful across implementations while
@@ -387,8 +390,8 @@ suspension point:
 
 - **Completed:** B1 closes the checker/runtime `$ref` resolution gap with one
   explicit definition-pool precedence.
-- **Next host-environment prerequisite:** B1.5, tracked in
-  `plans/active/callable-contracts.md`.
+- **Completed prerequisite:** B1.5 rule substrate, tracked in
+  `plans/active/callable-contracts.md`; host callable composition joins B4.
 - **Epic:** B2 + B3 → B4 → B5, tracked as one unit.
 - **Durable driver:** B6, a parallel track on the same primitives; sequence
   against the orchestration use case rather than the typed-environment milestone.

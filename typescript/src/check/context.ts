@@ -4,7 +4,7 @@
 // rather than failing fast, and it is structured for bidirectional checking
 // (a `synth` mode and a `check`-against-expected mode).
 
-import type { BuiltinEntry } from "./builtin-types";
+import type { BuiltinEntry, BuiltinTypeRuleRegistry } from "./builtin-types";
 import type { JSONType } from "../types";
 import { type Schema, type Defs, type FnTypeShape, isSchemaObject } from "./schema";
 
@@ -59,6 +59,10 @@ type CheckContext = {
     argExprs: JSONType[],
     ctx: CheckContext,
   ) => Schema;
+  // Optional host-language implementations for namespaced callable rules.
+  // Entry points install the core registry by default; an explicitly supplied
+  // registry is used as-is so hosts can test fallback-only behavior.
+  typeRules?: BuiltinTypeRuleRegistry;
   // Flow-narrowing facts in scope (§5.5): var name → the type it has been
   // refined to by a dominating guard, already intersected with its declared
   // type. Present only inside a guarded control-flow arm; `synth`'s `"var"`
@@ -88,6 +92,13 @@ function report(ctx: CheckContext, message: string, extra?: Partial<Diagnostic>)
 // reasons consistently.
 function reportDegradation(ctx: CheckContext, reason: string): void {
   report(ctx, `expression degraded to \`any\` because ${reason}.`, { severity: "info" });
+}
+
+// Not every loss of coverage produces `any`: a missing type rule can leave a
+// concrete portable fallback active. Keep that distinction truthful while
+// retaining the same info severity consumed by `--require-full-coverage`.
+function reportCoverageDegradation(ctx: CheckContext, reason: string): void {
+  report(ctx, `type coverage degraded because ${reason}.`, { severity: "info" });
 }
 
 // A deterministic JSON stringify (object keys sorted), for content-addressing
@@ -147,6 +158,7 @@ export {
   EMPTY_ENV,
   report,
   reportDegradation,
+  reportCoverageDegradation,
   at,
   isBody,
   sigOf,

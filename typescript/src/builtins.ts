@@ -338,16 +338,21 @@ export function validateBuiltinTable(value: unknown): asserts value is BuiltinTa
   for (const [name, entry] of Object.entries(builtins)) {
     const path = `table.builtins.${name}`;
     if (name.length === 0) fail(path, "builtin name cannot be empty");
-    if (Array.isArray(entry)) {
-      if (entry.length === 0) fail(path, "overload set cannot be empty");
-      for (let i = 0; i < entry.length; i++) validateSignature(entry[i], `${path}[${i}]`, defs);
-      continue;
+    const contract = assertObject(entry, path);
+    assertOnlyKeys(contract, new Set(["signatures", "rule"]), path);
+    if (!Array.isArray(contract.signatures)) fail(`${path}.signatures`, "expected an array");
+    if (contract.signatures.length === 0) {
+      fail(`${path}.signatures`, "fallback signature set cannot be empty");
     }
-
-    const rule = assertObject(entry, path);
-    assertOnlyKeys(rule, new Set(["rule"]), path);
-    if (typeof rule.rule !== "string" || !/^[A-Za-z][A-Za-z0-9_.-]*$/.test(rule.rule)) {
-      fail(`${path}.rule`, "expected a valid rule identifier");
+    for (let i = 0; i < contract.signatures.length; i++) {
+      validateSignature(contract.signatures[i], `${path}.signatures[${i}]`, defs);
+    }
+    if (
+      "rule" in contract &&
+      (typeof contract.rule !== "string" ||
+        !/^[A-Za-z][A-Za-z0-9_-]*(?:\.[A-Za-z][A-Za-z0-9_-]*)+$/.test(contract.rule))
+    ) {
+      fail(`${path}.rule`, "expected a namespaced rule identifier");
     }
   }
 }

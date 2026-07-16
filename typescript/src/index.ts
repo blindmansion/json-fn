@@ -1,6 +1,25 @@
 export { callFunction, callProgram, prepareProgram, createPerfStats } from "./evaluate";
 export { mergeDefinitionPools } from "./definition-pool";
 export type { DefinitionPool, DefinitionSources } from "./definition-pool";
+export { BuiltinTableValidationError, loadBuiltinTable, validateBuiltinTable } from "./builtins";
+export { checkExpr, checkModule } from "./check/module";
+export type { CheckExprOptions, CheckModuleOptions } from "./check/module";
+export {
+  BuiltinTypeRuleContractError,
+  CORE_BUILTIN_TYPE_RULES,
+  DuplicateBuiltinTypeRuleError,
+  mergeBuiltinTypeRuleRegistries,
+} from "./check/callable-rules";
+export type {
+  BuiltinEntry,
+  BuiltinSig,
+  BuiltinTable,
+  BuiltinTypeRuleRegistry,
+  BuiltinTypeRuleRequest,
+  BuiltinTypeRuleServicesV1,
+  BuiltinTypeRuleV1,
+} from "./check/builtin-types";
+export type { Defs, Schema } from "./check/schema";
 export { builtin, pure, raw, getArity } from "./utils";
 export type {
   JSONType,

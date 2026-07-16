@@ -3,8 +3,9 @@
 
 import type { JSONType } from "../types";
 import { mergeDefinitionPools, readModuleDefinitions } from "../definition-pool";
-import type { BuiltinTable } from "./builtin-types";
+import type { BuiltinTable, BuiltinTypeRuleRegistry } from "./builtin-types";
 import { synthBuiltinCall } from "./builtin-rules";
+import { CORE_BUILTIN_TYPE_RULES } from "./callable-rules";
 import { buildTypeScope, checkBody, synth } from "./checker";
 import {
   bindingKeys,
@@ -31,6 +32,13 @@ type CheckModuleOptions = {
   // Operator-owned named types sit between core builtin definitions and the
   // module's own `$types` in the shared definition-pool precedence order.
   environmentDefs?: Defs;
+  // Omitted installs the implementation's core rules. Supplying a registry is
+  // explicit and uses it as-is; compose core and host rules before passing it.
+  typeRules?: BuiltinTypeRuleRegistry;
+};
+
+type CheckExprOptions = {
+  typeRules?: BuiltinTypeRuleRegistry;
 };
 
 // Public entry, mirroring `callProgram`: lift `$types` into the defs pool, wire
@@ -52,6 +60,7 @@ function checkModule(
     path: [],
     builtins: builtins?.builtins,
     synthBuiltinCall,
+    typeRules: options.typeRules ?? CORE_BUILTIN_TYPE_RULES,
   };
   // Declare-before-use: a `$ref` to an undeclared type name would otherwise
   // resolve to top (`resolveRef`), so a typo like `-> Reprot` checks clean.
@@ -185,6 +194,7 @@ function checkExpr(
   expr: JSONType,
   defs: Defs = {},
   builtins?: BuiltinTable,
+  options: CheckExprOptions = {},
 ): { type: Schema; diagnostics: Diagnostic[] } {
   const merged: Defs = mergeDefinitionPools({
     builtinDefs: builtins?.$defs,
@@ -197,9 +207,10 @@ function checkExpr(
     path: [],
     builtins: builtins?.builtins,
     synthBuiltinCall,
+    typeRules: options.typeRules ?? CORE_BUILTIN_TYPE_RULES,
   };
   return { type: synth(expr, ctx), diagnostics: ctx.diagnostics };
 }
 
 export { checkModule, checkExpr };
-export type { CheckModuleOptions };
+export type { CheckModuleOptions, CheckExprOptions };

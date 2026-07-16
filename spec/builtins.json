@@ -19,7 +19,7 @@
     }
   },
   "builtins": {
-    "add": [
+    "add": { "signatures": [
       {
         "params": [{ "type": "integer" }, { "type": "integer" }],
         "returns": { "type": "integer" }
@@ -28,8 +28,8 @@
         "params": [{ "type": "number" }, { "type": "number" }],
         "returns": { "type": "number" }
       }
-    ],
-    "sub": [
+    ] },
+    "sub": { "signatures": [
       {
         "params": [{ "type": "integer" }, { "type": "integer" }],
         "returns": { "type": "integer" }
@@ -38,8 +38,8 @@
         "params": [{ "type": "number" }, { "type": "number" }],
         "returns": { "type": "number" }
       }
-    ],
-    "mul": [
+    ] },
+    "mul": { "signatures": [
       {
         "params": [{ "type": "integer" }, { "type": "integer" }],
         "returns": { "type": "integer" }
@@ -48,8 +48,8 @@
         "params": [{ "type": "number" }, { "type": "number" }],
         "returns": { "type": "number" }
       }
-    ],
-    "mod": [
+    ] },
+    "mod": { "signatures": [
       {
         "params": [{ "type": "integer" }, { "type": "integer" }],
         "returns": { "type": "integer" }
@@ -58,25 +58,25 @@
         "params": [{ "type": "number" }, { "type": "number" }],
         "returns": { "type": "number" }
       }
-    ],
-    "div": [
+    ] },
+    "div": { "signatures": [
       {
         "params": [{ "type": "number" }, { "type": "number" }],
         "returns": { "type": "number" }
       }
-    ],
-    "neg": [
+    ] },
+    "neg": { "signatures": [
       { "params": [{ "type": "integer" }], "returns": { "type": "integer" } },
       { "params": [{ "type": "number" }], "returns": { "type": "number" } }
-    ],
-    "abs": [
+    ] },
+    "abs": { "signatures": [
       { "params": [{ "type": "integer" }], "returns": { "type": "integer" } },
       { "params": [{ "type": "number" }], "returns": { "type": "number" } }
-    ],
-    "floor": [{ "params": [{ "type": "number" }], "returns": { "type": "integer" } }],
-    "ceil": [{ "params": [{ "type": "number" }], "returns": { "type": "integer" } }],
-    "round": [{ "params": [{ "type": "number" }], "returns": { "type": "integer" } }],
-    "max": [
+    ] },
+    "floor": { "signatures": [{ "params": [{ "type": "number" }], "returns": { "type": "integer" } }] },
+    "ceil": { "signatures": [{ "params": [{ "type": "number" }], "returns": { "type": "integer" } }] },
+    "round": { "signatures": [{ "params": [{ "type": "number" }], "returns": { "type": "integer" } }] },
+    "max": { "signatures": [
       {
         "params": [{ "type": "array", "items": { "type": "integer" } }],
         "returns": { "type": "integer" }
@@ -85,8 +85,8 @@
         "params": [{ "type": "array", "items": { "type": "number" } }],
         "returns": { "type": "number" }
       }
-    ],
-    "min": [
+    ] },
+    "min": { "signatures": [
       {
         "params": [{ "type": "array", "items": { "type": "integer" } }],
         "returns": { "type": "integer" }
@@ -95,107 +95,107 @@
         "params": [{ "type": "array", "items": { "type": "number" } }],
         "returns": { "type": "number" }
       }
-    ],
-    "eq": [{ "params": [true, true], "returns": { "type": "boolean" } }],
-    "neq": [{ "params": [true, true], "returns": { "type": "boolean" } }],
-    "lt": [
+    ] },
+    "eq": { "signatures": [{ "params": [true, true], "returns": { "type": "boolean" } }] },
+    "neq": { "signatures": [{ "params": [true, true], "returns": { "type": "boolean" } }] },
+    "lt": { "signatures": [
       { "params": [{ "type": "number" }, { "type": "number" }], "returns": { "type": "boolean" } }
-    ],
-    "lte": [
+    ] },
+    "lte": { "signatures": [
       { "params": [{ "type": "number" }, { "type": "number" }], "returns": { "type": "boolean" } }
-    ],
-    "gt": [
+    ] },
+    "gt": { "signatures": [
       { "params": [{ "type": "number" }, { "type": "number" }], "returns": { "type": "boolean" } }
-    ],
-    "gte": [
+    ] },
+    "gte": { "signatures": [
       { "params": [{ "type": "number" }, { "type": "number" }], "returns": { "type": "boolean" } }
-    ],
-    "not": [{ "params": [{ "type": "boolean" }], "returns": { "type": "boolean" } }],
-    "and": [
+    ] },
+    "not": { "signatures": [{ "params": [{ "type": "boolean" }], "returns": { "type": "boolean" } }] },
+    "and": { "signatures": [
       { "params": [{ "type": "boolean" }, { "type": "boolean" }], "returns": { "type": "boolean" } }
-    ],
-    "or": [
+    ] },
+    "or": { "signatures": [
       { "params": [{ "type": "boolean" }, { "type": "boolean" }], "returns": { "type": "boolean" } }
-    ],
-    "isNull": [{ "params": [true], "returns": { "type": "boolean" } }],
-    "isBool": [{ "params": [true], "returns": { "type": "boolean" } }],
-    "isNumber": [{ "params": [true], "returns": { "type": "boolean" } }],
-    "isString": [{ "params": [true], "returns": { "type": "boolean" } }],
-    "isArray": [{ "params": [true], "returns": { "type": "boolean" } }],
-    "isObject": [{ "params": [true], "returns": { "type": "boolean" } }],
-    "isTask": [{ "params": [true], "returns": { "type": "boolean" } }],
-    "str": [{ "params": [true], "returns": { "type": "string" } }],
-    "num": [{ "params": [true], "returns": { "type": "number" } }],
-    "upper": [{ "params": [{ "type": "string" }], "returns": { "type": "string" } }],
-    "lower": [{ "params": [{ "type": "string" }], "returns": { "type": "string" } }],
-    "trim": [{ "params": [{ "type": "string" }], "returns": { "type": "string" } }],
-    "strcat": [{ "params": [], "rest": { "type": "string" }, "returns": { "type": "string" } }],
-    "split": [
+    ] },
+    "isNull": { "signatures": [{ "params": [true], "returns": { "type": "boolean" } }] },
+    "isBool": { "signatures": [{ "params": [true], "returns": { "type": "boolean" } }] },
+    "isNumber": { "signatures": [{ "params": [true], "returns": { "type": "boolean" } }] },
+    "isString": { "signatures": [{ "params": [true], "returns": { "type": "boolean" } }] },
+    "isArray": { "signatures": [{ "params": [true], "returns": { "type": "boolean" } }] },
+    "isObject": { "signatures": [{ "params": [true], "returns": { "type": "boolean" } }] },
+    "isTask": { "signatures": [{ "params": [true], "returns": { "type": "boolean" } }] },
+    "str": { "signatures": [{ "params": [true], "returns": { "type": "string" } }] },
+    "num": { "signatures": [{ "params": [true], "returns": { "type": "number" } }] },
+    "upper": { "signatures": [{ "params": [{ "type": "string" }], "returns": { "type": "string" } }] },
+    "lower": { "signatures": [{ "params": [{ "type": "string" }], "returns": { "type": "string" } }] },
+    "trim": { "signatures": [{ "params": [{ "type": "string" }], "returns": { "type": "string" } }] },
+    "strcat": { "signatures": [{ "params": [], "rest": { "type": "string" }, "returns": { "type": "string" } }] },
+    "split": { "signatures": [
       {
         "params": [{ "type": "string" }, { "type": "string" }],
         "returns": { "type": "array", "items": { "type": "string" } }
       }
-    ],
-    "join": [
+    ] },
+    "join": { "signatures": [
       {
         "params": [{ "type": "array" }, { "type": "string" }],
         "returns": { "type": "string" }
       }
-    ],
-    "length": [
+    ] },
+    "length": { "signatures": [
       { "params": [{ "type": "array" }], "returns": { "type": "integer" } },
       { "params": [{ "type": "string" }], "returns": { "type": "integer" } }
-    ],
-    "head": [
+    ] },
+    "head": { "signatures": [
       {
         "typeParams": ["T"],
         "params": [{ "type": "array", "items": { "$tvar": "T" } }],
         "returns": { "anyOf": [{ "$tvar": "T" }, { "type": "null" }] }
       }
-    ],
-    "last": [
+    ] },
+    "last": { "signatures": [
       {
         "typeParams": ["T"],
         "params": [{ "type": "array", "items": { "$tvar": "T" } }],
         "returns": { "anyOf": [{ "$tvar": "T" }, { "type": "null" }] }
       }
-    ],
-    "tail": [
+    ] },
+    "tail": { "signatures": [
       {
         "typeParams": ["T"],
         "params": [{ "type": "array", "items": { "$tvar": "T" } }],
         "returns": { "type": "array", "items": { "$tvar": "T" } }
       }
-    ],
-    "reverse": [
+    ] },
+    "reverse": { "signatures": [
       {
         "typeParams": ["T"],
         "params": [{ "type": "array", "items": { "$tvar": "T" } }],
         "returns": { "type": "array", "items": { "$tvar": "T" } }
       }
-    ],
-    "flatten": [
+    ] },
+    "flatten": { "signatures": [
       {
         "typeParams": ["T"],
         "params": [{ "type": "array", "items": { "type": "array", "items": { "$tvar": "T" } } }],
         "returns": { "type": "array", "items": { "$tvar": "T" } }
       }
-    ],
-    "concat": [
+    ] },
+    "concat": { "signatures": [
       {
         "typeParams": ["T"],
         "params": [],
         "rest": { "type": "array", "items": { "$tvar": "T" } },
         "returns": { "type": "array", "items": { "$tvar": "T" } }
       }
-    ],
-    "range": [
+    ] },
+    "range": { "signatures": [
       {
         "params": [{ "type": "integer" }],
         "returns": { "type": "array", "items": { "type": "integer" } }
       }
-    ],
-    "slice": [
+    ] },
+    "slice": { "signatures": [
       {
         "typeParams": ["T"],
         "params": [{ "type": "array", "items": { "$tvar": "T" } }, { "type": "integer" }],
@@ -218,8 +218,8 @@
         "params": [{ "type": "string" }, { "type": "integer" }, { "type": "integer" }],
         "returns": { "type": "string" }
       }
-    ],
-    "includes": [
+    ] },
+    "includes": { "signatures": [
       {
         "typeParams": ["T"],
         "params": [{ "type": "array", "items": { "$tvar": "T" } }, { "$tvar": "T" }],
@@ -229,8 +229,8 @@
         "params": [{ "type": "string" }, { "type": "string" }],
         "returns": { "type": "boolean" }
       }
-    ],
-    "indexOf": [
+    ] },
+    "indexOf": { "signatures": [
       {
         "typeParams": ["T"],
         "params": [{ "type": "array", "items": { "$tvar": "T" } }, { "$tvar": "T" }],
@@ -240,8 +240,8 @@
         "params": [{ "type": "string" }, { "type": "string" }],
         "returns": { "anyOf": [{ "type": "integer" }, { "type": "null" }] }
       }
-    ],
-    "setAt": [
+    ] },
+    "setAt": { "signatures": [
       {
         "typeParams": ["T"],
         "params": [
@@ -251,16 +251,16 @@
         ],
         "returns": { "type": "array", "items": { "$tvar": "T" } }
       }
-    ],
-    "keys": [{ "params": [{ "type": "object" }], "returns": { "type": "array", "items": { "type": "string" } } }],
-    "values": [
+    ] },
+    "keys": { "signatures": [{ "params": [{ "type": "object" }], "returns": { "type": "array", "items": { "type": "string" } } }] },
+    "values": { "signatures": [
       {
         "typeParams": ["V"],
         "params": [{ "type": "object", "additionalProperties": { "$tvar": "V" } }],
         "returns": { "type": "array", "items": { "$tvar": "V" } }
       }
-    ],
-    "entries": [
+    ] },
+    "entries": { "signatures": [
       {
         "typeParams": ["V"],
         "params": [{ "type": "object", "additionalProperties": { "$tvar": "V" } }],
@@ -274,8 +274,8 @@
           }
         }
       }
-    ],
-    "fromEntries": [
+    ] },
+    "fromEntries": { "signatures": [
       {
         "typeParams": ["V"],
         "params": [
@@ -291,26 +291,26 @@
         ],
         "returns": { "type": "object", "additionalProperties": { "$tvar": "V" } }
       }
-    ],
-    "merge": [
+    ] },
+    "merge": { "signatures": [
       { "params": [{ "type": "object" }, { "type": "object" }], "returns": { "type": "object" } }
-    ],
-    "hasKey": [
+    ], "rule": "core.merge" },
+    "hasKey": { "signatures": [
       { "params": [{ "type": "object" }, { "type": "string" }], "returns": { "type": "boolean" } }
-    ],
-    "pick": [
+    ] },
+    "pick": { "signatures": [
       {
         "params": [{ "type": "object" }, { "type": "array", "items": { "type": "string" } }],
         "returns": { "type": "object" }
       }
-    ],
-    "omit": [
+    ] },
+    "omit": { "signatures": [
       {
         "params": [{ "type": "object" }, { "type": "array", "items": { "type": "string" } }],
         "returns": { "type": "object" }
       }
-    ],
-    "map": [
+    ] },
+    "map": { "signatures": [
       {
         "typeParams": ["T", "U"],
         "params": [
@@ -324,8 +324,8 @@
         ],
         "returns": { "type": "array", "items": { "$tvar": "U" } }
       }
-    ],
-    "filter": [
+    ] },
+    "filter": { "signatures": [
       {
         "typeParams": ["T"],
         "params": [
@@ -339,8 +339,8 @@
         ],
         "returns": { "type": "array", "items": { "$tvar": "T" } }
       }
-    ],
-    "reduce": [
+    ] },
+    "reduce": { "signatures": [
       {
         "typeParams": ["T", "U"],
         "params": [
@@ -355,8 +355,8 @@
         ],
         "returns": { "$tvar": "U" }
       }
-    ],
-    "find": [
+    ] },
+    "find": { "signatures": [
       {
         "typeParams": ["T"],
         "params": [
@@ -370,8 +370,8 @@
         ],
         "returns": { "anyOf": [{ "$tvar": "T" }, { "type": "null" }] }
       }
-    ],
-    "findIndex": [
+    ] },
+    "findIndex": { "signatures": [
       {
         "typeParams": ["T"],
         "params": [
@@ -385,8 +385,8 @@
         ],
         "returns": { "anyOf": [{ "type": "integer" }, { "type": "null" }] }
       }
-    ],
-    "some": [
+    ] },
+    "some": { "signatures": [
       {
         "typeParams": ["T"],
         "params": [
@@ -400,8 +400,8 @@
         ],
         "returns": { "type": "boolean" }
       }
-    ],
-    "every": [
+    ] },
+    "every": { "signatures": [
       {
         "typeParams": ["T"],
         "params": [
@@ -415,8 +415,8 @@
         ],
         "returns": { "type": "boolean" }
       }
-    ],
-    "sort": [
+    ] },
+    "sort": { "signatures": [
       {
         "typeParams": ["T"],
         "params": [
@@ -430,8 +430,8 @@
         ],
         "returns": { "type": "array", "items": { "$tvar": "T" } }
       }
-    ],
-    "sortBy": [
+    ] },
+    "sortBy": { "signatures": [
       {
         "typeParams": ["T"],
         "params": [
@@ -445,8 +445,8 @@
         ],
         "returns": { "type": "array", "items": { "$tvar": "T" } }
       }
-    ],
-    "groupBy": [
+    ] },
+    "groupBy": { "signatures": [
       {
         "typeParams": ["T"],
         "params": [
@@ -463,8 +463,8 @@
           "additionalProperties": { "type": "array", "items": { "$tvar": "T" } }
         }
       }
-    ],
-    "flatMap": [
+    ] },
+    "flatMap": { "signatures": [
       {
         "typeParams": ["T", "U"],
         "params": [
@@ -478,8 +478,8 @@
         ],
         "returns": { "type": "array", "items": { "$tvar": "U" } }
       }
-    ],
-    "mapValues": [
+    ] },
+    "mapValues": { "signatures": [
       {
         "typeParams": ["T", "U"],
         "params": [
@@ -493,37 +493,43 @@
         ],
         "returns": { "type": "object", "additionalProperties": { "$tvar": "U" } }
       }
-    ],
-    "apply": { "rule": "apply" },
-    "pipe": { "rule": "pipe" },
-    "reTest": [
+    ] },
+    "apply": {
+      "signatures": [{ "params": [true, { "type": "array" }], "returns": true }],
+      "rule": "core.apply"
+    },
+    "pipe": {
+      "signatures": [{ "params": [{ "type": "array" }, true], "returns": true }],
+      "rule": "core.pipe"
+    },
+    "reTest": { "signatures": [
       { "params": [{ "type": "string" }, { "type": "string" }], "returns": { "type": "boolean" } }
-    ],
-    "reMatch": [
+    ] },
+    "reMatch": { "signatures": [
       {
         "params": [{ "type": "string" }, { "type": "string" }],
         "returns": { "anyOf": [{ "$ref": "#/$defs/Match" }, { "type": "null" }] }
       }
-    ],
-    "reMatchAll": [
+    ] },
+    "reMatchAll": { "signatures": [
       {
         "params": [{ "type": "string" }, { "type": "string" }],
         "returns": { "type": "array", "items": { "$ref": "#/$defs/Match" } }
       }
-    ],
-    "reReplace": [
+    ] },
+    "reReplace": { "signatures": [
       {
         "params": [{ "type": "string" }, { "type": "string" }, { "type": "string" }],
         "returns": { "type": "string" }
       }
-    ],
-    "reSplit": [
+    ] },
+    "reSplit": { "signatures": [
       {
         "params": [{ "type": "string" }, { "type": "string" }],
         "returns": { "type": "array", "items": { "type": "string" } }
       }
-    ],
-    "reReplaceWith": [
+    ] },
+    "reReplaceWith": { "signatures": [
       {
         "params": [
           { "type": "string" },
@@ -532,22 +538,45 @@
         ],
         "returns": { "type": "string" }
       }
-    ],
-    "perform": { "rule": "perform" },
-    "pure": { "rule": "pure" },
-    "bind": { "rule": "bind" },
-    "raise": { "rule": "raise" },
-    "handle": { "rule": "handle" },
-    "arity": [
+    ] },
+    "perform": {
+      "signatures": [
+        {
+          "params": [{ "type": "string" }, { "type": "array" }],
+          "returns": { "$ref": "#/$defs/Task" }
+        }
+      ],
+      "rule": "core.perform"
+    },
+    "pure": {
+      "signatures": [{ "params": [true], "returns": { "$ref": "#/$defs/Task" } }],
+      "rule": "core.pure"
+    },
+    "bind": {
+      "signatures": [{ "params": [true, true], "returns": { "$ref": "#/$defs/Task" } }],
+      "rule": "core.bind"
+    },
+    "raise": {
+      "signatures": [{ "params": [true], "returns": { "$ref": "#/$defs/Task" } }],
+      "rule": "core.raise"
+    },
+    "handle": {
+      "signatures": [
+        { "params": [true, true], "returns": true },
+        { "params": [true, true, true], "returns": true }
+      ],
+      "rule": "core.handle"
+    },
+    "arity": { "signatures": [
       { "params": [true], "returns": { "anyOf": [{ "type": "integer" }, { "type": "null" }] } }
-    ],
-    "log": [
+    ] },
+    "log": { "signatures": [
       { "typeParams": ["T"], "params": [{ "$tvar": "T" }], "returns": { "$tvar": "T" } },
       {
         "typeParams": ["T"],
         "params": [{ "$tvar": "T" }, { "type": "string" }],
         "returns": { "$tvar": "T" }
       }
-    ]
+    ] }
   }
 }

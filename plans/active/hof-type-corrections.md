@@ -204,8 +204,7 @@ the exit policy and `--require-full-coverage` behavior are unchanged.
 ## Handoff notes
 
 - C3 (`reduce`) is complete and did not change the callable contract format.
-- C2 (`flatMap`) remains intentionally deferred until the callable-rule
-  substrate exists; its scalar-or-array behavior should not be approximated
-  with competing data overloads.
-- The current builtin loader still trusts `spec/builtins.json`. Load-time
-  contract validation belongs to roadmap slice 4, before the rule substrate.
+- The callable-rule substrate and load-time contract validation are complete.
+  C2 (`flatMap`) is now unblocked and remains the next precision rule; its
+  scalar-or-array behavior should not be approximated with competing data
+  overloads.

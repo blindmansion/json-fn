@@ -13,29 +13,18 @@ in [host-environment.md](host-environment.md).
 
 ## Current state
 
-`spec/builtins.json` maps each name to either:
+The TypeScript rule substrate is implemented. `spec/builtins.json` gives every
+callable a non-empty portable `signatures` fallback and an optional namespaced
+rule. `checkModule` and `checkExpr` accept an injected V1 rule registry; the
+ordinary overload engine always runs before an optional rule. Core floors,
+annotated `handle`, and structural `merge` now use registered `core.*` rules
+rather than hardcoded name switches.
 
-- an array of overload signatures; or
-- `{ "rule": "name" }`.
-
-The TypeScript checker then adds two mechanisms not represented in that data:
-
-- `RULE_FLOORS` in `typescript/src/check/builtin-rules.ts` supplies hardcoded
-  arity, argument-shape, and return floors for rule entries; and
-- `CODE_RETURNS` applies a hidden name-based return refinement to `merge`.
-
-This is workable for a closed stdlib, but it is not an operator extension API:
-
-- another implementation must reproduce the same fallback floors;
-- a host cannot inject a type-rule implementation;
-- an unavailable rule has no portable callable contract beyond its name; and
-- ordinary signatures plus return refinements use a different path from full
-  rules.
-
-`checkModule` and `checkExpr` already accept a `BuiltinTable`, and the runtime
-already accepts an arbitrary `FunctionRegistry`. The missing pieces are a
-validated merged contract format, public checker APIs, and an injected rule
-registry.
+Unavailable rules preserve fallback checking and emit a coverage degradation.
+Registry composition rejects duplicate IDs, and a rule result outside its
+fallback raises a configuration error. The remaining work is the first new
+precision consumer (`core.flatMap`) and public host callable-table composition
+as part of environment packaging.
 
 ## Contract model
 
@@ -265,10 +254,10 @@ environment remains the authoritative contract.
 ## Delivery slices
 
 1. Contract validator and tests. ✅ done
-2. Normalized entry shape with backward-compatible loading if needed.
-3. Injected core rule registry.
-4. Migration of floors, `handle`, and `merge` with no behavior change.
-5. Public merge/check APIs for host callable tables.
+2. Normalized entry shape. ✅ done
+3. Injected core rule registry. ✅ done
+4. Migration of floors, `handle`, and `merge` with no behavior change. ✅ done
+5. Public merge/check APIs for host callable tables (with environment packaging).
 6. `core.flatMap` precision rule.
 7. Environment integration for host functions and effect-aware core rules.
 

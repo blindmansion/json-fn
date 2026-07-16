@@ -4,11 +4,11 @@
 // *builtin-only* dialect on top of the user-facing schema fragment:
 //
 //   * type variables — `{ "$tvar": "T" }` — instantiated per call site;
-//   * overload sets — a builtin maps to an *array* of signatures, tried in
-//     order (covers `add`'s integer-preservation and array/string overloads);
+//   * portable fallback overloads — every callable has a non-empty signature
+//     set, tried in order (covers integer preservation and ad-hoc overloads);
 //   * variadic `rest` — reused from the `$fnType` shape;
-//   * an escape hatch — `{ "rule": "name" }` — for builtins no data template
-//     can capture (`pipe`, `apply`, effects), which each impl handles itself.
+//   * an optional namespaced rule — for precision no data template can capture,
+//     implemented through an injected host-language registry.
 //
 // The table is pure data; the code below is the (per-impl) engine that reads
 // it: choose an overload, infer type variables from the concrete argument
@@ -16,14 +16,22 @@
 // (contextual typing, §4.3), and instantiate the return.
 
 import type { JSONType } from "../types";
-import type { TVarNode, Bindings, BuiltinSig, BuiltinEntry } from "./builtin-types";
-import { buildTypeScope, checkArity, paramAt, reportMismatch, synth } from "./checker";
+import type {
+  TVarNode,
+  Bindings,
+  BuiltinSig,
+  BuiltinEntry,
+  BuiltinTypeRuleServicesV1,
+} from "./builtin-types";
+import { BuiltinTypeRuleContractError } from "./callable-rules";
+import { buildTypeScope, check, checkArity, paramAt, reportMismatch, synth } from "./checker";
 import {
   at,
   type CheckContext,
   type Diagnostic,
   isBody,
   report,
+  reportCoverageDegradation,
   reportDegradation,
   sigOf,
   stableStringify,
@@ -42,8 +50,6 @@ import {
   unionOf,
   prefixItems,
   fnShape,
-  mergeSchemas,
-  collectSchemaRefs,
   properties,
   apMode,
   widenLiteral,
@@ -322,7 +328,8 @@ function tryBindOverload(
     if (!unifyTemplate(arg.param, arg.schema, bindings, ctx)) return null;
   }
   for (const arg of concrete) {
-    if (!isSubschema(arg.schema, instantiate(arg.param, bindings), ctx.defs)) return null;
+    if (arg.schema !== true && !isSubschema(arg.schema, instantiate(arg.param, bindings), ctx.defs))
+      return null;
   }
 
   return bindings;
@@ -367,7 +374,9 @@ function applyOverload(sig: BuiltinSig, argExprs: JSONType[], ctx: CheckContext)
   // Pass 3 — validate every concrete arg against that final environment.
   for (const arg of concrete) {
     const inst = instantiate(arg.param, bindings);
-    if (!isSubschema(arg.schema, inst, ctx.defs)) reportMismatch(arg.ctx, arg.schema, inst);
+    if (arg.schema !== true && !isSubschema(arg.schema, inst, ctx.defs)) {
+      reportMismatch(arg.ctx, arg.schema, inst);
+    }
   }
 
   // Pass 4 — lambdas, now that input variables are known. Their returns bind
@@ -477,194 +486,6 @@ function applyOverload(sig: BuiltinSig, argExprs: JSONType[], ctx: CheckContext)
   return instantiate(sig.returns, bindings);
 }
 
-// The result floor for the effect constructors: an opaque task node, whose
-// runtime shape is a tagged record `{ "@task": string, ... }` (see `task.ts`).
-// Referenced by name (`Task`, defined in `spec/builtins.json`'s `$defs`) rather
-// than inlined, so it renders as `Task` *and* so a `-> Task` / `-> any`
-// annotation can satisfy it without the `$ref`-to-top work (a `$ref` result
-// resolves through subsumption; a bare `true` short-circuits before it can).
-const TASK_FLOOR: Schema = { $ref: "#/$defs/Task" };
-
-// Loose data floors for the `{ rule }` escape hatches (`pipe`/`apply`/effects).
-// A rule has no agnostic template, but leaving it fully inert means no arity or
-// shape checking and a bare-`any` result. Each floor pins the fixed arity, the
-// result type, and (optionally) the shape of individual argument positions —
-// just enough that a wrong-arity/wrong-shape call like `pipe(5, f)` is caught
-// and effectful functions can carry a `Task` return. A per-impl code rule can
-// still layer precision on top later.
-type RuleFloor = { arity: number; returns: Schema; shapes?: Record<number, Schema> };
-
-const RULE_FLOORS: Record<string, RuleFloor> = {
-  pipe: { arity: 2, returns: true, shapes: { 0: { type: "array" } } },
-  apply: { arity: 2, returns: true, shapes: { 1: { type: "array" } } },
-  perform: {
-    arity: 2,
-    returns: TASK_FLOOR,
-    shapes: { 0: { type: "string" }, 1: { type: "array" } },
-  },
-  pure: { arity: 1, returns: TASK_FLOOR },
-  bind: { arity: 2, returns: TASK_FLOOR },
-  raise: { arity: 1, returns: TASK_FLOOR },
-};
-
-// Apply an escape-hatch rule's floor: walk every arg for nested errors, check
-// arity, then shape-check the pinned positions. An `any`-typed argument is
-// exempt from shape checks — a strict `any ⊄ array` would hard-error on the
-// many dynamically typed values that legitimately reach these builtins, so
-// leniency here mirrors what an untyped escape hatch used to allow. Shape
-// checks are skipped when arity is already wrong (one mistake, one diagnostic).
-function synthRule(rule: string, argExprs: JSONType[], ctx: CheckContext): Schema {
-  if (rule === "handle") return synthHandle(argExprs, ctx);
-
-  const argTypes = argExprs.map((a, i) => synth(a, at(ctx, `$args[${i}]`)));
-  const floor = RULE_FLOORS[rule];
-  if (floor === undefined) {
-    reportDegradation(ctx, `builtin rule "${rule}" is unsupported`);
-    return true;
-  }
-  const aritySig = {
-    params: Array.from({ length: floor.arity }, () => true as Schema),
-    returns: true,
-  };
-  const arityOk = checkArity(aritySig, argExprs.length, ctx);
-  if (arityOk && floor.shapes) {
-    for (const [pos, expected] of Object.entries(floor.shapes)) {
-      const i = Number(pos);
-      const actual = argTypes[i];
-      if (actual === undefined || actual === true) continue;
-      if (!isSubschema(actual, expected, ctx.defs)) {
-        reportMismatch(at(ctx, `$args[${i}]`), actual, expected);
-      }
-    }
-  }
-  if (floor.returns === true) {
-    reportDegradation(ctx, `builtin rule "${rule}" has no precise return type`);
-  }
-  return floor.returns;
-}
-
-// `handle(task, handlers)` is deliberately partial and imprecise. The
-// three-argument form carries a raw schema contract and is total at runtime, so
-// its immediate result type is exactly that schema.
-function synthHandle(argExprs: JSONType[], ctx: CheckContext): Schema {
-  for (let i = 0; i < Math.min(argExprs.length, 2); i++) {
-    synth(argExprs[i]!, at(ctx, `$args[${i}]`));
-  }
-
-  if (argExprs.length !== 2 && argExprs.length !== 3) {
-    for (let i = 2; i < argExprs.length; i++) synth(argExprs[i]!, at(ctx, `$args[${i}]`));
-    report(ctx, `Expected 2 or 3 arguments, got ${argExprs.length}.`);
-    return true;
-  }
-
-  if (argExprs.length === 2) {
-    reportDegradation(ctx, 'builtin rule "handle" has no precise return type');
-    return true;
-  }
-
-  const annotationExpr = argExprs[2]!;
-  if (
-    !isSchemaObject(annotationExpr) ||
-    Object.keys(annotationExpr).length !== 1 ||
-    !("$raw" in annotationExpr)
-  ) {
-    report(at(ctx, "$args[2]"), "annotated handle requires a raw result-type schema");
-    return true;
-  }
-
-  const schema = annotationExpr.$raw!;
-  if (!isTractableHandleSchema(schema)) {
-    report(
-      at(at(ctx, "$args[2]"), "$raw"),
-      "handle result annotation is outside the tractable type fragment",
-    );
-    return true;
-  }
-
-  const refs = new Set<string>();
-  collectSchemaRefs(schema, refs);
-  for (const name of refs) {
-    if (!(name in ctx.defs)) {
-      report(at(at(ctx, "$args[2]"), "$raw"), `reference to undefined type "${name}"`);
-    }
-  }
-  return schema;
-}
-
-function isLiteralSchemaValue(value: JSONType): boolean {
-  return value === null || ["boolean", "number", "string"].includes(typeof value);
-}
-
-// Validate the same recursive schema fragment the shorthand type parser emits.
-// This protects hand-authored canonical JSON; shorthand input is valid by
-// construction.
-function isTractableHandleSchema(schema: Schema): boolean {
-  switch (classifySchema(schema)) {
-    case SchemaKind.Any:
-    case SchemaKind.Never:
-      return true;
-    case SchemaKind.Ref:
-      return typeof asObject(schema).$ref === "string";
-    case SchemaKind.Const:
-      return isLiteralSchemaValue(asObject(schema).const!);
-    case SchemaKind.Enum: {
-      const values = asObject(schema).enum;
-      return Array.isArray(values) && values.every(isLiteralSchemaValue);
-    }
-    case SchemaKind.Union: {
-      const arms = unionArms(schema);
-      return arms !== null && arms.every(isTractableHandleSchema);
-    }
-    case SchemaKind.Primitive:
-      return ["null", "boolean", "number", "integer", "string"].includes(
-        String(asObject(schema).type),
-      );
-    case SchemaKind.Array:
-      return isTractableHandleSchema(itemsSchema(asObject(schema)));
-    case SchemaKind.Tuple: {
-      const object = asObject(schema);
-      const rest = tupleRest(object);
-      return (
-        prefixItems(object).every(isTractableHandleSchema) &&
-        (rest === null || isTractableHandleSchema(rest))
-      );
-    }
-    case SchemaKind.Object: {
-      const object = asObject(schema);
-      const mode = apMode(object);
-      return (
-        Object.values(properties(object)).every(isTractableHandleSchema) &&
-        (mode.kind !== "map" || isTractableHandleSchema(mode.schema))
-      );
-    }
-    case SchemaKind.FnType: {
-      if (!isSchemaObject(asObject(schema).$fnType)) return false;
-      const shape = fnShape(asObject(schema));
-      return (
-        shape.params.every(isTractableHandleSchema) &&
-        (shape.rest === undefined || isTractableHandleSchema(shape.rest)) &&
-        isTractableHandleSchema(shape.returns)
-      );
-    }
-    case SchemaKind.Opaque:
-      return false;
-  }
-}
-
-// `merge` needs a genuine schema computation that the shared substitution
-// templates cannot express: structural object spread. After the ordinary
-// overload pass (which still emits arg/arity diagnostics), recompute its return
-// from silently synthesized operands.
-const CODE_RETURNS: Record<string, (argExprs: JSONType[], ctx: CheckContext) => Schema> = {
-  merge: (argExprs, ctx) => {
-    if (argExprs.length !== 2) return { type: "object" };
-    const silent: CheckContext = { ...ctx, diagnostics: [] };
-    const a = synth(argExprs[0]!, silent);
-    const b = synth(argExprs[1]!, silent);
-    return mergeSchemas(a, b, ctx.defs);
-  },
-};
-
 // Render a signature's parameter list as `(p0, p1, ...rest)` for a diagnostic.
 function paramList(sig: BuiltinSig): string {
   const parts = sig.params.map((p) => JSON.stringify(p));
@@ -708,25 +529,83 @@ function reportNoOverload(
   return instantiate(overloads[0]!.returns, {});
 }
 
-// Dispatch a builtin call by its table entry.
+function createRuleServices(argExprs: JSONType[], ctx: CheckContext): BuiltinTypeRuleServicesV1 {
+  const ruleContext = (options: { argumentIndex?: number; path?: string[] } = {}): CheckContext => {
+    let target = ctx;
+    if (options.argumentIndex !== undefined) {
+      target = at(target, `$args[${options.argumentIndex}]`);
+    }
+    for (const segment of options.path ?? []) target = at(target, segment);
+    return target;
+  };
+
+  return {
+    apiVersion: 1,
+    defs: ctx.defs,
+    synthArgument: (index) => {
+      const expr = argExprs[index];
+      if (expr === undefined) return true;
+      return synth(expr, { ...at(ctx, `$args[${index}]`), diagnostics: [] });
+    },
+    checkArgument: (index, expected) => {
+      const expr = argExprs[index];
+      if (expr !== undefined) check(expr, expected, at(ctx, `$args[${index}]`));
+    },
+    contextualTypeCallback: (index, expectedFn) => {
+      const expr = argExprs[index];
+      if (expr === undefined || !isContextualLambda(expr)) return null;
+      return inferLambdaReturn(expr, expectedFn, at(ctx, `$args[${index}]`));
+    },
+    resolveSchema: (schema) => resolveDeep(schema, ctx.defs),
+    instantiateSchema: instantiate,
+    reportError: (message, options = {}) => {
+      const extra: Partial<Diagnostic> = {};
+      if (options.expected !== undefined) extra.expected = options.expected;
+      if (options.actual !== undefined) extra.actual = options.actual;
+      report(ruleContext(options), message, extra);
+    },
+    reportAnyDegradation: (reason) => reportDegradation(ctx, reason),
+    reportCoverageDegradation: (reason) => reportCoverageDegradation(ctx, reason),
+  };
+}
+
+// Dispatch every callable through its portable fallback first, then let an
+// optional injected rule add diagnostics or refine that result.
 function synthBuiltinCall(
   name: string,
   entry: BuiltinEntry,
   argExprs: JSONType[],
   ctx: CheckContext,
 ): Schema {
-  if (!Array.isArray(entry)) return synthRule(entry.rule, argExprs, ctx); // `{ rule }` escape hatch
-  const chosen = entry.find((ov) => tryBindOverload(ov, argExprs, ctx) !== null);
+  const chosen = entry.signatures.find((ov) => tryBindOverload(ov, argExprs, ctx) !== null);
+  const fallbackMatched = chosen !== undefined;
+  let fallbackResult: Schema;
+
   // No arm fits and there's more than one: report the whole overload set rather
   // than blaming (and pinpointing against) just the first arm. A single-arm
   // builtin still falls through to `applyOverload`, whose per-argument, arity,
   // and return diagnostics are already precise.
-  if (chosen === undefined && entry.length > 1) {
-    return reportNoOverload(name, entry, argExprs, ctx);
+  if (chosen === undefined && entry.signatures.length > 1) {
+    fallbackResult = reportNoOverload(name, entry.signatures, argExprs, ctx);
+  } else {
+    fallbackResult = applyOverload(chosen ?? entry.signatures[0]!, argExprs, ctx);
   }
-  const result = applyOverload(chosen ?? entry[0]!, argExprs, ctx);
-  const code = CODE_RETURNS[name];
-  return code ? code(argExprs, ctx) : result;
+
+  if (entry.rule === undefined) return fallbackResult;
+  const rule = ctx.typeRules?.[entry.rule];
+  if (rule === undefined) {
+    reportCoverageDegradation(ctx, `callable rule "${entry.rule}" is unavailable`);
+    return fallbackResult;
+  }
+
+  const result = rule(
+    { name, args: argExprs, fallbackResult, fallbackMatched },
+    createRuleServices(argExprs, ctx),
+  );
+  if (!isSubschema(result, fallbackResult, ctx.defs)) {
+    throw new BuiltinTypeRuleContractError(entry.rule, fallbackResult, result);
+  }
+  return result;
 }
 
 export { synthBuiltinCall };
