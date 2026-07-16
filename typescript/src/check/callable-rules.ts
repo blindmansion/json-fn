@@ -1,5 +1,5 @@
 import type { JSONType } from "../types";
-import { litOf } from "./ast";
+import { litOf, nodeKind } from "./ast";
 import type { CallableTypeRuleApplyV1, CallableTypeRuleRegistry } from "./builtin-types";
 import {
   apMode,
@@ -286,6 +286,57 @@ const handleRule: CallableTypeRuleApplyV1 = (request, services) => {
       });
     }
   }
+
+  services.checkArgument(0, taskType(true));
+  const handledCompletion = completionOf(services.synthArgument(0), services.resolveSchema) ?? true;
+  const clausesExpr = request.args[1]!;
+  if (nodeKind(clausesExpr) !== "object") {
+    services.checkArgument(1, { type: "object" });
+    services.reportCoverageDegradation("the handler clauses are not a literal record");
+    return schema;
+  }
+
+  const resumeType = (input: Schema): Schema => ({
+    $fnType: { params: [input], returns: schema },
+  });
+  const clauseType = (params: Schema[]): Schema => ({
+    $fnType: { params, returns: schema },
+  });
+  const clauseProperties: Record<string, Schema> = {};
+  for (const [name, effect] of Object.entries(services.effects ?? {})) {
+    clauseProperties[name] = clauseType([...effect.params, resumeType(effect.returns)]);
+  }
+  clauseProperties.return = clauseType([handledCompletion]);
+  clauseProperties["*"] = clauseType([
+    {
+      type: "object",
+      properties: {
+        name: { type: "string" },
+        args: { type: "array" },
+      },
+      required: ["name", "args"],
+      additionalProperties: false,
+    },
+    resumeType(true),
+  ]);
+  if (clauseProperties.raise === undefined) {
+    clauseProperties.raise = {
+      $fnType: { params: [true, resumeType(false)], returns: true },
+    };
+  }
+
+  for (const name of Object.keys(clausesExpr as Record<string, JSONType>)) {
+    if (name !== "$comment" && clauseProperties[name] === undefined) {
+      services.reportCoverageDegradation(
+        `handler clause "${name}" has no configured effect contract`,
+      );
+    }
+  }
+  services.contextualCheckArgument(1, {
+    type: "object",
+    properties: clauseProperties,
+    additionalProperties: true,
+  });
   return schema;
 };
 
@@ -296,7 +347,7 @@ const CORE_CALLABLE_TYPE_RULES: CallableTypeRuleRegistry = {
   "core.pure": { apply: pureRule },
   "core.bind": { contextualArguments: [1], apply: bindRule },
   "core.raise": { apply: raiseRule },
-  "core.handle": { apply: handleRule },
+  "core.handle": { contextualArguments: [1], apply: handleRule },
   "core.merge": { apply: mergeRule },
   "core.flatMap": { contextualArguments: [0], apply: flatMapRule },
 };

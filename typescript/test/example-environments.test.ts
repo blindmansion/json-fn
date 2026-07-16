@@ -34,10 +34,7 @@ describe("typed host-environment examples", () => {
     "%s satisfies its operator-owned environment",
     (name) => {
       const { module, environment } = fixture(name);
-      const errors = checkModule(module, loadBuiltinTable(), { environment }).filter(
-        (diagnostic) => diagnostic.severity === "error",
-      );
-      expect(errors).toEqual([]);
+      expect(checkModule(module, loadBuiltinTable(), { environment })).toEqual([]);
     },
   );
 

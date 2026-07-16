@@ -114,7 +114,7 @@ the fallback. Unavailable rules retain the complete fallback behavior. The
 rerun deliberately avoids path-prefix filtering because lazy-local diagnostics
 may use binding-relative paths.
 
-### 5. Handler clauses remain a dynamic coverage seam
+### 5. Handler clauses remain a dynamic coverage seam — ✅ resolved
 
 The thermostat and dungeon modules now check with zero errors, but their
 in-language test handlers still report coverage degradation because handler
@@ -128,8 +128,23 @@ result type needed to type:
 - `return`; and
 - the annotated handler result.
 
-Contextually type those clauses from the manifest and the handled task instead
-of requiring repetitive guest annotations.
+Resolved for annotated total handlers. The `core.handle` rule derives the
+handled completion type from `Task<A>`, takes the immediate result `R` from the
+annotation, and checks literal clause records under manifest-derived signatures:
+
+- a manifest clause is `(...effectArgs, resume: (effectResult) -> R) -> R`;
+- `return` is `(A) -> R`;
+- `*` receives the runtime `{ name, args }` envelope and a broad `(any) -> R`
+  resume; and
+- the built-in `raise` clause receives a broad payload and an unreachable
+  resume. Its result remains broad because `Task<A>` does not carry a raised
+  payload type.
+
+Callable-rule ownership now covers an entire contextually checked argument, not
+only a top-level lambda, so fallback synthesis of the clause record cannot leave
+stale unannotated-function diagnostics. Non-literal records and clause names
+without configured contracts report coverage degradation. Partial handlers
+remain intentionally imprecise because they have no declared `R`.
 
 ### 6. CLI execution does not consistently consume the environment
 
@@ -172,7 +187,7 @@ Do not add ergonomic features to both old and new paths.
 3. ✅ Add compositional helper completion types (`Task<A>`).
 4. ✅ Fix scope-call result synthesis and narrowing through `do` locals.
 5. ✅ Formalize fallback-versus-rule diagnostic ownership.
-6. Contextually type effect handlers.
+6. ✅ Contextually type effect handlers.
 7. Make CLI checking and execution consistently environment-driven.
 8. Rewrite thermostat and dungeon in the intended natural style and remove the
    workaround shapes from their regression tests.

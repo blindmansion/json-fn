@@ -342,7 +342,7 @@ function applyOverload(
   sig: CallableSignature,
   argExprs: JSONType[],
   ctx: CheckContext,
-  skipContextualCallbacks: ReadonlySet<number> = new Set(),
+  skipContextualArguments: ReadonlySet<number> = new Set(),
 ): Schema {
   const arityOk = checkArity(sig, argExprs.length, ctx);
   const bindings: Bindings = {};
@@ -361,12 +361,13 @@ function applyOverload(
   for (let i = 0; i < argExprs.length; i++) {
     const param = paramAt(sig, i);
     const actx = at(ctx, `$args[${i}]`);
+    if (skipContextualArguments.has(i)) continue;
     if (param === null) {
       synth(argExprs[i]!, actx); // surplus arg (no param): still walk for errors
       continue;
     }
     if (isContextualLambda(argExprs[i]!)) {
-      if (!skipContextualCallbacks.has(i)) lambdas.push(i);
+      lambdas.push(i);
       continue;
     }
     concrete.push({ param, schema: synth(argExprs[i]!, actx), ctx: actx });
@@ -540,7 +541,7 @@ function createRuleServices(
   ctx: CheckContext,
   ruleId: string,
   declaredContextualArguments: ReadonlySet<number>,
-  contextualizedCallbacks: Map<number, number>,
+  contextualizedArguments: Map<number, number>,
 ): CallableTypeRuleServicesV1 {
   const ruleContext = (options: { argumentIndex?: number; path?: string[] } = {}): CheckContext => {
     let target = ctx;
@@ -549,6 +550,22 @@ function createRuleServices(
     }
     for (const segment of options.path ?? []) target = at(target, segment);
     return target;
+  };
+  const claimContextualArgument = (index: number): void => {
+    if (!declaredContextualArguments.has(index)) {
+      throw new CallableTypeRuleOwnershipError(
+        ruleId,
+        `contextually typed undeclared argument ${index}`,
+      );
+    }
+    const invocationCount = contextualizedArguments.get(index) ?? 0;
+    if (invocationCount > 0) {
+      throw new CallableTypeRuleOwnershipError(
+        ruleId,
+        `contextually typed argument ${index} more than once`,
+      );
+    }
+    contextualizedArguments.set(index, invocationCount + 1);
   };
 
   return {
@@ -564,23 +581,16 @@ function createRuleServices(
       const expr = argExprs[index];
       if (expr !== undefined) check(expr, expected, at(ctx, `$args[${index}]`));
     },
+    contextualCheckArgument: (index, expected) => {
+      const expr = argExprs[index];
+      if (expr === undefined) return;
+      claimContextualArgument(index);
+      check(expr, expected, at(ctx, `$args[${index}]`));
+    },
     contextualTypeCallback: (index, expectedFn) => {
       const expr = argExprs[index];
       if (expr === undefined || !isContextualLambda(expr)) return null;
-      if (!declaredContextualArguments.has(index)) {
-        throw new CallableTypeRuleOwnershipError(
-          ruleId,
-          `contextually typed undeclared argument ${index}`,
-        );
-      }
-      const invocationCount = contextualizedCallbacks.get(index) ?? 0;
-      if (invocationCount > 0) {
-        throw new CallableTypeRuleOwnershipError(
-          ruleId,
-          `contextually typed argument ${index} more than once`,
-        );
-      }
-      contextualizedCallbacks.set(index, invocationCount + 1);
+      claimContextualArgument(index);
       const diagnostics: Diagnostic[] = [];
       const result = inferLambdaReturn(expr, expectedFn, {
         ...at(ctx, `$args[${index}]`),
@@ -663,8 +673,8 @@ function synthCallableCall(
     return fallbackResult;
   }
 
-  const declaredCallbacks = declaredContextualArguments(entry.rule, rule);
-  const contextualizedCallbacks = new Map<number, number>();
+  const declaredArguments = declaredContextualArguments(entry.rule, rule);
+  const contextualizedArguments = new Map<number, number>();
   const ruleDiagnostics: Diagnostic[] = [];
   const ruleContext = { ...ctx, diagnostics: ruleDiagnostics };
   const result = rule.apply(
@@ -673,14 +683,14 @@ function synthCallableCall(
       argExprs,
       ruleContext,
       entry.rule,
-      declaredCallbacks,
-      contextualizedCallbacks,
+      declaredArguments,
+      contextualizedArguments,
     ),
   );
   if (fallbackMatched) {
-    for (const index of declaredCallbacks) {
+    for (const index of declaredArguments) {
       const expr = argExprs[index];
-      if (expr !== undefined && isContextualLambda(expr) && !contextualizedCallbacks.has(index)) {
+      if (expr !== undefined && isContextualLambda(expr) && !contextualizedArguments.has(index)) {
         throw new CallableTypeRuleOwnershipError(
           entry.rule,
           `declared contextual argument ${index} but did not type it`,
@@ -688,19 +698,14 @@ function synthCallableCall(
       }
     }
   }
-  // An available rule owns each declared unannotated inline callback. Rerun
-  // fallback validation without those callbacks so broad contextual
-  // diagnostics cannot survive, while arity and non-owned argument diagnostics
-  // remain. Re-running is necessary because lazy locals can report at
-  // binding-relative paths that cannot be filtered reliably.
-  const ownedCallbacks = new Set(
-    [...declaredCallbacks].filter((index) => {
-      const expr = argExprs[index];
-      return expr !== undefined && isContextualLambda(expr);
-    }),
-  );
+  // An available rule owns each argument it contextually checked. Rerun
+  // fallback validation without those arguments so broad contextual diagnostics
+  // cannot survive, while arity and non-owned argument diagnostics remain.
+  // Re-running is necessary because lazy locals can report at binding-relative
+  // paths that cannot be filtered reliably.
+  const ownedArguments = new Set(contextualizedArguments.keys());
   let retainedFallback = fallbackDiagnostics;
-  if (ownedCallbacks.size > 0) {
+  if (ownedArguments.size > 0) {
     retainedFallback = [];
     applyOverload(
       chosen ?? entry.signatures[0]!,
@@ -709,7 +714,7 @@ function synthCallableCall(
         ...ctx,
         diagnostics: retainedFallback,
       },
-      ownedCallbacks,
+      ownedArguments,
     );
   }
   const existing = new Set(ctx.diagnostics.map(stableStringify));

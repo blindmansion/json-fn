@@ -544,6 +544,13 @@ Clause lookup is by effect name:
 - The reserved **`"*"` wildcard** clause `"*": (eff, resume) => …` catches any otherwise-unmatched effect and receives `eff = { name, args }` plus `resume`.
 - The reserved **`"return"` clause** `"return": (v) => …` runs when the task completes normally with value `v`; its result is final and is **not** re-interpreted by this handler. Without a `"return"` clause, `handle` returns the completion value directly.
 
+For an annotated total handler of `Task<A>` with result annotation `R`, the
+checker contextually types each manifest-backed clause as
+`(...effectArgs, resume: (effectResult) -> R) -> R` and types `return` as
+`(A) -> R`. Wildcard and built-in `raise` payloads remain broad because
+`Task<A>` does not track an effect row or raised-payload type. The unannotated
+partial form has no declared `R`, so it retains its imprecise static result.
+
 `resume` is itself plain JSON built by `handle`, so continuations stay serializable mid-handle and multi-shot resumption is free: calling `resume` twice re-runs the rest of the task twice (the basis for nondeterminism, retry, and backtracking combinators).
 
 **Bubbling.** In the partial form, an effect with no matching clause (and no `"*"`) is *not* an error: `handle` re-performs it, wrapping the surrounding continuation so it re-enters the same handler afterward. The effect bubbles outward to the next enclosing `handle`, and ultimately to the host. This is what lets a partial handler discharge only the effects it cares about while staying transparent to the rest of the effect set. The annotated form is total and rejects the same unmatched effect.

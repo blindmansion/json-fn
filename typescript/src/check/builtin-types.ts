@@ -37,6 +37,7 @@ type CallableTypeRuleServicesV1 = {
   effects?: Readonly<EffectManifest>;
   synthArgument: (index: number) => Schema;
   checkArgument: (index: number, expected: Schema) => void;
+  contextualCheckArgument: (index: number, expected: Schema) => void;
   contextualTypeCallback: (index: number, expectedFn: Schema) => Schema | null;
   resolveSchema: (schema: Schema) => Schema;
   instantiateSchema: (schema: Schema, bindings: Bindings) => Schema;

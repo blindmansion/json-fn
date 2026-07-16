@@ -237,6 +237,53 @@ describe("environment checker integration", () => {
     ).toBe(true);
   });
 
+  test("contextually types annotated handler clauses from the environment", () => {
+    const env = environment({
+      effects: {
+        log: { params: [S], returns: { type: "null" } },
+      },
+    });
+    const mod = module(`{
+      interpret: (task: Task<integer>) -> integer => handle task -> integer with {
+        log: (message, resume) => resume(null) + length(message),
+        return: (value) => value + 1
+      },
+      main: () => pure(1)
+    }`);
+
+    expect(checkModule(mod, builtins, { environment: env })).toEqual([]);
+  });
+
+  test("checks handler parameters, resume input, and clause results", () => {
+    const env = environment({
+      effects: {
+        log: { params: [S], returns: { type: "null" } },
+      },
+    });
+    const mod = module(`{
+      interpret: (task: Task<integer>) -> integer => handle task -> integer with {
+        log: (message, resume) => resume("wrong") + message,
+        return: (value) => "wrong"
+      },
+      main: () => pure(1)
+    }`);
+    const diagnostics = checkModule(mod, builtins, { environment: env });
+
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({
+        severity: "error",
+        path: expect.arrayContaining(["log", "$return"]),
+      }),
+    );
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({
+        severity: "error",
+        path: expect.arrayContaining(["return", "$return"]),
+      }),
+    );
+    expect(diagnostics.filter((diagnostic) => diagnostic.severity === "info")).toEqual([]);
+  });
+
   test("rejects a guest binding that shadows the injected effects namespace", () => {
     const diagnostics = checkModule(module("{ effects: {}, main: () => pure(1) }"), builtins, {
       environment: environment(),
