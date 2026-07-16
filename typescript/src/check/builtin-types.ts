@@ -45,10 +45,14 @@ type CallableTypeRuleServicesV1 = {
   reportCoverageDegradation: (reason: string) => void;
 };
 
-type CallableTypeRuleV1 = (
+type CallableTypeRuleApplyV1 = (
   request: CallableTypeRuleRequest,
   services: CallableTypeRuleServicesV1,
 ) => Schema;
+type CallableTypeRuleV1 = {
+  contextualArguments?: readonly number[];
+  apply: CallableTypeRuleApplyV1;
+};
 type CallableTypeRuleRegistry = Record<string, CallableTypeRuleV1>;
 
 export type {
@@ -60,6 +64,7 @@ export type {
   CallableTypeRuleRequest,
   RuleDiagnosticOptions,
   CallableTypeRuleServicesV1,
+  CallableTypeRuleApplyV1,
   CallableTypeRuleV1,
   CallableTypeRuleRegistry,
 };

@@ -21,9 +21,10 @@ import type {
   Bindings,
   CallableSignature,
   CallableEntry,
+  CallableTypeRuleV1,
   CallableTypeRuleServicesV1,
 } from "./builtin-types";
-import { CallableTypeRuleContractError } from "./callable-rules";
+import { CallableTypeRuleContractError, CallableTypeRuleOwnershipError } from "./callable-rules";
 import { buildTypeScope, check, checkArity, paramAt, reportMismatch, synth } from "./checker";
 import {
   at,
@@ -537,7 +538,9 @@ function reportNoOverload(
 function createRuleServices(
   argExprs: JSONType[],
   ctx: CheckContext,
-  contextualizedCallbacks: Set<number>,
+  ruleId: string,
+  declaredContextualArguments: ReadonlySet<number>,
+  contextualizedCallbacks: Map<number, number>,
 ): CallableTypeRuleServicesV1 {
   const ruleContext = (options: { argumentIndex?: number; path?: string[] } = {}): CheckContext => {
     let target = ctx;
@@ -564,7 +567,20 @@ function createRuleServices(
     contextualTypeCallback: (index, expectedFn) => {
       const expr = argExprs[index];
       if (expr === undefined || !isContextualLambda(expr)) return null;
-      contextualizedCallbacks.add(index);
+      if (!declaredContextualArguments.has(index)) {
+        throw new CallableTypeRuleOwnershipError(
+          ruleId,
+          `contextually typed undeclared argument ${index}`,
+        );
+      }
+      const invocationCount = contextualizedCallbacks.get(index) ?? 0;
+      if (invocationCount > 0) {
+        throw new CallableTypeRuleOwnershipError(
+          ruleId,
+          `contextually typed argument ${index} more than once`,
+        );
+      }
+      contextualizedCallbacks.set(index, invocationCount + 1);
       const diagnostics: Diagnostic[] = [];
       const result = inferLambdaReturn(expr, expectedFn, {
         ...at(ctx, `$args[${index}]`),
@@ -591,6 +607,29 @@ function createRuleServices(
     reportAnyDegradation: (reason) => reportDegradation(ctx, reason),
     reportCoverageDegradation: (reason) => reportCoverageDegradation(ctx, reason),
   };
+}
+
+function declaredContextualArguments(
+  ruleId: string,
+  rule: CallableTypeRuleV1,
+): ReadonlySet<number> {
+  const declared = new Set<number>();
+  for (const index of rule.contextualArguments ?? []) {
+    if (!Number.isInteger(index) || index < 0) {
+      throw new CallableTypeRuleOwnershipError(
+        ruleId,
+        `declared invalid contextual argument index ${index}`,
+      );
+    }
+    if (declared.has(index)) {
+      throw new CallableTypeRuleOwnershipError(
+        ruleId,
+        `declared contextual argument ${index} more than once`,
+      );
+    }
+    declared.add(index);
+  }
+  return declared;
 }
 
 // Dispatch every callable through its portable fallback first, then let an
@@ -624,20 +663,44 @@ function synthCallableCall(
     return fallbackResult;
   }
 
-  const contextualizedCallbacks = new Set<number>();
+  const declaredCallbacks = declaredContextualArguments(entry.rule, rule);
+  const contextualizedCallbacks = new Map<number, number>();
   const ruleDiagnostics: Diagnostic[] = [];
   const ruleContext = { ...ctx, diagnostics: ruleDiagnostics };
-  const result = rule(
+  const result = rule.apply(
     { name, args: argExprs, fallbackResult, fallbackMatched },
-    createRuleServices(argExprs, ruleContext, contextualizedCallbacks),
+    createRuleServices(
+      argExprs,
+      ruleContext,
+      entry.rule,
+      declaredCallbacks,
+      contextualizedCallbacks,
+    ),
   );
-  // Once a rule contextually rechecks a callback, rerun the fallback's
-  // diagnostic pass without that callback. This retains diagnostics from other
-  // arguments while avoiding stale errors produced under the fallback's broad
-  // callback parameter types. Re-running is necessary because lazy locals can
-  // report at binding-relative paths that cannot be filtered reliably.
+  if (fallbackMatched) {
+    for (const index of declaredCallbacks) {
+      const expr = argExprs[index];
+      if (expr !== undefined && isContextualLambda(expr) && !contextualizedCallbacks.has(index)) {
+        throw new CallableTypeRuleOwnershipError(
+          entry.rule,
+          `declared contextual argument ${index} but did not type it`,
+        );
+      }
+    }
+  }
+  // An available rule owns each declared unannotated inline callback. Rerun
+  // fallback validation without those callbacks so broad contextual
+  // diagnostics cannot survive, while arity and non-owned argument diagnostics
+  // remain. Re-running is necessary because lazy locals can report at
+  // binding-relative paths that cannot be filtered reliably.
+  const ownedCallbacks = new Set(
+    [...declaredCallbacks].filter((index) => {
+      const expr = argExprs[index];
+      return expr !== undefined && isContextualLambda(expr);
+    }),
+  );
   let retainedFallback = fallbackDiagnostics;
-  if (contextualizedCallbacks.size > 0) {
+  if (ownedCallbacks.size > 0) {
     retainedFallback = [];
     applyOverload(
       chosen ?? entry.signatures[0]!,
@@ -646,7 +709,7 @@ function synthCallableCall(
         ...ctx,
         diagnostics: retainedFallback,
       },
-      contextualizedCallbacks,
+      ownedCallbacks,
     );
   }
   const existing = new Set(ctx.diagnostics.map(stableStringify));

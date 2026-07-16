@@ -4,6 +4,7 @@ import type { JSONType } from "../../src/types";
 import type { CallableTable, CallableTypeRuleRegistry } from "../../src";
 import {
   CallableTypeRuleContractError,
+  CallableTypeRuleOwnershipError,
   DuplicateCallableTypeRuleError,
   mergeCallableTypeRuleRegistries,
 } from "../../src";
@@ -160,15 +161,165 @@ describe("Section F — builtin signatures", () => {
       },
     };
     const typeRules: CallableTypeRuleRegistry = {
-      "example.answer": () => ({ const: 42 }),
+      "example.answer": { apply: () => ({ const: 42 }) },
     };
     const result = checkExpr(call("answer"), {}, table, { typeRules });
     expect(result.type).toEqual({ const: 42 });
     expect(result.diagnostics).toEqual([]);
   });
 
+  test("a rule owns declared contextual arguments instead of retaining fallback diagnostics", () => {
+    const table: CallableTable = {
+      $defs: BT.$defs,
+      builtins: {
+        ...BT.builtins,
+        refine: {
+          signatures: [
+            {
+              params: [{ $fnType: { params: [S], returns: true } }],
+              returns: true,
+            },
+          ],
+          rule: "example.refine",
+        },
+      },
+    };
+    const typeRules: CallableTypeRuleRegistry = {
+      "example.refine": {
+        contextualArguments: [0],
+        apply: (request, services) => {
+          services.contextualTypeCallback(0, {
+            $fnType: { params: [I], returns: true },
+          });
+          return request.fallbackResult;
+        },
+      },
+    };
+    const callback = {
+      $params: ["n"],
+      $return: call("add", { $var: "n" }, 1),
+    };
+
+    expect(checkExpr(call("refine", callback), {}, table, { typeRules }).diagnostics).toEqual([]);
+  });
+
+  test("owned callbacks do not suppress fallback diagnostics for other arguments", () => {
+    const table: CallableTable = {
+      $defs: BT.$defs,
+      builtins: {
+        ...BT.builtins,
+        refine: {
+          signatures: [
+            {
+              params: [{ $fnType: { params: [S], returns: true } }, S],
+              returns: true,
+            },
+          ],
+          rule: "example.refine",
+        },
+      },
+    };
+    const typeRules: CallableTypeRuleRegistry = {
+      "example.refine": {
+        contextualArguments: [0],
+        apply: (request, services) => {
+          services.contextualTypeCallback(0, {
+            $fnType: { params: [I], returns: true },
+          });
+          return request.fallbackResult;
+        },
+      },
+    };
+    const callback = {
+      $params: ["n"],
+      $return: call("add", { $var: "n" }, 1),
+    };
+    const result = checkExpr(call("refine", callback, false), {}, table, { typeRules });
+
+    expect(result.diagnostics).toHaveLength(1);
+    expect(result.diagnostics[0]?.path).toEqual(["$args[1]"]);
+  });
+
+  test("a rule cannot contextually type an undeclared argument", () => {
+    const table: CallableTable = {
+      builtins: {
+        bad: {
+          signatures: [{ params: [{ $fnType: { params: [true], returns: true } }], returns: true }],
+          rule: "example.bad",
+        },
+      },
+    };
+    const callback = { $params: ["value"], $return: { $var: "value" } };
+
+    expect(() =>
+      checkExpr(call("bad", callback), {}, table, {
+        typeRules: {
+          "example.bad": {
+            apply: (request, services) => {
+              services.contextualTypeCallback(0, {
+                $fnType: { params: [true], returns: true },
+              });
+              return request.fallbackResult;
+            },
+          },
+        },
+      }),
+    ).toThrow(CallableTypeRuleOwnershipError);
+  });
+
+  test("a rule cannot contextually type an owned argument more than once", () => {
+    const table: CallableTable = {
+      builtins: {
+        bad: {
+          signatures: [{ params: [{ $fnType: { params: [true], returns: true } }], returns: true }],
+          rule: "example.bad",
+        },
+      },
+    };
+    const callback = { $params: ["value"], $return: { $var: "value" } };
+    const expected: Schema = { $fnType: { params: [true], returns: true } };
+
+    expect(() =>
+      checkExpr(call("bad", callback), {}, table, {
+        typeRules: {
+          "example.bad": {
+            contextualArguments: [0],
+            apply: (request, services) => {
+              services.contextualTypeCallback(0, expected);
+              services.contextualTypeCallback(0, expected);
+              return request.fallbackResult;
+            },
+          },
+        },
+      }),
+    ).toThrow(CallableTypeRuleOwnershipError);
+  });
+
+  test("a rule must consume each applicable declared contextual argument", () => {
+    const table: CallableTable = {
+      builtins: {
+        bad: {
+          signatures: [{ params: [{ $fnType: { params: [true], returns: true } }], returns: true }],
+          rule: "example.bad",
+        },
+      },
+    };
+    const callback = { $params: ["value"], $return: { $var: "value" } };
+
+    expect(() =>
+      checkExpr(call("bad", callback), {}, table, {
+        typeRules: {
+          "example.bad": {
+            contextualArguments: [0],
+            apply: (request) => request.fallbackResult,
+          },
+        },
+      }),
+    ).toThrow(CallableTypeRuleOwnershipError);
+  });
+
   test("rule registry composition rejects duplicate identifiers", () => {
-    const rule = () => true as Schema;
+    const rule = { apply: () => true as Schema };
     expect(() =>
       mergeCallableTypeRuleRegistries({ "example.rule": rule }, { "example.rule": rule }),
     ).toThrow(DuplicateCallableTypeRuleError);
@@ -185,7 +336,7 @@ describe("Section F — builtin signatures", () => {
     };
     expect(() =>
       checkExpr(call("bad"), {}, table, {
-        typeRules: { "example.bad": () => ({ type: "string" }) },
+        typeRules: { "example.bad": { apply: () => ({ type: "string" }) } },
       }),
     ).toThrow(CallableTypeRuleContractError);
   });
@@ -426,6 +577,29 @@ describe("Section F — builtin signatures", () => {
       ]);
     });
 
+    test("flatMap keeps fallback callback diagnostics when its rule is unavailable", () => {
+      const invalid = {
+        $params: ["n"],
+        $return: call("add", "x", true),
+      };
+      const result = checkExpr(call("flatMap", invalid, [1, 2, 3]), {}, BT, {
+        typeRules: {},
+      });
+
+      expect(result.diagnostics).toHaveLength(2);
+      expect(result.diagnostics).toContainEqual(
+        expect.objectContaining({
+          path: ["$args[0]", "$return"],
+          severity: "error",
+        }),
+      );
+      expect(result.diagnostics).toContainEqual(
+        expect.objectContaining({
+          severity: "info",
+        }),
+      );
+    });
+
     test("flatMap does not duplicate callback diagnostics during rule refinement", () => {
       const invalid = {
         $params: ["n"],
@@ -478,6 +652,60 @@ describe("Section F — builtin signatures", () => {
         true,
       );
       expect(synthB(call("pipe", [], 1)).type).toBe(true);
+    });
+
+    test("bind diagnoses its owned continuation only once under the precise context", () => {
+      const invalid = {
+        $params: ["value"],
+        bad: call("add", "x", true),
+        $return: call("pure", { $var: "bad" }),
+      };
+      const result = synthB(call("bind", call("pure", 1), invalid));
+
+      expect(result.diagnostics).toHaveLength(1);
+      expect(result.diagnostics[0]).toEqual(
+        expect.objectContaining({
+          path: ["bad"],
+          severity: "error",
+        }),
+      );
+    });
+
+    test("bind accepts a continuation checked from its precise completion type", () => {
+      const callback = {
+        $params: ["value"],
+        $return: call("pure", call("add", { $var: "value" }, 1)),
+      };
+      const result = synthB(call("bind", call("pure", 1), callback));
+
+      expect(result.diagnostics).toEqual([]);
+      expect(result.type).toEqual({ $taskType: I });
+    });
+
+    test("bind retains only its fallback arity or non-owned argument error", () => {
+      const callback = {
+        $params: ["value"],
+        $return: call("pure", { $var: "value" }),
+      };
+      const wrongArity = synthB(call("bind", call("pure", 1), callback, null));
+      expect(wrongArity.diagnostics).toHaveLength(1);
+      expect(wrongArity.diagnostics[0]?.path).toEqual([]);
+
+      const wrongTask = synthB(call("bind", 1, callback));
+      expect(wrongTask.diagnostics).toHaveLength(1);
+      expect(wrongTask.diagnostics[0]?.path).toEqual(["$args[0]"]);
+    });
+
+    test("perform leaves a malformed argument list to its fallback", () => {
+      const result = synthB(call("perform", "read", 5));
+
+      expect(result.diagnostics).toHaveLength(1);
+      expect(result.diagnostics[0]).toEqual(
+        expect.objectContaining({
+          path: ["$args[1]"],
+          severity: "error",
+        }),
+      );
     });
 
     test("annotated handle returns its declared immediate result type", () => {

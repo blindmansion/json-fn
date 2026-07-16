@@ -253,11 +253,27 @@ namespaced rule for precision that only host-language code can provide:
 }
 ```
 
-The fallback always runs first: it owns overload selection, arity and broad
-argument checks, contextual callback typing, and its portable result. An
-available rule may add diagnostics and return a narrower result. That result
-must remain inside the fallback type; otherwise the rule implementation and its
-portable contract disagree.
+The fallback always runs first to select an overload and compute its portable
+result. It normally owns arity, broad argument checks, and contextual callback
+typing. An available rule may add diagnostics and return a narrower result.
+That result must remain inside the fallback type; otherwise the rule
+implementation and its portable contract disagree.
+
+A rule definition may declare `contextualArguments`: zero-based argument
+positions whose unannotated inline callbacks it retypes more precisely. For
+those callbacks, fallback diagnostics are discarded and fallback validation is
+rerun without the owned positions. Arity and non-owned argument diagnostics are
+retained, while each owned callback is diagnosed exactly once under the rule's
+context. The checker enforces that a rule types every applicable declared
+callback once and does not contextually type undeclared positions.
+
+Ownership does not apply to referenced or `$sig`-annotated callbacks: they are
+concrete function values and retain normal fallback checking. If a declared
+rule implementation is unavailable, no arguments are owned and the complete
+portable fallback—including its contextual callback diagnostics—remains
+active. Diagnostic ownership is implemented by rerunning validation rather
+than filtering paths because lazy locals may report at binding-relative paths
+outside the callback argument's path prefix.
 
 Rule implementations are supplied through an explicit registry. A declared rule
 that is unavailable leaves the fallback active and emits an information-level

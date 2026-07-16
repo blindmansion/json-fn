@@ -95,21 +95,24 @@ cache is keyed from that merged, free-variable-filtered set. Explicit `bind`
 continuations and shorthand `do` therefore use the same checker paths, and the
 dungeon now binds `step(st, cmd)` once.
 
-### 4. Portable fallback diagnostics can conflict with precise rules
+### 4. Portable fallback diagnostics can conflict with precise rules — ✅ resolved
 
 A callable with a host-language type rule is first checked against its portable
 fallback. For `bind`, the fallback contextually typed a continuation with
 `Task<any>` before `core.bind` retyped it with the manifest completion type.
 Diagnostics from the broad pass survived and rejected valid code.
 
-The immediate migration fix reruns fallback diagnostics while omitting callbacks
-owned by the precise rule. Consolidate this into an explicit rule-engine
-contract:
+Resolved with declarative `contextualArguments` metadata on host-language rule
+definitions. The engine computes the portable fallback first, runs the precise
+rule, then reruns fallback validation while omitting declared unannotated inline
+callbacks. Arity and non-owned argument errors remain fallback-owned, while the
+engine enforces that each applicable owned callback is contextually typed
+exactly once by the rule.
 
-- a rule declares which arguments it contextually owns;
-- fallback validation still reports arity and non-owned argument errors;
-- owned callbacks are diagnosed exactly once under the rule's context; and
-- nested/lazy diagnostics do not depend on path-prefix filtering.
+Referenced and explicitly annotated callbacks remain concrete values checked by
+the fallback. Unavailable rules retain the complete fallback behavior. The
+rerun deliberately avoids path-prefix filtering because lazy-local diagnostics
+may use binding-relative paths.
 
 ### 5. Handler clauses remain a dynamic coverage seam
 
@@ -168,7 +171,7 @@ Do not add ergonomic features to both old and new paths.
    policy.
 3. ✅ Add compositional helper completion types (`Task<A>`).
 4. ✅ Fix scope-call result synthesis and narrowing through `do` locals.
-5. Formalize fallback-versus-rule diagnostic ownership.
+5. ✅ Formalize fallback-versus-rule diagnostic ownership.
 6. Contextually type effect handlers.
 7. Make CLI checking and execution consistently environment-driven.
 8. Rewrite thermostat and dungeon in the intended natural style and remove the

@@ -1,6 +1,6 @@
 import type { JSONType } from "../types";
 import { litOf } from "./ast";
-import type { CallableTypeRuleRegistry, CallableTypeRuleV1 } from "./builtin-types";
+import type { CallableTypeRuleApplyV1, CallableTypeRuleRegistry } from "./builtin-types";
 import {
   apMode,
   asObject,
@@ -42,6 +42,16 @@ class CallableTypeRuleContractError extends Error {
   }
 }
 
+class CallableTypeRuleOwnershipError extends Error {
+  constructor(
+    readonly ruleId: string,
+    message: string,
+  ) {
+    super(`callable type rule "${ruleId}" ${message}`);
+    this.name = "CallableTypeRuleOwnershipError";
+  }
+}
+
 function mergeCallableTypeRuleRegistries(
   ...registries: CallableTypeRuleRegistry[]
 ): CallableTypeRuleRegistry {
@@ -55,7 +65,7 @@ function mergeCallableTypeRuleRegistries(
   return merged;
 }
 
-const impreciseFallback: CallableTypeRuleV1 = (request, services) => {
+const impreciseFallback: CallableTypeRuleApplyV1 = (request, services) => {
   services.reportAnyDegradation(`callable rule "${request.name}" has no precise return type`);
   return request.fallbackResult;
 };
@@ -72,18 +82,18 @@ function completionOf(schema: Schema, resolve: (schema: Schema) => Schema): Sche
     : unionOf(completions as Schema[]);
 }
 
-const pureRule: CallableTypeRuleV1 = (request, services) => {
+const pureRule: CallableTypeRuleApplyV1 = (request, services) => {
   if (!request.fallbackMatched || request.args.length !== 1) return request.fallbackResult;
   return taskType(services.synthArgument(0));
 };
 
-const raiseRule: CallableTypeRuleV1 = (request) => {
+const raiseRule: CallableTypeRuleApplyV1 = (request) => {
   if (!request.fallbackMatched || request.args.length !== 1) return request.fallbackResult;
   return taskType(false);
 };
 
-const performRule: CallableTypeRuleV1 = (request, services) => {
-  if (request.args.length !== 2) return request.fallbackResult;
+const performRule: CallableTypeRuleApplyV1 = (request, services) => {
+  if (!request.fallbackMatched || request.args.length !== 2) return request.fallbackResult;
   const literal = litOf(request.args[0]!);
   if (literal === null) {
     services.reportCoverageDegradation("the effect name is dynamic");
@@ -109,7 +119,7 @@ const performRule: CallableTypeRuleV1 = (request, services) => {
   return taskType(effect.returns);
 };
 
-const bindRule: CallableTypeRuleV1 = (request, services) => {
+const bindRule: CallableTypeRuleApplyV1 = (request, services) => {
   if (!request.fallbackMatched || request.args.length !== 2) return request.fallbackResult;
 
   const input = completionOf(services.synthArgument(0), services.resolveSchema);
@@ -143,7 +153,7 @@ const bindRule: CallableTypeRuleV1 = (request, services) => {
   return taskType(output);
 };
 
-const mergeRule: CallableTypeRuleV1 = (request, services) => {
+const mergeRule: CallableTypeRuleApplyV1 = (request, services) => {
   if (!request.fallbackMatched || request.args.length !== 2) return request.fallbackResult;
   return mergeSchemas(services.synthArgument(0), services.synthArgument(1), services.defs);
 };
@@ -214,7 +224,7 @@ function flattenOneArrayLevel(schema: Schema, resolve: (schema: Schema) => Schem
   }
 }
 
-const flatMapRule: CallableTypeRuleV1 = (request, services) => {
+const flatMapRule: CallableTypeRuleApplyV1 = (request, services) => {
   if (!request.fallbackMatched || request.args.length !== 2) return request.fallbackResult;
 
   const item = arrayElementSchema(services.synthArgument(1), services.resolveSchema);
@@ -237,7 +247,7 @@ const flatMapRule: CallableTypeRuleV1 = (request, services) => {
   };
 };
 
-const handleRule: CallableTypeRuleV1 = (request, services) => {
+const handleRule: CallableTypeRuleApplyV1 = (request, services) => {
   if (!request.fallbackMatched) return request.fallbackResult;
   if (request.args.length === 2) {
     services.reportAnyDegradation('callable rule "handle" has no precise return type');
@@ -280,15 +290,15 @@ const handleRule: CallableTypeRuleV1 = (request, services) => {
 };
 
 const CORE_CALLABLE_TYPE_RULES: CallableTypeRuleRegistry = {
-  "core.pipe": impreciseFallback,
-  "core.apply": impreciseFallback,
-  "core.perform": performRule,
-  "core.pure": pureRule,
-  "core.bind": bindRule,
-  "core.raise": raiseRule,
-  "core.handle": handleRule,
-  "core.merge": mergeRule,
-  "core.flatMap": flatMapRule,
+  "core.pipe": { apply: impreciseFallback },
+  "core.apply": { apply: impreciseFallback },
+  "core.perform": { apply: performRule },
+  "core.pure": { apply: pureRule },
+  "core.bind": { contextualArguments: [1], apply: bindRule },
+  "core.raise": { apply: raiseRule },
+  "core.handle": { apply: handleRule },
+  "core.merge": { apply: mergeRule },
+  "core.flatMap": { contextualArguments: [0], apply: flatMapRule },
 };
 
 function isLiteralSchemaValue(value: unknown): boolean {
@@ -353,6 +363,7 @@ function isTractableHandleSchema(schema: Schema): boolean {
 export {
   CORE_CALLABLE_TYPE_RULES,
   CallableTypeRuleContractError,
+  CallableTypeRuleOwnershipError,
   DuplicateCallableTypeRuleError,
   mergeCallableTypeRuleRegistries,
 };

@@ -23,6 +23,7 @@ export { checkExpr, checkModule } from "./check/module";
 export type { CheckExprOptions, CheckModuleOptions } from "./check/module";
 export {
   CallableTypeRuleContractError,
+  CallableTypeRuleOwnershipError,
   CORE_CALLABLE_TYPE_RULES,
   DuplicateCallableTypeRuleError,
   mergeCallableTypeRuleRegistries,
