@@ -239,6 +239,8 @@ subagent `Handle` and then its `AgentResult` is unusable if both erase to opaque
 
 ### B4 — Environment, direct functions, and entry contract
 
+Status: complete.
+
 Package `{ $defs, functions, effects, entry }` as the operator-owned artifact:
 
 - `functions` declares direct host-callable contracts using B1.5's portable
@@ -398,7 +400,9 @@ suspension point:
   `plans/active/callable-contracts.md`; host callable composition joins B4.
 - **Completed:** B2 + B3 add portable effect contracts, checked/runtime
   boundaries, and an erased completion index.
-- **Remaining epic:** B4 → B5 packages the environment and migrates examples.
+- **Completed:** B4 packages the environment and enforces direct-function,
+  effect, and entry boundaries.
+- **Remaining epic:** B5 migrates the examples.
 - **Durable driver:** B6, a parallel track on the same primitives; sequence
   against the orchestration use case rather than the typed-environment milestone.
 
@@ -409,13 +413,17 @@ suspension point:
   sources. Name collisions resolve by proximity to the guest:
   `builtin $defs` < `environment $defs` < `module $types`. The checker and
   runtime enforce the same order.
+- **Callable/effect ownership and naming.** Core callable contracts remain
+  operator-immutable; composing a host callable with the same name is an error.
+  Function and effect tables are separate namespaces. Dotted qualification is
+  conventional but not required because an environment is already a closed
+  namespace.
+- **Entry task return encoding.** Portable entry contracts write
+  `{ "task": A }`; the checker converts it to its erased internal `Task<A>`
+  index, while `runTask` validates the eventual completion value against `A`.
 
 ## Open decisions
 
-- **Callable/effect ownership and naming.** Core contracts live in `spec/`, but
-  a host must be able to select or extend callable and effect contracts. Settle
-  their collision policy and decide whether host function/effect names are
-  globally qualified. Named-type precedence is resolved above.
 - **Type-rule delivery and trust.** Decide how a checker host supplies
   namespaced rule implementations, how rule API versions are negotiated, and
   which runtime validations remain possible for a callable whose precise type

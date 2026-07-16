@@ -546,12 +546,28 @@ Handler clauses are invoked through the normal call path, so fuel and call-depth
 
 ### Host trampoline
 
-`handle` interprets effects *in-language*; to connect a task to the real world, a host drives it with `runTask` (in TypeScript, exported from the package):
+`handle` interprets effects *in-language*; to connect a task to the real world,
+a host drives it with `runTask` (in TypeScript, exported from the package).
+The preferred typed form takes one operator-owned environment:
 
 ```ts
-const result = await runTask(module, "main", [], registry, {
-  "io.readLine": async () => prompt(),
-  "io.print": async (msg) => { console.log(msg); },
+const environment = {
+  $defs: { /* shared domain schemas */ },
+  functions: { /* direct host callable contracts */ },
+  effects: { /* capability argument/result contracts */ },
+  entry: {
+    name: "main",
+    params: [],
+    returns: { task: { type: "string" } },
+  },
+};
+
+const result = await runTask(module, environment, [], {
+  registry,
+  capabilities: {
+    "io.readLine": async () => prompt(),
+    "io.print": async (msg) => { console.log(msg); },
+  },
 }, limits);
 ```
 
@@ -562,11 +578,22 @@ The host is the *outermost handler*: any effect that no in-language `handle` dis
 - throws `UnhandledEffectError` for an effect with no capability;
 - otherwise `await`s the capability, applies `resume` to its result, and loops.
 
-An optional effect manifest gives `runTask` runtime contracts for this boundary.
-When supplied, `runTask` rejects effects absent from the manifest, validates the
-outgoing positional arguments before invoking host code, and validates the
-capability result before resuming. Named references use the same merged
-builtin/environment/module definition pool as the checker.
+The environment is portable contract data, separate from the host
+implementations. Its `functions` use the same fallback signatures and optional
+rules as core builtins. Callable-name collisions are rejected rather than
+overridden. `entry.returns: { task: A }` describes the task's eventual completion
+value.
+
+`runTask` validates entry arguments and completion, wraps tractable direct host
+functions to validate their arguments/results, rejects effects absent from the
+environment, validates outgoing effect arguments before invoking host code, and
+validates capability results before resuming. Named references use the same
+merged builtin/environment/module definition pool as the checker. The legacy
+positional `runTask(module, entry, args, registry, capabilities, ...)` form
+remains available for untyped embedding.
+
+`jfn check --environment <path>` loads the same artifact, preloads its named
+types, functions, and effects, and verifies the declared entry contract.
 
 **Durable suspend/resume.** Because a `pending` task is plain JSON, a host can `serializeTask` it, store it, and later `hydrateTask` + resume — even in a different process. `hydrateTask` restores the inertness marks that keep embedded tasks opaque to the evaluator.
 

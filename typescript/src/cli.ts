@@ -22,6 +22,7 @@ import { checkExpr, checkModule } from "./check/module";
 import type { Diagnostic } from "./check/context";
 import type { BuiltinTable } from "./check/builtin-types";
 import { loadBuiltinTable } from "./builtins";
+import { loadEnvironment, type Environment } from "./environment";
 
 const HELP = `jfn — a CLI for the json-fn language
 
@@ -61,6 +62,8 @@ check options:
                       Emit diagnostics as a JSON array (path/message/severity/
                       expected/actual) instead of prose
       --no-builtins   Don't load the builtin signature table (spec/builtins.json)
+      --environment <path>
+                      Load an operator-owned typed environment JSON file
       --allow-untyped-functions
                       Don't require top-level functions to declare a $sig
       --require-full-coverage
@@ -264,7 +267,11 @@ async function cmdEval(argv: string[]): Promise<void> {
 async function cmdCheck(argv: string[]): Promise<void> {
   const parsed = parseArgs(
     argv,
-    { "-f": "file", "--file": "file" },
+    {
+      "-f": "file",
+      "--file": "file",
+      "--environment": "environment",
+    },
     {
       "-e": "expr",
       "--expr": "expr",
@@ -308,13 +315,21 @@ async function cmdCheck(argv: string[]): Promise<void> {
       fail(`could not load builtin table: ${errMessage(e)}`);
     }
   }
+  let environment: Environment | undefined;
+  if (parsed.options.environment !== undefined) {
+    try {
+      environment = loadEnvironment(parsed.options.environment, builtins?.$defs);
+    } catch (e) {
+      fail(`could not load environment: ${errMessage(e)}`);
+    }
+  }
 
   const compact = parsed.flags.has("compact");
   const requireFullCoverage = parsed.flags.has("require-full-coverage");
   const jsonDiagnostics = parsed.flags.has("json-diagnostics");
 
   if (parsed.flags.has("expr")) {
-    const { type, diagnostics } = checkExpr(json, {}, builtins);
+    const { type, diagnostics } = checkExpr(json, {}, builtins, { environment });
     if (jsonDiagnostics) {
       reportDiagnosticsJson(diagnostics, compact);
     } else {
@@ -331,6 +346,7 @@ async function cmdCheck(argv: string[]): Promise<void> {
 
   const diagnostics = checkModule(json as Record<string, JSONType>, builtins, {
     requireTypedModuleFunctions: !parsed.flags.has("allow-untyped-functions"),
+    environment,
   });
   if (jsonDiagnostics) {
     reportDiagnosticsJson(diagnostics, compact);

@@ -1,4 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { mkdtempSync, rmSync, writeFileSync } from "fs";
+import { tmpdir } from "os";
+import { join } from "path";
 
 const CLI = new URL("../src/cli.ts", import.meta.url).pathname;
 
@@ -83,5 +86,49 @@ describe("jfn check coverage reporting", () => {
     expect(result.stdout).toContain("error:");
     expect(result.stdout).toContain("1 error.");
     expect(result.stdout).toContain("Type coverage: complete (no dynamic degradations).");
+  });
+
+  test("--environment preloads host callables and verifies the entry", () => {
+    const dir = mkdtempSync(join(tmpdir(), "json-fn-environment-"));
+    const path = join(dir, "environment.json");
+    try {
+      writeFileSync(
+        path,
+        JSON.stringify({
+          functions: {
+            "host.inc": {
+              signatures: [
+                {
+                  params: [{ type: "integer" }],
+                  returns: { type: "integer" },
+                },
+              ],
+            },
+          },
+          effects: {},
+          entry: {
+            name: "main",
+            params: [],
+            returns: { task: { type: "integer" } },
+          },
+        }),
+      );
+      const mod = {
+        main: {
+          $params: [],
+          $sig: { params: [], returns: { $ref: "#/$defs/Task" } },
+          $return: {
+            $call: "pure",
+            $args: [{ $call: "host.inc", $args: [1] }],
+          },
+        },
+      };
+      const result = runCheck(["--json", "--environment", path, asJsonArg(mod)]);
+      expect(result.stderr).toBe("");
+      expect(result.stdout).toContain("No type errors.");
+      expect(result.exitCode).toBe(0);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

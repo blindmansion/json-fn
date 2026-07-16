@@ -14,7 +14,16 @@
 
 import type { ExecutionLimits, FunctionRegistry, JSONType } from "./types";
 import type { EffectManifest } from "./effects";
+import type { BuiltinTypeRuleRegistry } from "./check/builtin-types";
 import { prepareProgram } from "./evaluate";
+import { loadBuiltinTable } from "./builtins";
+import {
+  EnvironmentConfigurationError,
+  entryCompletionType,
+  mergeCallableTables,
+  validateEnvironment,
+  type Environment,
+} from "./environment";
 import {
   mergeDefinitionPools,
   readModuleDefinitions,
@@ -26,6 +35,13 @@ import { raw } from "./utils";
 
 /** A host capability: answers one effect, synchronously or asynchronously. */
 export type Capability = (...args: JSONType[]) => Promise<JSONType> | JSONType;
+
+export type EnvironmentHostConfiguration = {
+  registry: FunctionRegistry;
+  capabilities: Record<string, Capability>;
+  /** Accepted alongside runtime configuration for hosts that share one setup object with the checker. */
+  typeRules?: BuiltinTypeRuleRegistry;
+};
 
 /** Thrown when a task performs `raise(err)` that no in-language handler caught;
  * carries the guest-supplied payload unchanged. */
@@ -65,7 +81,77 @@ export class UnhandledEffectError extends Error {
  * therefore take idempotency keys. In-language multi-shot `resume` is a feature;
  * at the host boundary, replay is not free.
  */
+export function runTask(
+  module: Record<string, JSONType>,
+  entry: string,
+  args: JSONType[],
+  registry: FunctionRegistry,
+  capabilities: Record<string, Capability>,
+  limits?: ExecutionLimits,
+  definitions?: DefinitionSources,
+  effects?: EffectManifest,
+): Promise<JSONType>;
+export function runTask(
+  module: Record<string, JSONType>,
+  environment: Environment,
+  args: JSONType[],
+  host: EnvironmentHostConfiguration,
+  limits?: ExecutionLimits,
+): Promise<JSONType>;
 export async function runTask(
+  module: Record<string, JSONType>,
+  entryOrEnvironment: string | Environment,
+  args: JSONType[],
+  registryOrHost: FunctionRegistry | EnvironmentHostConfiguration,
+  capabilitiesOrLimits?: Record<string, Capability> | ExecutionLimits,
+  limits?: ExecutionLimits,
+  definitions?: DefinitionSources,
+  effects?: EffectManifest,
+): Promise<JSONType> {
+  if (typeof entryOrEnvironment !== "string") {
+    const environment = entryOrEnvironment;
+    const host = registryOrHost as EnvironmentHostConfiguration;
+    const prepared = prepareEnvironmentRuntime(environment, host, module);
+    const checkedArgs = enforceRuntimeContract(
+      args,
+      {
+        type: "array",
+        prefixItems: environment.entry.params,
+        items: false,
+      },
+      prepared.defs,
+      `entry "${environment.entry.name}" arguments`,
+    ) as JSONType[];
+    const result = await runTaskConfigured(
+      module,
+      environment.entry.name,
+      checkedArgs,
+      prepared.registry,
+      host.capabilities,
+      capabilitiesOrLimits as ExecutionLimits | undefined,
+      prepared.definitions,
+      environment.effects ?? {},
+    );
+    return enforceRuntimeContract(
+      result,
+      entryCompletionType(environment.entry.returns),
+      prepared.defs,
+      `entry "${environment.entry.name}" result`,
+    );
+  }
+  return runTaskConfigured(
+    module,
+    entryOrEnvironment,
+    args,
+    registryOrHost as FunctionRegistry,
+    capabilitiesOrLimits as Record<string, Capability>,
+    limits,
+    definitions,
+    effects,
+  );
+}
+
+async function runTaskConfigured(
   module: Record<string, JSONType>,
   entry: string,
   args: JSONType[],
@@ -122,6 +208,102 @@ export async function runTask(
         : enforceRuntimeContract(normalized, effect.returns, defs, `effect "${name}" result`);
     task = call(resume, [checked]);
   }
+}
+
+function prepareEnvironmentRuntime(
+  environment: Environment,
+  host: EnvironmentHostConfiguration,
+  module: Record<string, JSONType>,
+): {
+  registry: FunctionRegistry;
+  definitions: DefinitionSources;
+  defs: Record<string, JSONType>;
+} {
+  if (
+    host === undefined ||
+    typeof host !== "object" ||
+    host.registry === undefined ||
+    host.capabilities === undefined
+  ) {
+    throw new EnvironmentConfigurationError(
+      "environment execution requires registry and capabilities",
+    );
+  }
+  const core = loadBuiltinTable();
+  validateEnvironment(environment, core.$defs);
+  const effective = mergeCallableTables(core, environment);
+  const definitions: DefinitionSources = {
+    builtinDefs: core.$defs,
+    environmentDefs: environment.$defs,
+  };
+  const defs = mergeDefinitionPools(definitions, readModuleDefinitions(module));
+  const registry: FunctionRegistry = { ...host.registry };
+
+  for (const name of Object.keys(effective.builtins)) {
+    if (registry[name] === undefined) {
+      throw new EnvironmentConfigurationError(
+        `callable contract "${name}" has no runtime implementation`,
+      );
+    }
+  }
+  for (const name of Object.keys(registry)) {
+    if (effective.builtins[name] === undefined) {
+      throw new EnvironmentConfigurationError(
+        `runtime function "${name}" has no callable contract`,
+      );
+    }
+  }
+
+  for (const [name, contract] of Object.entries(environment.functions ?? {})) {
+    const implementation = registry[name];
+    // The parity pass above established this entry.
+    if (implementation === undefined) continue;
+    const concrete = contract.signatures.filter((signature) => signature.typeParams === undefined);
+    if (concrete.length === 0) continue;
+    const alias = `@environment:${name}`;
+    if (alias in registry) {
+      throw new EnvironmentConfigurationError(
+        `reserved runtime function name "${alias}" is in use`,
+      );
+    }
+    registry[alias] = implementation;
+    const arms = concrete.map((signature) => ({
+      $fnType: {
+        params: signature.params,
+        ...(signature.rest === undefined ? {} : { rest: signature.rest }),
+        returns: signature.returns,
+      },
+    }));
+    const schema = arms.length === 1 ? arms[0]! : { anyOf: arms };
+    registry[name] = enforceRuntimeContract(
+      alias,
+      schema,
+      defs,
+      `host function "${name}"`,
+    ) as FunctionRegistry[string];
+  }
+
+  const effectNames = new Set(Object.keys(environment.effects ?? {}));
+  for (const name of effectNames) {
+    if (host.capabilities[name] === undefined) {
+      throw new EnvironmentConfigurationError(
+        `effect contract "${name}" has no capability implementation`,
+      );
+    }
+  }
+  for (const name of Object.keys(host.capabilities)) {
+    if (!effectNames.has(name)) {
+      throw new EnvironmentConfigurationError(
+        `capability implementation "${name}" has no effect contract`,
+      );
+    }
+  }
+
+  return {
+    registry,
+    definitions,
+    defs,
+  };
 }
 
 /**

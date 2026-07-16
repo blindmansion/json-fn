@@ -8,6 +8,17 @@ export {
   validateEffectManifest,
 } from "./effects";
 export type { EffectManifest, EffectSignature } from "./effects";
+export {
+  DuplicateCallableContractError,
+  EnvironmentConfigurationError,
+  EnvironmentValidationError,
+  entryCompletionType,
+  entryReturnType,
+  loadEnvironment,
+  mergeCallableTables,
+  validateEnvironment,
+} from "./environment";
+export type { EntryContract, EntryReturn, Environment } from "./environment";
 export { checkExpr, checkModule } from "./check/module";
 export type { CheckExprOptions, CheckModuleOptions } from "./check/module";
 export {
@@ -51,4 +62,4 @@ export {
   TaskRaiseError,
   UnhandledEffectError,
 } from "./host";
-export type { Capability, RequiredCapabilities } from "./host";
+export type { Capability, EnvironmentHostConfiguration, RequiredCapabilities } from "./host";
