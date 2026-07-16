@@ -1,7 +1,7 @@
 export { callFunction, callProgram, prepareProgram, createPerfStats } from "./evaluate";
 export { mergeDefinitionPools } from "./definition-pool";
 export type { DefinitionPool, DefinitionSources } from "./definition-pool";
-export { BuiltinTableValidationError, loadBuiltinTable, validateBuiltinTable } from "./builtins";
+export { CallableTableValidationError, loadBuiltinTable, validateCallableTable } from "./builtins";
 export {
   EffectManifestValidationError,
   loadEffectManifest,
@@ -22,19 +22,19 @@ export type { EntryContract, EntryReturn, Environment } from "./environment";
 export { checkExpr, checkModule } from "./check/module";
 export type { CheckExprOptions, CheckModuleOptions } from "./check/module";
 export {
-  BuiltinTypeRuleContractError,
-  CORE_BUILTIN_TYPE_RULES,
-  DuplicateBuiltinTypeRuleError,
-  mergeBuiltinTypeRuleRegistries,
+  CallableTypeRuleContractError,
+  CORE_CALLABLE_TYPE_RULES,
+  DuplicateCallableTypeRuleError,
+  mergeCallableTypeRuleRegistries,
 } from "./check/callable-rules";
 export type {
-  BuiltinEntry,
-  BuiltinSig,
-  BuiltinTable,
-  BuiltinTypeRuleRegistry,
-  BuiltinTypeRuleRequest,
-  BuiltinTypeRuleServicesV1,
-  BuiltinTypeRuleV1,
+  CallableEntry,
+  CallableSignature,
+  CallableTable,
+  CallableTypeRuleRegistry,
+  CallableTypeRuleRequest,
+  CallableTypeRuleServicesV1,
+  CallableTypeRuleV1,
 } from "./check/builtin-types";
 export type { Defs, Schema } from "./check/schema";
 export { builtin, pure, raw, getArity } from "./utils";

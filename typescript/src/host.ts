@@ -14,7 +14,7 @@
 
 import type { ExecutionLimits, FunctionRegistry, JSONType } from "./types";
 import type { EffectManifest } from "./effects";
-import type { BuiltinTypeRuleRegistry } from "./check/builtin-types";
+import type { CallableTypeRuleRegistry } from "./check/builtin-types";
 import { prepareProgram } from "./evaluate";
 import { loadBuiltinTable } from "./builtins";
 import {
@@ -40,7 +40,7 @@ export type EnvironmentHostConfiguration = {
   registry: FunctionRegistry;
   capabilities: Record<string, Capability>;
   /** Accepted alongside runtime configuration for hosts that share one setup object with the checker. */
-  typeRules?: BuiltinTypeRuleRegistry;
+  typeRules?: CallableTypeRuleRegistry;
 };
 
 /** Thrown when a task performs `raise(err)` that no in-language handler caught;
@@ -81,73 +81,39 @@ export class UnhandledEffectError extends Error {
  * therefore take idempotency keys. In-language multi-shot `resume` is a feature;
  * at the host boundary, replay is not free.
  */
-export function runTask(
-  module: Record<string, JSONType>,
-  entry: string,
-  args: JSONType[],
-  registry: FunctionRegistry,
-  capabilities: Record<string, Capability>,
-  limits?: ExecutionLimits,
-  definitions?: DefinitionSources,
-  effects?: EffectManifest,
-): Promise<JSONType>;
-export function runTask(
+export async function runTask(
   module: Record<string, JSONType>,
   environment: Environment,
   args: JSONType[],
   host: EnvironmentHostConfiguration,
   limits?: ExecutionLimits,
-): Promise<JSONType>;
-export async function runTask(
-  module: Record<string, JSONType>,
-  entryOrEnvironment: string | Environment,
-  args: JSONType[],
-  registryOrHost: FunctionRegistry | EnvironmentHostConfiguration,
-  capabilitiesOrLimits?: Record<string, Capability> | ExecutionLimits,
-  limits?: ExecutionLimits,
-  definitions?: DefinitionSources,
-  effects?: EffectManifest,
 ): Promise<JSONType> {
-  if (typeof entryOrEnvironment !== "string") {
-    const environment = entryOrEnvironment;
-    const host = registryOrHost as EnvironmentHostConfiguration;
-    const prepared = prepareEnvironmentRuntime(environment, host, module);
-    const checkedArgs = enforceRuntimeContract(
-      args,
-      {
-        type: "array",
-        prefixItems: environment.entry.params,
-        items: false,
-      },
-      prepared.defs,
-      `entry "${environment.entry.name}" arguments`,
-    ) as JSONType[];
-    const result = await runTaskConfigured(
-      module,
-      environment.entry.name,
-      checkedArgs,
-      prepared.registry,
-      host.capabilities,
-      capabilitiesOrLimits as ExecutionLimits | undefined,
-      prepared.definitions,
-      environment.effects ?? {},
-    );
-    return enforceRuntimeContract(
-      result,
-      entryCompletionType(environment.entry.returns),
-      prepared.defs,
-      `entry "${environment.entry.name}" result`,
-    );
-  }
-  return runTaskConfigured(
-    module,
-    entryOrEnvironment,
+  const prepared = prepareEnvironmentRuntime(environment, host, module);
+  const checkedArgs = enforceRuntimeContract(
     args,
-    registryOrHost as FunctionRegistry,
-    capabilitiesOrLimits as Record<string, Capability>,
+    {
+      type: "array",
+      prefixItems: environment.entry.params,
+      items: false,
+    },
+    prepared.defs,
+    `entry "${environment.entry.name}" arguments`,
+  ) as JSONType[];
+  const result = await runTaskConfigured(
+    module,
+    environment.entry.name,
+    checkedArgs,
+    prepared.registry,
+    host.capabilities,
     limits,
-    definitions,
-    effects,
+    prepared.definitions,
+    environment.effects ?? {},
+  );
+  return enforceRuntimeContract(
+    result,
+    entryCompletionType(environment.entry.returns),
+    prepared.defs,
+    `entry "${environment.entry.name}" result`,
   );
 }
 
@@ -158,8 +124,8 @@ async function runTaskConfigured(
   registry: FunctionRegistry,
   capabilities: Record<string, Capability>,
   limits?: ExecutionLimits,
-  definitions?: DefinitionSources,
-  effects?: EffectManifest,
+  definitions: DefinitionSources = {},
+  effects: EffectManifest = {},
 ): Promise<JSONType> {
   const { invokeEntry, call, meter, refreshDeadline } = prepareProgram(
     module,
@@ -178,22 +144,20 @@ async function runTaskConfigured(
     if (name === "raise") {
       throw new TaskRaiseError(effectArgs[0] ?? null);
     }
-    const effect = effects?.[name];
-    if (effects !== undefined && effect === undefined) {
+    const effect = effects[name];
+    if (effect === undefined) {
       throw new RuntimeContractError(`unknown effect "${name}"`);
     }
-    if (effect !== undefined) {
-      enforceRuntimeContract(
-        effectArgs,
-        {
-          type: "array",
-          prefixItems: effect.params,
-          items: false,
-        },
-        defs,
-        `effect "${name}" arguments`,
-      );
-    }
+    enforceRuntimeContract(
+      effectArgs,
+      {
+        type: "array",
+        prefixItems: effect.params,
+        items: false,
+      },
+      defs,
+      `effect "${name}" arguments`,
+    );
     const capability = capabilities[name];
     if (capability === undefined) {
       throw new UnhandledEffectError(name);
@@ -202,10 +166,12 @@ async function runTaskConfigured(
     refreshDeadline();
     const value = await capability(...effectArgs);
     const normalized = value ?? null;
-    const checked =
-      effect === undefined
-        ? normalized
-        : enforceRuntimeContract(normalized, effect.returns, defs, `effect "${name}" result`);
+    const checked = enforceRuntimeContract(
+      normalized,
+      effect.returns,
+      defs,
+      `effect "${name}" result`,
+    );
     task = call(resume, [checked]);
   }
 }

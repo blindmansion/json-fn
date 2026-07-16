@@ -2,7 +2,6 @@
 // then check its `$return` against the declared return type. Nested function
 
 import type { JSONType } from "../types";
-import type { EffectManifest } from "../effects";
 import { mergeDefinitionPools, readModuleDefinitions } from "../definition-pool";
 import {
   entryReturnType,
@@ -10,10 +9,10 @@ import {
   validateEnvironment,
   type Environment,
 } from "../environment";
-import type { BuiltinTable, BuiltinTypeRuleRegistry } from "./builtin-types";
-import { synthBuiltinCall } from "./builtin-rules";
-import { CORE_BUILTIN_TYPE_RULES } from "./callable-rules";
-import { buildTypeScope, check, checkBody, synth } from "./checker";
+import type { CallableTable, CallableTypeRuleRegistry } from "./builtin-types";
+import { synthCallableCall } from "./builtin-rules";
+import { CORE_CALLABLE_TYPE_RULES } from "./callable-rules";
+import { buildTypeScope, checkBody, synth } from "./checker";
 import {
   bindingKeys,
   EMPTY_ENV,
@@ -24,9 +23,9 @@ import {
   stableStringify,
   type CheckContext,
   type Diagnostic,
+  type Sig,
 } from "./context";
 import { collectSchemaRefs, type Defs, isSchemaObject, type Schema } from "./schema";
-import { isSubschema } from "./subsumption";
 
 // Options controlling optional (soft-rollout) module lints.
 type CheckModuleOptions = {
@@ -37,22 +36,16 @@ type CheckModuleOptions = {
   // exactly the silent degradation this pass exists to kill. Pass `false` (CLI:
   // `--allow-untyped-functions`) for the soft-rollout escape hatch.
   requireTypedModuleFunctions?: boolean;
-  // Operator-owned named types sit between core builtin definitions and the
-  // module's own `$types` in the shared definition-pool precedence order.
-  environmentDefs?: Defs;
   // Omitted installs the implementation's core rules. Supplying a registry is
   // explicit and uses it as-is; compose core and host rules before passing it.
-  typeRules?: BuiltinTypeRuleRegistry;
-  // Slice-7 effect contracts; the unified Environment wrapper lands in B4.
-  effects?: EffectManifest;
-  // Operator-owned slice-8 package. When present it supplies named types,
-  // direct callable contracts, effects, and the required module entry.
+  typeRules?: CallableTypeRuleRegistry;
+  // The sole operator-owned package: named types, direct callable contracts,
+  // effects, and the required module entry.
   environment?: Environment;
 };
 
 type CheckExprOptions = {
-  typeRules?: BuiltinTypeRuleRegistry;
-  effects?: EffectManifest;
+  typeRules?: CallableTypeRuleRegistry;
   environment?: Environment;
 };
 
@@ -61,7 +54,7 @@ type CheckExprOptions = {
 // function body. Returns all accumulated diagnostics.
 function checkModule(
   module: Record<string, JSONType>,
-  builtins?: BuiltinTable,
+  builtins?: CallableTable,
   options: CheckModuleOptions = {},
 ): Diagnostic[] {
   const environment = options.environment;
@@ -73,7 +66,7 @@ function checkModule(
   const defs: Defs = mergeDefinitionPools(
     {
       builtinDefs: builtins?.$defs,
-      environmentDefs: environment?.$defs ?? options.environmentDefs,
+      environmentDefs: environment?.$defs,
     },
     readModuleDefinitions(module),
   );
@@ -82,28 +75,46 @@ function checkModule(
     env: EMPTY_ENV,
     diagnostics: [],
     path: [],
-    builtins: callableTable?.builtins,
-    synthBuiltinCall,
-    typeRules: options.typeRules ?? CORE_BUILTIN_TYPE_RULES,
-    effects: environment?.effects ?? options.effects,
+    callables: callableTable?.builtins,
+    synthCallableCall,
+    typeRules: options.typeRules ?? CORE_CALLABLE_TYPE_RULES,
+    effects: environment?.effects,
   };
+  let checkingModule = module;
+  let entrySig: Sig | undefined;
+  if (environment !== undefined) {
+    const { entry } = environment;
+    const body = module[entry.name];
+    if (body === undefined || !isBody(body)) {
+      report(
+        { ...ctx, path: [entry.name] },
+        `environment entry "${entry.name}" is not a function defined by the module`,
+      );
+    } else {
+      entrySig = { params: entry.params, returns: entryReturnType(entry.returns) };
+      checkingModule = { ...module, [entry.name]: { ...body, $sig: entrySig } };
+    }
+  }
+
   // Declare-before-use: a `$ref` to an undeclared type name would otherwise
   // resolve to top (`resolveRef`), so a typo like `-> Reprot` checks clean.
-  // Flag every dangling `$ref` reachable from the module up front, before the
-  // body walk, so structural errors lead the diagnostic stream.
-  checkDanglingRefs(module, defs, ctx);
+  // The environment-owned entry signature replaces any guest annotation before
+  // this walk; the guest copy is not part of the entry contract.
+  checkDanglingRefs(checkingModule, defs, ctx);
 
-  const { env, guards } = buildTypeScope(withoutTypes(module), null, ctx, false);
+  const scopeModule = withoutTypes(checkingModule);
+  const { env, guards } = buildTypeScope(scopeModule, null, ctx, false);
   ctx.env = env;
   ctx.guards = guards;
 
-  for (const key of bindingKeys(withoutTypes(module))) {
+  for (const key of bindingKeys(scopeModule)) {
     const val = module[key]!;
     if (isBody(val)) {
       // §9: top-level functions must be fully typed (on by default). A missing
       // `$sig` is reported here rather than in the parser, which lacks module
       // context.
-      if (sigOf(val) === null) {
+      const injectedSig = environment?.entry.name === key ? entrySig : undefined;
+      if (sigOf(val) === null && injectedSig === undefined) {
         if (options.requireTypedModuleFunctions !== false) {
           report(
             { ...ctx, path: [key] },
@@ -116,75 +127,14 @@ function checkModule(
           );
         }
       }
-      checkBody(val, { ...ctx, env, path: [key] });
+      checkBody(val, { ...ctx, env, path: [key] }, injectedSig);
     } else {
       // Force top-level constants so their bodies get walked for errors even
       // when nothing references them.
       env.lookupType(key);
     }
   }
-  if (environment !== undefined) {
-    checkEntryContract(module, environment, ctx, env);
-  }
   return dedupeDiagnostics(ctx.diagnostics);
-}
-
-function checkEntryContract(
-  module: Record<string, JSONType>,
-  environment: Environment,
-  ctx: CheckContext,
-  moduleEnv: CheckContext["env"],
-): void {
-  const { entry } = environment;
-  const body = module[entry.name];
-  const entryCtx = { ...ctx, path: [entry.name] };
-  if (body === undefined || !isBody(body)) {
-    report(entryCtx, `environment entry "${entry.name}" is not a function defined by the module`);
-    return;
-  }
-
-  const sig = sigOf(body);
-  if (sig === null) {
-    report(entryCtx, "environment entry must declare a signature");
-    return;
-  }
-  if (sig.rest !== undefined || sig.params.length !== entry.params.length) {
-    report(
-      { ...entryCtx, path: [...entryCtx.path, "$sig"] },
-      `environment entry expects exactly ${entry.params.length} parameter(s)`,
-    );
-  } else {
-    for (let i = 0; i < entry.params.length; i++) {
-      if (!isSubschema(entry.params[i]!, sig.params[i]!, ctx.defs)) {
-        report(
-          { ...entryCtx, path: [...entryCtx.path, "$sig", `params[${i}]`] },
-          "entry parameter does not accept every value allowed by the environment contract",
-          { expected: entry.params[i], actual: sig.params[i] },
-        );
-      }
-    }
-  }
-
-  const expectedReturn = entryReturnType(entry.returns);
-  const entryFn = {
-    $fnType: {
-      params: entry.params,
-      returns: expectedReturn,
-    },
-  } as Schema;
-  // During the entry's contract pass, recursive calls use the environment's
-  // completion type rather than the guest's intentionally erased bare Task.
-  const recursiveEnv: CheckContext["env"] = {
-    lookupType: (name, narrowings) =>
-      name === entry.name ? entryFn : moduleEnv.lookupType(name, narrowings),
-  };
-  const { env, guards } = buildTypeScope(body, recursiveEnv, entryCtx);
-  check(body.$return!, expectedReturn, {
-    ...entryCtx,
-    env,
-    guards,
-    path: [...entryCtx.path, "$return"],
-  });
 }
 
 // Drop later diagnostics structurally equal to an earlier one (§5.5 M2 §2.2d).
@@ -279,7 +229,7 @@ function withoutTypes(module: Record<string, JSONType>): Record<string, JSONType
 function checkExpr(
   expr: JSONType,
   defs: Defs = {},
-  builtins?: BuiltinTable,
+  builtins?: CallableTable,
   options: CheckExprOptions = {},
 ): { type: Schema; diagnostics: Diagnostic[] } {
   const environment = options.environment;
@@ -297,10 +247,10 @@ function checkExpr(
     env: EMPTY_ENV,
     diagnostics: [],
     path: [],
-    builtins: callableTable?.builtins,
-    synthBuiltinCall,
-    typeRules: options.typeRules ?? CORE_BUILTIN_TYPE_RULES,
-    effects: environment?.effects ?? options.effects,
+    callables: callableTable?.builtins,
+    synthCallableCall,
+    typeRules: options.typeRules ?? CORE_CALLABLE_TYPE_RULES,
+    effects: environment?.effects,
   };
   return { type: synth(expr, ctx), diagnostics: ctx.diagnostics };
 }

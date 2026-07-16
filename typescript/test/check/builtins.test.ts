@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { loadBuiltinTable } from "../../src/builtins";
 import type { JSONType } from "../../src/types";
-import type { BuiltinTable, BuiltinTypeRuleRegistry } from "../../src";
+import type { CallableTable, CallableTypeRuleRegistry } from "../../src";
 import {
-  BuiltinTypeRuleContractError,
-  DuplicateBuiltinTypeRuleError,
-  mergeBuiltinTypeRuleRegistries,
+  CallableTypeRuleContractError,
+  DuplicateCallableTypeRuleError,
+  mergeCallableTypeRuleRegistries,
 } from "../../src";
 import { classifySchema, SchemaKind, type Schema } from "../../src/check/schema";
 import { isSubschema } from "../../src/check/subsumption";
@@ -120,7 +120,7 @@ describe("Section F — builtin signatures", () => {
       {
         path: [],
         message:
-          'expression degraded to `any` because builtin rule "pipe" has no precise return type.',
+          'expression degraded to `any` because callable rule "pipe" has no precise return type.',
         severity: "info",
       },
     ]);
@@ -151,7 +151,7 @@ describe("Section F — builtin signatures", () => {
   });
 
   test("an injected namespaced rule refines its portable fallback", () => {
-    const table: BuiltinTable = {
+    const table: CallableTable = {
       builtins: {
         answer: {
           signatures: [{ params: [], returns: { type: "integer" } }],
@@ -159,7 +159,7 @@ describe("Section F — builtin signatures", () => {
         },
       },
     };
-    const typeRules: BuiltinTypeRuleRegistry = {
+    const typeRules: CallableTypeRuleRegistry = {
       "example.answer": () => ({ const: 42 }),
     };
     const result = checkExpr(call("answer"), {}, table, { typeRules });
@@ -170,12 +170,12 @@ describe("Section F — builtin signatures", () => {
   test("rule registry composition rejects duplicate identifiers", () => {
     const rule = () => true as Schema;
     expect(() =>
-      mergeBuiltinTypeRuleRegistries({ "example.rule": rule }, { "example.rule": rule }),
-    ).toThrow(DuplicateBuiltinTypeRuleError);
+      mergeCallableTypeRuleRegistries({ "example.rule": rule }, { "example.rule": rule }),
+    ).toThrow(DuplicateCallableTypeRuleError);
   });
 
   test("a rule result must remain inside its portable fallback", () => {
-    const table: BuiltinTable = {
+    const table: CallableTable = {
       builtins: {
         bad: {
           signatures: [{ params: [], returns: { type: "integer" } }],
@@ -187,7 +187,7 @@ describe("Section F — builtin signatures", () => {
       checkExpr(call("bad"), {}, table, {
         typeRules: { "example.bad": () => ({ type: "string" }) },
       }),
-    ).toThrow(BuiltinTypeRuleContractError);
+    ).toThrow(CallableTypeRuleContractError);
   });
 
   test("coverage: every stdlib builtin has a table entry", () => {
@@ -480,56 +480,6 @@ describe("Section F — builtin signatures", () => {
       expect(synthB(call("pipe", [], 1)).type).toBe(true);
     });
 
-    test("effect manifests validate arguments and flow results through bind", () => {
-      const defs = {
-        Reading: {
-          type: "object",
-          properties: { temp: I },
-          required: ["temp"],
-          additionalProperties: false,
-        },
-      };
-      const effects = {
-        "sensor.read": { params: [], returns: { $ref: "#/$defs/Reading" } },
-        "sensor.set": { params: [I], returns: { type: "null" } },
-      };
-      const configured = (expr: JSONType) => checkExpr(expr, defs, BT, { effects });
-
-      expect(configured(call("perform", "sensor.read", [])).type).toEqual({
-        $taskType: { $ref: "#/$defs/Reading" },
-      });
-
-      const reading = {
-        $params: ["reading"],
-        $return: call("pure", {
-          $get: "temp",
-          $from: { $var: "reading" },
-        }),
-      };
-      const bound = configured(call("bind", call("perform", "sensor.read", []), reading));
-      expect(bound.type).toEqual({
-        $taskType: I,
-      });
-      expect(bound.diagnostics).toEqual([]);
-
-      expect(
-        configured(call("perform", "sensor.set", ["wrong"])).diagnostics.some(
-          (diagnostic) => diagnostic.severity === "error",
-        ),
-      ).toBe(true);
-      expect(
-        configured(call("perform", "missing", [])).diagnostics.some((diagnostic) =>
-          diagnostic.message.includes('unknown effect "missing"'),
-        ),
-      ).toBe(true);
-      expect(
-        configured(call("perform", { $var: "dynamic" }, [])).diagnostics.some(
-          (diagnostic) =>
-            diagnostic.severity === "info" && diagnostic.message.includes("effect name is dynamic"),
-        ),
-      ).toBe(true);
-    });
-
     test("annotated handle returns its declared immediate result type", () => {
       const stateToReport: Schema = {
         $fnType: { params: [{ type: "object" }], returns: { type: "string" } },
@@ -578,7 +528,7 @@ describe("Section F — builtin signatures", () => {
 
   describe("A1 — structural type-variable binding", () => {
     const T = (name: string): Schema => ({ $tvar: name }) as Schema;
-    const structural: BuiltinTable = {
+    const structural: CallableTable = {
       builtins: {
         pairSecond: {
           signatures: [
@@ -716,7 +666,7 @@ describe("Section F — builtin signatures", () => {
 
   describe("transactional callback-return binding", () => {
     const T = (name: string): Schema => ({ $tvar: name }) as Schema;
-    const callbackReturn = (returns: Schema): BuiltinTable => ({
+    const callbackReturn = (returns: Schema): CallableTable => ({
       builtins: {
         testCallback: {
           signatures: [
@@ -945,7 +895,7 @@ describe("Section F — builtin signatures", () => {
         {
           path: [],
           message:
-            'expression degraded to `any` because builtin rule "pipe" has no precise return type.',
+            'expression degraded to `any` because callable rule "pipe" has no precise return type.',
           severity: "info",
         },
       ]);

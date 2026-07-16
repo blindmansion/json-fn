@@ -8,18 +8,18 @@
 
 import { readFileSync } from "fs";
 import { join } from "path";
-import type { BuiltinSig, BuiltinTable } from "./check/builtin-types";
+import type { CallableSignature, CallableTable } from "./check/builtin-types";
 import type { Schema } from "./check/schema";
 
 const DEFAULT_PATH = join(import.meta.dir, "../../spec/builtins.json");
 
-export class BuiltinTableValidationError extends Error {
+export class CallableTableValidationError extends Error {
   constructor(
     readonly path: string,
     message: string,
   ) {
     super(`${path}: ${message}`);
-    this.name = "BuiltinTableValidationError";
+    this.name = "CallableTableValidationError";
   }
 }
 
@@ -33,7 +33,7 @@ const PRIMITIVE_TYPES = new Set(["null", "boolean", "number", "integer", "string
 const SCHEMA_HEADS = new Set(["$tvar", "$ref", "$fnType", "const", "enum", "anyOf", "type"]);
 
 function fail(path: string, message: string): never {
-  throw new BuiltinTableValidationError(path, message);
+  throw new CallableTableValidationError(path, message);
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -282,7 +282,7 @@ function validateSignature(
   value: unknown,
   path: string,
   defs: Set<string>,
-): asserts value is BuiltinSig {
+): asserts value is CallableSignature {
   const sig = assertObject(value, path);
   assertOnlyKeys(sig, new Set(["typeParams", "params", "rest", "returns"]), path);
   if (!Array.isArray(sig.params)) fail(`${path}.params`, "expected an array");
@@ -315,7 +315,7 @@ function validateSignature(
   }
 }
 
-export function validateBuiltinTable(value: unknown): asserts value is BuiltinTable {
+export function validateCallableTable(value: unknown): asserts value is CallableTable {
   const table = assertObject(value, "table");
   assertOnlyKeys(table, new Set(["description", "$defs", "builtins"]), "table");
   if ("description" in table && typeof table.description !== "string") {
@@ -357,8 +357,8 @@ export function validateBuiltinTable(value: unknown): asserts value is BuiltinTa
   }
 }
 
-export function loadBuiltinTable(path: string = DEFAULT_PATH): BuiltinTable {
+export function loadBuiltinTable(path: string = DEFAULT_PATH): CallableTable {
   const parsed: unknown = JSON.parse(readFileSync(path, "utf-8"));
-  validateBuiltinTable(parsed);
+  validateCallableTable(parsed);
   return parsed;
 }

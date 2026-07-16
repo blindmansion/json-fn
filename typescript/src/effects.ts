@@ -1,7 +1,7 @@
 import { readFileSync } from "fs";
-import type { BuiltinTable } from "./check/builtin-types";
+import type { CallableTable } from "./check/builtin-types";
 import type { Defs, Schema } from "./check/schema";
-import { BuiltinTableValidationError, validateBuiltinTable } from "./builtins";
+import { CallableTableValidationError, validateCallableTable } from "./builtins";
 
 type EffectSignature = { params: Schema[]; returns: Schema };
 type EffectManifest = Record<string, EffectSignature>;
@@ -39,7 +39,7 @@ function validateEffectManifest(value: unknown, defs: Defs = {}): asserts value 
       throw new EffectManifestValidationError(path, "expected an object");
     }
 
-    const synthetic: BuiltinTable = {
+    const synthetic: CallableTable = {
       $defs: defs,
       builtins: {
         effect: {
@@ -48,9 +48,9 @@ function validateEffectManifest(value: unknown, defs: Defs = {}): asserts value 
       },
     };
     try {
-      validateBuiltinTable(synthetic);
+      validateCallableTable(synthetic);
     } catch (error) {
-      if (!(error instanceof BuiltinTableValidationError)) throw error;
+      if (!(error instanceof CallableTableValidationError)) throw error;
       const suffix = error.path.replace(/^table\.builtins\.effect\.signatures\[0\]/, "");
       throw new EffectManifestValidationError(
         `${path}${suffix}`,

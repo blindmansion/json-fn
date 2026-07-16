@@ -55,7 +55,7 @@ Commands:
 - `to-shorthand` (aliases `j2s`, `print`) — canonical json-fn JSON → `.jfn` shorthand.
 - `to-json` (aliases `s2j`, `parse`) — `.jfn` shorthand → canonical json-fn JSON. `-c/--compact` for minified output.
 - `eval` (alias `e`) — evaluate a `.jfn` expression and print the result.
-  - `--entry <name>` — treat input as a module of bindings and run the named entry function.
+ - `--environment <path>` — treat input as a module and run the environment-declared entry.
   - `--args <json>` — JSON array of arguments (default `[]`).
   - `-j/--json` (default) or `-s/--shorthand` — output format; `-c/--compact` minifies JSON.
 
@@ -76,8 +76,8 @@ bun run src/cli.ts eval '(x) => x * x' --args '[9]'
 # Evaluate and print as shorthand
 bun run src/cli.ts eval 'map((n) => n + 1, [1, 2, 3])' --shorthand
 
-# Run a module entry
-printf '{ inc: (n) => n + 1, main: () => inc(41) }' | bun run src/cli.ts eval --entry main
+# Run a module entry through its typed environment
+bun run src/cli.ts eval --file module.jfn --environment module.environment.json
 ```
 
 Run `bun run src/cli.ts --help` for the full usage text.

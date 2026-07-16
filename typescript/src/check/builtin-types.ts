@@ -3,14 +3,19 @@ import type { EffectManifest } from "../effects";
 import type { Defs, Schema } from "./schema";
 
 type TVarNode = { $tvar: string };
-type BuiltinSig = { typeParams?: string[]; params: Schema[]; rest?: Schema; returns: Schema };
-type BuiltinEntry = { signatures: BuiltinSig[]; rule?: string };
-type BuiltinTable = { $defs?: Defs; builtins: Record<string, BuiltinEntry> };
+type CallableSignature = {
+  typeParams?: string[];
+  params: Schema[];
+  rest?: Schema;
+  returns: Schema;
+};
+type CallableEntry = { signatures: CallableSignature[]; rule?: string };
+type CallableTable = { $defs?: Defs; builtins: Record<string, CallableEntry> };
 
 // A per-call-site type-variable environment (T, U, … → their inferred schema).
 type Bindings = Record<string, Schema>;
 
-type BuiltinTypeRuleRequest = {
+type CallableTypeRuleRequest = {
   name: string;
   args: JSONType[];
   fallbackResult: Schema;
@@ -26,7 +31,7 @@ type RuleDiagnosticOptions = {
 
 // The intentionally small, versioned checker surface available to type rules.
 // Rules receive no mutable type environment or diagnostics array.
-type BuiltinTypeRuleServicesV1 = {
+type CallableTypeRuleServicesV1 = {
   apiVersion: 1;
   defs: Readonly<Defs>;
   effects?: Readonly<EffectManifest>;
@@ -40,21 +45,21 @@ type BuiltinTypeRuleServicesV1 = {
   reportCoverageDegradation: (reason: string) => void;
 };
 
-type BuiltinTypeRuleV1 = (
-  request: BuiltinTypeRuleRequest,
-  services: BuiltinTypeRuleServicesV1,
+type CallableTypeRuleV1 = (
+  request: CallableTypeRuleRequest,
+  services: CallableTypeRuleServicesV1,
 ) => Schema;
-type BuiltinTypeRuleRegistry = Record<string, BuiltinTypeRuleV1>;
+type CallableTypeRuleRegistry = Record<string, CallableTypeRuleV1>;
 
 export type {
   TVarNode,
-  BuiltinSig,
-  BuiltinEntry,
-  BuiltinTable,
+  CallableSignature,
+  CallableEntry,
+  CallableTable,
   Bindings,
-  BuiltinTypeRuleRequest,
+  CallableTypeRuleRequest,
   RuleDiagnosticOptions,
-  BuiltinTypeRuleServicesV1,
-  BuiltinTypeRuleV1,
-  BuiltinTypeRuleRegistry,
+  CallableTypeRuleServicesV1,
+  CallableTypeRuleV1,
+  CallableTypeRuleRegistry,
 };

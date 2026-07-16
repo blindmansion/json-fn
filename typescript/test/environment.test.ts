@@ -80,32 +80,30 @@ describe("environment validation and composition", () => {
 describe("environment checker integration", () => {
   const builtins = loadBuiltinTable();
 
-  test("preloads direct functions and checks the entry completion contract", () => {
+  test("injects the environment entry signature into normal body checking", () => {
     const env = environment({
       functions: {
         "host.inc": { signatures: [{ params: [I], returns: I }] },
       },
     });
     const mod = {
-      main: body(
-        [],
-        { params: [], returns: { $ref: "#/$defs/Task" } },
-        {
+      main: {
+        $params: [],
+        $return: {
           $call: "pure",
           $args: [{ $call: "host.inc", $args: [1] }],
         },
-      ),
+      },
     } as Record<string, JSONType>;
     expect(checkModule(mod, builtins, { environment: env })).toEqual([]);
   });
 
   test("rejects an entry body with the wrong completion type", () => {
     const mod = {
-      main: body(
-        [],
-        { params: [], returns: { $ref: "#/$defs/Task" } },
-        { $call: "pure", $args: ["wrong"] },
-      ),
+      main: {
+        $params: [],
+        $return: { $call: "pure", $args: ["wrong"] },
+      },
     } as Record<string, JSONType>;
     expect(
       checkModule(mod, builtins, { environment: environment() }).some(

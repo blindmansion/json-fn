@@ -122,11 +122,12 @@ function buildTypeScope(
   parent: TypeEnv | null,
   ctx: CheckContext,
   reportUntypedBodies = true,
+  injectedSig?: Sig,
 ): { env: TypeEnv; guards: Record<string, JSONType> } {
   const eager: Record<string, Schema> = {};
   const exprLocals: Record<string, JSONType> = {};
 
-  const sig = sigOf(body);
+  const sig = injectedSig ?? sigOf(body);
   const params = Array.isArray(body.$params) ? (body.$params as JSONType[]) : [];
   bindParams(params, sig, eager);
 
@@ -529,16 +530,16 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
       }
       // A bare builtin name that no local/module binding shadows dispatches to
       // the polymorphic builtin layer (§5.3); user bindings still win. The
-      // dispatcher is injected (see `CheckContext.synthBuiltinCall`) so this
+      // dispatcher is injected (see `CheckContext.synthCallableCall`) so this
       // core module never imports the builtin engine.
       if (
         typeof call.$call === "string" &&
-        ctx.builtins &&
-        ctx.synthBuiltinCall &&
-        call.$call in ctx.builtins
+        ctx.callables &&
+        ctx.synthCallableCall &&
+        call.$call in ctx.callables
       ) {
         if (ctx.env.lookupType(call.$call) === undefined) {
-          return ctx.synthBuiltinCall(call.$call, ctx.builtins[call.$call]!, args, ctx);
+          return ctx.synthCallableCall(call.$call, ctx.callables[call.$call]!, args, ctx);
         }
       }
       const sig = resolveCalleeSig(call.$call, ctx);
@@ -949,9 +950,9 @@ function describe(schema: Schema): string {
 // so a declared `-> type` is enforced wherever a typed function literal appears
 // — a module binding, a value in `$return`/argument position, or a standalone
 // expression checked via `checkExpr` (`--expr`).
-function checkBody(body: Record<string, JSONType>, ctx: CheckContext): void {
-  const sig = sigOf(body);
-  const { env, guards } = buildTypeScope(body, ctx.env, ctx);
+function checkBody(body: Record<string, JSONType>, ctx: CheckContext, injectedSig?: Sig): void {
+  const sig = injectedSig ?? sigOf(body);
+  const { env, guards } = buildTypeScope(body, ctx.env, ctx, true, injectedSig);
   const bctx: CheckContext = { ...ctx, env, guards };
   check(body.$return!, sig?.returns ?? true, at(bctx, "$return"));
   for (const key of bindingKeys(body)) {

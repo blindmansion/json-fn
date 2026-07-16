@@ -588,12 +588,12 @@ value.
 functions to validate their arguments/results, rejects effects absent from the
 environment, validates outgoing effect arguments before invoking host code, and
 validates capability results before resuming. Named references use the same
-merged builtin/environment/module definition pool as the checker. The legacy
-positional `runTask(module, entry, args, registry, capabilities, ...)` form
-remains available for untyped embedding.
+merged builtin/environment/module definition pool as the checker.
 
 `jfn check --environment <path>` loads the same artifact, preloads its named
-types, functions, and effects, and verifies the declared entry contract.
+types, functions, and effects, and checks the entry body contextually against
+the environment-owned signature. `jfn eval --environment <path>` executes that
+entry through the same validated host API.
 
 **Durable suspend/resume.** Because a `pending` task is plain JSON, a host can `serializeTask` it, store it, and later `hydrateTask` + resume — even in a different process. `hydrateTask` restores the inertness marks that keep embedded tasks opaque to the evaluator.
 

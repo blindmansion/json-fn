@@ -19,11 +19,11 @@ import type { JSONType } from "../types";
 import type {
   TVarNode,
   Bindings,
-  BuiltinSig,
-  BuiltinEntry,
-  BuiltinTypeRuleServicesV1,
+  CallableSignature,
+  CallableEntry,
+  CallableTypeRuleServicesV1,
 } from "./builtin-types";
-import { BuiltinTypeRuleContractError } from "./callable-rules";
+import { CallableTypeRuleContractError } from "./callable-rules";
 import { buildTypeScope, check, checkArity, paramAt, reportMismatch, synth } from "./checker";
 import {
   at,
@@ -304,7 +304,7 @@ function inferLambdaReturn(body: JSONType, expectedFn: Schema, ctx: CheckContext
 // the bindings on success, null on a concrete mismatch or arity failure. Runs
 // silently — diagnostics are emitted only for the chosen overload.
 function tryBindOverload(
-  sig: BuiltinSig,
+  sig: CallableSignature,
   argExprs: JSONType[],
   ctx: CheckContext,
 ): Bindings | null {
@@ -338,7 +338,7 @@ function tryBindOverload(
 // Real pass over a chosen overload: emit diagnostics, type inline lambdas with
 // the inferred type variables, and return the instantiated result schema.
 function applyOverload(
-  sig: BuiltinSig,
+  sig: CallableSignature,
   argExprs: JSONType[],
   ctx: CheckContext,
   skipContextualCallbacks: ReadonlySet<number> = new Set(),
@@ -492,7 +492,7 @@ function applyOverload(
 }
 
 // Render a signature's parameter list as `(p0, p1, ...rest)` for a diagnostic.
-function paramList(sig: BuiltinSig): string {
+function paramList(sig: CallableSignature): string {
   const parts = sig.params.map((p) => JSON.stringify(p));
   if (sig.rest !== undefined) parts.push(`...${JSON.stringify(sig.rest)}`);
   return `(${parts.join(", ")})`;
@@ -508,7 +508,7 @@ function paramList(sig: BuiltinSig): string {
 // the real context so nested errors inside them surface exactly once.
 function reportNoOverload(
   name: string,
-  overloads: BuiltinSig[],
+  overloads: CallableSignature[],
   argExprs: JSONType[],
   ctx: CheckContext,
 ): Schema {
@@ -538,7 +538,7 @@ function createRuleServices(
   argExprs: JSONType[],
   ctx: CheckContext,
   contextualizedCallbacks: Set<number>,
-): BuiltinTypeRuleServicesV1 {
+): CallableTypeRuleServicesV1 {
   const ruleContext = (options: { argumentIndex?: number; path?: string[] } = {}): CheckContext => {
     let target = ctx;
     if (options.argumentIndex !== undefined) {
@@ -595,9 +595,9 @@ function createRuleServices(
 
 // Dispatch every callable through its portable fallback first, then let an
 // optional injected rule add diagnostics or refine that result.
-function synthBuiltinCall(
+function synthCallableCall(
   name: string,
-  entry: BuiltinEntry,
+  entry: CallableEntry,
   argExprs: JSONType[],
   ctx: CheckContext,
 ): Schema {
@@ -658,9 +658,9 @@ function synthBuiltinCall(
     }
   }
   if (!isSubschema(result, fallbackResult, ctx.defs)) {
-    throw new BuiltinTypeRuleContractError(entry.rule, fallbackResult, result);
+    throw new CallableTypeRuleContractError(entry.rule, fallbackResult, result);
   }
   return result;
 }
 
-export { synthBuiltinCall };
+export { synthCallableCall };

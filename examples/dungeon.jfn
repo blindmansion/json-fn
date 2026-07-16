@@ -83,7 +83,7 @@
 
   // ---- The game loop: straight-line do-notation ----------------------------
 
-  play: (st: PlayerState) -> Task => do {
+  play: (st) => do {
     _   <- perform("print", [look(st)]),
     cmd <- perform("input", []),
     if isNull(cmd)

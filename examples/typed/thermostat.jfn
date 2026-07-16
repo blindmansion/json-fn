@@ -58,10 +58,9 @@
   // ----- the control loop: straight-line do-notation ------------------------
 
   // Read the sensor up to `fuel` times. A `null` reading (the sensor is out of
-  // data) ends the run gracefully with the final state. The reading pipeline is
-  // inline because bare guest `Task` annotations intentionally erase completion
-  // types; only the environment entry can recover `Task<State>` for recursion.
-  loop: (st: State, fuel: integer) -> Task =>
+  // data) ends the run gracefully with the final state. The environment owns
+  // this entry's parameter and Task<State> completion contract.
+  loop: (st, fuel) =>
     if fuel <= 0
       then pure(st)
       else bind(perform("sensor.read", []), (reading) =>

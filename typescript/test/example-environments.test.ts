@@ -2,7 +2,6 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "fs";
 import { join } from "path";
 import {
-  callProgram,
   checkModule,
   createStdlib,
   loadBuiltinTable,
@@ -76,35 +75,6 @@ describe("typed host-environment examples", () => {
     expect(result).toEqual({ config: { target: 21, tolerance: 1.5 }, mode: "off" });
     expect(modes).toEqual(["heat", "off", "cool", "off"]);
     expect(logs).toHaveLength(4);
-  });
-
-  test("thermostat remains testable with its in-language effect handler", () => {
-    const { module, environment } = fixture("thermostat");
-    const builtins = loadBuiltinTable();
-    const result = callProgram(module, "demo", [], createStdlib(), undefined, {
-      builtinDefs: builtins.$defs,
-      environmentDefs: environment.$defs,
-    });
-
-    expect(result).toEqual({
-      run: {
-        ending: { config: { target: 21, tolerance: 1.5 }, mode: "off" },
-        out: [
-          "18C bat90% -> heat",
-          "hvac := heat",
-          "20C bat88% -> off",
-          "hvac := off",
-          "24C bat85% -> cool",
-          "hvac := cool",
-          "21C bat84% -> off",
-          "hvac := off",
-        ],
-      },
-      fault: {
-        ending: "OutOfRange",
-        out: ["99C bat50% -> ALARM OutOfRange"],
-      },
-    });
   });
 
   test("dungeon runs through validated entry and effect boundaries", async () => {

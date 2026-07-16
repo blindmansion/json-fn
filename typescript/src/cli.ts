@@ -12,15 +12,15 @@
 
 import {
   callFunction,
-  callProgram,
   createStdlib,
   parseShorthand,
   printShorthand,
+  runTask,
   type JSONType,
 } from "./index";
 import { checkExpr, checkModule } from "./check/module";
 import type { Diagnostic } from "./check/context";
-import type { BuiltinTable } from "./check/builtin-types";
+import type { CallableTable } from "./check/builtin-types";
 import { loadBuiltinTable } from "./builtins";
 import { loadEnvironment, type Environment } from "./environment";
 
@@ -47,8 +47,9 @@ to-json options:
   -c, --compact       Emit minified JSON (default: pretty, 2-space indent)
 
 eval options:
-      --entry <name>  Treat input as a module and run this entry function
-      --args <json>   JSON array of arguments for the entry (default: [])
+      --environment <path>
+                      Treat input as a module and run the environment entry
+      --args <json>   JSON array of function/entry arguments (default: [])
   -j, --json          Print the result as JSON (default)
   -s, --shorthand     Print the result as .jfn shorthand (best effort)
   -c, --compact       With --json, emit minified JSON
@@ -75,7 +76,7 @@ Examples:
   echo '{ "$call": "add", "$args": [1, 2] }' | jfn to-shorthand
   jfn eval '(x) => x * x' --args '[9]'
   jfn eval 'map((n) => n + 1, [1, 2, 3])' --shorthand
-  printf '{ inc: (n) => n + 1, main: () => inc(41) }' | jfn eval --entry main
+  jfn eval --file module.jfn --environment module.environment.json
   jfn check --expr 'add(1, 2)'
   jfn check --file ../examples/typed/types.jfn
 `;
@@ -184,7 +185,7 @@ async function cmdEval(argv: string[]): Promise<void> {
     {
       "-f": "file",
       "--file": "file",
-      "--entry": "entry",
+      "--environment": "environment",
       "--args": "args",
     },
     {
@@ -220,7 +221,7 @@ async function cmdEval(argv: string[]): Promise<void> {
   const stdlib = createStdlib({
     logger: (value, label) => console.error(label ? `${label}:` : "log:", value),
   });
-  let builtinDefs: BuiltinTable["$defs"];
+  let builtinDefs: CallableTable["$defs"];
   try {
     builtinDefs = loadBuiltinTable().$defs;
   } catch (e) {
@@ -230,17 +231,20 @@ async function cmdEval(argv: string[]): Promise<void> {
 
   let result: JSONType;
   try {
-    const entry = parsed.options.entry;
-    if (entry !== undefined) {
-      // Module mode: the source is an object of bindings; run the named entry.
-      result = callProgram(
-        parsedSource as Record<string, JSONType>,
-        entry,
-        args,
-        stdlib,
-        undefined,
-        definitions,
-      );
+    const environmentPath = parsed.options.environment;
+    if (environmentPath !== undefined) {
+      if (
+        typeof parsedSource !== "object" ||
+        parsedSource === null ||
+        Array.isArray(parsedSource)
+      ) {
+        fail("--environment requires module input");
+      }
+      const environment = loadEnvironment(environmentPath, builtinDefs);
+      result = await runTask(parsedSource as Record<string, JSONType>, environment, args, {
+        registry: stdlib,
+        capabilities: {},
+      });
     } else if (isFunctionBody(parsedSource) && args.length > 0) {
       // A bare function literal applied to the supplied --args.
       result = callFunction(parsedSource, args, stdlib, undefined, definitions);
@@ -307,7 +311,7 @@ async function cmdCheck(argv: string[]): Promise<void> {
   // Builtins are on by default — most real code (the chess example, anything
   // using map/filter/arithmetic) is untypeable without them. `--no-builtins`
   // mirrors the pre-Section-F behavior where builtin calls degrade to `any`.
-  let builtins: BuiltinTable | undefined;
+  let builtins: CallableTable | undefined;
   if (!parsed.flags.has("no-builtins")) {
     try {
       builtins = loadBuiltinTable();

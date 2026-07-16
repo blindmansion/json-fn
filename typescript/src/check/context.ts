@@ -4,7 +4,7 @@
 // rather than failing fast, and it is structured for bidirectional checking
 // (a `synth` mode and a `check`-against-expected mode).
 
-import type { BuiltinEntry, BuiltinTypeRuleRegistry } from "./builtin-types";
+import type { CallableEntry, CallableTypeRuleRegistry } from "./builtin-types";
 import type { JSONType } from "../types";
 import type { EffectManifest } from "../effects";
 import { type Schema, type Defs, type FnTypeShape, isSchemaObject } from "./schema";
@@ -49,21 +49,21 @@ type CheckContext = {
   path: string[];
   // The polymorphic builtin layer (§5.3), loaded from `spec/builtins.json`.
   // Absent → builtins degrade to `any` (the pre-Section-F behavior).
-  builtins?: Record<string, BuiltinEntry>;
+  callables?: Record<string, CallableEntry>;
   // The builtin dispatcher (Section F), injected at the entry points so the
   // core term checker never imports the builtin engine — that would close a
   // cycle (`synth` → dispatch → `synth`). Absent ⇒ builtin calls degrade to
   // `any` even when `builtins` is present.
-  synthBuiltinCall?: (
+  synthCallableCall?: (
     name: string,
-    entry: BuiltinEntry,
+    entry: CallableEntry,
     argExprs: JSONType[],
     ctx: CheckContext,
   ) => Schema;
   // Optional host-language implementations for namespaced callable rules.
   // Entry points install the core registry by default; an explicitly supplied
   // registry is used as-is so hosts can test fallback-only behavior.
-  typeRules?: BuiltinTypeRuleRegistry;
+  typeRules?: CallableTypeRuleRegistry;
   // Operator-owned effect contracts used by `core.perform`.
   effects?: EffectManifest;
   // Flow-narrowing facts in scope (§5.5): var name → the type it has been

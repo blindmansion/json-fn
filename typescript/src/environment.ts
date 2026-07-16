@@ -1,8 +1,8 @@
 import { readFileSync } from "fs";
-import type { BuiltinEntry, BuiltinSig, BuiltinTable } from "./check/builtin-types";
+import type { CallableEntry, CallableSignature, CallableTable } from "./check/builtin-types";
 import type { Defs, Schema } from "./check/schema";
 import { taskType } from "./check/schema";
-import { BuiltinTableValidationError, validateBuiltinTable } from "./builtins";
+import { CallableTableValidationError, validateCallableTable } from "./builtins";
 import type { EffectManifest } from "./effects";
 import { EffectManifestValidationError, validateEffectManifest } from "./effects";
 
@@ -16,7 +16,7 @@ type EntryContract = {
 
 type Environment = {
   $defs?: Defs;
-  functions?: Record<string, BuiltinEntry>;
+  functions?: Record<string, CallableEntry>;
   effects?: EffectManifest;
   entry: EntryContract;
 };
@@ -59,7 +59,7 @@ function assertOnlyKeys(value: Record<string, unknown>, allowed: Set<string>, pa
   }
 }
 
-function remapBuiltinError(error: BuiltinTableValidationError, from: string, to: string): never {
+function remapCallableError(error: CallableTableValidationError, from: string, to: string): never {
   const path = error.path.startsWith(from) ? `${to}${error.path.slice(from.length)}` : error.path;
   throw new EnvironmentValidationError(path, error.message.slice(error.path.length + 2));
 }
@@ -92,10 +92,10 @@ function validateEnvironment(value: unknown, baseDefs: Defs = {}): asserts value
   const functions = "functions" in value ? value.functions : {};
   if (!isObject(functions)) fail("environment.functions", "expected an object");
   try {
-    validateBuiltinTable({ $defs: defs, builtins: functions });
+    validateCallableTable({ $defs: defs, builtins: functions });
   } catch (error) {
-    if (!(error instanceof BuiltinTableValidationError)) throw error;
-    remapBuiltinError(error, "table.builtins", "environment.functions");
+    if (!(error instanceof CallableTableValidationError)) throw error;
+    remapCallableError(error, "table.builtins", "environment.functions");
   }
 
   const effects = "effects" in value ? value.effects : {};
@@ -125,18 +125,18 @@ function validateEnvironment(value: unknown, baseDefs: Defs = {}): asserts value
     assertOnlyKeys(rawReturn, new Set(["task"]), "environment.entry.returns");
     portableReturn = rawReturn.task;
   }
-  const signature: BuiltinSig = {
+  const signature: CallableSignature = {
     params: value.entry.params as Schema[],
     returns: portableReturn as Schema,
   };
   try {
-    validateBuiltinTable({
+    validateCallableTable({
       $defs: defs,
       builtins: { entry: { signatures: [signature] } },
     });
   } catch (error) {
-    if (!(error instanceof BuiltinTableValidationError)) throw error;
-    remapBuiltinError(error, "table.builtins.entry.signatures[0]", "environment.entry");
+    if (!(error instanceof CallableTableValidationError)) throw error;
+    remapCallableError(error, "table.builtins.entry.signatures[0]", "environment.entry");
   }
 }
 
@@ -152,18 +152,18 @@ function loadEnvironment(path: string, baseDefs: Defs = {}): Environment {
  * silently override one another.
  */
 function mergeCallableTables(
-  core: BuiltinTable,
+  core: CallableTable,
   operator: Pick<Environment, "$defs" | "functions">,
-): BuiltinTable {
+): CallableTable {
   const hostFunctions = operator.functions ?? {};
   for (const name of Object.keys(hostFunctions)) {
     if (name in core.builtins) throw new DuplicateCallableContractError(name);
   }
-  const merged: BuiltinTable = {
+  const merged: CallableTable = {
     $defs: { ...core.$defs, ...operator.$defs },
     builtins: { ...core.builtins, ...hostFunctions },
   };
-  validateBuiltinTable(merged);
+  validateCallableTable(merged);
   return merged;
 }
 

@@ -1,6 +1,6 @@
 import type { JSONType } from "../types";
 import { litOf } from "./ast";
-import type { BuiltinTypeRuleRegistry, BuiltinTypeRuleV1 } from "./builtin-types";
+import type { CallableTypeRuleRegistry, CallableTypeRuleV1 } from "./builtin-types";
 import {
   apMode,
   asObject,
@@ -24,39 +24,39 @@ import {
   type Schema,
 } from "./schema";
 
-class DuplicateBuiltinTypeRuleError extends Error {
+class DuplicateCallableTypeRuleError extends Error {
   constructor(readonly ruleId: string) {
-    super(`duplicate builtin type rule "${ruleId}"`);
-    this.name = "DuplicateBuiltinTypeRuleError";
+    super(`duplicate callable type rule "${ruleId}"`);
+    this.name = "DuplicateCallableTypeRuleError";
   }
 }
 
-class BuiltinTypeRuleContractError extends Error {
+class CallableTypeRuleContractError extends Error {
   constructor(
     readonly ruleId: string,
     readonly fallback: Schema,
     readonly actual: Schema,
   ) {
-    super(`builtin type rule "${ruleId}" returned a type outside its portable fallback`);
-    this.name = "BuiltinTypeRuleContractError";
+    super(`callable type rule "${ruleId}" returned a type outside its portable fallback`);
+    this.name = "CallableTypeRuleContractError";
   }
 }
 
-function mergeBuiltinTypeRuleRegistries(
-  ...registries: BuiltinTypeRuleRegistry[]
-): BuiltinTypeRuleRegistry {
-  const merged: BuiltinTypeRuleRegistry = {};
+function mergeCallableTypeRuleRegistries(
+  ...registries: CallableTypeRuleRegistry[]
+): CallableTypeRuleRegistry {
+  const merged: CallableTypeRuleRegistry = {};
   for (const registry of registries) {
     for (const [ruleId, rule] of Object.entries(registry)) {
-      if (ruleId in merged) throw new DuplicateBuiltinTypeRuleError(ruleId);
+      if (ruleId in merged) throw new DuplicateCallableTypeRuleError(ruleId);
       merged[ruleId] = rule;
     }
   }
   return merged;
 }
 
-const impreciseFallback: BuiltinTypeRuleV1 = (request, services) => {
-  services.reportAnyDegradation(`builtin rule "${request.name}" has no precise return type`);
+const impreciseFallback: CallableTypeRuleV1 = (request, services) => {
+  services.reportAnyDegradation(`callable rule "${request.name}" has no precise return type`);
   return request.fallbackResult;
 };
 
@@ -72,17 +72,17 @@ function completionOf(schema: Schema, resolve: (schema: Schema) => Schema): Sche
     : unionOf(completions as Schema[]);
 }
 
-const pureRule: BuiltinTypeRuleV1 = (request, services) => {
+const pureRule: CallableTypeRuleV1 = (request, services) => {
   if (!request.fallbackMatched || request.args.length !== 1) return request.fallbackResult;
   return taskType(services.synthArgument(0));
 };
 
-const raiseRule: BuiltinTypeRuleV1 = (request) => {
+const raiseRule: CallableTypeRuleV1 = (request) => {
   if (!request.fallbackMatched || request.args.length !== 1) return request.fallbackResult;
   return taskType(false);
 };
 
-const performRule: BuiltinTypeRuleV1 = (request, services) => {
+const performRule: CallableTypeRuleV1 = (request, services) => {
   if (request.args.length !== 2) return request.fallbackResult;
   const literal = litOf(request.args[0]!);
   if (literal === null) {
@@ -109,7 +109,7 @@ const performRule: BuiltinTypeRuleV1 = (request, services) => {
   return taskType(effect.returns);
 };
 
-const bindRule: BuiltinTypeRuleV1 = (request, services) => {
+const bindRule: CallableTypeRuleV1 = (request, services) => {
   if (!request.fallbackMatched || request.args.length !== 2) return request.fallbackResult;
 
   const input = completionOf(services.synthArgument(0), services.resolveSchema);
@@ -143,7 +143,7 @@ const bindRule: BuiltinTypeRuleV1 = (request, services) => {
   return taskType(output);
 };
 
-const mergeRule: BuiltinTypeRuleV1 = (request, services) => {
+const mergeRule: CallableTypeRuleV1 = (request, services) => {
   if (!request.fallbackMatched || request.args.length !== 2) return request.fallbackResult;
   return mergeSchemas(services.synthArgument(0), services.synthArgument(1), services.defs);
 };
@@ -214,7 +214,7 @@ function flattenOneArrayLevel(schema: Schema, resolve: (schema: Schema) => Schem
   }
 }
 
-const flatMapRule: BuiltinTypeRuleV1 = (request, services) => {
+const flatMapRule: CallableTypeRuleV1 = (request, services) => {
   if (!request.fallbackMatched || request.args.length !== 2) return request.fallbackResult;
 
   const item = arrayElementSchema(services.synthArgument(1), services.resolveSchema);
@@ -237,10 +237,10 @@ const flatMapRule: BuiltinTypeRuleV1 = (request, services) => {
   };
 };
 
-const handleRule: BuiltinTypeRuleV1 = (request, services) => {
+const handleRule: CallableTypeRuleV1 = (request, services) => {
   if (!request.fallbackMatched) return request.fallbackResult;
   if (request.args.length === 2) {
-    services.reportAnyDegradation('builtin rule "handle" has no precise return type');
+    services.reportAnyDegradation('callable rule "handle" has no precise return type');
     return true;
   }
   if (request.args.length !== 3) return request.fallbackResult;
@@ -279,7 +279,7 @@ const handleRule: BuiltinTypeRuleV1 = (request, services) => {
   return schema;
 };
 
-const CORE_BUILTIN_TYPE_RULES: BuiltinTypeRuleRegistry = {
+const CORE_CALLABLE_TYPE_RULES: CallableTypeRuleRegistry = {
   "core.pipe": impreciseFallback,
   "core.apply": impreciseFallback,
   "core.perform": performRule,
@@ -351,8 +351,8 @@ function isTractableHandleSchema(schema: Schema): boolean {
 }
 
 export {
-  CORE_BUILTIN_TYPE_RULES,
-  BuiltinTypeRuleContractError,
-  DuplicateBuiltinTypeRuleError,
-  mergeBuiltinTypeRuleRegistries,
+  CORE_CALLABLE_TYPE_RULES,
+  CallableTypeRuleContractError,
+  DuplicateCallableTypeRuleError,
+  mergeCallableTypeRuleRegistries,
 };

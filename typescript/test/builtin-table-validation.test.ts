@@ -3,9 +3,9 @@ import { mkdtempSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import {
-  BuiltinTableValidationError,
+  CallableTableValidationError,
   loadBuiltinTable,
-  validateBuiltinTable,
+  validateCallableTable,
 } from "../src/builtins";
 
 const tableWith = (signatures: unknown, defs: Record<string, unknown> = {}, rule?: unknown) => ({
@@ -18,12 +18,12 @@ const signature = {
   returns: { type: "boolean" },
 };
 
-function validationError(value: unknown): BuiltinTableValidationError {
+function validationError(value: unknown): CallableTableValidationError {
   try {
-    validateBuiltinTable(value);
+    validateCallableTable(value);
   } catch (error) {
-    expect(error).toBeInstanceOf(BuiltinTableValidationError);
-    return error as BuiltinTableValidationError;
+    expect(error).toBeInstanceOf(CallableTableValidationError);
+    return error as CallableTableValidationError;
   }
   throw new Error("expected builtin table validation to fail");
 }
@@ -38,7 +38,7 @@ describe("builtin table validation", () => {
     const path = join(dir, "builtins.json");
     try {
       writeFileSync(path, JSON.stringify({ builtins: { bad: [] } }));
-      expect(() => loadBuiltinTable(path)).toThrow(BuiltinTableValidationError);
+      expect(() => loadBuiltinTable(path)).toThrow(CallableTableValidationError);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -52,7 +52,7 @@ describe("builtin table validation", () => {
         special: { signatures: [signature], rule: "core.handle" },
       },
     };
-    validateBuiltinTable(value);
+    validateCallableTable(value);
     expect(value.builtins.declarative!.signatures).toHaveLength(1);
   });
 
@@ -75,7 +75,7 @@ describe("builtin table validation", () => {
     expect(validationError(tableWith([signature], {}, "handle")).path).toBe(
       "table.builtins.example.rule",
     );
-    validateBuiltinTable(tableWith([signature], {}, "operator.handle"));
+    validateCallableTable(tableWith([signature], {}, "operator.handle"));
   });
 
   test("requires signature parameters and returns", () => {
@@ -131,7 +131,7 @@ describe("builtin table validation", () => {
     const valid: unknown = tableWith([{ params: [{ $ref: "#/$defs/Name" }], returns: true }], {
       Name: { type: "string" },
     });
-    validateBuiltinTable(valid);
+    validateCallableTable(valid);
 
     expect(validationError(tableWith([{ params: [{ $ref: "Name" }], returns: true }])).path).toBe(
       "table.builtins.example.signatures[0].params[0].$ref",
