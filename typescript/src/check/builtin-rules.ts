@@ -542,6 +542,7 @@ function createRuleServices(argExprs: JSONType[], ctx: CheckContext): BuiltinTyp
   return {
     apiVersion: 1,
     defs: ctx.defs,
+    effects: ctx.effects,
     synthArgument: (index) => {
       const expr = argExprs[index];
       if (expr === undefined) return true;

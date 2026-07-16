@@ -203,6 +203,8 @@ The HOF correctness work in
 
 ### B2 — Effect manifest
 
+Status: complete.
+
 A language-agnostic data file (in `spec/`) mapping each effect name to its
 positional argument schemas and its result schema, reusing the same tractable
 schema fragment and `$defs` vocabulary as the checker and runtime validator.
@@ -219,6 +221,8 @@ degradation and an operator-policy admission case; unknown literal effects are
 errors on both sides.
 
 ### B3 — Erased `Task<A>` index
+
+Status: complete.
 
 A distinguished checker node like `$fnType`, fully erased at runtime (the inert
 task records are unchanged). Wire the effect builtins to thread a completion
@@ -392,7 +396,9 @@ suspension point:
   explicit definition-pool precedence.
 - **Completed prerequisite:** B1.5 rule substrate, tracked in
   `plans/active/callable-contracts.md`; host callable composition joins B4.
-- **Epic:** B2 + B3 → B4 → B5, tracked as one unit.
+- **Completed:** B2 + B3 add portable effect contracts, checked/runtime
+  boundaries, and an erased completion index.
+- **Remaining epic:** B4 → B5 packages the environment and migrates examples.
 - **Durable driver:** B6, a parallel track on the same primitives; sequence
   against the orchestration use case rather than the typed-environment milestone.
 

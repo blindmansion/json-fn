@@ -44,6 +44,8 @@ function valueSatisfies(value: JSONType, schema: Schema, defs: Defs = {}): boole
       // Function-value validation (shape + embedded `$sig`) is a later concern;
       // a plain data literal never satisfies a function type.
       return false;
+    case SchemaKind.TaskType:
+      return false; // checker-only completion index; never a runtime contract
     case SchemaKind.Opaque:
       return false; // not statically decidable
   }

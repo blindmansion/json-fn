@@ -13,8 +13,14 @@
  */
 
 import type { ExecutionLimits, FunctionRegistry, JSONType } from "./types";
+import type { EffectManifest } from "./effects";
 import { prepareProgram } from "./evaluate";
-import type { DefinitionSources } from "./definition-pool";
+import {
+  mergeDefinitionPools,
+  readModuleDefinitions,
+  type DefinitionSources,
+} from "./definition-pool";
+import { enforceRuntimeContract, RuntimeContractError } from "./runtime-contract";
 import { isTask, stepTask, TASK_TAG } from "./task";
 import { raw } from "./utils";
 
@@ -67,6 +73,7 @@ export async function runTask(
   capabilities: Record<string, Capability>,
   limits?: ExecutionLimits,
   definitions?: DefinitionSources,
+  effects?: EffectManifest,
 ): Promise<JSONType> {
   const { invokeEntry, call, meter, refreshDeadline } = prepareProgram(
     module,
@@ -74,6 +81,7 @@ export async function runTask(
     limits,
     definitions,
   );
+  const defs = mergeDefinitionPools(definitions, readModuleDefinitions(module));
   let task = invokeEntry(entry, args);
 
   for (;;) {
@@ -84,6 +92,22 @@ export async function runTask(
     if (name === "raise") {
       throw new TaskRaiseError(effectArgs[0] ?? null);
     }
+    const effect = effects?.[name];
+    if (effects !== undefined && effect === undefined) {
+      throw new RuntimeContractError(`unknown effect "${name}"`);
+    }
+    if (effect !== undefined) {
+      enforceRuntimeContract(
+        effectArgs,
+        {
+          type: "array",
+          prefixItems: effect.params,
+          items: false,
+        },
+        defs,
+        `effect "${name}" arguments`,
+      );
+    }
     const capability = capabilities[name];
     if (capability === undefined) {
       throw new UnhandledEffectError(name);
@@ -91,7 +115,12 @@ export async function runTask(
 
     refreshDeadline();
     const value = await capability(...effectArgs);
-    task = call(resume, [value ?? null]);
+    const normalized = value ?? null;
+    const checked =
+      effect === undefined
+        ? normalized
+        : enforceRuntimeContract(normalized, effect.returns, defs, `effect "${name}" result`);
+    task = call(resume, [checked]);
   }
 }
 

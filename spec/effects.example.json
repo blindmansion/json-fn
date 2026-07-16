@@ -1,0 +1,15 @@
+{
+  "example.lookup": {
+    "params": [{ "type": "integer" }],
+    "returns": {
+      "type": "object",
+      "properties": { "name": { "type": "string" } },
+      "required": ["name"],
+      "additionalProperties": false
+    }
+  },
+  "example.log": {
+    "params": [{ "type": "string" }],
+    "returns": { "type": "null" }
+  }
+}

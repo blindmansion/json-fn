@@ -1,4 +1,5 @@
 import type { JSONType } from "../types";
+import { litOf } from "./ast";
 import type { BuiltinTypeRuleRegistry, BuiltinTypeRuleV1 } from "./builtin-types";
 import {
   apMode,
@@ -8,11 +9,14 @@ import {
   fnShape,
   isSchemaObject,
   itemsSchema,
+  isPortableTaskFloor,
   literalValues,
   mergeSchemas,
   prefixItems,
   properties,
   SchemaKind,
+  taskCompletion,
+  taskType,
   tupleRest,
   unionArms,
   unionOf,
@@ -51,11 +55,92 @@ function mergeBuiltinTypeRuleRegistries(
   return merged;
 }
 
-const preserveFallback: BuiltinTypeRuleV1 = ({ fallbackResult }) => fallbackResult;
-
 const impreciseFallback: BuiltinTypeRuleV1 = (request, services) => {
   services.reportAnyDegradation(`builtin rule "${request.name}" has no precise return type`);
   return request.fallbackResult;
+};
+
+function completionOf(schema: Schema, resolve: (schema: Schema) => Schema): Schema | null {
+  const resolved = resolve(schema);
+  if (classifySchema(resolved) === SchemaKind.TaskType) return taskCompletion(resolved);
+  if (isPortableTaskFloor(resolved)) return true;
+  const arms = unionArms(resolved);
+  if (arms === null) return null;
+  const completions = arms.map((arm) => completionOf(arm, resolve));
+  return completions.some((completion) => completion === null)
+    ? null
+    : unionOf(completions as Schema[]);
+}
+
+const pureRule: BuiltinTypeRuleV1 = (request, services) => {
+  if (!request.fallbackMatched || request.args.length !== 1) return request.fallbackResult;
+  return taskType(services.synthArgument(0));
+};
+
+const raiseRule: BuiltinTypeRuleV1 = (request) => {
+  if (!request.fallbackMatched || request.args.length !== 1) return request.fallbackResult;
+  return taskType(false);
+};
+
+const performRule: BuiltinTypeRuleV1 = (request, services) => {
+  if (request.args.length !== 2) return request.fallbackResult;
+  const literal = litOf(request.args[0]!);
+  if (literal === null) {
+    services.reportCoverageDegradation("the effect name is dynamic");
+    return request.fallbackResult;
+  }
+  if (typeof literal.v !== "string") return request.fallbackResult;
+
+  if (services.effects === undefined) {
+    services.reportCoverageDegradation("no effect manifest is configured");
+    return request.fallbackResult;
+  }
+  const effect = services.effects[literal.v];
+  if (effect === undefined) {
+    services.reportError(`unknown effect "${literal.v}"`, { argumentIndex: 0 });
+    return request.fallbackResult;
+  }
+
+  services.checkArgument(1, {
+    type: "array",
+    prefixItems: effect.params,
+    items: false,
+  });
+  return taskType(effect.returns);
+};
+
+const bindRule: BuiltinTypeRuleV1 = (request, services) => {
+  if (!request.fallbackMatched || request.args.length !== 2) return request.fallbackResult;
+
+  const input = completionOf(services.synthArgument(0), services.resolveSchema);
+  if (input === null) {
+    services.checkArgument(0, taskType(true));
+    return request.fallbackResult;
+  }
+
+  const expectedCallback: Schema = {
+    $fnType: { params: [input], returns: taskType(true) },
+  };
+  let callbackReturn = services.contextualTypeCallback(1, expectedCallback);
+  if (callbackReturn === null) {
+    const callback = services.resolveSchema(services.synthArgument(1));
+    if (classifySchema(callback) !== SchemaKind.FnType) {
+      services.checkArgument(1, expectedCallback);
+      return request.fallbackResult;
+    }
+    callbackReturn = fnShape(asObject(callback)).returns;
+  }
+
+  const output = completionOf(callbackReturn, services.resolveSchema);
+  if (output === null) {
+    services.reportError("bind continuation must return a Task", {
+      argumentIndex: 1,
+      expected: taskType(true),
+      actual: callbackReturn,
+    });
+    return request.fallbackResult;
+  }
+  return taskType(output);
 };
 
 const mergeRule: BuiltinTypeRuleV1 = (request, services) => {
@@ -197,10 +282,10 @@ const handleRule: BuiltinTypeRuleV1 = (request, services) => {
 const CORE_BUILTIN_TYPE_RULES: BuiltinTypeRuleRegistry = {
   "core.pipe": impreciseFallback,
   "core.apply": impreciseFallback,
-  "core.perform": preserveFallback,
-  "core.pure": preserveFallback,
-  "core.bind": preserveFallback,
-  "core.raise": preserveFallback,
+  "core.perform": performRule,
+  "core.pure": pureRule,
+  "core.bind": bindRule,
+  "core.raise": raiseRule,
   "core.handle": handleRule,
   "core.merge": mergeRule,
   "core.flatMap": flatMapRule,
@@ -258,6 +343,8 @@ function isTractableHandleSchema(schema: Schema): boolean {
         isTractableHandleSchema(shape.returns)
       );
     }
+    case SchemaKind.TaskType:
+      return false;
     case SchemaKind.Opaque:
       return false;
   }

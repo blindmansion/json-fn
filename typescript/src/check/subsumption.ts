@@ -18,6 +18,8 @@ import {
   properties,
   requiredKeys,
   fnShape,
+  taskCompletion,
+  isPortableTaskFloor,
 } from "./schema";
 import { valueSatisfies } from "./values";
 
@@ -76,6 +78,19 @@ function subsumes(sub: Schema, sup: Schema, ctx: SubCtx): boolean {
 
   const subK = classifySchema(sub);
   const supK = classifySchema(sup);
+
+  // `$taskType` is checker-only precision over the portable structural Task
+  // floor. Runtime task nodes always carry a string `@task` tag, while the
+  // completion index is erased.
+  if (subK === SchemaKind.TaskType) {
+    if (supK === SchemaKind.TaskType) {
+      return subsumes(taskCompletion(sub), taskCompletion(sup), ctx);
+    }
+    return isPortableTaskFloor(sup);
+  }
+  if (supK === SchemaKind.TaskType && isPortableTaskFloor(sub)) {
+    return taskCompletion(sup) === true;
+  }
 
   // Literal sub: every literal it admits must satisfy sup.
   if (subK === SchemaKind.Const || subK === SchemaKind.Enum) {

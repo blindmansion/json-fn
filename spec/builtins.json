@@ -556,7 +556,20 @@
       "rule": "core.pure"
     },
     "bind": {
-      "signatures": [{ "params": [true, true], "returns": { "$ref": "#/$defs/Task" } }],
+      "signatures": [
+        {
+          "params": [
+            { "$ref": "#/$defs/Task" },
+            {
+              "$fnType": {
+                "params": [true],
+                "returns": { "$ref": "#/$defs/Task" }
+              }
+            }
+          ],
+          "returns": { "$ref": "#/$defs/Task" }
+        }
+      ],
       "rule": "core.bind"
     },
     "raise": {

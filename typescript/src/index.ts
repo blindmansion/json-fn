@@ -2,6 +2,12 @@ export { callFunction, callProgram, prepareProgram, createPerfStats } from "./ev
 export { mergeDefinitionPools } from "./definition-pool";
 export type { DefinitionPool, DefinitionSources } from "./definition-pool";
 export { BuiltinTableValidationError, loadBuiltinTable, validateBuiltinTable } from "./builtins";
+export {
+  EffectManifestValidationError,
+  loadEffectManifest,
+  validateEffectManifest,
+} from "./effects";
+export type { EffectManifest, EffectSignature } from "./effects";
 export { checkExpr, checkModule } from "./check/module";
 export type { CheckExprOptions, CheckModuleOptions } from "./check/module";
 export {

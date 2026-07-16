@@ -1,4 +1,5 @@
 import type { JSONType } from "../types";
+import type { EffectManifest } from "../effects";
 import type { Defs, Schema } from "./schema";
 
 type TVarNode = { $tvar: string };
@@ -28,6 +29,7 @@ type RuleDiagnosticOptions = {
 type BuiltinTypeRuleServicesV1 = {
   apiVersion: 1;
   defs: Readonly<Defs>;
+  effects?: Readonly<EffectManifest>;
   synthArgument: (index: number) => Schema;
   checkArgument: (index: number, expected: Schema) => void;
   contextualTypeCallback: (index: number, expectedFn: Schema) => Schema | null;

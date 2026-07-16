@@ -10,6 +10,7 @@ import {
   parseShorthand,
   TaskRaiseError,
   UnhandledEffectError,
+  RuntimeContractError,
   type JSONType,
 } from "../src";
 
@@ -112,6 +113,93 @@ describe("runTask: host error boundary", () => {
   test("non-function entry fails fast", async () => {
     const mod = moduleOf(`{ notAFn: 5 }`);
     expect(runTask(mod, "notAFn", [], createStdlib(), {})).rejects.toThrow("not a function");
+  });
+});
+
+describe("runTask: effect contracts", () => {
+  const effects = {
+    lookup: {
+      params: [{ type: "integer" }],
+      returns: {
+        type: "object",
+        properties: { name: { type: "string" } },
+        required: ["name"],
+        additionalProperties: false,
+      },
+    },
+  };
+
+  test("rejects outgoing arguments before invoking a capability", async () => {
+    const mod = moduleOf(`{ main: () => perform("lookup", ["bad"]) }`);
+    let invoked = false;
+    const promise = runTask(
+      mod,
+      "main",
+      [],
+      createStdlib(),
+      {
+        lookup: () => {
+          invoked = true;
+          return { name: "unused" };
+        },
+      },
+      undefined,
+      undefined,
+      effects,
+    );
+    expect(promise).rejects.toThrow(RuntimeContractError);
+    await promise.catch(() => undefined);
+    expect(invoked).toBe(false);
+  });
+
+  test("rejects capability results before resuming", async () => {
+    const mod = moduleOf(`{ main: () => perform("lookup", [1]) }`);
+    expect(
+      runTask(
+        mod,
+        "main",
+        [],
+        createStdlib(),
+        { lookup: () => ({ wrong: true }) },
+        undefined,
+        undefined,
+        effects,
+      ),
+    ).rejects.toThrow(RuntimeContractError);
+  });
+
+  test("rejects effects absent from a configured manifest", async () => {
+    const mod = moduleOf(`{ main: () => perform("other", []) }`);
+    expect(
+      runTask(
+        mod,
+        "main",
+        [],
+        createStdlib(),
+        { other: () => null },
+        undefined,
+        undefined,
+        effects,
+      ),
+    ).rejects.toThrow('unknown effect "other"');
+  });
+
+  test("resolves manifest references through the runtime definition pool", async () => {
+    const mod = moduleOf(`{
+      type Result = { value: string },
+      main: () => perform("read", [])
+    }`);
+    const result = await runTask(
+      mod,
+      "main",
+      [],
+      createStdlib(),
+      { read: () => ({ value: "ok" }) },
+      undefined,
+      undefined,
+      { read: { params: [], returns: { $ref: "#/$defs/Result" } } },
+    );
+    expect(result).toEqual({ value: "ok" });
   });
 });
 

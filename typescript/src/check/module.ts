@@ -2,6 +2,7 @@
 // then check its `$return` against the declared return type. Nested function
 
 import type { JSONType } from "../types";
+import type { EffectManifest } from "../effects";
 import { mergeDefinitionPools, readModuleDefinitions } from "../definition-pool";
 import type { BuiltinTable, BuiltinTypeRuleRegistry } from "./builtin-types";
 import { synthBuiltinCall } from "./builtin-rules";
@@ -35,10 +36,13 @@ type CheckModuleOptions = {
   // Omitted installs the implementation's core rules. Supplying a registry is
   // explicit and uses it as-is; compose core and host rules before passing it.
   typeRules?: BuiltinTypeRuleRegistry;
+  // Slice-7 effect contracts; the unified Environment wrapper lands in B4.
+  effects?: EffectManifest;
 };
 
 type CheckExprOptions = {
   typeRules?: BuiltinTypeRuleRegistry;
+  effects?: EffectManifest;
 };
 
 // Public entry, mirroring `callProgram`: lift `$types` into the defs pool, wire
@@ -61,6 +65,7 @@ function checkModule(
     builtins: builtins?.builtins,
     synthBuiltinCall,
     typeRules: options.typeRules ?? CORE_BUILTIN_TYPE_RULES,
+    effects: options.effects,
   };
   // Declare-before-use: a `$ref` to an undeclared type name would otherwise
   // resolve to top (`resolveRef`), so a typo like `-> Reprot` checks clean.
@@ -208,6 +213,7 @@ function checkExpr(
     builtins: builtins?.builtins,
     synthBuiltinCall,
     typeRules: options.typeRules ?? CORE_BUILTIN_TYPE_RULES,
+    effects: options.effects,
   };
   return { type: synth(expr, ctx), diagnostics: ctx.diagnostics };
 }

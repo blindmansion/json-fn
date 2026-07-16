@@ -1,8 +1,9 @@
 import type { JSONType } from "../types";
 
 // A type is represented as canonical-fragment JSON Schema, extended with
-// `$ref` (named types) and the distinguished `$fnType` node (§2.8). Boolean
-// schemas `true`/`false` encode `any`/`never`.
+// `$ref` (named types) and distinguished checker nodes. `$fnType` represents
+// callable values; `$taskType` carries a task's completion type and is erased
+// before runtime. Boolean schemas `true`/`false` encode `any`/`never`.
 type Schema = JSONType;
 
 // The module-level `$types` pool (`$defs`), used to resolve `$ref`.
@@ -28,6 +29,7 @@ enum SchemaKind {
   Object, // { type: "object", ... } (includes the map form)
   Ref, // { $ref: "#/$defs/Name" }
   FnType, // { $fnType: { params, rest?, returns } }
+  TaskType, // { $taskType: A } — checker-only Task<A>
   Opaque, // anything outside the tractable fragment
 }
 
@@ -48,6 +50,7 @@ function classifySchema(s: Schema): SchemaKind {
 
   if ("$ref" in s) return SchemaKind.Ref;
   if ("$fnType" in s) return SchemaKind.FnType;
+  if ("$taskType" in s) return SchemaKind.TaskType;
   if ("const" in s) return SchemaKind.Const;
   if ("enum" in s) return SchemaKind.Enum;
   if ("anyOf" in s) return SchemaKind.Union;
@@ -110,6 +113,9 @@ function collectSchemaRefs(s: Schema, into: Set<string>): void {
       collectSchemaRefs(returns, into);
       return;
     }
+    case SchemaKind.TaskType:
+      collectSchemaRefs(taskCompletion(s), into);
+      return;
     case SchemaKind.Union: {
       const arms = unionArms(s);
       if (arms !== null) for (const a of arms) collectSchemaRefs(a, into);
@@ -226,6 +232,26 @@ function fnShape(o: Record<string, JSONType>): FnTypeShape {
     rest: "rest" in ft ? ft.rest : undefined,
     returns: "returns" in ft ? ft.returns! : true,
   };
+}
+
+function taskType(completion: Schema): Schema {
+  return { $taskType: completion };
+}
+
+function taskCompletion(schema: Schema): Schema {
+  return asObject(schema).$taskType ?? true;
+}
+
+function isPortableTaskFloor(schema: Schema): boolean {
+  if (classifySchema(schema) !== SchemaKind.Object) return false;
+  const object = asObject(schema);
+  const tag = properties(object)["@task"];
+  return (
+    requiredKeys(object).includes("@task") &&
+    tag !== undefined &&
+    classifySchema(tag) === SchemaKind.Primitive &&
+    asObject(tag).type === "string"
+  );
 }
 
 function valueType(v: JSONType): "null" | "boolean" | "number" | "string" | "array" | "object" {
@@ -565,6 +591,9 @@ export {
   properties,
   requiredKeys,
   fnShape,
+  taskType,
+  taskCompletion,
+  isPortableTaskFloor,
   valueType,
   typeMatches,
   unionOf,

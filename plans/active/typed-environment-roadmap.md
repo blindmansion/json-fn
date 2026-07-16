@@ -96,7 +96,7 @@ durable orchestration driver      (parallel, manifest-dependent track)
    and migration of existing core special cases.
 6. **`flatMap` rule — ✅ done:** first precision rule implemented on the new
    substrate.
-7. **Effects and `Task<A>`:** host-environment B2/B3.
+7. **Effects and `Task<A>` — ✅ done:** host-environment B2/B3.
 8. **Environment packaging:** direct functions, effects, types, and entrypoint
    in host-environment B4.
 9. **Examples and durability:** B5 and B6.

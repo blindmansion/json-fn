@@ -491,6 +491,13 @@ These are standard-library functions (see [Standard Library → Tasks & Effects]
 - `bind(task, k)` — sequence; `k` must be a function (registry name or body).
 - `raise(err)` — convenience for `perform("raise", [err])`.
 
+When the checker is configured with an effect manifest, each literal effect
+name has positional argument schemas and a result schema. `perform` checks those
+arguments, and the result type flows through `bind` (and therefore `do`
+notation). This completion index is checker-only: guest signatures still write
+bare `Task`, and task records contain no runtime type metadata. A dynamic effect
+name cannot be resolved statically and is reported as degraded type coverage.
+
 Malformed tasks (e.g. a `bind` whose `then` is not a function, or an `effect` with a non-string `name`) are rejected as ordinary **guest-visible evaluation errors** when the task is run — never as host-language exceptions.
 
 ### The suspended form
@@ -554,6 +561,12 @@ The host is the *outermost handler*: any effect that no in-language `handle` dis
 - throws `TaskRaiseError` (carrying the guest payload) for an unhandled `raise`;
 - throws `UnhandledEffectError` for an effect with no capability;
 - otherwise `await`s the capability, applies `resume` to its result, and loops.
+
+An optional effect manifest gives `runTask` runtime contracts for this boundary.
+When supplied, `runTask` rejects effects absent from the manifest, validates the
+outgoing positional arguments before invoking host code, and validates the
+capability result before resuming. Named references use the same merged
+builtin/environment/module definition pool as the checker.
 
 **Durable suspend/resume.** Because a `pending` task is plain JSON, a host can `serializeTask` it, store it, and later `hydrateTask` + resume — even in a different process. `hydrateTask` restores the inertness marks that keep embedded tasks opaque to the evaluator.
 

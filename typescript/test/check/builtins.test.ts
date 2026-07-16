@@ -465,17 +465,69 @@ describe("Section F — builtin signatures", () => {
       expect(synthB(call("hasKey", obj, "a")).type).toEqual({ type: "boolean" });
     });
 
-    test("effect constructors return a Task ref; apply/handle/pipe yield any", () => {
+    test("effect constructors carry checker-only completion types", () => {
       const TASK = { $ref: "#/$defs/Task" };
       expect(synthB(call("perform", "read", [])).type).toEqual(TASK);
-      expect(synthB(call("pure", 1)).type).toEqual(TASK);
-      expect(synthB(call("raise", "boom")).type).toEqual(TASK);
+      expect(synthB(call("pure", 1)).type).toEqual({ $taskType: { const: 1 } });
+      expect(synthB(call("raise", "boom")).type).toEqual({ $taskType: false });
       const cont = { $params: ["x"], $return: call("pure", { $var: "x" }) };
-      expect(synthB(call("bind", call("pure", 1), cont)).type).toEqual(TASK);
+      expect(synthB(call("bind", call("pure", 1), cont)).type).toEqual({
+        $taskType: { const: 1 },
+      });
       expect(synthB(call("apply", { $params: ["n"], $return: { $var: "n" } }, [1])).type).toBe(
         true,
       );
       expect(synthB(call("pipe", [], 1)).type).toBe(true);
+    });
+
+    test("effect manifests validate arguments and flow results through bind", () => {
+      const defs = {
+        Reading: {
+          type: "object",
+          properties: { temp: I },
+          required: ["temp"],
+          additionalProperties: false,
+        },
+      };
+      const effects = {
+        "sensor.read": { params: [], returns: { $ref: "#/$defs/Reading" } },
+        "sensor.set": { params: [I], returns: { type: "null" } },
+      };
+      const configured = (expr: JSONType) => checkExpr(expr, defs, BT, { effects });
+
+      expect(configured(call("perform", "sensor.read", [])).type).toEqual({
+        $taskType: { $ref: "#/$defs/Reading" },
+      });
+
+      const reading = {
+        $params: ["reading"],
+        $return: call("pure", {
+          $get: "temp",
+          $from: { $var: "reading" },
+        }),
+      };
+      const bound = configured(call("bind", call("perform", "sensor.read", []), reading));
+      expect(bound.type).toEqual({
+        $taskType: I,
+      });
+      expect(bound.diagnostics).toEqual([]);
+
+      expect(
+        configured(call("perform", "sensor.set", ["wrong"])).diagnostics.some(
+          (diagnostic) => diagnostic.severity === "error",
+        ),
+      ).toBe(true);
+      expect(
+        configured(call("perform", "missing", [])).diagnostics.some((diagnostic) =>
+          diagnostic.message.includes('unknown effect "missing"'),
+        ),
+      ).toBe(true);
+      expect(
+        configured(call("perform", { $var: "dynamic" }, [])).diagnostics.some(
+          (diagnostic) =>
+            diagnostic.severity === "info" && diagnostic.message.includes("effect name is dynamic"),
+        ),
+      ).toBe(true);
     });
 
     test("annotated handle returns its declared immediate result type", () => {

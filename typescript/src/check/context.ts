@@ -6,6 +6,7 @@
 
 import type { BuiltinEntry, BuiltinTypeRuleRegistry } from "./builtin-types";
 import type { JSONType } from "../types";
+import type { EffectManifest } from "../effects";
 import { type Schema, type Defs, type FnTypeShape, isSchemaObject } from "./schema";
 
 // The tier of a diagnostic. An `error` is a definite type failure; an `info`
@@ -63,6 +64,8 @@ type CheckContext = {
   // Entry points install the core registry by default; an explicitly supplied
   // registry is used as-is so hosts can test fallback-only behavior.
   typeRules?: BuiltinTypeRuleRegistry;
+  // Operator-owned effect contracts used by `core.perform`.
+  effects?: EffectManifest;
   // Flow-narrowing facts in scope (§5.5): var name → the type it has been
   // refined to by a dominating guard, already intersected with its declared
   // type. Present only inside a guarded control-flow arm; `synth`'s `"var"`

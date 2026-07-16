@@ -280,14 +280,17 @@ legitimately accept):
 | `core.handle`  | 2 or 3 | —                         | `any`   |
 | `core.perform` | 2     | arg 0: `string`, 1:`array` | `Task`  |
 | `core.pure`    | 1     | —                          | `Task`  |
-| `core.bind`    | 2     | —                          | `Task`  |
+| `core.bind`    | 2     | arg 0: `Task`, 1: `(any) -> Task` | `Task`  |
 | `core.raise`   | 1     | —                          | `Task`  |
 
-`Task` is the opaque effect node, defined in `$defs` as the tagged record shape
-`{ "@task": string, ... }` (see the kernel in the language reference). Returning
-it as a `$ref` lets a `-> Task` or `-> any` annotation on an effectful function
-be satisfied. Precision beyond the floor (e.g. threading `pipe`'s fold) is left
-to an optional per-impl code rule.
+`Task` is the portable effect-node floor, defined in `$defs` as the tagged
+record shape `{ "@task": string, ... }` (see the kernel in the language
+reference). The TypeScript checker refines that floor internally with an erased
+completion index: `pure(A)` produces `Task<A>`, `bind` passes `A` to its
+continuation and returns the continuation's `Task<B>`, `raise` produces
+`Task<never>`, and a configured effect manifest gives `perform` its result
+type. Guest signatures continue to write bare `Task`, meaning completion type
+`unknown`; the runtime task record is unchanged.
 
 ## What each implementation must provide
 
