@@ -13,7 +13,7 @@
  */
 
 import type { ExecutionLimits, FunctionRegistry, JSONType } from "./types";
-import type { EffectManifest } from "./effects";
+import { buildEffectNamespace, EFFECTS_BINDING, type EffectManifest } from "./effects";
 import type { CallableTypeRuleRegistry } from "./check/builtin-types";
 import { prepareProgram } from "./evaluate";
 import { loadBuiltinTable } from "./builtins";
@@ -88,7 +88,16 @@ export async function runTask(
   host: EnvironmentHostConfiguration,
   limits?: ExecutionLimits,
 ): Promise<JSONType> {
+  if (Object.prototype.hasOwnProperty.call(module, EFFECTS_BINDING)) {
+    throw new EnvironmentConfigurationError(
+      `"${EFFECTS_BINDING}" is reserved for environment-declared effects`,
+    );
+  }
   const prepared = prepareEnvironmentRuntime(environment, host, module);
+  const runtimeModule = {
+    ...module,
+    [EFFECTS_BINDING]: buildEffectNamespace(environment.effects),
+  };
   const checkedArgs = enforceRuntimeContract(
     args,
     {
@@ -100,7 +109,7 @@ export async function runTask(
     `entry "${environment.entry.name}" arguments`,
   ) as JSONType[];
   const result = await runTaskConfigured(
-    module,
+    runtimeModule,
     environment.entry.name,
     checkedArgs,
     prepared.registry,
@@ -329,15 +338,20 @@ function remark(value: JSONType): void {
  *
  * Collects the literal first argument of every `perform(name, …)` call, an
  * implicit `"raise"` for every `raise(…)` call, and the `name` of every
- * embedded `@task` effect node. This is a conservative over-approximation: it
- * does not subtract effects an in-language `handle` discharges (proving
- * discharge needs dataflow the walk deliberately avoids), and `perform` with a
- * non-literal name sets `dynamic` so hosts can refuse programs whose effect set
- * is not statically known.
+ * embedded `@task` effect node. With an environment it also recognizes static
+ * calls through the injected `effects` namespace; computed access marks the
+ * result dynamic. This is a conservative over-approximation: it does not
+ * subtract effects an in-language `handle` discharges (proving discharge needs
+ * dataflow the walk deliberately avoids), and `perform` with a non-literal name
+ * sets `dynamic` so hosts can refuse programs whose effect set is not statically
+ * known.
  */
 export type RequiredCapabilities = { names: string[]; dynamic: boolean };
 
-export function requiredCapabilities(node: JSONType): RequiredCapabilities {
+export function requiredCapabilities(
+  node: JSONType,
+  environment?: Pick<Environment, "effects">,
+): RequiredCapabilities {
   const names = new Set<string>();
   let dynamic = false;
 
@@ -368,6 +382,14 @@ export function requiredCapabilities(node: JSONType): RequiredCapabilities {
       } else if (callee === "raise") {
         names.add("raise");
       }
+    } else if (callee !== undefined && Array.isArray(callArgs) && environment !== undefined) {
+      const path = effectAccessPath(callee);
+      if (path === "dynamic") {
+        dynamic = true;
+      } else if (path !== null && path.length > 0) {
+        const name = path.join(".");
+        if (environment.effects?.[name] !== undefined) names.add(name);
+      }
     }
 
     for (const key of Object.keys(value)) walk(value[key]!);
@@ -375,6 +397,21 @@ export function requiredCapabilities(node: JSONType): RequiredCapabilities {
 
   walk(node);
   return { names: [...names].sort(), dynamic };
+}
+
+function effectAccessPath(node: JSONType): string[] | "dynamic" | null {
+  if (node === null || typeof node !== "object" || Array.isArray(node)) return null;
+  if (node.$var === EFFECTS_BINDING) return [];
+  if (!("$get" in node) || !("$from" in node)) return null;
+
+  const base = effectAccessPath(node.$from!);
+  if (base === null || base === "dynamic") return base;
+  const key = node.$get;
+  if (typeof key === "string") return [...base, key];
+  if (Array.isArray(key) && key.every((segment) => typeof segment === "string")) {
+    return [...base, ...(key as string[])];
+  }
+  return "dynamic";
 }
 
 function safeStringify(value: JSONType): string {

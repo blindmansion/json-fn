@@ -1,10 +1,12 @@
 import { readFileSync } from "fs";
 import type { CallableTable } from "./check/builtin-types";
-import type { Defs, Schema } from "./check/schema";
+import { taskType, type Defs, type Schema } from "./check/schema";
 import { CallableTableValidationError, validateCallableTable } from "./builtins";
+import type { JSONType } from "./types";
 
 type EffectSignature = { params: Schema[]; returns: Schema };
 type EffectManifest = Record<string, EffectSignature>;
+const EFFECTS_BINDING = "effects";
 
 class EffectManifestValidationError extends Error {
   constructor(
@@ -58,6 +60,18 @@ function validateEffectManifest(value: unknown, defs: Defs = {}): asserts value 
       );
     }
   }
+
+  const names = Object.keys(value).sort();
+  for (let i = 0; i < names.length - 1; i++) {
+    const prefix = names[i]!;
+    const name = names[i + 1]!;
+    if (name.startsWith(`${prefix}.`)) {
+      throw new EffectManifestValidationError(
+        `effects.${name}`,
+        `effect name conflicts with namespace prefix "${prefix}"`,
+      );
+    }
+  }
 }
 
 function loadEffectManifest(path: string, defs: Defs = {}): EffectManifest {
@@ -66,5 +80,49 @@ function loadEffectManifest(path: string, defs: Defs = {}): EffectManifest {
   return parsed;
 }
 
-export { EffectManifestValidationError, loadEffectManifest, validateEffectManifest };
+/**
+ * Materialize the operator's effect manifest as an ordinary nested guest value.
+ * Each leaf is a typed json-fn function that constructs the same inert task as
+ * a literal `perform(name, args)` call. The checker and runtime both inject this
+ * exact value, keeping source ergonomics separate from task semantics.
+ */
+function buildEffectNamespace(effects: EffectManifest = {}): Record<string, JSONType> {
+  const root: Record<string, JSONType> = {};
+  for (const [name, signature] of Object.entries(effects)) {
+    const segments = name.split(".");
+    let parent = root;
+    for (const segment of segments.slice(0, -1)) {
+      const child = parent[segment];
+      if (child === undefined) {
+        const created: Record<string, JSONType> = {};
+        parent[segment] = created;
+        parent = created;
+      } else {
+        parent = child as Record<string, JSONType>;
+      }
+    }
+
+    const params = signature.params.map((_, index) => `_effectArg${index}`);
+    parent[segments.at(-1)!] = {
+      $params: params,
+      $sig: {
+        params: signature.params,
+        returns: taskType(signature.returns),
+      },
+      $return: {
+        $call: "perform",
+        $args: [name, params.map((param) => ({ $var: param }))],
+      },
+    };
+  }
+  return root;
+}
+
+export {
+  EFFECTS_BINDING,
+  EffectManifestValidationError,
+  buildEffectNamespace,
+  loadEffectManifest,
+  validateEffectManifest,
+};
 export type { EffectManifest, EffectSignature };

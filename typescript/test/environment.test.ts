@@ -8,6 +8,8 @@ import {
   createStdlib,
   loadBuiltinTable,
   mergeCallableTables,
+  parseShorthand,
+  requiredCapabilities,
   runTask,
   validateEnvironment,
   type Environment,
@@ -32,6 +34,10 @@ function environment(overrides: Partial<Environment> = {}): Environment {
     entry: { name: "main", params: [], returns: { task: I } },
     ...overrides,
   };
+}
+
+function module(source: string): Record<string, JSONType> {
+  return parseShorthand(source) as Record<string, JSONType>;
 }
 
 describe("environment validation and composition", () => {
@@ -74,6 +80,19 @@ describe("environment validation and composition", () => {
         environment({ functions: { map: { signatures: [] } } }),
       ),
     ).toThrow(DuplicateCallableContractError);
+  });
+
+  test("rejects effect names that conflict with namespace prefixes", () => {
+    expect(() =>
+      validateEnvironment(
+        environment({
+          effects: {
+            sensor: { params: [], returns: I },
+            "sensor.read": { params: [], returns: I },
+          },
+        }),
+      ),
+    ).toThrow('effect name conflicts with namespace prefix "sensor"');
   });
 });
 
@@ -132,6 +151,48 @@ describe("environment checker integration", () => {
           diagnostic.severity === "error" && diagnostic.path.join(".") === "main.$return",
       ),
     ).toBe(true);
+  });
+
+  test("types manifest-derived effect calls through the injected namespace", () => {
+    const env = environment({
+      effects: {
+        "sensor.read": { params: [], returns: I },
+      },
+    });
+
+    expect(
+      checkModule(module("{ main: () => effects.sensor.read() }"), builtins, {
+        environment: env,
+      }),
+    ).toEqual([]);
+  });
+
+  test("checks generated effect-call arguments against the manifest", () => {
+    const env = environment({
+      effects: {
+        log: { params: [I], returns: { type: "null" } },
+      },
+      entry: { name: "main", params: [], returns: { task: { type: "null" } } },
+    });
+
+    expect(
+      checkModule(module('{ main: () => effects.log("wrong") }'), builtins, {
+        environment: env,
+      }).some((diagnostic) => diagnostic.severity === "error"),
+    ).toBe(true);
+  });
+
+  test("rejects a guest binding that shadows the injected effects namespace", () => {
+    const diagnostics = checkModule(module("{ effects: {}, main: () => pure(1) }"), builtins, {
+      environment: environment(),
+    });
+
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({
+        path: ["effects"],
+        message: '"effects" is reserved for environment-declared effects',
+      }),
+    );
   });
 });
 
@@ -234,5 +295,65 @@ describe("environment runtime integration", () => {
         capabilities: {},
       }),
     ).toThrow('runtime function "accidental" has no callable contract');
+  });
+
+  test("runs a qualified effect when a direct function has the same name", async () => {
+    let directCalled = false;
+    const env = environment({
+      functions: {
+        ping: { signatures: [{ params: [], returns: I }] },
+      },
+      effects: {
+        ping: { params: [], returns: I },
+      },
+    });
+
+    const result = await runTask(module("{ main: () => effects.ping() }"), env, [], {
+      registry: {
+        ...createStdlib(),
+        ping: () => {
+          directCalled = true;
+          return 1;
+        },
+      },
+      capabilities: { ping: () => 7 },
+    });
+
+    expect(result).toBe(7);
+    expect(directCalled).toBe(false);
+  });
+
+  test("rejects a runtime module that shadows the effects namespace", () => {
+    expect(() =>
+      runTask(module("{ effects: {}, main: () => pure(1) }"), environment(), [], {
+        registry: createStdlib(),
+        capabilities: {},
+      }),
+    ).toThrow('"effects" is reserved for environment-declared effects');
+  });
+});
+
+describe("environment capability admission", () => {
+  const env = environment({
+    effects: {
+      "sensor.read": { params: [], returns: I },
+      log: { params: [S], returns: { type: "null" } },
+    },
+  });
+
+  test("collects only statically referenced qualified effects", () => {
+    const mod = module('{ main: () => effects.sensor.read(), helper: () => pure("unused") }');
+    expect(requiredCapabilities(mod, env)).toEqual({
+      names: ["sensor.read"],
+      dynamic: false,
+    });
+  });
+
+  test("marks computed effects access as dynamic", () => {
+    const mod = module("{ main: (name) => effects[name]() }");
+    expect(requiredCapabilities(mod, env)).toEqual({
+      names: [],
+      dynamic: true,
+    });
   });
 });

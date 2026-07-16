@@ -3,6 +3,7 @@
 
 import type { JSONType } from "../types";
 import { mergeDefinitionPools, readModuleDefinitions } from "../definition-pool";
+import { buildEffectNamespace, EFFECTS_BINDING } from "../effects";
 import {
   entryReturnType,
   mergeCallableTables,
@@ -83,6 +84,12 @@ function checkModule(
   let checkingModule = module;
   let entrySig: Sig | undefined;
   if (environment !== undefined) {
+    if (Object.prototype.hasOwnProperty.call(module, EFFECTS_BINDING)) {
+      report(
+        { ...ctx, path: [EFFECTS_BINDING] },
+        `"${EFFECTS_BINDING}" is reserved for environment-declared effects`,
+      );
+    }
     const { entry } = environment;
     const body = module[entry.name];
     if (body === undefined || !isBody(body)) {
@@ -94,6 +101,10 @@ function checkModule(
       entrySig = { params: entry.params, returns: entryReturnType(entry.returns) };
       checkingModule = { ...module, [entry.name]: { ...body, $sig: entrySig } };
     }
+    checkingModule = {
+      ...checkingModule,
+      [EFFECTS_BINDING]: buildEffectNamespace(environment.effects),
+    };
   }
 
   // Declare-before-use: a `$ref` to an undeclared type name would otherwise
@@ -108,7 +119,7 @@ function checkModule(
   ctx.guards = guards;
 
   for (const key of bindingKeys(scopeModule)) {
-    const val = module[key]!;
+    const val = checkingModule[key]!;
     if (isBody(val)) {
       // §9: top-level functions must be fully typed (on by default). A missing
       // `$sig` is reported here rather than in the parser, which lacks module

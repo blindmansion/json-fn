@@ -417,9 +417,14 @@ suspension point:
   runtime enforce the same order.
 - **Callable/effect ownership and naming.** Core callable contracts remain
   operator-immutable; composing a host callable with the same name is an error.
-  Function and effect tables are separate namespaces. Dotted qualification is
-  conventional but not required because an environment is already a closed
-  namespace.
+  Function and effect tables are separate namespaces. Dots in direct-function
+  names remain a naming convention; effect names use the generated source
+  namespace described below.
+- **Capability record delivery.** An environment injects a reserved `effects`
+  record into guest module scope. Dot-separated manifest names become nested
+  callable paths such as `effects.sensor.read()`, with each leaf constructing
+  the corresponding inert task. Direct functions and effects may share a name;
+  namespace-prefix conflicts between effect names are invalid.
 - **Entry task return encoding.** Portable entry contracts write
   `{ "task": A }`; the checker converts it to its erased internal `Task<A>`
   index, while `runTask` validates the eventual completion value against `A`.
@@ -434,8 +439,6 @@ suspension point:
   `Task<Report>` or only bare `Task` (erased to `Task<unknown>`); whether a
   residual task preserves only its completion type. Start checker-internal with
   bare `Task` in guest code.
-- **Capability record delivery.** Whether B4 hands the agent a manifest-derived
-  capability record or leaves it writing `perform` directly.
 - **Suspension-point declaration.** Whether an effect being a suspension point is
   declared in the manifest, in host driver config, or inferred — and how join
   capabilities (`awaitAll`/`awaitAny`) are represented so the driver and the

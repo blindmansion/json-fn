@@ -18,7 +18,7 @@ that would otherwise make each ergonomic feature more complicated.
 
 ## Problems exposed by the migrated examples
 
-### 1. Effect contracts are injected, but effect calls are not
+### 1. Effect contracts are injected, but effect calls are not — ✅ resolved
 
 The environment tells the checker and runtime that `sensor.read` exists, but
 the guest still writes:
@@ -33,20 +33,19 @@ in-language, serialized, admitted by capability policy, and suspended by a
 durable driver. Replacing effects with direct functions would therefore be a
 semantic regression.
 
-The missing layer is a manifest-derived source API: a call such as
-`sensor.read()` should construct the same inert
+The implemented layer is a manifest-derived source API: a call such as
+`effects.sensor.read()` should construct the same inert
 `{ "@task": "effect", name: "sensor.read", args: [] }` data as `perform`.
 
-Open design points:
+Resolved for the source-call surface:
 
-- how an effect callable is distinguished from a direct function when the two
-  namespaces contain the same name;
-- whether effect names are exposed as dotted callables, under a dedicated
-  namespace/record, or through dedicated syntax;
-- whether raw `perform` remains a low-level escape hatch or is unavailable to
-  environment-constrained guest code; and
-- whether handler clauses keep string keys or gain the same source-level naming
-  surface.
+- the environment injects a reserved `effects` record whose nested paths are
+  derived from dot-separated manifest names;
+- direct functions and effects may share a name because `log()` and
+  `effects.log()` are unambiguous;
+- namespace-prefix conflicts such as `sensor` plus `sensor.read` are invalid;
+- raw `perform` remains a low-level escape hatch; and
+- handler clauses keep string keys for now. Their typing remains step 6.
 
 ### 2. Bare `Task` erases completion types at helper boundaries
 
@@ -164,7 +163,7 @@ Do not add ergonomic features to both old and new paths.
 
 1. ✅ Remove compatibility paths and route entry checking through an injected
    signature.
-2. Choose and implement the manifest-derived effect-call syntax and collision
+2. ✅ Choose and implement the manifest-derived effect-call syntax and collision
    policy.
 3. Add compositional helper completion types (`Task<A>` or an equally explicit
    alternative).
@@ -211,8 +210,8 @@ inlining:
 }
 ```
 
-The illustrative `effects` qualification may change with the collision
-decision, but the compositional shape should not.
+The `effects` qualification is the manifest-derived guest API; the
+compositional shape remains the target for the following steps.
 
 ## Completion criteria
 

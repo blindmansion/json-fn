@@ -4,7 +4,7 @@ import type { Defs, Schema } from "./check/schema";
 import { taskType } from "./check/schema";
 import { CallableTableValidationError, validateCallableTable } from "./builtins";
 import type { EffectManifest } from "./effects";
-import { EffectManifestValidationError, validateEffectManifest } from "./effects";
+import { EFFECTS_BINDING, EffectManifestValidationError, validateEffectManifest } from "./effects";
 
 type EntryReturn = Schema | { task: Schema };
 
@@ -113,6 +113,9 @@ function validateEnvironment(value: unknown, baseDefs: Defs = {}): asserts value
   assertOnlyKeys(value.entry, new Set(["name", "params", "returns"]), "environment.entry");
   if (typeof value.entry.name !== "string" || value.entry.name.length === 0) {
     fail("environment.entry.name", "expected a non-empty string");
+  }
+  if (value.entry.name === EFFECTS_BINDING) {
+    fail("environment.entry.name", `"${EFFECTS_BINDING}" is reserved for declared effects`);
   }
   if (!Array.isArray(value.entry.params)) {
     fail("environment.entry.params", "expected an array");

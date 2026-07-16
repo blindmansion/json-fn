@@ -498,6 +498,24 @@ notation). This completion index is checker-only: guest signatures still write
 bare `Task`, and task records contain no runtime type metadata. A dynamic effect
 name cannot be resolved statically and is reported as degraded type coverage.
 
+An environment-configured module also receives a reserved `effects` binding
+derived from that manifest. Dot-separated effect names become nested callable
+paths:
+
+```jfn
+effects.http.get(url)
+effects.log("starting")
+```
+
+Each leaf is a typed task constructor equivalent to a literal
+`perform("http.get", [url])`; calling it remains pure and does not invoke the
+host capability. Qualification distinguishes effects from direct functions, so
+`log(...)` and `effects.log(...)` may coexist with different semantics. A module
+checked or run with an environment may not declare its own top-level `effects`
+binding. Manifest names may not be namespace prefixes of other names (for
+example, `sensor` and `sensor.read` cannot both be declared). Raw `perform`
+remains available as a low-level constructor.
+
 Malformed tasks (e.g. a `bind` whose `then` is not a function, or an `effect` with a non-string `name`) are rejected as ordinary **guest-visible evaluation errors** when the task is run — never as host-language exceptions.
 
 ### The suspended form
@@ -597,7 +615,14 @@ entry through the same validated host API.
 
 **Durable suspend/resume.** Because a `pending` task is plain JSON, a host can `serializeTask` it, store it, and later `hydrateTask` + resume — even in a different process. `hydrateTask` restores the inertness marks that keep embedded tasks opaque to the evaluator.
 
-**Static admission.** `requiredCapabilities(module | task)` walks the JSON and returns the effect names a program could ever perform, as `{ names, dynamic }`. A host can enumerate what a program might ask for *before* running it and reject at admission time rather than hitting `UnhandledEffectError` mid-run. It is a conservative over-approximation — it does **not** subtract effects an in-language `handle` discharges — and sets `dynamic: true` when a `perform` name is not a literal string.
+**Static admission.** `requiredCapabilities(module | task, environment?)` walks
+the JSON and returns the effect names a program could ever perform, as
+`{ names, dynamic }`. Supplying the environment also recognizes calls through
+the generated `effects` namespace. A host can enumerate what a program might ask
+for _before_ running it and reject at admission time rather than hitting
+`UnhandledEffectError` mid-run. It is a conservative over-approximation — it
+does **not** subtract effects an in-language `handle` discharges — and sets
+`dynamic: true` when a `perform` name or `effects` access is computed.
 
 **Idempotency caveat.** `runTask` answers each `pending` exactly once, but durable suspend/resume makes **at-least-once** effect execution the practical reality: a crash between running a capability and persisting the resumed task reruns that effect on recovery (the same tradeoff as Temporal). In-language multi-shot `resume` is a feature; at the host boundary, replay is not free — capabilities with external side effects should take idempotency keys.
 
