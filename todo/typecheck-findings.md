@@ -182,58 +182,12 @@ leniency inline lambdas already get.
 
 ## Gaps surfaced by `examples/typed/thermostat.jfn`
 
-`examples/typed/thermostat.jfn` is a reference program in the same spirit as
-`ledger.jfn`, but exercising the **effect kernel**: a typed `Device` capability
-record, an `Action`/`Fault` discriminated union, and `-> Task` on every
-effectful function, over a `do`-notation loop (`perform`/`bind`/`pure`/`raise`)
-run in-language by a threaded-state `handle`. It **evaluates correctly**
-(`jfn eval --entry demo`) but does not yet pass `jfn check` (4 errors, 3
-warnings). The already-checkable cousin is `examples/typed/thermostat-checked.jfn`
-(byte-identical output). Repros verified through `jfn check`.
+Resolved by the typed host-environment B5 migration. The operator now owns the
+domain types, effect contracts, and `loop` entry contract in
+`examples/typed/thermostat.environment.json`; the guest uses literal `perform`
+calls so manifest result types flow through `bind`. The former
+`thermostat-checked.jfn` workaround was removed.
 
-To see just the checkability-driven deltas between the goal and its cousin
-(stripping comment lines, which diverge throughout for narration):
-
-```sh
-diff --unified \
-  <(rg -v '^\s*//' examples/typed/thermostat.jfn) \
-  <(rg -v '^\s*//' examples/typed/thermostat-checked.jfn)
-```
-
-Its 7 diagnostics split across four causes. All were pinned down while tightening
-the checkable cousin, which now types every effectful boundary (`-> Task` on the
-`Device` methods, `dev`, `actuate`, `loop`, and — after the restructure below —
-`onReading`) except the two genuinely-blocked spots called out here.
-
-**`match` doesn't narrow the subject (1 error + 3 warnings)** — the gap already
-filed under `ledger.jfn`, here on `describe`/`actuate`/`apply`, where
-`match act.tag { … }` doesn't narrow `act`. A shallow access like `act.to`
-(`describe`'s `"switch"` case, `actuate`, and `apply`'s returned `mode`) only
-misses to `Mode | null` and stays a `warning`; the nested `act.fault.tag`
-(`describe`'s `"alarm"` case) fully degrades to `any` and is a hard `error`,
-since field projection off a union doesn't recurse through a second field hop.
-
-**A `do`-block with a local `let` binding erases to `any` (1 error)** — blocks
-`onReading`. Note first that `bind`/`perform`/`pure`/`raise` all return the
-`Task` node (only `handle` returns top — below), so an explicit `bind` chain is
-`Task`: `loop`'s `if … then pure(st) else bind(…)` body checks against `-> Task`
-fine. The failure is specific to `do`-notation with a plain local: `do { action: …, _ <- … }`
-lowers to an *immediately-invoked scope* — `{ $call: { action: …, $return: bind(…) }, $args: [] }`
-— and calling that inline bindings-object doesn't propagate its `$return` type,
-so the call synths to `true`. A `let`-free `do` lowers to a bare `bind` and keeps
-`Task`; hoisting the local into a function-body `where` (leaving the `do` with no
-binding) recovers `-> Task`. General gap, not effect-specific: any IIFE-style
-call of an inline scope-object loses its `$return` type.
-
-**`handle` returns top (1 error)** — blocks `runScript`. Unlike the other kernel
-ops, `handle`'s floor result is `true` (its result is genuinely
-handler-dependent), so a `handle` expression can't satisfy a named return like
-`-> Report` and stays `any`. (A `task: Task` *parameter* is fine, since `loop`
-now returns a concrete `Task`.)
-
-**Bare capability-record lambdas synth to `any` (1 error)** — `dev`'s
-`{ read: () => perform(…), set: (mode) => …, log: (msg) => … }` fields come out
-as `true` rather than `() -> Task`, so the object isn't assignable to the
-declared `Device`. An unannotated lambda in object-literal field position isn't
-inferred against the field's expected function type, so a typed capability
-record can't be populated by bare handler lambdas.
+The example checks with zero errors against its environment. Its in-language
+`runScript` demo still reports information-level coverage degradations for bare
+handler-clause lambdas; those do not affect the typed host entry path.

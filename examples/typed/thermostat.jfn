@@ -1,30 +1,15 @@
 // A typed thermostat controller: read a sensor, decide, actuate — as effects.
 //
-// GOAL / REFERENCE example. This is how the type syntax *wants* to sit on top
-// of the effect kernel — a typed capability record (`Device`), a discriminated
-// `Action`/`Fault` union dispatched with `match`, `Reading`/`Config`/`State`
-// records, and `-> Task` on every effectful function — while the loop is
-// straight-line `do`-notation over `perform`/`bind`/`pure`/`raise`, run purely
-// in-language by a threaded-state `handle`. It **evaluates correctly**
-// (`jfn eval --entry demo`), so every construct here is sound at runtime; it
-// just does not yet pass `jfn check`. The gaps it provokes (no `Task<T>` so the
-// effect layer erases to an opaque `Task`, `match` not narrowing the `Action`
-// union, bare handler-clause lambdas, `where`-local narrowing) are the checker's
-// to close — see todo/typecheck-findings.md. The already-checkable cousin of
-// this program lives in examples/typed/thermostat-checked.jfn.
+// The operator-owned environment supplies Celsius, Percent, Mode, Config,
+// Reading, State, the three effect contracts, and the loop entry contract.
+// This guest module owns only its internal control and demo types. Literal
+// `perform` calls let the checker carry each manifest result through `bind`.
 //
-// Try it (pure interpretation — every effect answered in-language):
-//   bun run typescript/src/cli.ts eval --file examples/typed/thermostat.jfn --entry demo
+// Run it through the validated host environment:
+//   bun run typescript/examples/thermostat.ts
+// Check it against the same environment:
+//   bun run typescript/src/cli.ts check --environment examples/typed/thermostat.environment.json --file examples/typed/thermostat.jfn
 {
-  // ----- domain types -------------------------------------------------------
-  type Celsius = number,
-  type Percent = integer & min(0) & max(100),
-  type Mode    = "heat" | "cool" | "off",
-
-  type Config  = { target: Celsius, tolerance: number },
-  type Reading = { temp: Celsius, battery: Percent },
-  type State   = { config: Config, mode: Mode },
-
   // A fault the controller reports rather than silently swallowing.
   type Fault =
       { tag: "OutOfRange", temp: Celsius }
@@ -35,11 +20,6 @@
       { tag: "hold" }
     | { tag: "switch", to: Mode }
     | { tag: "alarm",  fault: Fault },
-
-  // A task is an opaque effect description (docs: a tagged `@task` object). The
-  // type syntax has no user-facing generics, so we cannot say `Task<T>`; every
-  // effectful function is stamped with this erased shape instead.
-  type Task = { "@task": string, ... },
 
   // ----- pure control logic -------------------------------------------------
 
@@ -67,47 +47,32 @@
     else     -> `${str(reading.temp)}C bat${str(reading.battery)}% -> hold`
   },
 
-  // ----- IO as a typed capability record ------------------------------------
-  // The loop never names `perform`; it holds this narrow `Device` interface,
-  // which an outer handler is free to interpret however it likes.
-  dev: () -> Device => {
-    read: () => perform("sensor.read", []),
-    set:  (mode) => perform("hvac.set", [mode]),
-    log:  (msg) => perform("log", [msg])
-  },
-
-  type Device = {
-    read: () -> Task,
-    set:  (Mode) -> Task,
-    log:  (string) -> Task
-  },
-
   // Turn an action into its effect. `alarm` escalates as a typed `raise`, so an
   // outer handler decides recovery; everything else pokes the HVAC (or nothing).
   actuate: (action: Action) -> Task => match action.tag {
-    "switch" -> dev().set(action.to),
+    "switch" -> perform("hvac.set", [action.to]),
     "alarm"  -> raise(action.fault),
     else     -> pure(null)
   },
 
   // ----- the control loop: straight-line do-notation ------------------------
 
-  onReading: (st: State, reading: Reading) -> Task => do {
-    action: decide(st.config, st.mode, reading),
-    _ <- dev().log(describe(action, reading)),
-    _ <- actuate(action),
-    pure(apply(st, action))
-  },
-
   // Read the sensor up to `fuel` times. A `null` reading (the sensor is out of
-  // data) ends the run gracefully with the final state.
+  // data) ends the run gracefully with the final state. The reading pipeline is
+  // inline because bare guest `Task` annotations intentionally erase completion
+  // types; only the environment entry can recover `Task<State>` for recursion.
   loop: (st: State, fuel: integer) -> Task =>
     if fuel <= 0
       then pure(st)
-      else bind(dev().read(), (reading) =>
+      else bind(perform("sensor.read", []), (reading) =>
         if isNull(reading)
           then pure(st)
-          else bind(onReading(st, reading), (next) => loop(next, fuel - 1))),
+          else do {
+            action: decide(st.config, st.mode, reading),
+            _ <- perform("log", [describe(action, reading)]),
+            _ <- actuate(action),
+            loop(apply(st, action), fuel - 1)
+          }),
 
   // ----- a scripted, in-language handler ------------------------------------
   // One handler, three effects, one threaded record: `sensor.read` consumes the

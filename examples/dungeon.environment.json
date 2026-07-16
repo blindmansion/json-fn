@@ -1,0 +1,91 @@
+{
+  "$defs": {
+    "RoomId": {
+      "enum": ["cell", "hall", "gate"]
+    },
+    "Room": {
+      "type": "object",
+      "required": ["name", "blurb", "exits", "item"],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "blurb": {
+          "type": "string"
+        },
+        "exits": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/RoomId"
+          }
+        },
+        "item": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "PlayerState": {
+      "type": "object",
+      "required": ["at", "held"],
+      "properties": {
+        "at": {
+          "$ref": "#/$defs/RoomId"
+        },
+        "held": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "functions": {},
+  "effects": {
+    "input": {
+      "params": [],
+      "returns": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    },
+    "print": {
+      "params": [
+        {
+          "type": "string"
+        }
+      ],
+      "returns": {
+        "type": "null"
+      }
+    }
+  },
+  "entry": {
+    "name": "play",
+    "params": [
+      {
+        "$ref": "#/$defs/PlayerState"
+      }
+    ],
+    "returns": {
+      "task": {
+        "type": "string"
+      }
+    }
+  }
+}

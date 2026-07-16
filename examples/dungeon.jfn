@@ -1,15 +1,6 @@
 {
-  type RoomId = "cell" | "hall" | "gate",
-  type Room = {
-    name: string,
-    blurb: string,
-    exits: { [string]: RoomId },
-    item: string | null
-  },
-  type PlayerState = { at: RoomId, held: string[] },
+  // RoomId, Room, and PlayerState come from dungeon.environment.json.
   type Turn = { state: PlayerState, message: string, done: boolean },
-  type Task = { "@task": string, ... },
-  type Io = { ask: () -> Task, say: (string) -> Task },
   type ScriptState = { pending: string[], transcript: string[] },
   type ScriptReport = { ending: string, transcript: string[] },
 
@@ -90,31 +81,17 @@
     verb: parts[0]
   },
 
-  // ---- IO as a capability record -------------------------------------------
-  // The loop never touches `perform` by name for input/output; it holds this
-  // narrow interface, which an outer handler is free to interpret however it
-  // likes (a terminal, a test script, a chat bot...).
-
-  io: () -> Io => {
-    ask: () => perform("input", []),
-    say: (msg) => perform("print", [msg])
-  },
-
   // ---- The game loop: straight-line do-notation ----------------------------
 
   play: (st: PlayerState) -> Task => do {
-    _   <- io().say(look(st)),
-    cmd <- io().ask(),
+    _   <- perform("print", [look(st)]),
+    cmd <- perform("input", []),
     if isNull(cmd)
       then pure("The narrator ran out of script mid-dungeon.")
-      else playTurn(st, cmd)
-  },
-
-  playTurn: (st: PlayerState, cmd: string) -> Task => do {
-    _ <- io().say(turn.message),
-    if turn.done then pure(turn.message) else play(turn.state)
-  } where {
-    turn: step(st, cmd)
+      else bind(perform("print", [step(st, cmd).message]), (_) =>
+        if step(st, cmd).done
+          then pure(step(st, cmd).message)
+          else play(step(st, cmd).state))
   },
 
   // ---- A bidirectional scripted handler -------------------------------------

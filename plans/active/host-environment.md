@@ -261,10 +261,13 @@ manifest so it never writes raw `perform` strings.
 
 ### B5 — Migrate the examples
 
+Status: complete.
+
 Convert `thermostat` and `dungeon` to consume the environment. Delete the
 `type Task = { "@task": string, ... }` stand-ins, the guest-authored
 `dev()`/`io()` wiring, and the `-checked` cousin where the `Task` erasure was its
-only reason to exist. This is the acceptance test for the epic.
+only reason to exist. Checker and runtime integration tests use the real example
+files and their portable environments as the acceptance test for the epic.
 
 ### B6 — Durable orchestration driver
 
@@ -402,7 +405,8 @@ suspension point:
   boundaries, and an erased completion index.
 - **Completed:** B4 packages the environment and enforces direct-function,
   effect, and entry boundaries.
-- **Remaining epic:** B5 migrates the examples.
+- **Completed:** B5 migrates the examples and tests their checker/runtime
+  integration.
 - **Durable driver:** B6, a parallel track on the same primitives; sequence
   against the orchestration use case rather than the typed-environment milestone.
 

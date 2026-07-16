@@ -99,7 +99,9 @@ durable orchestration driver      (parallel, manifest-dependent track)
 7. **Effects and `Task<A>` — ✅ done:** host-environment B2/B3.
 8. **Environment packaging — ✅ done:** direct functions, effects, types, and
    entrypoint in host-environment B4.
-9. **Examples and durability:** B5 and B6.
+9. **Examples — ✅ done:** B5 migrates thermostat and dungeon to operator-owned
+   environments and covers their checker/runtime integration.
+10. **Durability:** B6 remains.
 
 Behavior corrections should not be mixed into the rule-substrate refactor
 except for `flatMap`, whose purpose is to exercise that substrate. This keeps

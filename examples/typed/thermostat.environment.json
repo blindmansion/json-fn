@@ -1,0 +1,106 @@
+{
+  "$defs": {
+    "Celsius": {
+      "type": "number"
+    },
+    "Percent": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "Mode": {
+      "enum": ["heat", "cool", "off"]
+    },
+    "Config": {
+      "type": "object",
+      "required": ["target", "tolerance"],
+      "properties": {
+        "target": {
+          "$ref": "#/$defs/Celsius"
+        },
+        "tolerance": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false
+    },
+    "Reading": {
+      "type": "object",
+      "required": ["temp", "battery"],
+      "properties": {
+        "temp": {
+          "$ref": "#/$defs/Celsius"
+        },
+        "battery": {
+          "$ref": "#/$defs/Percent"
+        }
+      },
+      "additionalProperties": false
+    },
+    "State": {
+      "type": "object",
+      "required": ["config", "mode"],
+      "properties": {
+        "config": {
+          "$ref": "#/$defs/Config"
+        },
+        "mode": {
+          "$ref": "#/$defs/Mode"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "functions": {},
+  "effects": {
+    "sensor.read": {
+      "params": [],
+      "returns": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/Reading"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    },
+    "hvac.set": {
+      "params": [
+        {
+          "$ref": "#/$defs/Mode"
+        }
+      ],
+      "returns": {
+        "type": "null"
+      }
+    },
+    "log": {
+      "params": [
+        {
+          "type": "string"
+        }
+      ],
+      "returns": {
+        "type": "null"
+      }
+    }
+  },
+  "entry": {
+    "name": "loop",
+    "params": [
+      {
+        "$ref": "#/$defs/State"
+      },
+      {
+        "type": "integer"
+      }
+    ],
+    "returns": {
+      "task": {
+        "$ref": "#/$defs/State"
+      }
+    }
+  }
+}

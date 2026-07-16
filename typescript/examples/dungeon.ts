@@ -1,8 +1,8 @@
 // dungeon.ts — interactive host for examples/dungeon.jfn.
 //
 // The game's `play` loop performs exactly two effects — `input` (read a
-// command) and `print` (show a line) — through the narrow `io()` capability
-// record. The dungeon's own `runScript` handler interprets those *in-language*
+// command) and `print` (show a line) — declared by the operator-owned
+// environment. The dungeon's own `runScript` handler interprets them *in-language*
 // for its demos; this host instead answers them from a real terminal via
 // `runTask`, so the same pure game logic becomes a playable game.
 //
@@ -16,13 +16,23 @@
 // Or feed it a script:
 //   printf 'take\ngo north\ngo east\nunlock\n' | bun run typescript/examples/dungeon.ts
 
-import { runTask, createStdlib, parseShorthand, TaskRaiseError, type JSONType } from "../src";
+import {
+  runTask,
+  createStdlib,
+  loadEnvironment,
+  parseShorthand,
+  TaskRaiseError,
+  type JSONType,
+} from "../src";
 import { readFileSync } from "fs";
 import { join } from "path";
 import { createInterface } from "readline";
 
 const source = readFileSync(join(import.meta.dir, "../../examples/dungeon.jfn"), "utf-8");
 const game = parseShorthand(source) as Record<string, JSONType>;
+const environment = loadEnvironment(
+  join(import.meta.dir, "../../examples/dungeon.environment.json"),
+);
 
 // A promise-based line reader over stdin. Resolves to null at EOF — the very
 // sentinel the dungeon's `play` loop checks with `isNull(cmd)`.
@@ -58,7 +68,10 @@ const capabilities = {
 
 const start: JSONType = { at: "cell", held: [] };
 try {
-  const ending = await runTask(game, "play", [start], createStdlib(), capabilities);
+  const ending = await runTask(game, environment, [start], {
+    registry: createStdlib(),
+    capabilities,
+  });
   rl.close();
   console.log(`\n${ending as string}`);
   process.exit(0);

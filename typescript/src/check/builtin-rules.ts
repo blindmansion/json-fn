@@ -337,7 +337,12 @@ function tryBindOverload(
 
 // Real pass over a chosen overload: emit diagnostics, type inline lambdas with
 // the inferred type variables, and return the instantiated result schema.
-function applyOverload(sig: BuiltinSig, argExprs: JSONType[], ctx: CheckContext): Schema {
+function applyOverload(
+  sig: BuiltinSig,
+  argExprs: JSONType[],
+  ctx: CheckContext,
+  skipContextualCallbacks: ReadonlySet<number> = new Set(),
+): Schema {
   const arityOk = checkArity(sig, argExprs.length, ctx);
   const bindings: Bindings = {};
   const lambdas: number[] = [];
@@ -360,7 +365,7 @@ function applyOverload(sig: BuiltinSig, argExprs: JSONType[], ctx: CheckContext)
       continue;
     }
     if (isContextualLambda(argExprs[i]!)) {
-      lambdas.push(i);
+      if (!skipContextualCallbacks.has(i)) lambdas.push(i);
       continue;
     }
     concrete.push({ param, schema: synth(argExprs[i]!, actx), ctx: actx });
@@ -529,7 +534,11 @@ function reportNoOverload(
   return instantiate(overloads[0]!.returns, {});
 }
 
-function createRuleServices(argExprs: JSONType[], ctx: CheckContext): BuiltinTypeRuleServicesV1 {
+function createRuleServices(
+  argExprs: JSONType[],
+  ctx: CheckContext,
+  contextualizedCallbacks: Set<number>,
+): BuiltinTypeRuleServicesV1 {
   const ruleContext = (options: { argumentIndex?: number; path?: string[] } = {}): CheckContext => {
     let target = ctx;
     if (options.argumentIndex !== undefined) {
@@ -555,6 +564,7 @@ function createRuleServices(argExprs: JSONType[], ctx: CheckContext): BuiltinTyp
     contextualTypeCallback: (index, expectedFn) => {
       const expr = argExprs[index];
       if (expr === undefined || !isContextualLambda(expr)) return null;
+      contextualizedCallbacks.add(index);
       const diagnostics: Diagnostic[] = [];
       const result = inferLambdaReturn(expr, expectedFn, {
         ...at(ctx, `$args[${index}]`),
@@ -591,6 +601,9 @@ function synthBuiltinCall(
   argExprs: JSONType[],
   ctx: CheckContext,
 ): Schema {
+  const rule = entry.rule === undefined ? undefined : ctx.typeRules?.[entry.rule];
+  const fallbackDiagnostics: Diagnostic[] = [];
+  const fallbackContext = rule === undefined ? ctx : { ...ctx, diagnostics: fallbackDiagnostics };
   const chosen = entry.signatures.find((ov) => tryBindOverload(ov, argExprs, ctx) !== null);
   const fallbackMatched = chosen !== undefined;
   let fallbackResult: Schema;
@@ -600,22 +613,50 @@ function synthBuiltinCall(
   // builtin still falls through to `applyOverload`, whose per-argument, arity,
   // and return diagnostics are already precise.
   if (chosen === undefined && entry.signatures.length > 1) {
-    fallbackResult = reportNoOverload(name, entry.signatures, argExprs, ctx);
+    fallbackResult = reportNoOverload(name, entry.signatures, argExprs, fallbackContext);
   } else {
-    fallbackResult = applyOverload(chosen ?? entry.signatures[0]!, argExprs, ctx);
+    fallbackResult = applyOverload(chosen ?? entry.signatures[0]!, argExprs, fallbackContext);
   }
 
   if (entry.rule === undefined) return fallbackResult;
-  const rule = ctx.typeRules?.[entry.rule];
   if (rule === undefined) {
     reportCoverageDegradation(ctx, `callable rule "${entry.rule}" is unavailable`);
     return fallbackResult;
   }
 
+  const contextualizedCallbacks = new Set<number>();
+  const ruleDiagnostics: Diagnostic[] = [];
+  const ruleContext = { ...ctx, diagnostics: ruleDiagnostics };
   const result = rule(
     { name, args: argExprs, fallbackResult, fallbackMatched },
-    createRuleServices(argExprs, ctx),
+    createRuleServices(argExprs, ruleContext, contextualizedCallbacks),
   );
+  // Once a rule contextually rechecks a callback, rerun the fallback's
+  // diagnostic pass without that callback. This retains diagnostics from other
+  // arguments while avoiding stale errors produced under the fallback's broad
+  // callback parameter types. Re-running is necessary because lazy locals can
+  // report at binding-relative paths that cannot be filtered reliably.
+  let retainedFallback = fallbackDiagnostics;
+  if (contextualizedCallbacks.size > 0) {
+    retainedFallback = [];
+    applyOverload(
+      chosen ?? entry.signatures[0]!,
+      argExprs,
+      {
+        ...ctx,
+        diagnostics: retainedFallback,
+      },
+      contextualizedCallbacks,
+    );
+  }
+  const existing = new Set(ctx.diagnostics.map(stableStringify));
+  for (const diagnostic of [...retainedFallback, ...ruleDiagnostics]) {
+    const key = stableStringify(diagnostic);
+    if (!existing.has(key)) {
+      ctx.diagnostics.push(diagnostic);
+      existing.add(key);
+    }
+  }
   if (!isSubschema(result, fallbackResult, ctx.defs)) {
     throw new BuiltinTypeRuleContractError(entry.rule, fallbackResult, result);
   }
