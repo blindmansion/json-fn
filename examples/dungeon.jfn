@@ -88,10 +88,13 @@
     cmd <- perform("input", []),
     if isNull(cmd)
       then pure("The narrator ran out of script mid-dungeon.")
-      else bind(perform("print", [step(st, cmd).message]), (_) =>
-        if step(st, cmd).done
-          then pure(step(st, cmd).message)
-          else play(step(st, cmd).state))
+      else do {
+        turn: step(st, cmd),
+        _ <- perform("print", [turn.message]),
+        if turn.done
+          then pure(turn.message)
+          else play(turn.state)
+      }
   },
 
   // ---- A bidirectional scripted handler -------------------------------------

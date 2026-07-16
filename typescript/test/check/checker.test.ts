@@ -762,6 +762,46 @@ describe("check: do-block / where IIFE (Part A)", () => {
     const mod = { f: body([], { params: [], returns: I }, iife({ $var: "x" }, { x: 1 })) };
     expect(checkModule(mod)).toEqual([]);
   });
+
+  test("a bind-continuation IIFE retains facts active where its lazy locals are created", () => {
+    const nullableString: Schema = { anyOf: [S, { type: "null" }] };
+    const taskString: Schema = { $taskType: S };
+    const mod = {
+      acceptsString: body(["value"], { params: [S], returns: { type: "boolean" } }, true),
+      run: body(
+        ["cmd"],
+        { params: [nullableString], returns: taskString },
+        {
+          $if: { $call: "isNull", $args: [{ $var: "cmd" }] },
+          $then: { $call: "pure", $args: ["none"] },
+          $else: {
+            $call: "bind",
+            $args: [
+              { $call: "pure", $args: [null] },
+              {
+                $params: ["_"],
+                $return: iife(
+                  {
+                    $if: { $var: "accepted" },
+                    $then: { $call: "pure", $args: ["yes"] },
+                    $else: { $call: "pure", $args: ["no"] },
+                  },
+                  {
+                    accepted: {
+                      $call: "acceptsString",
+                      $args: [{ $var: "cmd" }],
+                    },
+                  },
+                ),
+              },
+            ],
+          },
+        },
+      ),
+    };
+
+    expect(checkModule(mod, loadBuiltinTable())).toEqual([]);
+  });
 });
 
 describe("checkModule: dangling $ref → hard error", () => {

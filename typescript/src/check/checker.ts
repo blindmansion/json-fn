@@ -146,10 +146,15 @@ function buildTypeScope(
   // Lazy locals double as named boolean guards (§2.3); outer guards remain in
   // scope, with siblings shadowing them.
   const guards: Record<string, JSONType> = { ...ctx.guards, ...exprLocals };
+  // Facts that dominate creation of this lexical scope also dominate every
+  // evaluation of its lazy locals. A forcing site can add facts, but crossing
+  // an IIFE/callback boundary must not erase the facts under which the scope
+  // itself was created.
+  const creationNarrowings = ctx.narrowings ?? {};
 
-  // Two-tier cache: `memo` is the un-narrowed type (the fast path, byte-for-byte
-  // as before); `narrowedMemo[name][key]` holds a re-synth under a specific set
-  // of *relevant* facts (§2.2c).
+  // Two-tier cache: `memo` is the type when no creation/forcing facts relevant
+  // to the local are active; `narrowedMemo[name][key]` holds a re-synth under a
+  // specific set of *relevant* merged facts (§2.2c).
   const memo: Record<string, Schema> = {};
   const narrowedMemo: Record<string, Record<string, Schema>> = {};
   const freeVarsMemo: Record<string, Set<string>> = {};
@@ -201,10 +206,16 @@ function buildTypeScope(
       if (name in eager) return eager[name];
       if (!(name in exprLocals)) return parent?.lookupType(name, narrowings);
 
+      // Lexical creation facts always apply; forcing-site facts augment them.
+      // This matters when guard analysis asks for a local's current type through
+      // `lookupType(name)` without explicitly forwarding `ctx.narrowings`.
+      const active =
+        Object.keys(creationNarrowings).length === 0
+          ? (narrowings ?? {})
+          : { ...creationNarrowings, ...narrowings };
       // Gate: only facts this local depends on matter. With none, the plain
-      // memo answers — the no-narrowing path stays exactly as before.
-      const relevant =
-        narrowings && Object.keys(narrowings).length > 0 ? relevantFacts(name, narrowings) : {};
+      // memo answers — the genuinely no-narrowing path stays exactly as before.
+      const relevant = Object.keys(active).length > 0 ? relevantFacts(name, active) : {};
       if (Object.keys(relevant).length === 0) {
         if (name in memo) return memo[name];
         return (memo[name] = resolveLocal(name, undefined));

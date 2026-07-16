@@ -72,7 +72,7 @@ recursive helpers precise without recursive return inference. The
 environment-injected entry signature uses the same checker node and normal
 function-body path. Runtime task records and serialization are unchanged.
 
-### 3. `do` locals can lose narrowing and result precision
+### 3. `do` locals can lose narrowing and result precision — ✅ resolved
 
 `do` lowers to `bind`, and a plain local binding introduces an immediately
 invoked scope object. In the migrated dungeon, a value narrowed from
@@ -88,8 +88,12 @@ Fix the lowered form rather than teaching authors workarounds:
 - `do` and its explicit `bind` expansion must agree on result and diagnostic
   behavior.
 
-Afterward, restore single-evaluation locals in dungeon instead of repeating
-`step(st, cmd)`.
+Resolved by synthesizing unannotated invoked scopes from their `$return` and
+making lazy-local resolution merge the facts active when the scope was created
+with any additional facts active where the local is forced. The fact-sensitive
+cache is keyed from that merged, free-variable-filtered set. Explicit `bind`
+continuations and shorthand `do` therefore use the same checker paths, and the
+dungeon now binds `step(st, cmd)` once.
 
 ### 4. Portable fallback diagnostics can conflict with precise rules
 
@@ -163,7 +167,7 @@ Do not add ergonomic features to both old and new paths.
 2. ✅ Choose and implement the manifest-derived effect-call syntax and collision
    policy.
 3. ✅ Add compositional helper completion types (`Task<A>`).
-4. Fix scope-call result synthesis and narrowing through `do` locals.
+4. ✅ Fix scope-call result synthesis and narrowing through `do` locals.
 5. Formalize fallback-versus-rule diagnostic ownership.
 6. Contextually type effect handlers.
 7. Make CLI checking and execution consistently environment-driven.

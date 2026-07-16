@@ -57,6 +57,15 @@
 
   // ----- the control loop: straight-line do-notation ------------------------
 
+  // Process one reading without losing the concrete Task<State> completion
+  // type at this helper boundary.
+  onReading: (st: State, reading: Reading) -> Task<State> => do {
+    action: decide(st.config, st.mode, reading),
+    _ <- perform("log", [describe(action, reading)]),
+    _ <- actuate(action),
+    pure(apply(st, action))
+  },
+
   // Read the sensor up to `fuel` times. A `null` reading (the sensor is out of
   // data) ends the run gracefully with the final state. The environment owns
   // this entry's parameter and Task<State> completion contract.
@@ -67,10 +76,8 @@
         if isNull(reading)
           then pure(st)
           else do {
-            action: decide(st.config, st.mode, reading),
-            _ <- perform("log", [describe(action, reading)]),
-            _ <- actuate(action),
-            loop(apply(st, action), fuel - 1)
+            next <- onReading(st, reading),
+            loop(next, fuel - 1)
           }),
 
   // ----- a scripted, in-language handler ------------------------------------
