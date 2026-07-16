@@ -120,6 +120,36 @@
         "$return": { "$call": "split", "$args": [{ "$var": "trimmed" }, " "] }
       },
       "expected": ["one", "two", "three"]
+    },
+    {
+      "description": "startsWith: identifies a matching prefix",
+      "body": { "$return": { "$call": "startsWith", "$args": ["json-fn", "json"] } },
+      "expected": true
+    },
+    {
+      "description": "startsWith: rejects a non-prefix substring",
+      "body": { "$return": { "$call": "startsWith", "$args": ["json-fn", "fn"] } },
+      "expected": false
+    },
+    {
+      "description": "endsWith: identifies a matching suffix",
+      "body": { "$return": { "$call": "endsWith", "$args": ["json-fn", "fn"] } },
+      "expected": true
+    },
+    {
+      "description": "endsWith: rejects a non-suffix substring",
+      "body": { "$return": { "$call": "endsWith", "$args": ["json-fn", "json"] } },
+      "expected": false
+    },
+    {
+      "description": "startsWith and endsWith: every string has an empty boundary",
+      "body": {
+        "$return": [
+          { "$call": "startsWith", "$args": ["json-fn", ""] },
+          { "$call": "endsWith", "$args": ["json-fn", ""] }
+        ]
+      },
+      "expected": [true, true]
     }
   ]
 }

@@ -180,6 +180,54 @@
         "$return": { "$call": "add", "$args": [{ "$var": "first" }, { "$var": "end" }] }
       },
       "expected": 60
+    },
+    {
+      "description": "take: returns the requested prefix",
+      "body": { "$return": { "$call": "take", "$args": [[1, 2, 3, 4], 2] } },
+      "expected": [1, 2]
+    },
+    {
+      "description": "take: count beyond the length returns the whole array",
+      "body": { "$return": { "$call": "take", "$args": [[1, 2, 3], 10] } },
+      "expected": [1, 2, 3]
+    },
+    {
+      "description": "take: non-positive count returns an empty array",
+      "body": {
+        "$return": [
+          { "$call": "take", "$args": [[1, 2, 3], 0] },
+          { "$call": "take", "$args": [[1, 2, 3], -2] }
+        ]
+      },
+      "expected": [[], []]
+    },
+    {
+      "description": "drop: removes the requested prefix",
+      "body": { "$return": { "$call": "drop", "$args": [[1, 2, 3, 4], 2] } },
+      "expected": [3, 4]
+    },
+    {
+      "description": "drop: count beyond the length returns an empty array",
+      "body": { "$return": { "$call": "drop", "$args": [[1, 2, 3], 10] } },
+      "expected": []
+    },
+    {
+      "description": "drop: non-positive count returns the whole array",
+      "body": {
+        "$return": [
+          { "$call": "drop", "$args": [[1, 2, 3], 0] },
+          { "$call": "drop", "$args": [[1, 2, 3], -2] }
+        ]
+      },
+      "expected": [
+        [1, 2, 3],
+        [1, 2, 3]
+      ]
+    },
+    {
+      "description": "take and drop: reject a non-integer count",
+      "body": { "$return": { "$call": "take", "$args": [[1, 2, 3], 1.5] } },
+      "error": "must be an integer"
     }
   ]
 }

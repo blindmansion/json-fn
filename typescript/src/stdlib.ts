@@ -92,6 +92,15 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
       if (!Array.isArray(arr)) throw new Error("min: argument must be an array");
       return Math.min(...arr);
     }),
+    sum: pure((arr: number[]) => {
+      if (!Array.isArray(arr)) throw new Error("sum: argument must be an array");
+      let total = 0;
+      for (const value of arr) {
+        if (typeof value !== "number") throw new Error("sum: array elements must be numbers");
+        total += value;
+      }
+      return total;
+    }),
 
     // Comparison. Equality is structural: json-fn values are immutable JSON, so
     // there is no observable reference identity to compare — deep equality is the
@@ -160,6 +169,16 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
       end === undefined ? arr.slice(start) : arr.slice(start, end),
     ),
     reverse: pure((arr: any[]) => [...arr].reverse()),
+    take: pure((arr: any[], count: number) => {
+      if (!Array.isArray(arr)) throw new Error("take: first argument must be an array");
+      if (!Number.isInteger(count)) throw new Error("take: second argument must be an integer");
+      return arr.slice(0, Math.max(0, count));
+    }),
+    drop: pure((arr: any[], count: number) => {
+      if (!Array.isArray(arr)) throw new Error("drop: first argument must be an array");
+      if (!Number.isInteger(count)) throw new Error("drop: second argument must be an integer");
+      return arr.slice(Math.max(0, count));
+    }),
     // Membership uses the same structural equality as `eq` for array elements;
     // on strings these stay substring/char-index checks.
     includes: pure((arr: any[] | string, value: any) =>
@@ -191,6 +210,8 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
     }),
     split: pure((s: string, sep: string) => s.split(sep)),
     join: pure((arr: any[], sep: string) => arr.join(sep)),
+    startsWith: pure((s: string, prefix: string) => s.startsWith(prefix)),
+    endsWith: pure((s: string, suffix: string) => s.endsWith(suffix)),
 
     // Object utilities
     keys: pure((obj: Record<string, any>) => Object.keys(obj)),
@@ -263,6 +284,16 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
       if (!Array.isArray(arr)) throw new Error("every: second argument must be an array");
       meter.charge(arr.length);
       return arr.every((item, i) => call(callback!, [item, i]));
+    }, 2),
+    count: builtin((args, call, _functions, meter) => {
+      const [callback, arr] = args;
+      if (!Array.isArray(arr)) throw new Error("count: second argument must be an array");
+      meter.charge(arr.length);
+      let matches = 0;
+      for (let i = 0; i < arr.length; i++) {
+        if (call(callback!, [arr[i]!, i])) matches++;
+      }
+      return matches;
     }, 2),
     sort: builtin((args, call, _functions, meter) => {
       const [comparator, arr] = args;

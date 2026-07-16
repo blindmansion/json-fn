@@ -347,9 +347,11 @@ describe("Section F — builtin signatures", () => {
   });
 
   describe("tier 1 — monomorphic & concrete overloads", () => {
-    test("max/min preserve integer and widen to number", () => {
+    test("max/min/sum preserve integer and widen to number", () => {
       expect(synthB(call("max", [1, 2, 3])).type).toEqual({ type: "integer" });
       expect(synthB(call("min", [1.5, 2])).type).toEqual({ type: "number" });
+      expect(synthB(call("sum", [1, 2, 3])).type).toEqual({ type: "integer" });
+      expect(synthB(call("sum", [1.5, 2])).type).toEqual({ type: "number" });
     });
 
     test("num/isTask/arity have concrete returns", () => {
@@ -369,6 +371,12 @@ describe("Section F — builtin signatures", () => {
 
     test("strcat rejects a non-string arg", () => {
       expect(synthB(call("strcat", "a", 1)).diagnostics.length).toBeGreaterThan(0);
+    });
+
+    test("startsWith/endsWith return boolean and require strings", () => {
+      expect(synthB(call("startsWith", "hello", "he")).type).toEqual({ type: "boolean" });
+      expect(synthB(call("endsWith", "hello", "lo")).type).toEqual({ type: "boolean" });
+      expect(synthB(call("startsWith", "hello", 1)).diagnostics.length).toBeGreaterThan(0);
     });
 
     test("regex families: reTest/reMatchAll/reReplace/reSplit", () => {
@@ -414,6 +422,12 @@ describe("Section F — builtin signatures", () => {
       expect(isSubschema(synthB(call("slice", [1, 2, 3], 1, 2)).type, arrOfInt)).toBe(true);
       expect(synthB(call("slice", "hello", 1)).type).toEqual(S);
       expect(synthB(call("slice", "hello", 1, 3)).type).toEqual(S);
+    });
+
+    test("take/drop preserve the array element type", () => {
+      expect(isSubschema(synthB(call("take", [1, 2, 3], 2)).type, arrOfInt)).toBe(true);
+      expect(isSubschema(synthB(call("drop", [1, 2, 3], 2)).type, arrOfInt)).toBe(true);
+      expect(synthB(call("take", [1, 2, 3], 1.5)).diagnostics.length).toBeGreaterThan(0);
     });
 
     test("includes/indexOf pick the right arm", () => {
@@ -482,6 +496,20 @@ describe("Section F — builtin signatures", () => {
       );
       expect(synthB(call("some", gtOne, [1, 2, 3])).type).toEqual({ type: "boolean" });
       expect(synthB(call("every", gtOne, [1, 2, 3])).type).toEqual({ type: "boolean" });
+    });
+
+    test("count contextually types its predicate and returns integer", () => {
+      const gtOne = { $params: ["n", "i"], $return: call("gt", { $var: "n" }, 1) };
+      const result = synthB(call("count", gtOne, [1, 2, 3]));
+      expect(result.diagnostics).toEqual([]);
+      expect(result.type).toEqual(I);
+
+      const nonBoolean = { $params: ["n"], $return: { $var: "n" } };
+      expect(
+        synthB(call("count", nonBoolean, [1, 2, 3])).diagnostics.some(
+          (d) => d.path.join(".") === "$args[0].$return",
+        ),
+      ).toBe(true);
     });
 
     test("sort/sortBy preserve the element type", () => {

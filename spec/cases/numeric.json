@@ -125,6 +125,31 @@
         "$return": { "$call": "sub", "$args": [{ "$var": "hi" }, { "$var": "lo" }] }
       },
       "expected": 8
+    },
+    {
+      "description": "sum: adds integer elements",
+      "body": { "$return": { "$call": "sum", "$args": [[1, 2, 3, 4]] } },
+      "expected": 10
+    },
+    {
+      "description": "sum: adds decimal and negative elements",
+      "body": { "$return": { "$call": "sum", "$args": [[1.5, -2, 3.25]] } },
+      "expected": 2.75
+    },
+    {
+      "description": "sum: empty array returns zero",
+      "body": { "$return": { "$call": "sum", "$args": [[]] } },
+      "expected": 0
+    },
+    {
+      "description": "sum: rejects a non-array argument",
+      "body": { "$return": { "$call": "sum", "$args": [42] } },
+      "error": "must be an array"
+    },
+    {
+      "description": "sum: rejects a non-number element",
+      "body": { "$return": { "$call": "sum", "$args": [[1, "2", 3]] } },
+      "error": "elements must be numbers"
     }
   ]
 }

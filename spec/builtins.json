@@ -96,6 +96,16 @@
         "returns": { "type": "number" }
       }
     ] },
+    "sum": { "signatures": [
+      {
+        "params": [{ "type": "array", "items": { "type": "integer" } }],
+        "returns": { "type": "integer" }
+      },
+      {
+        "params": [{ "type": "array", "items": { "type": "number" } }],
+        "returns": { "type": "number" }
+      }
+    ] },
     "eq": { "signatures": [{ "params": [true, true], "returns": { "type": "boolean" } }] },
     "neq": { "signatures": [{ "params": [true, true], "returns": { "type": "boolean" } }] },
     "lt": { "signatures": [
@@ -142,6 +152,18 @@
         "returns": { "type": "string" }
       }
     ] },
+    "startsWith": { "signatures": [
+      {
+        "params": [{ "type": "string" }, { "type": "string" }],
+        "returns": { "type": "boolean" }
+      }
+    ] },
+    "endsWith": { "signatures": [
+      {
+        "params": [{ "type": "string" }, { "type": "string" }],
+        "returns": { "type": "boolean" }
+      }
+    ] },
     "length": { "signatures": [
       { "params": [{ "type": "array" }], "returns": { "type": "integer" } },
       { "params": [{ "type": "string" }], "returns": { "type": "integer" } }
@@ -171,6 +193,26 @@
       {
         "typeParams": ["T"],
         "params": [{ "type": "array", "items": { "$tvar": "T" } }],
+        "returns": { "type": "array", "items": { "$tvar": "T" } }
+      }
+    ] },
+    "take": { "signatures": [
+      {
+        "typeParams": ["T"],
+        "params": [
+          { "type": "array", "items": { "$tvar": "T" } },
+          { "type": "integer" }
+        ],
+        "returns": { "type": "array", "items": { "$tvar": "T" } }
+      }
+    ] },
+    "drop": { "signatures": [
+      {
+        "typeParams": ["T"],
+        "params": [
+          { "type": "array", "items": { "$tvar": "T" } },
+          { "type": "integer" }
+        ],
         "returns": { "type": "array", "items": { "$tvar": "T" } }
       }
     ] },
@@ -414,6 +456,21 @@
           { "type": "array", "items": { "$tvar": "T" } }
         ],
         "returns": { "type": "boolean" }
+      }
+    ] },
+    "count": { "signatures": [
+      {
+        "typeParams": ["T"],
+        "params": [
+          {
+            "$fnType": {
+              "params": [{ "$tvar": "T" }, { "type": "integer" }],
+              "returns": { "type": "boolean" }
+            }
+          },
+          { "type": "array", "items": { "$tvar": "T" } }
+        ],
+        "returns": { "type": "integer" }
       }
     ] },
     "sort": { "signatures": [

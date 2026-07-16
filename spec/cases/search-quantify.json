@@ -286,6 +286,59 @@
         "$return": [{ "$var": "found" }, { "$var": "idx" }]
       },
       "expected": [30, 2]
+    },
+    {
+      "description": "count: returns the number of matching elements",
+      "body": {
+        "$return": {
+          "$call": "count",
+          "$args": [
+            { "$params": ["x"], "$return": { "$call": "gt", "$args": [{ "$var": "x" }, 2] } },
+            [1, 2, 3, 4, 5]
+          ]
+        }
+      },
+      "expected": 3
+    },
+    {
+      "description": "count: returns zero when no elements match",
+      "body": {
+        "$return": {
+          "$call": "count",
+          "$args": [
+            { "$params": ["x"], "$return": { "$call": "gt", "$args": [{ "$var": "x" }, 10] } },
+            [1, 2, 3]
+          ]
+        }
+      },
+      "expected": 0
+    },
+    {
+      "description": "count: empty array returns zero",
+      "body": {
+        "$return": { "$call": "count", "$args": [{ "$params": ["x"], "$return": true }, []] }
+      },
+      "expected": 0
+    },
+    {
+      "description": "count: callback receives the element index",
+      "body": {
+        "$return": {
+          "$call": "count",
+          "$args": [
+            { "$params": ["x", "i"], "$return": { "$call": "gte", "$args": [{ "$var": "i" }, 2] } },
+            ["a", "b", "c", "d"]
+          ]
+        }
+      },
+      "expected": 2
+    },
+    {
+      "description": "count: rejects a non-array argument",
+      "body": {
+        "$return": { "$call": "count", "$args": [{ "$params": ["x"], "$return": true }, 42] }
+      },
+      "error": "must be an array"
     }
   ]
 }

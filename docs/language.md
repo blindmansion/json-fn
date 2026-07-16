@@ -662,6 +662,7 @@ All functions listed below are available in the standard library.
 | `round`  | `(a)`    | round                    |
 | `max`    | `(arr)`  | max of array             |
 | `min`    | `(arr)`  | min of array             |
+| `sum`    | `(arr)`  | sum of array (`0` if empty) |
 
 ### Comparison
 
@@ -715,6 +716,8 @@ All functions listed below are available in the standard library.
 | `range`    | `(n)`                | `[0, 1, ..., n-1]`                       |
 | `slice`    | `(arr, start, end?)` | slice                                    |
 | `reverse`  | `(arr)`              | reversed copy                            |
+| `take`     | `(arr, n)`           | first `n` elements; non-positive `n` gives `[]` |
+| `drop`     | `(arr, n)`           | all but the first `n` elements; non-positive `n` returns a copy |
 | `includes` | `(arr, value)`       | structural contains check (substring check on strings) |
 | `indexOf`  | `(arr, value)`       | structural index of value, `null` if missing (substring index on strings) |
 | `flatten`  | `(arr)`              | flatten one level                        |
@@ -722,14 +725,16 @@ All functions listed below are available in the standard library.
 
 ### Strings
 
-| Function | Args           | Description               |
-| -------- | -------------- | ------------------------- |
-| `upper`  | `(s)`          | uppercase                 |
-| `lower`  | `(s)`          | lowercase                 |
-| `trim`   | `(s)`          | trim whitespace           |
-| `strcat` | `(...strings)` | concatenate strings       |
-| `split`  | `(s, sep)`     | split string              |
-| `join`   | `(arr, sep)`   | join array with separator |
+| Function     | Args           | Description                      |
+| ------------ | -------------- | -------------------------------- |
+| `upper`      | `(s)`          | uppercase                        |
+| `lower`      | `(s)`          | lowercase                        |
+| `trim`       | `(s)`          | trim whitespace                  |
+| `strcat`     | `(...strings)` | concatenate strings              |
+| `split`      | `(s, sep)`     | split string                     |
+| `join`       | `(arr, sep)`   | join array with separator        |
+| `startsWith` | `(s, prefix)`  | whether `s` starts with `prefix` |
+| `endsWith`   | `(s, suffix)`  | whether `s` ends with `suffix`   |
 
 ### Regex
 
@@ -773,6 +778,7 @@ Higher-order functions can invoke json-fn callbacks. The callback argument can b
 | `findIndex`     | `(callback, arr)`          | index of first match or `null`. Callback receives `(item, index)`.               |
 | `some`          | `(callback, arr)`          | any match. Callback receives `(item, index)`.                                    |
 | `every`         | `(callback, arr)`          | all match. Callback receives `(item, index)`.                                    |
+| `count`         | `(callback, arr)`          | number of matches. Callback receives `(item, index)`.                            |
 | `sort`          | `(comparator, arr)`        | sorted copy. Comparator receives `(a, b)`, returns number.                       |
 | `sortBy`        | `(keyFn, arr)`             | sorted copy by key function. keyFn receives `(item, index)`.                     |
 | `flatMap`       | `(callback, arr)`          | map then flatten arrays one level; retain scalar results. Callback receives `(item, index)`. |
