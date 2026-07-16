@@ -786,7 +786,7 @@ Higher-order functions can invoke json-fn callbacks. The callback argument can b
 | `some`          | `(callback, arr)`          | any match. Callback receives `(item, index)`.                                    |
 | `every`         | `(callback, arr)`          | all match. Callback receives `(item, index)`.                                    |
 | `count`         | `(callback, arr)`          | number of matches. Callback receives `(item, index)`.                            |
-| `sort`          | `(comparator, arr)`        | sorted copy. Comparator receives `(a, b)`, returns number.                       |
+| `sort`          | `(arr)` / `(comparator, arr)` | sorted copy. The default orders homogeneous numbers ascending or homogeneous strings by Unicode code point. A comparator receives `(a, b)` and returns a number. |
 | `sortBy`        | `(keyFn, arr)`             | sorted copy by key function. keyFn receives `(item, index)`.                     |
 | `flatMap`       | `(callback, arr)`          | map then flatten arrays one level; retain scalar results. Callback receives `(item, index)`. |
 | `groupBy`       | `(keyFn, arr)`             | group into object. keyFn receives `(item, index)`, must return string or number. |

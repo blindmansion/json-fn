@@ -539,6 +539,18 @@
     ] },
     "sort": { "signatures": [
       {
+        "params": [{ "type": "array", "items": { "type": "integer" } }],
+        "returns": { "type": "array", "items": { "type": "integer" } }
+      },
+      {
+        "params": [{ "type": "array", "items": { "type": "number" } }],
+        "returns": { "type": "array", "items": { "type": "number" } }
+      },
+      {
+        "params": [{ "type": "array", "items": { "type": "string" } }],
+        "returns": { "type": "array", "items": { "type": "string" } }
+      },
+      {
         "typeParams": ["T"],
         "params": [
           {

@@ -1,5 +1,5 @@
 import { builtin, pure, getArity } from "./utils";
-import type { FunctionRegistry, JSONType } from "./types";
+import type { FunctionRegistry, JSONType, Meter } from "./types";
 import { effectTask, pureTask, bindTask, isFnDecl, runHandle } from "./task";
 
 export type LogFn = (value: JSONType, label?: string) => void;
@@ -70,6 +70,20 @@ function jsonEqual(a: JSONType, b: JSONType): boolean {
 function finiteMathResult(name: string, result: number): number {
   if (!Number.isFinite(result)) throw new Error(`${name}: result must be a finite number`);
   return result;
+}
+
+function compareStrings(a: string, b: string, meter: Meter): number {
+  const left = a[Symbol.iterator]();
+  const right = b[Symbol.iterator]();
+  while (true) {
+    const l = left.next();
+    const r = right.next();
+    meter.charge(1);
+    if (l.done || r.done) return l.done === r.done ? 0 : l.done ? -1 : 1;
+    const lCodePoint = l.value.codePointAt(0)!;
+    const rCodePoint = r.value.codePointAt(0)!;
+    if (lCodePoint !== rCodePoint) return lCodePoint < rCodePoint ? -1 : 1;
+  }
 }
 
 export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
@@ -370,6 +384,25 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
       return matches;
     }, 2),
     sort: builtin((args, call, _functions, meter) => {
+      if (args.length === 1) {
+        const arr = args[0];
+        if (!Array.isArray(arr)) throw new Error("sort: argument must be an array");
+        meter.charge(arr.length);
+        const kind = arr.length === 0 ? undefined : typeof arr[0];
+        if (
+          (kind !== undefined && kind !== "number" && kind !== "string") ||
+          arr.some((value) => typeof value !== kind)
+        ) {
+          throw new Error("sort: default sort requires all elements to be numbers or all strings");
+        }
+        if (kind === "string") {
+          return [...arr].sort((a, b) => compareStrings(a as string, b as string, meter));
+        }
+        return [...arr].sort((a, b) => {
+          meter.charge(1);
+          return (a as number) < (b as number) ? -1 : (a as number) > (b as number) ? 1 : 0;
+        });
+      }
       const [comparator, arr] = args;
       if (!Array.isArray(arr)) throw new Error("sort: second argument must be an array");
       meter.charge(arr.length);

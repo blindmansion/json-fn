@@ -556,6 +556,15 @@ describe("Section F — builtin signatures", () => {
     test("sort/sortBy preserve the element type", () => {
       const cmp = { $params: ["a", "b"], $return: call("sub", { $var: "a" }, { $var: "b" }) };
       expect(isSubschema(synthB(call("sort", cmp, [3, 1, 2])).type, arrOfInt)).toBe(true);
+      expect(isSubschema(synthB(call("sort", [3, 1, 2])).type, arrOfInt)).toBe(true);
+      expect(
+        isSubschema(synthB(call("sort", ["b", "a"])).type, {
+          type: "array",
+          items: S,
+        }),
+      ).toBe(true);
+      expect(synthB(call("sort", [1, "2"])).diagnostics.length).toBeGreaterThan(0);
+      expect(synthB(call("sort", [true, false])).diagnostics.length).toBeGreaterThan(0);
       const keyFn = { $params: ["n", "i"], $return: { $var: "n" } };
       expect(isSubschema(synthB(call("sortBy", keyFn, [3, 1, 2])).type, arrOfInt)).toBe(true);
     });
