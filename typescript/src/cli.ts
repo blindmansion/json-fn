@@ -350,10 +350,10 @@ function reportDiagnostics(diags: Diagnostic[]): void {
     console.log(`\n${errors} error${errors === 1 ? "" : "s"}.`);
   }
   if (degradations === 0) {
-    console.log("Coverage: fully checked.");
+    console.log("Type coverage: complete (no dynamic degradations).");
   } else {
     console.log(
-      `Coverage: not fully checked (${degradations} degradation site${degradations === 1 ? "" : "s"}).`,
+      `Type coverage: incomplete (${degradations} dynamic degradation site${degradations === 1 ? "" : "s"}).`,
     );
   }
 }

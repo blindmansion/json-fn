@@ -701,6 +701,20 @@ Higher-order functions can invoke json-fn callbacks. The callback argument can b
 | `pipe`          | `(fns, init)`              | thread value through array of functions left-to-right.                           |
 | `reReplaceWith` | `(pattern, callback, str)` | replace all regex matches via callback. Callback receives a match object.        |
 
+At runtime, a callback may be an inline function, a function reference, or a
+raw string name. The static checker contextually types bare inline functions
+and checks typed function references; it does not resolve raw string names.
+Bare inline callbacks may omit trailing arguments supplied by the builtin.
+Referenced and `$sig`-annotated callbacks retain strict function arity, so use
+a wrapper lambda when their declared parameters do not match the builtin's
+callback shape.
+
+`groupBy` converts numeric keys to strings before using them as object keys.
+`reReplaceWith` callbacks statically return `string`, although the runtime
+defensively stringifies other return values. `mapValues` is typed as a
+string-keyed map and does not preserve exact input keys. `filter` and `find` do
+not infer type predicates from callback logic.
+
 ### Tasks & Effects
 
 These build and run **tasks** — the effect representation described under [Tasks & Effects](#tasks--effects). Constructors build inert, tagged records; `handle` interprets them in-language.

@@ -24,7 +24,7 @@ API:
 
 This distinguishes real contract drift from intentional runtime tolerance.
 
-## C1 — `groupBy` numeric keys
+## C1 — `groupBy` numeric keys — ✅ done
 
 ### Problem
 
@@ -47,6 +47,11 @@ string callback return.
 
 `groupBy((n) => mod(n, 2), [1, 2, 3])` is fully checked and returns a
 string-keyed map of integer arrays.
+
+Implemented by widening the portable callback return contract to
+`string | number`. The runtime and conformance case were already correct; the
+checker regression now covers both string and numeric key callbacks. No
+checker-engine special case was needed.
 
 ## C2 — `flatMap` scalar-or-array returns
 
@@ -132,7 +137,7 @@ Likely files:
   fully-checked union; and
 - named/annotated callback arity policy is unchanged.
 
-## C4 — Documentation and diagnostic clarity
+## C4 — Documentation and diagnostic clarity — ✅ done
 
 ### Intentional behavior to document
 
@@ -167,6 +172,11 @@ Likely files:
 - `docs/builtin-signatures.md`
 - stale type-checking notes under `plans/` and `todo/`
 
+The language and builtin-signature references now document the intentional
+static/runtime boundaries above. CLI output uses `Type coverage: complete (no
+dynamic degradations).` or an incomplete summary with the degradation count;
+the exit policy and `--require-full-coverage` behavior are unchanged.
+
 ## Non-goals
 
 - Precise `pipe` or `apply` typing.
@@ -179,7 +189,17 @@ Likely files:
 
 ## Delivery order
 
-1. `groupBy` and documentation/coverage clarification.
+1. `groupBy` and documentation/coverage clarification. ✅ done
 2. `reduce` final-context validation as an independent checker change.
 3. Callable-rule substrate from `callable-contracts.md`.
 4. `flatMap` precision rule as the first substantive consumer.
+
+## Handoff notes
+
+- C3 (`reduce`) is the next independent correction and should land without
+  changing the callable contract format.
+- C2 (`flatMap`) remains intentionally deferred until the callable-rule
+  substrate exists; its scalar-or-array behavior should not be approximated
+  with competing data overloads.
+- The current builtin loader still trusts `spec/builtins.json`. Load-time
+  contract validation belongs to roadmap slice 4, before the rule substrate.

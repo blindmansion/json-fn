@@ -26,7 +26,7 @@ describe("jfn check coverage reporting", () => {
     expect(result.exitCode).toBe(0);
     expect(result.stderr).toBe("");
     expect(result.stdout).toContain("No type errors.");
-    expect(result.stdout).toContain("Coverage: fully checked.");
+    expect(result.stdout).toContain("Type coverage: complete (no dynamic degradations).");
   });
 
   test("degradation reports partial coverage but exits zero by default", () => {
@@ -36,7 +36,7 @@ describe("jfn check coverage reporting", () => {
       'info: <root>: expression degraded to `any` because variable "missing" is unresolved.',
     );
     expect(result.stdout).toContain("0 errors.");
-    expect(result.stdout).toContain("Coverage: not fully checked (1 degradation site).");
+    expect(result.stdout).toContain("Type coverage: incomplete (1 dynamic degradation site).");
   });
 
   test("--require-full-coverage exits non-zero on degradation", () => {
@@ -47,7 +47,7 @@ describe("jfn check coverage reporting", () => {
       asJsonArg({ $call: "missing", $args: [] }),
     ]);
     expect(result.exitCode).toBe(1);
-    expect(result.stdout).toContain("Coverage: not fully checked (1 degradation site).");
+    expect(result.stdout).toContain("Type coverage: incomplete (1 dynamic degradation site).");
   });
 
   test("--allow-untyped-functions remains permissive but reports partial coverage", () => {
@@ -57,7 +57,7 @@ describe("jfn check coverage reporting", () => {
     expect(result.stdout).toContain(
       'info: f: expression degraded to `any` because module function "f" has no declared signature.',
     );
-    expect(result.stdout).toContain("Coverage: not fully checked (1 degradation site).");
+    expect(result.stdout).toContain("Type coverage: incomplete (1 dynamic degradation site).");
   });
 
   test("hard errors still exit non-zero independently of coverage", () => {
@@ -65,7 +65,7 @@ describe("jfn check coverage reporting", () => {
     const result = runCheck(["--json", asJsonArg(mod)]);
     expect(result.exitCode).toBe(1);
     expect(result.stdout).toContain("1 error.");
-    expect(result.stdout).toContain("Coverage: fully checked.");
+    expect(result.stdout).toContain("Type coverage: complete (no dynamic degradations).");
   });
 
   test("a former narrowable warning is now a hard error (§4.5)", () => {
@@ -82,6 +82,6 @@ describe("jfn check coverage reporting", () => {
     expect(result.exitCode).toBe(1);
     expect(result.stdout).toContain("error:");
     expect(result.stdout).toContain("1 error.");
-    expect(result.stdout).toContain("Coverage: fully checked.");
+    expect(result.stdout).toContain("Type coverage: complete (no dynamic degradations).");
   });
 });

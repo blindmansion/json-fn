@@ -18,6 +18,10 @@ on behavior represented by the contracts and language documentation.
 
 See [hof-type-corrections.md](hof-type-corrections.md).
 
+Status: the contract-cleanup delivery slice is complete. `groupBy` and the
+HOF/runtime and coverage documentation are aligned; `reduce` validation and
+the rule-dependent `flatMap` correction remain as later slices.
+
 Resolve known drift before using the current builtin table as the model for
 host-authored contracts:
 
@@ -80,8 +84,8 @@ durable orchestration driver      (parallel, manifest-dependent track)
 
 ## Recommended delivery slices
 
-1. **Contract cleanup:** `groupBy`, HOF/runtime documentation, and coverage
-   wording.
+1. **Contract cleanup — ✅ done:** `groupBy`, HOF/runtime documentation, and
+   coverage wording.
 2. **Definition-pool unification:** host-environment B1.
 3. **`reduce` validation:** focused checker change with no callable-format
    refactor.

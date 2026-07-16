@@ -453,7 +453,7 @@
           {
             "$fnType": {
               "params": [{ "$tvar": "T" }, { "type": "integer" }],
-              "returns": { "type": "string" }
+              "returns": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
             }
           },
           { "type": "array", "items": { "$tvar": "T" } }

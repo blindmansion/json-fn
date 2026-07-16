@@ -251,11 +251,19 @@ describe("Section F — builtin signatures", () => {
       expect(isSubschema(synthB(call("sortBy", keyFn, [3, 1, 2])).type, arrOfInt)).toBe(true);
     });
 
-    test("groupBy returns a map of T[]", () => {
-      const keyFn = { $params: ["n", "i"], $return: call("str", { $var: "n" }) };
-      const r = synthB(call("groupBy", keyFn, [1, 2, 3]));
-      expect(r.diagnostics).toEqual([]);
-      expect(isSubschema(r.type, { type: "object", additionalProperties: arrOfInt })).toBe(true);
+    test("groupBy accepts string and numeric keys and returns a map of T[]", () => {
+      const stringKey = { $params: ["n", "i"], $return: call("str", { $var: "n" }) };
+      const numericKey = {
+        $params: ["n", "i"],
+        $return: call("mod", { $var: "n" }, 2),
+      };
+      const expected: Schema = { type: "object", additionalProperties: arrOfInt };
+
+      for (const keyFn of [stringKey, numericKey]) {
+        const r = synthB(call("groupBy", keyFn, [1, 2, 3]));
+        expect(r.diagnostics).toEqual([]);
+        expect(isSubschema(r.type, expected)).toBe(true);
+      }
     });
 
     test("flatMap infers U from the callback's array return", () => {

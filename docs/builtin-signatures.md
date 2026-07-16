@@ -161,6 +161,31 @@ input's exact keys at runtime, but exact key preservation requires an
 argument-dependent code computation and is intentionally not represented by
 this data template.
 
+#### `groupBy`
+
+`groupBy` accepts a key callback returning `string | number`. Numeric keys are
+stringified at runtime because JSON object keys are strings, so its result is
+the honest map floor `{ [string]: T[] }`; exact group keys are not preserved
+statically.
+
+#### Intentional static/runtime boundaries
+
+- Runtime higher-order functions accept raw string callback names, but the
+  checker does not resolve those names. Inline lambdas and typed function
+  references are the canonical checked forms.
+- `reReplaceWith` callbacks statically return `string`; the runtime
+  defensively applies `String()` to other values.
+- `filter` and `find` do not derive type predicates from callback logic.
+- A bare contextual lambda may omit trailing builtin-supplied arguments.
+  Referenced and `$sig`-annotated callbacks retain strict function arity; a
+  wrapper lambda is the typed workaround when their arities differ.
+
+The CLI's type-coverage summary measures degradation to `any`, not the absence
+of type errors or maximal inferred precision. `Type coverage: complete` means
+that every expression stayed on a statically represented path; type errors are
+reported independently. `--require-full-coverage` exits nonzero when an
+information-level dynamic degradation is present.
+
 ### Variadic `rest`
 
 ```json
