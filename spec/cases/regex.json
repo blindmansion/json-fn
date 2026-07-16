@@ -190,6 +190,16 @@
       "expected": "abcdef"
     },
     {
+      "description": "reReplaceWith: callback must return a string",
+      "body": {
+        "$return": {
+          "$call": "reReplaceWith",
+          "$args": ["\\d+", { "$params": ["m"], "$return": 0 }, "a1"]
+        }
+      },
+      "error": "callback must return a string"
+    },
+    {
       "description": "reMatch result used with property access",
       "body": {
         "m": { "$call": "reMatch", "$args": ["(\\d+)-(\\d+)", "foo-123-456-bar"] },

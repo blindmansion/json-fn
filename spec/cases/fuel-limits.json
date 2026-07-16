@@ -1,6 +1,6 @@
 {
   "description": "Fuel limits (metered work budget)",
-  "comment": "Rejection cases here are RED until fuel is charged at the function-invocation chokepoint (see docs/execution-limits.md). Pre-fix, HOFs route work through host callbacks that never touch the meter, so these programs complete instead of erroring.",
+  "comment": "Fuel is charged at expression, function-invocation, result-size, and size-sensitive builtin chokepoints; see docs/execution-limits.md.",
   "cases": [
     {
       "description": "op-bomb via map + pure-builtin callback is rejected at a tight budget",

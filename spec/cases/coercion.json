@@ -47,6 +47,11 @@
       "error": "cannot parse"
     },
     {
+      "description": "num: rejects a string outside the finite number range",
+      "body": { "$return": { "$call": "num", "$args": ["1e999"] } },
+      "error": "finite number"
+    },
+    {
       "description": "num: used in arithmetic after coercion",
       "body": {
         "$return": {

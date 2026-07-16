@@ -38,6 +38,9 @@ optional). Existing examples all already provide `else`.
 
 ## Backlog — stdlib gaps & syntax sugar (case-by-case)
 
+**Status:** The stdlib candidates in this section are complete in the canonical
+TypeScript implementation. Other evaluators may still need parity work.
+
 Feasible, low-risk additions surfaced by the probes; pick up individually as needed.
 
 Missing stdlib that the existing set implies:

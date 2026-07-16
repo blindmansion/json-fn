@@ -418,6 +418,7 @@ function callFunctionInternal(
             guardSize: (size: number) => guardValueSize(context, size),
           };
           result = entry(args, call, functions, meter, { defs: context.runtimeDefs ?? {} });
+          accountForResult(context, result);
         } else {
           result = callExternalFunction(entry, args, fn, context);
         }

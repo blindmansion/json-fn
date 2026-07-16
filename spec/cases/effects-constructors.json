@@ -12,6 +12,22 @@
       "expected": { "@task": "pure", "value": { "a": 1, "b": [2, 3] } }
     },
     {
+      "description": "isTask recognizes a constructed task",
+      "body": { "$return": { "$call": "isTask", "$args": [{ "$call": "pure", "$args": [42] }] } },
+      "expected": true
+    },
+    {
+      "description": "isTask rejects ordinary values",
+      "body": {
+        "$return": [
+          { "$call": "isTask", "$args": [42] },
+          { "$call": "isTask", "$args": [[{ "@task": "pure" }]] },
+          { "$call": "isTask", "$args": [{ "value": 42 }] }
+        ]
+      },
+      "expected": [false, false, false]
+    },
+    {
       "description": "perform builds a tagged effect record",
       "body": { "$return": { "$call": "perform", "$args": ["http.get", ["https://example.com"]] } },
       "expected": { "@task": "effect", "name": "http.get", "args": ["https://example.com"] }

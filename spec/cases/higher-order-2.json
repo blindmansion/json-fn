@@ -22,6 +22,11 @@
       "expected": []
     },
     {
+      "description": "flatten: rejects a non-array argument",
+      "body": { "$return": { "$call": "flatten", "$args": ["abc"] } },
+      "error": "argument must be an array"
+    },
+    {
       "description": "setAt: replaces element at given index",
       "body": { "$return": { "$call": "setAt", "$args": [["a", "b", "c"], 1, "X"] } },
       "expected": ["a", "X", "c"]
@@ -60,6 +65,16 @@
       "description": "setAt: negative index throws",
       "body": { "$return": { "$call": "setAt", "$args": [[1, 2, 3], -1, 99] } },
       "error": "out of bounds"
+    },
+    {
+      "description": "setAt: rejects a non-array first argument",
+      "body": { "$return": { "$call": "setAt", "$args": ["abc", 1, "X"] } },
+      "error": "first argument must be an array"
+    },
+    {
+      "description": "setAt: rejects a non-integer index",
+      "body": { "$return": { "$call": "setAt", "$args": [[1, 2, 3], 1.5, 99] } },
+      "error": "second argument must be an integer"
     },
     {
       "description": "flatMap: maps and flattens in one step",
@@ -280,6 +295,46 @@
         }
       },
       "expected": []
+    },
+    {
+      "description": "sortBy: orders string keys by Unicode code point",
+      "body": {
+        "$return": {
+          "$call": "sortBy",
+          "$args": [{ "$params": ["x"], "$return": { "$var": "x" } }, ["😀", "", "a"]]
+        }
+      },
+      "expected": ["a", "", "😀"]
+    },
+    {
+      "description": "sortBy: rejects an unsupported key type",
+      "body": {
+        "$return": {
+          "$call": "sortBy",
+          "$args": [{ "$params": ["x"], "$return": true }, [1, 2]]
+        }
+      },
+      "error": "must return a finite number or string"
+    },
+    {
+      "description": "sortBy: rejects mixed key types",
+      "body": {
+        "$return": {
+          "$call": "sortBy",
+          "$args": [
+            {
+              "$params": ["x"],
+              "$return": {
+                "$if": { "$call": "eq", "$args": [{ "$var": "x" }, 1] },
+                "$then": "one",
+                "$else": 2
+              }
+            },
+            [1, 2]
+          ]
+        }
+      },
+      "error": "keys of one consistent type"
     },
     {
       "description": "pipe: threads value through a list of functions",

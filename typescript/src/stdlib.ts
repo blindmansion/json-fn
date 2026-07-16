@@ -72,6 +72,10 @@ function finiteMathResult(name: string, result: number): number {
   return result;
 }
 
+function isPlainObject(value: unknown): value is Record<string, JSONType> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 function compareStrings(a: string, b: string, meter: Meter): number {
   const left = a[Symbol.iterator]();
   const right = b[Symbol.iterator]();
@@ -90,36 +94,57 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
   const log = options.logger ?? noopLogger;
   return {
     // Arithmetic
-    add: pure((a: number, b: number) => a + b),
-    sub: pure((a: number, b: number) => a - b),
-    mul: pure((a: number, b: number) => a * b),
+    add: pure((a: number, b: number) => finiteMathResult("add", a + b)),
+    sub: pure((a: number, b: number) => finiteMathResult("sub", a - b)),
+    mul: pure((a: number, b: number) => finiteMathResult("mul", a * b)),
     div: pure((a: number, b: number) => {
       if (b === 0) throw new Error("div: division by zero");
-      return a / b;
+      return finiteMathResult("div", a / b);
     }),
-    mod: pure((a: number, b: number) => a % b),
-    abs: pure((a: number) => Math.abs(a)),
-    neg: pure((a: number) => -a),
-    floor: pure((a: number) => Math.floor(a)),
-    ceil: pure((a: number) => Math.ceil(a)),
-    round: pure((a: number) => Math.round(a)),
-    max: pure((arr: number[]) => {
+    mod: pure((a: number, b: number) => {
+      if (b === 0) throw new Error("mod: division by zero");
+      return finiteMathResult("mod", a % b);
+    }),
+    abs: pure((a: number) => finiteMathResult("abs", Math.abs(a))),
+    neg: pure((a: number) => finiteMathResult("neg", -a)),
+    floor: pure((a: number) => finiteMathResult("floor", Math.floor(a))),
+    ceil: pure((a: number) => finiteMathResult("ceil", Math.ceil(a))),
+    round: pure((a: number) => finiteMathResult("round", Math.round(a))),
+    max: builtin((args, _call, _functions, meter) => {
+      const arr = args[0];
       if (!Array.isArray(arr)) throw new Error("max: argument must be an array");
-      return Math.max(...arr);
-    }),
-    min: pure((arr: number[]) => {
+      if (arr.length === 0) throw new Error("max: argument must not be empty");
+      meter.charge(arr.length);
+      let result = -Infinity;
+      for (const value of arr) {
+        if (typeof value !== "number") throw new Error("max: array elements must be numbers");
+        if (value > result) result = value;
+      }
+      return finiteMathResult("max", result);
+    }, 1),
+    min: builtin((args, _call, _functions, meter) => {
+      const arr = args[0];
       if (!Array.isArray(arr)) throw new Error("min: argument must be an array");
-      return Math.min(...arr);
-    }),
-    sum: pure((arr: number[]) => {
+      if (arr.length === 0) throw new Error("min: argument must not be empty");
+      meter.charge(arr.length);
+      let result = Infinity;
+      for (const value of arr) {
+        if (typeof value !== "number") throw new Error("min: array elements must be numbers");
+        if (value < result) result = value;
+      }
+      return finiteMathResult("min", result);
+    }, 1),
+    sum: builtin((args, _call, _functions, meter) => {
+      const arr = args[0];
       if (!Array.isArray(arr)) throw new Error("sum: argument must be an array");
+      meter.charge(arr.length);
       let total = 0;
       for (const value of arr) {
         if (typeof value !== "number") throw new Error("sum: array elements must be numbers");
         total += value;
       }
-      return total;
-    }),
+      return finiteMathResult("sum", total);
+    }, 1),
     sqrt: pure((value: number) => finiteMathResult("sqrt", Math.sqrt(value))),
     pow: pure((base: number, exponent: number) =>
       finiteMathResult("pow", Math.pow(base, exponent)),
@@ -138,8 +163,16 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
 
     // Logic
     not: pure((a: boolean) => !a),
-    and: pure((a: boolean, b: boolean) => a && b),
-    or: pure((a: boolean, b: boolean) => a || b),
+    and: pure((a: boolean, b: boolean) => {
+      if (typeof a !== "boolean" || typeof b !== "boolean")
+        throw new Error("and: arguments must be booleans");
+      return a && b;
+    }),
+    or: pure((a: boolean, b: boolean) => {
+      if (typeof a !== "boolean" || typeof b !== "boolean")
+        throw new Error("or: arguments must be booleans");
+      return a || b;
+    }),
 
     // Type checking
     isNull: pure((a: any) => a === null),
@@ -158,40 +191,63 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
       return JSON.stringify(a);
     }),
     num: pure((a: any) => {
-      if (typeof a === "number") return a;
+      if (typeof a === "number") return finiteMathResult("num", a);
       if (typeof a === "boolean") return a ? 1 : 0;
       if (a === null) return 0;
       if (typeof a === "string") {
         const n = Number(a);
-        if (Number.isNaN(n)) throw new Error(`num: cannot parse "${a}" as number`);
+        if (!Number.isFinite(n)) throw new Error(`num: cannot parse "${a}" as a finite number`);
         return n;
       }
       throw new Error(`num: cannot convert ${typeof a} to number`);
     }),
 
     // Arrays
-    length: pure((arr: any[] | string) => arr.length),
-    head: pure((arr: any[]) => arr[0] ?? null),
-    last: pure((arr: any[]) => arr[arr.length - 1] ?? null),
-    tail: pure((arr: any[]) => arr.slice(1)),
+    length: pure((value: any[] | string) => {
+      if (!Array.isArray(value) && typeof value !== "string")
+        throw new Error("length: argument must be an array or string");
+      return value.length;
+    }),
+    head: pure((arr: any[]) => {
+      if (!Array.isArray(arr)) throw new Error("head: argument must be an array");
+      return arr[0] ?? null;
+    }),
+    last: pure((arr: any[]) => {
+      if (!Array.isArray(arr)) throw new Error("last: argument must be an array");
+      return arr[arr.length - 1] ?? null;
+    }),
+    tail: pure((arr: any[]) => {
+      if (!Array.isArray(arr)) throw new Error("tail: argument must be an array");
+      return arr.slice(1);
+    }),
     concat: pure((...arrays: any[][]) => {
       const result: any[] = [];
       for (const arr of arrays) {
+        if (!Array.isArray(arr)) throw new Error("concat: arguments must be arrays");
         for (const item of arr) result.push(item);
       }
       return result;
     }),
     range: builtin((args, _call, _functions, meter) => {
       const n = args[0];
-      const len = typeof n === "number" && n > 0 ? Math.floor(n) : 0;
+      if (typeof n !== "number" || !Number.isInteger(n))
+        throw new Error("range: argument must be an integer");
+      const len = Math.max(0, n);
       meter.guardSize(len);
-      meter.charge(len);
       return Array.from({ length: len }, (_, i) => i);
     }, 1),
-    slice: pure((arr: any[] | string, start: number, end?: number) =>
-      end === undefined ? arr.slice(start) : arr.slice(start, end),
-    ),
-    reverse: pure((arr: any[]) => [...arr].reverse()),
+    slice: pure((value: any[] | string, start: number, end?: number) => {
+      if (!Array.isArray(value) && typeof value !== "string")
+        throw new Error("slice: first argument must be an array or string");
+      if (!Number.isInteger(start)) throw new Error("slice: second argument must be an integer");
+      if (end !== undefined && !Number.isInteger(end))
+        throw new Error("slice: third argument must be an integer");
+      return end === undefined ? value.slice(start) : value.slice(start, end);
+    }),
+    reverse: pure((arr: any[]) => {
+      if (!Array.isArray(arr)) throw new Error("reverse: argument must be an array");
+      return [...arr].reverse();
+    }),
     take: pure((arr: any[], count: number) => {
       if (!Array.isArray(arr)) throw new Error("take: first argument must be an array");
       if (!Number.isInteger(count)) throw new Error("take: second argument must be an integer");
@@ -234,13 +290,11 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
       if (typeof value === "string") {
         const size = value.length * repetitions;
         meter.guardSize(size);
-        meter.charge(size);
         return value.repeat(repetitions);
       }
       if (Array.isArray(value)) {
         const size = value.length * repetitions;
         meter.guardSize(size);
-        meter.charge(size);
         const result: JSONType[] = [];
         for (let i = 0; i < repetitions; i++) {
           for (const item of value) result.push(item);
@@ -259,8 +313,13 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
         typeof arr === "string" ? arr.indexOf(value) : arr.findIndex((el) => jsonEqual(el, value));
       return i === -1 ? null : i;
     }),
-    flatten: pure((arr: any[]) => arr.flat()),
+    flatten: pure((arr: any[]) => {
+      if (!Array.isArray(arr)) throw new Error("flatten: argument must be an array");
+      return arr.flat();
+    }),
     setAt: pure((arr: any[], idx: number, value: any) => {
+      if (!Array.isArray(arr)) throw new Error("setAt: first argument must be an array");
+      if (!Number.isInteger(idx)) throw new Error("setAt: second argument must be an integer");
       if (idx < 0 || idx >= arr.length)
         throw new Error(`setAt: index ${idx} out of bounds for array of length ${arr.length}`);
       const result = arr.slice();
@@ -302,19 +361,37 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
     }),
 
     // Object utilities
-    keys: pure((obj: Record<string, any>) => Object.keys(obj)),
-    values: pure((obj: Record<string, any>) => Object.values(obj)),
-    entries: pure((obj: Record<string, any>) => Object.entries(obj)),
+    keys: pure((obj: Record<string, any>) => {
+      if (!isPlainObject(obj)) throw new Error("keys: argument must be an object");
+      return Object.keys(obj);
+    }),
+    values: pure((obj: Record<string, any>) => {
+      if (!isPlainObject(obj)) throw new Error("values: argument must be an object");
+      return Object.values(obj);
+    }),
+    entries: pure((obj: Record<string, any>) => {
+      if (!isPlainObject(obj)) throw new Error("entries: argument must be an object");
+      return Object.entries(obj);
+    }),
     fromEntries: pure((pairs: [string, any][]) => Object.fromEntries(pairs)),
-    merge: pure((a: Record<string, any>, b: Record<string, any>) => ({ ...a, ...b })),
-    hasKey: pure((obj: Record<string, any>, key: string) => Object.hasOwn(obj, key)),
-    isObject: pure((a: any) => typeof a === "object" && a !== null && !Array.isArray(a)),
+    merge: pure((a: Record<string, any>, b: Record<string, any>) => {
+      if (!isPlainObject(a) || !isPlainObject(b))
+        throw new Error("merge: arguments must be objects");
+      return { ...a, ...b };
+    }),
+    hasKey: pure((obj: Record<string, any>, key: string) => {
+      if (!isPlainObject(obj)) throw new Error("hasKey: first argument must be an object");
+      return Object.hasOwn(obj, key);
+    }),
+    isObject: pure((a: any) => isPlainObject(a)),
     pick: pure((obj: Record<string, any>, ks: string[]) => {
+      if (!isPlainObject(obj)) throw new Error("pick: first argument must be an object");
       const result: Record<string, any> = {};
       for (const k of ks) if (k in obj) result[k] = obj[k];
       return result;
     }),
     omit: pure((obj: Record<string, any>, ks: string[]) => {
+      if (!isPlainObject(obj)) throw new Error("omit: first argument must be an object");
       const exclude = new Set(ks);
       const result: Record<string, any> = {};
       for (const k of Object.keys(obj)) if (!exclude.has(k)) result[k] = obj[k];
@@ -406,7 +483,12 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
       const [comparator, arr] = args;
       if (!Array.isArray(arr)) throw new Error("sort: second argument must be an array");
       meter.charge(arr.length);
-      return [...arr].sort((a, b) => call(comparator!, [a, b]) as number);
+      return [...arr].sort((a, b) => {
+        const compared = call(comparator!, [a, b]);
+        if (typeof compared !== "number" || !Number.isFinite(compared))
+          throw new Error("sort: comparator must return a finite number");
+        return compared;
+      });
     }, 2),
     mapValues: builtin((args, call, _functions, meter) => {
       const [callback, obj] = args;
@@ -457,11 +539,27 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
       const [keyFn, arr] = args;
       if (!Array.isArray(arr)) throw new Error("sortBy: second argument must be an array");
       meter.charge(arr.length);
-      const decorated = arr.map((item, i) => ({
-        item,
-        key: call(keyFn!, [item, i]) as string | number,
-      }));
-      decorated.sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+      let keyKind: "number" | "string" | undefined;
+      const decorated: { item: JSONType; key: number | string }[] = [];
+      for (let i = 0; i < arr.length; i++) {
+        const item = arr[i]!;
+        const key = call(keyFn!, [item, i]);
+        if (typeof key !== "number" && typeof key !== "string") {
+          throw new Error("sortBy: key function must return a finite number or string");
+        }
+        if (typeof key === "number" && !Number.isFinite(key))
+          throw new Error("sortBy: key function must return a finite number or string");
+        const kind: "number" | "string" = typeof key === "number" ? "number" : "string";
+        if (keyKind === undefined) keyKind = kind;
+        if (kind !== keyKind)
+          throw new Error("sortBy: key function must return keys of one consistent type");
+        decorated.push({ item, key });
+      }
+      decorated.sort((a, b) => {
+        if (keyKind === "string") return compareStrings(a.key as string, b.key as string, meter);
+        meter.charge(1);
+        return a.key < b.key ? -1 : a.key > b.key ? 1 : 0;
+      });
       return decorated.map((d) => d.item);
     }, 2),
     apply: builtin((args, call) => {
@@ -482,34 +580,60 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
     }, 2),
 
     // Regex
-    reTest: pure((pattern: string, str: string) => {
+    reTest: builtin((args, _call, _functions, meter) => {
+      const [pattern, str] = args;
+      if (typeof pattern !== "string" || typeof str !== "string")
+        throw new Error("reTest: arguments must be strings");
+      meter.charge(str.length);
       return parsePattern(pattern).test(str);
-    }),
-    reMatch: pure((pattern: string, str: string) => {
+    }, 2),
+    reMatch: builtin((args, _call, _functions, meter) => {
+      const [pattern, str] = args;
+      if (typeof pattern !== "string" || typeof str !== "string")
+        throw new Error("reMatch: arguments must be strings");
+      meter.charge(str.length);
       const re = parsePattern(pattern);
       const m = re.exec(str);
       if (!m) return null;
       return buildMatchResult(m);
-    }),
-    reMatchAll: pure((pattern: string, str: string) => {
+    }, 2),
+    reMatchAll: builtin((args, _call, _functions, meter) => {
+      const [pattern, str] = args;
+      if (typeof pattern !== "string" || typeof str !== "string")
+        throw new Error("reMatchAll: arguments must be strings");
+      meter.charge(str.length);
       const re = parsePattern(pattern);
       const global = new RegExp(re.source, re.flags.includes("g") ? re.flags : re.flags + "g");
       const results: Record<string, any>[] = [];
       let m: RegExpExecArray | null;
       while ((m = global.exec(str)) !== null) {
+        meter.charge(1);
         results.push(buildMatchResult(m));
         if (m[0]!.length === 0) global.lastIndex++;
       }
       return results;
-    }),
-    reReplace: pure((pattern: string, replacement: string, str: string) => {
+    }, 2),
+    reReplace: builtin((args, _call, _functions, meter) => {
+      const [pattern, replacement, str] = args;
+      if (
+        typeof pattern !== "string" ||
+        typeof replacement !== "string" ||
+        typeof str !== "string"
+      ) {
+        throw new Error("reReplace: arguments must be strings");
+      }
+      meter.charge(str.length);
       const re = parsePattern(pattern);
       const global = new RegExp(re.source, re.flags.includes("g") ? re.flags : re.flags + "g");
       return str.replace(global, replacement);
-    }),
-    reSplit: pure((pattern: string, str: string) => {
+    }, 3),
+    reSplit: builtin((args, _call, _functions, meter) => {
+      const [pattern, str] = args;
+      if (typeof pattern !== "string" || typeof str !== "string")
+        throw new Error("reSplit: arguments must be strings");
+      meter.charge(str.length);
       return str.split(parsePattern(pattern));
-    }),
+    }, 2),
     reReplaceWith: builtin((args, call, _functions, meter) => {
       const [pattern, callback, str] = args as [string, any, string];
       if (typeof pattern !== "string")
@@ -526,7 +650,9 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
         parts.push(str.slice(lastIndex, m.index));
         const matchObj = buildMatchResult(m);
         const replaced = call(callback, [matchObj]);
-        parts.push(String(replaced));
+        if (typeof replaced !== "string")
+          throw new Error("reReplaceWith: callback must return a string");
+        parts.push(replaced);
         lastIndex = m.index + m[0]!.length;
         if (m[0]!.length === 0) global.lastIndex++;
       }

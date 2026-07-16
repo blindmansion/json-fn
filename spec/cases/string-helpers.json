@@ -56,6 +56,16 @@
       "error": "must be strings"
     },
     {
+      "description": "lower: converts uppercase letters",
+      "body": { "$return": { "$call": "lower", "$args": ["JSON-Fn"] } },
+      "expected": "json-fn"
+    },
+    {
+      "description": "lower: leaves an already lowercase string unchanged",
+      "body": { "$return": { "$call": "lower", "$args": ["already lowercase"] } },
+      "expected": "already lowercase"
+    },
+    {
       "description": "trim: removes leading and trailing spaces",
       "body": { "$return": { "$call": "trim", "$args": ["  hello  "] } },
       "expected": "hello"

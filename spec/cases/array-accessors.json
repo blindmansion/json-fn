@@ -172,6 +172,46 @@
       "expected": false
     },
     {
+      "description": "length: rejects values other than arrays and strings",
+      "body": { "$return": { "$call": "length", "$args": [{ "length": 3 }] } },
+      "error": "argument must be an array or string"
+    },
+    {
+      "description": "head: rejects a non-array argument",
+      "body": { "$return": { "$call": "head", "$args": ["abc"] } },
+      "error": "argument must be an array"
+    },
+    {
+      "description": "last: rejects a non-array argument",
+      "body": { "$return": { "$call": "last", "$args": ["abc"] } },
+      "error": "argument must be an array"
+    },
+    {
+      "description": "tail: rejects a non-array argument",
+      "body": { "$return": { "$call": "tail", "$args": ["abc"] } },
+      "error": "argument must be an array"
+    },
+    {
+      "description": "concat: rejects a non-array argument",
+      "body": { "$return": { "$call": "concat", "$args": [[1, 2], "ab"] } },
+      "error": "arguments must be arrays"
+    },
+    {
+      "description": "range: rejects a non-integer argument",
+      "body": { "$return": { "$call": "range", "$args": [2.5] } },
+      "error": "argument must be an integer"
+    },
+    {
+      "description": "slice: rejects a non-integer index",
+      "body": { "$return": { "$call": "slice", "$args": [[1, 2, 3], 1.5] } },
+      "error": "second argument must be an integer"
+    },
+    {
+      "description": "reverse: rejects a non-array argument",
+      "body": { "$return": { "$call": "reverse", "$args": ["abc"] } },
+      "error": "argument must be an array"
+    },
+    {
       "description": "head and last: pipeline to extract first and last",
       "body": {
         "arr": [10, 20, 30, 40, 50],

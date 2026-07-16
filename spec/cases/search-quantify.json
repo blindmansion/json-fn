@@ -212,6 +212,16 @@
       "error": "requires all elements to be numbers or all strings"
     },
     {
+      "description": "sort: rejects a comparator result that is not a finite number",
+      "body": {
+        "$return": {
+          "$call": "sort",
+          "$args": [{ "$params": ["a", "b"], "$return": "before" }, [2, 1]]
+        }
+      },
+      "error": "comparator must return a finite number"
+    },
+    {
       "description": "sort: ascending numeric sort",
       "body": {
         "$return": {

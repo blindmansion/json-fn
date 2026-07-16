@@ -67,6 +67,42 @@
       "expected": true
     },
     {
+      "description": "or: returns true when either argument is true",
+      "body": {
+        "$return": [
+          { "$call": "or", "$args": [false, true] },
+          { "$call": "or", "$args": [true, false] },
+          { "$call": "or", "$args": [true, true] }
+        ]
+      },
+      "expected": [true, true, true]
+    },
+    {
+      "description": "or: returns false when both arguments are false",
+      "body": { "$return": { "$call": "or", "$args": [false, false] } },
+      "expected": false
+    },
+    {
+      "description": "and: combines boolean arguments",
+      "body": {
+        "$return": [
+          { "$call": "and", "$args": [true, true] },
+          { "$call": "and", "$args": [true, false] }
+        ]
+      },
+      "expected": [true, false]
+    },
+    {
+      "description": "and: rejects non-boolean arguments",
+      "body": { "$return": { "$call": "and", "$args": [true, 1] } },
+      "error": "arguments must be booleans"
+    },
+    {
+      "description": "or: rejects non-boolean arguments",
+      "body": { "$return": { "$call": "or", "$args": [false, "yes"] } },
+      "error": "arguments must be booleans"
+    },
+    {
       "description": "neq: used as filter predicate",
       "body": {
         "$return": {

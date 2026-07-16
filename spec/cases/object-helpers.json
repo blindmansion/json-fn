@@ -73,6 +73,41 @@
         "$return": { "$call": "includes", "$args": [{ "$var": "ks" }, "name"] }
       },
       "expected": true
+    },
+    {
+      "description": "keys: rejects an array",
+      "body": { "$return": { "$call": "keys", "$args": [[1, 2]] } },
+      "error": "argument must be an object"
+    },
+    {
+      "description": "values: rejects an array",
+      "body": { "$return": { "$call": "values", "$args": [[1, 2]] } },
+      "error": "argument must be an object"
+    },
+    {
+      "description": "entries: rejects an array",
+      "body": { "$return": { "$call": "entries", "$args": [[1, 2]] } },
+      "error": "argument must be an object"
+    },
+    {
+      "description": "merge: rejects non-object arguments",
+      "body": { "$return": { "$call": "merge", "$args": [{ "a": 1 }, [2]] } },
+      "error": "arguments must be objects"
+    },
+    {
+      "description": "hasKey: rejects a non-object first argument",
+      "body": { "$return": { "$call": "hasKey", "$args": [[1, 2], "0"] } },
+      "error": "first argument must be an object"
+    },
+    {
+      "description": "pick: rejects a non-object first argument",
+      "body": { "$return": { "$call": "pick", "$args": [[1, 2], ["0"]] } },
+      "error": "first argument must be an object"
+    },
+    {
+      "description": "omit: rejects a non-object first argument",
+      "body": { "$return": { "$call": "omit", "$args": [[1, 2], ["0"]] } },
+      "error": "first argument must be an object"
     }
   ]
 }

@@ -1,6 +1,6 @@
 {
   "description": "Memory limits (maxValueSize)",
-  "comment": "Rejection cases here are RED until a maxValueSize budget bounds produced array/string lengths (see docs/execution-limits.md). Pre-fix, nothing caps allocation, so these programs complete instead of erroring. Sizes are kept modest so the RED cases stay cheap to run when the limit is not yet enforced.",
+  "comment": "maxValueSize bounds arrays and strings returned by pure functions and interpreter-aware builtins; see docs/execution-limits.md.",
   "cases": [
     {
       "description": "range exceeding maxValueSize is rejected",
@@ -73,6 +73,39 @@
         }
       },
       "limits": { "maxValueSize": 1000 },
+      "error": "Maximum value size"
+    },
+    {
+      "description": "map output is checked against maxValueSize",
+      "body": {
+        "$return": {
+          "$call": "map",
+          "$args": ["neg", [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]]
+        }
+      },
+      "limits": { "maxValueSize": 10 },
+      "error": "Maximum value size"
+    },
+    {
+      "description": "unique output is checked against maxValueSize",
+      "body": {
+        "$return": {
+          "$call": "unique",
+          "$args": [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]]
+        }
+      },
+      "limits": { "maxValueSize": 10 },
+      "error": "Maximum value size"
+    },
+    {
+      "description": "reReplaceWith output is checked against maxValueSize",
+      "body": {
+        "$return": {
+          "$call": "reReplaceWith",
+          "$args": ["a", { "$params": ["m"], "$return": "xxxxxxxxxxxxxxxxxxxx" }, "aaaa"]
+        }
+      },
+      "limits": { "maxValueSize": 50 },
       "error": "Maximum value size"
     }
   ]

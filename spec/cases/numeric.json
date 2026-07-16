@@ -2,6 +2,31 @@
   "description": "numeric functions",
   "cases": [
     {
+      "description": "add: rejects a non-finite result",
+      "body": { "$return": { "$call": "add", "$args": [1e308, 1e308] } },
+      "error": "result must be a finite number"
+    },
+    {
+      "description": "sub: rejects a non-finite result",
+      "body": { "$return": { "$call": "sub", "$args": [1e308, -1e308] } },
+      "error": "result must be a finite number"
+    },
+    {
+      "description": "mul: rejects a non-finite result",
+      "body": { "$return": { "$call": "mul", "$args": [1e308, 2] } },
+      "error": "result must be a finite number"
+    },
+    {
+      "description": "div: rejects a non-finite result",
+      "body": { "$return": { "$call": "div", "$args": [1e308, 1e-308] } },
+      "error": "result must be a finite number"
+    },
+    {
+      "description": "mod: rejects division by zero",
+      "body": { "$return": { "$call": "mod", "$args": [5, 0] } },
+      "error": "division by zero"
+    },
+    {
       "description": "floor: rounds down positive decimal",
       "body": { "$return": { "$call": "floor", "$args": [3.7] } },
       "expected": 3
@@ -87,6 +112,16 @@
       "error": "must be an array"
     },
     {
+      "description": "max: rejects an empty array",
+      "body": { "$return": { "$call": "max", "$args": [[]] } },
+      "error": "must not be empty"
+    },
+    {
+      "description": "max: rejects a non-number element",
+      "body": { "$return": { "$call": "max", "$args": [[1, "9", 3]] } },
+      "error": "elements must be numbers"
+    },
+    {
       "description": "min: returns smallest element",
       "body": { "$return": { "$call": "min", "$args": [[3, 1, 4, 1, 5, 9, 2, 6]] } },
       "expected": 1
@@ -105,6 +140,16 @@
       "description": "min: non-array argument throws",
       "body": { "$return": { "$call": "min", "$args": [42] } },
       "error": "must be an array"
+    },
+    {
+      "description": "min: rejects an empty array",
+      "body": { "$return": { "$call": "min", "$args": [[]] } },
+      "error": "must not be empty"
+    },
+    {
+      "description": "min: rejects a non-number element",
+      "body": { "$return": { "$call": "min", "$args": [[1, "-9", 3]] } },
+      "error": "elements must be numbers"
     },
     {
       "description": "floor and ceil: bracket a decimal",
@@ -150,6 +195,11 @@
       "description": "sum: rejects a non-number element",
       "body": { "$return": { "$call": "sum", "$args": [[1, "2", 3]] } },
       "error": "elements must be numbers"
+    },
+    {
+      "description": "sum: rejects a non-finite result",
+      "body": { "$return": { "$call": "sum", "$args": [[1e308, 1e308]] } },
+      "error": "result must be a finite number"
     },
     {
       "description": "sqrt: computes a square root",

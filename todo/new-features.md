@@ -14,15 +14,6 @@ schema fragment, internally-polymorphic builtins. Full design sketch (with
 decisions, open questions, and a worked chess example) in
 `plans/type-sketch.md`. Status: **draft / design sketch**, nothing implemented.
 
-## Stdlib additions
-
-Feasible, low-risk builtins the existing set implies; pick up individually as
-demand appears. Each needs all four evaluators **plus** a `spec/cases` entry.
-Candidates: `sum`, `unique`, `zip`, `take`/`drop`, `count`, `sqrt`/`pow`,
-`replace` (plain, non-regex), `padStart`, `repeat`, `startsWith`/`endsWith`, and
-a default comparator for `sort` (or `sortAsc`). Details + rationale:
-`plans/shorthand-action-items.md` (Backlog).
-
 ## Shorthand syntax sugar (parser-only, TS + Rust)
 
 Evaluate demand before adding each; all are pure surface sugar:

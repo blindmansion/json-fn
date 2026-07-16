@@ -193,6 +193,9 @@ Always include `else ->` unless a branch is guaranteed to fire.
 
 ## 3. Missing stdlib the examples imply should exist
 
+> Historical result: these functions were absent when the probes ran. The full
+> list below has since landed in the canonical TypeScript implementation.
+
 The two examples hand-roll filtering (via a `flatMap` trick) and folding (via manual
 recursion), which made a lot of "obvious" helpers look absent. Some genuinely are:
 

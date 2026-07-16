@@ -654,17 +654,20 @@ All functions listed below are available in the standard library.
 | `sub`    | `(a, b)` | `a - b`                  |
 | `mul`    | `(a, b)` | `a * b`                  |
 | `div`    | `(a, b)` | `a / b` (throws on zero) |
-| `mod`    | `(a, b)` | `a % b`                  |
+| `mod`    | `(a, b)` | `a % b` (throws on zero) |
 | `abs`    | `(a)`    | absolute value           |
 | `neg`    | `(a)`    | `-a`                     |
 | `floor`  | `(a)`    | floor                    |
 | `ceil`   | `(a)`    | ceiling                  |
 | `round`  | `(a)`    | round                    |
-| `max`    | `(arr)`  | max of array             |
-| `min`    | `(arr)`  | min of array             |
-| `sum`    | `(arr)`  | sum of array (`0` if empty) |
+| `max`    | `(arr)`  | maximum number; throws for an empty array or non-finite result |
+| `min`    | `(arr)`  | minimum number; throws for an empty array or non-finite result |
+| `sum`    | `(arr)`  | sum of numbers (`0` if empty); throws if the result is not finite |
 | `sqrt`   | `(a)`    | square root; throws if the result is not finite |
 | `pow`    | `(base, exponent)` | exponentiation; throws if the result is not finite |
+
+Arithmetic builtins reject results that are `NaN` or infinite, since those are
+not JSON numbers.
 
 ### Comparison
 
@@ -745,7 +748,7 @@ All functions listed below are available in the standard library.
 
 ### Regex
 
-Patterns are plain strings. Flags are specified via inline `(?flags)` prefix: `i` (case-insensitive), `m` (multiline), `s` (dotall). Example: `"(?i)hello"`.
+Patterns are plain strings. Flags are specified via inline `(?flags)` prefix: `i` (case-insensitive), `m` (multiline), `s` (dotall), `u` (Unicode). Example: `"(?i)hello"`.
 
 Match results are objects with `match` (full matched text), `index` (start position), `groups` (positional captures, `null` for unmatched optional groups), and `named` (named capture groups, empty object if none).
 
