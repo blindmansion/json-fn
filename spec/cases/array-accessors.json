@@ -260,6 +260,41 @@
       "description": "zip: rejects non-array arguments",
       "body": { "$return": { "$call": "zip", "$args": [[1, 2], "ab"] } },
       "error": "arguments must be arrays"
+    },
+    {
+      "description": "unique: preserves the first occurrence order",
+      "body": { "$return": { "$call": "unique", "$args": [[3, 1, 3, 2, 1]] } },
+      "expected": [3, 1, 2]
+    },
+    {
+      "description": "unique: uses structural equality",
+      "body": {
+        "$return": {
+          "$call": "unique",
+          "$args": [[{ "a": 1 }, { "a": 1 }, [1, 2], [1, 2], { "a": 2 }]]
+        }
+      },
+      "expected": [{ "a": 1 }, [1, 2], { "a": 2 }]
+    },
+    {
+      "description": "unique: rejects a non-array argument",
+      "body": { "$return": { "$call": "unique", "$args": ["abc"] } },
+      "error": "argument must be an array"
+    },
+    {
+      "description": "repeat: repeats an array",
+      "body": { "$return": { "$call": "repeat", "$args": [[1, 2], 3] } },
+      "expected": [1, 2, 1, 2, 1, 2]
+    },
+    {
+      "description": "repeat: zero repetitions returns an empty array",
+      "body": { "$return": { "$call": "repeat", "$args": [[1, 2], 0] } },
+      "expected": []
+    },
+    {
+      "description": "repeat: rejects a negative count",
+      "body": { "$return": { "$call": "repeat", "$args": [[1, 2], -1] } },
+      "error": "count must be a non-negative integer"
     }
   ]
 }

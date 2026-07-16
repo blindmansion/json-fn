@@ -663,6 +663,8 @@ All functions listed below are available in the standard library.
 | `max`    | `(arr)`  | max of array             |
 | `min`    | `(arr)`  | min of array             |
 | `sum`    | `(arr)`  | sum of array (`0` if empty) |
+| `sqrt`   | `(a)`    | square root; throws if the result is not finite |
+| `pow`    | `(base, exponent)` | exponentiation; throws if the result is not finite |
 
 ### Comparison
 
@@ -719,6 +721,8 @@ All functions listed below are available in the standard library.
 | `take`     | `(arr, n)`           | first `n` elements; non-positive `n` gives `[]` |
 | `drop`     | `(arr, n)`           | all but the first `n` elements; non-positive `n` returns a copy |
 | `zip`      | `(left, right)`       | corresponding pairs, truncated to the shorter array |
+| `unique`   | `(arr)`               | first occurrence of each structurally distinct value |
+| `repeat`   | `(value, n)`          | repeat an array or string `n` times; `n` must be non-negative |
 | `includes` | `(arr, value)`       | structural contains check (substring check on strings) |
 | `indexOf`  | `(arr, value)`       | structural index of value, `null` if missing (substring index on strings) |
 | `flatten`  | `(arr)`              | flatten one level                        |
@@ -737,6 +741,7 @@ All functions listed below are available in the standard library.
 | `startsWith` | `(s, prefix)`  | whether `s` starts with `prefix` |
 | `endsWith`   | `(s, suffix)`  | whether `s` ends with `suffix`   |
 | `replace`    | `(s, search, replacement)` | replace all literal, non-overlapping matches; `search` must be non-empty |
+| `padStart`   | `(s, length, fill?)` | left-pad to a Unicode code-point length; fill defaults to a space |
 
 ### Regex
 

@@ -67,6 +67,11 @@ function jsonEqual(a: JSONType, b: JSONType): boolean {
   );
 }
 
+function finiteMathResult(name: string, result: number): number {
+  if (!Number.isFinite(result)) throw new Error(`${name}: result must be a finite number`);
+  return result;
+}
+
 export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
   const log = options.logger ?? noopLogger;
   return {
@@ -101,6 +106,10 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
       }
       return total;
     }),
+    sqrt: pure((value: number) => finiteMathResult("sqrt", Math.sqrt(value))),
+    pow: pure((base: number, exponent: number) =>
+      finiteMathResult("pow", Math.pow(base, exponent)),
+    ),
 
     // Comparison. Equality is structural: json-fn values are immutable JSON, so
     // there is no observable reference identity to compare — deep equality is the
@@ -185,6 +194,47 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
       const length = Math.min(left.length, right.length);
       return Array.from({ length }, (_, i) => [left[i], right[i]]);
     }),
+    unique: builtin((args, _call, _functions, meter) => {
+      const arr = args[0];
+      if (!Array.isArray(arr)) throw new Error("unique: argument must be an array");
+      meter.charge(arr.length);
+      const result: JSONType[] = [];
+      for (const value of arr) {
+        let seen = false;
+        for (const existing of result) {
+          meter.charge(1);
+          if (jsonEqual(value, existing)) {
+            seen = true;
+            break;
+          }
+        }
+        if (!seen) result.push(value);
+      }
+      return result;
+    }, 1),
+    repeat: builtin((args, _call, _functions, meter) => {
+      const [value, count] = args;
+      if (typeof count !== "number" || !Number.isInteger(count) || count < 0)
+        throw new Error("repeat: count must be a non-negative integer");
+      const repetitions = count;
+      if (typeof value === "string") {
+        const size = value.length * repetitions;
+        meter.guardSize(size);
+        meter.charge(size);
+        return value.repeat(repetitions);
+      }
+      if (Array.isArray(value)) {
+        const size = value.length * repetitions;
+        meter.guardSize(size);
+        meter.charge(size);
+        const result: JSONType[] = [];
+        for (let i = 0; i < repetitions; i++) {
+          for (const item of value) result.push(item);
+        }
+        return result;
+      }
+      throw new Error("repeat: first argument must be a string or array");
+    }, 2),
     // Membership uses the same structural equality as `eq` for array elements;
     // on strings these stay substring/char-index checks.
     includes: pure((arr: any[] | string, value: any) =>
@@ -221,6 +271,20 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
     replace: pure((s: string, search: string, replacement: string) => {
       if (search.length === 0) throw new Error("replace: search string must not be empty");
       return s.replaceAll(search, replacement);
+    }),
+    padStart: pure((s: string, targetLength: number, fill = " ") => {
+      if (!Number.isInteger(targetLength) || targetLength < 0)
+        throw new Error("padStart: target length must be a non-negative integer");
+      if (fill.length === 0) return s;
+      const value = Array.from(s);
+      const needed = targetLength - value.length;
+      if (needed <= 0) return s;
+      const fillChars = Array.from(fill);
+      const padding = Array.from(
+        { length: needed },
+        (_, i) => fillChars[i % fillChars.length],
+      ).join("");
+      return padding + s;
     }),
 
     // Object utilities

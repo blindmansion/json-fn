@@ -175,6 +175,46 @@
       "description": "replace: rejects an empty search string",
       "body": { "$return": { "$call": "replace", "$args": ["abc", "", "-"] } },
       "error": "search string must not be empty"
+    },
+    {
+      "description": "padStart: pads to the requested length",
+      "body": { "$return": { "$call": "padStart", "$args": ["7", 3, "0"] } },
+      "expected": "007"
+    },
+    {
+      "description": "padStart: defaults to a space fill",
+      "body": { "$return": { "$call": "padStart", "$args": ["x", 3] } },
+      "expected": "  x"
+    },
+    {
+      "description": "padStart: truncates a multi-character fill",
+      "body": { "$return": { "$call": "padStart", "$args": ["x", 4, "ab"] } },
+      "expected": "abax"
+    },
+    {
+      "description": "padStart: measures Unicode code points",
+      "body": { "$return": { "$call": "padStart", "$args": ["🙂", 3, "ab"] } },
+      "expected": "ab🙂"
+    },
+    {
+      "description": "padStart: rejects a negative target length",
+      "body": { "$return": { "$call": "padStart", "$args": ["x", -1] } },
+      "error": "target length must be a non-negative integer"
+    },
+    {
+      "description": "repeat: repeats a string",
+      "body": { "$return": { "$call": "repeat", "$args": ["ab", 3] } },
+      "expected": "ababab"
+    },
+    {
+      "description": "repeat: zero repetitions returns an empty string",
+      "body": { "$return": { "$call": "repeat", "$args": ["ab", 0] } },
+      "expected": ""
+    },
+    {
+      "description": "repeat: rejects a fractional count",
+      "body": { "$return": { "$call": "repeat", "$args": ["ab", 1.5] } },
+      "error": "count must be a non-negative integer"
     }
   ]
 }

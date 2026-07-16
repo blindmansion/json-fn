@@ -354,6 +354,12 @@ describe("Section F — builtin signatures", () => {
       expect(synthB(call("sum", [1.5, 2])).type).toEqual({ type: "number" });
     });
 
+    test("sqrt/pow return numbers", () => {
+      expect(synthB(call("sqrt", 9)).type).toEqual({ type: "number" });
+      expect(synthB(call("pow", 2, 10)).type).toEqual({ type: "number" });
+      expect(synthB(call("sqrt", "9")).diagnostics.length).toBeGreaterThan(0);
+    });
+
     test("num/isTask/arity have concrete returns", () => {
       expect(synthB(call("num", "5")).type).toEqual({ type: "number" });
       expect(synthB(call("isTask", 1)).type).toEqual({ type: "boolean" });
@@ -382,6 +388,12 @@ describe("Section F — builtin signatures", () => {
     test("replace returns a string and requires string arguments", () => {
       expect(synthB(call("replace", "banana", "an", "X")).type).toEqual(S);
       expect(synthB(call("replace", "banana", 1, "X")).diagnostics.length).toBeGreaterThan(0);
+    });
+
+    test("padStart accepts its optional fill and returns a string", () => {
+      expect(synthB(call("padStart", "7", 3)).type).toEqual(S);
+      expect(synthB(call("padStart", "7", 3, "0")).type).toEqual(S);
+      expect(synthB(call("padStart", "7", 3.5)).diagnostics.length).toBeGreaterThan(0);
     });
 
     test("regex families: reTest/reMatchAll/reReplace/reSplit", () => {
@@ -447,6 +459,16 @@ describe("Section F — builtin signatures", () => {
       };
       expect(isSubschema(synthB(call("zip", [1, 2], ["a", "b"])).type, pairs)).toBe(true);
       expect(synthB(call("zip", [1, 2], "ab")).diagnostics.length).toBeGreaterThan(0);
+    });
+
+    test("unique and array repeat preserve the element type", () => {
+      expect(isSubschema(synthB(call("unique", [1, 2, 1])).type, arrOfInt)).toBe(true);
+      expect(isSubschema(synthB(call("repeat", [1, 2], 2)).type, arrOfInt)).toBe(true);
+    });
+
+    test("repeat selects its string overload", () => {
+      expect(synthB(call("repeat", "ab", 2)).type).toEqual(S);
+      expect(synthB(call("repeat", 1, 2)).diagnostics.length).toBeGreaterThan(0);
     });
 
     test("includes/indexOf pick the right arm", () => {

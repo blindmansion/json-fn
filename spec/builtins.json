@@ -106,6 +106,15 @@
         "returns": { "type": "number" }
       }
     ] },
+    "sqrt": { "signatures": [
+      { "params": [{ "type": "number" }], "returns": { "type": "number" } }
+    ] },
+    "pow": { "signatures": [
+      {
+        "params": [{ "type": "number" }, { "type": "number" }],
+        "returns": { "type": "number" }
+      }
+    ] },
     "eq": { "signatures": [{ "params": [true, true], "returns": { "type": "boolean" } }] },
     "neq": { "signatures": [{ "params": [true, true], "returns": { "type": "boolean" } }] },
     "lt": { "signatures": [
@@ -167,6 +176,16 @@
     "replace": { "signatures": [
       {
         "params": [{ "type": "string" }, { "type": "string" }, { "type": "string" }],
+        "returns": { "type": "string" }
+      }
+    ] },
+    "padStart": { "signatures": [
+      {
+        "params": [{ "type": "string" }, { "type": "integer" }],
+        "returns": { "type": "string" }
+      },
+      {
+        "params": [{ "type": "string" }, { "type": "integer" }, { "type": "string" }],
         "returns": { "type": "string" }
       }
     ] },
@@ -238,6 +257,27 @@
             "minItems": 2
           }
         }
+      }
+    ] },
+    "unique": { "signatures": [
+      {
+        "typeParams": ["T"],
+        "params": [{ "type": "array", "items": { "$tvar": "T" } }],
+        "returns": { "type": "array", "items": { "$tvar": "T" } }
+      }
+    ] },
+    "repeat": { "signatures": [
+      {
+        "params": [{ "type": "string" }, { "type": "integer" }],
+        "returns": { "type": "string" }
+      },
+      {
+        "typeParams": ["T"],
+        "params": [
+          { "type": "array", "items": { "$tvar": "T" } },
+          { "type": "integer" }
+        ],
+        "returns": { "type": "array", "items": { "$tvar": "T" } }
       }
     ] },
     "flatten": { "signatures": [

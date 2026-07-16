@@ -150,6 +150,36 @@
       "description": "sum: rejects a non-number element",
       "body": { "$return": { "$call": "sum", "$args": [[1, "2", 3]] } },
       "error": "elements must be numbers"
+    },
+    {
+      "description": "sqrt: computes a square root",
+      "body": { "$return": { "$call": "sqrt", "$args": [81] } },
+      "expected": 9
+    },
+    {
+      "description": "sqrt: accepts a fractional input",
+      "body": { "$return": { "$call": "sqrt", "$args": [0.25] } },
+      "expected": 0.5
+    },
+    {
+      "description": "sqrt: rejects a negative input whose result is not finite",
+      "body": { "$return": { "$call": "sqrt", "$args": [-1] } },
+      "error": "result must be a finite number"
+    },
+    {
+      "description": "pow: raises a base to an exponent",
+      "body": { "$return": { "$call": "pow", "$args": [2, 10] } },
+      "expected": 1024
+    },
+    {
+      "description": "pow: supports negative exponents",
+      "body": { "$return": { "$call": "pow", "$args": [4, -1] } },
+      "expected": 0.25
+    },
+    {
+      "description": "pow: rejects a non-finite result",
+      "body": { "$return": { "$call": "pow", "$args": [0, -1] } },
+      "error": "result must be a finite number"
     }
   ]
 }
