@@ -53,7 +53,7 @@ Implemented by widening the portable callback return contract to
 checker regression now covers both string and numeric key callbacks. No
 checker-engine special case was needed.
 
-## C2 — `flatMap` scalar-or-array returns
+## C2 — `flatMap` scalar-or-array returns — ✅ done
 
 ### Problem
 
@@ -94,6 +94,12 @@ Likely files:
 - callback parameters remain contextually typed from the input array;
 - the existing array-return cases retain their precision; and
 - the scalar conformance case is accepted by both evaluator and checker.
+
+Implemented with an `any[]` portable fallback and a registered `core.flatMap`
+rule. The rule contextually synthesizes bare callbacks, reads declared returns
+from concrete callbacks, and distributes one-level flattening across array,
+tuple, scalar, reference, literal, and union schemas. Missing-rule checking
+retains the fallback and reports a coverage degradation.
 
 ## C3 — Final accumulator validation for `reduce` — ✅ done
 
@@ -199,12 +205,10 @@ the exit policy and `--require-full-coverage` behavior are unchanged.
 1. `groupBy` and documentation/coverage clarification. ✅ done
 2. `reduce` final-context validation as an independent checker change. ✅ done
 3. Callable-rule substrate from `callable-contracts.md`.
-4. `flatMap` precision rule as the first substantive consumer.
+4. `flatMap` precision rule as the first substantive consumer. ✅ done
 
 ## Handoff notes
 
 - C3 (`reduce`) is complete and did not change the callable contract format.
-- The callable-rule substrate and load-time contract validation are complete.
-  C2 (`flatMap`) is now unblocked and remains the next precision rule; its
-  scalar-or-array behavior should not be approximated with competing data
-  overloads.
+- The callable-rule substrate, load-time contract validation, and C2
+  (`flatMap`) precision rule are complete.

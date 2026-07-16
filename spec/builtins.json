@@ -464,21 +464,24 @@
         }
       }
     ] },
-    "flatMap": { "signatures": [
-      {
-        "typeParams": ["T", "U"],
-        "params": [
-          {
-            "$fnType": {
-              "params": [{ "$tvar": "T" }, { "type": "integer" }],
-              "returns": { "type": "array", "items": { "$tvar": "U" } }
-            }
-          },
-          { "type": "array", "items": { "$tvar": "T" } }
-        ],
-        "returns": { "type": "array", "items": { "$tvar": "U" } }
-      }
-    ] },
+    "flatMap": {
+      "signatures": [
+        {
+          "typeParams": ["T"],
+          "params": [
+            {
+              "$fnType": {
+                "params": [{ "$tvar": "T" }, { "type": "integer" }],
+                "returns": true
+              }
+            },
+            { "type": "array", "items": { "$tvar": "T" } }
+          ],
+          "returns": { "type": "array" }
+        }
+      ],
+      "rule": "core.flatMap"
+    },
     "mapValues": { "signatures": [
       {
         "typeParams": ["T", "U"],

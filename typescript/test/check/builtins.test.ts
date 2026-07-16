@@ -355,7 +355,7 @@ describe("Section F — builtin signatures", () => {
       }
     });
 
-    test("flatMap infers U from the callback's array return", () => {
+    test("flatMap infers its element type from an array callback return", () => {
       const dup = {
         $params: ["n", "i"],
         $return: call("concat", [{ $var: "n" }], [{ $var: "n" }]),
@@ -365,18 +365,77 @@ describe("Section F — builtin signatures", () => {
       expect(isSubschema(r.type, arrOfInt)).toBe(true);
     });
 
-    test("flatMap rejects a scalar callback return", () => {
+    test("flatMap retains and infers scalar callback returns", () => {
       const scalar = {
         $params: ["n", "i"],
         $return: call("add", { $var: "n" }, 1),
       };
       const r = synthB(call("flatMap", scalar, [1, 2, 3]));
-      expect(r.type).toEqual({ type: "array", items: true });
-      expect(r.diagnostics).toContainEqual(
+      expect(r.diagnostics).toEqual([]);
+      expect(r.type).toEqual(arrOfInt);
+    });
+
+    test("flatMap infers from an annotated callback return", () => {
+      const callback = body(["n", "i"], { params: [I, I], returns: I }, { $var: "n" });
+      const r = synthB(call("flatMap", callback, [1, 2, 3]));
+      expect(r.diagnostics).toEqual([]);
+      expect(r.type).toEqual(arrOfInt);
+    });
+
+    test("flatMap distributes one-level flattening across scalar-or-array unions", () => {
+      const mixed = {
+        $params: ["n", "i"],
+        $return: {
+          $if: call("gt", { $var: "n" }, 1),
+          $then: [call("str", { $var: "n" })],
+          $else: { $var: "n" },
+        },
+      };
+      const r = synthB(call("flatMap", mixed, [1, 2, 3]));
+      expect(r.diagnostics).toEqual([]);
+      expect(r.type).toEqual({
+        type: "array",
+        items: { anyOf: [S, I] },
+      });
+    });
+
+    test("flatMap flattens nested callback arrays by exactly one level", () => {
+      const nested = {
+        $params: ["n"],
+        $return: [[{ $var: "n" }]],
+      };
+      const r = synthB(call("flatMap", nested, [1, 2, 3]));
+      expect(r.diagnostics).toEqual([]);
+      expect(isSubschema(r.type, { type: "array", items: arrOfInt })).toBe(true);
+      expect(isSubschema(r.type, arrOfInt)).toBe(false);
+    });
+
+    test("flatMap keeps its portable fallback when the precision rule is unavailable", () => {
+      const scalar = {
+        $params: ["n", "i"],
+        $return: call("add", { $var: "n" }, { $var: "i" }),
+      };
+      const r = checkExpr(call("flatMap", scalar, [1, 2, 3]), {}, BT, { typeRules: {} });
+      expect(r.type).toEqual({ type: "array" });
+      expect(r.diagnostics).toEqual([
+        {
+          path: [],
+          message: 'type coverage degraded because callable rule "core.flatMap" is unavailable.',
+          severity: "info",
+        },
+      ]);
+    });
+
+    test("flatMap does not duplicate callback diagnostics during rule refinement", () => {
+      const invalid = {
+        $params: ["n"],
+        $return: call("add", "x", true),
+      };
+      const r = synthB(call("flatMap", invalid, [1, 2, 3]));
+      expect(r.diagnostics).toHaveLength(1);
+      expect(r.diagnostics[0]).toEqual(
         expect.objectContaining({
           path: ["$args[0]", "$return"],
-          actual: I,
-          expected: { type: "array", items: true },
           severity: "error",
         }),
       );

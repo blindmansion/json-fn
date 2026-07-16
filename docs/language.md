@@ -694,7 +694,7 @@ Higher-order functions can invoke json-fn callbacks. The callback argument can b
 | `every`         | `(callback, arr)`          | all match. Callback receives `(item, index)`.                                    |
 | `sort`          | `(comparator, arr)`        | sorted copy. Comparator receives `(a, b)`, returns number.                       |
 | `sortBy`        | `(keyFn, arr)`             | sorted copy by key function. keyFn receives `(item, index)`.                     |
-| `flatMap`       | `(callback, arr)`          | map then flatten one level. Callback receives `(item, index)`.                   |
+| `flatMap`       | `(callback, arr)`          | map then flatten arrays one level; retain scalar results. Callback receives `(item, index)`. |
 | `groupBy`       | `(keyFn, arr)`             | group into object. keyFn receives `(item, index)`, must return string or number. |
 | `mapValues`     | `(callback, obj)`          | transform object values. Callback receives `(value, key)`.                       |
 | `apply`         | `(fn, argsArray)`          | call `fn` with elements of `argsArray` as positional arguments.                  |
@@ -710,6 +710,9 @@ a wrapper lambda when their declared parameters do not match the builtin's
 callback shape.
 
 `groupBy` converts numeric keys to strings before using them as object keys.
+`flatMap` splices array callback results into the output and keeps non-array
+results as single elements; nested arrays are therefore flattened by exactly
+one level.
 `reReplaceWith` callbacks statically return `string`, although the runtime
 defensively stringifies other return values. `mapValues` is typed as a
 string-keyed map and does not preserve exact input keys. `filter` and `find` do

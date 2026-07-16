@@ -20,8 +20,7 @@ See [hof-type-corrections.md](hof-type-corrections.md).
 
 Status: the contract-cleanup delivery slice is complete. `groupBy` and the
 HOF/runtime and coverage documentation are aligned, and `reduce` final-context
-validation is complete. The rule-dependent `flatMap` correction remains a
-later slice.
+validation and the rule-dependent `flatMap` correction are complete.
 
 Resolve known drift before using the current builtin table as the model for
 host-authored contracts:
@@ -95,7 +94,8 @@ durable orchestration driver      (parallel, manifest-dependent track)
    at load time with path-bearing validation errors.
 5. **Rule substrate — ✅ done:** fallback signatures, injected rule registry,
    and migration of existing core special cases.
-6. **`flatMap` rule:** first precision rule implemented on the new substrate.
+6. **`flatMap` rule — ✅ done:** first precision rule implemented on the new
+   substrate.
 7. **Effects and `Task<A>`:** host-environment B2/B3.
 8. **Environment packaging:** direct functions, effects, types, and entrypoint
    in host-environment B4.

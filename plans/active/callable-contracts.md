@@ -22,9 +22,9 @@ rather than hardcoded name switches.
 
 Unavailable rules preserve fallback checking and emit a coverage degradation.
 Registry composition rejects duplicate IDs, and a rule result outside its
-fallback raises a configuration error. The remaining work is the first new
-precision consumer (`core.flatMap`) and public host callable-table composition
-as part of environment packaging.
+fallback raises a configuration error. `core.flatMap` is the first new
+precision consumer. The remaining work is public host callable-table
+composition as part of environment packaging.
 
 ## Contract model
 
@@ -258,7 +258,7 @@ environment remains the authoritative contract.
 3. Injected core rule registry. ✅ done
 4. Migration of floors, `handle`, and `merge` with no behavior change. ✅ done
 5. Public merge/check APIs for host callable tables (with environment packaging).
-6. `core.flatMap` precision rule.
+6. `core.flatMap` precision rule. ✅ done
 7. Environment integration for host functions and effect-aware core rules.
 
 ## Completion criteria

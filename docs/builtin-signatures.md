@@ -189,6 +189,18 @@ input's exact keys at runtime, but exact key preservation requires an
 argument-dependent code computation and is intentionally not represented by
 this data template.
 
+#### `flatMap`
+
+`flatMap` accepts callbacks returning either a scalar or an array. Array results
+contribute their item type, scalar results contribute themselves, and union
+returns distribute across both cases. The result is always an array of that
+one-level flattened element type, so a nested array remains an array element.
+
+Its portable fallback contextually types the callback as `(T, integer) -> any`
+and returns `any[]`. The `core.flatMap` rule supplies the precise result where
+that host-language rule is available; without it, checking retains the fallback
+and reports a type-coverage degradation.
+
 #### `groupBy`
 
 `groupBy` accepts a key callback returning `string | number`. Numeric keys are
@@ -264,6 +276,7 @@ legitimately accept):
 | --------- | ----- | -------------------------- | ------- |
 | `core.pipe`    | 2     | arg 0: `array`             | `any`   |
 | `core.apply`   | 2     | arg 1: `array`             | `any`   |
+| `core.flatMap` | 2     | arg 1: `T[]`                | `any[]` |
 | `core.handle`  | 2 or 3 | —                         | `any`   |
 | `core.perform` | 2     | arg 0: `string`, 1:`array` | `Task`  |
 | `core.pure`    | 1     | —                          | `Task`  |

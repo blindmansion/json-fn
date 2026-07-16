@@ -1,3 +1,4 @@
+import type { JSONType } from "../types";
 import type { BuiltinTypeRuleRegistry, BuiltinTypeRuleV1 } from "./builtin-types";
 import {
   apMode,
@@ -7,12 +8,15 @@ import {
   fnShape,
   isSchemaObject,
   itemsSchema,
+  literalValues,
   mergeSchemas,
   prefixItems,
   properties,
   SchemaKind,
   tupleRest,
   unionArms,
+  unionOf,
+  widenLiteral,
   type Schema,
 } from "./schema";
 
@@ -57,6 +61,95 @@ const impreciseFallback: BuiltinTypeRuleV1 = (request, services) => {
 const mergeRule: BuiltinTypeRuleV1 = (request, services) => {
   if (!request.fallbackMatched || request.args.length !== 2) return request.fallbackResult;
   return mergeSchemas(services.synthArgument(0), services.synthArgument(1), services.defs);
+};
+
+function literalArrayElementSchema(schema: Schema): Schema | null {
+  const values = literalValues(schema);
+  if (!values.every(Array.isArray)) return null;
+  return unionOf(
+    values.flatMap((value) => value.map((item) => widenLiteral({ const: item } as Schema))),
+  );
+}
+
+function flattenLiteralValue(value: JSONType): Schema {
+  if (!Array.isArray(value)) return { const: value };
+  return unionOf(value.map((item) => widenLiteral({ const: item } as Schema)));
+}
+
+function arrayElementSchema(schema: Schema, resolve: (schema: Schema) => Schema): Schema {
+  const resolved = resolve(schema);
+  const arms = unionArms(resolved);
+  if (arms !== null) return unionOf(arms.map((arm) => arrayElementSchema(arm, resolve)));
+
+  switch (classifySchema(resolved)) {
+    case SchemaKind.Any:
+      return true;
+    case SchemaKind.Never:
+      return false;
+    case SchemaKind.Array:
+      return itemsSchema(asObject(resolved));
+    case SchemaKind.Tuple: {
+      const tuple = asObject(resolved);
+      const rest = tupleRest(tuple);
+      return unionOf(
+        (rest === null ? prefixItems(tuple) : [...prefixItems(tuple), rest]).map(widenLiteral),
+      );
+    }
+    case SchemaKind.Const:
+    case SchemaKind.Enum:
+      return literalArrayElementSchema(resolved) ?? true;
+    default:
+      return true;
+  }
+}
+
+function flattenOneArrayLevel(schema: Schema, resolve: (schema: Schema) => Schema): Schema {
+  const resolved = resolve(schema);
+  const arms = unionArms(resolved);
+  if (arms !== null) return unionOf(arms.map((arm) => flattenOneArrayLevel(arm, resolve)));
+
+  switch (classifySchema(resolved)) {
+    case SchemaKind.Array:
+      return itemsSchema(asObject(resolved));
+    case SchemaKind.Tuple: {
+      const tuple = asObject(resolved);
+      const rest = tupleRest(tuple);
+      return unionOf(
+        (rest === null ? prefixItems(tuple) : [...prefixItems(tuple), rest]).map(widenLiteral),
+      );
+    }
+    case SchemaKind.Const: {
+      const [value] = literalValues(resolved);
+      return value === undefined ? resolved : flattenLiteralValue(value);
+    }
+    case SchemaKind.Enum:
+      return unionOf(literalValues(resolved).map(flattenLiteralValue));
+    default:
+      return resolved;
+  }
+}
+
+const flatMapRule: BuiltinTypeRuleV1 = (request, services) => {
+  if (!request.fallbackMatched || request.args.length !== 2) return request.fallbackResult;
+
+  const item = arrayElementSchema(services.synthArgument(1), services.resolveSchema);
+  const expectedCallback: Schema = {
+    $fnType: {
+      params: [item, { type: "integer" }],
+      returns: true,
+    },
+  };
+  let callbackReturn = services.contextualTypeCallback(0, expectedCallback);
+  if (callbackReturn === null) {
+    const callback = services.resolveSchema(services.synthArgument(0));
+    if (classifySchema(callback) !== SchemaKind.FnType) return request.fallbackResult;
+    callbackReturn = fnShape(asObject(callback)).returns;
+  }
+
+  return {
+    type: "array",
+    items: flattenOneArrayLevel(callbackReturn, services.resolveSchema),
+  };
 };
 
 const handleRule: BuiltinTypeRuleV1 = (request, services) => {
@@ -110,6 +203,7 @@ const CORE_BUILTIN_TYPE_RULES: BuiltinTypeRuleRegistry = {
   "core.raise": preserveFallback,
   "core.handle": handleRule,
   "core.merge": mergeRule,
+  "core.flatMap": flatMapRule,
 };
 
 function isLiteralSchemaValue(value: unknown): boolean {

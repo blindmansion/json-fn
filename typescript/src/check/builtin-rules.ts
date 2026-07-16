@@ -554,7 +554,20 @@ function createRuleServices(argExprs: JSONType[], ctx: CheckContext): BuiltinTyp
     contextualTypeCallback: (index, expectedFn) => {
       const expr = argExprs[index];
       if (expr === undefined || !isContextualLambda(expr)) return null;
-      return inferLambdaReturn(expr, expectedFn, at(ctx, `$args[${index}]`));
+      const diagnostics: Diagnostic[] = [];
+      const result = inferLambdaReturn(expr, expectedFn, {
+        ...at(ctx, `$args[${index}]`),
+        diagnostics,
+      });
+      const existing = new Set(ctx.diagnostics.map(stableStringify));
+      for (const diagnostic of diagnostics) {
+        const key = stableStringify(diagnostic);
+        if (!existing.has(key)) {
+          ctx.diagnostics.push(diagnostic);
+          existing.add(key);
+        }
+      }
+      return result;
     },
     resolveSchema: (schema) => resolveDeep(schema, ctx.defs),
     instantiateSchema: instantiate,
