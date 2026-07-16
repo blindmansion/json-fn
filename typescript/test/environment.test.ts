@@ -98,6 +98,27 @@ describe("environment checker integration", () => {
     expect(checkModule(mod, builtins, { environment: env })).toEqual([]);
   });
 
+  test("rejects an entry body whose parameters do not match the injected signature", () => {
+    const env = environment({
+      entry: { name: "main", params: [I], returns: { task: I } },
+    });
+    const mod = {
+      main: {
+        $params: [],
+        $return: { $call: "pure", $args: [1] },
+      },
+    } as Record<string, JSONType>;
+
+    expect(checkModule(mod, builtins, { environment: env })).toContainEqual(
+      expect.objectContaining({
+        severity: "error",
+        path: ["main", "$params"],
+        message:
+          "Contextual signature expects 1 fixed parameter(s); body declares 0 fixed parameter(s).",
+      }),
+    );
+  });
+
   test("rejects an entry body with the wrong completion type", () => {
     const mod = {
       main: {

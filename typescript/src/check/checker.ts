@@ -951,6 +951,7 @@ function describe(schema: Schema): string {
 // — a module binding, a value in `$return`/argument position, or a standalone
 // expression checked via `checkExpr` (`--expr`).
 function checkBody(body: Record<string, JSONType>, ctx: CheckContext, injectedSig?: Sig): void {
+  if (injectedSig !== undefined) checkInjectedBodyArity(body, injectedSig, ctx);
   const sig = injectedSig ?? sigOf(body);
   const { env, guards } = buildTypeScope(body, ctx.env, ctx, true, injectedSig);
   const bctx: CheckContext = { ...ctx, env, guards };
@@ -959,6 +960,24 @@ function checkBody(body: Record<string, JSONType>, ctx: CheckContext, injectedSi
     const val = body[key]!;
     if (isBody(val)) checkBody(val, at(bctx, key));
   }
+}
+
+// A contextually supplied signature owns the body's callable shape as well as
+// its parameter and return types. In particular, environment entry injection
+// must not silently accept a guest body with fewer/more parameters than the
+// operator contract (the removed entry-specific reconciliation pass enforced
+// this before entry checking moved onto the normal body path).
+function checkInjectedBodyArity(body: Record<string, JSONType>, sig: Sig, ctx: CheckContext): void {
+  const params = Array.isArray(body.$params) ? (body.$params as JSONType[]) : [];
+  const restIndex = params.findIndex((p) => typeof p === "string" && p.startsWith("..."));
+  const hasRest = restIndex !== -1;
+  const fixed = hasRest ? restIndex : params.length;
+  const expectsRest = sig.rest !== undefined;
+  if (fixed === sig.params.length && hasRest === expectsRest) return;
+
+  const expected = `${sig.params.length} fixed parameter(s)${expectsRest ? " and a rest parameter" : ""}`;
+  const actual = `${fixed} fixed parameter(s)${hasRest ? " and a rest parameter" : ""}`;
+  report(at(ctx, "$params"), `Contextual signature expects ${expected}; body declares ${actual}.`);
 }
 
 export { buildTypeScope, synth, paramAt, checkArity, reportMismatch, check, checkBody };

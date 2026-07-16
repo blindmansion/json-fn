@@ -12,11 +12,9 @@ The serialized task representation may continue to contain effect-name strings.
 They are stable runtime data needed for handling, persistence, and resume; they
 do not need to be part of the source-level API.
 
-This plan should be sequenced with
-[remove-environment-compatibility.md](remove-environment-compatibility.md).
-That cleanup is not incidental: making the environment the only checker/runtime
-configuration removes branches and duplicate signatures that would otherwise
-make each ergonomic feature more complicated.
+The compatibility-removal prerequisite is complete. Making the environment the
+only checker/runtime configuration removed branches and duplicate signatures
+that would otherwise make each ergonomic feature more complicated.
 
 ## Problems exposed by the migrated examples
 
@@ -148,8 +146,7 @@ Do not retain an environment-free module path merely to preserve the old CLI.
 
 ## Clean-break simplifications
 
-Implement [remove-environment-compatibility.md](remove-environment-compatibility.md)
-before or with this work:
+The completed compatibility-removal slice established:
 
 - one `runTask(module, environment, args, host, limits?)` path means generated
   effect callables and runtime contracts are installed once;
@@ -165,7 +162,7 @@ Do not add ergonomic features to both old and new paths.
 
 ## Delivery order
 
-1. Remove compatibility paths and route entry checking through an injected
+1. ✅ Remove compatibility paths and route entry checking through an injected
    signature.
 2. Choose and implement the manifest-derived effect-call syntax and collision
    policy.
