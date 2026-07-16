@@ -91,15 +91,15 @@
   type ScriptState = { pending: Reading[], out: string[] },
 
   runScript: (readings: Reading[], task: Task<State>) -> Report => (handle task -> (ScriptState) -> Report with {
-    "sensor.read": (resume) => (s) => (resume(next))(rest) where {
+    "sensor.read": (resume) => (s) => resume(next)(rest) where {
       empty: length(s.pending) == 0,
       next:  if empty then null else head(s.pending),
       rest:  { pending: if empty then [] else tail(s.pending), out: s.out }
     },
     "hvac.set": (mode, resume) => (s) =>
-      (resume(null))({ pending: s.pending, out: concat(s.out, [`hvac := ${mode}`]) }),
+      resume(null)({ pending: s.pending, out: concat(s.out, [`hvac := ${mode}`]) }),
     "log": (msg, resume) => (s) =>
-      (resume(null))({ pending: s.pending, out: concat(s.out, [msg]) }),
+      resume(null)({ pending: s.pending, out: concat(s.out, [msg]) }),
     raise: (fault, resume) => (s) => { ending: fault.tag, out: s.out },
     return: (v) => (s) => { ending: v, out: s.out }
   })({ pending: readings, out: [] }),

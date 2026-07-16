@@ -103,13 +103,13 @@
   // state trick as `withState`, just with a record instead of a bare value.
   runScript: (cmds: string[], task: Task<string>) -> ScriptReport =>
     (handle task -> (ScriptState) -> ScriptReport with {
-    input: (resume) => (s) => (resume(cmd))(rest) where {
+    input: (resume) => (s) => resume(cmd)(rest) where {
       empty: length(s.pending) == 0,
       cmd:   if empty then null else head(s.pending),
       rest:  { pending: if empty then [] else tail(s.pending), transcript: s.transcript }
     },
     print: (msg, resume) => (s) =>
-      (resume(null))({ pending: s.pending, transcript: concat(s.transcript, [msg]) }),
+      resume(null)({ pending: s.pending, transcript: concat(s.transcript, [msg]) }),
     return: (v) => (s) => { ending: v, transcript: s.transcript }
   })({ pending: cmds, transcript: [] }),
 

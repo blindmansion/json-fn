@@ -1,0 +1,94 @@
+{
+  "$defs": {
+    "Region": {
+      "enum": ["north", "south", "international"]
+    },
+    "Lane": {
+      "enum": ["north", "south", "international", "express"]
+    },
+    "Parcel": {
+      "type": "object",
+      "required": ["id", "region", "weightKg", "express"],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "region": {
+          "$ref": "#/$defs/Region"
+        },
+        "weightKg": {
+          "type": "number"
+        },
+        "express": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "State": {
+      "type": "object",
+      "required": ["routed"],
+      "properties": {
+        "routed": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "functions": {},
+  "effects": {
+    "scanner.read": {
+      "params": [],
+      "returns": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/Parcel"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      }
+    },
+    "conveyor.route": {
+      "params": [
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/$defs/Lane"
+        }
+      ],
+      "returns": {
+        "type": "null"
+      }
+    },
+    "log": {
+      "params": [
+        {
+          "type": "string"
+        }
+      ],
+      "returns": {
+        "type": "null"
+      }
+    }
+  },
+  "entry": {
+    "name": "loop",
+    "params": [
+      {
+        "$ref": "#/$defs/State"
+      },
+      {
+        "type": "integer"
+      }
+    ],
+    "returns": {
+      "task": {
+        "$ref": "#/$defs/State"
+      }
+    }
+  }
+}

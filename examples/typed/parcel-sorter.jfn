@@ -1,0 +1,115 @@
+// A typed parcel sorter: scan parcels, choose lanes, and drive a conveyor.
+//
+// The operator-owned environment supplies Region, Lane, Parcel, State, the
+// three effect contracts, and the loop entry contract. The guest owns routing
+// policy, fault handling, and its in-language test rig.
+//
+// Run it through the host:
+//   bun run typescript/examples/parcel-sorter.ts
+// Check it against the environment:
+//   bun run typescript/src/cli.ts check --environment examples/typed/parcel-sorter.environment.json --file examples/typed/parcel-sorter.jfn
+{
+  type Fault =
+      { tag: "Overweight", id: string, kilograms: number }
+    | { tag: "BadLabel", id: string },
+
+  type Decision =
+      { tag: "route", lane: Lane }
+    | { tag: "reject", fault: Fault },
+
+  // ----- pure routing policy ------------------------------------------------
+
+  // Express parcels bypass regional lanes. Bad labels and parcels above the
+  // belt's safe limit are rejected before any conveyor command is emitted.
+  decide: (parcel: Parcel) -> Decision => cond {
+    parcel.weightKg > 30 -> {
+      tag: "reject",
+      fault: { tag: "Overweight", id: parcel.id, kilograms: parcel.weightKg }
+    },
+    parcel.id == "" -> {
+      tag: "reject",
+      fault: { tag: "BadLabel", id: parcel.id }
+    },
+    parcel.express -> { tag: "route", lane: "express" },
+    parcel.region == "north" -> { tag: "route", lane: "north" },
+    parcel.region == "south" -> { tag: "route", lane: "south" },
+    else -> { tag: "route", lane: "international" }
+  },
+
+  describe: (parcel: Parcel, decision: Decision) -> string => match decision.tag {
+    "route" -> `${parcel.id}: ${parcel.region} ${str(parcel.weightKg)}kg -> ${decision.lane}`,
+    else -> `${parcel.id}: REJECT ${decision.fault.tag}`
+  },
+
+  apply: (st: State, decision: Decision) -> State => match decision.tag {
+    "route" -> { routed: st.routed + 1 },
+    else -> st
+  },
+
+  routeOne: (st: State, parcel: Parcel) -> Task<State> => do {
+    decision: decide(parcel),
+    _ <- effects.log(describe(parcel, decision)),
+    match decision.tag {
+      "route" -> do {
+        _ <- effects.conveyor.route(parcel.id, decision.lane),
+        pure(apply(st, decision))
+      },
+      else -> raise(decision.fault)
+    }
+  },
+
+  // ----- sorting loop -------------------------------------------------------
+
+  // A dry scanner returns null and closes the shift. `fuel` also bounds a host
+  // whose scanner never runs dry.
+  loop: (st, fuel) =>
+    if fuel <= 0
+      then pure(st)
+      else do {
+        parcel <- effects.scanner.read(),
+        if isNull(parcel)
+          then pure(st)
+          else do {
+            next <- routeOne(st, parcel),
+            loop(next, fuel - 1)
+          }
+      },
+
+  // ----- in-language scripted rig ------------------------------------------
+
+  type Report = { ending: State | string, out: string[] },
+  type ScriptState = { pending: Parcel[], out: string[] },
+
+  runScript: (parcels: Parcel[], task: Task<State>) -> Report =>
+    (handle task -> (ScriptState) -> Report with {
+      "scanner.read": (resume) => (s) => resume(next)(rest) where {
+        empty: length(s.pending) == 0,
+        next: if empty then null else head(s.pending),
+        rest: { pending: if empty then [] else tail(s.pending), out: s.out }
+      },
+      "conveyor.route": (id, lane, resume) => (s) =>
+        resume(null)({
+          pending: s.pending,
+          out: concat(s.out, [`belt ${id} -> ${lane}`])
+        }),
+      "log": (msg, resume) => (s) =>
+        resume(null)({ pending: s.pending, out: concat(s.out, [msg]) }),
+      raise: (fault, resume) => (s) => { ending: fault.tag, out: s.out },
+      return: (v) => (s) => { ending: v, out: s.out }
+    })({ pending: parcels, out: [] }),
+
+  demoShift: () -> Report => runScript([
+    { id: "N-104", region: "north", weightKg: 4.2, express: false },
+    { id: "X-205", region: "south", weightKg: 1.1, express: true },
+    { id: "I-306", region: "international", weightKg: 8.5, express: false }
+  ], loop({ routed: 0 }, 20)),
+
+  demoFault: () -> Report => runScript([
+    { id: "N-900", region: "north", weightKg: 42, express: false }
+  ], loop({ routed: 0 }, 20)),
+
+  demo: () -> { shift: Report, fault: Report } => {
+    shift: demoShift(),
+    fault: demoFault()
+  }
+}
