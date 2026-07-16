@@ -395,6 +395,9 @@ class Parser extends TokenCursor {
       if (this.isKeyword("type") && this.peek2().type === "ident") {
         this.advance();
         const name = this.expectIdent("type name");
+        if (name === "Task") {
+          throw this.err("'Task' is reserved for the built-in Task<A> type constructor");
+        }
         if (name in types) {
           throw this.err(`duplicate type declaration '${name}'`);
         }

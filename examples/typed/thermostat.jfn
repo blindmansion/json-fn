@@ -49,7 +49,7 @@
 
   // Turn an action into its effect. `alarm` escalates as a typed `raise`, so an
   // outer handler decides recovery; everything else pokes the HVAC (or nothing).
-  actuate: (action: Action) -> Task => match action.tag {
+  actuate: (action: Action) -> Task<null> => match action.tag {
     "switch" -> perform("hvac.set", [action.to]),
     "alarm"  -> raise(action.fault),
     else     -> pure(null)
@@ -81,7 +81,7 @@
   type Report = { ending: State | string, out: string[] },
   type ScriptState = { pending: Reading[], out: string[] },
 
-  runScript: (readings: Reading[], task: Task) -> Report => (handle task -> (ScriptState) -> Report with {
+  runScript: (readings: Reading[], task: Task<State>) -> Report => (handle task -> (ScriptState) -> Report with {
     "sensor.read": (resume) => (s) => (resume(next))(rest) where {
       empty: length(s.pending) == 0,
       next:  if empty then null else head(s.pending),

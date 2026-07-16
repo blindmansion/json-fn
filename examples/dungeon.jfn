@@ -98,7 +98,7 @@
   // One handler, two effects, one threaded state record: `input` consumes the
   // pending script, `print` appends to the transcript. Same function-awaiting-
   // state trick as `withState`, just with a record instead of a bare value.
-  runScript: (cmds: string[], task: Task) -> ScriptReport =>
+  runScript: (cmds: string[], task: Task<string>) -> ScriptReport =>
     (handle task -> (ScriptState) -> ScriptReport with {
     input: (resume) => (s) => (resume(cmd))(rest) where {
       empty: length(s.pending) == 0,

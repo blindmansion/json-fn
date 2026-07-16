@@ -56,3 +56,31 @@ describe("typed-lambda return annotation errors", () => {
     });
   });
 });
+
+describe("Task completion annotations", () => {
+  test("bare and indexed Task types lower to erased checker nodes", () => {
+    expect(parse("() -> Task => pure(null)")).toEqual({
+      $sig: { params: [], returns: { $taskType: true } },
+      $return: { $call: "pure", $args: [null] },
+    });
+    expect(parse("() -> Task<string | null> => pure(null)")).toEqual({
+      $sig: {
+        params: [],
+        returns: { $taskType: { type: ["string", "null"] } },
+      },
+      $return: { $call: "pure", $args: [null] },
+    });
+  });
+
+  test("rejects general user-facing type application", () => {
+    expect(() => parse("(x: Box<string>) => x")).toThrow(
+      "only the built-in Task<A> type constructor accepts a type argument",
+    );
+  });
+
+  test("reserves Task as a type declaration name", () => {
+    expect(() => parse("{ type Task = any, main: () => null }")).toThrow(
+      "'Task' is reserved for the built-in Task<A> type constructor",
+    );
+  });
+});

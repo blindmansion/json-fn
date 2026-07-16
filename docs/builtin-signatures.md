@@ -289,8 +289,9 @@ reference). The TypeScript checker refines that floor internally with an erased
 completion index: `pure(A)` produces `Task<A>`, `bind` passes `A` to its
 continuation and returns the continuation's `Task<B>`, `raise` produces
 `Task<never>`, and a configured effect manifest gives `perform` its result
-type. Guest signatures continue to write bare `Task`, meaning completion type
-`unknown`; the runtime task record is unchanged.
+type. Guest signatures can write `Task<A>` to preserve that completion type
+through helper boundaries; bare `Task` means `Task<any>`. The index is erased,
+so the runtime task record is unchanged.
 
 ## What each implementation must provide
 

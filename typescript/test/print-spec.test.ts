@@ -44,6 +44,18 @@ describe("printer round-trips canonical JSON (parse ∘ print = id)", () => {
 });
 
 describe("printer output shape", () => {
+  test("erased task completion types print as Task<A>", () => {
+    const node: JSONType = {
+      $sig: {
+        params: [],
+        returns: { $taskType: { anyOf: [{ $ref: "#/$defs/Reading" }, { type: "null" }] } },
+      },
+      $return: { $call: "pure", $args: [null] },
+    };
+    expect(print(node)).toBe("() -> Task<Reading | null> => pure(null)");
+    expect(parse(print(node))).toEqual(node);
+  });
+
   test("arithmetic prints as operators with correct precedence", () => {
     expect(
       print({

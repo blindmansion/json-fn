@@ -912,15 +912,10 @@ describe("Section F — builtin signatures", () => {
         checkModule(mod as Record<string, JSONType>, BT).filter((d) => d.severity === "error");
       // `-> any`
       expect(noErr({ f: fn(true) })).toEqual([]);
-      // `-> Task` aliased to any
-      expect(noErr({ $types: { Task: true }, f: fn({ $ref: "#/$defs/Task" }) })).toEqual([]);
-      // `-> Task` aliased to the structural task record
-      const structural = {
-        type: "object",
-        properties: { "@task": { type: "string" } },
-        required: ["@task"],
-      };
-      expect(noErr({ $types: { Task: structural }, f: fn({ $ref: "#/$defs/Task" }) })).toEqual([]);
+      // Parsed bare `Task` is the erased `Task<unknown>` checker node.
+      expect(noErr({ f: fn({ $taskType: true }) })).toEqual([]);
+      // Portable contracts may still use the structural builtin Task floor.
+      expect(noErr({ f: fn({ $ref: "#/$defs/Task" }) })).toEqual([]);
     });
   });
 

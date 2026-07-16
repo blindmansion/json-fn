@@ -47,7 +47,7 @@ Resolved for the source-call surface:
 - raw `perform` remains a low-level escape hatch; and
 - handler clauses keep string keys for now. Their typing remains step 6.
 
-### 2. Bare `Task` erases completion types at helper boundaries
+### 2. Bare `Task` erases completion types at helper boundaries — ✅ resolved
 
 The checker can derive `Task<Reading | null>` for a literal manifest-backed
 effect and `Task<State>` through `bind`, but guest signatures can only write
@@ -61,19 +61,16 @@ is therefore seen by callers as `Task<unknown>`. The migrated examples had to
 inline `onReading` and `playTurn`; the same erasure prevented typed `dev()` and
 `io()` wrappers from preserving effect results.
 
-The environment entry currently avoids this only through an entry-specific
-checker pass that substitutes the environment's completion type for recursive
-calls. That does not compose for ordinary guest helpers.
+Resolved with explicit guest `Task<A>` annotations, lowered to the checker's
+existing erased `{ "$taskType": A }` node. Bare `Task` means `Task<any>` and
+deliberately erases completion precision; it does not trigger public return-type
+inference. `Task` is the sole built-in type constructor and cannot be redefined,
+so this does not introduce general user-facing generics.
 
-Resolve this with one normal mechanism:
-
-- support guest `Task<A>` annotations and erase the index at runtime; or
-- retain an inferred completion type for function bindings whose public
-  annotation is bare `Task`, including a sound rule for recursion.
-
-Prefer explicit `Task<A>` unless inference can remain predictable and portable.
-The compatibility-removal plan's injected entry signature should use this same
-function-body path rather than preserving the entry-only exception.
+Explicit signatures compose with the checker's eager function bindings, making
+recursive helpers precise without recursive return inference. The
+environment-injected entry signature uses the same checker node and normal
+function-body path. Runtime task records and serialization are unchanged.
 
 ### 3. `do` locals can lose narrowing and result precision
 
@@ -165,8 +162,7 @@ Do not add ergonomic features to both old and new paths.
    signature.
 2. ✅ Choose and implement the manifest-derived effect-call syntax and collision
    policy.
-3. Add compositional helper completion types (`Task<A>` or an equally explicit
-   alternative).
+3. ✅ Add compositional helper completion types (`Task<A>`).
 4. Fix scope-call result synthesis and narrowing through `do` locals.
 5. Formalize fallback-versus-rule diagnostic ownership.
 6. Contextually type effect handlers.

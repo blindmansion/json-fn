@@ -335,7 +335,7 @@ function isDataObject(value: JSONType): value is { [k: string]: JSONType } {
   return Object.keys(value).every((k) => !k.startsWith("$"));
 }
 
-function isPlainObject(value: JSONType): value is { [k: string]: JSONType } {
+function isPlainObject(value: unknown): value is { [k: string]: JSONType } {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
@@ -414,7 +414,7 @@ function renderFunctionBody(node: { [k: string]: JSONType }, indent: string): Re
   // Locals are the non-`$` keys, in source (insertion) order. Other `$` keys
   // (e.g. `$comment`) have no canonical surface form and are dropped.
   const locals = Object.keys(node).filter((k) => !k.startsWith("$"));
-  const header = `(${params.map(renderParam).join(", ")}) =>`;
+  const header = renderFunctionHeader(params, node.$sig);
 
   if (locals.length === 0) {
     return { text: `${header} ${emit(node.$return!, P_BLOCK, indent)}`, prec: P_BLOCK };
@@ -432,6 +432,27 @@ function renderFunctionBody(node: { [k: string]: JSONType }, indent: string): Re
   const bindings = locals.map((k) => `${inner}${k}: ${emit(node[k]!, P_BLOCK, inner)}`);
   const body = `${ret} where {\n${bindings.join(",\n")}\n${indent}}`;
   return { text: `${header} ${body}`, prec: P_BLOCK };
+}
+
+function renderFunctionHeader(params: JSONType[], sig: JSONType | undefined): string {
+  if (!isPlainObject(sig)) return `(${params.map(renderParam).join(", ")}) =>`;
+  const fixed = Array.isArray(sig.params) ? sig.params : [];
+  let fixedIndex = 0;
+  const rendered = params.map((param) => {
+    if (typeof param === "string" && param.startsWith("...")) {
+      const rest = sig.rest;
+      if (rest === undefined) throw new Error("Cannot print typed rest parameter without sig.rest");
+      return `${renderParam(param)}: ${printType(rest)}[]`;
+    }
+    const schema = fixed[fixedIndex++];
+    if (schema === undefined)
+      throw new Error("Cannot print typed parameter without a matching sig.params");
+    return `${renderParam(param)}: ${printType(schema)}`;
+  });
+  if (fixedIndex !== fixed.length) {
+    throw new Error("Cannot print function signature with more fixed types than parameters");
+  }
+  return `(${rendered.join(", ")}) -> ${printType(sig.returns ?? true)} =>`;
 }
 
 /** Whether a function-body `$return`, printed bare, would swallow a following

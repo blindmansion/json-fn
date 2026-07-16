@@ -3,6 +3,7 @@ import {
   DuplicateCallableContractError,
   EnvironmentConfigurationError,
   EnvironmentValidationError,
+  ReservedDefinitionError,
   RuntimeContractError,
   checkModule,
   createStdlib,
@@ -41,6 +42,22 @@ function module(source: string): Record<string, JSONType> {
 }
 
 describe("environment validation and composition", () => {
+  test("reserves Task across environment and canonical module definitions", () => {
+    expect(() =>
+      validateEnvironment(environment({ $defs: { Task: true } }), loadBuiltinTable().$defs),
+    ).toThrow(EnvironmentValidationError);
+    expect(() =>
+      checkModule(
+        {
+          $types: { Task: true },
+          main: { $params: [], $return: { $call: "pure", $args: [1] } },
+        },
+        loadBuiltinTable(),
+        { environment: environment() },
+      ),
+    ).toThrow(ReservedDefinitionError);
+  });
+
   test("validates all contracts against the shared definition pool", () => {
     const env = environment({
       $defs: { Count: I },
@@ -165,6 +182,44 @@ describe("environment checker integration", () => {
         environment: env,
       }),
     ).toEqual([]);
+  });
+
+  test("preserves effect completion types through explicitly typed helpers", () => {
+    const env = environment({
+      effects: {
+        "sensor.read": { params: [], returns: I },
+      },
+    });
+    const mod = module(`{
+      read: () -> Task<integer> => effects.sensor.read(),
+      main: () => read()
+    }`);
+
+    expect(checkModule(mod, builtins, { environment: env })).toEqual([]);
+  });
+
+  test("checks recursive helper completion types through their eager signatures", () => {
+    const mod = module(`{
+      loop: (fuel: integer) -> Task<integer> =>
+        if fuel <= 0 then pure(0) else loop(fuel - 1),
+      main: () => loop(2)
+    }`);
+
+    expect(checkModule(mod, builtins, { environment: environment() })).toEqual([]);
+  });
+
+  test("rejects a helper body with the wrong declared completion type", () => {
+    const mod = module(`{
+      wrong: () -> Task<integer> => pure("wrong"),
+      main: () => wrong()
+    }`);
+
+    expect(
+      checkModule(mod, builtins, { environment: environment() }).some(
+        (diagnostic) =>
+          diagnostic.severity === "error" && diagnostic.path.join(".") === "wrong.$return",
+      ),
+    ).toBe(true);
   });
 
   test("checks generated effect-call arguments against the manifest", () => {

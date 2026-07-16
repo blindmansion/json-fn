@@ -17,7 +17,8 @@ import { ParseError } from "./error";
 import type { JSONType } from "../types";
 
 // A type is canonical-fragment JSON Schema (extended with `$ref` and the
-// distinguished `$fnType` node). Boolean schemas `true`/`false` are `any`/`never`.
+// distinguished `$fnType` / erased `$taskType` nodes). Boolean schemas
+// `true`/`false` are `any`/`never`.
 export type Schema = JSONType;
 
 // The refinement compatibility matrix (spec §5.3). `on` lists the primitive
@@ -170,6 +171,16 @@ export class TypeParser extends TokenCursor {
         }
       case "ident":
         this.advance();
+        if (t.value === "Task") {
+          if (this.peekType() !== "lt") return { $taskType: true };
+          this.advance();
+          const completion = this.parseType();
+          this.expect("gt", "'>' to close Task completion type");
+          return { $taskType: completion };
+        }
+        if (this.peekType() === "lt") {
+          throw this.err("only the built-in Task<A> type constructor accepts a type argument");
+        }
         switch (t.value) {
           case "null":
             return { type: "null" };

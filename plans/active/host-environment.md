@@ -226,8 +226,10 @@ A distinguished checker node like `$fnType`, fully erased at runtime (the inert
 task records are unchanged). Wire the effect builtins to thread a completion
 type: `pure(A) -> Task<A>`, `bind(Task<A>, (A) -> Task<B>) -> Task<B>`,
 manifest-backed `perform(...) -> Task<ResultOfName>`, `raise -> Task<never>`.
-Guest signatures keep writing bare `Task` (= `Task<unknown>`); no guest
-generics. Track only the completion type, not an effect set.
+Guest signatures may write the dedicated erased `Task<A>` form; bare `Task`
+means `Task<any>`. `Task` is the sole built-in type constructor rather than a
+general guest-generics facility. Track only the completion type, not an effect
+set.
 
 This is a co-requisite of B2, not optional follow-up: without it, the manifest's
 result types are known but never reach the agent's `bind`/`do` continuations.
@@ -435,10 +437,6 @@ suspension point:
   namespaced rule implementations, how rule API versions are negotiated, and
   which runtime validations remain possible for a callable whose precise type
   is computed by host-language code.
-- **`Task<A>` surface.** Whether guest signatures may write a concrete
-  `Task<Report>` or only bare `Task` (erased to `Task<unknown>`); whether a
-  residual task preserves only its completion type. Start checker-internal with
-  bare `Task` in guest code.
 - **Suspension-point declaration.** Whether an effect being a suspension point is
   declared in the manifest, in host driver config, or inferred — and how join
   capabilities (`awaitAll`/`awaitAny`) are represented so the driver and the

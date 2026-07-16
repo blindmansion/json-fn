@@ -42,6 +42,10 @@ function isFnType(schema: Schema): boolean {
   return isObject(schema) && isObject(schema.$fnType);
 }
 
+function isTaskType(schema: Schema): boolean {
+  return isObject(schema) && "$taskType" in schema;
+}
+
 function postfixOperand(schema: Schema): string {
   const rendered = printType(schema);
   return isUnion(schema) || isFnType(schema) ? `(${rendered})` : rendered;
@@ -123,6 +127,7 @@ export function printType(schema: Schema): string {
     return printRefinements(refName(schema.$ref), schema);
   }
   if ("$fnType" in schema) return printFunction(schema);
+  if (isTaskType(schema)) return `Task<${printType(schema.$taskType!)}>`;
   if ("const" in schema) return literal(schema.const!);
   if (Array.isArray(schema.enum)) return schema.enum.map(literal).join(" | ");
   if (Array.isArray(schema.anyOf)) return schema.anyOf.map(unionArm).join(" | ");

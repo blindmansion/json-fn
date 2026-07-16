@@ -87,6 +87,9 @@ function validateEnvironment(value: unknown, baseDefs: Defs = {}): asserts value
 
   const ownDefs = "$defs" in value ? value.$defs : {};
   if (!isObject(ownDefs)) fail("environment.$defs", "expected an object");
+  if (Object.prototype.hasOwnProperty.call(ownDefs, "Task")) {
+    fail("environment.$defs.Task", '"Task" is reserved for the built-in Task<A> type constructor');
+  }
   const defs = { ...baseDefs, ...ownDefs } as Defs;
 
   const functions = "functions" in value ? value.functions : {};

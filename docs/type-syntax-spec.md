@@ -371,9 +371,10 @@ assertion remains sound at runtime.
 
 The type syntax cannot emit `not`, `if`/`then`/`else`, `oneOf`, general `allOf`,
 `patternProperties`, `propertyNames`, `dependent*`, `contains`,
-`unevaluated*`, or object refinements. User-facing generics are excluded
-(builtins are internally polymorphic). Hand-written schemas using excluded
-keywords are treated as opaque by the checker.
+`unevaluated*`, or object refinements. General user-facing generics are
+excluded (builtins are internally polymorphic); the sole type constructor is
+the erased built-in `Task<A>` completion index. Hand-written schemas using
+excluded keywords are treated as opaque by the checker.
 
 ---
 
@@ -398,6 +399,7 @@ refined     := postfix ( "&" refinement )*
 postfix     := atom ( "[" "]" )*                               // array suffix
 atom        := "null" | "boolean" | "number" | "integer" | "string"
              | "any" | "never"
+             | "Task" ("<" type ">")?                         // bare Task = Task<any>
              | string | number | "true" | "false"             // literals
              | ident                                           // named type ($ref)
              | objectType

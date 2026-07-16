@@ -494,9 +494,12 @@ These are standard-library functions (see [Standard Library → Tasks & Effects]
 When the checker is configured with an effect manifest, each literal effect
 name has positional argument schemas and a result schema. `perform` checks those
 arguments, and the result type flows through `bind` (and therefore `do`
-notation). This completion index is checker-only: guest signatures still write
-bare `Task`, and task records contain no runtime type metadata. A dynamic effect
-name cannot be resolved statically and is reported as degraded type coverage.
+notation). Guest signatures may preserve that index explicitly with `Task<A>`;
+bare `Task` means `Task<any>`. `Task` is the one built-in type constructor and
+cannot be redefined; general user-facing generics remain unsupported. The index
+is checker-only, and task records contain no runtime type metadata. A dynamic
+effect name cannot be resolved statically and is reported as degraded type
+coverage.
 
 An environment-configured module also receives a reserved `effects` binding
 derived from that manifest. Dot-separated effect names become nested callable
