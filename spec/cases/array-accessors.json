@@ -228,6 +228,38 @@
       "description": "take and drop: reject a non-integer count",
       "body": { "$return": { "$call": "take", "$args": [[1, 2, 3], 1.5] } },
       "error": "must be an integer"
+    },
+    {
+      "description": "zip: pairs corresponding elements",
+      "body": {
+        "$return": {
+          "$call": "zip",
+          "$args": [
+            [1, 2, 3],
+            ["a", "b", "c"]
+          ]
+        }
+      },
+      "expected": [
+        [1, "a"],
+        [2, "b"],
+        [3, "c"]
+      ]
+    },
+    {
+      "description": "zip: truncates to the shorter array",
+      "body": { "$return": { "$call": "zip", "$args": [[1, 2, 3], ["a"]] } },
+      "expected": [[1, "a"]]
+    },
+    {
+      "description": "zip: an empty input produces an empty array",
+      "body": { "$return": { "$call": "zip", "$args": [[], [1, 2]] } },
+      "expected": []
+    },
+    {
+      "description": "zip: rejects non-array arguments",
+      "body": { "$return": { "$call": "zip", "$args": [[1, 2], "ab"] } },
+      "error": "arguments must be arrays"
     }
   ]
 }

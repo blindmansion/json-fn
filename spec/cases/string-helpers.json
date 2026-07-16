@@ -150,6 +150,31 @@
         ]
       },
       "expected": [true, true]
+    },
+    {
+      "description": "replace: replaces every literal occurrence",
+      "body": { "$return": { "$call": "replace", "$args": ["banana", "an", "X"] } },
+      "expected": "bXXa"
+    },
+    {
+      "description": "replace: treats the search string literally",
+      "body": { "$return": { "$call": "replace", "$args": ["a.b.a", ".", "-"] } },
+      "expected": "a-b-a"
+    },
+    {
+      "description": "replace: leaves a string without matches unchanged",
+      "body": { "$return": { "$call": "replace", "$args": ["json-fn", "xml", "yaml"] } },
+      "expected": "json-fn"
+    },
+    {
+      "description": "replace: supports an empty replacement",
+      "body": { "$return": { "$call": "replace", "$args": ["a-b-c", "-", ""] } },
+      "expected": "abc"
+    },
+    {
+      "description": "replace: rejects an empty search string",
+      "body": { "$return": { "$call": "replace", "$args": ["abc", "", "-"] } },
+      "error": "search string must not be empty"
     }
   ]
 }

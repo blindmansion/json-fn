@@ -164,6 +164,12 @@
         "returns": { "type": "boolean" }
       }
     ] },
+    "replace": { "signatures": [
+      {
+        "params": [{ "type": "string" }, { "type": "string" }, { "type": "string" }],
+        "returns": { "type": "string" }
+      }
+    ] },
     "length": { "signatures": [
       { "params": [{ "type": "array" }], "returns": { "type": "integer" } },
       { "params": [{ "type": "string" }], "returns": { "type": "integer" } }
@@ -214,6 +220,24 @@
           { "type": "integer" }
         ],
         "returns": { "type": "array", "items": { "$tvar": "T" } }
+      }
+    ] },
+    "zip": { "signatures": [
+      {
+        "typeParams": ["T", "U"],
+        "params": [
+          { "type": "array", "items": { "$tvar": "T" } },
+          { "type": "array", "items": { "$tvar": "U" } }
+        ],
+        "returns": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "prefixItems": [{ "$tvar": "T" }, { "$tvar": "U" }],
+            "items": false,
+            "minItems": 2
+          }
+        }
       }
     ] },
     "flatten": { "signatures": [

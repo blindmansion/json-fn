@@ -179,6 +179,12 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
       if (!Number.isInteger(count)) throw new Error("drop: second argument must be an integer");
       return arr.slice(Math.max(0, count));
     }),
+    zip: pure((left: any[], right: any[]) => {
+      if (!Array.isArray(left) || !Array.isArray(right))
+        throw new Error("zip: arguments must be arrays");
+      const length = Math.min(left.length, right.length);
+      return Array.from({ length }, (_, i) => [left[i], right[i]]);
+    }),
     // Membership uses the same structural equality as `eq` for array elements;
     // on strings these stay substring/char-index checks.
     includes: pure((arr: any[] | string, value: any) =>
@@ -212,6 +218,10 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
     join: pure((arr: any[], sep: string) => arr.join(sep)),
     startsWith: pure((s: string, prefix: string) => s.startsWith(prefix)),
     endsWith: pure((s: string, suffix: string) => s.endsWith(suffix)),
+    replace: pure((s: string, search: string, replacement: string) => {
+      if (search.length === 0) throw new Error("replace: search string must not be empty");
+      return s.replaceAll(search, replacement);
+    }),
 
     // Object utilities
     keys: pure((obj: Record<string, any>) => Object.keys(obj)),

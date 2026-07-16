@@ -379,6 +379,11 @@ describe("Section F — builtin signatures", () => {
       expect(synthB(call("startsWith", "hello", 1)).diagnostics.length).toBeGreaterThan(0);
     });
 
+    test("replace returns a string and requires string arguments", () => {
+      expect(synthB(call("replace", "banana", "an", "X")).type).toEqual(S);
+      expect(synthB(call("replace", "banana", 1, "X")).diagnostics.length).toBeGreaterThan(0);
+    });
+
     test("regex families: reTest/reMatchAll/reReplace/reSplit", () => {
       expect(synthB(call("reTest", "a", "b")).type).toEqual({ type: "boolean" });
       expect(synthB(call("reMatchAll", "a", "b")).type).toEqual({
@@ -428,6 +433,20 @@ describe("Section F — builtin signatures", () => {
       expect(isSubschema(synthB(call("take", [1, 2, 3], 2)).type, arrOfInt)).toBe(true);
       expect(isSubschema(synthB(call("drop", [1, 2, 3], 2)).type, arrOfInt)).toBe(true);
       expect(synthB(call("take", [1, 2, 3], 1.5)).diagnostics.length).toBeGreaterThan(0);
+    });
+
+    test("zip preserves both element types in pair tuples", () => {
+      const pairs: Schema = {
+        type: "array",
+        items: {
+          type: "array",
+          prefixItems: [I, S],
+          items: false,
+          minItems: 2,
+        },
+      };
+      expect(isSubschema(synthB(call("zip", [1, 2], ["a", "b"])).type, pairs)).toBe(true);
+      expect(synthB(call("zip", [1, 2], "ab")).diagnostics.length).toBeGreaterThan(0);
     });
 
     test("includes/indexOf pick the right arm", () => {

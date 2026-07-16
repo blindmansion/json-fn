@@ -718,6 +718,7 @@ All functions listed below are available in the standard library.
 | `reverse`  | `(arr)`              | reversed copy                            |
 | `take`     | `(arr, n)`           | first `n` elements; non-positive `n` gives `[]` |
 | `drop`     | `(arr, n)`           | all but the first `n` elements; non-positive `n` returns a copy |
+| `zip`      | `(left, right)`       | corresponding pairs, truncated to the shorter array |
 | `includes` | `(arr, value)`       | structural contains check (substring check on strings) |
 | `indexOf`  | `(arr, value)`       | structural index of value, `null` if missing (substring index on strings) |
 | `flatten`  | `(arr)`              | flatten one level                        |
@@ -735,6 +736,7 @@ All functions listed below are available in the standard library.
 | `join`       | `(arr, sep)`   | join array with separator        |
 | `startsWith` | `(s, prefix)`  | whether `s` starts with `prefix` |
 | `endsWith`   | `(s, suffix)`  | whether `s` ends with `suffix`   |
+| `replace`    | `(s, search, replacement)` | replace all literal, non-overlapping matches; `search` must be non-empty |
 
 ### Regex
 
