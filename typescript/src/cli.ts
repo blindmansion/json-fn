@@ -217,20 +217,34 @@ async function cmdEval(argv: string[]): Promise<void> {
   const stdlib = createStdlib({
     logger: (value, label) => console.error(label ? `${label}:` : "log:", value),
   });
+  let builtinDefs: BuiltinTable["$defs"];
+  try {
+    builtinDefs = loadBuiltinTable().$defs;
+  } catch (e) {
+    fail(`could not load builtin table: ${errMessage(e)}`);
+  }
+  const definitions = { builtinDefs };
 
   let result: JSONType;
   try {
     const entry = parsed.options.entry;
     if (entry !== undefined) {
       // Module mode: the source is an object of bindings; run the named entry.
-      result = callProgram(parsedSource as Record<string, JSONType>, entry, args, stdlib);
+      result = callProgram(
+        parsedSource as Record<string, JSONType>,
+        entry,
+        args,
+        stdlib,
+        undefined,
+        definitions,
+      );
     } else if (isFunctionBody(parsedSource) && args.length > 0) {
       // A bare function literal applied to the supplied --args.
-      result = callFunction(parsedSource, args, stdlib);
+      result = callFunction(parsedSource, args, stdlib, undefined, definitions);
     } else {
       // A bare expression is evaluated as the body of a zero-arg function so it
       // runs through the same interpreter path everything else uses.
-      result = callFunction({ $return: parsedSource }, args, stdlib);
+      result = callFunction({ $return: parsedSource }, args, stdlib, undefined, definitions);
     }
   } catch (e) {
     fail(`evaluation error: ${errMessage(e)}`);

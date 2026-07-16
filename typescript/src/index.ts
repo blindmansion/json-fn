@@ -1,4 +1,6 @@
 export { callFunction, callProgram, prepareProgram, createPerfStats } from "./evaluate";
+export { mergeDefinitionPools } from "./definition-pool";
+export type { DefinitionPool, DefinitionSources } from "./definition-pool";
 export { builtin, pure, raw, getArity } from "./utils";
 export type {
   JSONType,

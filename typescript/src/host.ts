@@ -14,6 +14,7 @@
 
 import type { ExecutionLimits, FunctionRegistry, JSONType } from "./types";
 import { prepareProgram } from "./evaluate";
+import type { DefinitionSources } from "./definition-pool";
 import { isTask, stepTask, TASK_TAG } from "./task";
 import { raw } from "./utils";
 
@@ -65,8 +66,14 @@ export async function runTask(
   registry: FunctionRegistry,
   capabilities: Record<string, Capability>,
   limits?: ExecutionLimits,
+  definitions?: DefinitionSources,
 ): Promise<JSONType> {
-  const { invokeEntry, call, meter, refreshDeadline } = prepareProgram(module, registry, limits);
+  const { invokeEntry, call, meter, refreshDeadline } = prepareProgram(
+    module,
+    registry,
+    limits,
+    definitions,
+  );
   let task = invokeEntry(entry, args);
 
   for (;;) {

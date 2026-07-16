@@ -2,6 +2,7 @@
 // then check its `$return` against the declared return type. Nested function
 
 import type { JSONType } from "../types";
+import { mergeDefinitionPools, readModuleDefinitions } from "../definition-pool";
 import type { BuiltinTable } from "./builtin-types";
 import { synthBuiltinCall } from "./builtin-rules";
 import { buildTypeScope, checkBody, synth } from "./checker";
@@ -27,6 +28,9 @@ type CheckModuleOptions = {
   // exactly the silent degradation this pass exists to kill. Pass `false` (CLI:
   // `--allow-untyped-functions`) for the soft-rollout escape hatch.
   requireTypedModuleFunctions?: boolean;
+  // Operator-owned named types sit between core builtin definitions and the
+  // module's own `$types` in the shared definition-pool precedence order.
+  environmentDefs?: Defs;
 };
 
 // Public entry, mirroring `callProgram`: lift `$types` into the defs pool, wire
@@ -37,10 +41,10 @@ function checkModule(
   builtins?: BuiltinTable,
   options: CheckModuleOptions = {},
 ): Diagnostic[] {
-  const moduleDefs: Defs = isSchemaObject(module.$types) ? (module.$types as Defs) : {};
-  // Builtin-owned named types (`Match`, …) merge into the pool; module types
-  // win on a name clash.
-  const defs: Defs = { ...builtins?.$defs, ...moduleDefs };
+  const defs: Defs = mergeDefinitionPools(
+    { builtinDefs: builtins?.$defs, environmentDefs: options.environmentDefs },
+    readModuleDefinitions(module),
+  );
   const ctx: CheckContext = {
     defs,
     env: EMPTY_ENV,
@@ -182,7 +186,10 @@ function checkExpr(
   defs: Defs = {},
   builtins?: BuiltinTable,
 ): { type: Schema; diagnostics: Diagnostic[] } {
-  const merged: Defs = { ...builtins?.$defs, ...defs };
+  const merged: Defs = mergeDefinitionPools({
+    builtinDefs: builtins?.$defs,
+    environmentDefs: defs,
+  });
   const ctx: CheckContext = {
     defs: merged,
     env: EMPTY_ENV,

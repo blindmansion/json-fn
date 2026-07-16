@@ -87,7 +87,7 @@ type Meter = {
 };
 
 type RuntimeContext = {
-  /** Active module `$types`, available to runtime boundary contracts. */
+  /** Merged builtin, environment, and module definitions for boundary contracts. */
   defs: Record<string, JSONType>;
 };
 
@@ -182,7 +182,7 @@ type EvaluationContext = {
   // super-exponentially. Seeded empty at the root/module scope
   // (`attachFns === undefined`); each nested scope adds its own local functions.
   attachFns?: ReadonlySet<string>;
-  /** Active module `$types`, propagated through calls for runtime contracts. */
+  /** Merged definition pool propagated through calls for runtime contracts. */
   runtimeDefs?: Record<string, JSONType>;
   limits: ResolvedLimits;
   state: CallState;

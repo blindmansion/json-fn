@@ -36,6 +36,11 @@ import {
   prepareRuntimeContractCall,
   readRuntimeFunctionContract,
 } from "./runtime-contract";
+import {
+  mergeDefinitionPools,
+  readModuleDefinitions,
+  type DefinitionSources,
+} from "./definition-pool";
 
 export function createPerfStats(): PerfStats {
   return {
@@ -111,6 +116,7 @@ export function callFunction(
   args: JSONType[],
   functions: FunctionRegistry,
   limits?: ExecutionLimits,
+  definitions?: DefinitionSources,
 ): JSONType {
   const maxFuel = limits?.maxFuel ?? Infinity;
   const maxValueSize = limits?.maxValueSize ?? Infinity;
@@ -131,6 +137,7 @@ export function callFunction(
       },
       state,
       perf: limits?.perf,
+      runtimeDefs: mergeDefinitionPools(definitions),
     });
   } finally {
     if (usage) usage.fuel = state.fuel;
@@ -149,6 +156,7 @@ export function callProgram(
   args: JSONType[],
   baseRegistry: FunctionRegistry,
   limits?: ExecutionLimits,
+  definitions?: DefinitionSources,
 ): JSONType {
   const maxFuel = limits?.maxFuel ?? Infinity;
   const maxValueSize = limits?.maxValueSize ?? Infinity;
@@ -165,10 +173,7 @@ export function callProgram(
     deadline,
   };
   const perf = limits?.perf;
-  const runtimeDefs =
-    typeof module.$types === "object" && module.$types !== null && !Array.isArray(module.$types)
-      ? (module.$types as Record<string, JSONType>)
-      : {};
+  const runtimeDefs = mergeDefinitionPools(definitions, readModuleDefinitions(module));
   try {
     // The module is a function body with no `$params` and no `$return`.
     const { getVar, scopedFunctions, localFns, attachFns } = buildScope(
@@ -241,6 +246,7 @@ export function prepareProgram(
   module: Record<string, JSONType>,
   baseRegistry: FunctionRegistry,
   limits?: ExecutionLimits,
+  definitions?: DefinitionSources,
 ): {
   invokeEntry: (entry: string, args: JSONType[]) => JSONType;
   call: (fn: JSONType, args: JSONType[]) => JSONType;
@@ -262,10 +268,7 @@ export function prepareProgram(
     deadline: hasTimeout ? Date.now() + timeoutMs! : Infinity,
   };
   const perf = limits?.perf;
-  const runtimeDefs =
-    typeof module.$types === "object" && module.$types !== null && !Array.isArray(module.$types)
-      ? (module.$types as Record<string, JSONType>)
-      : {};
+  const runtimeDefs = mergeDefinitionPools(definitions, readModuleDefinitions(module));
 
   // The module is a function body with no `$params`/`$return`; build its scope
   // once (mirrors `callProgram`).

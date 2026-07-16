@@ -86,7 +86,8 @@ durable orchestration driver      (parallel, manifest-dependent track)
 
 1. **Contract cleanup — ✅ done:** `groupBy`, HOF/runtime documentation, and
    coverage wording.
-2. **Definition-pool unification:** host-environment B1.
+2. **Definition-pool unification — ✅ done:** checker and runtime now share
+   builtin < environment < module definition precedence.
 3. **`reduce` validation:** focused checker change with no callable-format
    refactor.
 4. **Callable table validation:** make malformed operator contracts fail at

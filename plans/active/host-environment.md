@@ -161,11 +161,20 @@ B6 durable driver   (uses serializeTask/hydrateTask + the manifest; parallel tra
 
 ### B1 — Unify the definition pool
 
-Thread builtin `$defs` (and later the environment's `$defs`) into `runtime.defs`,
-which today carries module `$types` only. Fix precedence explicitly:
+Status: complete.
+
+Thread builtin `$defs` and the environment's `$defs` into `runtime.defs`
+alongside module `$types`, with explicit precedence:
 `builtin $defs` < `environment $defs` < `module $types`. Everything that resolves
 `$ref` at the runtime boundary depends on the runtime and checker agreeing on
-this pool. Mostly plumbing in `evaluate.ts` and the runtime-contract context.
+this pool.
+
+The TypeScript implementation now centralizes that merge in
+`definition-pool.ts`. Checker entrypoints accept the environment layer, runtime
+entrypoints accept explicit builtin/environment definition sources, and the CLI
+supplies the canonical builtin definitions. The merged pool is propagated
+through the existing runtime context to boundary contracts. Tests cover all
+three precedence layers and both checker/runtime resolution.
 
 ### B1.5 — Portable callable contracts and type rules
 
@@ -376,21 +385,28 @@ suspension point:
 
 ## Scope
 
-- **Now (with recenter):** B1. It is small, and it closes a latent soundness gap
-  between checker and runtime `$ref` resolution.
-- **Callable prerequisite:** B1.5, tracked in
+- **Completed:** B1 closes the checker/runtime `$ref` resolution gap with one
+  explicit definition-pool precedence.
+- **Next host-environment prerequisite:** B1.5, tracked in
   `plans/active/callable-contracts.md`.
 - **Epic:** B2 + B3 → B4 → B5, tracked as one unit.
 - **Durable driver:** B6, a parallel track on the same primitives; sequence
   against the orchestration use case rather than the typed-environment milestone.
 
+## Resolved decisions
+
+- **Named-type ownership and merging.** Core builtin definitions, operator
+  environment definitions, and guest module definitions are separate explicit
+  sources. Name collisions resolve by proximity to the guest:
+  `builtin $defs` < `environment $defs` < `module $types`. The checker and
+  runtime enforce the same order.
+
 ## Open decisions
 
-- **Environment ownership and merging.** Core contracts live in `spec/`, but a
-  host must be able to select or extend callable and effect contracts. Settle
-  collision policy for names, enforce the B1 definition precedence in checker
-  and runtime, and decide whether host function/effect names are globally
-  qualified.
+- **Callable/effect ownership and naming.** Core contracts live in `spec/`, but
+  a host must be able to select or extend callable and effect contracts. Settle
+  their collision policy and decide whether host function/effect names are
+  globally qualified. Named-type precedence is resolved above.
 - **Type-rule delivery and trust.** Decide how a checker host supplies
   namespaced rule implementations, how rule API versions are negotiated, and
   which runtime validations remain possible for a callable whose precise type
