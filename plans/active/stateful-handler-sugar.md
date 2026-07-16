@@ -34,6 +34,11 @@ handle task -> Result
 The feature is shorthand only. It adds no canonical JSON node, evaluator
 primitive, mutable state, or persisted runtime state.
 
+Evaluator implementations that consume canonical JSON need no changes.
+Implementations that parse or print `.jfn` must add the surface form, and the
+shared parse conformance suite must cover it; "shorthand only" does not mean
+that every frontend gets the syntax automatically.
+
 ## Motivation
 
 The typed examples use stateful handlers to run effectful programs against
@@ -55,7 +60,8 @@ misunderstand:
 - every clause has an extra `(state) =>` function layer;
 - continuing is written `resume(value)(nextState)`;
 - the entire handler must be called with its initial state;
-- record reconstruction obscures the effect response and state transition.
+- state updates are easily obscured by full record reconstruction instead of
+  the existing structurally typed `merge(state, { changed: value })` idiom.
 
 This friction will recur in agent/API orchestration tooling. Production
 workflows generally let effects reach the durable host, but deterministic
@@ -72,8 +78,10 @@ state.
 - Keep all handler state inside serializable JSON closures.
 - Reuse the existing `handle` runtime and checker behavior.
 - Support typed final results without exposing `(State) -> Result` to authors.
-- Provide a canonical printer form for the lowered shape if recognition can be
-  made strict and deterministic.
+- Provide canonical printer recognition for the lowered shape in the first
+  release.
+- Diagnose stateful continuation mistakes at the authored syntax rather than
+  letting them fail against generated curried functions.
 
 ## Non-goals
 
@@ -115,16 +123,15 @@ handle task -> Report
   "sensor.read": (resume) =>
     resume(
       head(s.pending),
-      { pending: tail(s.pending), out: s.out }
+      merge(s, { pending: tail(s.pending) })
     ),
 
   "log": (message, resume) =>
-    resume(null, {
-      pending: s.pending,
+    resume(null, merge(s, {
       out: concat(s.out, [message])
-    }),
+    })),
 
-  raise: (fault, resume) =>
+  raise: (fault, _resume) =>
     { ending: fault.tag, out: s.out },
 
   return: (value) =>
@@ -136,6 +143,42 @@ The state argument to `resume` is required in the initial design. A possible
 later convenience is for `resume(value)` to mean `resume(value, s)`, but
 requiring the argument initially keeps state flow visible and avoids introducing
 an unnecessary default before usage demonstrates its value.
+
+### Stateful `resume` is a direct two-argument form
+
+Within a stateful clause, its continuation binding may initially be used only as
+the direct callee of:
+
+```jfn
+resume(effectResult, nextState)
+```
+
+The parser tracks the actual continuation parameter name positionally; it is
+not required to be spelled `resume`. A direct call with one argument is a
+dedicated parse error:
+
+```text
+stateful resume requires an explicit next state: resume(value, state)
+```
+
+A call with any other arity is likewise rejected at the authored source.
+Bare references and aliases are rejected in the initial design:
+
+```jfn
+k: resume,              // error: stateful resume must be called directly
+map(resume, values)     // error: wrap the resumption in a lambda
+```
+
+Authors can make state selection explicit:
+
+```jfn
+map((value) => resume(value, s), values)
+```
+
+This restriction avoids pretending that the authored binary continuation and
+the lowered curried continuation are interchangeable first-class values. A
+future design may generate a binary wrapper if real programs demonstrate a need
+to pass stateful continuations as values.
 
 ## Lowering
 
@@ -175,6 +218,10 @@ The lowering must be hygienic. The explicit state name is introduced as the
 parameter of each generated state function, and generated intermediate names,
 if any, must not collide with guest bindings.
 
+Only direct calls to the clause's continuation binding receive the two-call
+rewrite. Calls to an unrelated or shadowing binding with the same textual name
+are ordinary calls.
+
 ## Semantics
 
 ### Explicit immutable state
@@ -210,6 +257,17 @@ concat(
 
 Neither branch observes changes made by the other. An implicit mutable "current
 state" would make branch order and sharing ambiguous and is therefore excluded.
+
+The built-in `raise` effect is resumable like any other effect. An aborting
+clause should name its unused continuation `_resume` to make the choice visible.
+When recovery is intended, it can resume explicitly:
+
+```jfn
+raise: (fault, resume) =>
+  if recoverable(fault)
+    then resume(fallback(fault), s)
+    else { ending: fault.tag, out: s.out }
+```
 
 ### Return and early termination
 
@@ -253,9 +311,18 @@ resume(effectResult, nextState)
 to application of the contextually typed continuation followed by application
 to `nextState`. Clause bodies are wrapped in `(state: S) => ...`.
 
-Diagnostics should use source spans from the authored state declaration,
-initializer, and two `resume` arguments where possible rather than exposing
-paths through generated functions.
+Sugar-specific mistakes must be rejected while parsing the authored form:
+
+- a stateful continuation called with anything other than two arguments;
+- a stateful continuation used as a bare value or indirect callee;
+- malformed state declarations or missing initializers.
+
+The current shorthand frontend emits bare canonical JSON and does not maintain
+a general source map for checker paths. Complete source-mapped checker
+diagnostics would therefore be broader infrastructure, not a cheap substitute
+for syntax-aware diagnostics and canonical printer support. A focused checker
+hint for a plain handler whose clauses look state-transforming may later suggest
+`with state`, but that heuristic is not a first-release requirement.
 
 ## Durability
 
@@ -322,19 +389,18 @@ handle workflow -> MockRun
   "agent.spawn": (spec, resume) =>
     resume(
       { id: `mock-${str(length(s.events))}` },
-      {
-        results: s.results,
+      merge(s, {
         events: concat(s.events, [`spawn ${spec.role}`])
-      }
+      })
     ),
 
   "agent.await": (handle, resume) =>
     resume(
       head(s.results)!,
-      {
+      merge(s, {
         results: tail(s.results),
         events: concat(s.events, [`await ${handle.id}`])
-      }
+      })
     ),
 
   return: (report) =>
@@ -351,16 +417,15 @@ database access:
 handle migration -> SqlReport
   with state (s: SqlState = { rows, statements: [] }) {
   "db.query": (sql, resume) =>
-    resume(head(s.rows)!, {
+    resume(head(s.rows)!, merge(s, {
       rows: tail(s.rows),
       statements: concat(s.statements, [sql])
-    }),
+    })),
 
   "db.execute": (sql, resume) =>
-    resume(0, {
-      rows: s.rows,
+    resume(0, merge(s, {
       statements: concat(s.statements, [sql])
-    }),
+    })),
 
   return: (value) =>
     { statements: s.statements }
@@ -376,10 +441,10 @@ log:
 handle workflow -> ReplayReport
   with state (s: ReplayState = { fixtures, requests: [] }) {
   "http.request": (request, resume) =>
-    resume(head(s.fixtures)!, {
+    resume(head(s.fixtures)!, merge(s, {
       fixtures: tail(s.fixtures),
       requests: concat(s.requests, [request])
-    }),
+    })),
 
   return: (result) =>
     { result, requests: s.requests }
@@ -394,18 +459,17 @@ A sandbox consumes scripted approvals and records planned mutations:
 handle deployment -> Simulation
   with state (s: SimState = { approvals, audit: [] }) {
   "approval.request": (summary, resume) =>
-    resume(head(s.approvals)!, {
+    resume(head(s.approvals)!, merge(s, {
       approvals: tail(s.approvals),
       audit: concat(s.audit, [`approval: ${summary}`])
-    }),
+    })),
 
   "deploy.apply": (plan, resume) =>
-    resume(fakeDeployment(plan), {
-      approvals: s.approvals,
+    resume(fakeDeployment(plan), merge(s, {
       audit: concat(s.audit, [`deploy: ${plan.id}`])
-    }),
+    })),
 
-  raise: (fault, resume) =>
+  raise: (fault, _resume) =>
     { ending: fault.tag, audit: s.audit },
 
   return: (result) =>
@@ -415,15 +479,19 @@ handle deployment -> Simulation
 
 Other likely applications include infrastructure-plan inspection, payment and
 refund simulation, ETL checkpoint fixtures, incident-response runbooks,
-repository migration agents, capability-attempt auditing, notification
-campaign dry-runs, cached research-agent responses, and request/token budget
-enforcement.
+repository migration agents, notification campaign dry-runs, and cached
+research-agent responses. A complete simulated host may also audit every
+capability attempt or enforce request/token budgets. Auditing or enforcing a
+budget around real effects while allowing them to bubble is production
+middleware and belongs to the future partial-stateful-handler design.
 
 ## Shorthand printer and normal form
 
 The shorthand specification currently treats `do` and `handle` as parser sugar
-with canonical printer recognition. Stateful handlers should ideally follow the
-same model.
+with canonical printer recognition. Stateful handlers must follow the same
+model in their first release. Expanding the syntax on every print would force
+authors and agents to understand both encodings during read-modify-write loops,
+undercutting the purpose of the feature.
 
 Recognition must be strict. The printer may render stateful syntax only when it
 can prove the complete lowered shape:
@@ -437,33 +505,43 @@ can prove the complete lowered shape:
 - the return clause has the corresponding state-function layer.
 
 If recognition is ambiguous, the printer must emit the ordinary expanded
-handler and calls. The initial implementation may choose parser-only
-normalization to the expanded form, but that makes the new spelling a
-noncanonical input alias and should be an explicit temporary limitation.
+handler and calls. Shapes emitted by the stateful parser must be rigid enough
+that the printer recognizes all of them deterministically; hand-written shapes
+outside that canonical lowering may remain expanded.
 
 ## Implementation outline
 
 1. Specify the exact grammar and resolve line-breaking/precedence around
-   `with state`.
+   `with state`, including multiline initializers.
 2. Add parser support that constructs the existing lowered JSON shape.
-3. Preserve source locations through generated clause wrappers and resume calls.
+3. Track the continuation binding while parsing each stateful clause. Require
+   direct two-argument calls and emit dedicated errors for one-argument,
+   wrong-arity, bare, and aliased uses.
 4. Add parse cases for named, wildcard, `raise`, and `return` clauses; nested
-   handlers; multi-shot resume; and binding hygiene.
-5. Verify existing checker rules type the lowered form completely; add only
-   parser-facing diagnostic translation if required.
-6. Add evaluator cases proving equivalence with manually expanded state
-   handlers.
-7. Add printer recognition and parse/print normalization cases, or document the
-   initial expanded-print limitation.
-8. Migrate one typed example first, then compare readability before migrating
+   handlers; multiline initializers; multi-shot resume; shadowing; and binding
+   hygiene.
+5. Verify existing checker rules type the lowered form completely. Add a
+   focused "did you mean `with state`?" hint only if it can be recognized
+   without noisy false positives.
+6. Add differential evaluator tests pairing stateful syntax with its manual
+   expansion and asserting equal results and effect traces. Where practical,
+   generate clause/state variations rather than relying only on a handful of
+   fixtures.
+7. Add strict printer recognition and parse/print normalization cases as a
+   first-release requirement.
+8. Rewrite examples with structurally typed `merge` updates and use `_resume`
+   for intentionally aborting clauses.
+9. Migrate one typed example first, then compare readability before migrating
    the others.
 
 ## Open decisions
 
 - Exact grammar: `with state (s: S = initial)` versus another ordering that
   reads cleanly beside `-> Result`.
-- Whether `resume(value)` may later default to the unchanged current state.
-- Whether the first release requires canonical printer recognition.
+- Whether a future version should allow `resume(value)` to default to the
+  unchanged current state.
+- Whether a future version should expose the stateful continuation as a
+  first-class binary wrapper instead of requiring direct calls.
 - Whether stateful wildcard and `raise` clauses should be required for totality,
   inferred from the environment, or left to the existing runtime/checker rules.
 - Whether a separate future feature should support stateful partial handlers
