@@ -95,7 +95,7 @@ Likely files:
 - the existing array-return cases retain their precision; and
 - the scalar conformance case is accepted by both evaluator and checker.
 
-## C3 — Final accumulator validation for `reduce`
+## C3 — Final accumulator validation for `reduce` — ✅ done
 
 ### Problem
 
@@ -136,6 +136,13 @@ Likely files:
 - invalid changing-accumulator callbacks produce an error rather than a
   fully-checked union; and
 - named/annotated callback arity policy is unchanged.
+
+Implemented as a validation-only second pass for contextual callbacks whose
+return changes a type variable also used by their parameter types. The callback
+is synthesized under the final joined bindings and its return is checked
+without feeding new information back into inference. Existing same-type
+reductions remain precise, safe accumulator unions are accepted, and unsafe
+widening is diagnosed inside the callback.
 
 ## C4 — Documentation and diagnostic clarity — ✅ done
 
@@ -190,14 +197,13 @@ the exit policy and `--require-full-coverage` behavior are unchanged.
 ## Delivery order
 
 1. `groupBy` and documentation/coverage clarification. ✅ done
-2. `reduce` final-context validation as an independent checker change.
+2. `reduce` final-context validation as an independent checker change. ✅ done
 3. Callable-rule substrate from `callable-contracts.md`.
 4. `flatMap` precision rule as the first substantive consumer.
 
 ## Handoff notes
 
-- C3 (`reduce`) is the next independent correction and should land without
-  changing the callable contract format.
+- C3 (`reduce`) is complete and did not change the callable contract format.
 - C2 (`flatMap`) remains intentionally deferred until the callable-rule
   substrate exists; its scalar-or-array behavior should not be approximated
   with competing data overloads.

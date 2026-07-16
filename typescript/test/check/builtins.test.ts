@@ -230,6 +230,38 @@ describe("Section F — builtin signatures", () => {
       expect(r.type).toEqual(I);
     });
 
+    test("reduce accepts a callback valid for its widened accumulator", () => {
+      const finish = {
+        $params: ["acc", "n"],
+        $return: {
+          $if: call("eq", { $var: "n" }, 0),
+          $then: "done",
+          $else: { $var: "acc" },
+        },
+      };
+      const r = synthB(call("reduce", finish, 0, [1, 2, 3]));
+      expect(r.diagnostics).toEqual([]);
+      expect(isSubschema(r.type, { type: ["integer", "string"] })).toBe(true);
+    });
+
+    test("reduce rejects a callback unsafe for its widened accumulator", () => {
+      const finishOrMultiply = {
+        $params: ["acc", "n"],
+        $return: {
+          $if: call("eq", { $var: "n" }, 0),
+          $then: "done",
+          $else: call("mul", { $var: "acc" }, { $var: "n" }),
+        },
+      };
+      const r = synthB(call("reduce", finishOrMultiply, 0, [1, 2, 3]));
+      expect(r.diagnostics).toContainEqual(
+        expect.objectContaining({
+          path: ["$args[0]", "$return", "$else"],
+          severity: "error",
+        }),
+      );
+    });
+
     test("find/findIndex are T|null / integer|null; some/every are boolean", () => {
       const gtOne = { $params: ["n", "i"], $return: call("gt", { $var: "n" }, 1) };
       expect(

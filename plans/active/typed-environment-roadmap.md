@@ -19,8 +19,9 @@ on behavior represented by the contracts and language documentation.
 See [hof-type-corrections.md](hof-type-corrections.md).
 
 Status: the contract-cleanup delivery slice is complete. `groupBy` and the
-HOF/runtime and coverage documentation are aligned; `reduce` validation and
-the rule-dependent `flatMap` correction remain as later slices.
+HOF/runtime and coverage documentation are aligned, and `reduce` final-context
+validation is complete. The rule-dependent `flatMap` correction remains a
+later slice.
 
 Resolve known drift before using the current builtin table as the model for
 host-authored contracts:
@@ -88,8 +89,8 @@ durable orchestration driver      (parallel, manifest-dependent track)
    coverage wording.
 2. **Definition-pool unification — ✅ done:** checker and runtime now share
    builtin < environment < module definition precedence.
-3. **`reduce` validation:** focused checker change with no callable-format
-   refactor.
+3. **`reduce` validation — ✅ done:** focused checker change with no
+   callable-format refactor.
 4. **Callable table validation:** make malformed operator contracts fail at
    load time.
 5. **Rule substrate:** fallback signatures, injected rule registry, and

@@ -112,6 +112,12 @@ may omit trailing parameters it does not use, but may not declare more fixed
 parameters than the builtin supplies; a rest parameter collects the remaining
 supplied schemas.
 
+When a callback return widens a type variable that also occurs in its parameter
+types, the checker validates the callback again under the final joined type.
+This matters for `reduce`: if the callback expands accumulator `U`, its body
+must be valid for every accumulator type a later iteration may receive. The
+validation pass does not widen the inferred bindings further.
+
 An annotated inline body or referenced/named function is instead a concrete
 function value. Its declared signature is preserved, its body is checked
 against its declared return, and the complete function type is validated after

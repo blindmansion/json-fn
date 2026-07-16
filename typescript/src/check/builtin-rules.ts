@@ -18,7 +18,16 @@
 import type { JSONType } from "../types";
 import type { TVarNode, Bindings, BuiltinSig, BuiltinEntry } from "./builtin-types";
 import { buildTypeScope, checkArity, paramAt, reportMismatch, synth } from "./checker";
-import { at, type CheckContext, isBody, report, reportDegradation, sigOf } from "./context";
+import {
+  at,
+  type CheckContext,
+  type Diagnostic,
+  isBody,
+  report,
+  reportDegradation,
+  sigOf,
+  stableStringify,
+} from "./context";
 import {
   type Schema,
   isSchemaObject,
@@ -56,6 +65,17 @@ function mentionsTVar(s: Schema): boolean {
   if (Array.isArray(s)) return s.some(mentionsTVar);
   if (isSchemaObject(s)) return Object.values(s).some((v) => mentionsTVar(v as Schema));
   return false;
+}
+
+function collectTVars(s: Schema, into: Set<string> = new Set()): Set<string> {
+  if (isTVar(s)) {
+    into.add(s.$tvar);
+  } else if (Array.isArray(s)) {
+    for (const item of s) collectTVars(item, into);
+  } else if (isSchemaObject(s)) {
+    for (const value of Object.values(s)) collectTVars(value as Schema, into);
+  }
+  return into;
 }
 
 // Only an unannotated inline body needs contextual typing. A body with `$sig`
@@ -315,6 +335,13 @@ function applyOverload(sig: BuiltinSig, argExprs: JSONType[], ctx: CheckContext)
   const bindings: Bindings = {};
   const lambdas: number[] = [];
   const concrete: { param: Schema; schema: Schema; ctx: CheckContext }[] = [];
+  const finalLambdaValidations: {
+    expr: JSONType;
+    param: Schema;
+    ctx: CheckContext;
+    sharedVars: string[];
+    initialBindings: Record<string, Schema | undefined>;
+  }[] = [];
 
   // Pass 1 — synthesize every concrete arg without validating against bindings
   // that later arguments may still widen.
@@ -378,12 +405,72 @@ function applyOverload(sig: BuiltinSig, argExprs: JSONType[], ctx: CheckContext)
     const ret = inferLambdaReturn(argExprs[i]!, expectedFn, actx);
     if (ret === null) continue;
     if (mentionsTVar(shape.returns)) {
+      const paramVars = collectTVars({
+        $fnType: {
+          params: shape.params,
+          ...(shape.rest !== undefined ? { rest: shape.rest } : {}),
+          returns: false,
+        },
+      });
+      const sharedVars = [...collectTVars(shape.returns)].filter((name) => paramVars.has(name));
+      const initialBindings = Object.fromEntries(
+        sharedVars.map((name) => [name, bindings[name]]),
+      ) as Record<string, Schema | undefined>;
       if (!unifyTemplate(shape.returns, ret, bindings, ctx)) {
         reportMismatch(at(actx, "$return"), ret, instantiate(shape.returns, bindings));
+      }
+      if (sharedVars.length > 0) {
+        finalLambdaValidations.push({
+          expr: argExprs[i]!,
+          param,
+          ctx: actx,
+          sharedVars,
+          initialBindings,
+        });
       }
     } else {
       const inst = instantiate(shape.returns, bindings);
       if (!isSubschema(ret, inst, ctx.defs)) reportMismatch(at(actx, "$return"), ret, inst);
+    }
+  }
+
+  // A callback return may widen a variable that also appears in its parameter
+  // types (`reduce`'s U is the important case). The first pass checked the body
+  // under the pre-widened parameter, so validate it once more under the final
+  // bindings that later runtime calls may actually supply. This pass is
+  // validation-only: its return never feeds back into `bindings`.
+  for (const validation of finalLambdaValidations) {
+    const changed = validation.sharedVars.some(
+      (name) =>
+        stableStringify(validation.initialBindings[name]) !== stableStringify(bindings[name]),
+    );
+    if (!changed) continue;
+
+    const shape = fnShape(asObject(validation.param));
+    const expectedFn: Schema = {
+      $fnType: {
+        params: shape.params.map((p) => instantiate(p, bindings)),
+        ...(shape.rest !== undefined ? { rest: instantiate(shape.rest, bindings) } : {}),
+        returns: instantiate(shape.returns, bindings),
+      },
+    };
+    const diagnostics: Diagnostic[] = [];
+    const vctx: CheckContext = { ...validation.ctx, diagnostics };
+    const ret = inferLambdaReturn(validation.expr, expectedFn, vctx);
+    if (ret !== null) {
+      const expectedReturn = instantiate(shape.returns, bindings);
+      if (!isSubschema(ret, expectedReturn, ctx.defs)) {
+        reportMismatch(at(vctx, "$return"), ret, expectedReturn);
+      }
+    }
+
+    const existing = new Set(ctx.diagnostics.map(stableStringify));
+    for (const diagnostic of diagnostics) {
+      const key = stableStringify(diagnostic);
+      if (!existing.has(key)) {
+        ctx.diagnostics.push(diagnostic);
+        existing.add(key);
+      }
     }
   }
 
