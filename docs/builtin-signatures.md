@@ -48,6 +48,20 @@ appear in user-written types or in the schemas the checker infers; the checker
 - **`builtins`** — a map from builtin name to either an **overload set** (an
   array of signatures) or a **rule escape hatch** (`{"rule": "..."}`).
 
+### Load-time validation
+
+The TypeScript loader validates the table before exposing it to the checker.
+Malformed roots, entries, signatures, schema nodes, type-variable declarations,
+and references fail with a path-bearing `BuiltinTableValidationError` rather
+than becoming trusted data through a type assertion. `validateBuiltinTable`
+provides the same validation for an already parsed value.
+
+References are checked against the table's `$defs`. Type variables must be
+declared by the containing signature, declarations must be unique and used, and
+only the tractable schema fragment described below is accepted. The current
+legacy rule identifiers remain valid until callable entries move to portable
+fallback signatures and namespaced rules.
+
 ## Signatures
 
 A signature reuses the `$fnType` inner shape plus an optional `typeParams`:

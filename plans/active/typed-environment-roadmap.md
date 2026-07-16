@@ -91,8 +91,8 @@ durable orchestration driver      (parallel, manifest-dependent track)
    builtin < environment < module definition precedence.
 3. **`reduce` validation — ✅ done:** focused checker change with no
    callable-format refactor.
-4. **Callable table validation:** make malformed operator contracts fail at
-   load time.
+4. **Callable table validation — ✅ done:** malformed current-format callable
+   contracts fail at load time with path-bearing validation errors.
 5. **Rule substrate:** fallback signatures, injected rule registry, and
    migration of existing core special cases.
 6. **`flatMap` rule:** first precision rule implemented on the new substrate.

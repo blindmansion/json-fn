@@ -125,8 +125,10 @@ use without the rule must produce a coverage degradation.
 ## Contract validation
 
 Operator-authored tables must be validated at load time. The current
-`loadBuiltinTable` performs only `JSON.parse`, and `typeParams` is never read by
-the inference engine.
+`loadBuiltinTable` now validates parsed data before returning it, and the
+exported `validateBuiltinTable` applies the same check to in-memory values.
+`typeParams` remains explicit semantic data and is validated against every
+`$tvar` occurrence.
 
 Validate at least:
 
@@ -146,6 +148,13 @@ Validate at least:
 Keep `typeParams` only as semantic, validated data. If explicit declarations
 are not wanted, remove the field and define variables as structurally collected;
 do not retain contradictory documentation and inert metadata.
+
+The first validator slice covers the current table format: root and entry
+shape, non-empty overloads, signature arity fields, the tractable schema
+fragment, type-variable declaration/use, and references against table-owned
+definitions. Namespaced rules and portable fallbacks arrive with normalized
+entries; merge collisions, effective merged-definition validation, and
+runtime/contract parity remain checks of the later composition APIs.
 
 Likely files:
 
@@ -255,7 +264,7 @@ environment remains the authoritative contract.
 
 ## Delivery slices
 
-1. Contract validator and tests.
+1. Contract validator and tests. ✅ done
 2. Normalized entry shape with backward-compatible loading if needed.
 3. Injected core rule registry.
 4. Migration of floors, `handle`, and `merge` with no behavior change.
