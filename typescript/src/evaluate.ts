@@ -40,7 +40,12 @@ import {
   readModuleDefinitions,
   type DefinitionSources,
 } from "./definition-pool";
-import { normalizeParams, validateRuntimeArguments, type NormalizedParam } from "./params";
+import {
+  normalizeParams,
+  requireParameterLayout,
+  validateRuntimeArguments,
+  type ParameterLayout,
+} from "./params";
 
 export function createPerfStats(): PerfStats {
   return {
@@ -82,6 +87,13 @@ function cloneIfNeeded(value: JSONType, perf?: PerfStats): JSONType {
 }
 
 const EMPTY_LOCAL_FNS: ReadonlySet<string> = new Set();
+const EMPTY_PARAMETER_LAYOUT: ParameterLayout = {
+  slots: [],
+  fixedCount: 0,
+  requiredCount: 0,
+  omittableCount: 0,
+  rest: null,
+};
 
 function isFnDeclaration(value: JSONType): value is FunctionDeclaration {
   return (
@@ -184,7 +196,7 @@ export function callProgram(
     const { getVar, scopedFunctions, localFns, attachFns } = buildScope(
       module as unknown as FunctionBody,
       [],
-      [],
+      EMPTY_PARAMETER_LAYOUT,
       {
         functions: baseRegistry,
         limits: resolved,
@@ -281,7 +293,7 @@ export function prepareProgram(
   const { getVar, scopedFunctions, localFns, attachFns } = buildScope(
     module as unknown as FunctionBody,
     [],
-    [],
+    EMPTY_PARAMETER_LAYOUT,
     { functions: baseRegistry, limits: resolved, state, perf, runtimeDefs },
   );
 
@@ -491,7 +503,7 @@ function callExternalFunction(
 function buildScope(
   fn: FunctionBody,
   args: JSONType[],
-  params: NormalizedParam[],
+  layout: ParameterLayout,
   context: EvaluationContext,
 ): {
   getVar: (name: string) => JSONType | undefined;
@@ -550,7 +562,7 @@ function buildScope(
 
   const evaluatedVars: Record<string, JSONType> = {};
   const pendingDefaults = new Map<string, JSONType>();
-  for (const slot of params) {
+  for (const slot of layout.slots) {
     if (slot.kind === "rest") {
       evaluatedVars[slot.name] = args.slice(slot.index);
       continue;
@@ -565,6 +577,8 @@ function buildScope(
           evaluatedVars[binding.name] = value[binding.name]!;
         } else if (binding.kind === "defaulted") {
           pendingDefaults.set(binding.name, binding.defaultExpression);
+        } else if (binding.kind === "optional") {
+          evaluatedVars[binding.name] = null;
         }
       }
       continue;
@@ -575,6 +589,8 @@ function buildScope(
       evaluatedVars[slot.name] = args[slot.index]!;
     } else if (slot.kind === "defaulted") {
       pendingDefaults.set(slot.name, slot.defaultExpression);
+    } else if (slot.kind === "optional") {
+      evaluatedVars[slot.name] = null;
     }
   }
 
@@ -675,9 +691,9 @@ function callJSONFunction(fn: FunctionBody, args: JSONType[], context: Evaluatio
     return enforceRuntimeContractReturn(result, prepared.returns, contract.defs);
   }
 
-  const params = normalizeParams((fn as any).$params, fn);
-  validateRuntimeArguments(params, args);
-  const { getVar, scopedFunctions, localFns, attachFns } = buildScope(fn, args, params, context);
+  const layout = requireParameterLayout((fn as any).$params, fn);
+  validateRuntimeArguments(layout, args);
+  const { getVar, scopedFunctions, localFns, attachFns } = buildScope(fn, args, layout, context);
 
   return evaluateExpression(fn.$return, {
     functions: scopedFunctions,

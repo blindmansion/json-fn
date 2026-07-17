@@ -399,18 +399,15 @@ export function normalizeParams(params: unknown, expression: JSONType): Normaliz
  * Enforce JSON-function invocation semantics after descriptor normalization.
  * Presence is positional/own-property based so explicit null remains data.
  */
-export function validateRuntimeArguments(params: NormalizedParam[], args: JSONType[]): void {
-  const rest = params.at(-1)?.kind === "rest";
-  const fixedCount = rest ? params.length - 1 : params.length;
-
-  if (!rest && args.length > fixedCount) {
+export function validateRuntimeArguments(layout: ParameterLayout, args: JSONType[]): void {
+  if (layout.rest === null && args.length > layout.fixedCount) {
     throw new Error(
-      `Expected exactly ${fixedCount} argument${fixedCount === 1 ? "" : "s"}, received ${args.length}.`,
+      `Expected exactly ${layout.fixedCount} argument${layout.fixedCount === 1 ? "" : "s"}, received ${args.length}.`,
     );
   }
 
-  for (const slot of params) {
-    if (slot.kind === "rest" || slot.kind === "defaulted") continue;
+  for (const slot of layout.slots) {
+    if (slot.kind === "rest" || slot.kind === "defaulted" || slot.kind === "optional") continue;
 
     const position = slot.index + 1;
     if (slot.index >= args.length) {

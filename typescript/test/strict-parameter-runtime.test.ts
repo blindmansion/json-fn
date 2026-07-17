@@ -40,6 +40,19 @@ describe("strict runtime parameter semantics", () => {
     expect(callFunction(body, [{ value: null }], stdlib)).toBeNull();
   });
 
+  test("binds omitted optional parameters and fields to null", () => {
+    const body = {
+      $params: [
+        { $fields: [{ $field: "field", $optional: true }] },
+        { $param: "value", $optional: true },
+      ],
+      $return: { field: { $var: "field" }, value: { $var: "value" } },
+    } as FunctionDeclaration;
+
+    expect(callFunction(body, [{}], stdlib)).toEqual({ field: null, value: null });
+    expect(callFunction(body, [{ field: 1 }, 2], stdlib)).toEqual({ field: 1, value: 2 });
+  });
+
   test("requires plain objects and required own fields but ignores extra keys", () => {
     const body = {
       $params: [{ $fields: ["value"] }],
