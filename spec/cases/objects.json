@@ -152,7 +152,10 @@
         "$return": {
           "$call": "mapValues",
           "$args": [
-            { "$params": ["v"], "$return": { "$call": "mul", "$args": [{ "$var": "v" }, 2] } },
+            {
+              "$params": ["v", "_key"],
+              "$return": { "$call": "mul", "$args": [{ "$var": "v" }, 2] }
+            },
             { "x": 1, "y": 2, "z": 3 }
           ]
         }
@@ -178,7 +181,10 @@
         "$return": { "$call": "mapValues", "$args": [{ "$fn": "negate" }, { "a": 1, "b": -2 }] }
       },
       "functions": {
-        "negate": { "$params": ["n"], "$return": { "$call": "neg", "$args": [{ "$var": "n" }] } }
+        "negate": {
+          "$params": ["n", "_key"],
+          "$return": { "$call": "neg", "$args": [{ "$var": "n" }] }
+        }
       },
       "expected": { "a": -1, "b": 2 }
     },
@@ -187,7 +193,7 @@
       "body": {
         "$return": {
           "$call": "mapValues",
-          "$args": [{ "$params": ["v"], "$return": { "$var": "v" } }, {}]
+          "$args": [{ "$params": ["v", "_key"], "$return": { "$var": "v" } }, {}]
         }
       },
       "expected": {}
@@ -200,7 +206,7 @@
           "$call": "filter",
           "$args": [
             {
-              "$params": ["pair"],
+              "$params": ["pair", "_index"],
               "value": { "$get": 1, "$from": { "$var": "pair" } },
               "$return": { "$call": "gt", "$args": [{ "$var": "value" }, 3] }
             },
@@ -219,7 +225,7 @@
           "$call": "map",
           "$args": [
             {
-              "$params": ["pair"],
+              "$params": ["pair", "_index"],
               "k": { "$call": "upper", "$args": [{ "$get": 0, "$from": { "$var": "pair" } }] },
               "v": { "$get": 1, "$from": { "$var": "pair" } },
               "$return": [{ "$var": "k" }, { "$var": "v" }]

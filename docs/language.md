@@ -231,20 +231,34 @@ A function body has `$return` and optionally `$params`. All other keys are lazy 
 
 ### Parameters — `$params`
 
-An ordered array of parameter **slots**. Each slot is a name string (a plain positional parameter), a `"...rest"` collector (see [Rest Parameters](#rest-parameters)), or an object pattern (see [Object-Pattern Parameters](#object-pattern-parameters--fields)). Arguments are bound positionally, one per slot.
+An ordered array of parameter **slots**. Each slot is a name string (a required
+positional parameter), a `{ "$param": name, "$default": expression }`
+descriptor (a defaulted positional parameter), a `"...rest"` collector (see
+[Rest Parameters](#rest-parameters)), or an object pattern (see
+[Object-Pattern Parameters](#object-pattern-parameters--fields)). Fixed
+arguments are bound positionally, one per slot.
 
 ```json
 {
-  "$params": ["a", "b"],
+  "$params": ["a", { "$param": "b", "$default": 1 }],
   "$return": { "$call": "add", "$args": [{ "$var": "a" }, { "$var": "b" }] }
 }
 ```
 
-Missing arguments default to `null`.
+A name string is required: omitting its argument is an error. A defaulted
+parameter may be omitted, in which case its `$default` expression is evaluated
+lazily when the binding is first read. Calls cannot skip a positional slot:
+passing `null` explicitly supplies `null` and suppresses the default.
+
+A function without a rest parameter rejects any argument beyond its exact
+number of fixed slots; extra fixed arguments are not ignored. A rest parameter
+allows additional arguments as described below.
 
 ### Rest Parameters
 
-A parameter starting with `...` collects remaining arguments into an array.
+A final parameter starting with `...` collects all arguments remaining after
+the fixed slots into an array. It receives an empty array when there are no
+remaining arguments.
 
 ```json
 {
@@ -257,7 +271,11 @@ Called with args `[1, 2, 3]`: `first` = `1`, `rest` = `[2, 3]`.
 
 ### Object-Pattern Parameters — `$fields`
 
-A `$params` slot may be an **object pattern** instead of a name string: an object of the exact shape `{ "$fields": [...] }`, whose non-empty array lists identifier field names. It destructures a single positional object argument, binding each field to a local of the same name.
+A `$params` slot may be an **object pattern** instead of a name string: an object
+of the exact shape `{ "$fields": [...] }`. Its non-empty array contains required
+field-name strings and/or defaulted field descriptors of the form
+`{ "$field": name, "$default": expression }`. The pattern destructures one
+positional object argument, binding each field to a local of the same name.
 
 ```json
 {
@@ -268,21 +286,34 @@ A `$params` slot may be an **object pattern** instead of a name string: an objec
 
 Called with args `[{ "from": 3, "to": 7 }]`: `from` = `3`, `to` = `7`, result `4`. The **calling convention is unchanged** — this is an ordinary positional call passing one plain-data object; the "named-ness" lives entirely in the parameter.
 
-Binding rules for a pattern slot at position `i`, where `v` is the `i`-th argument (`null` if not supplied):
+Binding rules for a pattern slot at position `i`, where `v` is the supplied
+`i`-th argument:
 
-- If `v` is a plain object (not an array, not `null`): each field binds to `v[field]` when that key is present, otherwise `null`. Extra keys of `v` are ignored.
-- Otherwise (`v` is `null`, a boolean, number, string, or array): every field binds to `null` — lenient, mirroring the "missing args default to `null`" rule (an array is not a plain object).
+- The whole pattern argument is required, even if every field has a default.
+- `v` must be a plain object (not an array and not `null`). Any other value,
+  including explicit `null`, is an error.
+- A required field-name string must be an own property of `v`; an absent or
+  inherited field is an error.
+- A defaulted field uses its `$default` only when the own property is absent.
+  The default is evaluated lazily when the binding is first read.
+- An own property whose value is `null` is supplied data: it binds `null` and
+  suppresses a field default.
+- Extra object keys are ignored.
 
-Field bindings are **eager** (established once at call time, like positional parameters — not lazy locals). Within the body they are visible via `$var` to `$return` and to lazy locals, and they **shadow** same-named outer bindings at any nesting depth.
+Supplied field bindings are established at call time; defaulted bindings remain
+lazy. Within the body they are visible via `$var` to `$return` and to lazy
+locals, and they **shadow** same-named outer bindings at any nesting depth.
 
 Additional rules:
 
-- `$fields` must be a **non-empty** array, and each name must not contain `.` or `[`.
+- `$fields` must be a **non-empty** array of field-name strings and/or
+  `{ "$field": name, "$default": expression }` descriptors. Field names must
+  not contain `.` or `[`.
 - A `$fields` object is valid only as a `$params` slot; it may not be preceded by `...`.
 - A pattern slot consumes exactly **one** positional argument, so patterns mix freely with ordinary and rest params (`["label", { "$fields": ["x", "y"] }]`, `[{ "$fields": ["x"] }, "...rest"]`).
 - `arity` counts a pattern slot as one parameter.
 
-Rename (`{ "from": f }`), defaults, and nesting are not supported yet; the `$fields` string array is the only form.
+Rename and nested patterns are not supported.
 
 ### Lazy Local Variables
 

@@ -221,7 +221,7 @@
       "description": "local recursive fn used with map (HOF callback by string name)",
       "body": {
         "fact": {
-          "$params": ["n"],
+          "$params": ["n", "..._ignored"],
           "$return": {
             "$if": { "$call": "lte", "$args": [{ "$var": "n" }, 1] },
             "$then": 1,

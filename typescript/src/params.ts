@@ -15,6 +15,12 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function valueKind(value: JSONType): string {
+  if (value === null) return "null";
+  if (Array.isArray(value)) return "array";
+  return typeof value;
+}
+
 function addBoundName(name: string, boundNames: Set<string>, expression: JSONType): void {
   if (boundNames.has(name)) {
     exprError(expression, `Duplicate parameter binding "${name}".`);
@@ -135,6 +141,57 @@ export function normalizeParams(params: unknown, expression: JSONType): Normaliz
   }
 
   return normalized;
+}
+
+/**
+ * Enforce JSON-function invocation semantics after descriptor normalization.
+ * Presence is positional/own-property based so explicit null remains data.
+ */
+export function validateRuntimeArguments(params: NormalizedParam[], args: JSONType[]): void {
+  const rest = params.at(-1)?.kind === "rest";
+  const fixedCount = rest ? params.length - 1 : params.length;
+
+  if (!rest && args.length > fixedCount) {
+    throw new Error(
+      `Expected exactly ${fixedCount} argument${fixedCount === 1 ? "" : "s"}, received ${args.length}.`,
+    );
+  }
+
+  for (const slot of params) {
+    if (slot.kind === "rest" || slot.kind === "defaulted") continue;
+
+    const position = slot.index + 1;
+    if (slot.index >= args.length) {
+      if (slot.kind === "fields") {
+        throw new Error(
+          `Missing object-pattern argument at parameter position ${position}. Expected at least ${position} argument${position === 1 ? "" : "s"}, received ${args.length}.`,
+        );
+      }
+      throw new Error(
+        `Missing required argument at parameter position ${position}. Expected at least ${position} argument${position === 1 ? "" : "s"}, received ${args.length}.`,
+      );
+    }
+
+    if (slot.kind !== "fields") continue;
+
+    const value = args[slot.index]!;
+    if (!isObject(value)) {
+      throw new Error(
+        `Object pattern at parameter position ${position} expected a plain object, received ${valueKind(value)}.`,
+      );
+    }
+
+    for (const binding of slot.bindings) {
+      if (
+        binding.kind === "required" &&
+        !Object.prototype.hasOwnProperty.call(value, binding.name)
+      ) {
+        throw new Error(
+          `Missing required field "${binding.name}" in object pattern at parameter position ${position}.`,
+        );
+      }
+    }
+  }
 }
 
 export type { NormalizedFieldBinding, NormalizedParam };

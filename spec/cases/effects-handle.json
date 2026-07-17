@@ -300,7 +300,13 @@
                   "$params": ["xs", "resume"],
                   "$return": {
                     "$call": "flatMap",
-                    "$args": [{ "$var": "resume" }, { "$var": "xs" }]
+                    "$args": [
+                      {
+                        "$params": ["x", "_index"],
+                        "$return": { "$call": { "$var": "resume" }, "$args": [{ "$var": "x" }] }
+                      },
+                      { "$var": "xs" }
+                    ]
                   }
                 },
                 "fail": { "$params": ["resume"], "$return": [] },

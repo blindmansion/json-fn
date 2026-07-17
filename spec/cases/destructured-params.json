@@ -31,10 +31,10 @@
       "expected": 42
     },
     {
-      "description": "absent key binds to null",
+      "description": "absent required key is rejected",
       "body": { "$params": [{ "$fields": ["from", "to"] }], "$return": { "$var": "to" } },
       "args": [{ "from": 5 }],
-      "expected": null
+      "error": "Missing required field \"to\""
     },
     {
       "description": "extra keys are ignored",
@@ -46,39 +46,39 @@
       "expected": 3
     },
     {
-      "description": "non-object argument (number) binds all fields to null",
+      "description": "non-object argument (number) is rejected",
       "body": {
         "$params": [{ "$fields": ["a"] }],
         "$return": { "$call": "isNull", "$args": [{ "$var": "a" }] }
       },
       "args": [5],
-      "expected": true
+      "error": "expected a plain object, received number"
     },
     {
-      "description": "missing argument entirely binds all fields to null",
+      "description": "missing object-pattern argument is rejected",
       "body": {
         "$params": [{ "$fields": ["a", "b"] }],
         "$return": { "$call": "isNull", "$args": [{ "$var": "b" }] }
       },
-      "expected": true
+      "error": "Missing object-pattern argument at parameter position 1"
     },
     {
-      "description": "null argument binds all fields to null",
+      "description": "null object-pattern argument is rejected",
       "body": {
         "$params": [{ "$fields": ["a"] }],
         "$return": { "$call": "isNull", "$args": [{ "$var": "a" }] }
       },
       "args": [null],
-      "expected": true
+      "error": "expected a plain object, received null"
     },
     {
-      "description": "array argument is not a plain object, so fields bind to null",
+      "description": "array object-pattern argument is rejected",
       "body": {
         "$params": [{ "$fields": ["a"] }],
         "$return": { "$call": "isNull", "$args": [{ "$var": "a" }] }
       },
       "args": [[1, 2, 3]],
-      "expected": true
+      "error": "expected a plain object, received array"
     },
     {
       "description": "mixed positional and pattern slots",

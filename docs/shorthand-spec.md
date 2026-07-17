@@ -471,9 +471,26 @@ A bare `{...}` is **always** a data object — including immediately after `=>`:
 ### Parameters
 
 - **No params:** `() => …` lowers to a body with **no `$params`** key.
+- **Required param:** `(value) => …` lowers to `"$params": ["value"]`; omitting
+  its argument is an evaluation error.
 - **Rest param:** `(first, ...rest) => …` → `"$params": ["first", "...rest"]`.
 - **Object-pattern param:** `({ from, to }) => …` — see below.
-- Missing arguments default to `null` (language behavior).
+
+A call supplies fixed parameters positionally. Without a rest parameter, the
+callee rejects arguments beyond its exact number of fixed slots instead of
+ignoring them. A final rest parameter collects all remaining arguments,
+including an empty remainder.
+
+Canonical JSON also supports defaulted positional descriptors:
+
+```json
+{ "$param": "name", "$default": "world" }
+```
+
+Omitting that positional slot evaluates the default lazily when the binding is
+first read. Explicit `null` is a supplied value and suppresses the default.
+There is no shorthand syntax for defaulted parameters in this version; this
+descriptor must be authored as canonical JSON.
 
 #### Object-pattern parameters
 
@@ -494,10 +511,25 @@ lowers to a `{ "$fields": [...] }` slot in `$params`.
 
 The **calling convention is unchanged**: `move({ from: 3, to: 7 })` is an
 ordinary positional call passing one data object — the "named-ness" lives
-entirely in the parameter, which destructures that object. Each field binds to
-the object's same-named key (absent keys, or a non-object argument, bind to
-`null`); extra keys are ignored. This mirrors [shorthand-property punning](#data-objects--key-value):
-a destructured parameter and the record you build to pass it read identically.
+entirely in the parameter, which destructures that object. The argument is
+required and must be a plain object (not an array or `null`); omitting it or
+supplying any non-object value is an evaluation error. Each shorthand field is
+required and must be an own property of that object. Absent or inherited
+required fields are errors, while extra object keys are ignored. This mirrors
+[shorthand-property punning](#data-objects--key-value): a destructured parameter
+and the record you build to pass it read identically.
+
+Canonical `$fields` arrays may also contain defaulted field descriptors:
+
+```json
+{ "$fields": [{ "$field": "from", "$default": 0 }, "to"] }
+```
+
+An absent defaulted own field evaluates its default lazily when read. An own
+field whose value is explicitly `null` binds `null` and suppresses the default.
+The whole object-pattern argument remains required even when every field has a
+default. Shorthand object patterns always lower to required field-name strings;
+there is no shorthand syntax for field defaults in this version.
 
 - A pattern consumes exactly **one** positional slot, so it mixes freely with
   ordinary and rest params: `(label, { x, y }) => …`, `({ x }, ...rest) => …`,

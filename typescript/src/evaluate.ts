@@ -40,7 +40,7 @@ import {
   readModuleDefinitions,
   type DefinitionSources,
 } from "./definition-pool";
-import { normalizeParams } from "./params";
+import { normalizeParams, validateRuntimeArguments, type NormalizedParam } from "./params";
 
 export function createPerfStats(): PerfStats {
   return {
@@ -184,6 +184,7 @@ export function callProgram(
     const { getVar, scopedFunctions, localFns, attachFns } = buildScope(
       module as unknown as FunctionBody,
       [],
+      [],
       {
         functions: baseRegistry,
         limits: resolved,
@@ -279,6 +280,7 @@ export function prepareProgram(
   // once (mirrors `callProgram`).
   const { getVar, scopedFunctions, localFns, attachFns } = buildScope(
     module as unknown as FunctionBody,
+    [],
     [],
     { functions: baseRegistry, limits: resolved, state, perf, runtimeDefs },
   );
@@ -489,6 +491,7 @@ function callExternalFunction(
 function buildScope(
   fn: FunctionBody,
   args: JSONType[],
+  params: NormalizedParam[],
   context: EvaluationContext,
 ): {
   getVar: (name: string) => JSONType | undefined;
@@ -547,7 +550,6 @@ function buildScope(
 
   const evaluatedVars: Record<string, JSONType> = {};
   const pendingDefaults = new Map<string, JSONType>();
-  const params = normalizeParams((fn as any).$params, fn);
   for (const slot of params) {
     if (slot.kind === "rest") {
       evaluatedVars[slot.name] = args.slice(slot.index);
@@ -555,21 +557,14 @@ function buildScope(
     }
     if (slot.kind === "fields") {
       // Object pattern: destructure the positional argument into named locals.
-      // A supplied non-object keeps the existing lenient all-null behavior.
-      // Omission and absent own properties register defaults lazily.
-      const argumentSupplied = slot.index < args.length;
-      const value = argumentSupplied ? args[slot.index]! : null;
-      const isPlainObject = typeof value === "object" && value !== null && !Array.isArray(value);
+      // Runtime validation guarantees a supplied plain object and all required
+      // own fields. Absent defaulted properties register defaults lazily.
+      const value = args[slot.index] as Record<string, JSONType>;
       for (const binding of slot.bindings) {
-        if (
-          isPlainObject &&
-          Object.prototype.hasOwnProperty.call(value as Record<string, JSONType>, binding.name)
-        ) {
-          evaluatedVars[binding.name] = (value as Record<string, JSONType>)[binding.name]!;
-        } else if ((!argumentSupplied || isPlainObject) && binding.kind === "defaulted") {
+        if (Object.prototype.hasOwnProperty.call(value, binding.name)) {
+          evaluatedVars[binding.name] = value[binding.name]!;
+        } else if (binding.kind === "defaulted") {
           pendingDefaults.set(binding.name, binding.defaultExpression);
-        } else {
-          evaluatedVars[binding.name] = null;
         }
       }
       continue;
@@ -580,8 +575,6 @@ function buildScope(
       evaluatedVars[slot.name] = args[slot.index]!;
     } else if (slot.kind === "defaulted") {
       pendingDefaults.set(slot.name, slot.defaultExpression);
-    } else {
-      evaluatedVars[slot.name] = null;
     }
   }
 
@@ -682,7 +675,9 @@ function callJSONFunction(fn: FunctionBody, args: JSONType[], context: Evaluatio
     return enforceRuntimeContractReturn(result, prepared.returns, contract.defs);
   }
 
-  const { getVar, scopedFunctions, localFns, attachFns } = buildScope(fn, args, context);
+  const params = normalizeParams((fn as any).$params, fn);
+  validateRuntimeArguments(params, args);
+  const { getVar, scopedFunctions, localFns, attachFns } = buildScope(fn, args, params, context);
 
   return evaluateExpression(fn.$return, {
     functions: scopedFunctions,

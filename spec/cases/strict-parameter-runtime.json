@@ -1,0 +1,82 @@
+{
+  "description": "strict runtime parameter semantics",
+  "cases": [
+    {
+      "description": "missing required positional argument is rejected",
+      "body": { "$params": ["value"], "$return": { "$var": "value" } },
+      "error": "Missing required argument at parameter position 1"
+    },
+    {
+      "description": "exact positional call succeeds",
+      "body": { "$params": ["value"], "$return": { "$var": "value" } },
+      "args": [4],
+      "expected": 4
+    },
+    {
+      "description": "explicit null is a supplied positional value",
+      "body": {
+        "$params": [{ "$param": "value", "$default": 4 }],
+        "$return": { "$var": "value" }
+      },
+      "args": [null],
+      "expected": null
+    },
+    {
+      "description": "omitted defaulted positional parameter uses its default",
+      "body": {
+        "$params": [{ "$param": "value", "$default": 4 }],
+        "$return": { "$var": "value" }
+      },
+      "expected": 4
+    },
+    {
+      "description": "extra fixed argument is rejected",
+      "body": { "$params": ["value"], "$return": { "$var": "value" } },
+      "args": [1, 2],
+      "error": "Expected exactly 1 argument, received 2"
+    },
+    {
+      "description": "rest accepts zero remaining arguments",
+      "body": { "$params": ["value", "...rest"], "$return": { "$var": "rest" } },
+      "args": [1],
+      "expected": []
+    },
+    {
+      "description": "rest collects all remaining arguments",
+      "body": { "$params": ["value", "...rest"], "$return": { "$var": "rest" } },
+      "args": [1, 2, 3],
+      "expected": [2, 3]
+    },
+    {
+      "description": "required fixed slot before rest cannot be omitted",
+      "body": { "$params": ["value", "...rest"], "$return": { "$var": "rest" } },
+      "error": "Missing required argument at parameter position 1"
+    },
+    {
+      "description": "all-defaulted object pattern still requires its argument",
+      "body": {
+        "$params": [{ "$fields": [{ "$field": "value", "$default": 4 }] }],
+        "$return": { "$var": "value" }
+      },
+      "error": "Missing object-pattern argument at parameter position 1"
+    },
+    {
+      "description": "absent defaulted field uses its default",
+      "body": {
+        "$params": [{ "$fields": [{ "$field": "value", "$default": 4 }] }],
+        "$return": { "$var": "value" }
+      },
+      "args": [{}],
+      "expected": 4
+    },
+    {
+      "description": "explicit null field suppresses its default",
+      "body": {
+        "$params": [{ "$fields": [{ "$field": "value", "$default": 4 }] }],
+        "$return": { "$var": "value" }
+      },
+      "args": [{ "value": null }],
+      "expected": null
+    }
+  ]
+}

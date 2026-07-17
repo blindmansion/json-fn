@@ -108,7 +108,10 @@
         "$return": {
           "$call": "filter",
           "$args": [
-            { "$params": ["x"], "$return": { "$call": "neq", "$args": [{ "$var": "x" }, 0] } },
+            {
+              "$params": ["x", "_index"],
+              "$return": { "$call": "neq", "$args": [{ "$var": "x" }, 0] }
+            },
             [0, 1, 0, 2, 0, 3]
           ]
         }
@@ -122,7 +125,7 @@
           "$call": "filter",
           "$args": [
             {
-              "$params": ["x"],
+              "$params": ["x", "_index"],
               "$return": {
                 "$call": "not",
                 "$args": [{ "$call": "gt", "$args": [{ "$var": "x" }, 3] }]

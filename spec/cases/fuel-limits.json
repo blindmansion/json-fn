@@ -61,7 +61,7 @@
               "$call": "flatMap",
               "$args": [
                 {
-                  "$params": ["x"],
+                  "$params": ["x", "_index"],
                   "$return": {
                     "$call": "map",
                     "$args": ["neg", { "$call": "range", "$args": [300] }]
@@ -86,7 +86,7 @@
               "$call": "flatMap",
               "$args": [
                 {
-                  "$params": ["x"],
+                  "$params": ["x", "_index"],
                   "$return": {
                     "$call": "map",
                     "$args": ["neg", { "$call": "range", "$args": [300] }]

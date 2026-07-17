@@ -27,7 +27,10 @@
         "$return": {
           "$call": "map",
           "$args": [
-            { "$params": ["x"], "$return": { "$call": "log", "$args": [{ "$var": "x" }, "item"] } },
+            {
+              "$params": ["x", "_index"],
+              "$return": { "$call": "log", "$args": [{ "$var": "x" }, "item"] }
+            },
             [1, 2, 3]
           ]
         }

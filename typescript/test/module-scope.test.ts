@@ -5,7 +5,10 @@ import type { JSONType } from "../src";
 const stdlib = createStdlib();
 
 // A canonical inline function that adds 1, for feeding to stdlib higher-order fns.
-const addOne = { $params: ["x"], $return: { $call: "add", $args: [{ $var: "x" }, 1] } };
+const addOne = {
+  $params: ["x", "..._ignored"],
+  $return: { $call: "add", $args: [{ $var: "x" }, 1] },
+};
 
 describe("callProgram — module scope", () => {
   test("top-level constant read via $var", () => {
@@ -120,7 +123,10 @@ describe("callProgram — Lisp-2 asymmetry", () => {
 
 describe("callProgram — module function passed as a value", () => {
   const module: Record<string, JSONType> = {
-    cellGlyph: { $params: ["c"], $return: { $if: { $var: "c" }, $then: "X", $else: "." } },
+    cellGlyph: {
+      $params: ["c", "..._ignored"],
+      $return: { $if: { $var: "c" }, $then: "X", $else: "." },
+    },
     // $var form: bare reference resolves to the captured function value.
     renderVar: {
       $params: ["row"],

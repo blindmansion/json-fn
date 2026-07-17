@@ -17,7 +17,7 @@
         "ks": { "$call": "keys", "$args": [{ "c": 3, "a": 1, "b": 2 }] },
         "$return": {
           "$call": "sortBy",
-          "$args": [{ "$params": ["x"], "$return": { "$var": "x" } }, { "$var": "ks" }]
+          "$args": [{ "$params": ["x", "_index"], "$return": { "$var": "x" } }, { "$var": "ks" }]
         }
       },
       "expected": ["a", "b", "c"]
@@ -48,7 +48,7 @@
         "vs": { "$call": "values", "$args": [{ "a": 30, "b": 10, "c": 20 }] },
         "$return": {
           "$call": "sortBy",
-          "$args": [{ "$params": ["x"], "$return": { "$var": "x" } }, { "$var": "vs" }]
+          "$args": [{ "$params": ["x", "_index"], "$return": { "$var": "x" } }, { "$var": "vs" }]
         }
       },
       "expected": [10, 20, 30]

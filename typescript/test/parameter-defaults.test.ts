@@ -25,8 +25,10 @@ function fn(params: JSONType[], returnExpression: JSONType): JSONFunction {
 }
 
 describe("positional parameter defaults", () => {
-  test("preserves required parameters and evaluates missing defaults", () => {
-    expect(callFunction(fn(["required"], { $var: "required" }), [], stdlib)).toBeNull();
+  test("rejects omitted required parameters and evaluates missing defaults", () => {
+    expect(() => callFunction(fn(["required"], { $var: "required" }), [], stdlib)).toThrow(
+      "Missing required argument at parameter position 1",
+    );
     expect(callFunction(fn([defaulted("value", 7)], { $var: "value" }), [], stdlib)).toBe(7);
   });
 
@@ -113,14 +115,16 @@ describe("positional parameter defaults", () => {
     );
   });
 
-  test("keeps rest collection and ignored extra arguments unchanged", () => {
+  test("keeps rest collection and rejects extra arguments without rest", () => {
     const withRest = fn([defaulted("head", null), "...tail"], {
       head: { $var: "head" },
       tail: { $var: "tail" },
     });
     expect(callFunction(withRest, [], stdlib)).toEqual({ head: null, tail: [] });
     expect(callFunction(withRest, [1, 2, 3], stdlib)).toEqual({ head: 1, tail: [2, 3] });
-    expect(callFunction(fn([defaulted("head", 0)], { $var: "head" }), [1, 2], stdlib)).toBe(1);
+    expect(() =>
+      callFunction(fn([defaulted("head", 0)], { $var: "head" }), [1, 2], stdlib),
+    ).toThrow("Expected exactly 1 argument, received 2");
   });
 
   test("counts a descriptor as one fixed arity slot", () => {
@@ -147,22 +151,26 @@ describe("destructured field defaults", () => {
     expect(callFunction(body, [{ value: null }], stdlib)).toBeNull();
   });
 
-  test("uses defaults when the entire object argument is omitted", () => {
+  test("rejects an omitted object argument even when fields have defaults", () => {
     const body = fn(
       [{ $fields: ["required", defaultedField("withDefault", 5)] }],
       [{ $var: "required" }, { $var: "withDefault" }],
     );
-    expect(callFunction(body, [], stdlib)).toEqual([null, 5]);
+    expect(() => callFunction(body, [], stdlib)).toThrow(
+      "Missing object-pattern argument at parameter position 1",
+    );
   });
 
-  test("preserves lenient all-null destructuring for supplied non-objects", () => {
+  test("rejects supplied non-objects", () => {
     const body = fn(
       [{ $fields: ["required", defaultedField("withDefault", { $var: "doesNotExist" })] }],
       [{ $var: "required" }, { $var: "withDefault" }],
     );
 
-    for (const value of [null, 0, "text", []] satisfies JSONType[]) {
-      expect(callFunction(body, [value], stdlib)).toEqual([null, null]);
+    for (const value of [null, 0, "text", false, []] satisfies JSONType[]) {
+      expect(() => callFunction(body, [value], stdlib)).toThrow(
+        "expected a plain object, received",
+      );
     }
   });
 
@@ -192,6 +200,12 @@ describe("destructured field defaults", () => {
     const body = fn([{ $fields: [defaultedField("value", 5)] }], { $var: "value" });
     const argument = Object.create({ value: 99 }) as JSONType;
     expect(callFunction(body, [argument], stdlib)).toBe(5);
+  });
+
+  test("rejects an inherited required property", () => {
+    const body = fn([{ $fields: ["value"] }], { $var: "value" });
+    const argument = Object.create({ value: 99 }) as JSONType;
+    expect(() => callFunction(body, [argument], stdlib)).toThrow('Missing required field "value"');
   });
 
   test("captures local functions referenced only by a field default", () => {

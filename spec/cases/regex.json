@@ -219,7 +219,7 @@
           "$call": "map",
           "$args": [
             {
-              "$params": ["m"],
+              "$params": ["m", "_index"],
               "$return": {
                 "$call": "num",
                 "$args": [{ "$get": "match", "$from": { "$var": "m" } }]
