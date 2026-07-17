@@ -1,15 +1,65 @@
 import type { JSONType } from "./types";
 import { exprError } from "./utils";
 
-type NormalizedParam =
+type ParameterPath = readonly (string | number)[];
+
+type ParameterIssueCode =
+  | "params-not-array"
+  | "invalid-slot"
+  | "invalid-param-name"
+  | "invalid-param-descriptor"
+  | "invalid-fields-pattern"
+  | "invalid-field-name"
+  | "invalid-field-descriptor"
+  | "duplicate-binding"
+  | "rest-not-final"
+  | "required-after-omittable";
+
+type ParameterIssue = {
+  code: ParameterIssueCode;
+  path: ParameterPath;
+  message: string;
+};
+
+type NormalizedParameter =
   | { kind: "required"; name: string; index: number }
+  | { kind: "optional"; name: string; index: number }
   | { kind: "defaulted"; name: string; index: number; defaultExpression: JSONType }
   | { kind: "rest"; name: string; index: number }
-  | { kind: "fields"; bindings: NormalizedFieldBinding[]; index: number };
+  | { kind: "fields"; bindings: NormalizedField[]; index: number };
 
-type NormalizedFieldBinding =
-  | { kind: "required"; name: string }
-  | { kind: "defaulted"; name: string; defaultExpression: JSONType };
+type NormalizedField =
+  | { kind: "required"; name: string; fieldIndex: number }
+  | { kind: "optional"; name: string; fieldIndex: number }
+  | {
+      kind: "defaulted";
+      name: string;
+      fieldIndex: number;
+      defaultExpression: JSONType;
+    };
+
+type ParameterLayout = {
+  slots: readonly NormalizedParameter[];
+  fixedCount: number;
+  requiredCount: number;
+  omittableCount: number;
+  rest: Extract<NormalizedParameter, { kind: "rest" }> | null;
+};
+
+type ParameterAnalysis =
+  | { ok: true; layout: ParameterLayout }
+  | { ok: false; issue: ParameterIssue };
+
+type DefaultBinding = {
+  name: string;
+  expression: JSONType;
+  path: ParameterPath;
+};
+
+// Compatibility names used by the runtime until the stage-4 consumer
+// migrations pass ParameterLayout directly.
+type NormalizedParam = NormalizedParameter;
+type NormalizedFieldBinding = NormalizedField;
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -21,140 +71,328 @@ function valueKind(value: JSONType): string {
   return typeof value;
 }
 
-function addBoundName(name: string, boundNames: Set<string>, expression: JSONType): void {
-  if (boundNames.has(name)) {
-    exprError(expression, `Duplicate parameter binding "${name}".`);
+function issue(code: ParameterIssueCode, path: ParameterPath, message: string): ParameterAnalysis {
+  return { ok: false, issue: { code, path, message } };
+}
+
+function hasOwn(value: Record<string, unknown>, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(value, key);
+}
+
+function hasExactKeys(value: Record<string, unknown>, expected: readonly string[]): boolean {
+  const keys = Object.keys(value);
+  return keys.length === expected.length && expected.every((key) => hasOwn(value, key));
+}
+
+function addBoundName(
+  name: string,
+  path: ParameterPath,
+  boundNames: Map<string, ParameterPath>,
+): ParameterIssue | null {
+  const earlierPath = boundNames.get(name);
+  if (earlierPath !== undefined) {
+    return {
+      code: "duplicate-binding",
+      path,
+      message: `Duplicate parameter binding "${name}"; first declared at ${formatParameterPath(earlierPath)}.`,
+    };
   }
-  boundNames.add(name);
+  boundNames.set(name, path);
+  return null;
 }
 
 /**
- * Validate and normalize the canonical `$params` representation. Keeping this
- * in one reader makes direct calls, registry calls, inline calls, and prepared
- * programs agree on descriptor and binding behavior.
+ * Analyze the canonical `$params` representation without throwing. The first
+ * issue is returned in canonical left-to-right traversal order.
  */
-export function normalizeParams(params: unknown, expression: JSONType): NormalizedParam[] {
-  if (params === undefined) return [];
+export function analyzeParameters(params: unknown): ParameterAnalysis {
+  if (params === undefined) {
+    return {
+      ok: true,
+      layout: {
+        slots: [],
+        fixedCount: 0,
+        requiredCount: 0,
+        omittableCount: 0,
+        rest: null,
+      },
+    };
+  }
   if (!Array.isArray(params)) {
-    exprError(expression, "$params must be an array.");
+    return issue("params-not-array", [], "$params must be an array.");
   }
 
-  const normalized: NormalizedParam[] = [];
-  const boundNames = new Set<string>();
+  const slots: NormalizedParameter[] = [];
+  const boundNames = new Map<string, ParameterPath>();
   let seenOmittable = false;
+  let requiredCount = 0;
+  let omittableCount = 0;
+  let rest: Extract<NormalizedParameter, { kind: "rest" }> | null = null;
 
   for (let index = 0; index < params.length; index++) {
     const slot: unknown = params[index];
+    const slotPath: ParameterPath = [index];
 
     if (typeof slot === "string") {
       if (slot.startsWith("...")) {
         const name = slot.slice(3);
-        if (name.length === 0 || index !== params.length - 1) {
-          exprError(
-            expression,
+        if (name.length === 0) {
+          return issue(
+            "invalid-param-name",
+            slotPath,
+            "A rest parameter must have a non-empty name.",
+          );
+        }
+        if (index !== params.length - 1) {
+          return issue(
+            "rest-not-final",
+            slotPath,
             "A rest parameter must have a name and be the final $params entry.",
           );
         }
-        addBoundName(name, boundNames, expression);
-        normalized.push({ kind: "rest", name, index });
+        const duplicate = addBoundName(name, slotPath, boundNames);
+        if (duplicate !== null) return { ok: false, issue: duplicate };
+        rest = { kind: "rest", name, index };
+        slots.push(rest);
       } else {
-        addBoundName(slot, boundNames, expression);
+        const duplicate = addBoundName(slot, slotPath, boundNames);
+        if (duplicate !== null) return { ok: false, issue: duplicate };
         if (seenOmittable) {
-          exprError(
-            expression,
-            `Required positional parameters must precede defaulted parameters; named parameter "${slot}" at position ${index + 1} is required.`,
+          return issue(
+            "required-after-omittable",
+            slotPath,
+            `Required positional parameters must precede defaulted parameters; named parameter "${slot}" at position ${index + 1} is required. Optional parameters are omittable as well.`,
           );
         }
-        normalized.push({ kind: "required", name: slot, index });
+        slots.push({ kind: "required", name: slot, index });
+        requiredCount++;
       }
       continue;
     }
 
     if (isObject(slot) && "$param" in slot) {
-      const keys = Object.keys(slot);
-      if (
-        keys.length !== 2 ||
-        !Object.prototype.hasOwnProperty.call(slot, "$default") ||
-        typeof slot.$param !== "string" ||
-        slot.$default === undefined
-      ) {
-        exprError(
-          expression,
-          "A defaulted parameter must contain exactly one string $param and a present $default.",
+      const isDefaulted = hasExactKeys(slot, ["$param", "$default"]);
+      const isOptional = hasExactKeys(slot, ["$param", "$optional"]);
+      if (!isDefaulted && !isOptional) {
+        return issue(
+          "invalid-param-descriptor",
+          slotPath,
+          "A defaulted parameter must contain exactly one string $param and a present $default; an optional parameter must contain exactly $param and $optional: true.",
         );
       }
-      if (slot.$param.startsWith("...")) {
-        exprError(expression, "A defaulted parameter cannot be a rest parameter.");
+      if (typeof slot.$param !== "string") {
+        return issue("invalid-param-name", [index, "$param"], "Expected a string parameter name.");
       }
-      addBoundName(slot.$param, boundNames, expression);
-      normalized.push({
-        kind: "defaulted",
-        name: slot.$param,
-        index,
-        defaultExpression: slot.$default as JSONType,
-      });
+      if (slot.$param.startsWith("...")) {
+        return issue(
+          "invalid-param-name",
+          [index, "$param"],
+          "A parameter descriptor cannot encode a rest parameter.",
+        );
+      }
+      if (isDefaulted && slot.$default === undefined) {
+        return issue(
+          "invalid-param-descriptor",
+          [index, "$default"],
+          "A default expression must be present and cannot be undefined.",
+        );
+      }
+      if (isOptional && slot.$optional !== true) {
+        return issue("invalid-param-descriptor", [index, "$optional"], "$optional must be true.");
+      }
+      const duplicate = addBoundName(slot.$param, [index, "$param"], boundNames);
+      if (duplicate !== null) return { ok: false, issue: duplicate };
+      if (isDefaulted) {
+        slots.push({
+          kind: "defaulted",
+          name: slot.$param,
+          index,
+          defaultExpression: slot.$default as JSONType,
+        });
+      } else {
+        slots.push({ kind: "optional", name: slot.$param, index });
+      }
       seenOmittable = true;
+      omittableCount++;
       continue;
     }
 
     if (isObject(slot) && "$fields" in slot) {
+      if (!hasExactKeys(slot, ["$fields"])) {
+        return issue(
+          "invalid-fields-pattern",
+          slotPath,
+          "An object parameter pattern must contain exactly $fields.",
+        );
+      }
       const fields = slot.$fields;
       if (!Array.isArray(fields) || fields.length === 0) {
-        exprError(
-          expression,
+        return issue(
+          "invalid-fields-pattern",
+          [index, "$fields"],
           "$fields must be a non-empty array of strings or { $field, $default } descriptors.",
         );
       }
-      const bindings: NormalizedFieldBinding[] = [];
-      for (const field of fields) {
+      const bindings: NormalizedField[] = [];
+      for (let fieldIndex = 0; fieldIndex < fields.length; fieldIndex++) {
+        const field: unknown = fields[fieldIndex];
+        const fieldPath: ParameterPath = [index, "$fields", fieldIndex];
         if (typeof field === "string") {
-          addBoundName(field, boundNames, expression);
-          bindings.push({ kind: "required", name: field });
+          const duplicate = addBoundName(field, fieldPath, boundNames);
+          if (duplicate !== null) return { ok: false, issue: duplicate };
+          bindings.push({ kind: "required", name: field, fieldIndex });
           continue;
         }
         if (isObject(field) && "$field" in field) {
-          const keys = Object.keys(field);
-          if (
-            keys.length !== 2 ||
-            !Object.prototype.hasOwnProperty.call(field, "$default") ||
-            typeof field.$field !== "string" ||
-            field.$default === undefined
-          ) {
-            exprError(
-              expression,
-              "A defaulted field must contain exactly one string $field and a present $default.",
+          const isDefaulted = hasExactKeys(field, ["$field", "$default"]);
+          const isOptional = hasExactKeys(field, ["$field", "$optional"]);
+          if (!isDefaulted && !isOptional) {
+            return issue(
+              "invalid-field-descriptor",
+              fieldPath,
+              "A field descriptor must contain exactly $field and either $default or $optional.",
             );
           }
-          addBoundName(field.$field, boundNames, expression);
-          bindings.push({
-            kind: "defaulted",
-            name: field.$field,
-            defaultExpression: field.$default as JSONType,
-          });
+          if (typeof field.$field !== "string") {
+            return issue(
+              "invalid-field-name",
+              [...fieldPath, "$field"],
+              "Expected a string field name.",
+            );
+          }
+          if (field.$field.startsWith("...")) {
+            return issue(
+              "invalid-field-name",
+              [...fieldPath, "$field"],
+              "A field descriptor cannot encode a rest parameter.",
+            );
+          }
+          if (isDefaulted && field.$default === undefined) {
+            return issue(
+              "invalid-field-descriptor",
+              [...fieldPath, "$default"],
+              "A default expression must be present and cannot be undefined.",
+            );
+          }
+          if (isOptional && field.$optional !== true) {
+            return issue(
+              "invalid-field-descriptor",
+              [...fieldPath, "$optional"],
+              "$optional must be true.",
+            );
+          }
+          const duplicate = addBoundName(field.$field, [...fieldPath, "$field"], boundNames);
+          if (duplicate !== null) return { ok: false, issue: duplicate };
+          if (isDefaulted) {
+            bindings.push({
+              kind: "defaulted",
+              name: field.$field,
+              fieldIndex,
+              defaultExpression: field.$default as JSONType,
+            });
+          } else {
+            bindings.push({ kind: "optional", name: field.$field, fieldIndex });
+          }
           continue;
         }
-        exprError(
-          expression,
+        return issue(
+          "invalid-field-descriptor",
+          fieldPath,
           "$fields entries must be strings or { $field, $default } descriptors.",
         );
       }
       if (seenOmittable) {
-        exprError(
-          expression,
-          `Required positional parameters must precede defaulted parameters; object pattern at position ${index + 1} is required.`,
+        return issue(
+          "required-after-omittable",
+          slotPath,
+          `Required positional parameters must precede defaulted parameters; object pattern at position ${index + 1} is required. Optional parameters are omittable as well.`,
         );
       }
-      normalized.push({ kind: "fields", bindings, index });
+      slots.push({ kind: "fields", bindings, index });
+      requiredCount++;
       continue;
     }
 
-    exprError(
-      expression,
+    return issue(
+      "invalid-slot",
+      slotPath,
       "$params entries must be strings, { $param, $default } descriptors, or { $fields: [...] } patterns.",
     );
   }
 
-  return normalized;
+  return {
+    ok: true,
+    layout: {
+      slots,
+      fixedCount: slots.length - (rest === null ? 0 : 1),
+      requiredCount,
+      omittableCount,
+      rest,
+    },
+  };
+}
+
+export function formatParameterPath(path: ParameterPath): string {
+  let formatted = "$params";
+  for (const segment of path) {
+    formatted += typeof segment === "number" ? `[${segment}]` : `.${segment}`;
+  }
+  return formatted;
+}
+
+export function formatParameterIssue(parameterIssue: ParameterIssue): string {
+  return `${formatParameterPath(parameterIssue.path)}: ${parameterIssue.message}`;
+}
+
+export function boundParameterNames(layout: ParameterLayout): readonly string[] {
+  const names: string[] = [];
+  for (const slot of layout.slots) {
+    if (slot.kind === "fields") {
+      for (const binding of slot.bindings) names.push(binding.name);
+    } else {
+      names.push(slot.name);
+    }
+  }
+  return names;
+}
+
+export function defaultBindings(layout: ParameterLayout): readonly DefaultBinding[] {
+  const defaults: DefaultBinding[] = [];
+  for (const slot of layout.slots) {
+    if (slot.kind === "defaulted") {
+      defaults.push({
+        name: slot.name,
+        expression: slot.defaultExpression,
+        path: [slot.index, "$default"],
+      });
+      continue;
+    }
+    if (slot.kind !== "fields") continue;
+    for (const binding of slot.bindings) {
+      if (binding.kind !== "defaulted") continue;
+      defaults.push({
+        name: binding.name,
+        expression: binding.defaultExpression,
+        path: [slot.index, "$fields", binding.fieldIndex, "$default"],
+      });
+    }
+  }
+  return defaults;
+}
+
+export function requireParameterLayout(params: unknown, expression: JSONType): ParameterLayout {
+  const analysis = analyzeParameters(params);
+  if (!analysis.ok) {
+    exprError(expression, formatParameterIssue(analysis.issue));
+  }
+  return analysis.layout;
+}
+
+/**
+ * Temporary adapter for consumers migrated in later stage-4 steps.
+ */
+export function normalizeParams(params: unknown, expression: JSONType): NormalizedParam[] {
+  return [...requireParameterLayout(params, expression).slots];
 }
 
 /**
@@ -208,4 +446,15 @@ export function validateRuntimeArguments(params: NormalizedParam[], args: JSONTy
   }
 }
 
-export type { NormalizedFieldBinding, NormalizedParam };
+export type {
+  DefaultBinding,
+  NormalizedField,
+  NormalizedFieldBinding,
+  NormalizedParam,
+  NormalizedParameter,
+  ParameterAnalysis,
+  ParameterIssue,
+  ParameterIssueCode,
+  ParameterLayout,
+  ParameterPath,
+};
