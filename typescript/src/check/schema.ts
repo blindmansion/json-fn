@@ -28,14 +28,19 @@ enum SchemaKind {
   Tuple, // { type: "array", prefixItems: [...] }
   Object, // { type: "object", ... } (includes the map form)
   Ref, // { $ref: "#/$defs/Name" }
-  FnType, // { $fnType: { params, rest?, returns } }
+  FnType, // { $fnType: { required, optional, rest?, returns } }
   TaskType, // { $taskType: A } — checker-only Task<A>
   Opaque, // anything outside the tractable fragment
 }
 
 type ApMode = { kind: "closed" } | { kind: "open" } | { kind: "map"; schema: Schema };
 
-type FnTypeShape = { params: Schema[]; rest?: Schema; returns: Schema };
+type FnTypeShape = {
+  required: Schema[];
+  optional: Schema[];
+  rest?: Schema;
+  returns: Schema;
+};
 
 type Bound = { v: number; excl: boolean };
 
@@ -107,8 +112,9 @@ function collectSchemaRefs(s: Schema, into: Set<string>): void {
       into.add(refName(s));
       return;
     case SchemaKind.FnType: {
-      const { params, rest, returns } = fnShape(s);
-      for (const p of params) collectSchemaRefs(p, into);
+      const shape = fnShape(s);
+      for (const p of fixedParamSchemas(shape)) collectSchemaRefs(p, into);
+      const { rest, returns } = shape;
       if (rest !== undefined) collectSchemaRefs(rest, into);
       collectSchemaRefs(returns, into);
       return;
@@ -228,10 +234,15 @@ function requiredKeys(o: Record<string, JSONType>): string[] {
 function fnShape(o: Record<string, JSONType>): FnTypeShape {
   const ft = asObject(o.$fnType!);
   return {
-    params: Array.isArray(ft.params) ? ft.params : [],
+    required: Array.isArray(ft.required) ? ft.required : [],
+    optional: Array.isArray(ft.optional) ? ft.optional : [],
     rest: "rest" in ft ? ft.rest : undefined,
     returns: "returns" in ft ? ft.returns! : true,
   };
+}
+
+function fixedParamSchemas(shape: FnTypeShape): Schema[] {
+  return [...shape.required, ...shape.optional];
 }
 
 function taskType(completion: Schema): Schema {
@@ -591,6 +602,7 @@ export {
   properties,
   requiredKeys,
   fnShape,
+  fixedParamSchemas,
   taskType,
   taskCompletion,
   isPortableTaskFloor,

@@ -136,7 +136,7 @@ describe("synth: visible `any` degradation", () => {
 // Convenience: a `$sig`-annotated function body.
 const body = (
   params: JSONType[],
-  sig: { params: Schema[]; returns: Schema; rest?: Schema },
+  sig: { required: Schema[]; optional: Schema[]; returns: Schema; rest?: Schema },
   ret: JSONType,
   locals: Record<string, JSONType> = {},
 ): Record<string, JSONType> => ({ $sig: sig, $params: params, ...locals, $return: ret });
@@ -145,12 +145,28 @@ const I: Schema = { type: "integer" };
 const S: Schema = { type: "string" };
 
 describe("checkModule: clean programs", () => {
+  test("required and optional schemas share one positional sequence", () => {
+    const mod = {
+      pickSecond: body(
+        ["number", "label"],
+        { required: [I], optional: [S], returns: S },
+        { $var: "label" },
+      ),
+      caller: body(
+        [],
+        { required: [], optional: [], returns: S },
+        { $call: "pickSecond", $args: [1, "ok"] },
+      ),
+    };
+    expect(checkModule(mod)).toEqual([]);
+  });
+
   test("identity + a caller through the registry sig type-check", () => {
     const mod = {
-      identity: body(["n"], { params: [I], returns: I }, { $var: "n" }),
+      identity: body(["n"], { required: [I], optional: [], returns: I }, { $var: "n" }),
       caller: body(
         ["n"],
-        { params: [I], returns: I },
+        { required: [I], optional: [], returns: I },
         { $call: "identity", $args: [{ $var: "n" }] },
       ),
     };
@@ -161,7 +177,7 @@ describe("checkModule: clean programs", () => {
     const mod = {
       label: body(
         ["n"],
-        { params: [I], returns: S },
+        { required: [I], optional: [], returns: S },
         {
           $cond: [[{ $var: "n" }, "a"]],
           $else: "b",
@@ -184,7 +200,7 @@ describe("checkModule: clean programs", () => {
       },
       getTurn: body(
         ["s"],
-        { params: [{ $ref: "#/$defs/State" }], returns: { $ref: "#/$defs/Color" } },
+        { required: [{ $ref: "#/$defs/State" }], optional: [], returns: { $ref: "#/$defs/Color" } },
         {
           $get: "turn",
           $from: { $var: "s" },
@@ -206,7 +222,11 @@ describe("checkModule: clean programs", () => {
     const userRef = { $ref: "#/$defs/User" };
     const scoreOf = (ret: Schema): Record<string, JSONType> => ({
       $types,
-      f: body(["u"], { params: [userRef], returns: ret }, { $get: "score", $from: { $var: "u" } }),
+      f: body(
+        ["u"],
+        { required: [userRef], optional: [], returns: ret },
+        { $get: "score", $from: { $var: "u" } },
+      ),
     });
 
     // Optional access is `integer | null`, so it fits `integer | null` cleanly
@@ -217,7 +237,7 @@ describe("checkModule: clean programs", () => {
     // A required field keeps its bare type.
     const idOf = body(
       ["u"],
-      { params: [userRef], returns: S },
+      { required: [userRef], optional: [], returns: S },
       { $get: "id", $from: { $var: "u" } },
     );
     expect(checkModule({ $types, f: idOf })).toEqual([]);
@@ -227,7 +247,7 @@ describe("checkModule: clean programs", () => {
 describe("checkModule: diagnostics", () => {
   test("return type mismatch is reported", () => {
     const mod = {
-      bad: body(["n"], { params: [I], returns: S }, { $var: "n" }),
+      bad: body(["n"], { required: [I], optional: [], returns: S }, { $var: "n" }),
     };
     const diags = checkModule(mod);
     expect(diags.length).toBe(1);
@@ -239,10 +259,10 @@ describe("checkModule: diagnostics", () => {
 
   test("argument type mismatch is reported at the arg path", () => {
     const mod = {
-      wantString: body(["s"], { params: [S], returns: S }, { $var: "s" }),
+      wantString: body(["s"], { required: [S], optional: [], returns: S }, { $var: "s" }),
       caller: body(
         ["n"],
-        { params: [I], returns: S },
+        { required: [I], optional: [], returns: S },
         {
           $call: "wantString",
           $args: [{ $var: "n" }],
@@ -256,10 +276,10 @@ describe("checkModule: diagnostics", () => {
 
   test("arity mismatch is reported", () => {
     const mod = {
-      identity: body(["n"], { params: [I], returns: I }, { $var: "n" }),
+      identity: body(["n"], { required: [I], optional: [], returns: I }, { $var: "n" }),
       caller: body(
         ["n"],
-        { params: [I], returns: I },
+        { required: [I], optional: [], returns: I },
         {
           $call: "identity",
           $args: [{ $var: "n" }, { $var: "n" }],
@@ -272,16 +292,24 @@ describe("checkModule: diagnostics", () => {
 
   test("rest params accept extra arguments of the element type", () => {
     const mod = {
-      variadic: body(["...xs"], { params: [], rest: I, returns: I }, 0),
-      caller: body([], { params: [], returns: I }, { $call: "variadic", $args: [1, 2, 3] }),
+      variadic: body(["...xs"], { required: [], optional: [], rest: I, returns: I }, 0),
+      caller: body(
+        [],
+        { required: [], optional: [], returns: I },
+        { $call: "variadic", $args: [1, 2, 3] },
+      ),
     };
     expect(checkModule(mod)).toEqual([]);
   });
 
   test("a rest arg of the wrong element type is reported", () => {
     const mod = {
-      variadic: body(["...xs"], { params: [], rest: I, returns: I }, 0),
-      caller: body([], { params: [], returns: I }, { $call: "variadic", $args: [1, "two"] }),
+      variadic: body(["...xs"], { required: [], optional: [], rest: I, returns: I }, 0),
+      caller: body(
+        [],
+        { required: [], optional: [], returns: I },
+        { $call: "variadic", $args: [1, "two"] },
+      ),
     };
     const diags = checkModule(mod);
     expect(diags.some((d) => d.path.join(".") === "caller.$return.$args[1]")).toBe(true);
@@ -298,7 +326,7 @@ describe("check: bidirectional object literals (Part A)", () => {
   // A function returning the given object-literal expression, checked against
   // the given expected object return type.
   const returning = (ret: JSONType, expected: Schema): Record<string, JSONType> => ({
-    f: body([], { params: [], returns: expected }, ret),
+    f: body([], { required: [], optional: [], returns: expected }, ret),
   });
 
   test("a well-typed object literal checks clean", () => {
@@ -357,7 +385,7 @@ describe("check: bidirectional object literals (Part A)", () => {
   test("expected resolves through a $ref alias", () => {
     const mod = {
       $types: { Rec: closed({ a: I }, ["a"]) },
-      f: body([], { params: [], returns: { $ref: "#/$defs/Rec" } }, { a: "nope" }),
+      f: body([], { required: [], optional: [], returns: { $ref: "#/$defs/Rec" } }, { a: "nope" }),
     };
     const diags = checkModule(mod);
     expect(diags.length).toBe(1);
@@ -378,7 +406,7 @@ describe("check: bidirectional array literals (Part A)", () => {
   // A function returning the given array-literal expression, checked against the
   // given expected array/tuple return type.
   const returning = (ret: JSONType, expected: Schema): Record<string, JSONType> => ({
-    f: body([], { params: [], returns: expected }, ret),
+    f: body([], { required: [], optional: [], returns: expected }, ret),
   });
   const arrayOf = (items: Schema): Schema => ({ type: "array", items });
   const tuple = (items: Schema[], rest?: Schema): Schema => ({
@@ -455,7 +483,7 @@ describe("check: bidirectional array literals (Part A)", () => {
   test("expected resolves through a $ref alias", () => {
     const mod = {
       $types: { Row: arrayOf(I) },
-      f: body([], { params: [], returns: { $ref: "#/$defs/Row" } }, ["x"]),
+      f: body([], { required: [], optional: [], returns: { $ref: "#/$defs/Row" } }, ["x"]),
     };
     const diags = checkModule(mod);
     expect(diags.length).toBe(1);
@@ -477,7 +505,7 @@ describe("check: bidirectional array literals (Part A)", () => {
 
 describe("check: bidirectional branch arms (Part A)", () => {
   const returning = (ret: JSONType, expected: Schema): Record<string, JSONType> => ({
-    f: body([], { params: [], returns: expected }, ret),
+    f: body([], { required: [], optional: [], returns: expected }, ret),
   });
 
   test("$if: arms that both fit the expected type check clean", () => {
@@ -512,7 +540,7 @@ describe("check: bidirectional branch arms (Part A)", () => {
     const mod = {
       f: body(
         ["x"],
-        { params: [nullable], returns: S },
+        { required: [nullable], optional: [], returns: S },
         {
           $if: { $var: "x" },
           $then: { $var: "x" },
@@ -546,7 +574,7 @@ describe("check: bidirectional branch arms (Part A)", () => {
     const mod = {
       f: body(
         ["p"],
-        { params: [p], returns: I },
+        { required: [p], optional: [], returns: I },
         {
           $match: { $var: "p" },
           $cases: [
@@ -567,7 +595,7 @@ describe("check: bidirectional branch arms (Part A)", () => {
     const mod = {
       f: body(
         ["p"],
-        { params: [p], returns: I },
+        { required: [p], optional: [], returns: I },
         {
           $match: { $var: "p" },
           $cases: [["a", 1]],
@@ -583,7 +611,7 @@ describe("check: bidirectional branch arms (Part A)", () => {
 
 describe("check: bidirectional un-annotated lambdas (Part A)", () => {
   const fn = (params: Schema[], returns: Schema, rest?: Schema): Schema => ({
-    $fnType: { params, ...(rest !== undefined ? { rest } : {}), returns },
+    $fnType: { required: params, optional: [], ...(rest !== undefined ? { rest } : {}), returns },
   });
   // An un-annotated inline lambda: `$params` names only, no `$sig`.
   const lambda = (params: JSONType[], ret: JSONType): Record<string, JSONType> => ({
@@ -592,7 +620,7 @@ describe("check: bidirectional un-annotated lambdas (Part A)", () => {
   });
   // A function returning `ret` (a lambda), checked against an expected fn type.
   const returning = (ret: JSONType, expected: Schema): Record<string, JSONType> => ({
-    f: body([], { params: [], returns: expected }, ret),
+    f: body([], { required: [], optional: [], returns: expected }, ret),
   });
 
   test("a zero-arg lambda checks against an expected () -> T (capability record)", () => {
@@ -647,7 +675,11 @@ describe("check: bidirectional un-annotated lambdas (Part A)", () => {
   test("the expected fn type resolves through a $ref alias", () => {
     const mod = {
       $types: { Thunk: fn([], I) },
-      f: body([], { params: [], returns: { $ref: "#/$defs/Thunk" } }, lambda([], "nope")),
+      f: body(
+        [],
+        { required: [], optional: [], returns: { $ref: "#/$defs/Thunk" } },
+        lambda([], "nope"),
+      ),
     };
     const diags = checkModule(mod);
     expect(diags.length).toBe(1);
@@ -667,12 +699,12 @@ describe("check: bidirectional un-annotated lambdas (Part A)", () => {
     const mod = {
       apply: body(
         ["cb"],
-        { params: [fn([I], I)], returns: I },
+        { required: [fn([I], I)], optional: [], returns: I },
         { $call: { $var: "cb" }, $args: [1] },
       ),
       good: body(
         [],
-        { params: [], returns: I },
+        { required: [], optional: [], returns: I },
         {
           $call: "apply",
           $args: [lambda(["n"], { $var: "n" })],
@@ -684,12 +716,12 @@ describe("check: bidirectional un-annotated lambdas (Part A)", () => {
     const bad = {
       apply: body(
         ["cb"],
-        { params: [fn([I], I)], returns: I },
+        { required: [fn([I], I)], optional: [], returns: I },
         { $call: { $var: "cb" }, $args: [1] },
       ),
       caller: body(
         [],
-        { params: [], returns: I },
+        { required: [], optional: [], returns: I },
         {
           $call: "apply",
           $args: [lambda(["n"], "x")],
@@ -749,7 +781,9 @@ describe("check: do-block / where IIFE (Part A)", () => {
   test("the expected type is pushed into the body's $return (checked position)", () => {
     // `f: () -> string` whose body is `1 where { x: 1 }`: the integer result is
     // pinpointed at the IIFE body's `$return`, not dumped at the whole call.
-    const mod = { f: body([], { params: [], returns: S }, iife({ $var: "x" }, { x: 1 })) };
+    const mod = {
+      f: body([], { required: [], optional: [], returns: S }, iife({ $var: "x" }, { x: 1 })),
+    };
     const diags = checkModule(mod);
     expect(diags.length).toBe(1);
     expect(diags[0]!.severity).toBe("error");
@@ -759,7 +793,9 @@ describe("check: do-block / where IIFE (Part A)", () => {
   });
 
   test("a body matching the expected type checks clean", () => {
-    const mod = { f: body([], { params: [], returns: I }, iife({ $var: "x" }, { x: 1 })) };
+    const mod = {
+      f: body([], { required: [], optional: [], returns: I }, iife({ $var: "x" }, { x: 1 })),
+    };
     expect(checkModule(mod)).toEqual([]);
   });
 
@@ -767,10 +803,14 @@ describe("check: do-block / where IIFE (Part A)", () => {
     const nullableString: Schema = { anyOf: [S, { type: "null" }] };
     const taskString: Schema = { $taskType: S };
     const mod = {
-      acceptsString: body(["value"], { params: [S], returns: { type: "boolean" } }, true),
+      acceptsString: body(
+        ["value"],
+        { required: [S], optional: [], returns: { type: "boolean" } },
+        true,
+      ),
       run: body(
         ["cmd"],
-        { params: [nullableString], returns: taskString },
+        { required: [nullableString], optional: [], returns: taskString },
         {
           $if: { $call: "isNull", $args: [{ $var: "cmd" }] },
           $then: { $call: "pure", $args: ["none"] },
@@ -808,7 +848,7 @@ describe("checkModule: dangling $ref → hard error", () => {
   const ref = (name: string): Schema => ({ $ref: `#/$defs/${name}` });
 
   test("a `$ref` to an undeclared type in a sig is an error, not a silent top", () => {
-    const mod = { f: body([], { params: [], returns: ref("Reprot") }, true) };
+    const mod = { f: body([], { required: [], optional: [], returns: ref("Reprot") }, true) };
     const diags = checkModule(mod);
     expect(diags.length).toBe(1);
     expect(diags[0]!.severity).toBe("error");
@@ -816,15 +856,34 @@ describe("checkModule: dangling $ref → hard error", () => {
     expect(diags[0]!.message).toContain("Reprot");
   });
 
+  test("dangling refs in required and optional signature slots are both reported", () => {
+    const mod = {
+      f: body(
+        ["requiredValue", "optionalValue"],
+        {
+          required: [ref("MissingRequired")],
+          optional: [ref("MissingOptional")],
+          returns: true,
+        },
+        true,
+      ),
+    };
+    const names = new Set(checkModule(mod).map((d) => d.message.match(/"([^"]+)"/)?.[1]));
+    expect(names).toEqual(new Set(["MissingRequired", "MissingOptional"]));
+  });
+
   test("an intentional `type X = any` alias still checks clean", () => {
-    const mod = { $types: { X: true }, g: body([], { params: [], returns: ref("X") }, 1) };
+    const mod = {
+      $types: { X: true },
+      g: body([], { required: [], optional: [], returns: ref("X") }, 1),
+    };
     expect(checkModule(mod)).toEqual([]);
   });
 
   test("a dangling `$ref` inside a `$types` body is reported at the def", () => {
     const mod = {
       $types: { User: { type: "object", properties: { id: ref("Missing") }, required: ["id"] } },
-      main: body([], { params: [], returns: I }, 1),
+      main: body([], { required: [], optional: [], returns: I }, 1),
     };
     const diags = checkModule(mod);
     expect(diags.some((d) => d.path.join(".") === "$types.User" && /Missing/.test(d.message))).toBe(
@@ -837,10 +896,11 @@ describe("checkModule: dangling $ref → hard error", () => {
       f: body(
         ["xs", "cb"],
         {
-          params: [
+          required: [
             { type: "array", items: ref("Foo") },
-            { $fnType: { params: [], returns: ref("Bar") } },
+            { $fnType: { required: [], optional: [], returns: ref("Bar") } },
           ],
+          optional: [],
           returns: { anyOf: [ref("Baz"), { type: "null" }] },
         },
         1,
@@ -852,8 +912,8 @@ describe("checkModule: dangling $ref → hard error", () => {
 
   test("a nested `where`-local signature is covered too", () => {
     const mod = {
-      main: body([], { params: [], returns: I }, 1, {
-        helper: body(["x"], { params: [ref("Qux")], returns: I }, { $var: "x" }),
+      main: body([], { required: [], optional: [], returns: I }, 1, {
+        helper: body(["x"], { required: [ref("Qux")], optional: [], returns: I }, { $var: "x" }),
       }),
     };
     const diags = checkModule(mod);
@@ -872,7 +932,7 @@ describe("checkModule: require typed module functions (on by default)", () => {
   });
 
   test("a `$sig`-annotated top-level function is unaffected", () => {
-    const mod = { f: body(["n"], { params: [I], returns: I }, { $var: "n" }) };
+    const mod = { f: body(["n"], { required: [I], optional: [], returns: I }, { $var: "n" }) };
     expect(checkModule(mod)).toEqual([]);
   });
 
@@ -892,7 +952,7 @@ describe("checkModule: require typed module functions (on by default)", () => {
     const mod = {
       main: body(
         [],
-        { params: [], returns: true },
+        { required: [], optional: [], returns: true },
         { $call: "helper", $args: [1] },
         {
           helper: { $params: ["x"], $return: { $var: "x" } },
@@ -924,7 +984,7 @@ describe("buildTypeScope: lazy locals & cycles", () => {
     const mod = {
       f: body(
         ["n"],
-        { params: [I], returns: I },
+        { required: [I], optional: [], returns: I },
         { $var: "chosen" },
         {
           chosen: { $var: "n" },
@@ -1266,16 +1326,19 @@ describe("declared return type is enforced outside the module path", () => {
 
   test("checkExpr: a standalone typed lambda checks its body vs the declared return", () => {
     // `(n: integer) -> string => n`: the body is integer, disjoint from string.
-    const { diagnostics } = checkExpr(body(["n"], { params: [I], returns: S }, { $var: "n" }));
+    const { diagnostics } = checkExpr(
+      body(["n"], { required: [I], optional: [], returns: S }, { $var: "n" }),
+    );
     expect(diagnostics.length).toBe(1);
     expect(diagnostics[0]!.severity).toBe("error");
     expect(diagnostics[0]!.path).toEqual(["$return"]);
   });
 
   test("checkExpr: a well-typed standalone lambda is clean", () => {
-    expect(checkExpr(body(["n"], { params: [I], returns: I }, { $var: "n" })).diagnostics).toEqual(
-      [],
-    );
+    expect(
+      checkExpr(body(["n"], { required: [I], optional: [], returns: I }, { $var: "n" }))
+        .diagnostics,
+    ).toEqual([]);
   });
 
   test("inline typed lambda in a builtin call honors its own declared return", () => {
@@ -1283,7 +1346,10 @@ describe("declared return type is enforced outside the module path", () => {
     // its self-declared `-> string`.
     const call = {
       $call: "map",
-      $args: [body(["n", "i"], { params: [I, I], returns: S }, { $var: "n" }), [1, 2, 3]],
+      $args: [
+        body(["n", "i"], { required: [I, I], optional: [], returns: S }, { $var: "n" }),
+        [1, 2, 3],
+      ],
     };
     expect(checkExpr(call, {}, BT).diagnostics.some((d) => d.severity === "error")).toBe(true);
   });
@@ -1291,7 +1357,10 @@ describe("declared return type is enforced outside the module path", () => {
   test("inline typed lambda with a matching declared return is clean", () => {
     const call = {
       $call: "map",
-      $args: [body(["n", "i"], { params: [I, I], returns: I }, { $var: "n" }), [1, 2, 3]],
+      $args: [
+        body(["n", "i"], { required: [I, I], optional: [], returns: I }, { $var: "n" }),
+        [1, 2, 3],
+      ],
     };
     expect(checkExpr(call, {}, BT).diagnostics).toEqual([]);
   });

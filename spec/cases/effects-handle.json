@@ -467,7 +467,8 @@
               {
                 "$raw": {
                   "$fnType": {
-                    "params": [{ "type": "integer" }],
+                    "required": [{ "type": "integer" }],
+                    "optional": [],
                     "returns": { "type": "integer" }
                   }
                 }

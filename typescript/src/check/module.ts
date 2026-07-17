@@ -98,7 +98,11 @@ function checkModule(
         `environment entry "${entry.name}" is not a function defined by the module`,
       );
     } else {
-      entrySig = { params: entry.params, returns: entryReturnType(entry.returns) };
+      entrySig = {
+        required: entry.required,
+        optional: entry.optional,
+        returns: entryReturnType(entry.returns),
+      };
       checkingModule = { ...module, [entry.name]: { ...body, $sig: entrySig } };
     }
     checkingModule = {
@@ -199,7 +203,7 @@ function reportMissingRefs(schema: Schema, path: string[], defs: Defs, ctx: Chec
 }
 
 // Walk the term tree looking for `$sig` nodes, checking each signature's
-// param/rest/return schemas for dangling `$ref`s. `$raw` payloads are verbatim
+// required/optional/rest/return schemas for dangling `$ref`s. `$raw` payloads are verbatim
 // data (no annotations), so they are not descended into.
 function walkSigRefs(node: JSONType, path: string[], defs: Defs, ctx: CheckContext): void {
   if (Array.isArray(node)) {
@@ -212,8 +216,9 @@ function walkSigRefs(node: JSONType, path: string[], defs: Defs, ctx: CheckConte
   const sig = node.$sig;
   if (isSchemaObject(sig)) {
     const sigPath = [...path, "$sig"];
-    const params = Array.isArray(sig.params) ? sig.params : [];
-    for (const p of params) reportMissingRefs(p, sigPath, defs, ctx);
+    const required = Array.isArray(sig.required) ? sig.required : [];
+    const optional = Array.isArray(sig.optional) ? sig.optional : [];
+    for (const p of [...required, ...optional]) reportMissingRefs(p, sigPath, defs, ctx);
     if ("rest" in sig && sig.rest !== undefined) reportMissingRefs(sig.rest, sigPath, defs, ctx);
     if ("returns" in sig && sig.returns !== undefined) {
       reportMissingRefs(sig.returns, sigPath, defs, ctx);

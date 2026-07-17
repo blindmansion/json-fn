@@ -74,7 +74,8 @@
           {
             "$raw": {
               "$fnType": {
-                "params": [{ "$ref": "#/$defs/State" }],
+                "required": [{ "$ref": "#/$defs/State" }],
+                "optional": [],
                 "returns": { "$ref": "#/$defs/Report" }
               }
             }

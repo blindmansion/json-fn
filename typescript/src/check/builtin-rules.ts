@@ -50,6 +50,7 @@ import {
   unionArms,
   unionOf,
   prefixItems,
+  fixedParamSchemas,
   fnShape,
   properties,
   apMode,
@@ -235,7 +236,7 @@ function unifyTemplateInto(
     if (classifySchema(resolved) !== SchemaKind.FnType) return false;
     const a = fnShape(asObject(template));
     const b = fnShape(asObject(resolved));
-    if (a.params.length !== b.params.length) return false;
+    if (fixedParamSchemas(a).length !== fixedParamSchemas(b).length) return false;
     // Callback parameters are contravariant constraints, not inference
     // sources. Bind output variables from the covariant return, then validate
     // the complete concrete function against the finally instantiated type.
@@ -271,25 +272,27 @@ function unifyTemplate(
 // arity error so the body is not checked under a bogus scope.
 function inferLambdaReturn(body: JSONType, expectedFn: Schema, ctx: CheckContext): Schema | null {
   const shape = fnShape(asObject(expectedFn));
+  const shapeParams = fixedParamSchemas(shape);
   const params = Array.isArray((body as Record<string, JSONType>).$params)
     ? ((body as Record<string, JSONType>).$params as JSONType[])
     : [];
   const restIndex = params.findIndex((p) => typeof p === "string" && p.startsWith("..."));
   const fixed = restIndex === -1 ? params.length : restIndex;
-  if (fixed > shape.params.length) {
+  if (fixed > shapeParams.length) {
     report(
       ctx,
-      `Inline callback declares ${fixed} fixed parameter(s), but the builtin supplies at most ${shape.params.length}.`,
+      `Inline callback declares ${fixed} fixed parameter(s), but the builtin supplies at most ${shapeParams.length}.`,
     );
     return null;
   }
 
-  const remaining = shape.params.slice(fixed);
+  const remaining = shapeParams.slice(fixed);
   if (shape.rest !== undefined) remaining.push(shape.rest);
   const withSig: Record<string, JSONType> = {
     ...(body as Record<string, JSONType>),
     $sig: {
-      params: shape.params.slice(0, fixed),
+      required: shapeParams.slice(0, fixed),
+      optional: [],
       ...(restIndex !== -1 ? { rest: unionOf(remaining) } : {}),
       returns: shape.returns,
     },
@@ -310,8 +313,8 @@ function tryBindOverload(
   ctx: CheckContext,
 ): Bindings | null {
   if (sig.rest === undefined) {
-    if (argExprs.length !== sig.params.length) return null;
-  } else if (argExprs.length < sig.params.length) {
+    if (argExprs.length !== fixedParamSchemas(sig).length) return null;
+  } else if (argExprs.length < fixedParamSchemas(sig).length) {
     return null;
   }
   const bindings: Bindings = {};
@@ -404,7 +407,11 @@ function applyOverload(
       const lambda = argExprs[i] as Record<string, JSONType>;
       const arity = Array.isArray(lambda.$params) ? lambda.$params.length : 0;
       const actual: Schema = {
-        $fnType: { params: Array.from({ length: arity }, () => true), returns: true },
+        $fnType: {
+          required: Array.from({ length: arity }, () => true),
+          optional: [],
+          returns: true,
+        },
       };
       reportMismatch(at(ctx, `$args[${i}]`), actual, instantiate(param, bindings));
       continue;
@@ -412,7 +419,8 @@ function applyOverload(
     const shape = fnShape(asObject(param));
     const expectedFn: Schema = {
       $fnType: {
-        params: shape.params.map((p) => instantiate(p, bindings)),
+        required: shape.required.map((p) => instantiate(p, bindings)),
+        optional: shape.optional.map((p) => instantiate(p, bindings)),
         ...(shape.rest !== undefined ? { rest: instantiate(shape.rest, bindings) } : {}),
         returns: true,
       },
@@ -423,7 +431,8 @@ function applyOverload(
     if (mentionsTVar(shape.returns)) {
       const paramVars = collectTVars({
         $fnType: {
-          params: shape.params,
+          required: shape.required,
+          optional: shape.optional,
           ...(shape.rest !== undefined ? { rest: shape.rest } : {}),
           returns: false,
         },
@@ -465,7 +474,8 @@ function applyOverload(
     const shape = fnShape(asObject(validation.param));
     const expectedFn: Schema = {
       $fnType: {
-        params: shape.params.map((p) => instantiate(p, bindings)),
+        required: shape.required.map((p) => instantiate(p, bindings)),
+        optional: shape.optional.map((p) => instantiate(p, bindings)),
         ...(shape.rest !== undefined ? { rest: instantiate(shape.rest, bindings) } : {}),
         returns: instantiate(shape.returns, bindings),
       },
@@ -495,7 +505,7 @@ function applyOverload(
 
 // Render a signature's parameter list as `(p0, p1, ...rest)` for a diagnostic.
 function paramList(sig: CallableSignature): string {
-  const parts = sig.params.map((p) => JSON.stringify(p));
+  const parts = fixedParamSchemas(sig).map((p) => JSON.stringify(p));
   if (sig.rest !== undefined) parts.push(`...${JSON.stringify(sig.rest)}`);
   return `(${parts.join(", ")})`;
 }
@@ -515,11 +525,14 @@ function reportNoOverload(
   ctx: CheckContext,
 ): Schema {
   const actualParams = argExprs.map((a, i) => synth(a, at(ctx, `$args[${i}]`)));
-  const actual: Schema = { $fnType: { params: actualParams, returns: true } };
+  const actual: Schema = {
+    $fnType: { required: actualParams, optional: [], returns: true },
+  };
   const expected: Schema = {
     anyOf: overloads.map((ov) => ({
       $fnType: {
-        params: ov.params,
+        required: ov.required,
+        optional: ov.optional,
         ...(ov.rest !== undefined ? { rest: ov.rest } : {}),
         returns: ov.returns,
       },

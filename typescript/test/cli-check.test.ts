@@ -23,7 +23,11 @@ const asJsonArg = (value: unknown): string => JSON.stringify(value);
 describe("jfn check coverage reporting", () => {
   test("a clean typed module reports full coverage", () => {
     const mod = {
-      f: { $params: [], $sig: { params: [], returns: { type: "integer" } }, $return: 1 },
+      f: {
+        $params: [],
+        $sig: { required: [], optional: [], returns: { type: "integer" } },
+        $return: 1,
+      },
     };
     const result = runCheck(["--json", asJsonArg(mod)]);
     expect(result.exitCode).toBe(0);
@@ -77,7 +81,7 @@ describe("jfn check coverage reporting", () => {
     const mod = {
       f: {
         $params: ["i"],
-        $sig: { params: [{ type: "number" }], returns: true },
+        $sig: { required: [{ type: "number" }], optional: [], returns: true },
         $return: { $get: { $var: "i" }, $from: [1, 2] },
       },
     };
@@ -99,7 +103,8 @@ describe("jfn check coverage reporting", () => {
             "host.inc": {
               signatures: [
                 {
-                  params: [{ type: "integer" }],
+                  required: [{ type: "integer" }],
+                  optional: [],
                   returns: { type: "integer" },
                 },
               ],
@@ -108,7 +113,8 @@ describe("jfn check coverage reporting", () => {
           effects: {},
           entry: {
             name: "main",
-            params: [],
+            required: [],
+            optional: [],
             returns: { task: { type: "integer" } },
           },
         }),
@@ -116,7 +122,7 @@ describe("jfn check coverage reporting", () => {
       const mod = {
         main: {
           $params: [],
-          $sig: { params: [], returns: { $ref: "#/$defs/Task" } },
+          $sig: { required: [], optional: [], returns: { $ref: "#/$defs/Task" } },
           $return: {
             $call: "pure",
             $args: [{ $call: "host.inc", $args: [1] }],

@@ -533,7 +533,7 @@ class Parser extends TokenCursor {
         params.push(parsed.slotSchemas[i]!);
       }
     }
-    const sig: Record<string, JSONType> = { params };
+    const sig: Record<string, JSONType> = { required: params, optional: [] };
     if (rest !== undefined) sig.rest = rest;
     sig.returns = returns!;
     return sig;

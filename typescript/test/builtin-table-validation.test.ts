@@ -14,7 +14,8 @@ const tableWith = (signatures: unknown, defs: Record<string, unknown> = {}, rule
 });
 
 const signature = {
-  params: [{ type: "string" }],
+  required: [{ type: "string" }],
+  optional: [],
   returns: { type: "boolean" },
 };
 
@@ -78,12 +79,24 @@ describe("builtin table validation", () => {
     validateCallableTable(tableWith([signature], {}, "operator.handle"));
   });
 
-  test("requires signature parameters and returns", () => {
+  test("requires required, optional, and returns", () => {
     expect(validationError(tableWith([{ returns: true }])).path).toBe(
+      "table.builtins.example.signatures[0].required",
+    );
+    expect(validationError(tableWith([{ required: [], returns: true }])).path).toBe(
+      "table.builtins.example.signatures[0].optional",
+    );
+    expect(validationError(tableWith([{ required: [], optional: [] }])).path).toBe(
+      "table.builtins.example.signatures[0].returns",
+    );
+    expect(validationError(tableWith([{ params: [], returns: true }])).path).toBe(
       "table.builtins.example.signatures[0].params",
     );
-    expect(validationError(tableWith([{ params: [] }])).path).toBe(
-      "table.builtins.example.signatures[0].returns",
+    expect(validationError(tableWith([{ required: null, optional: [], returns: true }])).path).toBe(
+      "table.builtins.example.signatures[0].required",
+    );
+    expect(validationError(tableWith([{ required: [], optional: null, returns: true }])).path).toBe(
+      "table.builtins.example.signatures[0].optional",
     );
     expect(validationError(tableWith([{ ...signature, rest: null }])).path).toBe(
       "table.builtins.example.signatures[0].rest",
@@ -95,7 +108,8 @@ describe("builtin table validation", () => {
       validationError(
         tableWith([
           {
-            params: [{ $tvar: "T" }],
+            required: [{ $tvar: "T" }],
+            optional: [],
             returns: { $tvar: "T" },
           },
         ]),
@@ -107,7 +121,8 @@ describe("builtin table validation", () => {
         tableWith([
           {
             typeParams: ["T", "T"],
-            params: [{ $tvar: "T" }],
+            required: [{ $tvar: "T" }],
+            optional: [],
             returns: { $tvar: "T" },
           },
         ]),
@@ -119,26 +134,43 @@ describe("builtin table validation", () => {
         tableWith([
           {
             typeParams: ["T"],
-            params: [true],
+            required: [true],
+            optional: [],
             returns: true,
           },
         ]),
       ).message,
     ).toContain('declared type parameter "T" is not used');
+
+    validateCallableTable(
+      tableWith([
+        {
+          typeParams: ["T"],
+          required: [],
+          optional: [{ $tvar: "T" }],
+          returns: true,
+        },
+      ]),
+    );
   });
 
   test("validates references against the table definition pool", () => {
-    const valid: unknown = tableWith([{ params: [{ $ref: "#/$defs/Name" }], returns: true }], {
-      Name: { type: "string" },
-    });
+    const valid: unknown = tableWith(
+      [{ required: [{ $ref: "#/$defs/Name" }], optional: [], returns: true }],
+      {
+        Name: { type: "string" },
+      },
+    );
     validateCallableTable(valid);
 
-    expect(validationError(tableWith([{ params: [{ $ref: "Name" }], returns: true }])).path).toBe(
-      "table.builtins.example.signatures[0].params[0].$ref",
-    );
     expect(
-      validationError(tableWith([{ params: [{ $ref: "#/$defs/Missing" }], returns: true }]))
-        .message,
+      validationError(tableWith([{ required: [{ $ref: "Name" }], optional: [], returns: true }]))
+        .path,
+    ).toBe("table.builtins.example.signatures[0].required[0].$ref");
+    expect(
+      validationError(
+        tableWith([{ required: [{ $ref: "#/$defs/Missing" }], optional: [], returns: true }]),
+      ).message,
     ).toContain('references undefined type "Missing"');
   });
 
@@ -149,14 +181,20 @@ describe("builtin table validation", () => {
   });
 
   test("rejects unsupported and malformed schema nodes", () => {
-    expect(validationError(tableWith([{ params: [{ oneOf: [true] }], returns: true }])).path).toBe(
-      "table.builtins.example.signatures[0].params[0]",
-    );
+    expect(
+      validationError(tableWith([{ required: [{ oneOf: [true] }], optional: [], returns: true }]))
+        .path,
+    ).toBe("table.builtins.example.signatures[0].required[0]");
+    expect(
+      validationError(tableWith([{ required: [], optional: [{ oneOf: [true] }], returns: true }]))
+        .path,
+    ).toBe("table.builtins.example.signatures[0].optional[0]");
     expect(
       validationError(
         tableWith([
           {
-            params: [{ type: "array", items: { type: "mystery" } }],
+            required: [{ type: "array", items: { type: "mystery" } }],
+            optional: [],
             returns: true,
           },
         ]),
@@ -166,35 +204,51 @@ describe("builtin table validation", () => {
       validationError(
         tableWith([
           {
-            params: [{ $fnType: { params: [], rest: null, returns: true } }],
+            required: [{ $fnType: { required: [], optional: [], rest: null, returns: true } }],
+            optional: [],
             returns: true,
           },
         ]),
       ).path,
-    ).toBe("table.builtins.example.signatures[0].params[0].$fnType.rest");
+    ).toBe("table.builtins.example.signatures[0].required[0].$fnType.rest");
+    expect(
+      validationError(
+        tableWith([
+          {
+            required: [{ $fnType: { params: [], returns: true } }],
+            optional: [],
+            returns: true,
+          },
+        ]),
+      ).path,
+    ).toBe("table.builtins.example.signatures[0].required[0].$fnType.params");
   });
 
   test("validates tractable schema refinements", () => {
     expect(
-      validationError(tableWith([{ params: [{ type: "string", pattern: "[" }], returns: true }]))
-        .path,
-    ).toBe("table.builtins.example.signatures[0].params[0].pattern");
+      validationError(
+        tableWith([{ required: [{ type: "string", pattern: "[" }], optional: [], returns: true }]),
+      ).path,
+    ).toBe("table.builtins.example.signatures[0].required[0].pattern");
     expect(
       validationError(
-        tableWith([{ params: [{ type: "array", minItems: 2, maxItems: 1 }], returns: true }]),
+        tableWith([
+          { required: [{ type: "array", minItems: 2, maxItems: 1 }], optional: [], returns: true },
+        ]),
       ).message,
     ).toContain("minItems cannot exceed maxItems");
     expect(
       validationError(
         tableWith([
           {
-            params: [
+            required: [
               {
                 type: "object",
                 properties: { known: { type: "string" } },
                 required: ["missing"],
               },
             ],
+            optional: [],
             returns: true,
           },
         ]),

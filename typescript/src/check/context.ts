@@ -132,7 +132,8 @@ function sigOf(body: Record<string, JSONType>): Sig | null {
   const sig = body.$sig;
   if (!isSchemaObject(sig)) return null;
   return {
-    params: Array.isArray(sig.params) ? (sig.params as Schema[]) : [],
+    required: Array.isArray(sig.required) ? (sig.required as Schema[]) : [],
+    optional: Array.isArray(sig.optional) ? (sig.optional as Schema[]) : [],
     rest: "rest" in sig ? sig.rest : undefined,
     returns: "returns" in sig ? sig.returns! : true,
   };

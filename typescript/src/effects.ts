@@ -40,12 +40,23 @@ function validateEffectManifest(value: unknown, defs: Defs = {}): asserts value 
     if (!isObject(signature)) {
       throw new EffectManifestValidationError(path, "expected an object");
     }
+    for (const key of Object.keys(signature)) {
+      if (key !== "params" && key !== "returns") {
+        throw new EffectManifestValidationError(`${path}.${key}`, "unsupported field");
+      }
+    }
 
     const synthetic: CallableTable = {
       $defs: defs,
       builtins: {
         effect: {
-          signatures: [signature as EffectSignature],
+          signatures: [
+            {
+              required: signature.params as Schema[],
+              optional: [],
+              returns: signature.returns as Schema,
+            },
+          ],
         },
       },
     };
@@ -53,7 +64,9 @@ function validateEffectManifest(value: unknown, defs: Defs = {}): asserts value 
       validateCallableTable(synthetic);
     } catch (error) {
       if (!(error instanceof CallableTableValidationError)) throw error;
-      const suffix = error.path.replace(/^table\.builtins\.effect\.signatures\[0\]/, "");
+      const suffix = error.path
+        .replace(/^table\.builtins\.effect\.signatures\[0\]/, "")
+        .replace(/^\.required/, ".params");
       throw new EffectManifestValidationError(
         `${path}${suffix}`,
         error.message.slice(error.path.length + 2),
@@ -106,7 +119,8 @@ function buildEffectNamespace(effects: EffectManifest = {}): Record<string, JSON
     parent[segments.at(-1)!] = {
       $params: params,
       $sig: {
-        params: signature.params,
+        required: signature.params,
+        optional: [],
         returns: taskType(signature.returns),
       },
       $return: {

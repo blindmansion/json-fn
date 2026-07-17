@@ -10,7 +10,8 @@ type EntryReturn = Schema | { task: Schema };
 
 type EntryContract = {
   name: string;
-  params: Schema[];
+  required: Schema[];
+  optional: Schema[];
   returns: EntryReturn;
 };
 
@@ -113,15 +114,22 @@ function validateEnvironment(value: unknown, baseDefs: Defs = {}): asserts value
   }
 
   if (!isObject(value.entry)) fail("environment.entry", "expected an object");
-  assertOnlyKeys(value.entry, new Set(["name", "params", "returns"]), "environment.entry");
+  assertOnlyKeys(
+    value.entry,
+    new Set(["name", "required", "optional", "returns"]),
+    "environment.entry",
+  );
   if (typeof value.entry.name !== "string" || value.entry.name.length === 0) {
     fail("environment.entry.name", "expected a non-empty string");
   }
   if (value.entry.name === EFFECTS_BINDING) {
     fail("environment.entry.name", `"${EFFECTS_BINDING}" is reserved for declared effects`);
   }
-  if (!Array.isArray(value.entry.params)) {
-    fail("environment.entry.params", "expected an array");
+  if (!Array.isArray(value.entry.required)) {
+    fail("environment.entry.required", "expected an array");
+  }
+  if (!Array.isArray(value.entry.optional)) {
+    fail("environment.entry.optional", "expected an array");
   }
   if (!("returns" in value.entry)) fail("environment.entry.returns", "field is required");
 
@@ -132,7 +140,8 @@ function validateEnvironment(value: unknown, baseDefs: Defs = {}): asserts value
     portableReturn = rawReturn.task;
   }
   const signature: CallableSignature = {
-    params: value.entry.params as Schema[],
+    required: value.entry.required as Schema[],
+    optional: value.entry.optional as Schema[],
     returns: portableReturn as Schema,
   };
   try {

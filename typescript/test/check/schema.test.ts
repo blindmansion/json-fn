@@ -32,7 +32,11 @@ describe("classifySchema", () => {
     ],
     ["object", { type: "object", properties: {}, required: [] }, SchemaKind.Object],
     ["ref", { $ref: "#/$defs/User" }, SchemaKind.Ref],
-    ["fnType", { $fnType: { params: [], returns: { type: "boolean" } } }, SchemaKind.FnType],
+    [
+      "fnType",
+      { $fnType: { required: [], optional: [], returns: { type: "boolean" } } },
+      SchemaKind.FnType,
+    ],
     ["opaque (not)", { not: { type: "string" } }, SchemaKind.Opaque],
     ["opaque (bare)", {}, SchemaKind.Opaque],
   ];

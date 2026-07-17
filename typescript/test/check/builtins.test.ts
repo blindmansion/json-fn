@@ -16,7 +16,7 @@ import { createStdlib } from "../../src/stdlib";
 // Convenience: a `$sig`-annotated function body.
 const body = (
   params: JSONType[],
-  sig: { params: Schema[]; returns: Schema; rest?: Schema },
+  sig: { required: Schema[]; optional: Schema[]; returns: Schema; rest?: Schema },
   ret: JSONType,
   locals: Record<string, JSONType> = {},
 ): Record<string, JSONType> => ({ $sig: sig, $params: params, ...locals, $return: ret });
@@ -75,11 +75,13 @@ describe("Section F — builtin signatures", () => {
     // actual is the call's own argument shape.
     expect(d!.expected).toEqual({
       anyOf: [
-        { $fnType: { params: [{ type: "array" }], returns: I } },
-        { $fnType: { params: [{ type: "string" }], returns: I } },
+        { $fnType: { required: [{ type: "array" }], optional: [], returns: I } },
+        { $fnType: { required: [{ type: "string" }], optional: [], returns: I } },
       ],
     });
-    expect(d!.actual).toEqual({ $fnType: { params: [{ const: 123 }], returns: true } });
+    expect(d!.actual).toEqual({
+      $fnType: { required: [{ const: 123 }], optional: [], returns: true },
+    });
   });
 
   test("no-match keeps a single call-level diagnostic and surfaces nested errors once", () => {
@@ -134,7 +136,7 @@ describe("Section F — builtin signatures", () => {
       {
         builtins: {
           mystery: {
-            signatures: [{ params: [], returns: true }],
+            signatures: [{ required: [], optional: [], returns: true }],
             rule: "example.mystery",
           },
         },
@@ -155,7 +157,7 @@ describe("Section F — builtin signatures", () => {
     const table: CallableTable = {
       builtins: {
         answer: {
-          signatures: [{ params: [], returns: { type: "integer" } }],
+          signatures: [{ required: [], optional: [], returns: { type: "integer" } }],
           rule: "example.answer",
         },
       },
@@ -176,7 +178,8 @@ describe("Section F — builtin signatures", () => {
         refine: {
           signatures: [
             {
-              params: [{ $fnType: { params: [S], returns: true } }],
+              required: [{ $fnType: { required: [S], optional: [], returns: true } }],
+              optional: [],
               returns: true,
             },
           ],
@@ -189,7 +192,7 @@ describe("Section F — builtin signatures", () => {
         contextualArguments: [0],
         apply: (request, services) => {
           services.contextualTypeCallback(0, {
-            $fnType: { params: [I], returns: true },
+            $fnType: { required: [I], optional: [], returns: true },
           });
           return request.fallbackResult;
         },
@@ -211,7 +214,8 @@ describe("Section F — builtin signatures", () => {
         refine: {
           signatures: [
             {
-              params: [{ $fnType: { params: [S], returns: true } }, S],
+              required: [{ $fnType: { required: [S], optional: [], returns: true } }, S],
+              optional: [],
               returns: true,
             },
           ],
@@ -224,7 +228,7 @@ describe("Section F — builtin signatures", () => {
         contextualArguments: [0],
         apply: (request, services) => {
           services.contextualTypeCallback(0, {
-            $fnType: { params: [I], returns: true },
+            $fnType: { required: [I], optional: [], returns: true },
           });
           return request.fallbackResult;
         },
@@ -244,7 +248,13 @@ describe("Section F — builtin signatures", () => {
     const table: CallableTable = {
       builtins: {
         bad: {
-          signatures: [{ params: [{ $fnType: { params: [true], returns: true } }], returns: true }],
+          signatures: [
+            {
+              required: [{ $fnType: { required: [true], optional: [], returns: true } }],
+              optional: [],
+              returns: true,
+            },
+          ],
           rule: "example.bad",
         },
       },
@@ -257,7 +267,7 @@ describe("Section F — builtin signatures", () => {
           "example.bad": {
             apply: (request, services) => {
               services.contextualTypeCallback(0, {
-                $fnType: { params: [true], returns: true },
+                $fnType: { required: [true], optional: [], returns: true },
               });
               return request.fallbackResult;
             },
@@ -271,13 +281,19 @@ describe("Section F — builtin signatures", () => {
     const table: CallableTable = {
       builtins: {
         bad: {
-          signatures: [{ params: [{ $fnType: { params: [true], returns: true } }], returns: true }],
+          signatures: [
+            {
+              required: [{ $fnType: { required: [true], optional: [], returns: true } }],
+              optional: [],
+              returns: true,
+            },
+          ],
           rule: "example.bad",
         },
       },
     };
     const callback = { $params: ["value"], $return: { $var: "value" } };
-    const expected: Schema = { $fnType: { params: [true], returns: true } };
+    const expected: Schema = { $fnType: { required: [true], optional: [], returns: true } };
 
     expect(() =>
       checkExpr(call("bad", callback), {}, table, {
@@ -299,7 +315,13 @@ describe("Section F — builtin signatures", () => {
     const table: CallableTable = {
       builtins: {
         bad: {
-          signatures: [{ params: [{ $fnType: { params: [true], returns: true } }], returns: true }],
+          signatures: [
+            {
+              required: [{ $fnType: { required: [true], optional: [], returns: true } }],
+              optional: [],
+              returns: true,
+            },
+          ],
           rule: "example.bad",
         },
       },
@@ -329,7 +351,7 @@ describe("Section F — builtin signatures", () => {
     const table: CallableTable = {
       builtins: {
         bad: {
-          signatures: [{ params: [], returns: { type: "integer" } }],
+          signatures: [{ required: [], optional: [], returns: { type: "integer" } }],
           rule: "example.bad",
         },
       },
@@ -605,7 +627,11 @@ describe("Section F — builtin signatures", () => {
     });
 
     test("flatMap infers from an annotated callback return", () => {
-      const callback = body(["n", "i"], { params: [I, I], returns: I }, { $var: "n" });
+      const callback = body(
+        ["n", "i"],
+        { required: [I, I], optional: [], returns: I },
+        { $var: "n" },
+      );
       const r = synthB(call("flatMap", callback, [1, 2, 3]));
       expect(r.diagnostics).toEqual([]);
       expect(r.type).toEqual(arrOfInt);
@@ -788,7 +814,7 @@ describe("Section F — builtin signatures", () => {
 
     test("annotated handle returns its declared immediate result type", () => {
       const stateToReport: Schema = {
-        $fnType: { params: [{ type: "object" }], returns: { type: "string" } },
+        $fnType: { required: [{ type: "object" }], optional: [], returns: { type: "string" } },
       };
       const result = synthB(call("handle", call("pure", 1), {}, { $raw: stateToReport }));
       expect(result.type).toEqual(stateToReport);
@@ -840,7 +866,7 @@ describe("Section F — builtin signatures", () => {
           signatures: [
             {
               typeParams: ["V"],
-              params: [
+              required: [
                 {
                   type: "array",
                   items: {
@@ -850,6 +876,7 @@ describe("Section F — builtin signatures", () => {
                   },
                 },
               ],
+              optional: [],
               returns: T("V"),
             },
           ],
@@ -858,7 +885,8 @@ describe("Section F — builtin signatures", () => {
           signatures: [
             {
               typeParams: ["T"],
-              params: [{ type: "array", prefixItems: [S], items: T("T") }],
+              required: [{ type: "array", prefixItems: [S], items: T("T") }],
+              optional: [],
               returns: { type: "array", items: T("T") },
             },
           ],
@@ -867,7 +895,8 @@ describe("Section F — builtin signatures", () => {
           signatures: [
             {
               typeParams: ["T"],
-              params: [{ type: "object", properties: { payload: T("T") } }],
+              required: [{ type: "object", properties: { payload: T("T") } }],
+              optional: [],
               returns: T("T"),
             },
           ],
@@ -876,7 +905,8 @@ describe("Section F — builtin signatures", () => {
           signatures: [
             {
               typeParams: ["V"],
-              params: [{ type: "object", additionalProperties: T("V") }],
+              required: [{ type: "object", additionalProperties: T("V") }],
+              optional: [],
               returns: { type: "array", items: T("V") },
             },
           ],
@@ -940,7 +970,7 @@ describe("Section F — builtin signatures", () => {
           $types: { MI: mapI, MS: mapS, Maps: maps },
           f: body(
             ["m"],
-            { params: [{ $ref: "#/$defs/Maps" }], returns: vals },
+            { required: [{ $ref: "#/$defs/Maps" }], optional: [], returns: vals },
             call("objectValues", { $var: "m" }),
           ),
         }),
@@ -952,7 +982,7 @@ describe("Section F — builtin signatures", () => {
         errors({
           f: body(
             ["o"],
-            { params: [{ type: "object" }], returns: { type: "array" } },
+            { required: [{ type: "object" }], optional: [], returns: { type: "array" } },
             call("objectValues", { $var: "o" }),
           ),
         }),
@@ -978,7 +1008,8 @@ describe("Section F — builtin signatures", () => {
           signatures: [
             {
               typeParams: ["U"],
-              params: [{ $fnType: { params: [], returns } }],
+              required: [{ $fnType: { required: [], optional: [], returns } }],
+              optional: [],
               returns: T("U"),
             },
           ],
@@ -1058,7 +1089,11 @@ describe("Section F — builtin signatures", () => {
       checkModule(mod as Record<string, JSONType>, BT).filter((d) => d.severity === "error");
     const refA = { $ref: "#/$defs/A" };
     const updBody = (rhs: JSONType) =>
-      body(["a"], { params: [refA], returns: refA }, call("merge", { $var: "a" }, rhs));
+      body(
+        ["a"],
+        { required: [refA], optional: [], returns: refA },
+        call("merge", { $var: "a" }, rhs),
+      );
 
     test("the copy-with-one-field-changed idiom satisfies a declared record type", () => {
       const A = closed({ id: S, n: I }, ["id", "n"]);
@@ -1081,7 +1116,11 @@ describe("Section F — builtin signatures", () => {
       const M: Schema = { type: "object", additionalProperties: I };
       const refM = { $ref: "#/$defs/M" };
       const fBody = (rhs: JSONType) =>
-        body(["m"], { params: [refM], returns: refM }, call("merge", { $var: "m" }, rhs));
+        body(
+          ["m"],
+          { required: [refM], optional: [], returns: refM },
+          call("merge", { $var: "m" }, rhs),
+        );
       expect(errs({ $types: { M }, f: fBody({ a: 1 }) })).toEqual([]);
       expect(errs({ $types: { M }, f: fBody({ a: "s" }) }).length).toBeGreaterThan(0);
     });
@@ -1097,7 +1136,11 @@ describe("Section F — builtin signatures", () => {
     });
     const mapOf = (v: Schema): Schema => ({ type: "object", additionalProperties: v });
     const fe = (param: Schema, returns: Schema) =>
-      body(["es"], { params: [param], returns }, call("fromEntries", { $var: "es" }));
+      body(
+        ["es"],
+        { required: [param], optional: [], returns },
+        call("fromEntries", { $var: "es" }),
+      );
 
     test("projects the pair value type into additionalProperties", () => {
       expect(errs({ f: fe(entryArr(I), mapOf(I)) })).toEqual([]);
@@ -1131,9 +1174,9 @@ describe("Section F — builtin signatures", () => {
     });
     const mapOf = (v: Schema): Schema => ({ type: "object", additionalProperties: v });
     const vBody = (param: Schema, returns: Schema) =>
-      body(["o"], { params: [param], returns }, call("values", { $var: "o" }));
+      body(["o"], { required: [param], optional: [], returns }, call("values", { $var: "o" }));
     const eBody = (param: Schema, returns: Schema) =>
-      body(["o"], { params: [param], returns }, call("entries", { $var: "o" }));
+      body(["o"], { required: [param], optional: [], returns }, call("entries", { $var: "o" }));
 
     test("values projects a map's value type into the array items", () => {
       expect(errs({ f: vBody(mapOf(I), arrOf(I)) })).toEqual([]);
@@ -1211,7 +1254,7 @@ describe("Section F — builtin signatures", () => {
       const perform = call("perform", "e", []);
       const fn = (returns: Schema): JSONType => ({
         $params: [],
-        $sig: { params: [], returns },
+        $sig: { required: [], optional: [], returns },
         $return: perform,
       });
       const noErr = (mod: JSONType) =>
@@ -1255,7 +1298,7 @@ describe("Section F — builtin signatures", () => {
       const mod = {
         transform: body(
           ["obj"],
-          { params: [mapOfInt], returns: mapOfInt },
+          { required: [mapOfInt], optional: [], returns: mapOfInt },
           call("mapValues", inc, { $var: "obj" }),
         ),
       };
@@ -1267,7 +1310,7 @@ describe("Section F — builtin signatures", () => {
       const mod = {
         transform: body(
           ["obj"],
-          { params: [{ type: "object" }], returns: mapOf({ const: "ok" }) },
+          { required: [{ type: "object" }], optional: [], returns: mapOf({ const: "ok" }) },
           call("mapValues", constant, { $var: "obj" }),
         ),
       };
@@ -1275,7 +1318,7 @@ describe("Section F — builtin signatures", () => {
     });
 
     test("reports an annotated callback whose body violates its declared return", () => {
-      const bad = body(["v", "k"], { params: [I, S], returns: S }, { $var: "v" });
+      const bad = body(["v", "k"], { required: [I, S], optional: [], returns: S }, { $var: "v" });
       const r = synthB(call("mapValues", bad, { a: 1 }));
       expect(r.diagnostics).toContainEqual(
         expect.objectContaining({
@@ -1323,20 +1366,24 @@ describe("Section F — builtin signatures", () => {
     });
 
     test("an annotated callback keeps its declared parameter types", () => {
-      const callback = body(["n", "i"], { params: [S, I], returns: I }, 1);
+      const callback = body(["n", "i"], { required: [S, I], optional: [], returns: I }, 1);
       const r = synthB(call("map", callback, [10, 20]));
       expect(r.diagnostics).toContainEqual(
         expect.objectContaining({
           path: ["$args[0]"],
-          actual: { $fnType: { params: [S, I], returns: I } },
-          expected: { $fnType: { params: [I, I], returns: I } },
+          actual: { $fnType: { required: [S, I], optional: [], returns: I } },
+          expected: { $fnType: { required: [I, I], optional: [], returns: I } },
           severity: "error",
         }),
       );
     });
 
     test("a compatibly annotated callback remains valid and precise", () => {
-      const callback = body(["n", "i"], { params: [I, I], returns: I }, { $var: "n" });
+      const callback = body(
+        ["n", "i"],
+        { required: [I, I], optional: [], returns: I },
+        { $var: "n" },
+      );
       const r = synthB(call("map", callback, [10, 20]));
       expect(r.diagnostics).toEqual([]);
       expect(isSubschema(r.type, arrOfInt)).toBe(true);
@@ -1404,12 +1451,12 @@ describe("Section F — builtin signatures", () => {
     ): Record<string, JSONType> => ({
       callback: body(
         ["value", "index"],
-        { params: callbackParams, returns: callbackReturn },
+        { required: callbackParams, optional: [], returns: callbackReturn },
         { $var: "value" },
       ),
       main: body(
         [],
-        { params: [], returns: mainReturn },
+        { required: [], optional: [], returns: mainReturn },
         call("map", { $var: "callback" }, [1, 2]),
       ),
     });
@@ -1418,7 +1465,7 @@ describe("Section F — builtin signatures", () => {
       const mod = {
         doubleAll: body(
           ["xs"],
-          { params: [arrOfInt], returns: arrOfInt },
+          { required: [arrOfInt], optional: [], returns: arrOfInt },
           call(
             "map",
             { $params: ["n"], $return: call("add", { $var: "n" }, { $var: "n" }) },
@@ -1436,7 +1483,7 @@ describe("Section F — builtin signatures", () => {
       const mod = {
         wrong: body(
           ["xs"],
-          { params: [arrOfInt], returns: strArr },
+          { required: [arrOfInt], optional: [], returns: strArr },
           call("map", { $params: ["n"], $return: { $var: "n" } }, { $var: "xs" }),
         ),
       };
@@ -1452,10 +1499,14 @@ describe("Section F — builtin signatures", () => {
     test("accepts a contravariantly broader named callback", () => {
       const N: Schema = { type: "number" };
       const mod = {
-        callback: body(["value", "index"], { params: [N, I], returns: { type: "boolean" } }, true),
+        callback: body(
+          ["value", "index"],
+          { required: [N, I], optional: [], returns: { type: "boolean" } },
+          true,
+        ),
         main: body(
           [],
-          { params: [], returns: arrOfInt },
+          { required: [], optional: [], returns: arrOfInt },
           call("filter", { $var: "callback" }, [1, 2]),
         ),
       };
@@ -1467,8 +1518,8 @@ describe("Section F — builtin signatures", () => {
       expect(result).toContainEqual(
         expect.objectContaining({
           path: ["main", "$return", "$args[0]"],
-          actual: { $fnType: { params: [S, I], returns: S } },
-          expected: { $fnType: { params: [I, I], returns: S } },
+          actual: { $fnType: { required: [S, I], optional: [], returns: S } },
+          expected: { $fnType: { required: [I, I], optional: [], returns: S } },
           severity: "error",
         }),
       );
@@ -1477,8 +1528,12 @@ describe("Section F — builtin signatures", () => {
     test("infers a named callback's return into the map result", () => {
       const strArr: Schema = { type: "array", items: S };
       const mod = {
-        callback: body(["value", "index"], { params: [I, I], returns: S }, "value"),
-        main: body([], { params: [], returns: strArr }, call("map", { $var: "callback" }, [1, 2])),
+        callback: body(["value", "index"], { required: [I, I], optional: [], returns: S }, "value"),
+        main: body(
+          [],
+          { required: [], optional: [], returns: strArr },
+          call("map", { $var: "callback" }, [1, 2]),
+        ),
       };
       expect(checkModule(mod, BT)).toEqual([]);
     });

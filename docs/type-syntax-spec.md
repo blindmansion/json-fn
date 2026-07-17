@@ -199,13 +199,13 @@ node whose leaves are schemas.
 
 ```
 (Cell) -> boolean
-→ {"$fnType": {"params": [{"$ref": "#/$defs/Cell"}], "returns": {"type": "boolean"}}}
+→ {"$fnType": {"required": [{"$ref": "#/$defs/Cell"}], "optional": [], "returns": {"type": "boolean"}}}
 
 () -> State
-→ {"$fnType": {"params": [], "returns": {"$ref": "#/$defs/State"}}}
+→ {"$fnType": {"required": [], "optional": [], "returns": {"$ref": "#/$defs/State"}}}
 
 (string, ...number[]) -> string
-→ {"$fnType": {"params": [{"type": "string"}], "rest": {"type": "number"},
+→ {"$fnType": {"required": [{"type": "string"}], "optional": [], "rest": {"type": "number"},
                "returns": {"type": "string"}}}
 ```
 
@@ -228,7 +228,7 @@ otherColor: (color: Color) -> Color => if color == "w" then "b" else "w"
 
 ```json
 {
-  "$sig": { "params": [{ "$ref": "#/$defs/Color" }], "returns": { "$ref": "#/$defs/Color" } },
+  "$sig": { "required": [{ "$ref": "#/$defs/Color" }], "optional": [], "returns": { "$ref": "#/$defs/Color" } },
   "$params": ["color"],
   "$return": { "$if": { "$call": "eq", "$args": [{ "$var": "color" }, "w"] }, "$then": "b", "$else": "w" }
 }
@@ -244,7 +244,9 @@ Rules:
   without a signature is an error (enforced by the checker; §9 of the plan).
   Nested helpers (`where`-local functions) and inline lambdas passed to builtins
   **may be bare** — bare lambdas at higher-order call sites are contextually typed.
-- **`$sig.params` align positionally with `$params`.**
+- **`$sig.required` followed by `$sig.optional` aligns positionally with
+  `$params`.** Current shorthand emits `optional: []`; optional parameter
+  syntax and omission-aware checking are deferred.
 
 ### 7.1 Rest parameters
 
@@ -256,7 +258,7 @@ concatAll: (first: string, ...rest: string[]) -> string => ...
 ```
 
 ```json
-{ "$sig": { "params": [{ "type": "string" }], "rest": { "type": "string" },
+{ "$sig": { "required": [{ "type": "string" }], "optional": [], "rest": { "type": "string" },
             "returns": { "type": "string" } },
   "$params": ["first", "...rest"] }
 ```
@@ -271,7 +273,7 @@ daysInMonth: ({ year, month }: Date) -> integer => ...
 ```
 
 ```json
-{ "$sig": { "params": [{ "$ref": "#/$defs/Date" }], "returns": { "type": "integer" } },
+{ "$sig": { "required": [{ "$ref": "#/$defs/Date" }], "optional": [], "returns": { "type": "integer" } },
   "$params": [{ "$fields": ["year", "month"] }] }
 ```
 
@@ -310,7 +312,7 @@ makeAdder: (x: number) -> (number) -> number => (y) => x + y
               "properties": { "id": { "$ref": "#/$defs/UserId" }, "name": { "type": "string" } },
               "required": ["id", "name"], "additionalProperties": false }
   },
-  "makeUser": { "$sig": { "params": [{ "$ref": "#/$defs/UserId" }, { "type": "string" }],
+  "makeUser": { "$sig": { "required": [{ "$ref": "#/$defs/UserId" }, { "type": "string" }], "optional": [],
                           "returns": { "$ref": "#/$defs/User" } },
                 "$params": ["id", "name"], "$return": { "id": { "$var": "id" }, "name": { "$var": "name" } } }
 }

@@ -391,7 +391,7 @@ export class TypeParser extends TokenCursor {
     }
     this.expect("arrow", "'->' in function type");
     const returns = this.parseType();
-    const shape: Record<string, JSONType> = { params };
+    const shape: Record<string, JSONType> = { required: params, optional: [] };
     if (rest !== undefined) shape.rest = rest;
     shape.returns = returns;
     return { $fnType: shape };

@@ -102,7 +102,7 @@ export async function runTask(
     args,
     {
       type: "array",
-      prefixItems: environment.entry.params,
+      prefixItems: [...environment.entry.required, ...environment.entry.optional],
       items: false,
     },
     prepared.defs,
@@ -244,7 +244,8 @@ function prepareEnvironmentRuntime(
     registry[alias] = implementation;
     const arms = concrete.map((signature) => ({
       $fnType: {
-        params: signature.params,
+        required: signature.required,
+        optional: signature.optional,
         ...(signature.rest === undefined ? {} : { rest: signature.rest }),
         returns: signature.returns,
       },

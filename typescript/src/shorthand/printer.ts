@@ -22,6 +22,7 @@
  */
 
 import type { JSONType } from "../types";
+import { fixedParamSchemas } from "../check/schema";
 import { printType } from "./type-printer";
 
 /** Pretty-print canonical json-fn JSON as `.jfn` shorthand source. */
@@ -436,7 +437,17 @@ function renderFunctionBody(node: { [k: string]: JSONType }, indent: string): Re
 
 function renderFunctionHeader(params: JSONType[], sig: JSONType | undefined): string {
   if (!isPlainObject(sig)) return `(${params.map(renderParam).join(", ")}) =>`;
-  const fixed = Array.isArray(sig.params) ? sig.params : [];
+  const required = Array.isArray(sig.required) ? sig.required : [];
+  const optional = Array.isArray(sig.optional) ? sig.optional : [];
+  if (optional.length > 0) {
+    throw new Error("Cannot print optional function parameters before shorthand syntax exists");
+  }
+  const fixed = fixedParamSchemas({
+    required,
+    optional,
+    rest: sig.rest,
+    returns: sig.returns ?? true,
+  });
   let fixedIndex = 0;
   const rendered = params.map((param) => {
     if (typeof param === "string" && param.startsWith("...")) {
@@ -446,7 +457,7 @@ function renderFunctionHeader(params: JSONType[], sig: JSONType | undefined): st
     }
     const schema = fixed[fixedIndex++];
     if (schema === undefined)
-      throw new Error("Cannot print typed parameter without a matching sig.params");
+      throw new Error("Cannot print typed parameter without a matching signature slot");
     return `${renderParam(param)}: ${printType(schema)}`;
   });
   if (fixedIndex !== fixed.length) {

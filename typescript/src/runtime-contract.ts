@@ -4,6 +4,7 @@ import {
   SchemaKind,
   classifySchema,
   collectSchemaRefs,
+  fixedParamSchemas,
   fnShape,
   isSchemaObject,
   refName,
@@ -144,12 +145,13 @@ export function prepareRuntimeContractCall(
 ): { args: JSONType[]; returns: Schema } {
   const shapes = functionShapes(contract.schema, contract.defs);
   for (const shape of shapes) {
-    if (shape.rest === undefined && args.length !== shape.params.length) continue;
-    if (shape.rest !== undefined && args.length < shape.params.length) continue;
+    const fixed = fixedParamSchemas(shape);
+    if (shape.rest === undefined && args.length !== fixed.length) continue;
+    if (shape.rest !== undefined && args.length < fixed.length) continue;
 
     try {
       const checked = args.map((arg, index) => {
-        const schema = shape.params[index] ?? shape.rest!;
+        const schema = fixed[index] ?? shape.rest!;
         return enforceRuntimeContract(arg, schema, contract.defs, `function argument ${index + 1}`);
       });
       return { args: checked, returns: shape.returns };

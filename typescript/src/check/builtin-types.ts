@@ -1,13 +1,10 @@
 import type { JSONType } from "../types";
 import type { EffectManifest } from "../effects";
-import type { Defs, Schema } from "./schema";
+import type { Defs, FnTypeShape, Schema } from "./schema";
 
 type TVarNode = { $tvar: string };
-type CallableSignature = {
+type CallableSignature = FnTypeShape & {
   typeParams?: string[];
-  params: Schema[];
-  rest?: Schema;
-  returns: Schema;
 };
 type CallableEntry = { signatures: CallableSignature[]; rule?: string };
 type CallableTable = { $defs?: Defs; builtins: Record<string, CallableEntry> };

@@ -39,7 +39,7 @@ appear in user-written types or in the schemas the checker infers; the checker
     "add": { "signatures": [ /* overload signatures */ ] },
     "pipe": {
       "signatures": [
-        { "params": [{ "type": "array" }, true], "returns": true }
+        { "required": [{ "type": "array" }, true], "optional": [], "returns": true }
       ],
       "rule": "core.pipe"
     }
@@ -75,10 +75,13 @@ entries are rejected.
 A signature reuses the `$fnType` inner shape plus an optional `typeParams`:
 
 ```json
-{ "typeParams": ["T", "U"], "params": [ /* Schema */ ], "rest": { }, "returns": { } }
+{ "typeParams": ["T", "U"], "required": [ /* Schema */ ], "optional": [], "rest": { }, "returns": { } }
 ```
 
-- `params` — one schema per fixed parameter.
+- `required` — schemas for fixed required parameters.
+- `optional` — schemas for trailing omittable parameters, in positional order
+  after `required`. It is mandatory, but canonical producers currently emit
+  `[]`; optional syntax and omission-aware checking land in a later stage.
 - `rest` — optional; the element schema of a variadic tail (as in `$fnType`).
 - `returns` — the result schema.
 - `typeParams` — the type variables this signature binds (see below).
@@ -91,12 +94,12 @@ Overloads express both ad-hoc polymorphism and type-directed refinement:
 
 ```json
 "add": { "signatures": [
-  { "params": [{ "type": "integer" }, { "type": "integer" }], "returns": { "type": "integer" } },
-  { "params": [{ "type": "number" },  { "type": "number" }],  "returns": { "type": "number" } }
+  { "required": [{ "type": "integer" }, { "type": "integer" }], "optional": [], "returns": { "type": "integer" } },
+  { "required": [{ "type": "number" },  { "type": "number" }], "optional": [], "returns": { "type": "number" } }
 ] },
 "length": { "signatures": [
-  { "params": [{ "type": "array" }],  "returns": { "type": "integer" } },
-  { "params": [{ "type": "string" }], "returns": { "type": "integer" } }
+  { "required": [{ "type": "array" }],  "optional": [], "returns": { "type": "integer" } },
+  { "required": [{ "type": "string" }], "optional": [], "returns": { "type": "integer" } }
 ] }
 ```
 
@@ -114,10 +117,11 @@ into `returns`:
 ```json
 "map": { "signatures": [{
   "typeParams": ["T", "U"],
-  "params": [
-    { "$fnType": { "params": [{ "$tvar": "T" }, { "type": "integer" }], "returns": { "$tvar": "U" } } },
+  "required": [
+    { "$fnType": { "required": [{ "$tvar": "T" }, { "type": "integer" }], "optional": [], "returns": { "$tvar": "U" } } },
     { "type": "array", "items": { "$tvar": "T" } }
   ],
+  "optional": [],
   "returns": { "type": "array", "items": { "$tvar": "U" } }
 }] }
 ```
@@ -173,10 +177,11 @@ or open/closed-object compatibility.
 ```json
 "mapValues": { "signatures": [{
   "typeParams": ["T", "U"],
-  "params": [
-    { "$fnType": { "params": [{ "$tvar": "T" }, { "type": "string" }], "returns": { "$tvar": "U" } } },
+  "required": [
+    { "$fnType": { "required": [{ "$tvar": "T" }, { "type": "string" }], "optional": [], "returns": { "$tvar": "U" } } },
     { "type": "object", "additionalProperties": { "$tvar": "T" } }
   ],
+  "optional": [],
   "returns": { "type": "object", "additionalProperties": { "$tvar": "U" } }
 }] }
 ```
@@ -231,7 +236,8 @@ information-level dynamic degradation is present.
 ```json
 "concat": { "signatures": [{
   "typeParams": ["T"],
-  "params": [],
+  "required": [],
+  "optional": [],
   "rest": { "type": "array", "items": { "$tvar": "T" } },
   "returns": { "type": "array", "items": { "$tvar": "T" } }
 }] }
@@ -247,7 +253,7 @@ namespaced rule for precision that only host-language code can provide:
 ```json
 "pipe": {
   "signatures": [
-    { "params": [{ "type": "array" }, true], "returns": true }
+    { "required": [{ "type": "array" }, true], "optional": [], "returns": true }
   ],
   "rule": "core.pipe"
 }

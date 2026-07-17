@@ -17,6 +17,7 @@ import {
   apMode,
   properties,
   requiredKeys,
+  fixedParamSchemas,
   fnShape,
   taskCompletion,
   isPortableTaskFloor,
@@ -335,13 +336,15 @@ function fnSubsumes(
 ): boolean {
   const a = fnShape(sub);
   const b = fnShape(sup);
+  const aParams = fixedParamSchemas(a);
+  const bParams = fixedParamSchemas(b);
 
   // v1: strict arity (modulo rest). Loosen later if idiomatic code demands.
-  if (a.params.length !== b.params.length) return false;
+  if (aParams.length !== bParams.length) return false;
 
   // Params are contravariant: sup's param must be ⊆ sub's param.
-  for (let i = 0; i < a.params.length; i++) {
-    if (!subsumes(b.params[i]!, a.params[i]!, ctx)) return false;
+  for (let i = 0; i < aParams.length; i++) {
+    if (!subsumes(bParams[i]!, aParams[i]!, ctx)) return false;
   }
 
   // Rest element, also contravariant; presence must match in v1.

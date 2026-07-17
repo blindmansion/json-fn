@@ -77,11 +77,12 @@
   },
   "entry": {
     "name": "play",
-    "params": [
+    "required": [
       {
         "$ref": "#/$defs/PlayerState"
       }
     ],
+    "optional": [],
     "returns": {
       "task": {
         "type": "string"

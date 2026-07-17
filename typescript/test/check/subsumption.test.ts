@@ -225,7 +225,9 @@ describe("objects", () => {
 });
 
 describe("function types", () => {
-  const fn = (params: Schema[], returns: Schema): Schema => ({ $fnType: { params, returns } });
+  const fn = (params: Schema[], returns: Schema): Schema => ({
+    $fnType: { required: params, optional: [], returns },
+  });
 
   test("return covariance", () => {
     expect(isSubschema(fn([], { type: "integer" }), fn([], { type: "number" }))).toBe(true);

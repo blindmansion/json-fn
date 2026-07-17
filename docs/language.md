@@ -616,7 +616,8 @@ const environment = {
   effects: { /* capability argument/result contracts */ },
   entry: {
     name: "main",
-    params: [],
+    required: [],
+    optional: [],
     returns: { task: { type: "string" } },
   },
 };
@@ -640,8 +641,10 @@ The host is the *outermost handler*: any effect that no in-language `handle` dis
 The environment is portable contract data, separate from the host
 implementations. Its `functions` use the same fallback signatures and optional
 rules as core builtins. Callable-name collisions are rejected rather than
-overridden. `entry.returns: { task: A }` describes the task's eventual completion
-value.
+overridden. Entry contracts use mandatory `required` and `optional` arrays in
+that order; optional entry arguments are represented structurally but are not
+yet omission-aware. `entry.returns: { task: A }` describes the task's eventual
+completion value.
 
 `runTask` validates entry arguments and completion, wraps tractable direct host
 functions to validate their arguments/results, rejects effects absent from the

@@ -30,7 +30,8 @@ describe("jfn eval environment modes", () => {
         effects: {},
         entry: {
           name: "main",
-          params: [],
+          required: [],
+          optional: [],
           returns: { task: { type: "integer" } },
         },
       }),

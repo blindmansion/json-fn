@@ -7,7 +7,7 @@ import { checkModule } from "../../src/check/module";
 // Convenience: a `$sig`-annotated function body.
 const body = (
   params: JSONType[],
-  sig: { params: Schema[]; returns: Schema; rest?: Schema },
+  sig: { required: Schema[]; optional: Schema[]; returns: Schema; rest?: Schema },
   ret: JSONType,
   locals: Record<string, JSONType> = {},
 ): Record<string, JSONType> => ({ $sig: sig, $params: params, ...locals, $return: ret });
@@ -40,7 +40,11 @@ describe("chess fragments — Tier 1: coordinate layer", () => {
   test("rowOf: floor(idx / 8) : integer", () => {
     const mod = {
       $types: types,
-      rowOf: body(["idx"], { params: [I], returns: I }, c("floor", c("div", v("idx"), 8))),
+      rowOf: body(
+        ["idx"],
+        { required: [I], optional: [], returns: I },
+        c("floor", c("div", v("idx"), 8)),
+      ),
     };
     expect(checkModule(mod, BT)).toEqual([]);
   });
@@ -48,7 +52,7 @@ describe("chess fragments — Tier 1: coordinate layer", () => {
   test("colOf: idx % 8 preserves integer", () => {
     const mod = {
       $types: types,
-      colOf: body(["idx"], { params: [I], returns: I }, c("mod", v("idx"), 8)),
+      colOf: body(["idx"], { required: [I], optional: [], returns: I }, c("mod", v("idx"), 8)),
     };
     expect(checkModule(mod, BT)).toEqual([]);
   });
@@ -58,7 +62,7 @@ describe("chess fragments — Tier 1: coordinate layer", () => {
       $types: types,
       toIdx: body(
         ["row", "col"],
-        { params: [I, I], returns: I },
+        { required: [I, I], optional: [], returns: I },
         c("add", c("mul", v("row"), 8), v("col")),
       ),
     };
@@ -70,7 +74,7 @@ describe("chess fragments — Tier 1: coordinate layer", () => {
       $types: types,
       inBounds: body(
         ["row", "col"],
-        { params: [I, I], returns: B },
+        { required: [I, I], optional: [], returns: B },
         {
           $and: [
             c("gte", v("row"), 0),
@@ -89,7 +93,7 @@ describe("chess fragments — Tier 1: coordinate layer", () => {
       $types: types,
       otherColor: body(
         ["color"],
-        { params: [Color], returns: Color },
+        { required: [Color], optional: [], returns: Color },
         { $if: c("eq", v("color"), "w"), $then: "b", $else: "w" },
       ),
     };
@@ -99,16 +103,20 @@ describe("chess fragments — Tier 1: coordinate layer", () => {
   test("the whole coordinate layer checks together, cleanly", () => {
     const mod = {
       $types: types,
-      rowOf: body(["idx"], { params: [I], returns: I }, c("floor", c("div", v("idx"), 8))),
-      colOf: body(["idx"], { params: [I], returns: I }, c("mod", v("idx"), 8)),
+      rowOf: body(
+        ["idx"],
+        { required: [I], optional: [], returns: I },
+        c("floor", c("div", v("idx"), 8)),
+      ),
+      colOf: body(["idx"], { required: [I], optional: [], returns: I }, c("mod", v("idx"), 8)),
       toIdx: body(
         ["row", "col"],
-        { params: [I, I], returns: I },
+        { required: [I, I], optional: [], returns: I },
         c("add", c("mul", v("row"), 8), v("col")),
       ),
       inBounds: body(
         ["row", "col"],
-        { params: [I, I], returns: B },
+        { required: [I, I], optional: [], returns: B },
         {
           $and: [
             c("gte", v("row"), 0),
@@ -120,7 +128,7 @@ describe("chess fragments — Tier 1: coordinate layer", () => {
       ),
       otherColor: body(
         ["color"],
-        { params: [Color], returns: Color },
+        { required: [Color], optional: [], returns: Color },
         { $if: c("eq", v("color"), "w"), $then: "b", $else: "w" },
       ),
     };
@@ -171,7 +179,7 @@ describe("chess fragments — Tier 2: nullability & narrowing", () => {
       $types: types,
       isEmpty: body(
         ["piece"],
-        { params: [Cell], returns: { type: "boolean" } },
+        { required: [Cell], optional: [], returns: { type: "boolean" } },
         c("isNull", v("piece")),
       ),
     };
@@ -185,7 +193,7 @@ describe("chess fragments — Tier 2: nullability & narrowing", () => {
       $types: types,
       pieceColor: body(
         ["piece"],
-        { params: [Cell], returns: ColorOrNull },
+        { required: [Cell], optional: [], returns: ColorOrNull },
         {
           $if: c("isNull", v("piece")),
           $then: null,
@@ -210,7 +218,7 @@ describe("chess fragments — Tier 2: nullability & narrowing", () => {
       $types: types,
       afterWhite: body(
         ["color"],
-        { params: [Color], returns: Color },
+        { required: [Color], optional: [], returns: Color },
         { $if: c("eq", v("color"), "w"), $then: "b", $else: v("color") },
       ),
     };
@@ -235,7 +243,7 @@ describe("chess fragments — Tier 2: nullability & narrowing", () => {
       $types: types,
       fileOf: body(
         ["sq"],
-        { params: [NullableSquare], returns: I },
+        { required: [NullableSquare], optional: [], returns: I },
         {
           $if: c("isNull", v("sq")),
           $then: 0,
@@ -258,7 +266,7 @@ describe("chess fragments — Tier 2: nullability & narrowing", () => {
       $types: types,
       makePiece: body(
         ["color", "type"],
-        { params: [Color, PieceType], returns: Piece },
+        { required: [Color, PieceType], optional: [], returns: Piece },
         {
           $if: c("eq", v("color"), "w"),
           $then: v("type"),
@@ -281,7 +289,7 @@ describe("chess fragments — Tier 2: nullability & narrowing", () => {
     // genuine error, not a runtime-checkable warning.
     const mod = {
       $types: types,
-      bad: body(["color"], { params: [Color], returns: Color }, c("length", "abc")),
+      bad: body(["color"], { required: [Color], optional: [], returns: Color }, c("length", "abc")),
     };
     const diags = checkModule(mod, BT);
     expect(diags.length).toBe(1);
@@ -334,7 +342,7 @@ describe("chess fragments — Tier 3: lazy-local & boolean-guard narrowing (§5.
       $types: types,
       pieceMoves: body(
         ["piece"],
-        { params: [Cell], returns: StringArray },
+        { required: [Cell], optional: [], returns: StringArray },
         { $if: c("isNull", v("piece")), $then: [], $else: [v("type"), v("color")] },
         { type: c("upper", v("piece")), color: c("lower", v("piece")) },
       ),
@@ -353,7 +361,7 @@ describe("chess fragments — Tier 3: lazy-local & boolean-guard narrowing (§5.
       $types: types,
       slideDir: body(
         ["target"],
-        { params: [Cell], returns: StringOrNull },
+        { required: [Cell], optional: [], returns: StringOrNull },
         {
           $cond: [
             [c("not", v("ok")), null],
@@ -376,11 +384,15 @@ describe("chess fragments — Tier 3: lazy-local & boolean-guard narrowing (§5.
       $types: types,
       localTruthy: body(
         ["x"],
-        { params: [StringOrNull], returns: S },
+        { required: [StringOrNull], optional: [], returns: S },
         { $if: v("h"), $then: v("h"), $else: "" },
         {
           h: c("maybe", v("x")),
-          maybe: body(["y"], { params: [StringOrNull], returns: StringOrNull }, v("y")),
+          maybe: body(
+            ["y"],
+            { required: [StringOrNull], optional: [], returns: StringOrNull },
+            v("y"),
+          ),
         },
       ),
     };
@@ -402,7 +414,7 @@ describe("chess fragments — Tier 3: lazy-local & boolean-guard narrowing (§5.
       $types: types,
       parseMove: body(
         ["from", "to"],
-        { params: [Cell, Cell], returns: { anyOf: [Move, { type: "null" }] } },
+        { required: [Cell, Cell], optional: [], returns: { anyOf: [Move, { type: "null" }] } },
         {
           $if: { $and: [c("not", c("isNull", v("from"))), c("not", c("isNull", v("to")))] },
           $then: { from: v("from"), to: v("to") },
@@ -428,7 +440,8 @@ describe("chess fragments — Tier 3: lazy-local & boolean-guard narrowing (§5.
       divergent: body(
         ["p", "q"],
         {
-          params: [Color, Cell],
+          required: [Color, Cell],
+          optional: [],
           returns: { type: "array", prefixItems: [S, { const: "w" }], items: false, minItems: 2 },
         },
         { $match: v("p"), $cases: [["w", v("d")]], $else: v("d") },
@@ -453,7 +466,7 @@ describe("chess fragments — Tier 3: lazy-local & boolean-guard narrowing (§5.
     // error, unchanged.
     const mod = {
       $types: types,
-      plain: body(["q"], { params: [Cell], returns: S }, c("upper", v("q"))),
+      plain: body(["q"], { required: [Cell], optional: [], returns: S }, c("upper", v("q"))),
     };
     const diags = checkModule(mod, BT);
     expect(diags.length).toBe(1);
@@ -510,7 +523,7 @@ describe("chess fragments — Tier 4: field-path & discriminant narrowing (§5.5
       $types: types,
       firstGlyph: body(
         ["move"],
-        { params: [Move], returns: StringOrNull },
+        { required: [Move], optional: [], returns: StringOrNull },
         {
           $if: c("isNull", g("from", v("move"))),
           $then: null,
@@ -545,7 +558,7 @@ describe("chess fragments — Tier 4: field-path & discriminant narrowing (§5.5
       $types: shapeTypes,
       area: body(
         ["s"],
-        { params: [Shape], returns: I },
+        { required: [Shape], optional: [], returns: I },
         {
           $if: c("eq", g("tag", v("s")), "circle"),
           $then: g("r", v("s")),
@@ -562,10 +575,10 @@ describe("chess fragments — Tier 4: field-path & discriminant narrowing (§5.5
     // path narrowing must not silence a genuine mismatch.
     const mod = {
       $types: types,
-      needInt: body(["n"], { params: [I], returns: I }, v("n")),
+      needInt: body(["n"], { required: [I], optional: [], returns: I }, v("n")),
       badField: body(
         ["move"],
-        { params: [Move], returns: I },
+        { required: [Move], optional: [], returns: I },
         {
           $if: c("not", c("isNull", g("from", v("move")))),
           $then: c("needInt", g("from", v("move"))),
@@ -589,7 +602,7 @@ describe("chess fragments — Tier 4: field-path & discriminant narrowing (§5.5
       $types: types,
       firstGlyphLocal: body(
         ["move"],
-        { params: [Move], returns: StringOrNull },
+        { required: [Move], optional: [], returns: StringOrNull },
         {
           $if: c("isNull", g("from", v("move"))),
           $then: null,
@@ -608,7 +621,7 @@ describe("chess fragments — Tier 4: field-path & discriminant narrowing (§5.5
       $types: types,
       target: body(
         ["move"],
-        { params: [Move], returns: PieceOrNull },
+        { required: [Move], optional: [], returns: PieceOrNull },
         {
           $if: c("not", c("isNull", g("to", v("move")))),
           $then: g("to", v("move")),
@@ -660,7 +673,7 @@ describe("chess fragments — Tier 5: $match exhaustiveness & dead cases (§5.6)
     // (color: Color) => match color { "w" -> 1 }   // no "b", no $else
     const mod = {
       $types: types,
-      f: body(["color"], { params: [Color], returns: I }, {
+      f: body(["color"], { required: [Color], optional: [], returns: I }, {
         $match: v("color"),
         $cases: [["w", 1]],
       } as JSONType),
@@ -676,7 +689,7 @@ describe("chess fragments — Tier 5: $match exhaustiveness & dead cases (§5.6)
     // (color: Color) => match color { "w" -> 1, "b" -> 2 }   // covers all
     const mod = {
       $types: types,
-      f: body(["color"], { params: [Color], returns: I }, {
+      f: body(["color"], { required: [Color], optional: [], returns: I }, {
         $match: v("color"),
         $cases: [
           ["w", 1],
@@ -691,7 +704,7 @@ describe("chess fragments — Tier 5: $match exhaustiveness & dead cases (§5.6)
     // (color: Color) => match color { "w" -> 1 } else 2
     const mod = {
       $types: types,
-      f: body(["color"], { params: [Color], returns: I }, {
+      f: body(["color"], { required: [Color], optional: [], returns: I }, {
         $match: v("color"),
         $cases: [["w", 1]],
         $else: 2,
@@ -704,7 +717,7 @@ describe("chess fragments — Tier 5: $match exhaustiveness & dead cases (§5.6)
     // (s: Shape) => match s.tag { "circle" -> 1 }   // missing "square", no $else
     const mod = {
       $types: shapeTypes,
-      f: body(["s"], { params: [Shape], returns: I }, {
+      f: body(["s"], { required: [Shape], optional: [], returns: I }, {
         $match: g("tag", v("s")),
         $cases: [["circle", 1]],
       } as JSONType),
@@ -719,7 +732,7 @@ describe("chess fragments — Tier 5: $match exhaustiveness & dead cases (§5.6)
     // (s: Shape) => match s.tag { "circle" -> 1, "square" -> 2 }
     const mod = {
       $types: shapeTypes,
-      f: body(["s"], { params: [Shape], returns: I }, {
+      f: body(["s"], { required: [Shape], optional: [], returns: I }, {
         $match: g("tag", v("s")),
         $cases: [
           ["circle", 1],
@@ -735,7 +748,7 @@ describe("chess fragments — Tier 5: $match exhaustiveness & dead cases (§5.6)
     // Each arm can project the field unique to the matched object variant.
     const mod = {
       $types: shapeTypes,
-      f: body(["s"], { params: [Shape], returns: I }, {
+      f: body(["s"], { required: [Shape], optional: [], returns: I }, {
         $match: g("tag", v("s")),
         $cases: [
           ["circle", g("r", v("s"))],
@@ -751,7 +764,7 @@ describe("chess fragments — Tier 5: $match exhaustiveness & dead cases (§5.6)
     // "x" is not a Color, so that case can never match.
     const mod = {
       $types: types,
-      f: body(["color"], { params: [Color], returns: I }, {
+      f: body(["color"], { required: [Color], optional: [], returns: I }, {
         $match: v("color"),
         $cases: [
           ["w", 1],
@@ -770,7 +783,7 @@ describe("chess fragments — Tier 5: $match exhaustiveness & dead cases (§5.6)
   test("a match over an infinite subject is not linted (undecidable universe)", () => {
     // (s: string) => match s { "hi" -> 1 }   // string is not finite → no lint
     const mod = {
-      f: body(["s"], { params: [S], returns: I }, {
+      f: body(["s"], { required: [S], optional: [], returns: I }, {
         $match: v("s"),
         $cases: [["hi", 1]],
       } as JSONType),

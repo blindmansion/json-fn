@@ -14,7 +14,7 @@ function annotatedFunctionHandle(
     $args: [
       { $call: "pure", $args: [null] },
       { return: { $params: ["_"], $return: body } },
-      { $raw: { $fnType: { params: [parameter], returns } } },
+      { $raw: { $fnType: { required: [parameter], optional: [], returns } } },
     ],
   };
 }

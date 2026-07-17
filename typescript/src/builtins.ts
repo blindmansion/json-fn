@@ -117,11 +117,15 @@ function validateSchema(
   if (head === "$fnType") {
     assertOnlyKeys(schema, new Set(["$fnType"]), path);
     const fn = assertObject(schema.$fnType, `${path}.$fnType`);
-    assertOnlyKeys(fn, new Set(["params", "rest", "returns"]), `${path}.$fnType`);
-    if (!Array.isArray(fn.params)) fail(`${path}.$fnType.params`, "expected an array");
+    assertOnlyKeys(fn, new Set(["required", "optional", "rest", "returns"]), `${path}.$fnType`);
+    if (!Array.isArray(fn.required)) fail(`${path}.$fnType.required`, "expected an array");
+    if (!Array.isArray(fn.optional)) fail(`${path}.$fnType.optional`, "expected an array");
     if (!("returns" in fn)) fail(`${path}.$fnType.returns`, "field is required");
-    for (let i = 0; i < fn.params.length; i++) {
-      validateSchema(fn.params[i], `${path}.$fnType.params[${i}]`, state);
+    for (let i = 0; i < fn.required.length; i++) {
+      validateSchema(fn.required[i], `${path}.$fnType.required[${i}]`, state);
+    }
+    for (let i = 0; i < fn.optional.length; i++) {
+      validateSchema(fn.optional[i], `${path}.$fnType.optional[${i}]`, state);
     }
     if ("rest" in fn) validateSchema(fn.rest, `${path}.$fnType.rest`, state);
     validateSchema(fn.returns, `${path}.$fnType.returns`, state);
@@ -284,8 +288,9 @@ function validateSignature(
   defs: Set<string>,
 ): asserts value is CallableSignature {
   const sig = assertObject(value, path);
-  assertOnlyKeys(sig, new Set(["typeParams", "params", "rest", "returns"]), path);
-  if (!Array.isArray(sig.params)) fail(`${path}.params`, "expected an array");
+  assertOnlyKeys(sig, new Set(["typeParams", "required", "optional", "rest", "returns"]), path);
+  if (!Array.isArray(sig.required)) fail(`${path}.required`, "expected an array");
+  if (!Array.isArray(sig.optional)) fail(`${path}.optional`, "expected an array");
   if (!("returns" in sig)) fail(`${path}.returns`, "field is required");
 
   const declared = new Set<string>();
@@ -303,8 +308,11 @@ function validateSignature(
   }
 
   const state: SchemaValidation = { defs, declaredTVars: declared, usedTVars: new Set() };
-  for (let i = 0; i < sig.params.length; i++) {
-    validateSchema(sig.params[i], `${path}.params[${i}]`, state);
+  for (let i = 0; i < sig.required.length; i++) {
+    validateSchema(sig.required[i], `${path}.required[${i}]`, state);
+  }
+  for (let i = 0; i < sig.optional.length; i++) {
+    validateSchema(sig.optional[i], `${path}.optional[${i}]`, state);
   }
   if ("rest" in sig) validateSchema(sig.rest, `${path}.rest`, state);
   validateSchema(sig.returns, `${path}.returns`, state);

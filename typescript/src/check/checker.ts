@@ -39,6 +39,7 @@ import {
   asObject,
   classifySchema,
   deepEqual,
+  fixedParamSchemas,
   fnShape,
   isClosedMissingKey,
   isSchemaObject,
@@ -70,7 +71,7 @@ function propertySchema(objSchema: Schema | undefined, k: string): Schema | unde
 
 // Bind a body's `$params` to their declared `$sig` schemas.
 function bindParams(params: JSONType[], sig: Sig | null, eager: Record<string, Schema>): void {
-  const sigParams = sig?.params ?? [];
+  const sigParams = sig === null ? [] : fixedParamSchemas(sig);
   const rest = sig?.rest;
   for (let i = 0; i < params.length; i++) {
     const slot = params[i]!;
@@ -310,7 +311,8 @@ function resolveCalleeSig(callee: JSONType, ctx: CheckContext): Sig | null {
 // The param schema at position `i` (the rest element once past the fixed
 // params), or null when the callee admits no param there.
 function paramAt(sig: Sig, i: number): Schema | null {
-  if (i < sig.params.length) return sig.params[i]!;
+  const fixed = fixedParamSchemas(sig);
+  if (i < fixed.length) return fixed[i]!;
   return sig.rest ?? null;
 }
 
@@ -319,7 +321,7 @@ function paramAt(sig: Sig, i: number): Schema | null {
 // lambda typing) that would otherwise pile spurious diagnostics onto the real
 // arity error.
 function checkArity(sig: Sig, argc: number, ctx: CheckContext): boolean {
-  const min = sig.params.length;
+  const min = fixedParamSchemas(sig).length;
   if (sig.rest === undefined) {
     if (argc !== min) {
       report(ctx, `Expected ${min} argument(s), got ${argc}.`);
@@ -791,6 +793,7 @@ function checkLambda(
   ctx: CheckContext,
 ): void {
   const shape = fnShape(exp);
+  const shapeParams = fixedParamSchemas(shape);
   const params = Array.isArray(body.$params) ? (body.$params as JSONType[]) : [];
   let fixed = 0;
   let hasRest = false;
@@ -801,10 +804,11 @@ function checkLambda(
     }
     fixed++;
   }
-  if (fixed !== shape.params.length || hasRest !== (shape.rest !== undefined)) {
+  if (fixed !== shapeParams.length || hasRest !== (shape.rest !== undefined)) {
     const actual: Schema = {
       $fnType: {
-        params: Array.from({ length: fixed }, () => true as Schema),
+        required: Array.from({ length: fixed }, () => true as Schema),
+        optional: [],
         ...(hasRest ? { rest: true } : {}),
         returns: true,
       },
@@ -815,7 +819,8 @@ function checkLambda(
   const withSig: Record<string, JSONType> = {
     ...body,
     $sig: {
-      params: shape.params,
+      required: shape.required,
+      optional: shape.optional,
       ...(shape.rest !== undefined ? { rest: shape.rest } : {}),
       returns: shape.returns,
     },
@@ -854,7 +859,7 @@ function iifeBodyContext(
 
   const withSig: Record<string, JSONType> = {
     ...body,
-    $sig: { params: argTypes.slice(0, fixed), returns: true },
+    $sig: { required: argTypes.slice(0, fixed), optional: [], returns: true },
   };
   const { env, guards } = buildTypeScope(withSig, ctx.env, ctx);
   const bctx: CheckContext = { ...ctx, env, guards };
@@ -984,9 +989,10 @@ function checkInjectedBodyArity(body: Record<string, JSONType>, sig: Sig, ctx: C
   const hasRest = restIndex !== -1;
   const fixed = hasRest ? restIndex : params.length;
   const expectsRest = sig.rest !== undefined;
-  if (fixed === sig.params.length && hasRest === expectsRest) return;
+  const expectedFixed = fixedParamSchemas(sig).length;
+  if (fixed === expectedFixed && hasRest === expectsRest) return;
 
-  const expected = `${sig.params.length} fixed parameter(s)${expectsRest ? " and a rest parameter" : ""}`;
+  const expected = `${expectedFixed} fixed parameter(s)${expectsRest ? " and a rest parameter" : ""}`;
   const actual = `${fixed} fixed parameter(s)${hasRest ? " and a rest parameter" : ""}`;
   report(at(ctx, "$params"), `Contextual signature expects ${expected}; body declares ${actual}.`);
 }

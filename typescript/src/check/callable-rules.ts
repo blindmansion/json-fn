@@ -6,6 +6,7 @@ import {
   asObject,
   classifySchema,
   collectSchemaRefs,
+  fixedParamSchemas,
   fnShape,
   isSchemaObject,
   itemsSchema,
@@ -129,7 +130,7 @@ const bindRule: CallableTypeRuleApplyV1 = (request, services) => {
   }
 
   const expectedCallback: Schema = {
-    $fnType: { params: [input], returns: taskType(true) },
+    $fnType: { required: [input], optional: [], returns: taskType(true) },
   };
   let callbackReturn = services.contextualTypeCallback(1, expectedCallback);
   if (callbackReturn === null) {
@@ -230,7 +231,8 @@ const flatMapRule: CallableTypeRuleApplyV1 = (request, services) => {
   const item = arrayElementSchema(services.synthArgument(1), services.resolveSchema);
   const expectedCallback: Schema = {
     $fnType: {
-      params: [item, { type: "integer" }],
+      required: [item, { type: "integer" }],
+      optional: [],
       returns: true,
     },
   };
@@ -297,10 +299,10 @@ const handleRule: CallableTypeRuleApplyV1 = (request, services) => {
   }
 
   const resumeType = (input: Schema): Schema => ({
-    $fnType: { params: [input], returns: schema },
+    $fnType: { required: [input], optional: [], returns: schema },
   });
   const clauseType = (params: Schema[]): Schema => ({
-    $fnType: { params, returns: schema },
+    $fnType: { required: params, optional: [], returns: schema },
   });
   const clauseProperties: Record<string, Schema> = {};
   for (const [name, effect] of Object.entries(services.effects ?? {})) {
@@ -321,7 +323,7 @@ const handleRule: CallableTypeRuleApplyV1 = (request, services) => {
   ]);
   if (clauseProperties.raise === undefined) {
     clauseProperties.raise = {
-      $fnType: { params: [true, resumeType(false)], returns: true },
+      $fnType: { required: [true, resumeType(false)], optional: [], returns: true },
     };
   }
 
@@ -399,7 +401,7 @@ function isTractableHandleSchema(schema: Schema): boolean {
       if (!isSchemaObject(asObject(schema).$fnType)) return false;
       const shape = fnShape(asObject(schema));
       return (
-        shape.params.every(isTractableHandleSchema) &&
+        fixedParamSchemas(shape).every(isTractableHandleSchema) &&
         (shape.rest === undefined || isTractableHandleSchema(shape.rest)) &&
         isTractableHandleSchema(shape.returns)
       );

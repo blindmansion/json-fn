@@ -1,5 +1,6 @@
 import { describe, test, expect } from "bun:test";
 import { parse, print } from "../src/shorthand";
+import { printType } from "../src/shorthand/type-printer";
 import type { JSONType } from "../src/types";
 import { readdirSync, readFileSync } from "fs";
 import { join } from "path";
@@ -44,10 +45,35 @@ describe("printer round-trips canonical JSON (parse ∘ print = id)", () => {
 });
 
 describe("printer output shape", () => {
+  test("rejects optional callable slots until shorthand syntax exists", () => {
+    expect(() =>
+      printType({
+        $fnType: {
+          required: [],
+          optional: [{ type: "string" }],
+          returns: { type: "boolean" },
+        },
+      }),
+    ).toThrow("Cannot print optional function parameters");
+
+    expect(() =>
+      print({
+        $sig: {
+          required: [],
+          optional: [{ type: "string" }],
+          returns: { type: "boolean" },
+        },
+        $params: ["value"],
+        $return: true,
+      }),
+    ).toThrow("Cannot print optional function parameters");
+  });
+
   test("erased task completion types print as Task<A>", () => {
     const node: JSONType = {
       $sig: {
-        params: [],
+        required: [],
+        optional: [],
         returns: { $taskType: { anyOf: [{ $ref: "#/$defs/Reading" }, { type: "null" }] } },
       },
       $return: { $call: "pure", $args: [null] },

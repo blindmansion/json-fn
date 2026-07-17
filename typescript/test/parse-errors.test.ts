@@ -32,7 +32,7 @@ describe("typed-lambda return annotation errors", () => {
 
   test("well-formed typed lambdas still parse", () => {
     expect(parse("(x: number) -> number => x")).toEqual({
-      $sig: { params: [{ type: "number" }], returns: { type: "number" } },
+      $sig: { required: [{ type: "number" }], optional: [], returns: { type: "number" } },
       $params: ["x"],
       $return: { $var: "x" },
     });
@@ -41,8 +41,11 @@ describe("typed-lambda return annotation errors", () => {
   test("a curried function-type return still parses (arrow inside the annotation)", () => {
     expect(parse("(x: number) -> (number) -> number => (y) => x")).toEqual({
       $sig: {
-        params: [{ type: "number" }],
-        returns: { $fnType: { params: [{ type: "number" }], returns: { type: "number" } } },
+        required: [{ type: "number" }],
+        optional: [],
+        returns: {
+          $fnType: { required: [{ type: "number" }], optional: [], returns: { type: "number" } },
+        },
       },
       $params: ["x"],
       $return: { $params: ["y"], $return: { $var: "x" } },
@@ -60,12 +63,13 @@ describe("typed-lambda return annotation errors", () => {
 describe("Task completion annotations", () => {
   test("bare and indexed Task types lower to erased checker nodes", () => {
     expect(parse("() -> Task => pure(null)")).toEqual({
-      $sig: { params: [], returns: { $taskType: true } },
+      $sig: { required: [], optional: [], returns: { $taskType: true } },
       $return: { $call: "pure", $args: [null] },
     });
     expect(parse("() -> Task<string | null> => pure(null)")).toEqual({
       $sig: {
-        params: [],
+        required: [],
+        optional: [],
         returns: { $taskType: { type: ["string", "null"] } },
       },
       $return: { $call: "pure", $args: [null] },

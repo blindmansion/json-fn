@@ -77,7 +77,7 @@
   },
   "entry": {
     "name": "loop",
-    "params": [
+    "required": [
       {
         "$ref": "#/$defs/State"
       },
@@ -85,6 +85,7 @@
         "type": "integer"
       }
     ],
+    "optional": [],
     "returns": {
       "task": {
         "$ref": "#/$defs/State"

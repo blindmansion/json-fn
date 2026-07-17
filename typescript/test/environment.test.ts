@@ -22,7 +22,7 @@ const S = { type: "string" } as const;
 
 function body(
   params: string[],
-  signature: { params: JSONType[]; returns: JSONType },
+  signature: { required: JSONType[]; optional: JSONType[]; returns: JSONType },
   returns: JSONType,
 ): JSONType {
   return { $params: params, $sig: signature, $return: returns };
@@ -32,7 +32,7 @@ function environment(overrides: Partial<Environment> = {}): Environment {
   return {
     functions: {},
     effects: {},
-    entry: { name: "main", params: [], returns: { task: I } },
+    entry: { name: "main", required: [], optional: [], returns: { task: I } },
     ...overrides,
   };
 }
@@ -65,7 +65,8 @@ describe("environment validation and composition", () => {
         "host.label": {
           signatures: [
             {
-              params: [{ $ref: "#/$defs/Count" }],
+              required: [{ $ref: "#/$defs/Count" }],
+              optional: [],
               returns: S,
             },
           ],
@@ -73,7 +74,8 @@ describe("environment validation and composition", () => {
       },
       entry: {
         name: "main",
-        params: [{ $ref: "#/$defs/Count" }],
+        required: [{ $ref: "#/$defs/Count" }],
+        optional: [],
         returns: { task: { $ref: "#/$defs/Count" } },
       },
     });
@@ -85,7 +87,12 @@ describe("environment validation and composition", () => {
       validateEnvironment({
         functions: {},
         effects: {},
-        entry: { name: "main", params: [{ $ref: "#/$defs/Missing" }], returns: true },
+        entry: {
+          name: "main",
+          required: [{ $ref: "#/$defs/Missing" }],
+          optional: [],
+          returns: true,
+        },
       }),
     ).toThrow(EnvironmentValidationError);
   });
@@ -119,7 +126,7 @@ describe("environment checker integration", () => {
   test("injects the environment entry signature into normal body checking", () => {
     const env = environment({
       functions: {
-        "host.inc": { signatures: [{ params: [I], returns: I }] },
+        "host.inc": { signatures: [{ required: [I], optional: [], returns: I }] },
       },
     });
     const mod = {
@@ -136,7 +143,7 @@ describe("environment checker integration", () => {
 
   test("rejects an entry body whose parameters do not match the injected signature", () => {
     const env = environment({
-      entry: { name: "main", params: [I], returns: { task: I } },
+      entry: { name: "main", required: [I], optional: [], returns: { task: I } },
     });
     const mod = {
       main: {
@@ -227,7 +234,7 @@ describe("environment checker integration", () => {
       effects: {
         log: { params: [I], returns: { type: "null" } },
       },
-      entry: { name: "main", params: [], returns: { task: { type: "null" } } },
+      entry: { name: "main", required: [], optional: [], returns: { task: { type: "null" } } },
     });
 
     expect(
@@ -301,12 +308,12 @@ describe("environment checker integration", () => {
 describe("environment runtime integration", () => {
   test("rejects invalid initial entry arguments before evaluation", () => {
     const env = environment({
-      entry: { name: "main", params: [I], returns: { task: I } },
+      entry: { name: "main", required: [I], optional: [], returns: { task: I } },
     });
     const mod = {
       main: body(
         ["n"],
-        { params: [I], returns: { $ref: "#/$defs/Task" } },
+        { required: [I], optional: [], returns: { $ref: "#/$defs/Task" } },
         { $call: "pure", $args: [{ $var: "n" }] },
       ),
     } as Record<string, JSONType>;
@@ -321,13 +328,13 @@ describe("environment runtime integration", () => {
   test("validates direct functions and entry arguments/results", async () => {
     const env = environment({
       functions: {
-        "host.inc": { signatures: [{ params: [I], returns: I }] },
+        "host.inc": { signatures: [{ required: [I], optional: [], returns: I }] },
       },
     });
     const mod = {
       main: body(
         [],
-        { params: [], returns: { $ref: "#/$defs/Task" } },
+        { required: [], optional: [], returns: { $ref: "#/$defs/Task" } },
         {
           $call: "pure",
           $args: [{ $call: "host.inc", $args: [1] }],
@@ -346,13 +353,13 @@ describe("environment runtime integration", () => {
   test("rejects bad host-function results at the boundary", async () => {
     const env = environment({
       functions: {
-        "host.inc": { signatures: [{ params: [I], returns: I }] },
+        "host.inc": { signatures: [{ required: [I], optional: [], returns: I }] },
       },
     });
     const mod = {
       main: body(
         [],
-        { params: [], returns: { $ref: "#/$defs/Task" } },
+        { required: [], optional: [], returns: { $ref: "#/$defs/Task" } },
         {
           $call: "pure",
           $args: [{ $call: "host.inc", $args: [1] }],
@@ -374,7 +381,7 @@ describe("environment runtime integration", () => {
     const mod = {
       main: body(
         [],
-        { params: [], returns: { $ref: "#/$defs/Task" } },
+        { required: [], optional: [], returns: { $ref: "#/$defs/Task" } },
         { $call: "pure", $args: [1] },
       ),
     } as Record<string, JSONType>;
@@ -387,7 +394,7 @@ describe("environment runtime integration", () => {
     const mod = {
       main: body(
         [],
-        { params: [], returns: { $ref: "#/$defs/Task" } },
+        { required: [], optional: [], returns: { $ref: "#/$defs/Task" } },
         { $call: "pure", $args: [1] },
       ),
     } as Record<string, JSONType>;
@@ -403,7 +410,7 @@ describe("environment runtime integration", () => {
     let directCalled = false;
     const env = environment({
       functions: {
-        ping: { signatures: [{ params: [], returns: I }] },
+        ping: { signatures: [{ required: [], optional: [], returns: I }] },
       },
       effects: {
         ping: { params: [], returns: I },
