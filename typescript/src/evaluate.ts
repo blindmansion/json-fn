@@ -41,6 +41,8 @@ import {
   type DefinitionSources,
 } from "./definition-pool";
 import {
+  boundParameterNames,
+  defaultBindings,
   normalizeParams,
   requireParameterLayout,
   validateRuntimeArguments,
@@ -920,16 +922,8 @@ function replaceVars(
         }),
       );
 
-      const params = expression.$params;
-      if (Array.isArray(params)) {
-        for (const param of normalizeParams(params, expression)) {
-          if (param.kind === "fields") {
-            for (const binding of param.bindings) localNames.add(binding.name);
-          } else {
-            localNames.add(param.name);
-          }
-        }
-      }
+      const layout = requireParameterLayout(expression.$params, expression);
+      for (const name of boundParameterNames(layout)) localNames.add(name);
 
       const maskedGetVar =
         localNames.size > 0
@@ -1045,41 +1039,13 @@ function collectBodyLevelLocalFnRefs(
   attachFns: ReadonlySet<string>,
   out: Set<string>,
 ): void {
+  const layout = requireParameterLayout(body.$params, body);
+  for (const binding of defaultBindings(layout)) {
+    collectLocalFnRefs(binding.expression, attachFns, out);
+  }
+
   for (const [key, value] of Object.entries(body)) {
-    if (key === "$params") {
-      if (Array.isArray(value)) {
-        for (const slot of value) {
-          if (
-            slot !== null &&
-            typeof slot === "object" &&
-            !Array.isArray(slot) &&
-            "$param" in slot &&
-            "$default" in slot
-          ) {
-            collectLocalFnRefs(slot.$default, attachFns, out);
-          }
-          if (
-            slot !== null &&
-            typeof slot === "object" &&
-            !Array.isArray(slot) &&
-            Array.isArray(slot.$fields)
-          ) {
-            for (const field of slot.$fields) {
-              if (
-                field !== null &&
-                typeof field === "object" &&
-                !Array.isArray(field) &&
-                "$field" in field &&
-                "$default" in field
-              ) {
-                collectLocalFnRefs(field.$default, attachFns, out);
-              }
-            }
-          }
-        }
-      }
-      continue;
-    }
+    if (key === "$params") continue;
     if (key === "$sig" || key === "$types" || key === CONTRACT_KEY) continue;
     if (key === "$comment" && typeof value === "string") continue;
     collectLocalFnRefs(value, attachFns, out);

@@ -20,6 +20,14 @@ function defaultedField(name: string, expression: JSONType): JSONType {
   return { $field: name, $default: expression };
 }
 
+function optional(name: string): JSONType {
+  return { $param: name, $optional: true };
+}
+
+function optionalField(name: string): JSONType {
+  return { $field: name, $optional: true };
+}
+
 function fn(params: JSONType[], returnExpression: JSONType): JSONFunction {
   return { $params: params, $return: returnExpression };
 }
@@ -246,6 +254,63 @@ describe("defaults in escaping closures", () => {
     } as FunctionDeclaration;
     const inner = callFunction(outer, [], stdlib) as FunctionDeclaration;
     expect(callFunction(inner, [], stdlib)).toBe(11);
+  });
+
+  test("every parameter kind shadows same-named outer bindings", () => {
+    const outer = {
+      required: "outer",
+      fieldRequired: "outer",
+      fieldOptional: "outer",
+      fieldDefaulted: "outer",
+      optional: "outer",
+      defaulted: "outer",
+      rest: "outer",
+      $return: fn(
+        [
+          "required",
+          {
+            $fields: [
+              "fieldRequired",
+              optionalField("fieldOptional"),
+              defaultedField("fieldDefaulted", "field default"),
+            ],
+          },
+          optional("optional"),
+          defaulted("defaulted", "parameter default"),
+          "...rest",
+        ],
+        {
+          required: { $var: "required" },
+          fieldRequired: { $var: "fieldRequired" },
+          fieldOptional: { $var: "fieldOptional" },
+          fieldDefaulted: { $var: "fieldDefaulted" },
+          optional: { $var: "optional" },
+          defaulted: { $var: "defaulted" },
+          rest: { $var: "rest" },
+        },
+      ),
+    } as FunctionDeclaration;
+
+    const inner = callFunction(outer, [], stdlib) as FunctionDeclaration;
+    expect(callFunction(inner, ["required", { fieldRequired: "field" }], stdlib)).toEqual({
+      required: "required",
+      fieldRequired: "field",
+      fieldOptional: null,
+      fieldDefaulted: "field default",
+      optional: null,
+      defaulted: "parameter default",
+      rest: [],
+    });
+  });
+
+  test("rejects malformed nested parameters while creating a closure", () => {
+    const outer = {
+      $return: fn([{ $param: "value" }], null),
+    } as FunctionDeclaration;
+
+    expect(() => callFunction(outer, [], stdlib)).toThrow(
+      "$params[0]: A defaulted parameter must contain exactly",
+    );
   });
 });
 
