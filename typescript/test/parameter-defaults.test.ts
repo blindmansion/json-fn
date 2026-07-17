@@ -135,9 +135,40 @@ describe("positional parameter defaults", () => {
     ).toThrow("Expected exactly 1 argument, received 2");
   });
 
-  test("counts a descriptor as one fixed arity slot", () => {
-    expect(getArity(fn(["required", defaulted("value", 1)], null))).toBe(2);
-    expect(getArity(fn([defaulted("value", 1), "...rest"], null))).toBe(1);
+  test("uses the normalized layout for JSON function arity", () => {
+    expect(
+      getArity(
+        fn(
+          [
+            "required",
+            { $fields: ["field", optionalField("optionalField")] },
+            optional("optional"),
+            defaulted("defaulted", 1),
+            "...rest",
+          ],
+          null,
+        ),
+      ),
+    ).toBe(4);
+  });
+
+  test("rejects malformed parameters during arity introspection", () => {
+    const malformed = fn([{ $param: "value" }], null);
+
+    expect(() => getArity(malformed)).toThrow("Invalid JSON expression");
+    expect(() => getArity(malformed)).toThrow(
+      "$params[0]: A defaulted parameter must contain exactly",
+    );
+    expect(() =>
+      callFunction(
+        fn([], {
+          $call: "arity",
+          $args: [{ $raw: malformed }],
+        }),
+        [],
+        stdlib,
+      ),
+    ).toThrow("$params[0]: A defaulted parameter must contain exactly");
   });
 });
 

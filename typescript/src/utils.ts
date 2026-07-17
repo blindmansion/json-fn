@@ -1,12 +1,6 @@
-import type {
-  JSONType,
-  BuiltinFunction,
-  FunctionRegistry,
-  Meter,
-  Param,
-  RuntimeContext,
-} from "./types";
+import type { JSONType, BuiltinFunction, FunctionRegistry, Meter, RuntimeContext } from "./types";
 import { BUILTIN_MARKER, PURE_MARKER, ARITY_MARKER } from "./types";
+import { requireParameterLayout } from "./params";
 
 export function exprError(expr: JSONType, message: string): never {
   throw new Error(`Invalid JSON expression: ${JSON.stringify(expr, null, 2)}. ${message}`);
@@ -69,11 +63,8 @@ const _rawValues = new WeakSet<object>();
 
 export function getArity(fn: unknown, registry?: FunctionRegistry): number | null {
   if (typeof fn === "object" && fn !== null && !Array.isArray(fn) && "$return" in fn) {
-    const params = (fn as any).$params as Param[] | undefined;
-    if (!params || params.length === 0) return 0;
-    const last = params[params.length - 1]!;
-    const hasRest = typeof last === "string" && last.startsWith("...");
-    return hasRest ? params.length - 1 : params.length;
+    return requireParameterLayout((fn as Record<string, unknown>).$params, fn as JSONType)
+      .fixedCount;
   }
 
   if (typeof fn === "string" && registry) {
