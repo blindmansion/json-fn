@@ -1,6 +1,6 @@
 # Runtime parameter defaults
 
-Status: in progress.
+Status: runtime phase implemented; follow-up phases deferred.
 
 ## Summary
 
@@ -56,13 +56,20 @@ The first TypeScript runtime slice was completed on 2026-07-17:
 - focused TypeScript coverage lives in
   `typescript/test/parameter-defaults.test.ts`.
 
-The remaining runtime slice is destructured field defaults:
+The second TypeScript runtime slice was completed on 2026-07-17:
 
-- add `{ "$field": name, "$default": expression }` to `FieldPattern.$fields`;
-- normalize and bind field defaults using own-property presence;
-- preserve lenient destructuring for omitted, `null`, scalar, and array object
-  arguments;
-- add test-plan cases 11–15 and any remaining interruption-specific coverage.
+- canonical `{ "$field": name, "$default": expression }` descriptors are
+  represented by `DefaultedField` within `FieldPattern.$fields`;
+- field descriptors use the same central normalization, validation, pending
+  default, memoization, cycle, and closure machinery as positional defaults;
+- omitted object arguments and absent own properties register field defaults;
+- explicit property values, including `null`, suppress defaults;
+- supplied `null`, scalar, and array arguments preserve lenient all-`null`
+  destructuring;
+- field defaults can depend on positional parameters and other fields;
+- the focused suite now covers field cases 11–15 plus explicit interruption
+  behavior, alongside the positional, closure, validation, fuel, and
+  performance coverage from the first slice.
 
 The checker, shorthand, other-interpreter, and shared-conformance boundaries
 below remain unchanged.

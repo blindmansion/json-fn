@@ -5,7 +5,11 @@ type NormalizedParam =
   | { kind: "required"; name: string; index: number }
   | { kind: "defaulted"; name: string; index: number; defaultExpression: JSONType }
   | { kind: "rest"; name: string; index: number }
-  | { kind: "fields"; names: string[]; index: number };
+  | { kind: "fields"; bindings: NormalizedFieldBinding[]; index: number };
+
+type NormalizedFieldBinding =
+  | { kind: "required"; name: string }
+  | { kind: "defaulted"; name: string; defaultExpression: JSONType };
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -81,16 +85,46 @@ export function normalizeParams(params: unknown, expression: JSONType): Normaliz
 
     if (isObject(slot) && "$fields" in slot) {
       const fields = slot.$fields;
-      if (
-        !Array.isArray(fields) ||
-        fields.length === 0 ||
-        !fields.every((field) => typeof field === "string")
-      ) {
-        exprError(expression, "$fields must be a non-empty array of strings.");
+      if (!Array.isArray(fields) || fields.length === 0) {
+        exprError(
+          expression,
+          "$fields must be a non-empty array of strings or { $field, $default } descriptors.",
+        );
       }
-      const names = fields as string[];
-      for (const name of names) addBoundName(name, boundNames, expression);
-      normalized.push({ kind: "fields", names, index });
+      const bindings: NormalizedFieldBinding[] = [];
+      for (const field of fields) {
+        if (typeof field === "string") {
+          addBoundName(field, boundNames, expression);
+          bindings.push({ kind: "required", name: field });
+          continue;
+        }
+        if (isObject(field) && "$field" in field) {
+          const keys = Object.keys(field);
+          if (
+            keys.length !== 2 ||
+            !Object.prototype.hasOwnProperty.call(field, "$default") ||
+            typeof field.$field !== "string" ||
+            field.$default === undefined
+          ) {
+            exprError(
+              expression,
+              "A defaulted field must contain exactly one string $field and a present $default.",
+            );
+          }
+          addBoundName(field.$field, boundNames, expression);
+          bindings.push({
+            kind: "defaulted",
+            name: field.$field,
+            defaultExpression: field.$default as JSONType,
+          });
+          continue;
+        }
+        exprError(
+          expression,
+          "$fields entries must be strings or { $field, $default } descriptors.",
+        );
+      }
+      normalized.push({ kind: "fields", bindings, index });
       continue;
     }
 
@@ -103,4 +137,4 @@ export function normalizeParams(params: unknown, expression: JSONType): Normaliz
   return normalized;
 }
 
-export type { NormalizedParam };
+export type { NormalizedFieldBinding, NormalizedParam };

@@ -555,12 +555,22 @@ function buildScope(
     }
     if (slot.kind === "fields") {
       // Object pattern: destructure the positional argument into named locals.
-      // Lenient — a missing/null/non-object/array argument binds every field to
-      // null (mirrors required positional params defaulting to null).
-      const value = args[slot.index] ?? null;
+      // A supplied non-object keeps the existing lenient all-null behavior.
+      // Omission and absent own properties register defaults lazily.
+      const argumentSupplied = slot.index < args.length;
+      const value = argumentSupplied ? args[slot.index]! : null;
       const isPlainObject = typeof value === "object" && value !== null && !Array.isArray(value);
-      for (const field of slot.names) {
-        evaluatedVars[field] = isPlainObject ? ((value as any)[field] ?? null) : null;
+      for (const binding of slot.bindings) {
+        if (
+          isPlainObject &&
+          Object.prototype.hasOwnProperty.call(value as Record<string, JSONType>, binding.name)
+        ) {
+          evaluatedVars[binding.name] = (value as Record<string, JSONType>)[binding.name]!;
+        } else if ((!argumentSupplied || isPlainObject) && binding.kind === "defaulted") {
+          pendingDefaults.set(binding.name, binding.defaultExpression);
+        } else {
+          evaluatedVars[binding.name] = null;
+        }
       }
       continue;
     }
@@ -903,7 +913,7 @@ function replaceVars(
       if (Array.isArray(params)) {
         for (const param of normalizeParams(params, expression)) {
           if (param.kind === "fields") {
-            for (const name of param.names) localNames.add(name);
+            for (const binding of param.bindings) localNames.add(binding.name);
           } else {
             localNames.add(param.name);
           }
@@ -1036,6 +1046,24 @@ function collectBodyLevelLocalFnRefs(
             "$default" in slot
           ) {
             collectLocalFnRefs(slot.$default, attachFns, out);
+          }
+          if (
+            slot !== null &&
+            typeof slot === "object" &&
+            !Array.isArray(slot) &&
+            Array.isArray(slot.$fields)
+          ) {
+            for (const field of slot.$fields) {
+              if (
+                field !== null &&
+                typeof field === "object" &&
+                !Array.isArray(field) &&
+                "$field" in field &&
+                "$default" in field
+              ) {
+                collectLocalFnRefs(field.$default, attachFns, out);
+              }
+            }
           }
         }
       }

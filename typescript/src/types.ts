@@ -38,7 +38,9 @@ type FunctionDeclaration = string | FunctionBody;
 // positional object argument into named locals. See
 // plans/active/runtime-parameter-defaults.md and plans/destructured-params.md.
 type DefaultedParam = { $param: string; $default: JSONType };
-type FieldPattern = { $fields: string[] };
+type DefaultedField = { $field: string; $default: JSONType };
+type FieldBinding = string | DefaultedField;
+type FieldPattern = { $fields: FieldBinding[] };
 type Param = string | DefaultedParam | FieldPattern;
 
 type VariableReference = {
@@ -201,6 +203,8 @@ export type {
   FunctionRegistry,
   FunctionDeclaration,
   DefaultedParam,
+  DefaultedField,
+  FieldBinding,
   FieldPattern,
   Param,
   EvaluationContext,

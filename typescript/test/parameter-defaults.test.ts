@@ -16,6 +16,10 @@ function defaulted(name: string, expression: JSONType): JSONType {
   return { $param: name, $default: expression };
 }
 
+function defaultedField(name: string, expression: JSONType): JSONType {
+  return { $field: name, $default: expression };
+}
+
 function fn(params: JSONType[], returnExpression: JSONType): JSONFunction {
   return { $params: params, $return: returnExpression };
 }
@@ -125,6 +129,83 @@ describe("positional parameter defaults", () => {
   });
 });
 
+describe("destructured field defaults", () => {
+  test("uses defaults for absent own properties", () => {
+    const body = fn([{ $fields: ["name", defaultedField("punct", "!")] }], {
+      name: { $var: "name" },
+      punct: { $var: "punct" },
+    });
+
+    expect(callFunction(body, [{ name: "Ada" }], stdlib)).toEqual({
+      name: "Ada",
+      punct: "!",
+    });
+  });
+
+  test("explicit null suppresses a field default", () => {
+    const body = fn([{ $fields: [defaultedField("value", 5)] }], { $var: "value" });
+    expect(callFunction(body, [{ value: null }], stdlib)).toBeNull();
+  });
+
+  test("uses defaults when the entire object argument is omitted", () => {
+    const body = fn(
+      [{ $fields: ["required", defaultedField("withDefault", 5)] }],
+      [{ $var: "required" }, { $var: "withDefault" }],
+    );
+    expect(callFunction(body, [], stdlib)).toEqual([null, 5]);
+  });
+
+  test("preserves lenient all-null destructuring for supplied non-objects", () => {
+    const body = fn(
+      [{ $fields: ["required", defaultedField("withDefault", { $var: "doesNotExist" })] }],
+      [{ $var: "required" }, { $var: "withDefault" }],
+    );
+
+    for (const value of [null, 0, "text", []] satisfies JSONType[]) {
+      expect(callFunction(body, [value], stdlib)).toEqual([null, null]);
+    }
+  });
+
+  test("field defaults can depend on positional parameters and other fields", () => {
+    const body = fn(
+      [
+        "base",
+        {
+          $fields: [
+            defaultedField("first", { $var: "base" }),
+            defaultedField("second", 2),
+            defaultedField("total", {
+              $call: "add",
+              $args: [{ $var: "first" }, { $var: "second" }],
+            }),
+          ],
+        },
+      ],
+      { $var: "total" },
+    );
+
+    expect(callFunction(body, [3, {}], stdlib)).toBe(5);
+    expect(callFunction(body, [3, { second: 4 }], stdlib)).toBe(7);
+  });
+
+  test("treats inherited properties as absent", () => {
+    const body = fn([{ $fields: [defaultedField("value", 5)] }], { $var: "value" });
+    const argument = Object.create({ value: 99 }) as JSONType;
+    expect(callFunction(body, [argument], stdlib)).toBe(5);
+  });
+
+  test("captures local functions referenced only by a field default", () => {
+    const outer = {
+      fallback: { $return: 13 },
+      $return: fn([{ $fields: [defaultedField("value", { $call: "fallback", $args: [] })] }], {
+        $var: "value",
+      }),
+    } as FunctionDeclaration;
+    const inner = callFunction(outer, [], stdlib) as FunctionDeclaration;
+    expect(callFunction(inner, [{}], stdlib)).toBe(13);
+  });
+});
+
 describe("defaults in escaping closures", () => {
   test("captures outer values referenced only by a default", () => {
     const outer = {
@@ -163,6 +244,10 @@ describe("positional default validation", () => {
       ["...xs", "later"],
       ["x", { $param: "x", $default: 1 }],
       [{ $fields: ["x"] }, { $param: "x", $default: 1 }],
+      [{ $fields: [{ $field: "x" }] }],
+      [{ $fields: [{ $field: "x", $default: 1, extra: true }] }],
+      [{ $fields: [{ $param: "x", $default: 1 }] }],
+      [{ $fields: ["x", { $field: "x", $default: 1 }] }],
     ];
 
     for (const params of invalidParams) {
@@ -195,5 +280,29 @@ describe("positional default validation", () => {
     expect(callFunction(forced, [], stdlib, { usage: forcedUsage, perf: forcedStats })).toBe(3);
     expect(forcedUsage.fuel).toBeGreaterThan(unusedUsage.fuel);
     expect(forcedStats.evaluateExpression).toBeGreaterThan(unusedStats.evaluateExpression);
+  });
+
+  test("checks interruption while evaluating a forced default", () => {
+    const controller = new AbortController();
+    const functions: FunctionRegistry = {
+      ...stdlib,
+      abort: () => {
+        controller.abort();
+        return 0;
+      },
+    };
+    const body = fn(
+      [
+        defaulted("value", {
+          $call: "add",
+          $args: [{ $call: "abort", $args: [] }, 1],
+        }),
+      ],
+      { $var: "value" },
+    );
+
+    expect(() => callFunction(body, [], functions, { signal: controller.signal })).toThrow(
+      "Execution aborted",
+    );
   });
 });
