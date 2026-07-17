@@ -1,4 +1,11 @@
-import type { JSONType, BuiltinFunction, FunctionRegistry, Meter, RuntimeContext } from "./types";
+import type {
+  JSONType,
+  BuiltinFunction,
+  FunctionRegistry,
+  Meter,
+  Param,
+  RuntimeContext,
+} from "./types";
 import { BUILTIN_MARKER, PURE_MARKER, ARITY_MARKER } from "./types";
 
 export function exprError(expr: JSONType, message: string): never {
@@ -62,7 +69,7 @@ const _rawValues = new WeakSet<object>();
 
 export function getArity(fn: unknown, registry?: FunctionRegistry): number | null {
   if (typeof fn === "object" && fn !== null && !Array.isArray(fn) && "$return" in fn) {
-    const params = (fn as any).$params as (string | { $fields: string[] })[] | undefined;
+    const params = (fn as any).$params as Param[] | undefined;
     if (!params || params.length === 0) return 0;
     const last = params[params.length - 1]!;
     const hasRest = typeof last === "string" && last.startsWith("...");

@@ -1,6 +1,6 @@
 # Runtime parameter defaults
 
-Status: proposed.
+Status: in progress.
 
 ## Summary
 
@@ -37,6 +37,35 @@ This phase is deliberately limited to canonical/lowered JSON and the canonical
 TypeScript evaluator. It does not add `.jfn` syntax, printer support, optional
 parameter types, checker arity rules, or shared cross-implementation
 conformance cases.
+
+## Implementation progress
+
+The first TypeScript runtime slice was completed on 2026-07-17:
+
+- canonical `{ "$param": name, "$default": expression }` descriptors are
+  represented by `DefaultedParam`;
+- `typescript/src/params.ts` centrally normalizes and validates required,
+  defaulted, rest, and existing object-pattern parameter slots;
+- positional defaults are lazy, memoized, cycle-checked, and distinguish an
+  omitted argument from every explicitly supplied JSON value;
+- defaults can reference parameters, body locals, and local functions using the
+  function frame's existing evaluation context and limits;
+- closure replacement and local-function attachment include expressions inside
+  positional defaults;
+- `getArity` counts a defaulted positional descriptor as one fixed slot;
+- focused TypeScript coverage lives in
+  `typescript/test/parameter-defaults.test.ts`.
+
+The remaining runtime slice is destructured field defaults:
+
+- add `{ "$field": name, "$default": expression }` to `FieldPattern.$fields`;
+- normalize and bind field defaults using own-property presence;
+- preserve lenient destructuring for omitted, `null`, scalar, and array object
+  arguments;
+- add test-plan cases 11–15 and any remaining interruption-specific coverage.
+
+The checker, shorthand, other-interpreter, and shared-conformance boundaries
+below remain unchanged.
 
 ## Goals
 

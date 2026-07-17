@@ -18,7 +18,6 @@ import type {
   PerfStats,
   CallState,
   Meter,
-  Param,
 } from "./types";
 import { ExpressionType } from "./types";
 import {
@@ -41,6 +40,7 @@ import {
   readModuleDefinitions,
   type DefinitionSources,
 } from "./definition-pool";
+import { normalizeParams } from "./params";
 
 export function createPerfStats(): PerfStats {
   return {
@@ -127,6 +127,11 @@ export function callFunction(
   try {
     return callFunctionInternal(fn, args, {
       functions,
+      // The supplied registry is persistent, but locals declared by this
+      // function are not. Seed explicit empty sets so escaping closures attach
+      // those locals instead of treating the function body like module scope.
+      localFns: EMPTY_LOCAL_FNS,
+      attachFns: EMPTY_LOCAL_FNS,
       limits: {
         maxCallDepth: limits?.maxCallDepth ?? DEFAULT_MAX_CALL_DEPTH,
         maxFuel,
@@ -541,28 +546,32 @@ function buildScope(
   }
 
   const evaluatedVars: Record<string, JSONType> = {};
-
-  const params = (fn as any).$params as Param[] | undefined;
-  if (params) {
-    for (let i = 0; i < params.length; i++) {
-      const slot = params[i]!;
-      if (typeof slot === "string") {
-        if (slot.startsWith("...")) {
-          const restName = slot.slice(3);
-          evaluatedVars[restName] = args.slice(i);
-          break;
-        }
-        evaluatedVars[slot] = args[i] ?? null;
-      } else {
-        // Object pattern: destructure the i-th positional argument into named
-        // locals. Lenient — a missing/null/non-object/array argument binds
-        // every field to null (mirrors positional params defaulting to null).
-        const v = args[i] ?? null;
-        const isPlainObject = typeof v === "object" && v !== null && !Array.isArray(v);
-        for (const field of slot.$fields) {
-          evaluatedVars[field] = isPlainObject ? ((v as any)[field] ?? null) : null;
-        }
+  const pendingDefaults = new Map<string, JSONType>();
+  const params = normalizeParams((fn as any).$params, fn);
+  for (const slot of params) {
+    if (slot.kind === "rest") {
+      evaluatedVars[slot.name] = args.slice(slot.index);
+      continue;
+    }
+    if (slot.kind === "fields") {
+      // Object pattern: destructure the positional argument into named locals.
+      // Lenient — a missing/null/non-object/array argument binds every field to
+      // null (mirrors required positional params defaulting to null).
+      const value = args[slot.index] ?? null;
+      const isPlainObject = typeof value === "object" && value !== null && !Array.isArray(value);
+      for (const field of slot.names) {
+        evaluatedVars[field] = isPlainObject ? ((value as any)[field] ?? null) : null;
       }
+      continue;
+    }
+    if (slot.index < args.length) {
+      // Presence is positional, so explicit null and other falsy values suppress
+      // a default.
+      evaluatedVars[slot.name] = args[slot.index]!;
+    } else if (slot.kind === "defaulted") {
+      pendingDefaults.set(slot.name, slot.defaultExpression);
+    } else {
+      evaluatedVars[slot.name] = null;
     }
   }
 
@@ -576,6 +585,27 @@ function buildScope(
     if (resolvingVars.includes(name)) {
       const cycle = [...resolvingVars.slice(resolvingVars.indexOf(name)), name];
       throw new Error(`Circular variable dependency detected: ${cycle.join(" -> ")}`);
+    }
+
+    if (pendingDefaults.has(name)) {
+      resolvingVars.push(name);
+      try {
+        const evaluated = evaluateExpression(pendingDefaults.get(name)!, {
+          functions: scopedFunctions,
+          getVar,
+          localFns,
+          attachFns,
+          limits,
+          state,
+          perf: context.perf,
+          runtimeDefs: context.runtimeDefs,
+        });
+        pendingDefaults.delete(name);
+        evaluatedVars[name] = evaluated;
+        return evaluated;
+      } finally {
+        resolvingVars.pop();
+      }
     }
 
     const expression = fn[name];
@@ -871,11 +901,11 @@ function replaceVars(
 
       const params = expression.$params;
       if (Array.isArray(params)) {
-        for (const p of params) {
-          if (typeof p === "string") {
-            localNames.add(p.startsWith("...") ? p.slice(3) : p);
-          } else if (p && typeof p === "object" && Array.isArray((p as any).$fields)) {
-            for (const f of (p as any).$fields as string[]) localNames.add(f);
+        for (const param of normalizeParams(params, expression)) {
+          if (param.kind === "fields") {
+            for (const name of param.names) localNames.add(name);
+          } else {
+            localNames.add(param.name);
           }
         }
       }
@@ -995,7 +1025,23 @@ function collectBodyLevelLocalFnRefs(
   out: Set<string>,
 ): void {
   for (const [key, value] of Object.entries(body)) {
-    if (key === "$params" || key === "$sig" || key === "$types" || key === CONTRACT_KEY) continue;
+    if (key === "$params") {
+      if (Array.isArray(value)) {
+        for (const slot of value) {
+          if (
+            slot !== null &&
+            typeof slot === "object" &&
+            !Array.isArray(slot) &&
+            "$param" in slot &&
+            "$default" in slot
+          ) {
+            collectLocalFnRefs(slot.$default, attachFns, out);
+          }
+        }
+      }
+      continue;
+    }
+    if (key === "$sig" || key === "$types" || key === CONTRACT_KEY) continue;
     if (key === "$comment" && typeof value === "string") continue;
     collectLocalFnRefs(value, attachFns, out);
   }
@@ -1237,25 +1283,7 @@ function classifyExpressionType(json: JSONType): ExpressionType {
         exprError(json, "Function bodies cannot have other keyword properties.");
       }
       if ("$params" in json) {
-        const params = json.$params;
-        if (!Array.isArray(params)) {
-          exprError(json, "$params must be an array.");
-        }
-        for (const p of params) {
-          if (typeof p === "string") continue;
-          if (p !== null && typeof p === "object" && !Array.isArray(p) && "$fields" in p) {
-            const fields = (p as { $fields: JSONType }).$fields;
-            if (
-              !Array.isArray(fields) ||
-              fields.length === 0 ||
-              !fields.every((f) => typeof f === "string")
-            ) {
-              exprError(json, "$fields must be a non-empty array of strings.");
-            }
-            continue;
-          }
-          exprError(json, "$params entries must be strings or { $fields: [...] } patterns.");
-        }
+        normalizeParams(json.$params, json);
       }
       return ExpressionType.FunctionBody;
     }

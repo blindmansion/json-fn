@@ -33,11 +33,13 @@ type FunctionReference = {
 
 type FunctionDeclaration = string | FunctionBody;
 
-// A `$params` slot is a positional parameter name, a `"...rest"` collector, or
-// an object pattern destructuring one positional object argument into named
-// locals. See plans/destructured-params.md.
+// A `$params` slot is a positional parameter name, a defaulted positional
+// binding, a `"...rest"` collector, or an object pattern destructuring one
+// positional object argument into named locals. See
+// plans/active/runtime-parameter-defaults.md and plans/destructured-params.md.
+type DefaultedParam = { $param: string; $default: JSONType };
 type FieldPattern = { $fields: string[] };
-type Param = string | FieldPattern;
+type Param = string | DefaultedParam | FieldPattern;
 
 type VariableReference = {
   $var: string;
@@ -198,6 +200,7 @@ export type {
   RuntimeContext,
   FunctionRegistry,
   FunctionDeclaration,
+  DefaultedParam,
   FieldPattern,
   Param,
   EvaluationContext,
