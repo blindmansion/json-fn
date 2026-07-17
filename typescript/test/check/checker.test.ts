@@ -145,6 +145,71 @@ const I: Schema = { type: "integer" };
 const S: Schema = { type: "string" };
 
 describe("checkModule: clean programs", () => {
+  test("every normalized parameter kind binds from its aligned signature schema", () => {
+    const fields: Schema = {
+      type: "object",
+      properties: { requiredField: S, optionalField: I, defaultedField: { type: "boolean" } },
+      required: ["requiredField", "optionalField", "defaultedField"],
+      additionalProperties: false,
+    };
+    const result: Schema = {
+      type: "object",
+      properties: {
+        required: I,
+        requiredField: S,
+        optionalField: I,
+        defaultedField: { type: "boolean" },
+        optional: S,
+        defaulted: I,
+        rest: { type: "array", items: { type: "boolean" } },
+      },
+      required: [
+        "required",
+        "requiredField",
+        "optionalField",
+        "defaultedField",
+        "optional",
+        "defaulted",
+        "rest",
+      ],
+      additionalProperties: false,
+    };
+    const mod = {
+      all: body(
+        [
+          "required",
+          {
+            $fields: [
+              "requiredField",
+              { $field: "optionalField", $optional: true },
+              { $field: "defaultedField", $default: false },
+            ],
+          },
+          { $param: "optional", $optional: true },
+          { $param: "defaulted", $default: 0 },
+          "...rest",
+        ],
+        {
+          required: [I, fields],
+          optional: [S, I],
+          rest: { type: "boolean" },
+          returns: result,
+        },
+        {
+          required: { $var: "required" },
+          requiredField: { $var: "requiredField" },
+          optionalField: { $var: "optionalField" },
+          defaultedField: { $var: "defaultedField" },
+          optional: { $var: "optional" },
+          defaulted: { $var: "defaulted" },
+          rest: { $var: "rest" },
+        },
+      ),
+    };
+
+    expect(checkModule(mod)).toEqual([]);
+  });
+
   test("required and optional schemas share one positional sequence", () => {
     const mod = {
       pickSecond: body(
@@ -245,6 +310,22 @@ describe("checkModule: clean programs", () => {
 });
 
 describe("checkModule: diagnostics", () => {
+  test("malformed parameters produce one path-specific diagnostic without body cascades", () => {
+    const malformed = body(
+      [{ $param: "value" }],
+      { required: [I], optional: [], returns: S },
+      { $var: "missing" },
+    );
+
+    expect(checkModule({ malformed })).toEqual([
+      {
+        path: ["malformed", "$params[0]"],
+        message: expect.stringContaining("$params[0]: A defaulted parameter must contain exactly"),
+        severity: "error",
+      },
+    ]);
+  });
+
   test("return type mismatch is reported", () => {
     const mod = {
       bad: body(["n"], { required: [I], optional: [], returns: S }, { $var: "n" }),
@@ -733,6 +814,19 @@ describe("check: bidirectional un-annotated lambdas (Part A)", () => {
     expect(diags[0]!.path).toEqual(["caller", "$return", "$args[0]", "$return"]);
     expect(diags[0]!.expected).toEqual(I);
   });
+
+  test("a malformed contextual lambda reports its parameter issue and skips its body", () => {
+    const malformed = lambda([{ $param: "value" }], { $var: "missing" });
+    const diags = checkModule(returning(malformed, fn([I], I)));
+
+    expect(diags).toEqual([
+      {
+        path: ["f", "$return", "$params[0]"],
+        message: expect.stringContaining("$params[0]: A defaulted parameter must contain exactly"),
+        severity: "error",
+      },
+    ]);
+  });
 });
 
 describe("check: do-block / where IIFE (Part A)", () => {
@@ -776,6 +870,19 @@ describe("check: do-block / where IIFE (Part A)", () => {
     expect(r.diagnostics.some((d) => /Expected 1 argument\(s\), got 0\./.test(d.message))).toBe(
       true,
     );
+  });
+
+  test("a malformed IIFE reports its parameter issue and skips its body", () => {
+    const r = checkExpr(iife({ $var: "missing" }, {}, [{ $param: "value" }], [1]));
+
+    expect(r.type).toBe(true);
+    expect(r.diagnostics).toEqual([
+      {
+        path: ["$params[0]"],
+        message: expect.stringContaining("$params[0]: A defaulted parameter must contain exactly"),
+        severity: "error",
+      },
+    ]);
   });
 
   test("the expected type is pushed into the body's $return (checked position)", () => {

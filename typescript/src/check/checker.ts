@@ -10,6 +10,12 @@
 // everything in a `where` block and only some bindings are ever forced.
 
 import type { JSONType } from "../types";
+import {
+  analyzeParameters,
+  formatParameterIssue,
+  type ParameterLayout,
+  type ParameterPath,
+} from "../params";
 import { asPath, litOf, nodeKind } from "./ast";
 import {
   at,
@@ -69,23 +75,43 @@ function propertySchema(objSchema: Schema | undefined, k: string): Schema | unde
   return undefined;
 }
 
-// Bind a body's `$params` to their declared `$sig` schemas.
-function bindParams(params: JSONType[], sig: Sig | null, eager: Record<string, Schema>): void {
+// Adapt a structured parameter issue to the checker's existing path format.
+function parameterIssueContext(ctx: CheckContext, path: ParameterPath): CheckContext {
+  const segments: string[] = ["$params"];
+  for (const segment of path) {
+    if (typeof segment === "number") {
+      segments[segments.length - 1] += `[${segment}]`;
+    } else {
+      segments.push(segment);
+    }
+  }
+  return { ...ctx, path: [...ctx.path, ...segments] };
+}
+
+function analyzeBodyParameters(
+  body: Record<string, JSONType>,
+  ctx: CheckContext,
+): ParameterLayout | null {
+  const analysis = analyzeParameters(body.$params);
+  if (analysis.ok) return analysis.layout;
+  report(parameterIssueContext(ctx, analysis.issue.path), formatParameterIssue(analysis.issue));
+  return null;
+}
+
+// Bind a body's normalized parameters to their declared `$sig` schemas.
+function bindParams(layout: ParameterLayout, sig: Sig | null, eager: Record<string, Schema>): void {
   const sigParams = sig === null ? [] : fixedParamSchemas(sig);
   const rest = sig?.rest;
-  for (let i = 0; i < params.length; i++) {
-    const slot = params[i]!;
-    if (typeof slot === "string") {
-      if (slot.startsWith("...")) {
-        eager[slot.slice(3)] = { type: "array", items: rest ?? true };
-        break;
+  for (const slot of layout.slots) {
+    if (slot.kind === "rest") {
+      eager[slot.name] = { type: "array", items: rest ?? true };
+    } else if (slot.kind === "fields") {
+      const objSchema = sigParams[slot.index];
+      for (const binding of slot.bindings) {
+        eager[binding.name] = propertySchema(objSchema, binding.name) ?? true;
       }
-      eager[slot] = sigParams[i] ?? true;
-    } else if (isSchemaObject(slot) && Array.isArray(slot.$fields)) {
-      const objSchema = sigParams[i];
-      for (const f of slot.$fields as string[]) {
-        eager[f] = propertySchema(objSchema, f) ?? true;
-      }
+    } else {
+      eager[slot.name] = sigParams[slot.index] ?? true;
     }
   }
 }
@@ -120,6 +146,7 @@ function collectVars(expr: JSONType, acc: Set<string>): void {
 
 function buildTypeScope(
   body: Record<string, JSONType>,
+  layout: ParameterLayout,
   parent: TypeEnv | null,
   ctx: CheckContext,
   reportUntypedBodies = true,
@@ -129,8 +156,7 @@ function buildTypeScope(
   const exprLocals: Record<string, JSONType> = {};
 
   const sig = injectedSig ?? sigOf(body);
-  const params = Array.isArray(body.$params) ? (body.$params as JSONType[]) : [];
-  bindParams(params, sig, eager);
+  bindParams(layout, sig, eager);
 
   for (const key of bindingKeys(body)) {
     const val = body[key]!;
@@ -539,6 +565,7 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
       const callee = call.$call;
       if (isBody(callee) && sigOf(callee) === null) {
         const bctx = iifeBodyContext(callee, args, ctx);
+        if (bctx === null) return true;
         return synth(callee.$return!, at(bctx, "$return"));
       }
       // A bare builtin name that no local/module binding shadows dispatches to
@@ -792,18 +819,12 @@ function checkLambda(
   exp: Record<string, JSONType>,
   ctx: CheckContext,
 ): void {
+  const layout = analyzeBodyParameters(body, ctx);
+  if (layout === null) return;
   const shape = fnShape(exp);
   const shapeParams = fixedParamSchemas(shape);
-  const params = Array.isArray(body.$params) ? (body.$params as JSONType[]) : [];
-  let fixed = 0;
-  let hasRest = false;
-  for (const p of params) {
-    if (typeof p === "string" && p.startsWith("...")) {
-      hasRest = true;
-      break;
-    }
-    fixed++;
-  }
+  const fixed = layout.fixedCount;
+  const hasRest = layout.rest !== null;
   if (fixed !== shapeParams.length || hasRest !== (shape.rest !== undefined)) {
     const actual: Schema = {
       $fnType: {
@@ -825,7 +846,7 @@ function checkLambda(
       returns: shape.returns,
     },
   };
-  checkBody(withSig, ctx);
+  checkBody(withSig, ctx, undefined, layout);
 }
 
 // Type the body of an *un-annotated inline body callee* — an IIFE, e.g. the
@@ -842,17 +863,17 @@ function iifeBodyContext(
   body: Record<string, JSONType>,
   args: JSONType[],
   ctx: CheckContext,
-): CheckContext {
-  const params = Array.isArray(body.$params) ? (body.$params as JSONType[]) : [];
-  const restIdx = params.findIndex((p) => typeof p === "string" && p.startsWith("..."));
-  const hasRest = restIdx !== -1;
-  const fixed = hasRest ? restIdx : params.length;
+): CheckContext | null {
+  const layout = analyzeBodyParameters(body, ctx);
+  if (layout === null) return null;
+  const hasRest = layout.rest !== null;
+  const fixed = layout.fixedCount;
 
   // Arguments are outer expressions, synthesized in the caller's scope; their
   // types become the (otherwise un-annotated) fixed params' types.
   const argTypes = args.map((a, i) => synth(a, at(ctx, `$args[${i}]`)));
-  if (!hasRest && args.length !== params.length) {
-    report(ctx, `Expected ${params.length} argument(s), got ${args.length}.`);
+  if (!hasRest && args.length !== fixed) {
+    report(ctx, `Expected ${fixed} argument(s), got ${args.length}.`);
   } else if (hasRest && args.length < fixed) {
     report(ctx, `Expected at least ${fixed} argument(s), got ${args.length}.`);
   }
@@ -861,7 +882,7 @@ function iifeBodyContext(
     ...body,
     $sig: { required: argTypes.slice(0, fixed), optional: [], returns: true },
   };
-  const { env, guards } = buildTypeScope(withSig, ctx.env, ctx);
+  const { env, guards } = buildTypeScope(withSig, layout, ctx.env, ctx);
   const bctx: CheckContext = { ...ctx, env, guards };
   for (const key of bindingKeys(body)) {
     const val = body[key]!;
@@ -909,6 +930,7 @@ function check(expr: JSONType, expected: Schema, ctx: CheckContext): void {
     if (isBody(callee) && sigOf(callee) === null) {
       const args = (expr as { $args?: JSONType[] }).$args;
       const bctx = iifeBodyContext(callee, Array.isArray(args) ? args : [], ctx);
+      if (bctx === null) return;
       check(callee.$return!, expected, at(bctx, "$return"));
       return;
     }
@@ -966,10 +988,17 @@ function describe(schema: Schema): string {
 // so a declared `-> type` is enforced wherever a typed function literal appears
 // — a module binding, a value in `$return`/argument position, or a standalone
 // expression checked via `checkExpr` (`--expr`).
-function checkBody(body: Record<string, JSONType>, ctx: CheckContext, injectedSig?: Sig): void {
-  if (injectedSig !== undefined) checkInjectedBodyArity(body, injectedSig, ctx);
+function checkBody(
+  body: Record<string, JSONType>,
+  ctx: CheckContext,
+  injectedSig?: Sig,
+  analyzedLayout?: ParameterLayout,
+): void {
+  const layout = analyzedLayout ?? analyzeBodyParameters(body, ctx);
+  if (layout === null) return;
+  if (injectedSig !== undefined) checkInjectedBodyArity(layout, injectedSig, ctx);
   const sig = injectedSig ?? sigOf(body);
-  const { env, guards } = buildTypeScope(body, ctx.env, ctx, true, injectedSig);
+  const { env, guards } = buildTypeScope(body, layout, ctx.env, ctx, true, injectedSig);
   const bctx: CheckContext = { ...ctx, env, guards };
   check(body.$return!, sig?.returns ?? true, at(bctx, "$return"));
   for (const key of bindingKeys(body)) {
@@ -983,11 +1012,9 @@ function checkBody(body: Record<string, JSONType>, ctx: CheckContext, injectedSi
 // must not silently accept a guest body with fewer/more parameters than the
 // operator contract (the removed entry-specific reconciliation pass enforced
 // this before entry checking moved onto the normal body path).
-function checkInjectedBodyArity(body: Record<string, JSONType>, sig: Sig, ctx: CheckContext): void {
-  const params = Array.isArray(body.$params) ? (body.$params as JSONType[]) : [];
-  const restIndex = params.findIndex((p) => typeof p === "string" && p.startsWith("..."));
-  const hasRest = restIndex !== -1;
-  const fixed = hasRest ? restIndex : params.length;
+function checkInjectedBodyArity(layout: ParameterLayout, sig: Sig, ctx: CheckContext): void {
+  const hasRest = layout.rest !== null;
+  const fixed = layout.fixedCount;
   const expectsRest = sig.rest !== undefined;
   const expectedFixed = fixedParamSchemas(sig).length;
   if (fixed === expectedFixed && hasRest === expectsRest) return;
@@ -997,4 +1024,13 @@ function checkInjectedBodyArity(body: Record<string, JSONType>, sig: Sig, ctx: C
   report(at(ctx, "$params"), `Contextual signature expects ${expected}; body declares ${actual}.`);
 }
 
-export { buildTypeScope, synth, paramAt, checkArity, reportMismatch, check, checkBody };
+export {
+  analyzeBodyParameters,
+  buildTypeScope,
+  synth,
+  paramAt,
+  checkArity,
+  reportMismatch,
+  check,
+  checkBody,
+};

@@ -162,6 +162,26 @@ describe("environment checker integration", () => {
     );
   });
 
+  test("rejects malformed entry parameters before injected body checking", () => {
+    const env = environment({
+      entry: { name: "main", required: [I], optional: [], returns: { task: I } },
+    });
+    const mod = {
+      main: {
+        $params: [{ $param: "value" }],
+        $return: { $var: "missing" },
+      },
+    } as Record<string, JSONType>;
+
+    expect(checkModule(mod, builtins, { environment: env })).toEqual([
+      {
+        path: ["main", "$params[0]"],
+        message: expect.stringContaining("$params[0]: A defaulted parameter must contain exactly"),
+        severity: "error",
+      },
+    ]);
+  });
+
   test("rejects an entry body with the wrong completion type", () => {
     const mod = {
       main: {

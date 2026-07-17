@@ -25,7 +25,15 @@ import type {
   CallableTypeRuleServicesV1,
 } from "./builtin-types";
 import { CallableTypeRuleContractError, CallableTypeRuleOwnershipError } from "./callable-rules";
-import { buildTypeScope, check, checkArity, paramAt, reportMismatch, synth } from "./checker";
+import {
+  analyzeBodyParameters,
+  buildTypeScope,
+  check,
+  checkArity,
+  paramAt,
+  reportMismatch,
+  synth,
+} from "./checker";
 import {
   at,
   type CheckContext,
@@ -271,13 +279,12 @@ function unifyTemplate(
 // schemas rather than silently degrading to `any[]`. Returns null after an
 // arity error so the body is not checked under a bogus scope.
 function inferLambdaReturn(body: JSONType, expectedFn: Schema, ctx: CheckContext): Schema | null {
+  const bodyObject = body as Record<string, JSONType>;
+  const layout = analyzeBodyParameters(bodyObject, ctx);
+  if (layout === null) return null;
   const shape = fnShape(asObject(expectedFn));
   const shapeParams = fixedParamSchemas(shape);
-  const params = Array.isArray((body as Record<string, JSONType>).$params)
-    ? ((body as Record<string, JSONType>).$params as JSONType[])
-    : [];
-  const restIndex = params.findIndex((p) => typeof p === "string" && p.startsWith("..."));
-  const fixed = restIndex === -1 ? params.length : restIndex;
+  const fixed = layout.fixedCount;
   if (fixed > shapeParams.length) {
     report(
       ctx,
@@ -289,17 +296,17 @@ function inferLambdaReturn(body: JSONType, expectedFn: Schema, ctx: CheckContext
   const remaining = shapeParams.slice(fixed);
   if (shape.rest !== undefined) remaining.push(shape.rest);
   const withSig: Record<string, JSONType> = {
-    ...(body as Record<string, JSONType>),
+    ...bodyObject,
     $sig: {
       required: shapeParams.slice(0, fixed),
       optional: [],
-      ...(restIndex !== -1 ? { rest: unionOf(remaining) } : {}),
+      ...(layout.rest !== null ? { rest: unionOf(remaining) } : {}),
       returns: shape.returns,
     },
   };
-  const { env, guards } = buildTypeScope(withSig, ctx.env, ctx);
+  const { env, guards } = buildTypeScope(withSig, layout, ctx.env, ctx);
   const bctx: CheckContext = { ...ctx, env, guards, path: [...ctx.path, "$return"] };
-  return synth((body as Record<string, JSONType>).$return!, bctx);
+  return synth(bodyObject.$return!, bctx);
 }
 
 // Trial: can this overload accept the arguments? Synthesizes every concrete

@@ -1337,6 +1337,24 @@ describe("Section F — builtin signatures", () => {
   });
 
   describe("contextual lambda typing", () => {
+    test("a malformed callback reports its parameter issue and skips its body", () => {
+      const callback = {
+        $params: [{ $param: "value" }],
+        $return: { $var: "missing" },
+      };
+      const r = synthB(call("map", callback, [1, 2, 3]));
+
+      expect(r.diagnostics).toEqual([
+        {
+          path: ["$args[0]", "$params[0]"],
+          message: expect.stringContaining(
+            "$params[0]: A defaulted parameter must contain exactly",
+          ),
+          severity: "error",
+        },
+      ]);
+    });
+
     test("map infers T from the array and U from the callback return", () => {
       const identity = { $params: ["n"], $return: { $var: "n" } };
       const r = synthB(call("map", identity, [1, 2, 3]));

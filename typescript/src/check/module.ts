@@ -4,6 +4,7 @@
 import type { JSONType } from "../types";
 import { mergeDefinitionPools, readModuleDefinitions } from "../definition-pool";
 import { buildEffectNamespace, EFFECTS_BINDING } from "../effects";
+import type { ParameterLayout } from "../params";
 import {
   entryReturnType,
   mergeCallableTables,
@@ -27,6 +28,14 @@ import {
   type Sig,
 } from "./context";
 import { collectSchemaRefs, type Defs, isSchemaObject, type Schema } from "./schema";
+
+const MODULE_PARAMETER_LAYOUT: ParameterLayout = {
+  slots: [],
+  fixedCount: 0,
+  requiredCount: 0,
+  omittableCount: 0,
+  rest: null,
+};
 
 // Options controlling optional (soft-rollout) module lints.
 type CheckModuleOptions = {
@@ -118,7 +127,7 @@ function checkModule(
   checkDanglingRefs(checkingModule, defs, ctx);
 
   const scopeModule = withoutTypes(checkingModule);
-  const { env, guards } = buildTypeScope(scopeModule, null, ctx, false);
+  const { env, guards } = buildTypeScope(scopeModule, MODULE_PARAMETER_LAYOUT, null, ctx, false);
   ctx.env = env;
   ctx.guards = guards;
 
