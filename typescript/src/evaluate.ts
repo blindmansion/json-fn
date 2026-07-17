@@ -43,7 +43,6 @@ import {
 import {
   boundParameterNames,
   defaultBindings,
-  normalizeParams,
   requireParameterLayout,
   validateRuntimeArguments,
   type ParameterLayout,
@@ -1288,7 +1287,7 @@ function classifyExpressionType(json: JSONType): ExpressionType {
         exprError(json, "Function bodies cannot have other keyword properties.");
       }
       if ("$params" in json) {
-        normalizeParams(json.$params, json);
+        requireParameterLayout(json.$params, json);
       }
       return ExpressionType.FunctionBody;
     }

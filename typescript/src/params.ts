@@ -56,11 +56,6 @@ type DefaultBinding = {
   path: ParameterPath;
 };
 
-// Compatibility names used by the runtime until the stage-4 consumer
-// migrations pass ParameterLayout directly.
-type NormalizedParam = NormalizedParameter;
-type NormalizedFieldBinding = NormalizedField;
-
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -389,13 +384,6 @@ export function requireParameterLayout(params: unknown, expression: JSONType): P
 }
 
 /**
- * Temporary adapter for consumers migrated in later stage-4 steps.
- */
-export function normalizeParams(params: unknown, expression: JSONType): NormalizedParam[] {
-  return [...requireParameterLayout(params, expression).slots];
-}
-
-/**
  * Enforce JSON-function invocation semantics after descriptor normalization.
  * Presence is positional/own-property based so explicit null remains data.
  */
@@ -446,8 +434,6 @@ export function validateRuntimeArguments(layout: ParameterLayout, args: JSONType
 export type {
   DefaultBinding,
   NormalizedField,
-  NormalizedFieldBinding,
-  NormalizedParam,
   NormalizedParameter,
   ParameterAnalysis,
   ParameterIssue,

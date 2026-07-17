@@ -277,16 +277,18 @@ function collectDo(node: JSONType): DoEntry[] | null {
 
   const k = args[1]!;
   if (!isPlainObject(k) || !("$return" in k)) return null;
-  const params = k.$params;
+  const analysis = analyzeParameters(k.$params);
+  if (!analysis.ok) return null;
+  const slots = analysis.layout.slots;
   // A zero-param continuation (no `$params`, or an empty list) is a discard:
   // the effect's result is dropped, so it prints as a bare non-final expression.
-  const isDiscard = params === undefined || (Array.isArray(params) && params.length === 0);
+  const isDiscard = slots.length === 0;
   let head: DoEntry;
   if (isDiscard) {
     head = { kind: "expr", value: args[0]! };
   } else {
-    if (!Array.isArray(params) || params.length !== 1 || typeof params[0] !== "string") return null;
-    const name = params[0];
+    if (slots.length !== 1 || slots[0]!.kind !== "required") return null;
+    const name = slots[0]!.name;
     if (!IDENT_RE.test(name)) return null;
     head = { kind: "effect", name, value: args[0]! };
   }

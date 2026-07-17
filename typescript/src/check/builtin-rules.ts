@@ -412,7 +412,9 @@ function applyOverload(
     // fires reliably rather than degrading to `any`.
     if (classifySchema(param) !== SchemaKind.FnType) {
       const lambda = argExprs[i] as Record<string, JSONType>;
-      const arity = Array.isArray(lambda.$params) ? lambda.$params.length : 0;
+      const layout = analyzeBodyParameters(lambda, at(ctx, `$args[${i}]`));
+      if (layout === null) continue;
+      const arity = layout.slots.length;
       const actual: Schema = {
         $fnType: {
           required: Array.from({ length: arity }, () => true),
