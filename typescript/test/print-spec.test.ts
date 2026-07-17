@@ -2,6 +2,7 @@ import { describe, test, expect } from "bun:test";
 import { parse, print } from "../src/shorthand";
 import { printType } from "../src/shorthand/type-printer";
 import type { JSONType } from "../src/types";
+import { analyzeParameters } from "../src/params";
 import { readdirSync, readFileSync } from "fs";
 import { join } from "path";
 
@@ -25,7 +26,22 @@ interface ParseSuite {
 const CASES_DIR = join(import.meta.dir, "../../spec/parse-cases");
 
 function roundTrips(json: JSONType): void {
-  expect(parse(print(json))).toEqual(json);
+  const parsed = parse(print(json));
+  expect(parsed).toEqual(json);
+  expectParsedParameterLayouts(parsed);
+}
+
+function expectParsedParameterLayouts(node: JSONType): void {
+  if (node === null || typeof node !== "object") return;
+  if (Array.isArray(node)) {
+    for (const value of node) expectParsedParameterLayouts(value);
+    return;
+  }
+  if ("$raw" in node) return;
+  if ("$return" in node) {
+    expect(analyzeParameters(node.$params).ok).toBe(true);
+  }
+  for (const value of Object.values(node)) expectParsedParameterLayouts(value);
 }
 
 describe("printer round-trips canonical JSON (parse ∘ print = id)", () => {
@@ -162,6 +178,46 @@ describe("printer output shape", () => {
         $return: { $call: "add", $args: [{ $var: "a" }, { $var: "b" }] },
       }),
     ).toBe("({ a }, { b }) => a + b");
+  });
+
+  test("typed fixed and rest schemas align with normalized slots", () => {
+    const node: JSONType = {
+      $sig: {
+        required: [{ type: "string" }, { type: "object" }],
+        optional: [],
+        rest: { type: "integer" },
+        returns: { type: "array", items: { type: "integer" } },
+      },
+      $params: ["label", { $fields: ["x", "y"] }, "...rest"],
+      $return: { $var: "rest" },
+    };
+
+    expect(print(node)).toBe(
+      "(label: string, { x, y }: { ... }, ...rest: integer[]) -> integer[] => rest",
+    );
+    expect(parse(print(node))).toEqual(node);
+  });
+
+  test("rejects valid descriptors that shorthand cannot represent", () => {
+    const cases: [JSONType, string][] = [
+      [{ $param: "value", $optional: true }, "optional parameters"],
+      [{ $param: "value", $default: 1 }, "defaulted parameters"],
+      [{ $fields: [{ $field: "value", $optional: true }] }, "optional object fields"],
+      [{ $fields: [{ $field: "value", $default: 1 }] }, "defaulted object fields"],
+    ];
+
+    for (const [param, message] of cases) {
+      expect(() => print({ $params: [param], $return: null })).toThrow(message);
+    }
+  });
+
+  test("reports malformed descriptors with the shared canonical path", () => {
+    expect(() =>
+      print({
+        $params: [{ $fields: [{ $field: "value", $optional: false }] }],
+        $return: null,
+      }),
+    ).toThrow("$params[0].$fields[0].$optional: $optional must be true.");
   });
 
   // A function body with locals prints its `$return` followed by `where { ... }`.

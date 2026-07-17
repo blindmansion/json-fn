@@ -23,6 +23,13 @@
 
 import type { JSONType } from "../types";
 import { fixedParamSchemas } from "../check/schema";
+import {
+  analyzeParameters,
+  formatParameterIssue,
+  type NormalizedField,
+  type NormalizedParameter,
+  type ParameterLayout,
+} from "../params";
 import { printType } from "./type-printer";
 
 /** Pretty-print canonical json-fn JSON as `.jfn` shorthand source. */
@@ -411,11 +418,12 @@ function renderComparison(op: string, a: JSONType, b: JSONType, indent: string):
 // ----- function bodies & where bindings (spec §8) -----
 
 function renderFunctionBody(node: { [k: string]: JSONType }, indent: string): Rendered {
-  const params = Array.isArray(node.$params) ? (node.$params as JSONType[]) : [];
+  const analysis = analyzeParameters(node.$params);
+  if (!analysis.ok) throw new Error(formatParameterIssue(analysis.issue));
   // Locals are the non-`$` keys, in source (insertion) order. Other `$` keys
   // (e.g. `$comment`) have no canonical surface form and are dropped.
   const locals = Object.keys(node).filter((k) => !k.startsWith("$"));
-  const header = renderFunctionHeader(params, node.$sig);
+  const header = renderFunctionHeader(analysis.layout, node.$sig);
 
   if (locals.length === 0) {
     return { text: `${header} ${emit(node.$return!, P_BLOCK, indent)}`, prec: P_BLOCK };
@@ -435,8 +443,8 @@ function renderFunctionBody(node: { [k: string]: JSONType }, indent: string): Re
   return { text: `${header} ${body}`, prec: P_BLOCK };
 }
 
-function renderFunctionHeader(params: JSONType[], sig: JSONType | undefined): string {
-  if (!isPlainObject(sig)) return `(${params.map(renderParam).join(", ")}) =>`;
+function renderFunctionHeader(layout: ParameterLayout, sig: JSONType | undefined): string {
+  if (!isPlainObject(sig)) return `(${layout.slots.map(renderParam).join(", ")}) =>`;
   const required = Array.isArray(sig.required) ? sig.required : [];
   const optional = Array.isArray(sig.optional) ? sig.optional : [];
   if (optional.length > 0) {
@@ -448,20 +456,22 @@ function renderFunctionHeader(params: JSONType[], sig: JSONType | undefined): st
     rest: sig.rest,
     returns: sig.returns ?? true,
   });
-  let fixedIndex = 0;
-  const rendered = params.map((param) => {
-    if (typeof param === "string" && param.startsWith("...")) {
+  const rendered = layout.slots.map((param) => {
+    if (param.kind === "rest") {
       const rest = sig.rest;
       if (rest === undefined) throw new Error("Cannot print typed rest parameter without sig.rest");
       return `${renderParam(param)}: ${printType(rest)}[]`;
     }
-    const schema = fixed[fixedIndex++];
+    const schema = fixed[param.index];
     if (schema === undefined)
       throw new Error("Cannot print typed parameter without a matching signature slot");
     return `${renderParam(param)}: ${printType(schema)}`;
   });
-  if (fixedIndex !== fixed.length) {
+  if (layout.fixedCount !== fixed.length) {
     throw new Error("Cannot print function signature with more fixed types than parameters");
+  }
+  if (layout.rest === null && sig.rest !== undefined) {
+    throw new Error("Cannot print function signature with a rest type but no rest parameter");
   }
   return `(${rendered.join(", ")}) -> ${printType(sig.returns ?? true)} =>`;
 }
@@ -476,13 +486,25 @@ function returnAbsorbsTrailingWhere(node: JSONType): boolean {
   return "$if" in node || "$return" in node;
 }
 
-/** Render one `$params` slot: a plain name, a `...rest` collector, or an object
- * pattern `{ f1, f2 }` (space inside braces, `, ` between — purely aesthetic;
- * the reparsed `$fields` array is identical). */
-function renderParam(p: JSONType): string {
-  if (typeof p === "string") return p;
-  const fields = (p as { $fields: string[] }).$fields;
-  return `{ ${fields.join(", ")} }`;
+/** Render one normalized `$params` slot using the currently available syntax. */
+function renderParam(param: NormalizedParameter): string {
+  if (param.kind === "required") return param.name;
+  if (param.kind === "rest") return `...${param.name}`;
+  if (param.kind === "fields") {
+    return `{ ${param.bindings.map(renderField).join(", ")} }`;
+  }
+  if (param.kind === "optional") {
+    throw new Error("Cannot print optional parameters before shorthand syntax exists");
+  }
+  throw new Error("Cannot print defaulted parameters before shorthand syntax exists");
+}
+
+function renderField(field: NormalizedField): string {
+  if (field.kind === "required") return field.name;
+  if (field.kind === "optional") {
+    throw new Error("Cannot print optional object fields before shorthand syntax exists");
+  }
+  throw new Error("Cannot print defaulted object fields before shorthand syntax exists");
 }
 
 // ----- data (spec §3) -----
