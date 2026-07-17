@@ -231,12 +231,17 @@ A function body has `$return` and optionally `$params`. All other keys are lazy 
 
 ### Parameters — `$params`
 
-An ordered array of parameter **slots**. Each slot is a name string (a required
-positional parameter), a `{ "$param": name, "$default": expression }`
-descriptor (a defaulted positional parameter), a `"...rest"` collector (see
-[Rest Parameters](#rest-parameters)), or an object pattern (see
-[Object-Pattern Parameters](#object-pattern-parameters--fields)). Fixed
-arguments are bound positionally, one per slot.
+An ordered array of parameter **slots**. Each slot is one of:
+
+- a name string — a required positional parameter;
+- `{ "$param": name, "$optional": true }` — an optional positional parameter;
+- `{ "$param": name, "$default": expression }` — a defaulted positional parameter;
+- `"...rest"` — a rest collector (see [Rest Parameters](#rest-parameters));
+- `{ "$fields": [...] }` — an object pattern (see
+  [Object-Pattern Parameters](#object-pattern-parameters--fields)).
+
+Descriptor objects have exactly the keys shown. Fixed arguments are bound
+positionally, one per slot.
 
 ```json
 {
@@ -245,16 +250,22 @@ arguments are bound positionally, one per slot.
 }
 ```
 
-A name string is required: omitting its argument is an error. A defaulted
-parameter may be omitted, in which case its `$default` expression is evaluated
-lazily when the binding is first read. Calls cannot skip a positional slot:
-passing `null` explicitly supplies `null` and suppresses the default.
+A name string is required: omitting its argument is an error. An optional
+parameter may be omitted and then binds `null`. A defaulted parameter may be
+omitted, in which case its `$default` expression is evaluated lazily when the
+binding is first read. Calls cannot skip a positional slot: passing `null`
+explicitly supplies `null` and suppresses either omission behavior.
 
-Required positional slots—including object patterns—must precede all defaulted
-positional slots. Any number of defaulted slots may form the omittable suffix,
-followed only by an optional final rest parameter. For example,
+Required positional slots—including object patterns—must precede all optional
+and defaulted positional slots. Optional and defaulted slots may be mixed in
+the omittable suffix, followed only by a final rest parameter. For example,
 `["required", { "$param": "fallback", "$default": 0 }, "...rest"]` is valid,
 while `[{ "$param": "fallback", "$default": 0 }, "required"]` is not.
+
+Every name bound by a parameter list must be unique across positional
+parameters, object-pattern fields, and the rest parameter. Repeating a name in
+the same `$params` array is invalid, including repetitions across two different
+object patterns.
 
 A function without a rest parameter rejects any argument beyond its exact
 number of fixed slots; extra fixed arguments are not ignored. A rest parameter
@@ -279,9 +290,11 @@ Called with args `[1, 2, 3]`: `first` = `1`, `rest` = `[2, 3]`.
 
 A `$params` slot may be an **object pattern** instead of a name string: an object
 of the exact shape `{ "$fields": [...] }`. Its non-empty array contains required
-field-name strings and/or defaulted field descriptors of the form
-`{ "$field": name, "$default": expression }`. The pattern destructures one
-positional object argument, binding each field to a local of the same name.
+field-name strings, optional descriptors of the form
+`{ "$field": name, "$optional": true }`, and/or defaulted descriptors of the
+form `{ "$field": name, "$default": expression }`. Field descriptors have
+exactly the keys shown. The pattern destructures one positional object argument,
+binding each field to a local of the same name.
 
 ```json
 {
@@ -295,11 +308,13 @@ Called with args `[{ "from": 3, "to": 7 }]`: `from` = `3`, `to` = `7`, result `4
 Binding rules for a pattern slot at position `i`, where `v` is the supplied
 `i`-th argument:
 
-- The whole pattern argument is required, even if every field has a default.
+- The whole pattern argument is required, even if every field is optional or
+  defaulted.
 - `v` must be a plain object (not an array and not `null`). Any other value,
   including explicit `null`, is an error.
 - A required field-name string must be an own property of `v`; an absent or
   inherited field is an error.
+- An absent optional field binds `null`.
 - A defaulted field uses its `$default` only when the own property is absent.
   The default is evaluated lazily when the binding is first read.
 - An own property whose value is `null` is supplied data: it binds `null` and
@@ -313,17 +328,19 @@ locals, and they **shadow** same-named outer bindings at any nesting depth.
 Additional rules:
 
 - `$fields` must be a **non-empty** array of field-name strings and/or
+  `{ "$field": name, "$optional": true }` or
   `{ "$field": name, "$default": expression }` descriptors. Field names must
   not contain `.` or `[`.
 - A `$fields` object is valid only as a `$params` slot; it may not be preceded by `...`.
 - A pattern slot consumes exactly **one required** positional argument, so it
-  may appear with other required slots before defaulted slots, and before an
-  optional final rest parameter (`["label", { "$fields": ["x", "y"] }]`,
+  may appear with other required slots before optional/defaulted slots, and
+  before a final rest parameter (`["label", { "$fields": ["x", "y"] }]`,
   `[{ "$fields": ["x"] }, "...rest"]`).
-- Defaults within `$fields` affect property omission only. Even a pattern whose
-  fields are all defaulted remains a required positional slot and cannot follow
-  a defaulted positional parameter.
-- `arity` counts a pattern slot as one parameter.
+- Optional/defaulted fields affect property omission only. Even a pattern whose
+  fields are all omittable remains a required positional slot and cannot follow
+  an optional or defaulted positional parameter.
+- `arity` counts every non-rest slot once, including optional/defaulted slots
+  and object patterns.
 
 Rename and nested patterns are not supported.
 

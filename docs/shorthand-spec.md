@@ -481,24 +481,33 @@ callee rejects arguments beyond its exact number of fixed slots instead of
 ignoring them. A final rest parameter collects all remaining arguments,
 including an empty remainder.
 
-Canonical JSON also supports defaulted positional descriptors:
+Canonical JSON also supports optional and defaulted positional descriptors:
 
 ```json
-{ "$param": "name", "$default": "world" }
+[
+  { "$param": "nickname", "$optional": true },
+  { "$param": "name", "$default": "world" }
+]
 ```
 
-Omitting that positional slot evaluates the default lazily when the binding is
-first read. Explicit `null` is a supplied value and suppresses the default.
-There is no shorthand syntax for defaulted parameters in this version; this
-descriptor must be authored as canonical JSON.
+Omitting an optional slot binds `null`. Omitting a defaulted slot evaluates its
+default lazily when the binding is first read. Explicit `null` is a supplied
+value and suppresses either omission behavior. There is no shorthand syntax for
+optional or defaulted parameters in this version; these descriptors must be
+authored as canonical JSON, and the shorthand printer rejects them rather than
+silently rendering them as required parameters.
 
 Canonical parameter layouts place every required positional or object-pattern
-slot before all defaulted positional slots, with an optional rest parameter
-last. For example,
+slot before all optional/defaulted positional slots, with a rest parameter last
+when present. Optional and defaulted slots may be mixed within that omittable
+suffix. For example,
 `["required", { "$param": "fallback", "$default": 0 }, "...rest"]` is valid;
 `[{ "$param": "fallback", "$default": 0 }, "required"]` is invalid. Shorthand
-cannot express a defaulted slot yet, but every function it lowers observes this
-runtime invariant.
+cannot express an omittable slot yet, but every function it lowers observes
+this runtime invariant.
+
+Every name bound by one canonical `$params` array must be unique, including
+names introduced by object patterns and the rest parameter.
 
 #### Object-pattern parameters
 
@@ -527,19 +536,27 @@ required fields are errors, while extra object keys are ignored. This mirrors
 [shorthand-property punning](#data-objects--key-value): a destructured parameter
 and the record you build to pass it read identically.
 
-Canonical `$fields` arrays may also contain defaulted field descriptors:
+Canonical `$fields` arrays may also contain optional and defaulted field
+descriptors:
 
 ```json
-{ "$fields": [{ "$field": "from", "$default": 0 }, "to"] }
+{
+  "$fields": [
+    { "$field": "from", "$optional": true },
+    { "$field": "to", "$default": 0 }
+  ]
+}
 ```
 
-An absent defaulted own field evaluates its default lazily when read. An own
-field whose value is explicitly `null` binds `null` and suppresses the default.
-The whole object-pattern argument remains required even when every field has a
-default. Shorthand object patterns always lower to required field-name strings;
-there is no shorthand syntax for field defaults in this version. Defaults
-inside `$fields` do not make the containing positional pattern omittable, so
-that pattern must still precede every defaulted positional slot.
+An absent optional own field binds `null`; an absent defaulted own field
+evaluates its default lazily when read. An own field whose value is explicitly
+`null` binds `null` and suppresses a default. The whole object-pattern argument
+remains required even when every field is omittable. Shorthand object patterns
+always lower to required field-name strings; there is no shorthand syntax for
+optional fields or field defaults in this version, and the printer rejects
+those canonical forms. Omission inside `$fields` does not make the containing
+positional pattern omittable, so that pattern must still precede every optional
+or defaulted positional slot.
 
 - A pattern consumes exactly **one required** positional slot, so it may mix
   with other required and rest params: `(label, { x, y }) => …`,

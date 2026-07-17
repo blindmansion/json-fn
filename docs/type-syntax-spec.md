@@ -17,8 +17,9 @@ lowers deterministically to that schema, and the schema pretty-prints back.
   Schema (§10); the static subschema checker never faces `not`, `if/then/else`,
   general `allOf`, etc.
 
-Deferred features (optional params, defaults, local types, bodyless signatures,
-annotated locals) are tracked in [`plans/type-syntax-deferred.md`](../plans/type-syntax-deferred.md).
+Deferred features (optional/default parameter shorthand, local types, bodyless
+signatures, annotated locals) are tracked in
+[`plans/type-syntax-deferred.md`](../plans/type-syntax-deferred.md).
 
 ---
 
@@ -244,9 +245,19 @@ Rules:
   without a signature is an error (enforced by the checker; §9 of the plan).
   Nested helpers (`where`-local functions) and inline lambdas passed to builtins
   **may be bare** — bare lambdas at higher-order call sites are contextually typed.
-- **`$sig.required` followed by `$sig.optional` aligns positionally with
-  `$params`.** Current shorthand emits `optional: []`; optional parameter
-  syntax and omission-aware checking are deferred.
+- **Fixed signature schemas align with normalized `$params` slots.**
+  `$sig.required` aligns with the leading required positional slots, including
+  object patterns. `$sig.optional` then aligns with the trailing omittable
+  slots—both `{ "$param": name, "$optional": true }` and
+  `{ "$param": name, "$default": expression }`—in source order. Object fields
+  do not consume additional signature positions.
+- **Rest aligns separately.** `$sig.rest`, when present, is the element schema
+  for the final `"...rest"` slot and is not part of either fixed array.
+- **The current shorthand surface only authors required fixed slots and rest.**
+  It therefore emits `optional: []`. Canonical JSON may use `$sig.optional`
+  with optional/defaulted parameter descriptors, but the shorthand parser has
+  no syntax for those descriptors and the printer rejects them rather than
+  changing their meaning.
 
 ### 7.1 Rest parameters
 
