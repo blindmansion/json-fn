@@ -36,7 +36,7 @@ type FunctionDeclaration = string | FunctionBody;
 // A `$params` slot is a positional parameter name, a defaulted positional
 // binding, a `"...rest"` collector, or an object pattern destructuring one
 // positional object argument into named locals. See
-// plans/active/runtime-parameter-defaults.md and plans/destructured-params.md.
+// plans/active/strict-parameter-semantics.md and plans/destructured-params.md.
 type DefaultedParam = { $param: string; $default: JSONType };
 type DefaultedField = { $field: string; $default: JSONType };
 type FieldBinding = string | DefaultedField;

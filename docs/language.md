@@ -250,6 +250,12 @@ parameter may be omitted, in which case its `$default` expression is evaluated
 lazily when the binding is first read. Calls cannot skip a positional slot:
 passing `null` explicitly supplies `null` and suppresses the default.
 
+Required positional slots—including object patterns—must precede all defaulted
+positional slots. Any number of defaulted slots may form the omittable suffix,
+followed only by an optional final rest parameter. For example,
+`["required", { "$param": "fallback", "$default": 0 }, "...rest"]` is valid,
+while `[{ "$param": "fallback", "$default": 0 }, "required"]` is not.
+
 A function without a rest parameter rejects any argument beyond its exact
 number of fixed slots; extra fixed arguments are not ignored. A rest parameter
 allows additional arguments as described below.
@@ -310,7 +316,13 @@ Additional rules:
   `{ "$field": name, "$default": expression }` descriptors. Field names must
   not contain `.` or `[`.
 - A `$fields` object is valid only as a `$params` slot; it may not be preceded by `...`.
-- A pattern slot consumes exactly **one** positional argument, so patterns mix freely with ordinary and rest params (`["label", { "$fields": ["x", "y"] }]`, `[{ "$fields": ["x"] }, "...rest"]`).
+- A pattern slot consumes exactly **one required** positional argument, so it
+  may appear with other required slots before defaulted slots, and before an
+  optional final rest parameter (`["label", { "$fields": ["x", "y"] }]`,
+  `[{ "$fields": ["x"] }, "...rest"]`).
+- Defaults within `$fields` affect property omission only. Even a pattern whose
+  fields are all defaulted remains a required positional slot and cannot follow
+  a defaulted positional parameter.
 - `arity` counts a pattern slot as one parameter.
 
 Rename and nested patterns are not supported.

@@ -128,7 +128,7 @@ describe("positional parameter defaults", () => {
   });
 
   test("counts a descriptor as one fixed arity slot", () => {
-    expect(getArity(fn([defaulted("value", 1), "required"], null))).toBe(2);
+    expect(getArity(fn(["required", defaulted("value", 1)], null))).toBe(2);
     expect(getArity(fn([defaulted("value", 1), "...rest"], null))).toBe(1);
   });
 });
@@ -250,6 +250,97 @@ describe("defaults in escaping closures", () => {
 });
 
 describe("positional default validation", () => {
+  const orderingError = "Required positional parameters must precede defaulted parameters";
+
+  test("accepts required slots before defaults and a final rest parameter", () => {
+    expect(
+      callFunction(
+        fn(
+          ["first", "second", defaulted("third", 3), defaulted("fourth", 4)],
+          [{ $var: "first" }, { $var: "second" }, { $var: "third" }, { $var: "fourth" }],
+        ),
+        [1, 2],
+        stdlib,
+      ),
+    ).toEqual([1, 2, 3, 4]);
+
+    expect(
+      callFunction(
+        fn(["required", defaulted("fallback", 2), "...rest"], {
+          fallback: { $var: "fallback" },
+          rest: { $var: "rest" },
+        }),
+        [1],
+        stdlib,
+      ),
+    ).toEqual({ fallback: 2, rest: [] });
+    expect(
+      callFunction(fn([defaulted("fallback", 2), "...rest"], { $var: "rest" }), [1, 2], stdlib),
+    ).toEqual([2]);
+  });
+
+  test("rejects required named parameters after positional defaults", () => {
+    expect(() =>
+      callFunction(fn([defaulted("fallback", 1), "required"], null), [1, 2], stdlib),
+    ).toThrow(`${orderingError}; named parameter "required" at position 2 is required`);
+    expect(() =>
+      callFunction(
+        fn([defaulted("first", 1), defaulted("second", 2), "required"], null),
+        [1, 2, 3],
+        stdlib,
+      ),
+    ).toThrow(`${orderingError}; named parameter "required" at position 3 is required`);
+  });
+
+  test("treats object patterns as required positional slots", () => {
+    const requiredPattern = { $fields: ["value"] };
+    const allDefaultedPattern = { $fields: [defaultedField("value", 2)] };
+
+    expect(() =>
+      callFunction(
+        fn([defaulted("fallback", 1), requiredPattern], null),
+        [1, { value: 2 }],
+        stdlib,
+      ),
+    ).toThrow(`${orderingError}; object pattern at position 2 is required`);
+    expect(() =>
+      callFunction(
+        fn([defaulted("fallback", 1), allDefaultedPattern, "later"], null),
+        [1, {}, 3],
+        stdlib,
+      ),
+    ).toThrow(`${orderingError}; object pattern at position 2 is required`);
+
+    expect(
+      callFunction(
+        fn([allDefaultedPattern, defaulted("fallback", 3)], {
+          value: { $var: "value" },
+          fallback: { $var: "fallback" },
+        }),
+        [{}],
+        stdlib,
+      ),
+    ).toEqual({ value: 2, fallback: 3 });
+  });
+
+  test("allows required and defaulted fields in either order", () => {
+    for (const fields of [
+      ["required", defaultedField("fallback", 2)],
+      [defaultedField("fallback", 2), "required"],
+    ]) {
+      expect(
+        callFunction(
+          fn(
+            [{ $fields: fields }, defaulted("suffix", 3)],
+            [{ $var: "required" }, { $var: "fallback" }, { $var: "suffix" }],
+          ),
+          [{ required: 1 }],
+          stdlib,
+        ),
+      ).toEqual([1, 2, 3]);
+    }
+  });
+
   test("rejects invalid descriptors, duplicates, and rest forms", () => {
     const invalidParams: JSONType[][] = [
       [{ $param: "x" }],
@@ -269,6 +360,18 @@ describe("positional default validation", () => {
     }
   });
 
+  test("preserves specific validation errors after a defaulted slot", () => {
+    expect(() =>
+      callFunction(fn([defaulted("first", 1), { $param: "second" }], null), [], stdlib),
+    ).toThrow("A defaulted parameter must contain exactly");
+    expect(() => callFunction(fn([defaulted("same", 1), "same"], null), [1, 2], stdlib)).toThrow(
+      'Duplicate parameter binding "same"',
+    );
+    expect(() =>
+      callFunction(fn([defaulted("first", 1), "...rest", "later"], null), [], stdlib),
+    ).toThrow("A rest parameter must have a name and be the final $params entry");
+  });
+
   test("uses the same validation through registry, program, and prepared calls", () => {
     const invalid = fn([{ $param: "x" }], null);
     const registry: FunctionRegistry = { ...stdlib, invalid };
@@ -279,6 +382,21 @@ describe("positional default validation", () => {
     expect(() => prepareProgram(module, stdlib).invokeEntry("invalid", [])).toThrow(
       "Invalid JSON expression",
     );
+  });
+
+  test("enforces trailing omission through every call entry path", () => {
+    const invalid = fn([defaulted("fallback", 1), "required"], null);
+    const registry: FunctionRegistry = { ...stdlib, invalid };
+    const module: Record<string, JSONType> = { invalid: invalid as JSONType };
+    const inline = fn([], { $call: invalid as JSONType, $args: [1, 2] });
+
+    expect(() => callFunction(invalid, [1, 2], stdlib)).toThrow(orderingError);
+    expect(() => callFunction("invalid", [1, 2], registry)).toThrow(orderingError);
+    expect(() => callProgram(module, "invalid", [1, 2], stdlib)).toThrow(orderingError);
+    expect(() => prepareProgram(module, stdlib).invokeEntry("invalid", [1, 2])).toThrow(
+      orderingError,
+    );
+    expect(() => callFunction(inline, [], stdlib)).toThrow(orderingError);
   });
 
   test("charges fuel only when a default is forced", () => {

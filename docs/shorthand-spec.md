@@ -492,6 +492,14 @@ first read. Explicit `null` is a supplied value and suppresses the default.
 There is no shorthand syntax for defaulted parameters in this version; this
 descriptor must be authored as canonical JSON.
 
+Canonical parameter layouts place every required positional or object-pattern
+slot before all defaulted positional slots, with an optional rest parameter
+last. For example,
+`["required", { "$param": "fallback", "$default": 0 }, "...rest"]` is valid;
+`[{ "$param": "fallback", "$default": 0 }, "required"]` is invalid. Shorthand
+cannot express a defaulted slot yet, but every function it lowers observes this
+runtime invariant.
+
 #### Object-pattern parameters
 
 A parameter may be an **object pattern** `{ f1, f2 }` that destructures a single
@@ -529,11 +537,13 @@ An absent defaulted own field evaluates its default lazily when read. An own
 field whose value is explicitly `null` binds `null` and suppresses the default.
 The whole object-pattern argument remains required even when every field has a
 default. Shorthand object patterns always lower to required field-name strings;
-there is no shorthand syntax for field defaults in this version.
+there is no shorthand syntax for field defaults in this version. Defaults
+inside `$fields` do not make the containing positional pattern omittable, so
+that pattern must still precede every defaulted positional slot.
 
-- A pattern consumes exactly **one** positional slot, so it mixes freely with
-  ordinary and rest params: `(label, { x, y }) => …`, `({ x }, ...rest) => …`,
-  `({ a }, { b }) => …`.
+- A pattern consumes exactly **one required** positional slot, so it may mix
+  with other required and rest params: `(label, { x, y }) => …`,
+  `({ x }, ...rest) => …`, `({ a }, { b }) => …`.
 - A **trailing comma** inside the pattern is accepted and normalizes away.
 - The printer renders a `$fields` slot as `{ f1, f2 }` (space inside the braces,
   `", "` between fields) inside the normal `(params) =>` header.

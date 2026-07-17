@@ -41,6 +41,7 @@ export function normalizeParams(params: unknown, expression: JSONType): Normaliz
 
   const normalized: NormalizedParam[] = [];
   const boundNames = new Set<string>();
+  let seenOmittable = false;
 
   for (let index = 0; index < params.length; index++) {
     const slot: unknown = params[index];
@@ -58,6 +59,12 @@ export function normalizeParams(params: unknown, expression: JSONType): Normaliz
         normalized.push({ kind: "rest", name, index });
       } else {
         addBoundName(slot, boundNames, expression);
+        if (seenOmittable) {
+          exprError(
+            expression,
+            `Required positional parameters must precede defaulted parameters; named parameter "${slot}" at position ${index + 1} is required.`,
+          );
+        }
         normalized.push({ kind: "required", name: slot, index });
       }
       continue;
@@ -86,6 +93,7 @@ export function normalizeParams(params: unknown, expression: JSONType): Normaliz
         index,
         defaultExpression: slot.$default as JSONType,
       });
+      seenOmittable = true;
       continue;
     }
 
@@ -128,6 +136,12 @@ export function normalizeParams(params: unknown, expression: JSONType): Normaliz
         exprError(
           expression,
           "$fields entries must be strings or { $field, $default } descriptors.",
+        );
+      }
+      if (seenOmittable) {
+        exprError(
+          expression,
+          `Required positional parameters must precede defaulted parameters; object pattern at position ${index + 1} is required.`,
         );
       }
       normalized.push({ kind: "fields", bindings, index });
