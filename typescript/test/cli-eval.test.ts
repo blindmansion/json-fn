@@ -19,6 +19,51 @@ function runEval(args: string[]): { exitCode: number; stdout: string; stderr: st
   };
 }
 
+describe("jfn eval bare functions", () => {
+  test.each([
+    { name: "zero-argument", source: "() => 42", expected: 42 },
+    { name: "optional", source: "(value?) => value", expected: null },
+    { name: "defaulted", source: "(value = 9) => value", expected: 9 },
+  ])("invokes the $name function with the default empty argument array", (fixture) => {
+    const result = runEval([fixture.source, "--compact"]);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(JSON.parse(result.stdout)).toEqual(fixture.expected);
+  });
+
+  test.each([
+    { name: "zero-argument", source: "() => 42", expected: 42 },
+    { name: "optional", source: "(value?) => value", expected: null },
+    { name: "defaulted", source: "(value = 9) => value", expected: 9 },
+  ])("invokes the $name function with an explicit empty argument array", (fixture) => {
+    const result = runEval([fixture.source, "--args", "[]", "--compact"]);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(JSON.parse(result.stdout)).toEqual(fixture.expected);
+  });
+
+  test.each([
+    { name: "default", args: [] },
+    { name: "explicit", args: ["--args", "[]"] },
+  ])("rejects missing required arguments with the $name empty array", (fixture) => {
+    const result = runEval(["(value) => value", ...fixture.args]);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("evaluation error:");
+    expect(result.stderr).toContain("received 0");
+  });
+
+  test("retains non-empty bare function invocation", () => {
+    const result = runEval(["(value) => value * value", "--args", "[9]", "--compact"]);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout.trim()).toBe("81");
+  });
+});
+
 describe("jfn eval environment modes", () => {
   test("distinguishes the authoritative entry from a development function", () => {
     const directory = mkdtempSync(join(tmpdir(), "json-fn-eval-environment-"));

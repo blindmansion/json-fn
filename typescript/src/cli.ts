@@ -277,7 +277,7 @@ async function cmdEval(argv: string[]): Promise<void> {
           capabilities: {},
         });
       }
-    } else if (isFunctionBody(parsedSource) && args.length > 0) {
+    } else if (isFunctionBody(parsedSource)) {
       // A bare function literal applied to the supplied --args.
       result = callFunction(parsedSource, args, stdlib, undefined, definitions);
     } else {
