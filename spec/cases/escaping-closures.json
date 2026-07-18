@@ -141,7 +141,7 @@
         "$params": ["xs"],
         "makeMapper": {
           "triple": {
-            "$params": ["x", "_index"],
+            "$params": ["x"],
             "$return": { "$call": "mul", "$args": [{ "$var": "x" }, 3] }
           },
           "$return": {

@@ -118,7 +118,7 @@ into `returns`:
 "map": { "signatures": [{
   "typeParams": ["T", "U"],
   "required": [
-    { "$fnType": { "required": [{ "$tvar": "T" }, { "type": "integer" }], "optional": [], "returns": { "$tvar": "U" } } },
+    { "$fnType": { "required": [{ "$tvar": "T" }], "optional": [], "returns": { "$tvar": "U" } } },
     { "type": "array", "items": { "$tvar": "T" } }
   ],
   "optional": [],
@@ -127,17 +127,24 @@ into `returns`:
 ```
 
 `T` is inferred from the array argument; the instantiated parameter type
-`(T, integer) -> U` is then pushed into the inline callback (contextual typing,
-§4.3), and `U` is inferred from the callback's synthesized return.
+`(T) -> U` is then pushed into the inline callback (contextual typing, §4.3),
+and `U` is inferred from the callback's synthesized return. `mapIndexed` has
+the same polymorphic result but contextually types its callback as
+`(T, integer) -> U`.
 
 #### Contextual lambdas and concrete functions
 
 Only a bare inline body with no `$sig` is contextually typed. Its declared
 parameters receive the callback argument schemas supplied by the builtin. It
 must declare the exact callback shape: required, optional, and rest parameter
-counts are compared independently. A parameter supplied by the builtin remains
-part of that shape even when the body does not use it; give such a parameter an
-ignored name such as `_index`.
+counts are compared independently.
+
+The ordinary array HOFs contextually type item-only callbacks; `reduce` types an
+`(accumulator, item)` callback. Their `*Indexed` counterparts append the integer
+index. This split is intentionally breaking: remove an unused index parameter
+when calling an ordinary HOF, or rename the call to `*Indexed` when the callback
+uses it. If an indexed callback does not use its supplied index, keep the exact
+shape with an ignored name such as `_index`.
 
 When a callback return widens a type variable that also occurs in its parameter
 types, the checker validates the callback again under the final joined type.
@@ -197,15 +204,17 @@ this data template.
 
 #### `flatMap`
 
-`flatMap` accepts callbacks returning either a scalar or an array. Array results
-contribute their item type, scalar results contribute themselves, and union
-returns distribute across both cases. The result is always an array of that
-one-level flattened element type, so a nested array remains an array element.
+`flatMap` and `flatMapIndexed` accept callbacks returning either a scalar or an
+array. Array results contribute their item type, scalar results contribute
+themselves, and union returns distribute across both cases. The result is always
+an array of that one-level flattened element type, so a nested array remains an
+array element.
 
-Its portable fallback contextually types the callback as `(T, integer) -> any`
-and returns `any[]`. The `core.flatMap` rule supplies the precise result where
-that host-language rule is available; without it, checking retains the fallback
-and reports a type-coverage degradation.
+The portable fallbacks contextually type the callbacks as `(T) -> any` and
+`(T, integer) -> any`, respectively, and return `any[]`. The `core.flatMap` and
+`core.flatMapIndexed` rules supply the same precise one-level result inference
+for their respective callback shapes. Without the corresponding host-language
+rule, checking retains the fallback and reports a type-coverage degradation.
 
 #### `groupBy`
 
@@ -304,6 +313,7 @@ legitimately accept):
 | `core.pipe`    | 2     | arg 0: `array`             | `any`   |
 | `core.apply`   | 2     | arg 1: `array`             | `any`   |
 | `core.flatMap` | 2     | arg 1: `T[]`                | `any[]` |
+| `core.flatMapIndexed` | 2 | arg 1: `T[]`              | `any[]` |
 | `core.handle`  | 2 or 3 | —                         | `any`   |
 | `core.perform` | 2     | arg 0: `string`, 1:`array` | `Task`  |
 | `core.pure`    | 1     | —                          | `Task`  |

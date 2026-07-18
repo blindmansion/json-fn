@@ -77,7 +77,7 @@
     "unlock" -> unlock(st),
     else     -> stay(st, `You try to "${verb}", but the dungeon is unimpressed.`)
   } where {
-    parts: filter((w, _index) => w != "", reSplit("\\s+", cmd)),
+    parts: filter((w) => w != "", reSplit("\\s+", cmd)),
     verb: parts[0]
   },
 

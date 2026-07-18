@@ -83,7 +83,7 @@
           "$call": "flatMap",
           "$args": [
             {
-              "$params": ["x", "_index"],
+              "$params": ["x"],
               "$return": [{ "$var": "x" }, { "$call": "neg", "$args": [{ "$var": "x" }] }]
             },
             [1, 2, 3]
@@ -99,7 +99,7 @@
           "$call": "flatMap",
           "$args": [
             {
-              "$params": ["x", "_index"],
+              "$params": ["x"],
               "$return": { "$call": "mul", "$args": [{ "$var": "x" }, 10] }
             },
             [1, 2, 3]
@@ -109,10 +109,10 @@
       "expected": [10, 20, 30]
     },
     {
-      "description": "flatMap: callback receives index as second argument",
+      "description": "flatMapIndexed: callback receives index as second argument",
       "body": {
         "$return": {
-          "$call": "flatMap",
+          "$call": "flatMapIndexed",
           "$args": [{ "$params": ["x", "i"], "$return": [{ "$var": "i" }] }, ["a", "b", "c"]]
         }
       },
@@ -125,7 +125,7 @@
           "$call": "flatMap",
           "$args": [
             {
-              "$params": ["x", "_index"],
+              "$params": ["x"],
               "$return": {
                 "$if": { "$call": "gt", "$args": [{ "$var": "x" }, 2] },
                 "$then": [{ "$var": "x" }],
@@ -143,7 +143,7 @@
       "body": {
         "$return": {
           "$call": "flatMap",
-          "$args": [{ "$params": ["x", "_index"], "$return": [{ "$var": "x" }] }, []]
+          "$args": [{ "$params": ["x"], "$return": [{ "$var": "x" }] }, []]
         }
       },
       "expected": []
@@ -155,7 +155,7 @@
           "$call": "groupBy",
           "$args": [
             {
-              "$params": ["item", "_index"],
+              "$params": ["item"],
               "$return": { "$get": "role", "$from": { "$var": "item" } }
             },
             [
@@ -185,7 +185,7 @@
           "$call": "groupBy",
           "$args": [
             {
-              "$params": ["n", "_index"],
+              "$params": ["n"],
               "$return": { "$call": "mod", "$args": [{ "$var": "n" }, 2] }
             },
             [1, 2, 3, 4, 5, 6]
@@ -199,7 +199,7 @@
       "body": { "$return": { "$call": "groupBy", "$args": [{ "$fn": "parity" }, [1, 2, 3, 4]] } },
       "functions": {
         "parity": {
-          "$params": ["n", "_index"],
+          "$params": ["n"],
           "$return": {
             "$if": {
               "$call": "eq",
@@ -217,7 +217,7 @@
       "body": {
         "$return": {
           "$call": "groupBy",
-          "$args": [{ "$params": ["x", "_index"], "$return": "a" }, []]
+          "$args": [{ "$params": ["x"], "$return": "a" }, []]
         }
       },
       "expected": {}
@@ -229,7 +229,7 @@
           "$call": "sortBy",
           "$args": [
             {
-              "$params": ["s", "_index"],
+              "$params": ["s"],
               "$return": { "$call": "length", "$args": [{ "$var": "s" }] }
             },
             ["bbb", "a", "cccc", "dd"]
@@ -245,7 +245,7 @@
           "$call": "sortBy",
           "$args": [
             {
-              "$params": ["item", "_index"],
+              "$params": ["item"],
               "$return": { "$get": "name", "$from": { "$var": "item" } }
             },
             [
@@ -269,7 +269,7 @@
           "$call": "sortBy",
           "$args": [
             {
-              "$params": ["item", "_index"],
+              "$params": ["item"],
               "$return": { "$get": "age", "$from": { "$var": "item" } }
             },
             [
@@ -293,7 +293,7 @@
           "$call": "sortBy",
           "$args": [
             {
-              "$params": ["item", "_index"],
+              "$params": ["item"],
               "$return": { "$get": "group", "$from": { "$var": "item" } }
             },
             [
@@ -315,7 +315,7 @@
       "body": {
         "$return": {
           "$call": "sortBy",
-          "$args": [{ "$params": ["x", "_index"], "$return": { "$var": "x" } }, []]
+          "$args": [{ "$params": ["x"], "$return": { "$var": "x" } }, []]
         }
       },
       "expected": []
@@ -325,7 +325,7 @@
       "body": {
         "$return": {
           "$call": "sortBy",
-          "$args": [{ "$params": ["x", "_index"], "$return": { "$var": "x" } }, ["😀", "", "a"]]
+          "$args": [{ "$params": ["x"], "$return": { "$var": "x" } }, ["😀", "", "a"]]
         }
       },
       "expected": ["a", "", "😀"]
@@ -335,7 +335,7 @@
       "body": {
         "$return": {
           "$call": "sortBy",
-          "$args": [{ "$params": ["x", "_index"], "$return": true }, [1, 2]]
+          "$args": [{ "$params": ["x"], "$return": true }, [1, 2]]
         }
       },
       "error": "must return a finite number or string"
@@ -347,7 +347,7 @@
           "$call": "sortBy",
           "$args": [
             {
-              "$params": ["x", "_index"],
+              "$params": ["x"],
               "$return": {
                 "$if": { "$call": "eq", "$args": [{ "$var": "x" }, 1] },
                 "$then": "one",

@@ -225,29 +225,32 @@ function flattenOneArrayLevel(schema: Schema, resolve: (schema: Schema) => Schem
   }
 }
 
-const flatMapRule: CallableTypeRuleApplyV1 = (request, services) => {
-  if (!request.fallbackMatched || request.args.length !== 2) return request.fallbackResult;
+function flatMapRule(indexed: boolean): CallableTypeRuleApplyV1 {
+  return (request, services) => {
+    if (!request.fallbackMatched || request.args.length !== 2) return request.fallbackResult;
 
-  const item = arrayElementSchema(services.synthArgument(1), services.resolveSchema);
-  const expectedCallback: Schema = {
-    $fnType: {
-      required: [item, { type: "integer" }],
-      optional: [],
-      returns: true,
-    },
-  };
-  let callbackReturn = services.contextualTypeCallback(0, expectedCallback);
-  if (callbackReturn === null) {
-    const callback = services.resolveSchema(services.synthArgument(0));
-    if (classifySchema(callback) !== SchemaKind.FnType) return request.fallbackResult;
-    callbackReturn = fnShape(asObject(callback)).returns;
-  }
+    const item = arrayElementSchema(services.synthArgument(1), services.resolveSchema);
+    const required: Schema[] = indexed ? [item, { type: "integer" }] : [item];
+    const expectedCallback: Schema = {
+      $fnType: {
+        required,
+        optional: [],
+        returns: true,
+      },
+    };
+    let callbackReturn = services.contextualTypeCallback(0, expectedCallback);
+    if (callbackReturn === null) {
+      const callback = services.resolveSchema(services.synthArgument(0));
+      if (classifySchema(callback) !== SchemaKind.FnType) return request.fallbackResult;
+      callbackReturn = fnShape(asObject(callback)).returns;
+    }
 
-  return {
-    type: "array",
-    items: flattenOneArrayLevel(callbackReturn, services.resolveSchema),
+    return {
+      type: "array",
+      items: flattenOneArrayLevel(callbackReturn, services.resolveSchema),
+    };
   };
-};
+}
 
 const handleRule: CallableTypeRuleApplyV1 = (request, services) => {
   if (!request.fallbackMatched) return request.fallbackResult;
@@ -351,7 +354,8 @@ const CORE_CALLABLE_TYPE_RULES: CallableTypeRuleRegistry = {
   "core.raise": { apply: raiseRule },
   "core.handle": { contextualArguments: [1], apply: handleRule },
   "core.merge": { apply: mergeRule },
-  "core.flatMap": { contextualArguments: [0], apply: flatMapRule },
+  "core.flatMap": { contextualArguments: [0], apply: flatMapRule(false) },
+  "core.flatMapIndexed": { contextualArguments: [0], apply: flatMapRule(true) },
 };
 
 function isLiteralSchemaValue(value: unknown): boolean {

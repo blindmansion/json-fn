@@ -8,7 +8,7 @@
           "$call": "find",
           "$args": [
             {
-              "$params": ["x", "_index"],
+              "$params": ["x"],
               "$return": { "$call": "gt", "$args": [{ "$var": "x" }, 3] }
             },
             [1, 2, 3, 4, 5]
@@ -24,7 +24,7 @@
           "$call": "find",
           "$args": [
             {
-              "$params": ["x", "_index"],
+              "$params": ["x"],
               "$return": { "$call": "gt", "$args": [{ "$var": "x" }, 100] }
             },
             [1, 2, 3]
@@ -40,7 +40,7 @@
           "$call": "find",
           "$args": [
             {
-              "$params": ["x", "_index"],
+              "$params": ["x"],
               "$return": { "$call": "gt", "$args": [{ "$var": "x" }, 2] }
             },
             [1, 5, 3, 4]
@@ -54,7 +54,7 @@
       "body": {
         "$return": {
           "$call": "find",
-          "$args": [{ "$params": ["x", "_index"], "$return": true }, []]
+          "$args": [{ "$params": ["x"], "$return": true }, []]
         }
       },
       "expected": null
@@ -66,7 +66,7 @@
           "$call": "find",
           "$args": [
             {
-              "$params": ["item", "_index"],
+              "$params": ["item"],
               "$return": {
                 "$call": "gt",
                 "$args": [{ "$get": "age", "$from": { "$var": "item" } }, 30]
@@ -89,7 +89,7 @@
           "$call": "findIndex",
           "$args": [
             {
-              "$params": ["x", "_index"],
+              "$params": ["x"],
               "$return": { "$call": "gt", "$args": [{ "$var": "x" }, 3] }
             },
             [1, 2, 3, 4, 5]
@@ -105,7 +105,7 @@
           "$call": "findIndex",
           "$args": [
             {
-              "$params": ["x", "_index"],
+              "$params": ["x"],
               "$return": { "$call": "gt", "$args": [{ "$var": "x" }, 100] }
             },
             [1, 2, 3]
@@ -119,16 +119,16 @@
       "body": {
         "$return": {
           "$call": "findIndex",
-          "$args": [{ "$params": ["x", "_index"], "$return": true }, []]
+          "$args": [{ "$params": ["x"], "$return": true }, []]
         }
       },
       "expected": null
     },
     {
-      "description": "findIndex: callback receives index",
+      "description": "findIndexIndexed: callback receives index",
       "body": {
         "$return": {
-          "$call": "findIndex",
+          "$call": "findIndexIndexed",
           "$args": [
             { "$params": ["x", "i"], "$return": { "$call": "eq", "$args": [{ "$var": "i" }, 2] } },
             ["a", "b", "c", "d"]
@@ -144,7 +144,7 @@
           "$call": "some",
           "$args": [
             {
-              "$params": ["x", "_index"],
+              "$params": ["x"],
               "$return": { "$call": "gt", "$args": [{ "$var": "x" }, 3] }
             },
             [1, 2, 3, 4, 5]
@@ -160,7 +160,7 @@
           "$call": "some",
           "$args": [
             {
-              "$params": ["x", "_index"],
+              "$params": ["x"],
               "$return": { "$call": "gt", "$args": [{ "$var": "x" }, 100] }
             },
             [1, 2, 3]
@@ -174,7 +174,7 @@
       "body": {
         "$return": {
           "$call": "some",
-          "$args": [{ "$params": ["x", "_index"], "$return": true }, []]
+          "$args": [{ "$params": ["x"], "$return": true }, []]
         }
       },
       "expected": false
@@ -186,7 +186,7 @@
           "$call": "every",
           "$args": [
             {
-              "$params": ["x", "_index"],
+              "$params": ["x"],
               "$return": { "$call": "gt", "$args": [{ "$var": "x" }, 0] }
             },
             [1, 2, 3, 4, 5]
@@ -202,7 +202,7 @@
           "$call": "every",
           "$args": [
             {
-              "$params": ["x", "_index"],
+              "$params": ["x"],
               "$return": { "$call": "gt", "$args": [{ "$var": "x" }, 3] }
             },
             [1, 2, 3, 4, 5]
@@ -216,7 +216,7 @@
       "body": {
         "$return": {
           "$call": "every",
-          "$args": [{ "$params": ["x", "_index"], "$return": false }, []]
+          "$args": [{ "$params": ["x"], "$return": false }, []]
         }
       },
       "expected": true
@@ -359,7 +359,7 @@
       "body": {
         "arr": [10, 20, 30, 40, 50],
         "pred": {
-          "$params": ["x", "_index"],
+          "$params": ["x"],
           "$return": { "$call": "gte", "$args": [{ "$var": "x" }, 30] }
         },
         "found": { "$call": "find", "$args": [{ "$var": "pred" }, { "$var": "arr" }] },
@@ -375,7 +375,7 @@
           "$call": "count",
           "$args": [
             {
-              "$params": ["x", "_index"],
+              "$params": ["x"],
               "$return": { "$call": "gt", "$args": [{ "$var": "x" }, 2] }
             },
             [1, 2, 3, 4, 5]
@@ -391,7 +391,7 @@
           "$call": "count",
           "$args": [
             {
-              "$params": ["x", "_index"],
+              "$params": ["x"],
               "$return": { "$call": "gt", "$args": [{ "$var": "x" }, 10] }
             },
             [1, 2, 3]
@@ -405,16 +405,16 @@
       "body": {
         "$return": {
           "$call": "count",
-          "$args": [{ "$params": ["x", "_index"], "$return": true }, []]
+          "$args": [{ "$params": ["x"], "$return": true }, []]
         }
       },
       "expected": 0
     },
     {
-      "description": "count: callback receives the element index",
+      "description": "countIndexed: callback receives the element index",
       "body": {
         "$return": {
-          "$call": "count",
+          "$call": "countIndexed",
           "$args": [
             { "$params": ["x", "i"], "$return": { "$call": "gte", "$args": [{ "$var": "i" }, 2] } },
             ["a", "b", "c", "d"]
@@ -428,7 +428,7 @@
       "body": {
         "$return": {
           "$call": "count",
-          "$args": [{ "$params": ["x", "_index"], "$return": true }, 42]
+          "$args": [{ "$params": ["x"], "$return": true }, 42]
         }
       },
       "error": "must be an array"

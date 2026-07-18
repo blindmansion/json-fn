@@ -149,6 +149,7 @@ Recognized forms compose:
   to arithmetic). `x!` only removes `null`; use an explicit runtime contract
   boundary when a computed result must be validated as a refinement.
 - No single-subject fact from `$and`-false or `$or`-true.
-- No loosening of callback arity — the wrapper lambda (`map((x) => g(x), xs)`)
-  stays required.
+- No loosening of callback arity — adapting a unary `g` to an indexed callback
+  still requires the exact wrapper shape
+  (`mapIndexed((x, _index) => g(x), xs)`).
 - The lazy-local re-synth machinery may be simplified but not grown.

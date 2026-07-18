@@ -37,7 +37,7 @@
   makeAdder: (x: number) -> (number) -> number => (y) => x + y,
 
   concatAll: (first: string, ...rest: string[]) -> string =>
-    reduce((acc, s, _index) => acc ++ s, first, rest),
+    reduce((acc, s) => acc ++ s, first, rest),
 
   // Object-pattern parameter annotated with an inline object type.
   distance: ({ from, to }: { from: number, to: number }) -> number =>

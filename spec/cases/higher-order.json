@@ -2,11 +2,11 @@
   "description": "higher-order functions",
   "functions": {
     "double": {
-      "$params": ["x", "_index"],
+      "$params": ["x"],
       "$return": { "$call": "mul", "$args": [{ "$var": "x" }, 2] }
     },
     "isEven": {
-      "$params": ["n", "_index"],
+      "$params": ["n"],
       "remainder": { "$call": "mod", "$args": [{ "$var": "n" }, 2] },
       "$return": { "$call": "eq", "$args": [{ "$var": "remainder" }, 0] }
     }
@@ -24,7 +24,7 @@
           "$call": "map",
           "$args": [
             {
-              "$params": ["x", "_index"],
+              "$params": ["x"],
               "$return": { "$call": "mul", "$args": [{ "$var": "x" }, { "$var": "x" }] }
             },
             [1, 2, 3, 4, 5]
@@ -39,10 +39,10 @@
       "expected": [false, true, false, true]
     },
     {
-      "description": "map using index argument (element + index)",
+      "description": "mapIndexed using index argument (element + index)",
       "body": {
         "$return": {
-          "$call": "map",
+          "$call": "mapIndexed",
           "$args": [
             {
               "$params": ["item", "idx"],
@@ -68,7 +68,7 @@
           "$call": "filter",
           "$args": [
             {
-              "$params": ["x", "_index"],
+              "$params": ["x"],
               "$return": { "$call": "gt", "$args": [{ "$var": "x" }, 3] }
             },
             [1, 2, 3, 4, 5, 6]
@@ -89,7 +89,7 @@
           "$call": "reduce",
           "$args": [
             {
-              "$params": ["acc", "item", "_index"],
+              "$params": ["acc", "item"],
               "$return": {
                 "$call": "add",
                 "$args": [
@@ -120,7 +120,7 @@
           "$call": "map",
           "$args": [
             {
-              "$params": ["x", "_index"],
+              "$params": ["x"],
               "$return": { "$call": "mul", "$args": [{ "$var": "x" }, { "$var": "x" }] }
             },
             [1, 2, 3]

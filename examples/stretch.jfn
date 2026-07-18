@@ -11,7 +11,7 @@
   dbl: (n) => n * 2,
   bareRef: (xs) => map(dbl, xs),
   partialMapper: (xs) => map(adder(1), xs),
-  mapIndexed: (xs) => map((x, i) => [i, x], xs),
+  withIndices: (xs) => mapIndexed((x, i) => [i, x], xs),
 
   keepEvens: (xs) => filter((x) => x % 2 == 0, xs),
   total: (xs) => reduce((acc, x) => acc + x, 0, xs),

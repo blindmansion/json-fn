@@ -472,9 +472,8 @@ describe("Section F — builtin signatures", () => {
     ).toThrow(CallableTypeRuleContractError);
   });
 
-  test("coverage: every stdlib builtin has a table entry", () => {
-    const missing = Object.keys(createStdlib()).filter((name) => !(name in BT.builtins));
-    expect(missing).toEqual([]);
+  test("coverage: stdlib and signature-table keys are exactly equal", () => {
+    expect(Object.keys(createStdlib()).sort()).toEqual(Object.keys(BT.builtins).sort());
   });
 
   describe("tier 1 — monomorphic & concrete overloads", () => {
@@ -559,7 +558,7 @@ describe("Section F — builtin signatures", () => {
       // engine can't destructure; build a real `integer[][]` via map/range.
       const nested = call(
         "map",
-        { $params: ["n", "i"], $return: call("range", { $var: "n" }) },
+        { $params: ["n"], $return: call("range", { $var: "n" }) },
         [1, 2, 3],
       );
       expect(isSubschema(synthB(call("flatten", nested)).type, arrOfInt)).toBe(true);
@@ -612,9 +611,89 @@ describe("Section F — builtin signatures", () => {
   });
 
   describe("tier 3 — higher-order builtins", () => {
+    const callbackResult = (name: string): JSONType => {
+      if (name.startsWith("reduce")) return { $var: "acc" };
+      if (/^(filter|find|findIndex|some|every|count)/.test(name)) {
+        return true;
+      }
+      return { $var: "n" };
+    };
+    const callbackFor = (name: string, indexed: boolean): JSONType => ({
+      $params: name.startsWith("reduce")
+        ? indexed
+          ? ["acc", "n", "i"]
+          : ["acc", "n"]
+        : indexed
+          ? ["n", "i"]
+          : ["n"],
+      $return: callbackResult(name),
+    });
+    const hofCall = (name: string, callback: JSONType): JSONType =>
+      name.startsWith("reduce")
+        ? call(name, callback, 0, [1, 2, 3])
+        : call(name, callback, [1, 2, 3]);
+
+    test("ordinary and indexed families infer the same return families", () => {
+      const expectedByBase: Record<string, Schema> = {
+        map: arrOfInt,
+        filter: arrOfInt,
+        reduce: I,
+        find: { type: ["integer", "null"] },
+        findIndex: { type: ["integer", "null"] },
+        some: B,
+        every: B,
+        count: I,
+        flatMap: arrOfInt,
+        groupBy: { type: "object", additionalProperties: arrOfInt },
+        sortBy: arrOfInt,
+      };
+
+      for (const [base, expected] of Object.entries(expectedByBase)) {
+        for (const [name, indexed] of [
+          [base, false],
+          [`${base}Indexed`, true],
+        ] as const) {
+          const result = synthB(hofCall(name, callbackFor(name, indexed)));
+          expect(result.diagnostics, name).toEqual([]);
+          expect(isSubschema(result.type, expected), name).toBe(true);
+        }
+      }
+    });
+
+    test("ordinary and indexed families require their exact callback shapes", () => {
+      const bases = [
+        "map",
+        "filter",
+        "reduce",
+        "find",
+        "findIndex",
+        "some",
+        "every",
+        "count",
+        "flatMap",
+        "groupBy",
+        "sortBy",
+      ];
+
+      for (const base of bases) {
+        const ordinary = synthB(hofCall(base, callbackFor(base, true)));
+        expect(
+          ordinary.diagnostics.some((d) => d.path.join(".") === "$args[0].$params"),
+          `${base} rejects an indexed callback`,
+        ).toBe(true);
+
+        const indexedName = `${base}Indexed`;
+        const indexed = synthB(hofCall(indexedName, callbackFor(indexedName, false)));
+        expect(
+          indexed.diagnostics.some((d) => d.path.join(".") === "$args[0].$params"),
+          `${indexedName} rejects an ordinary callback`,
+        ).toBe(true);
+      }
+    });
+
     test("reduce infers U from init and threads the accumulator", () => {
       const sum = {
-        $params: ["acc", "n", "i"],
+        $params: ["acc", "n"],
         $return: call("add", { $var: "acc" }, { $var: "n" }),
       };
       const r = synthB(call("reduce", sum, 0, [1, 2, 3]));
@@ -626,7 +705,7 @@ describe("Section F — builtin signatures", () => {
 
     test("reduce accepts a callback valid for its widened accumulator", () => {
       const finish = {
-        $params: ["acc", "n", "i"],
+        $params: ["acc", "n"],
         $return: {
           $if: call("eq", { $var: "n" }, 0),
           $then: "done",
@@ -640,7 +719,7 @@ describe("Section F — builtin signatures", () => {
 
     test("reduce rejects a callback unsafe for its widened accumulator", () => {
       const finishOrMultiply = {
-        $params: ["acc", "n", "i"],
+        $params: ["acc", "n"],
         $return: {
           $if: call("eq", { $var: "n" }, 0),
           $then: "done",
@@ -657,7 +736,7 @@ describe("Section F — builtin signatures", () => {
     });
 
     test("find/findIndex are T|null / integer|null; some/every are boolean", () => {
-      const gtOne = { $params: ["n", "i"], $return: call("gt", { $var: "n" }, 1) };
+      const gtOne = { $params: ["n"], $return: call("gt", { $var: "n" }, 1) };
       expect(
         isSubschema(synthB(call("find", gtOne, [1, 2, 3])).type, { type: ["integer", "null"] }),
       ).toBe(true);
@@ -671,12 +750,12 @@ describe("Section F — builtin signatures", () => {
     });
 
     test("count contextually types its predicate and returns integer", () => {
-      const gtOne = { $params: ["n", "i"], $return: call("gt", { $var: "n" }, 1) };
+      const gtOne = { $params: ["n"], $return: call("gt", { $var: "n" }, 1) };
       const result = synthB(call("count", gtOne, [1, 2, 3]));
       expect(result.diagnostics).toEqual([]);
       expect(result.type).toEqual(I);
 
-      const nonBoolean = { $params: ["n", "i"], $return: { $var: "n" } };
+      const nonBoolean = { $params: ["n"], $return: { $var: "n" } };
       expect(
         synthB(call("count", nonBoolean, [1, 2, 3])).diagnostics.some(
           (d) => d.path.join(".") === "$args[0].$return",
@@ -696,14 +775,14 @@ describe("Section F — builtin signatures", () => {
       ).toBe(true);
       expect(synthB(call("sort", [1, "2"])).diagnostics.length).toBeGreaterThan(0);
       expect(synthB(call("sort", [true, false])).diagnostics.length).toBeGreaterThan(0);
-      const keyFn = { $params: ["n", "i"], $return: { $var: "n" } };
+      const keyFn = { $params: ["n"], $return: { $var: "n" } };
       expect(isSubschema(synthB(call("sortBy", keyFn, [3, 1, 2])).type, arrOfInt)).toBe(true);
     });
 
     test("groupBy accepts string and numeric keys and returns a map of T[]", () => {
-      const stringKey = { $params: ["n", "i"], $return: call("str", { $var: "n" }) };
+      const stringKey = { $params: ["n"], $return: call("str", { $var: "n" }) };
       const numericKey = {
-        $params: ["n", "i"],
+        $params: ["n"],
         $return: call("mod", { $var: "n" }, 2),
       };
       const expected: Schema = { type: "object", additionalProperties: arrOfInt };
@@ -717,7 +796,7 @@ describe("Section F — builtin signatures", () => {
 
     test("flatMap infers its element type from an array callback return", () => {
       const dup = {
-        $params: ["n", "i"],
+        $params: ["n"],
         $return: call("concat", [{ $var: "n" }], [{ $var: "n" }]),
       };
       const r = synthB(call("flatMap", dup, [1, 2, 3]));
@@ -727,7 +806,7 @@ describe("Section F — builtin signatures", () => {
 
     test("flatMap retains and infers scalar callback returns", () => {
       const scalar = {
-        $params: ["n", "i"],
+        $params: ["n"],
         $return: call("add", { $var: "n" }, 1),
       };
       const r = synthB(call("flatMap", scalar, [1, 2, 3]));
@@ -735,12 +814,18 @@ describe("Section F — builtin signatures", () => {
       expect(r.type).toEqual(arrOfInt);
     });
 
+    test("flatMapIndexed precisely infers from its index-aware callback", () => {
+      const scalar = {
+        $params: ["n", "i"],
+        $return: call("add", { $var: "n" }, { $var: "i" }),
+      };
+      const r = synthB(call("flatMapIndexed", scalar, [1, 2, 3]));
+      expect(r.diagnostics).toEqual([]);
+      expect(r.type).toEqual(arrOfInt);
+    });
+
     test("flatMap infers from an annotated callback return", () => {
-      const callback = body(
-        ["n", "i"],
-        { required: [I, I], optional: [], returns: I },
-        { $var: "n" },
-      );
+      const callback = body(["n"], { required: [I], optional: [], returns: I }, { $var: "n" });
       const r = synthB(call("flatMap", callback, [1, 2, 3]));
       expect(r.diagnostics).toEqual([]);
       expect(r.type).toEqual(arrOfInt);
@@ -748,7 +833,7 @@ describe("Section F — builtin signatures", () => {
 
     test("flatMap distributes one-level flattening across scalar-or-array unions", () => {
       const mixed = {
-        $params: ["n", "i"],
+        $params: ["n"],
         $return: {
           $if: call("gt", { $var: "n" }, 1),
           $then: [call("str", { $var: "n" })],
@@ -765,7 +850,7 @@ describe("Section F — builtin signatures", () => {
 
     test("flatMap flattens nested callback arrays by exactly one level", () => {
       const nested = {
-        $params: ["n", "i"],
+        $params: ["n"],
         $return: [[{ $var: "n" }]],
       };
       const r = synthB(call("flatMap", nested, [1, 2, 3]));
@@ -776,8 +861,8 @@ describe("Section F — builtin signatures", () => {
 
     test("flatMap keeps its portable fallback when the precision rule is unavailable", () => {
       const scalar = {
-        $params: ["n", "i"],
-        $return: call("add", { $var: "n" }, { $var: "i" }),
+        $params: ["n"],
+        $return: call("add", { $var: "n" }, 1),
       };
       const r = checkExpr(call("flatMap", scalar, [1, 2, 3]), {}, BT, { typeRules: {} });
       expect(r.type).toEqual({ type: "array" });
@@ -790,9 +875,28 @@ describe("Section F — builtin signatures", () => {
       ]);
     });
 
+    test("flatMapIndexed uses its separate portable fallback rule", () => {
+      const scalar = {
+        $params: ["n", "i"],
+        $return: call("add", { $var: "n" }, { $var: "i" }),
+      };
+      const r = checkExpr(call("flatMapIndexed", scalar, [1, 2, 3]), {}, BT, {
+        typeRules: {},
+      });
+      expect(r.type).toEqual({ type: "array" });
+      expect(r.diagnostics).toEqual([
+        {
+          path: [],
+          message:
+            'type coverage degraded because callable rule "core.flatMapIndexed" is unavailable.',
+          severity: "info",
+        },
+      ]);
+    });
+
     test("flatMap keeps fallback callback diagnostics when its rule is unavailable", () => {
       const invalid = {
-        $params: ["n", "i"],
+        $params: ["n"],
         $return: call("add", "x", true),
       };
       const result = checkExpr(call("flatMap", invalid, [1, 2, 3]), {}, BT, {
@@ -815,7 +919,7 @@ describe("Section F — builtin signatures", () => {
 
     test("flatMap does not duplicate callback diagnostics during rule refinement", () => {
       const invalid = {
-        $params: ["n", "i"],
+        $params: ["n"],
         $return: call("add", "x", true),
       };
       const r = synthB(call("flatMap", invalid, [1, 2, 3]));
@@ -1502,65 +1606,61 @@ describe("Section F — builtin signatures", () => {
     });
 
     test("map infers T from the array and U from the callback return", () => {
-      const identity = { $params: ["n", "i"], $return: { $var: "n" } };
+      const identity = { $params: ["n"], $return: { $var: "n" } };
       const r = synthB(call("map", identity, [1, 2, 3]));
       expect(r.diagnostics).toEqual([]);
       expect(isSubschema(r.type, arrOfInt)).toBe(true);
     });
 
     test("map callback bodies resolve nested builtins under the pushed param type", () => {
-      const addOne = { $params: ["n", "i"], $return: call("add", { $var: "n" }, 1) };
+      const addOne = { $params: ["n"], $return: call("add", { $var: "n" }, 1) };
       const r = synthB(call("map", addOne, [1, 2, 3]));
       expect(r.diagnostics).toEqual([]);
       expect(isSubschema(r.type, arrOfInt)).toBe(true);
     });
 
     test("filter accepts a boolean-returning callback", () => {
-      const gtOne = { $params: ["n", "i"], $return: call("gt", { $var: "n" }, 1) };
+      const gtOne = { $params: ["n"], $return: call("gt", { $var: "n" }, 1) };
       const r = synthB(call("filter", gtOne, [1, 2, 3]));
       expect(r.diagnostics).toEqual([]);
       expect(isSubschema(r.type, arrOfInt)).toBe(true);
     });
 
     test("filter reports a non-boolean callback return", () => {
-      const bad = { $params: ["n", "i"], $return: { $var: "n" } };
+      const bad = { $params: ["n"], $return: { $var: "n" } };
       const r = synthB(call("filter", bad, [1, 2, 3]));
       expect(r.diagnostics.length).toBeGreaterThan(0);
       expect(r.diagnostics.some((d) => d.path.join(".") === "$args[0].$return")).toBe(true);
     });
 
     test("an annotated callback keeps its declared parameter types", () => {
-      const callback = body(["n", "i"], { required: [S, I], optional: [], returns: I }, 1);
+      const callback = body(["n"], { required: [S], optional: [], returns: I }, 1);
       const r = synthB(call("map", callback, [10, 20]));
       expect(r.diagnostics).toContainEqual(
         expect.objectContaining({
           path: ["$args[0]"],
-          actual: { $fnType: { required: [S, I], optional: [], returns: I } },
-          expected: { $fnType: { required: [I, I], optional: [], returns: I } },
+          actual: { $fnType: { required: [S], optional: [], returns: I } },
+          expected: { $fnType: { required: [I], optional: [], returns: I } },
           severity: "error",
         }),
       );
     });
 
     test("a compatibly annotated callback remains valid and precise", () => {
-      const callback = body(
-        ["n", "i"],
-        { required: [I, I], optional: [], returns: I },
-        { $var: "n" },
-      );
+      const callback = body(["n"], { required: [I], optional: [], returns: I }, { $var: "n" });
       const r = synthB(call("map", callback, [10, 20]));
       expect(r.diagnostics).toEqual([]);
       expect(isSubschema(r.type, arrOfInt)).toBe(true);
     });
 
     test("a bare callback must declare every supplied parameter", () => {
-      const callback = { $params: ["n"], $return: { $var: "n" } };
+      const callback = { $params: [], $return: 1 };
       const r = synthB(call("map", callback, [10, 20]));
       expect(r.diagnostics).toEqual([
         expect.objectContaining({
           path: ["$args[0]", "$params"],
           message:
-            "Contextual signature expects 2 required parameter(s), 0 optional parameter(s), and no rest parameter; body declares 1 required parameter(s), 0 optional parameter(s), and no rest parameter.",
+            "Contextual signature expects 1 required parameter(s), 0 optional parameter(s), and no rest parameter; body declares 0 required parameter(s), 0 optional parameter(s), and no rest parameter.",
           severity: "error",
         }),
       ]);
@@ -1577,7 +1677,7 @@ describe("Section F — builtin signatures", () => {
         expect.objectContaining({
           path: ["$args[0]", "$params"],
           message:
-            "Contextual signature expects 2 required parameter(s), 0 optional parameter(s), and no rest parameter; body declares 1 required parameter(s), 1 optional parameter(s), and no rest parameter.",
+            "Contextual signature expects 1 required parameter(s), 0 optional parameter(s), and no rest parameter; body declares 1 required parameter(s), 1 optional parameter(s), and no rest parameter.",
         }),
       ]);
     });
@@ -1593,7 +1693,7 @@ describe("Section F — builtin signatures", () => {
         expect.objectContaining({
           path: ["$args[0]", "$params"],
           message:
-            "Contextual signature expects 2 required parameter(s), 0 optional parameter(s), and no rest parameter; body declares 1 required parameter(s), 1 optional parameter(s), and no rest parameter.",
+            "Contextual signature expects 1 required parameter(s), 0 optional parameter(s), and no rest parameter; body declares 1 required parameter(s), 1 optional parameter(s), and no rest parameter.",
         }),
       ]);
     });
@@ -1620,7 +1720,7 @@ describe("Section F — builtin signatures", () => {
         expect.objectContaining({
           path: ["$args[0]", "$params"],
           message:
-            "Contextual signature expects 2 required parameter(s), 0 optional parameter(s), and no rest parameter; body declares 1 required parameter(s), 0 optional parameter(s), and a rest parameter.",
+            "Contextual signature expects 1 required parameter(s), 0 optional parameter(s), and no rest parameter; body declares 1 required parameter(s), 0 optional parameter(s), and a rest parameter.",
           severity: "error",
         }),
       ]);
@@ -1686,7 +1786,7 @@ describe("Section F — builtin signatures", () => {
 
     test("wrong arity suppresses callback checking but still traverses ordinary arguments", () => {
       const callback = {
-        $params: ["n", "i"],
+        $params: ["n"],
         $return: { $var: "missingFromCallback" },
       };
       const r = synthB(
@@ -1725,7 +1825,7 @@ describe("Section F — builtin signatures", () => {
       mainReturn: Schema,
     ): Record<string, JSONType> => ({
       callback: body(
-        ["value", "index"],
+        ["value"],
         { required: callbackParams, optional: [], returns: callbackReturn },
         { $var: "value" },
       ),
@@ -1743,7 +1843,7 @@ describe("Section F — builtin signatures", () => {
           { required: [arrOfInt], optional: [], returns: arrOfInt },
           call(
             "map",
-            { $params: ["n", "i"], $return: call("add", { $var: "n" }, { $var: "n" }) },
+            { $params: ["n"], $return: call("add", { $var: "n" }, { $var: "n" }) },
             {
               $var: "xs",
             },
@@ -1759,7 +1859,7 @@ describe("Section F — builtin signatures", () => {
         wrong: body(
           ["xs"],
           { required: [arrOfInt], optional: [], returns: strArr },
-          call("map", { $params: ["n", "i"], $return: { $var: "n" } }, { $var: "xs" }),
+          call("map", { $params: ["n"], $return: { $var: "n" } }, { $var: "xs" }),
         ),
       };
       const diags = checkModule(mod, BT);
@@ -1768,15 +1868,15 @@ describe("Section F — builtin signatures", () => {
     });
 
     test("accepts a named callback matching the final instantiated type", () => {
-      expect(checkModule(namedMapModule([I, I], I, arrOfInt), BT)).toEqual([]);
+      expect(checkModule(namedMapModule([I], I, arrOfInt), BT)).toEqual([]);
     });
 
     test("accepts a contravariantly broader named callback", () => {
       const N: Schema = { type: "number" };
       const mod = {
         callback: body(
-          ["value", "index"],
-          { required: [N, I], optional: [], returns: { type: "boolean" } },
+          ["value"],
+          { required: [N], optional: [], returns: { type: "boolean" } },
           true,
         ),
         main: body(
@@ -1789,12 +1889,12 @@ describe("Section F — builtin signatures", () => {
     });
 
     test("rejects a named callback narrower than the final data type", () => {
-      const result = checkModule(namedMapModule([S, I], S, { type: "array", items: S }), BT);
+      const result = checkModule(namedMapModule([S], S, { type: "array", items: S }), BT);
       expect(result).toContainEqual(
         expect.objectContaining({
           path: ["main", "$return", "$args[0]"],
-          actual: { $fnType: { required: [S, I], optional: [], returns: S } },
-          expected: { $fnType: { required: [I, I], optional: [], returns: S } },
+          actual: { $fnType: { required: [S], optional: [], returns: S } },
+          expected: { $fnType: { required: [I], optional: [], returns: S } },
           severity: "error",
         }),
       );
@@ -1803,7 +1903,7 @@ describe("Section F — builtin signatures", () => {
     test("infers a named callback's return into the map result", () => {
       const strArr: Schema = { type: "array", items: S };
       const mod = {
-        callback: body(["value", "index"], { required: [I, I], optional: [], returns: S }, "value"),
+        callback: body(["value"], { required: [I], optional: [], returns: S }, "value"),
         main: body(
           [],
           { required: [], optional: [], returns: strArr },

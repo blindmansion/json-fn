@@ -1,5 +1,5 @@
 import { builtin, pure, getArity } from "./utils";
-import type { FunctionRegistry, JSONType, Meter } from "./types";
+import type { BuiltinFunction, FunctionRegistry, JSONType, Meter } from "./types";
 import { effectTask, pureTask, bindTask, isFnDecl, runHandle } from "./task";
 
 export type LogFn = (value: JSONType, label?: string) => void;
@@ -88,6 +88,154 @@ function compareStrings(a: string, b: string, meter: Meter): number {
     const rCodePoint = r.value.codePointAt(0)!;
     if (lCodePoint !== rCodePoint) return lCodePoint < rCodePoint ? -1 : 1;
   }
+}
+
+function callbackArgs(item: JSONType, index: number, indexed: boolean): JSONType[] {
+  return indexed ? [item, index] : [item];
+}
+
+function reduceCallbackArgs(
+  accumulator: JSONType,
+  item: JSONType,
+  index: number,
+  indexed: boolean,
+): JSONType[] {
+  return indexed ? [accumulator, item, index] : [accumulator, item];
+}
+
+function arrayMapBuiltin(name: string, indexed: boolean): BuiltinFunction {
+  return builtin((args, call, _functions, meter) => {
+    const [callback, arr] = args;
+    if (!Array.isArray(arr)) throw new Error(`${name}: second argument must be an array`);
+    meter.charge(arr.length);
+    return arr.map((item, index) => call(callback!, callbackArgs(item, index, indexed)));
+  }, 2);
+}
+
+function arrayFilterBuiltin(name: string, indexed: boolean): BuiltinFunction {
+  return builtin((args, call, _functions, meter) => {
+    const [callback, arr] = args;
+    if (!Array.isArray(arr)) throw new Error(`${name}: second argument must be an array`);
+    meter.charge(arr.length);
+    return arr.filter((item, index) => call(callback!, callbackArgs(item, index, indexed)));
+  }, 2);
+}
+
+function arrayReduceBuiltin(name: string, indexed: boolean): BuiltinFunction {
+  return builtin((args, call, _functions, meter) => {
+    const [callback, init, arr] = args;
+    if (!Array.isArray(arr)) throw new Error(`${name}: third argument must be an array`);
+    meter.charge(arr.length);
+    return arr.reduce(
+      (accumulator: JSONType, item: JSONType, index: number) =>
+        call(callback!, reduceCallbackArgs(accumulator, item, index, indexed)),
+      init!,
+    );
+  }, 3);
+}
+
+function arrayFindBuiltin(name: string, indexed: boolean, returnIndex: boolean): BuiltinFunction {
+  return builtin((args, call, _functions, meter) => {
+    const [callback, arr] = args;
+    if (!Array.isArray(arr)) throw new Error(`${name}: second argument must be an array`);
+    meter.charge(arr.length);
+    for (let index = 0; index < arr.length; index++) {
+      if (call(callback!, callbackArgs(arr[index]!, index, indexed))) {
+        return returnIndex ? index : arr[index]!;
+      }
+    }
+    return null;
+  }, 2);
+}
+
+function arrayQuantifierBuiltin(
+  name: string,
+  indexed: boolean,
+  mode: "some" | "every" | "count",
+): BuiltinFunction {
+  return builtin((args, call, _functions, meter) => {
+    const [callback, arr] = args;
+    if (!Array.isArray(arr)) throw new Error(`${name}: second argument must be an array`);
+    meter.charge(arr.length);
+    if (mode === "some") {
+      return arr.some((item, index) => call(callback!, callbackArgs(item, index, indexed)));
+    }
+    if (mode === "every") {
+      return arr.every((item, index) => call(callback!, callbackArgs(item, index, indexed)));
+    }
+    let matches = 0;
+    for (let index = 0; index < arr.length; index++) {
+      if (call(callback!, callbackArgs(arr[index]!, index, indexed))) matches++;
+    }
+    return matches;
+  }, 2);
+}
+
+function arrayFlatMapBuiltin(name: string, indexed: boolean): BuiltinFunction {
+  return builtin((args, call, _functions, meter) => {
+    const [callback, arr] = args;
+    if (!Array.isArray(arr)) throw new Error(`${name}: second argument must be an array`);
+    meter.charge(arr.length);
+    const result: JSONType[] = [];
+    for (let index = 0; index < arr.length; index++) {
+      const mapped = call(callback!, callbackArgs(arr[index]!, index, indexed));
+      if (Array.isArray(mapped)) result.push(...mapped);
+      else result.push(mapped);
+    }
+    meter.guardSize(result.length);
+    return result;
+  }, 2);
+}
+
+function arrayGroupByBuiltin(name: string, indexed: boolean): BuiltinFunction {
+  return builtin((args, call, _functions, meter) => {
+    const [keyFn, arr] = args;
+    if (!Array.isArray(arr)) throw new Error(`${name}: second argument must be an array`);
+    meter.charge(arr.length);
+    const groups: Record<string, JSONType[]> = {};
+    for (let index = 0; index < arr.length; index++) {
+      const key = call(keyFn!, callbackArgs(arr[index]!, index, indexed));
+      if (typeof key !== "string" && typeof key !== "number") {
+        throw new Error(`${name}: key function must return a string or number, got ${typeof key}`);
+      }
+      const normalizedKey = String(key);
+      if (!groups[normalizedKey]) groups[normalizedKey] = [];
+      groups[normalizedKey].push(arr[index]!);
+    }
+    return groups;
+  }, 2);
+}
+
+function arraySortByBuiltin(name: string, indexed: boolean): BuiltinFunction {
+  return builtin((args, call, _functions, meter) => {
+    const [keyFn, arr] = args;
+    if (!Array.isArray(arr)) throw new Error(`${name}: second argument must be an array`);
+    meter.charge(arr.length);
+    let keyKind: "number" | "string" | undefined;
+    const decorated: { item: JSONType; key: number | string }[] = [];
+    for (let index = 0; index < arr.length; index++) {
+      const item = arr[index]!;
+      const key = call(keyFn!, callbackArgs(item, index, indexed));
+      if (
+        (typeof key !== "number" && typeof key !== "string") ||
+        (typeof key === "number" && !Number.isFinite(key))
+      ) {
+        throw new Error(`${name}: key function must return a finite number or string`);
+      }
+      const kind: "number" | "string" = typeof key === "number" ? "number" : "string";
+      if (keyKind === undefined) keyKind = kind;
+      if (kind !== keyKind) {
+        throw new Error(`${name}: key function must return keys of one consistent type`);
+      }
+      decorated.push({ item, key });
+    }
+    decorated.sort((a, b) => {
+      if (keyKind === "string") return compareStrings(a.key as string, b.key as string, meter);
+      meter.charge(1);
+      return a.key < b.key ? -1 : a.key > b.key ? 1 : 0;
+    });
+    return decorated.map(({ item }) => item);
+  }, 2);
 }
 
 export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
@@ -402,64 +550,22 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
     // Each charges fuel proportional to the number of elements it iterates over;
     // the per-callback cost is charged separately by the interpreter's call
     // chokepoint. See docs/execution-limits.md.
-    map: builtin((args, call, _functions, meter) => {
-      const [callback, arr] = args;
-      if (!Array.isArray(arr)) throw new Error("map: second argument must be an array");
-      meter.charge(arr.length);
-      return arr.map((item, i) => call(callback!, [item, i]));
-    }, 2),
-    filter: builtin((args, call, _functions, meter) => {
-      const [callback, arr] = args;
-      if (!Array.isArray(arr)) throw new Error("filter: second argument must be an array");
-      meter.charge(arr.length);
-      return arr.filter((item, i) => call(callback!, [item, i]));
-    }, 2),
-    reduce: builtin((args, call, _functions, meter) => {
-      const [callback, init, arr] = args as [any, any, any];
-      if (!Array.isArray(arr)) throw new Error("reduce: third argument must be an array");
-      meter.charge(arr.length);
-      return arr.reduce((acc: any, item: any, i: number) => call(callback, [acc, item, i]), init);
-    }, 3),
-    find: builtin((args, call, _functions, meter) => {
-      const [callback, arr] = args;
-      if (!Array.isArray(arr)) throw new Error("find: second argument must be an array");
-      meter.charge(arr.length);
-      for (let i = 0; i < arr.length; i++) {
-        if (call(callback!, [arr[i]!, i])) return arr[i]!;
-      }
-      return null;
-    }, 2),
-    findIndex: builtin((args, call, _functions, meter) => {
-      const [callback, arr] = args;
-      if (!Array.isArray(arr)) throw new Error("findIndex: second argument must be an array");
-      meter.charge(arr.length);
-      for (let i = 0; i < arr.length; i++) {
-        if (call(callback!, [arr[i]!, i])) return i;
-      }
-      return null;
-    }, 2),
-    some: builtin((args, call, _functions, meter) => {
-      const [callback, arr] = args;
-      if (!Array.isArray(arr)) throw new Error("some: second argument must be an array");
-      meter.charge(arr.length);
-      return arr.some((item, i) => call(callback!, [item, i]));
-    }, 2),
-    every: builtin((args, call, _functions, meter) => {
-      const [callback, arr] = args;
-      if (!Array.isArray(arr)) throw new Error("every: second argument must be an array");
-      meter.charge(arr.length);
-      return arr.every((item, i) => call(callback!, [item, i]));
-    }, 2),
-    count: builtin((args, call, _functions, meter) => {
-      const [callback, arr] = args;
-      if (!Array.isArray(arr)) throw new Error("count: second argument must be an array");
-      meter.charge(arr.length);
-      let matches = 0;
-      for (let i = 0; i < arr.length; i++) {
-        if (call(callback!, [arr[i]!, i])) matches++;
-      }
-      return matches;
-    }, 2),
+    map: arrayMapBuiltin("map", false),
+    mapIndexed: arrayMapBuiltin("mapIndexed", true),
+    filter: arrayFilterBuiltin("filter", false),
+    filterIndexed: arrayFilterBuiltin("filterIndexed", true),
+    reduce: arrayReduceBuiltin("reduce", false),
+    reduceIndexed: arrayReduceBuiltin("reduceIndexed", true),
+    find: arrayFindBuiltin("find", false, false),
+    findIndexed: arrayFindBuiltin("findIndexed", true, false),
+    findIndex: arrayFindBuiltin("findIndex", false, true),
+    findIndexIndexed: arrayFindBuiltin("findIndexIndexed", true, true),
+    some: arrayQuantifierBuiltin("some", false, "some"),
+    someIndexed: arrayQuantifierBuiltin("someIndexed", true, "some"),
+    every: arrayQuantifierBuiltin("every", false, "every"),
+    everyIndexed: arrayQuantifierBuiltin("everyIndexed", true, "every"),
+    count: arrayQuantifierBuiltin("count", false, "count"),
+    countIndexed: arrayQuantifierBuiltin("countIndexed", true, "count"),
     sort: builtin((args, call, _functions, meter) => {
       if (args.length === 1) {
         const arr = args[0];
@@ -502,66 +608,12 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
       }
       return result;
     }, 2),
-    flatMap: builtin((args, call, _functions, meter) => {
-      const [callback, arr] = args;
-      if (!Array.isArray(arr)) throw new Error("flatMap: second argument must be an array");
-      meter.charge(arr.length);
-      const result: any[] = [];
-      for (let i = 0; i < arr.length; i++) {
-        const mapped = call(callback!, [arr[i]!, i]);
-        if (Array.isArray(mapped)) {
-          for (const item of mapped) result.push(item);
-        } else {
-          result.push(mapped);
-        }
-      }
-      meter.guardSize(result.length);
-      return result;
-    }, 2),
-    groupBy: builtin((args, call, _functions, meter) => {
-      const [keyFn, arr] = args;
-      if (!Array.isArray(arr)) throw new Error("groupBy: second argument must be an array");
-      meter.charge(arr.length);
-      const groups: Record<string, any[]> = {};
-      for (let i = 0; i < arr.length; i++) {
-        const key = call(keyFn!, [arr[i]!, i]) as string;
-        if (typeof key !== "string" && typeof key !== "number")
-          throw new Error(
-            `groupBy: key function must return a string or number, got ${typeof key}`,
-          );
-        const k = String(key);
-        if (!groups[k]) groups[k] = [];
-        groups[k].push(arr[i]!);
-      }
-      return groups;
-    }, 2),
-    sortBy: builtin((args, call, _functions, meter) => {
-      const [keyFn, arr] = args;
-      if (!Array.isArray(arr)) throw new Error("sortBy: second argument must be an array");
-      meter.charge(arr.length);
-      let keyKind: "number" | "string" | undefined;
-      const decorated: { item: JSONType; key: number | string }[] = [];
-      for (let i = 0; i < arr.length; i++) {
-        const item = arr[i]!;
-        const key = call(keyFn!, [item, i]);
-        if (typeof key !== "number" && typeof key !== "string") {
-          throw new Error("sortBy: key function must return a finite number or string");
-        }
-        if (typeof key === "number" && !Number.isFinite(key))
-          throw new Error("sortBy: key function must return a finite number or string");
-        const kind: "number" | "string" = typeof key === "number" ? "number" : "string";
-        if (keyKind === undefined) keyKind = kind;
-        if (kind !== keyKind)
-          throw new Error("sortBy: key function must return keys of one consistent type");
-        decorated.push({ item, key });
-      }
-      decorated.sort((a, b) => {
-        if (keyKind === "string") return compareStrings(a.key as string, b.key as string, meter);
-        meter.charge(1);
-        return a.key < b.key ? -1 : a.key > b.key ? 1 : 0;
-      });
-      return decorated.map((d) => d.item);
-    }, 2),
+    flatMap: arrayFlatMapBuiltin("flatMap", false),
+    flatMapIndexed: arrayFlatMapBuiltin("flatMapIndexed", true),
+    groupBy: arrayGroupByBuiltin("groupBy", false),
+    groupByIndexed: arrayGroupByBuiltin("groupByIndexed", true),
+    sortBy: arraySortByBuiltin("sortBy", false),
+    sortByIndexed: arraySortByBuiltin("sortByIndexed", true),
     apply: builtin((args, call) => {
       const [fn, argsArray] = args;
       if (!Array.isArray(argsArray)) throw new Error("apply: second argument must be an array");

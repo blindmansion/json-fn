@@ -843,40 +843,57 @@ Match results are objects with `match` (full matched text), `index` (start posit
 
 Higher-order functions can invoke json-fn callbacks. The callback argument can be a function reference (`{ "$fn": "name" }`), an inline function body, or a string name.
 
-| Function        | Args                       | Description                                                                      |
-| --------------- | -------------------------- | -------------------------------------------------------------------------------- |
-| `map`           | `(callback, arr)`          | map. Callback receives `(item, index)`.                                          |
-| `filter`        | `(callback, arr)`          | filter. Callback receives `(item, index)`.                                       |
-| `reduce`        | `(callback, init, arr)`    | reduce. Callback receives `(acc, item, index)`.                                  |
-| `find`          | `(callback, arr)`          | first match or `null`. Callback receives `(item, index)`.                        |
-| `findIndex`     | `(callback, arr)`          | index of first match or `null`. Callback receives `(item, index)`.               |
-| `some`          | `(callback, arr)`          | any match. Callback receives `(item, index)`.                                    |
-| `every`         | `(callback, arr)`          | all match. Callback receives `(item, index)`.                                    |
-| `count`         | `(callback, arr)`          | number of matches. Callback receives `(item, index)`.                            |
-| `sort`          | `(arr)` / `(comparator, arr)` | sorted copy. The default orders homogeneous numbers ascending or homogeneous strings by Unicode code point. A comparator receives `(a, b)` and returns a number. |
-| `sortBy`        | `(keyFn, arr)`             | sorted copy by key function. keyFn receives `(item, index)`.                     |
-| `flatMap`       | `(callback, arr)`          | map then flatten arrays one level; retain scalar results. Callback receives `(item, index)`. |
-| `groupBy`       | `(keyFn, arr)`             | group into object. keyFn receives `(item, index)`, must return string or number. |
-| `mapValues`     | `(callback, obj)`          | transform object values. Callback receives `(value, key)`.                       |
-| `apply`         | `(fn, argsArray)`          | call `fn` with elements of `argsArray` as positional arguments.                  |
-| `pipe`          | `(fns, init)`              | thread value through array of functions left-to-right.                           |
-| `reReplaceWith` | `(pattern, callback, str)` | replace all regex matches via callback. Callback receives a match object.        |
+| Function           | Args                          | Description                                                                      |
+| ------------------ | ----------------------------- | -------------------------------------------------------------------------------- |
+| `map`              | `(callback, arr)`             | map. Callback receives `(item)`.                                                 |
+| `mapIndexed`       | `(callback, arr)`             | map. Callback receives `(item, index)`.                                          |
+| `filter`           | `(callback, arr)`             | filter. Callback receives `(item)`.                                              |
+| `filterIndexed`    | `(callback, arr)`             | filter. Callback receives `(item, index)`.                                       |
+| `reduce`           | `(callback, init, arr)`       | reduce. Callback receives `(acc, item)`.                                         |
+| `reduceIndexed`    | `(callback, init, arr)`       | reduce. Callback receives `(acc, item, index)`.                                  |
+| `find`             | `(callback, arr)`             | first match or `null`. Callback receives `(item)`.                               |
+| `findIndexed`      | `(callback, arr)`             | first match or `null`. Callback receives `(item, index)`.                        |
+| `findIndex`        | `(callback, arr)`             | index of first match or `null`. Callback receives `(item)`.                      |
+| `findIndexIndexed` | `(callback, arr)`             | index of first match or `null`. Callback receives `(item, index)`.               |
+| `some`             | `(callback, arr)`             | any match. Callback receives `(item)`.                                           |
+| `someIndexed`      | `(callback, arr)`             | any match. Callback receives `(item, index)`.                                    |
+| `every`            | `(callback, arr)`             | all match. Callback receives `(item)`.                                           |
+| `everyIndexed`     | `(callback, arr)`             | all match. Callback receives `(item, index)`.                                    |
+| `count`            | `(callback, arr)`             | number of matches. Callback receives `(item)`.                                   |
+| `countIndexed`     | `(callback, arr)`             | number of matches. Callback receives `(item, index)`.                            |
+| `sort`             | `(arr)` / `(comparator, arr)` | sorted copy. The default orders homogeneous numbers ascending or homogeneous strings by Unicode code point. A comparator receives `(a, b)` and returns a number. |
+| `sortBy`           | `(keyFn, arr)`                | sorted copy by key function. keyFn receives `(item)`.                            |
+| `sortByIndexed`    | `(keyFn, arr)`                | sorted copy by key function. keyFn receives `(item, index)`.                     |
+| `flatMap`          | `(callback, arr)`             | map then flatten arrays one level; retain scalar results. Callback receives `(item)`. |
+| `flatMapIndexed`   | `(callback, arr)`             | indexed `flatMap`; same flattening behavior. Callback receives `(item, index)`.  |
+| `groupBy`          | `(keyFn, arr)`                | group into object. keyFn receives `(item)` and must return string or number.     |
+| `groupByIndexed`   | `(keyFn, arr)`                | indexed `groupBy`. keyFn receives `(item, index)` and must return string or number. |
+| `mapValues`        | `(callback, obj)`             | transform object values. Callback receives `(value, key)`.                       |
+| `apply`            | `(fn, argsArray)`             | call `fn` with elements of `argsArray` as positional arguments.                  |
+| `pipe`             | `(fns, init)`                 | thread value through array of functions left-to-right.                           |
+| `reReplaceWith`    | `(pattern, callback, str)`    | replace all regex matches via callback. Callback receives a match object.        |
 
 At runtime, a callback may be an inline function, a function reference, or a
 raw string name. The static checker contextually types bare inline functions
 and checks typed function references; it does not resolve raw string names.
 Bare contextual callbacks must declare the exact required, optional, and rest
 shape supplied by the builtin; those three parts are compared independently.
-Declare an unused supplied parameter with an ignored name such as `_index`.
 Referenced and `$sig`-annotated callbacks must also have a compatible complete
 shape. When a referenced function intentionally has a different public shape,
 use an explicit wrapper that declares the builtin's full callback shape and
 forwards the arguments the function accepts.
 
-`groupBy` converts numeric keys to strings before using them as object keys.
-`flatMap` splices array callback results into the output and keeps non-array
-results as single elements; nested arrays are therefore flattened by exactly
-one level.
+The ordinary array HOFs supply only the item (`reduce` supplies accumulator and
+item). Their `*Indexed` counterparts additionally supply the integer index.
+This is a breaking API change: remove an unused index parameter from callbacks
+passed to an ordinary HOF, or rename the call to its `*Indexed` counterpart when
+the callback uses the index. For an indexed wrapper that ignores the supplied
+index, declare it explicitly with an ignored name such as `_index`.
+
+`groupBy` and `groupByIndexed` convert numeric keys to strings before using them
+as object keys. `flatMap` and `flatMapIndexed` splice array callback results
+into the output and keep non-array results as single elements; nested arrays
+are therefore flattened by exactly one level.
 `reReplaceWith` callbacks statically return `string`, although the runtime
 defensively stringifies other return values. `mapValues` is typed as a
 string-keyed map and does not preserve exact input keys. `filter` and `find` do

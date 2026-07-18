@@ -63,13 +63,13 @@
   },
 
   run: (txns: Tx[]) -> Books =>
-    reduce((books, tx, _index) => apply(books, tx), { ledger: {}, log: [] }, txns),
+    reduce((books, tx) => apply(books, tx), { ledger: {}, log: [] }, txns),
 
   // Curried return type: a reusable floor check, partially applied at call sites.
   overdraftGuard: (floor: Cents) -> (Account) -> boolean => (a) => a.balance >= floor,
 
   allAbove: (books: Books, floor: Cents) -> boolean =>
-    every((account, _index) => overdraftGuard(floor)(account), values(books.ledger)),
+    every((account) => overdraftGuard(floor)(account), values(books.ledger)),
 
   // Rest parameter folds any number of trailing lines into one report.
   report: (title: string, ...lines: string[]) -> string =>
@@ -77,8 +77,8 @@
 
   summary: (books: Books) -> string =>
     report(header, join(rows, "\n"), "log:", join(books.log, "\n")) where {
-      accts:  sortBy((a, _index) => a.name, values(books.ledger)),
-      rows:   map((a, _index) => `  ${a.name}: ${dollars(a.balance)}`, accts),
+      accts:  sortBy((a) => a.name, values(books.ledger)),
+      rows:   map((a) => `  ${a.name}: ${dollars(a.balance)}`, accts),
       header: `ledger — ${str(length(accts))} account(s):`
     },
 

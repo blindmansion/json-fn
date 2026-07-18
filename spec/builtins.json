@@ -429,6 +429,22 @@
         "required": [
           {
             "$fnType": {
+              "required": [{ "$tvar": "T" }], "optional": [],
+              "returns": { "$tvar": "U" }
+            }
+          },
+          { "type": "array", "items": { "$tvar": "T" } }
+        ],
+        "optional": [],
+        "returns": { "type": "array", "items": { "$tvar": "U" } }
+      }
+    ] },
+    "mapIndexed": { "signatures": [
+      {
+        "typeParams": ["T", "U"],
+        "required": [
+          {
+            "$fnType": {
               "required": [{ "$tvar": "T" }, { "type": "integer" }], "optional": [],
               "returns": { "$tvar": "U" }
             }
@@ -445,6 +461,22 @@
         "required": [
           {
             "$fnType": {
+              "required": [{ "$tvar": "T" }], "optional": [],
+              "returns": { "type": "boolean" }
+            }
+          },
+          { "type": "array", "items": { "$tvar": "T" } }
+        ],
+        "optional": [],
+        "returns": { "type": "array", "items": { "$tvar": "T" } }
+      }
+    ] },
+    "filterIndexed": { "signatures": [
+      {
+        "typeParams": ["T"],
+        "required": [
+          {
+            "$fnType": {
               "required": [{ "$tvar": "T" }, { "type": "integer" }], "optional": [],
               "returns": { "type": "boolean" }
             }
@@ -456,6 +488,23 @@
       }
     ] },
     "reduce": { "signatures": [
+      {
+        "typeParams": ["T", "U"],
+        "required": [
+          {
+            "$fnType": {
+              "required": [{ "$tvar": "U" }, { "$tvar": "T" }], "optional": [],
+              "returns": { "$tvar": "U" }
+            }
+          },
+          { "$tvar": "U" },
+          { "type": "array", "items": { "$tvar": "T" } }
+        ],
+        "optional": [],
+        "returns": { "$tvar": "U" }
+      }
+    ] },
+    "reduceIndexed": { "signatures": [
       {
         "typeParams": ["T", "U"],
         "required": [
@@ -478,6 +527,22 @@
         "required": [
           {
             "$fnType": {
+              "required": [{ "$tvar": "T" }], "optional": [],
+              "returns": { "type": "boolean" }
+            }
+          },
+          { "type": "array", "items": { "$tvar": "T" } }
+        ],
+        "optional": [],
+        "returns": { "anyOf": [{ "$tvar": "T" }, { "type": "null" }] }
+      }
+    ] },
+    "findIndexed": { "signatures": [
+      {
+        "typeParams": ["T"],
+        "required": [
+          {
+            "$fnType": {
               "required": [{ "$tvar": "T" }, { "type": "integer" }], "optional": [],
               "returns": { "type": "boolean" }
             }
@@ -489,6 +554,22 @@
       }
     ] },
     "findIndex": { "signatures": [
+      {
+        "typeParams": ["T"],
+        "required": [
+          {
+            "$fnType": {
+              "required": [{ "$tvar": "T" }], "optional": [],
+              "returns": { "type": "boolean" }
+            }
+          },
+          { "type": "array", "items": { "$tvar": "T" } }
+        ],
+        "optional": [],
+        "returns": { "anyOf": [{ "type": "integer" }, { "type": "null" }] }
+      }
+    ] },
+    "findIndexIndexed": { "signatures": [
       {
         "typeParams": ["T"],
         "required": [
@@ -510,6 +591,22 @@
         "required": [
           {
             "$fnType": {
+              "required": [{ "$tvar": "T" }], "optional": [],
+              "returns": { "type": "boolean" }
+            }
+          },
+          { "type": "array", "items": { "$tvar": "T" } }
+        ],
+        "optional": [],
+        "returns": { "type": "boolean" }
+      }
+    ] },
+    "someIndexed": { "signatures": [
+      {
+        "typeParams": ["T"],
+        "required": [
+          {
+            "$fnType": {
               "required": [{ "$tvar": "T" }, { "type": "integer" }], "optional": [],
               "returns": { "type": "boolean" }
             }
@@ -526,6 +623,22 @@
         "required": [
           {
             "$fnType": {
+              "required": [{ "$tvar": "T" }], "optional": [],
+              "returns": { "type": "boolean" }
+            }
+          },
+          { "type": "array", "items": { "$tvar": "T" } }
+        ],
+        "optional": [],
+        "returns": { "type": "boolean" }
+      }
+    ] },
+    "everyIndexed": { "signatures": [
+      {
+        "typeParams": ["T"],
+        "required": [
+          {
+            "$fnType": {
               "required": [{ "$tvar": "T" }, { "type": "integer" }], "optional": [],
               "returns": { "type": "boolean" }
             }
@@ -537,6 +650,22 @@
       }
     ] },
     "count": { "signatures": [
+      {
+        "typeParams": ["T"],
+        "required": [
+          {
+            "$fnType": {
+              "required": [{ "$tvar": "T" }], "optional": [],
+              "returns": { "type": "boolean" }
+            }
+          },
+          { "type": "array", "items": { "$tvar": "T" } }
+        ],
+        "optional": [],
+        "returns": { "type": "integer" }
+      }
+    ] },
+    "countIndexed": { "signatures": [
       {
         "typeParams": ["T"],
         "required": [
@@ -586,6 +715,22 @@
         "required": [
           {
             "$fnType": {
+              "required": [{ "$tvar": "T" }], "optional": [],
+              "returns": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+            }
+          },
+          { "type": "array", "items": { "$tvar": "T" } }
+        ],
+        "optional": [],
+        "returns": { "type": "array", "items": { "$tvar": "T" } }
+      }
+    ] },
+    "sortByIndexed": { "signatures": [
+      {
+        "typeParams": ["T"],
+        "required": [
+          {
+            "$fnType": {
               "required": [{ "$tvar": "T" }, { "type": "integer" }], "optional": [],
               "returns": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
             }
@@ -597,6 +742,25 @@
       }
     ] },
     "groupBy": { "signatures": [
+      {
+        "typeParams": ["T"],
+        "required": [
+          {
+            "$fnType": {
+              "required": [{ "$tvar": "T" }], "optional": [],
+              "returns": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+            }
+          },
+          { "type": "array", "items": { "$tvar": "T" } }
+        ],
+        "optional": [],
+        "returns": {
+          "type": "object",
+          "additionalProperties": { "type": "array", "items": { "$tvar": "T" } }
+        }
+      }
+    ] },
+    "groupByIndexed": { "signatures": [
       {
         "typeParams": ["T"],
         "required": [
@@ -622,7 +786,7 @@
           "required": [
             {
               "$fnType": {
-                "required": [{ "$tvar": "T" }, { "type": "integer" }], "optional": [],
+                "required": [{ "$tvar": "T" }], "optional": [],
                 "returns": true
               }
             },
@@ -633,6 +797,25 @@
         }
       ],
       "rule": "core.flatMap"
+    },
+    "flatMapIndexed": {
+      "signatures": [
+        {
+          "typeParams": ["T"],
+          "required": [
+            {
+              "$fnType": {
+                "required": [{ "$tvar": "T" }, { "type": "integer" }], "optional": [],
+                "returns": true
+              }
+            },
+            { "type": "array", "items": { "$tvar": "T" } }
+          ],
+          "optional": [],
+          "returns": { "type": "array" }
+        }
+      ],
+      "rule": "core.flatMapIndexed"
     },
     "mapValues": { "signatures": [
       {

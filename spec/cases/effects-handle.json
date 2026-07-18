@@ -302,7 +302,7 @@
                     "$call": "flatMap",
                     "$args": [
                       {
-                        "$params": ["x", "_index"],
+                        "$params": ["x"],
                         "$return": { "$call": { "$var": "resume" }, "$args": [{ "$var": "x" }] }
                       },
                       { "$var": "xs" }

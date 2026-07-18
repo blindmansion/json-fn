@@ -206,7 +206,7 @@
           "$call": "filter",
           "$args": [
             {
-              "$params": ["pair", "_index"],
+              "$params": ["pair"],
               "value": { "$get": 1, "$from": { "$var": "pair" } },
               "$return": { "$call": "gt", "$args": [{ "$var": "value" }, 3] }
             },
@@ -225,7 +225,7 @@
           "$call": "map",
           "$args": [
             {
-              "$params": ["pair", "_index"],
+              "$params": ["pair"],
               "k": { "$call": "upper", "$args": [{ "$get": 0, "$from": { "$var": "pair" } }] },
               "v": { "$get": 1, "$from": { "$var": "pair" } },
               "$return": [{ "$var": "k" }, { "$var": "v" }]
