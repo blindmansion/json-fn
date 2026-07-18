@@ -23,6 +23,7 @@ const body = (
 
 const I: Schema = { type: "integer" };
 const S: Schema = { type: "string" };
+const B: Schema = { type: "boolean" };
 
 // ---------------------------------------------------------------------------
 // Section F — builtin signatures (the spec/builtins.json dialect, end to end)
@@ -54,6 +55,74 @@ describe("Section F — builtin signatures", () => {
   test("overloads: length accepts arrays and strings", () => {
     expect(synthB(call("length", [1, 2, 3])).type).toEqual({ type: "integer" });
     expect(synthB(call("length", "hello")).type).toEqual({ type: "integer" });
+  });
+
+  test("a single builtin accepts its required-through-optional range", () => {
+    const table: CallableTable = {
+      builtins: {
+        flexible: {
+          signatures: [{ required: [I], optional: [S, B], returns: I }],
+        },
+      },
+    };
+    const run = (...args: JSONType[]) => checkExpr(call("flexible", ...args), {}, table);
+
+    expect(run().diagnostics.map(({ message }) => message)).toEqual([
+      "Expected 1 to 3 argument(s), got 0.",
+    ]);
+    for (const args of [[1], [1, "label"], [1, "label", true]]) {
+      expect(run(...args).diagnostics).toEqual([]);
+    }
+    expect(run(1, "label", true, false).diagnostics.map(({ message }) => message)).toEqual([
+      "Expected 1 to 3 argument(s), got 4.",
+    ]);
+    expect(run(1, false).diagnostics).toContainEqual(
+      expect.objectContaining({ path: ["$args[1]"], expected: S, actual: { const: false } }),
+    );
+  });
+
+  test("multi-overload selection trials optional tails at the supplied count", () => {
+    const table: CallableTable = {
+      builtins: {
+        choose: {
+          signatures: [
+            { required: [I], optional: [S], returns: I },
+            { required: [I], optional: [B, B], returns: S },
+          ],
+        },
+      },
+    };
+    const run = (...args: JSONType[]) => checkExpr(call("choose", ...args), {}, table);
+
+    expect(run(1)).toEqual({ type: I, diagnostics: [] });
+    expect(run(1, true)).toEqual({ type: S, diagnostics: [] });
+    expect(run(1, true, false)).toEqual({ type: S, diagnostics: [] });
+
+    const { diagnostics } = run();
+    expect(diagnostics).toHaveLength(1);
+    expect(diagnostics[0]!.message).toBe(
+      'No overload of "choose" matches arguments (); expected ({"type":"integer"}, {"type":"string"}?) or ({"type":"integer"}, {"type":"boolean"}?, {"type":"boolean"}?).',
+    );
+  });
+
+  test("builtin rest starts after every fixed optional position", () => {
+    const table: CallableTable = {
+      builtins: {
+        variadic: {
+          signatures: [{ required: [I], optional: [S], rest: B, returns: I }],
+        },
+      },
+    };
+    const run = (...args: JSONType[]) => checkExpr(call("variadic", ...args), {}, table);
+
+    expect(run().diagnostics.map(({ message }) => message)).toEqual([
+      "Expected at least 1 argument(s), got 0.",
+    ]);
+    expect(run(1).diagnostics).toEqual([]);
+    expect(run(1, "label", true, false).diagnostics).toEqual([]);
+    expect(run(1, true).diagnostics).toContainEqual(
+      expect.objectContaining({ path: ["$args[1]"], expected: S, actual: { const: true } }),
+    );
   });
 
   test("a no-overload-fits call reports a diagnostic", () => {

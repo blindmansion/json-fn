@@ -26,6 +26,7 @@ import type {
 } from "./builtin-types";
 import { CallableTypeRuleContractError, CallableTypeRuleOwnershipError } from "./callable-rules";
 import {
+  acceptsArgumentCount,
   analyzeBodyParameters,
   buildTypeScope,
   check,
@@ -321,11 +322,7 @@ function tryBindOverload(
   argExprs: JSONType[],
   ctx: CheckContext,
 ): Bindings | null {
-  if (sig.rest === undefined) {
-    if (argExprs.length !== fixedParamSchemas(sig).length) return null;
-  } else if (argExprs.length < fixedParamSchemas(sig).length) {
-    return null;
-  }
+  if (!acceptsArgumentCount(sig, argExprs.length)) return null;
   const bindings: Bindings = {};
   const silent: CheckContext = { ...ctx, diagnostics: [] };
   const concrete: { param: Schema; schema: Schema }[] = [];
@@ -514,9 +511,14 @@ function applyOverload(
   return instantiate(sig.returns, bindings);
 }
 
-// Render a signature's parameter list as `(p0, p1, ...rest)` for a diagnostic.
+// Render a signature's parameter list as `(required, optional?, ...rest)` for a
+// diagnostic, preserving the accepted range rather than making every fixed
+// position look required.
 function paramList(sig: CallableSignature): string {
-  const parts = fixedParamSchemas(sig).map((p) => JSON.stringify(p));
+  const parts = [
+    ...sig.required.map((p) => JSON.stringify(p)),
+    ...sig.optional.map((p) => `${JSON.stringify(p)}?`),
+  ];
   if (sig.rest !== undefined) parts.push(`...${JSON.stringify(sig.rest)}`);
   return `(${parts.join(", ")})`;
 }
