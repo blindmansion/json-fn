@@ -4,12 +4,12 @@
 import type { JSONType } from "../types";
 import { mergeDefinitionPools, readModuleDefinitions } from "../definition-pool";
 import { buildEffectNamespace, EFFECTS_BINDING } from "../environment/effects";
+import type { Environment } from "../environment/types";
 import type { ParameterLayout } from "../params";
 import {
   entryReturnType,
   mergeCallableTables,
   validateEnvironment,
-  type Environment,
 } from "../environment/environment";
 import type { CallableTable, CallableTypeRuleRegistry } from "./builtin-types";
 import { synthCallableCall } from "./builtin-rules";

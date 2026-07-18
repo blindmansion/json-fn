@@ -137,4 +137,3 @@ export {
   loadEffectManifest,
   validateEffectManifest,
 };
-export type { EffectManifest, EffectSignature } from "./effect-types";

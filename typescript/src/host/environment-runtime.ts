@@ -8,8 +8,8 @@ import {
   EnvironmentConfigurationError,
   mergeCallableTables,
   validateEnvironment,
-  type Environment,
 } from "../environment/environment";
+import type { Environment } from "../environment/types";
 import { enforceRuntimeContract } from "../runtime-contract";
 import type { CallableTypeRuleRegistry } from "../check/builtin-types";
 import type { FunctionRegistry, JSONType } from "../types";

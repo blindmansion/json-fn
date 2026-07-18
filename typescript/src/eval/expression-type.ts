@@ -1,8 +1,9 @@
 import type { JSONType, PerfStats } from "../types";
 import { ExpressionType } from "../types";
+import { exprError } from "../expression-error";
 import { isFunctionBody } from "../function-value";
 import { requireParameterLayout } from "../params";
-import { exprError, expressionKeyCount } from "../utils";
+import { expressionKeyCount } from "../utils";
 
 export function getExpressionType(json: JSONType, perf?: PerfStats): ExpressionType {
   if (perf) perf.getExpressionType++;

@@ -10,11 +10,8 @@ import {
 } from "../definition-pool";
 import { buildEffectNamespace, EFFECTS_BINDING } from "../environment/effects";
 import type { EffectManifest } from "../environment/effect-types";
-import {
-  EnvironmentConfigurationError,
-  entryCompletionType,
-  type Environment,
-} from "../environment/environment";
+import { EnvironmentConfigurationError, entryCompletionType } from "../environment/environment";
+import type { Environment } from "../environment/types";
 import { prepareProgram } from "../eval";
 import { enforceRuntimeContract, RuntimeContractError } from "../runtime-contract";
 import { stepTask } from "../task";

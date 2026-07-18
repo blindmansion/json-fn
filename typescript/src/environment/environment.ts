@@ -177,4 +177,3 @@ export {
   mergeCallableTables,
   validateEnvironment,
 };
-export type { EntryContract, EntryReturn, Environment } from "./types";

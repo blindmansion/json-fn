@@ -659,6 +659,23 @@ Verification completed successfully:
 - `blast` reports 93 modules, 368 import edges, and no import cycles across
   `src`, `test`, and `examples`.
 
+### Post-reorganization compatibility cleanup
+
+The package has no backward-compatibility constraint, so the temporary
+non-index forwarding exports have been removed:
+
+- the obsolete `src/evaluate.ts` shim was deleted;
+- evaluator internals now import `exprError` directly from
+  `expression-error.ts`, allowing its forwarding export from `utils.ts` to be
+  removed;
+- `environment/effects.ts` no longer forwards types from `effect-types.ts`; and
+- environment consumers import `Environment` directly from
+  `environment/types.ts`, allowing the forwarding type exports from
+  `environment/environment.ts` to be removed.
+
+The intentional `index.ts` barrels remain. `blast` reports no non-index
+re-export edges, and `bun run check` and `bun test` remain green.
+
 ## Verification
 
 Every phase must run:

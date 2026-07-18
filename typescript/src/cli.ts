@@ -24,7 +24,8 @@ import type { Diagnostic } from "./check/context";
 import type { CallableTable } from "./check/builtin-types";
 import { loadBuiltinTable } from "./builtins";
 import { buildEffectNamespace, EFFECTS_BINDING } from "./environment/effects";
-import { loadEnvironment, type Environment } from "./environment/environment";
+import { loadEnvironment } from "./environment/environment";
+import type { Environment } from "./environment/types";
 import { isFunctionBody } from "./function-value";
 
 const HELP = `jfn — a CLI for the json-fn language

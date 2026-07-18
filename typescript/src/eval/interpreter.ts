@@ -16,7 +16,8 @@ import type {
   Meter,
 } from "../types";
 import { ExpressionType } from "../types";
-import { exprError, isCommentKey, isPure, isBuiltin, isRaw, raw } from "../utils";
+import { exprError } from "../expression-error";
+import { isCommentKey, isPure, isBuiltin, isRaw, raw } from "../utils";
 import {
   CONTRACT_KEY,
   enforceRuntimeContractReturn,

@@ -2,7 +2,6 @@ import type { JSONType, BuiltinFunction, FunctionRegistry, Meter, RuntimeContext
 import { BUILTIN_MARKER, PURE_MARKER, ARITY_MARKER } from "./types";
 import { isFunctionBody } from "./function-value";
 import { requireParameterLayout } from "./params";
-export { exprError } from "./expression-error";
 
 export function objectKeyCount(obj: Record<string, unknown>): number {
   let n = 0;
