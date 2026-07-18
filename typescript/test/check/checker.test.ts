@@ -149,7 +149,7 @@ describe("checkModule: clean programs", () => {
     const fields: Schema = {
       type: "object",
       properties: { requiredField: S, optionalField: I, defaultedField: { type: "boolean" } },
-      required: ["requiredField", "optionalField", "defaultedField"],
+      required: ["requiredField"],
       additionalProperties: false,
     };
     const result: Schema = {
@@ -157,9 +157,9 @@ describe("checkModule: clean programs", () => {
       properties: {
         required: I,
         requiredField: S,
-        optionalField: I,
+        optionalField: { anyOf: [I, { type: "null" }] },
         defaultedField: { type: "boolean" },
-        optional: S,
+        optional: { anyOf: [S, { type: "null" }] },
         defaulted: I,
         rest: { type: "array", items: { type: "boolean" } },
       },
@@ -204,6 +204,34 @@ describe("checkModule: clean programs", () => {
           defaulted: { $var: "defaulted" },
           rest: { $var: "rest" },
         },
+      ),
+    };
+
+    expect(checkModule(mod)).toEqual([]);
+  });
+
+  test("object parameter patterns resolve refs before projecting field types", () => {
+    const mod = {
+      $types: {
+        Input: {
+          type: "object",
+          properties: { required: I, optional: S },
+          required: ["required"],
+          additionalProperties: false,
+        },
+      },
+      read: body(
+        [
+          {
+            $fields: ["required", { $field: "optional", $optional: true }],
+          },
+        ],
+        {
+          required: [{ $ref: "#/$defs/Input" }],
+          optional: [],
+          returns: { anyOf: [S, { type: "null" }] },
+        },
+        { $var: "optional" },
       ),
     };
 
@@ -322,6 +350,74 @@ describe("checkModule: diagnostics", () => {
         path: ["malformed", "$params[0]"],
         message: expect.stringContaining("$params[0]: A defaulted parameter must contain exactly"),
         severity: "error",
+      },
+    ]);
+  });
+
+  test("an optional positional binding includes null in its local type", () => {
+    const mod = {
+      optional: body(
+        [{ $param: "value", $optional: true }],
+        { required: [], optional: [S], returns: S },
+        { $var: "value" },
+      ),
+    };
+
+    expect(checkModule(mod)).toEqual([
+      expect.objectContaining({
+        path: ["optional", "$return"],
+        expected: S,
+        actual: { anyOf: [S, { type: "null" }] },
+      }),
+    ]);
+  });
+
+  test("object parameter fields must agree with the input object contract", () => {
+    const optionalProperty: Schema = {
+      type: "object",
+      properties: { value: I },
+      required: [],
+      additionalProperties: false,
+    };
+    const requiredProperty: Schema = {
+      type: "object",
+      properties: { value: I },
+      required: ["value"],
+      additionalProperties: false,
+    };
+    const missingProperty: Schema = {
+      type: "object",
+      properties: {},
+      required: [],
+      additionalProperties: false,
+    };
+    const pattern = (field: JSONType, input: Schema) =>
+      body([{ $fields: [field] }], { required: [input], optional: [], returns: true }, null);
+    const mod = {
+      requiredCanBeAbsent: pattern("value", optionalProperty),
+      defaultCannotRun: pattern({ $field: "value", $default: 0 }, requiredProperty),
+      closedMissing: pattern({ $field: "value", $optional: true }, missingProperty),
+      nonObject: pattern("value", I),
+    };
+
+    expect(checkModule(mod).map(({ path, message }) => ({ path, message }))).toEqual([
+      {
+        path: ["requiredCanBeAbsent", "$params[0]", "$fields[0]"],
+        message: 'Required field "value" is not guaranteed by the aligned object schema.',
+      },
+      {
+        path: ["defaultCannotRun", "$params[0]", "$fields[0]"],
+        message:
+          'Defaulted field "value" is required by the aligned object schema and cannot be omitted.',
+      },
+      {
+        path: ["closedMissing", "$params[0]", "$fields[0]"],
+        message: 'Field "value" is not permitted by the aligned closed object schema.',
+      },
+      {
+        path: ["nonObject", "$params[0]"],
+        message:
+          "Object parameter pattern requires an object schema in the aligned signature slot.",
       },
     ]);
   });

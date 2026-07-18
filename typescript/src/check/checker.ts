@@ -48,7 +48,6 @@ import {
   fixedParamSchemas,
   fnShape,
   isClosedMissingKey,
-  isSchemaObject,
   itemsSchema,
   prefixItems,
   projectComputed,
@@ -63,17 +62,6 @@ import {
   type Schema,
 } from "./schema";
 import { isSubschema } from "./subsumption";
-
-// The schema of property `k` in an object schema, for destructuring a param.
-function propertySchema(objSchema: Schema | undefined, k: string): Schema | undefined {
-  if (objSchema === undefined || !isSchemaObject(objSchema)) return undefined;
-  const props = properties(objSchema);
-  if (k in props) return props[k];
-  const mode = apMode(objSchema);
-  if (mode.kind === "map") return mode.schema;
-  if (mode.kind === "open") return true;
-  return undefined;
-}
 
 // Adapt a structured parameter issue to the checker's existing path format.
 function parameterIssueContext(ctx: CheckContext, path: ParameterPath): CheckContext {
@@ -127,22 +115,141 @@ function acceptsArgumentCount(sig: Sig, argc: number): boolean {
   return argc >= minimum && (sig.rest !== undefined || argc <= maximum);
 }
 
-// Bind a body's normalized parameters to their declared `$sig` schemas.
-function bindParams(layout: ParameterLayout, sig: Sig | null, eager: Record<string, Schema>): void {
+type TypedDefault = {
+  expression: JSONType;
+  expected: Schema;
+  path: ParameterPath;
+};
+
+type TypedParameterBindings = {
+  eager: Record<string, Schema>;
+  defaults: TypedDefault[];
+  valid: boolean;
+};
+
+const NULL_SCHEMA: Schema = { type: "null" };
+
+// Align normalized parameters with their supplied-value schemas once. The
+// resulting local types and retained defaults share the same projection, so
+// default checking cannot later disagree with parameter binding.
+function bindParams(
+  layout: ParameterLayout,
+  sig: Sig | null,
+  ctx: CheckContext,
+): TypedParameterBindings {
+  const eager: Record<string, Schema> = {};
+  const defaults: TypedDefault[] = [];
+  let valid = true;
   const sigParams = sig === null ? [] : fixedParamSchemas(sig);
   const rest = sig?.rest;
+
   for (const slot of layout.slots) {
     if (slot.kind === "rest") {
       eager[slot.name] = { type: "array", items: rest ?? true };
-    } else if (slot.kind === "fields") {
-      const objSchema = sigParams[slot.index];
-      for (const binding of slot.bindings) {
-        eager[binding.name] = propertySchema(objSchema, binding.name) ?? true;
+      continue;
+    }
+
+    const supplied = sigParams[slot.index] ?? true;
+    if (slot.kind !== "fields") {
+      eager[slot.name] = slot.kind === "optional" ? unionOf([supplied, NULL_SCHEMA]) : supplied;
+      if (slot.kind === "defaulted") {
+        defaults.push({
+          expression: slot.defaultExpression,
+          expected: supplied,
+          path: [slot.index, "$default"],
+        });
       }
-    } else {
-      eager[slot.name] = sigParams[slot.index] ?? true;
+      continue;
+    }
+
+    // A body without a signature remains permissive, but its normalized field
+    // kinds still determine nullability and which defaults need checking.
+    if (sig === null) {
+      for (const binding of slot.bindings) {
+        eager[binding.name] = binding.kind === "optional" ? unionOf([true, NULL_SCHEMA]) : true;
+        if (binding.kind === "defaulted") {
+          defaults.push({
+            expression: binding.defaultExpression,
+            expected: true,
+            path: [slot.index, "$fields", binding.fieldIndex, "$default"],
+          });
+        }
+      }
+      continue;
+    }
+
+    const resolved = resolveDeep(supplied, ctx.defs);
+    if (resolved !== true && classifySchema(resolved) !== SchemaKind.Object) {
+      report(
+        parameterIssueContext(ctx, [slot.index]),
+        "Object parameter pattern requires an object schema in the aligned signature slot.",
+        { expected: { type: "object" }, actual: supplied },
+      );
+      valid = false;
+      for (const binding of slot.bindings) eager[binding.name] = false;
+      continue;
+    }
+
+    const obj = resolved === true ? null : asObject(resolved);
+    const props = obj === null ? {} : properties(obj);
+    const required = obj === null ? [] : requiredKeys(obj);
+    const mode = obj === null ? { kind: "open" as const } : apMode(obj);
+
+    for (const binding of slot.bindings) {
+      const path: ParameterPath = [slot.index, "$fields", binding.fieldIndex];
+      const fieldCtx = parameterIssueContext(ctx, path);
+      const isNamed = binding.name in props;
+      const fieldSchema = isNamed
+        ? props[binding.name]!
+        : mode.kind === "map"
+          ? mode.schema
+          : mode.kind === "open"
+            ? true
+            : null;
+
+      if (fieldSchema === null) {
+        report(
+          fieldCtx,
+          `Field "${binding.name}" is not permitted by the aligned closed object schema.`,
+        );
+        valid = false;
+        eager[binding.name] = false;
+        continue;
+      }
+
+      const guaranteed = required.includes(binding.name);
+      if (binding.kind === "required" && !guaranteed) {
+        report(
+          fieldCtx,
+          `Required field "${binding.name}" is not guaranteed by the aligned object schema.`,
+        );
+        valid = false;
+        eager[binding.name] = false;
+        continue;
+      }
+      if (binding.kind !== "required" && guaranteed) {
+        report(
+          fieldCtx,
+          `${binding.kind === "defaulted" ? "Defaulted" : "Optional"} field "${binding.name}" is required by the aligned object schema and cannot be omitted.`,
+        );
+        valid = false;
+        eager[binding.name] = false;
+        continue;
+      }
+
+      eager[binding.name] =
+        binding.kind === "optional" ? unionOf([fieldSchema, NULL_SCHEMA]) : fieldSchema;
+      if (binding.kind === "defaulted") {
+        defaults.push({
+          expression: binding.defaultExpression,
+          expected: fieldSchema,
+          path: [slot.index, "$fields", binding.fieldIndex, "$default"],
+        });
+      }
     }
   }
+
+  return { eager, defaults, valid };
 }
 
 // Collect every `$var` name syntactically referenced by an expression. Used to
@@ -180,12 +287,17 @@ function buildTypeScope(
   ctx: CheckContext,
   reportUntypedBodies = true,
   injectedSig?: Sig,
-): { env: TypeEnv; guards: Record<string, JSONType> } {
-  const eager: Record<string, Schema> = {};
+): {
+  env: TypeEnv;
+  guards: Record<string, JSONType>;
+  parameterDefaults: TypedDefault[];
+  parameterBindingsValid: boolean;
+} {
   const exprLocals: Record<string, JSONType> = {};
 
   const sig = injectedSig ?? sigOf(body);
-  bindParams(layout, sig, eager);
+  const parameterBindings = bindParams(layout, sig, ctx);
+  const { eager } = parameterBindings;
 
   for (const key of bindingKeys(body)) {
     const val = body[key]!;
@@ -284,7 +396,12 @@ function buildTypeScope(
     },
   };
 
-  return { env, guards };
+  return {
+    env,
+    guards,
+    parameterDefaults: parameterBindings.defaults,
+    parameterBindingsValid: parameterBindings.valid,
+  };
 }
 
 // Structural type of literal JSON *data* (a `$raw` payload or a nested literal):
