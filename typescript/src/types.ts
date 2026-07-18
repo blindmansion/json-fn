@@ -10,7 +10,8 @@ enum ExpressionType {
   Match,
   And,
   Or,
-  Cast,
+  NonNullAssertion,
+  CheckedAscription,
   PropertyAccess,
   Raw,
   Object,
@@ -71,8 +72,13 @@ type Match = {
   $else: JSONType;
 };
 
-type Cast = {
-  $cast: JSONType;
+type NonNullAssertion = {
+  $nonnull: JSONType;
+};
+
+type CheckedAscription = {
+  $as: JSONType;
+  $type: JSONType;
 };
 
 type PropertyAccess = {
@@ -177,7 +183,8 @@ export type {
   Conditional,
   Cond,
   Match,
-  Cast,
+  NonNullAssertion,
+  CheckedAscription,
   PropertyAccess,
   EvaluatedFunctionCall,
 };

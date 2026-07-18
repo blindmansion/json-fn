@@ -151,11 +151,23 @@ function classifyExpressionType(json: JSONType): ExpressionType {
       return ExpressionType.Or;
     }
 
-    if ("$cast" in json) {
-      if (expressionKeyCount(json) > 1) {
-        exprError(json, "$cast expressions cannot have other properties.");
+    if ("$nonnull" in json) {
+      if (Object.keys(json).length > 1) {
+        exprError(json, "$nonnull expressions cannot have other properties.");
       }
-      return ExpressionType.Cast;
+      return ExpressionType.NonNullAssertion;
+    }
+
+    const hasAs = "$as" in json;
+    const hasType = "$type" in json;
+    if (hasAs || hasType) {
+      if (!(hasAs && hasType)) {
+        exprError(json, "Checked ascriptions must have both $as and $type.");
+      }
+      if (Object.keys(json).length > 2) {
+        exprError(json, "Checked ascriptions cannot have other properties.");
+      }
+      return ExpressionType.CheckedAscription;
     }
 
     if ("$raw" in json) {

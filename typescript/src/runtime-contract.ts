@@ -1,6 +1,7 @@
 import type { FunctionBody, JSONType } from "./types";
 import { isFunctionDeclaration } from "./function-value";
 import type { Defs, FnTypeShape, Schema } from "./schema/schema.ts";
+import { isRuntimeContractSchema } from "./schema/contract.ts";
 import {
   SchemaKind,
   classifySchema,
@@ -108,6 +109,11 @@ export function enforceRuntimeContract(
   defs: Defs = {},
   label = "runtime",
 ): JSONType {
+  if (!isRuntimeContractSchema(schema)) {
+    throw new RuntimeContractError(
+      `${label} contract failed: unsupported schema ${JSON.stringify(schema)}`,
+    );
+  }
   assertReferencesDefined(schema, defs);
   const resolved = resolveSchema(schema, defs);
   if (resolved === true) return value;

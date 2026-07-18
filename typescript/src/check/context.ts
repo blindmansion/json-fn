@@ -16,7 +16,7 @@ import { type Schema, type Defs, type FnTypeShape, isSchemaObject } from "../sch
 // human authors, but an agent reads a warning as an ambiguous signal. A
 // mismatch the checker can't prove safe is now a hard `error` — prove it with a
 // recognized guard, or discharge it with the `x!` assertion and eat a
-// runtime-checked cast.
+// runtime-checked boundary.
 type Severity = "error" | "info";
 
 // A single type diagnostic, with a JSON-ish path to its location (§6).

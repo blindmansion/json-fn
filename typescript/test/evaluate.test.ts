@@ -30,6 +30,33 @@ describe("evaluation state", () => {
   });
 });
 
+describe("canonical assertion classification", () => {
+  test("$nonnull rejects null and otherwise returns its operand", () => {
+    expect(callFunction({ $return: { $nonnull: 3 } }, [], functions)).toBe(3);
+    expect(() => callFunction({ $return: { $nonnull: null } }, [], functions)).toThrow(
+      "Assertion failed: expected a non-null value.",
+    );
+  });
+
+  test("assertion forms require their exact canonical properties", () => {
+    expect(() => callFunction({ $return: { $nonnull: 1, extra: true } }, [], functions)).toThrow(
+      "$nonnull expressions cannot have other properties.",
+    );
+    expect(() => callFunction({ $return: { $as: 1 } }, [], functions)).toThrow(
+      "Checked ascriptions must have both $as and $type.",
+    );
+    expect(() =>
+      callFunction({ $return: { $as: 1, $type: { type: "integer" }, extra: true } }, [], functions),
+    ).toThrow("Checked ascriptions cannot have other properties.");
+  });
+
+  test("$cast is ordinary data rather than an expression form", () => {
+    expect(callFunction({ $return: { $cast: null } }, [], functions)).toEqual({
+      $cast: null,
+    });
+  });
+});
+
 describe("stdlib mapValues", () => {
   test("passes each value and key while preserving the input keys", () => {
     const expression: JSONType = {

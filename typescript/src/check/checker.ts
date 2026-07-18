@@ -45,6 +45,7 @@ import {
   apMode,
   asObject,
   classifySchema,
+  collectSchemaRefs,
   deepEqual,
   fixedParamSchemas,
   fnShape,
@@ -62,6 +63,7 @@ import {
   widenLiteral,
   type Schema,
 } from "../schema/schema.ts";
+import { isRuntimeContractSchema } from "../schema/contract.ts";
 import { isSubschema } from "./subsumption";
 
 // Adapt a structured parameter issue to the checker's existing path format.
@@ -781,9 +783,28 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
     case "or":
       return shortCircuitType((expr as { $or: JSONType[] }).$or, false, ctx);
 
-    case "cast": {
-      const inner = synth((expr as { $cast: JSONType }).$cast, at(ctx, "$cast"));
+    case "nonnull": {
+      const inner = synth((expr as { $nonnull: JSONType }).$nonnull, at(ctx, "$nonnull"));
       return removeType(inner, "null", ctx.defs);
+    }
+
+    case "ascription": {
+      const ascription = expr as { $as: JSONType; $type: Schema };
+      synth(ascription.$as, at(ctx, "$as"));
+      if (!isRuntimeContractSchema(ascription.$type)) {
+        report(
+          at(ctx, "$type"),
+          "checked ascription type is outside the runtime-contract fragment",
+        );
+      }
+      const refs = new Set<string>();
+      collectSchemaRefs(ascription.$type, refs);
+      for (const name of refs) {
+        if (!(name in ctx.defs)) {
+          report(at(ctx, "$type"), `reference to undefined type "${name}"`);
+        }
+      }
+      return ascription.$type;
     }
 
     case "get": {
@@ -833,7 +854,7 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
 // Report an `actual ⊄ expected` mismatch as a hard error. §4.5 removed the
 // former runtime-checkable "warning" downgrade for overlapping (narrowable)
 // mismatches: an agent must prove the value with a recognized guard, or
-// discharge it with the `x!` assertion and accept a runtime-checked cast.
+// discharge it with an explicit checked boundary such as `x!` or `x as T`.
 function reportMismatch(ctx: CheckContext, actual: Schema, expected: Schema): void {
   report(ctx, `${describe(actual)} is not assignable to ${describe(expected)}.`, {
     expected,

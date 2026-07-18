@@ -20,7 +20,8 @@ type NodeKind =
   | "match"
   | "and"
   | "or"
-  | "cast"
+  | "nonnull"
+  | "ascription"
   | "get"
   | "raw";
 
@@ -41,7 +42,8 @@ function nodeKind(node: JSONType): NodeKind {
   if ("$if" in o || "$then" in o) return "if";
   if ("$and" in o) return "and";
   if ("$or" in o) return "or";
-  if ("$cast" in o) return "cast";
+  if ("$nonnull" in o) return "nonnull";
+  if ("$as" in o || "$type" in o) return "ascription";
   if ("$raw" in o) return "raw";
   return "object";
 }

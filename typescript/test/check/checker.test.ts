@@ -49,16 +49,71 @@ describe("synth: literals & data", () => {
 });
 
 describe("synth: non-null assertion", () => {
-  test("$cast removes null from the operand type", () => {
+  test("$nonnull removes null from the operand type", () => {
     const result = checkExpr({
-      $cast: { $if: true, $then: 1, $else: null },
+      $nonnull: { $if: true, $then: 1, $else: null },
     });
     expect(result.type).toEqual({ type: "integer" });
     expect(result.diagnostics).toEqual([]);
   });
 
-  test("$cast of null synthesizes never", () => {
-    expect(checkExpr({ $cast: null }).type).toBe(false);
+  test("$nonnull of null synthesizes never", () => {
+    expect(checkExpr({ $nonnull: null }).type).toBe(false);
+  });
+});
+
+describe("synth: checked ascription", () => {
+  test("returns the declared type without requiring static subsumption", () => {
+    const declared: Schema = { type: "integer", minimum: 0 };
+    const result = checkExpr({ $as: -1, $type: declared });
+    expect(result.type).toEqual(declared);
+    expect(result.diagnostics).toEqual([]);
+  });
+
+  test("still synthesizes the operand and reports nested errors", () => {
+    const result = checkExpr({
+      $as: { $var: "missing" },
+      $type: { type: "string" },
+    });
+    expect(result.type).toEqual({ type: "string" });
+    expect(result.diagnostics).toContainEqual(
+      expect.objectContaining({
+        path: ["$as"],
+        message: 'expression degraded to `any` because variable "missing" is unresolved.',
+      }),
+    );
+  });
+
+  test("rejects unsupported contract schemas", () => {
+    const schemas: Schema[] = [{ unknown: true }, { $taskType: { type: "string" } }];
+    for (const schema of schemas) {
+      const result = checkExpr({ $as: 1, $type: schema });
+      expect(result.type).toEqual(schema);
+      expect(result.diagnostics).toContainEqual({
+        path: ["$type"],
+        message: "checked ascription type is outside the runtime-contract fragment",
+        severity: "error",
+      });
+    }
+  });
+
+  test("reports undefined named types and accepts defined ones", () => {
+    const expression: JSONType = {
+      $as: 1,
+      $type: { $ref: "#/$defs/Count" },
+    };
+    const missing = checkExpr(expression);
+    expect(missing.diagnostics).toEqual([
+      {
+        path: ["$type"],
+        message: 'reference to undefined type "Count"',
+        severity: "error",
+      },
+    ]);
+
+    const defined = checkExpr(expression, { Count: { type: "integer" } });
+    expect(defined.type).toEqual({ $ref: "#/$defs/Count" });
+    expect(defined.diagnostics).toEqual([]);
   });
 });
 

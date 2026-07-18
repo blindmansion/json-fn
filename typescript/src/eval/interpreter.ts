@@ -9,7 +9,8 @@ import type {
   Conditional,
   Cond,
   Match,
-  Cast,
+  NonNullAssertion,
+  CheckedAscription,
   PropertyAccess,
   EvaluatedFunctionCall,
   PerfStats,
@@ -20,6 +21,7 @@ import { exprError } from "../expression-error";
 import { isCommentKey, isPure, isBuiltin, isRaw, raw } from "../utils";
 import {
   CONTRACT_KEY,
+  enforceRuntimeContract,
   enforceRuntimeContractReturn,
   prepareRuntimeContractCall,
   readRuntimeFunctionContract,
@@ -508,13 +510,23 @@ function evaluateExpression(expression: JSONType, context: EvaluationContext): J
       }
       return orResult;
 
-    case ExpressionType.Cast:
-      const cast = expression as Cast;
-      const castValue = evaluateExpression(cast.$cast, context);
-      if (castValue === null) {
+    case ExpressionType.NonNullAssertion:
+      const assertion = expression as NonNullAssertion;
+      const assertedValue = evaluateExpression(assertion.$nonnull, context);
+      if (assertedValue === null) {
         exprError(expression, "Assertion failed: expected a non-null value.");
       }
-      return castValue;
+      return assertedValue;
+
+    case ExpressionType.CheckedAscription:
+      const ascription = expression as CheckedAscription;
+      const ascribedValue = evaluateExpression(ascription.$as, context);
+      return enforceRuntimeContract(
+        ascribedValue,
+        ascription.$type,
+        context.runtimeDefs ?? {},
+        "checked ascription",
+      );
 
     case ExpressionType.PropertyAccess:
       return evaluatePropertyAccess(expression as PropertyAccess, context);
