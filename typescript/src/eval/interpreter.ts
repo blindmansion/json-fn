@@ -4,7 +4,6 @@ import type {
   FunctionReference,
   FunctionDeclaration,
   EvaluationContext,
-  ExecutionLimits,
   FunctionBody,
   FunctionRegistry,
   VariableReference,
@@ -25,20 +24,9 @@ import {
   prepareRuntimeContractCall,
   readRuntimeFunctionContract,
 } from "../runtime-contract";
-import {
-  mergeDefinitionPools,
-  readModuleDefinitions,
-  type DefinitionSources,
-} from "../definition-pool";
 import { requireParameterLayout, validateRuntimeArguments, type ParameterLayout } from "../params";
 import { isFnDeclaration, replaceVars } from "./closures";
-import {
-  accountForResult,
-  chargeFuel,
-  checkInterrupt,
-  createExecutionState,
-  guardValueSize,
-} from "./execution";
+import { accountForResult, chargeFuel, checkInterrupt, guardValueSize } from "./execution";
 import { getExpressionType } from "./expression-type";
 import { accessProperty } from "./property-access";
 
@@ -65,13 +53,6 @@ function cloneIfNeeded(value: JSONType, perf?: PerfStats): JSONType {
 }
 
 const EMPTY_LOCAL_FNS: ReadonlySet<string> = new Set();
-const EMPTY_PARAMETER_LAYOUT: ParameterLayout = {
-  slots: [],
-  fixedCount: 0,
-  requiredCount: 0,
-  omittableCount: 0,
-  rest: null,
-};
 
 function resolveVar(
   name: string,
@@ -92,189 +73,7 @@ function resolveVar(
   return value;
 }
 
-export function callFunction(
-  fn: FunctionDeclaration,
-  args: JSONType[],
-  functions: FunctionRegistry,
-  limits?: ExecutionLimits,
-  definitions?: DefinitionSources,
-): JSONType {
-  const execution = createExecutionState(limits);
-  try {
-    return callFunctionInternal(fn, args, {
-      functions,
-      // The supplied registry is persistent, but locals declared by this
-      // function are not. Seed explicit empty sets so escaping closures attach
-      // those locals instead of treating the function body like module scope.
-      localFns: EMPTY_LOCAL_FNS,
-      attachFns: EMPTY_LOCAL_FNS,
-      limits: execution.limits,
-      state: execution.state,
-      perf: execution.perf,
-      runtimeDefs: mergeDefinitionPools(definitions),
-    });
-  } finally {
-    execution.syncUsage();
-  }
-}
-
-// Run a program: treat the module (an object mapping names to expressions) as
-// the outermost lexical `letrec` frame, layered over the host-supplied
-// `baseRegistry` (stdlib + native builtins) as its parent frame, then invoke a
-// chosen entry point within that scope. This makes top-level names — constants
-// *and* functions — visible via `$var` and `$fn` throughout the module, the
-// same semantics function bodies already have for their locals.
-export function callProgram(
-  module: Record<string, JSONType>,
-  entry: string,
-  args: JSONType[],
-  baseRegistry: FunctionRegistry,
-  limits?: ExecutionLimits,
-  definitions?: DefinitionSources,
-): JSONType {
-  const execution = createExecutionState(limits);
-  const runtimeDefs = mergeDefinitionPools(definitions, readModuleDefinitions(module));
-  try {
-    // The module is a function body with no `$params` and no `$return`.
-    const { getVar, scopedFunctions, localFns, attachFns } = buildScope(
-      module as unknown as FunctionBody,
-      [],
-      EMPTY_PARAMETER_LAYOUT,
-      {
-        functions: baseRegistry,
-        limits: execution.limits,
-        state: execution.state,
-        perf: execution.perf,
-        runtimeDefs,
-      },
-    );
-
-    // Fail fast: the entry must be a function *defined by the module*. Check the
-    // module's own keys (not the merged `scopedFunctions`, which layers stdlib
-    // underneath) so a typo or a missing entry that collides with a stdlib name
-    // (e.g. "map") errors instead of silently invoking the builtin, and a
-    // non-function constant can't be handed to the caller as if callable.
-    const moduleEntry = Object.prototype.hasOwnProperty.call(module, entry)
-      ? module[entry]
-      : undefined;
-    const isModuleFunction =
-      typeof moduleEntry === "object" &&
-      moduleEntry !== null &&
-      !Array.isArray(moduleEntry) &&
-      "$return" in moduleEntry;
-    if (!isModuleFunction) {
-      throw new Error(`Program entry "${entry}" is not a function defined by the module`);
-    }
-
-    // Each captured module function already had its free `$var`s substituted
-    // against the module scope, so `scopedFunctions[entry]` is the closed-over
-    // version. Pass `getVar` as its parent frame for consistency with locals.
-    return callFunctionInternal(scopedFunctions[entry] as FunctionDeclaration, args, {
-      functions: scopedFunctions,
-      getVar,
-      localFns,
-      attachFns,
-      limits: execution.limits,
-      state: execution.state,
-      perf: execution.perf,
-      runtimeDefs,
-    });
-  } finally {
-    execution.syncUsage();
-  }
-}
-
-/**
- * Prepare a program's module scope once and return the pieces a host trampoline
- * needs to drive a task across multiple synchronous hops
- * (`plans/effects-implementation.md` §4) without re-closing over the module each
- * time. `runTask` (see `host.ts`) is the sole intended consumer.
- *
- * - `invokeEntry` runs a chosen module entry (same validation as `callProgram`).
- * - `call` applies any function value in module scope — used by `stepTask` to
- *   run `bind` continuations and by the host to answer a suspended `resume`.
- *   Captured continuations and closed-over module functions are self-contained,
- *   so re-entry needs no fresh substitution.
- * - `meter` charges the shared budget for the `stepTask` normalization walk.
- * - `refreshDeadline` re-arms the wall-clock backstop before a hop, so time a
- *   host spends awaiting an async capability does not count against the task.
- *
- * All hops share one `state`/`limits`: fuel is a single budget for the whole
- * run, so a task cannot escape its budget by suspending. `signal`/`maxFuel`/
- * `maxValueSize`/`maxCallDepth` behave exactly as in `callFunction`.
- */
-export function prepareProgram(
-  module: Record<string, JSONType>,
-  baseRegistry: FunctionRegistry,
-  limits?: ExecutionLimits,
-  definitions?: DefinitionSources,
-): {
-  invokeEntry: (entry: string, args: JSONType[]) => JSONType;
-  call: (fn: JSONType, args: JSONType[]) => JSONType;
-  meter: Meter;
-  refreshDeadline: () => void;
-} {
-  const execution = createExecutionState(limits);
-  const runtimeDefs = mergeDefinitionPools(definitions, readModuleDefinitions(module));
-
-  // The module is a function body with no `$params`/`$return`; build its scope
-  // once (mirrors `callProgram`).
-  const { getVar, scopedFunctions, localFns, attachFns } = buildScope(
-    module as unknown as FunctionBody,
-    [],
-    EMPTY_PARAMETER_LAYOUT,
-    {
-      functions: baseRegistry,
-      limits: execution.limits,
-      state: execution.state,
-      perf: execution.perf,
-      runtimeDefs,
-    },
-  );
-
-  const context: EvaluationContext = {
-    functions: scopedFunctions,
-    getVar,
-    localFns,
-    attachFns,
-    limits: execution.limits,
-    state: execution.state,
-    perf: execution.perf,
-    runtimeDefs,
-  };
-
-  const call = (fn: JSONType, args: JSONType[]): JSONType => {
-    const result = callFunctionInternal(fn as FunctionDeclaration, args, context);
-    execution.syncUsage();
-    return result;
-  };
-
-  const meter: Meter = {
-    charge: (amount: number) => chargeFuel(context, amount),
-    guardSize: (size: number) => guardValueSize(context, size),
-  };
-
-  const invokeEntry = (entry: string, args: JSONType[]): JSONType => {
-    // Fail fast on a non-function or stdlib-shadowing entry, exactly as
-    // `callProgram` does (check the module's own keys, not `scopedFunctions`).
-    const moduleEntry = Object.prototype.hasOwnProperty.call(module, entry)
-      ? module[entry]
-      : undefined;
-    const isModuleFunction =
-      typeof moduleEntry === "object" &&
-      moduleEntry !== null &&
-      !Array.isArray(moduleEntry) &&
-      "$return" in moduleEntry;
-    if (!isModuleFunction) {
-      throw new Error(`Program entry "${entry}" is not a function defined by the module`);
-    }
-    return call(scopedFunctions[entry] as FunctionDeclaration, args);
-  };
-
-  return { invokeEntry, call, meter, refreshDeadline: execution.refreshDeadline };
-}
-
-function callFunctionInternal(
+export function callFunctionInternal(
   fn: FunctionDeclaration,
   args: JSONType[],
   context: EvaluationContext,
@@ -387,7 +186,7 @@ function callExternalFunction(
 // `getVar`, and closes the local functions over that scope with `replaceVars`.
 // The caller decides what to do with the resulting scope (evaluate a `$return`,
 // or invoke a chosen entry point).
-function buildScope(
+export function buildScope(
   fn: FunctionBody,
   args: JSONType[],
   layout: ParameterLayout,

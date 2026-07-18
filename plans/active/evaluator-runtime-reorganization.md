@@ -1,6 +1,6 @@
 # Evaluator and runtime reorganization
 
-Status: active. Phases 0–2 completed 2026-07-18.
+Status: active. Phases 0–3 completed 2026-07-18.
 
 ## Summary
 
@@ -494,6 +494,28 @@ Keep public signatures and returned `prepareProgram` operations unchanged.
 
 The manual design goal is one setup path with three thin public adapters, not a
 new public class hierarchy.
+
+#### Phase 3 record (2026-07-18)
+
+The public evaluator APIs now live in `src/eval/program.ts`.
+`callFunction`, `callProgram`, and `prepareProgram` share a private session
+factory that owns resolved limits, mutable execution state, usage
+synchronization, performance statistics, deadline refresh, and merged runtime
+definitions. Program-oriented adapters additionally share module-scope setup
+and one module-entry validator.
+
+`interpreter.ts` now exports only the two internal operations needed by the
+program layer: recursive function invocation and scope construction. The
+dependency direction is `program.ts -> interpreter.ts`; the interpreter does
+not import the program layer. The existing public barrel and compatibility
+re-export preserve all public import paths and signatures.
+
+Verification remained green:
+
+- `bun run check` completed with no type, lint, or formatting errors;
+- `bun test` passed 1,582 tests across 26 files; and
+- the import graph retained only the two pre-existing cycles documented under
+  **Shared infrastructure**, with no cycle involving `eval/`.
 
 ### Phase 4: Reassess the recursive core
 
