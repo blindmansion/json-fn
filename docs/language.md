@@ -671,9 +671,10 @@ The environment is portable contract data, separate from the host
 implementations. Its `functions` use the same fallback signatures and optional
 rules as core builtins. Callable-name collisions are rejected rather than
 overridden. Entry contracts use mandatory `required` and `optional` arrays in
-that order; optional entry arguments are represented structurally but are not
-yet omission-aware. `entry.returns: { task: A }` describes the task's eventual
-completion value.
+that order. Entry calls accept every argument count from the required length
+through the combined required-plus-optional length; supplied optional arguments
+are still validated against their schemas. `entry.returns: { task: A }`
+describes the task's eventual completion value.
 
 `runTask` validates entry arguments and completion, wraps tractable direct host
 functions to validate their arguments/results, rejects effects absent from the
@@ -864,10 +865,13 @@ Higher-order functions can invoke json-fn callbacks. The callback argument can b
 At runtime, a callback may be an inline function, a function reference, or a
 raw string name. The static checker contextually types bare inline functions
 and checks typed function references; it does not resolve raw string names.
-Bare inline callbacks may omit trailing arguments supplied by the builtin.
-Referenced and `$sig`-annotated callbacks retain strict function arity, so use
-a wrapper lambda when their declared parameters do not match the builtin's
-callback shape.
+Bare contextual callbacks must declare the exact required, optional, and rest
+shape supplied by the builtin; those three parts are compared independently.
+Declare an unused supplied parameter with an ignored name such as `_index`.
+Referenced and `$sig`-annotated callbacks must also have a compatible complete
+shape. When a referenced function intentionally has a different public shape,
+use an explicit wrapper that declares the builtin's full callback shape and
+forwards the arguments the function accepts.
 
 `groupBy` converts numeric keys to strings before using them as object keys.
 `flatMap` splices array callback results into the output and keeps non-array

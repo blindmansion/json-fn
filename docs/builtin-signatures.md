@@ -134,9 +134,10 @@ into `returns`:
 
 Only a bare inline body with no `$sig` is contextually typed. Its declared
 parameters receive the callback argument schemas supplied by the builtin. It
-may omit trailing parameters it does not use, but may not declare more fixed
-parameters than the builtin supplies; a rest parameter collects the remaining
-supplied schemas.
+must declare the exact callback shape: required, optional, and rest parameter
+counts are compared independently. A parameter supplied by the builtin remains
+part of that shape even when the body does not use it; give such a parameter an
+ignored name such as `_index`.
 
 When a callback return widens a type variable that also occurs in its parameter
 types, the checker validates the callback again under the final joined type.
@@ -221,9 +222,11 @@ statically.
 - `reReplaceWith` callbacks statically return `string`; the runtime
   defensively applies `String()` to other values.
 - `filter` and `find` do not derive type predicates from callback logic.
-- A bare contextual lambda may omit trailing builtin-supplied arguments.
-  Referenced and `$sig`-annotated callbacks retain strict function arity; a
-  wrapper lambda is the typed workaround when their arities differ.
+- Bare contextual lambdas, referenced functions, and `$sig`-annotated callbacks
+  all retain exact required/optional/rest shape checking. An explicit wrapper
+  may adapt a function with a different public shape by declaring the complete
+  callback shape and forwarding only the arguments that function accepts; it
+  does not bypass shape checking.
 
 The CLI's type-coverage summary measures degradation to `any`, not the absence
 of type errors or maximal inferred precision. `Type coverage: complete` means
