@@ -1,6 +1,6 @@
 # Evaluator and runtime reorganization
 
-Status: active. Phases 0–1 completed 2026-07-18.
+Status: active. Phases 0–2 completed 2026-07-18.
 
 ## Summary
 
@@ -441,6 +441,35 @@ Extract modules in dependency order:
 
 After this phase, inspect the graph. The expected direction is
 `interpreter -> leaf modules`, with no leaf importing the interpreter.
+
+#### Phase 2 record (2026-07-18)
+
+The four leaf concerns now live under `src/eval/`:
+
+- `expression-type.ts` owns expression classification and its validation;
+- `property-access.ts` owns pure access behavior and diagnostics, while
+  `interpreter.ts` still evaluates `$get` and `$from`;
+- `execution.ts` owns performance-stat creation, limit resolution, mutable
+  execution state, usage/deadline synchronization, and metering guards; and
+- `closures.ts` owns substitution, function-value recognition, reference
+  collection, and transitive local-function attachment.
+
+The dependency graph has the intended direction: `interpreter.ts` imports all
+four leaf modules, `closures.ts` imports only the narrower metering operations
+from `execution.ts`, and no leaf imports `interpreter.ts`. The graph retains only
+the two pre-existing cycles documented under **Shared infrastructure**.
+
+The extraction reduced `interpreter.ts` from 1,170 to 665 code lines. The new
+leaf modules contain 153 code lines (`expression-type.ts`), 89
+(`property-access.ts`), 84 (`execution.ts`), and 196 (`closures.ts`).
+Post-extraction call cohesion is approximately 1.091 for `interpreter.ts`, 1.333
+for `closures.ts`, 0.667 for `property-access.ts`, 0.5 for
+`expression-type.ts`, and 0.25 for `execution.ts`.
+
+Verification remained green:
+
+- `bun run check` completed with no type, lint, or formatting errors; and
+- `bun test` passed 1,582 tests across 26 files.
 
 ### Phase 3: Separate program APIs from the recursive interpreter
 
