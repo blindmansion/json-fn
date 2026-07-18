@@ -1040,20 +1040,83 @@ describe("Section F — builtin signatures", () => {
       expect(applied.diagnostics).toEqual([]);
     });
 
-    test("annotated handle requires a raw tractable schema", () => {
+    test("annotated handle accepts runtime-contract result schemas", () => {
+      const schemas: Schema[] = [
+        true,
+        false,
+        { const: "ok" },
+        { enum: ["ok", null, 1] },
+        { anyOf: [{ type: "string" }, { type: "null" }] },
+        { type: "integer", minimum: 0 },
+        { type: "array", items: { type: "string" } },
+        {
+          type: "array",
+          prefixItems: [{ type: "string" }],
+          items: { type: "integer" },
+        },
+        {
+          type: "object",
+          properties: { id: { type: "integer" } },
+          additionalProperties: false,
+        },
+        { type: "object", additionalProperties: { type: "string" } },
+        {
+          $fnType: {
+            required: [{ type: "integer" }],
+            optional: [{ type: "string" }],
+            rest: { type: "boolean" },
+            returns: { type: "number" },
+          },
+        },
+      ];
+
+      for (const schema of schemas) {
+        const result = synthB(call("handle", call("pure", 1), {}, { $raw: schema }));
+        expect(result.type).toEqual(schema);
+        expect(result.diagnostics).toEqual([]);
+      }
+
+      const reference: Schema = { $ref: "#/$defs/Result" };
+      const referenced = checkExpr(
+        call("handle", call("pure", 1), {}, { $raw: reference }),
+        { Result: S },
+        BT,
+      );
+      expect(referenced.type).toEqual(reference);
+      expect(referenced.diagnostics).toEqual([]);
+    });
+
+    test("annotated handle rejects schemas outside the runtime-contract fragment", () => {
+      const schemas: Schema[] = [
+        { unknown: true },
+        { type: "array", items: { unknown: true } },
+        { $taskType: { type: "string" } },
+        {
+          $fnType: {
+            required: [],
+            optional: [],
+            returns: { $taskType: { type: "string" } },
+          },
+        },
+      ];
+
+      for (const schema of schemas) {
+        const result = synthB(call("handle", call("pure", 1), {}, { $raw: schema }));
+        expect(result.type).toBe(true);
+        expect(result.diagnostics).toContainEqual(
+          expect.objectContaining({
+            path: ["$args[2]", "$raw"],
+            message: "handle result annotation is outside the tractable type fragment",
+            severity: "error",
+          }),
+        );
+      }
+    });
+
+    test("annotated handle requires a raw result schema", () => {
       const missingRaw = synthB(call("handle", call("pure", 1), {}, { type: "string" }));
       expect(missingRaw.type).toBe(true);
       expect(missingRaw.diagnostics.some((d) => d.path.join(".") === "$args[2]")).toBe(true);
-
-      const opaque = synthB(call("handle", call("pure", 1), {}, { $raw: { unknown: true } }));
-      expect(opaque.type).toBe(true);
-      expect(opaque.diagnostics.some((d) => d.path.join(".") === "$args[2].$raw")).toBe(true);
-
-      const nestedOpaque = synthB(
-        call("handle", call("pure", 1), {}, { $raw: { type: "array", items: { unknown: true } } }),
-      );
-      expect(nestedOpaque.type).toBe(true);
-      expect(nestedOpaque.diagnostics.some((d) => d.path.join(".") === "$args[2].$raw")).toBe(true);
     });
 
     test("annotated handle reports an undefined named result type", () => {

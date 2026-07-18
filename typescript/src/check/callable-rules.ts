@@ -1,12 +1,11 @@
 import type { JSONType } from "../types";
 import { litOf, nodeKind } from "./ast";
 import type { CallableTypeRuleApplyV1, CallableTypeRuleRegistry } from "./builtin-types";
+import { isRuntimeContractSchema } from "../schema/contract.ts";
 import {
-  apMode,
   asObject,
   classifySchema,
   collectSchemaRefs,
-  fixedParamSchemas,
   fnShape,
   isSchemaObject,
   itemsSchema,
@@ -14,7 +13,6 @@ import {
   literalValues,
   mergeSchemas,
   prefixItems,
-  properties,
   SchemaKind,
   taskCompletion,
   taskType,
@@ -273,7 +271,7 @@ const handleRule: CallableTypeRuleApplyV1 = (request, services) => {
   }
 
   const schema = annotationExpr.$raw!;
-  if (!isTractableHandleSchema(schema)) {
+  if (!isRuntimeContractSchema(schema)) {
     services.reportError("handle result annotation is outside the tractable type fragment", {
       argumentIndex: 2,
       path: ["$raw"],
@@ -357,65 +355,6 @@ const CORE_CALLABLE_TYPE_RULES: CallableTypeRuleRegistry = {
   "core.flatMap": { contextualArguments: [0], apply: flatMapRule(false) },
   "core.flatMapIndexed": { contextualArguments: [0], apply: flatMapRule(true) },
 };
-
-function isLiteralSchemaValue(value: unknown): boolean {
-  return value === null || ["boolean", "number", "string"].includes(typeof value);
-}
-
-function isTractableHandleSchema(schema: Schema): boolean {
-  switch (classifySchema(schema)) {
-    case SchemaKind.Any:
-    case SchemaKind.Never:
-      return true;
-    case SchemaKind.Ref:
-      return typeof asObject(schema).$ref === "string";
-    case SchemaKind.Const:
-      return isLiteralSchemaValue(asObject(schema).const);
-    case SchemaKind.Enum: {
-      const values = asObject(schema).enum;
-      return Array.isArray(values) && values.every(isLiteralSchemaValue);
-    }
-    case SchemaKind.Union: {
-      const arms = unionArms(schema);
-      return arms !== null && arms.every(isTractableHandleSchema);
-    }
-    case SchemaKind.Primitive:
-      return ["null", "boolean", "number", "integer", "string"].includes(
-        String(asObject(schema).type),
-      );
-    case SchemaKind.Array:
-      return isTractableHandleSchema(itemsSchema(asObject(schema)));
-    case SchemaKind.Tuple: {
-      const object = asObject(schema);
-      const rest = tupleRest(object);
-      return (
-        prefixItems(object).every(isTractableHandleSchema) &&
-        (rest === null || isTractableHandleSchema(rest))
-      );
-    }
-    case SchemaKind.Object: {
-      const object = asObject(schema);
-      const mode = apMode(object);
-      return (
-        Object.values(properties(object)).every(isTractableHandleSchema) &&
-        (mode.kind !== "map" || isTractableHandleSchema(mode.schema))
-      );
-    }
-    case SchemaKind.FnType: {
-      if (!isSchemaObject(asObject(schema).$fnType)) return false;
-      const shape = fnShape(asObject(schema));
-      return (
-        fixedParamSchemas(shape).every(isTractableHandleSchema) &&
-        (shape.rest === undefined || isTractableHandleSchema(shape.rest)) &&
-        isTractableHandleSchema(shape.returns)
-      );
-    }
-    case SchemaKind.TaskType:
-      return false;
-    case SchemaKind.Opaque:
-      return false;
-  }
-}
 
 export {
   CORE_CALLABLE_TYPE_RULES,
