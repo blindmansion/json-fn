@@ -4,6 +4,7 @@ import { tmpdir } from "os";
 import { join } from "path";
 
 const CLI = new URL("../src/cli.ts", import.meta.url).pathname;
+const TYPED_LEDGER = new URL("../../examples/typed/ledger.jfn", import.meta.url).pathname;
 
 function runCheck(args: string[]): { exitCode: number; stdout: string; stderr: string } {
   const result = Bun.spawnSync({
@@ -21,6 +22,16 @@ function runCheck(args: string[]): { exitCode: number; stdout: string; stderr: s
 const asJsonArg = (value: unknown): string => JSON.stringify(value);
 
 describe("jfn check coverage reporting", () => {
+  test("the typed ledger example checks with complete coverage", () => {
+    const result = runCheck(["--file", TYPED_LEDGER]);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).toBe(
+      "No type errors.\nType coverage: complete (no dynamic degradations).\n",
+    );
+  });
+
   test("a clean typed module reports full coverage", () => {
     const mod = {
       f: {

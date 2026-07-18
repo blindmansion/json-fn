@@ -1,14 +1,9 @@
 // A tiny typed ledger: fold a stream of transactions over a set of accounts.
 //
-// GOAL / REFERENCE example. This is how the type syntax *wants* to be used —
+// A complete type-syntax example:
 // map types indexed by key, `merge`-based record updates, discriminated-union
-// dispatch via `match`, `find`/nullable access. It **evaluates correctly**
-// (`jfn eval --entry demo`), so every construct here is sound at runtime; it
-// just does not yet pass `jfn check`. The gaps it provokes (map-index typing,
-// `merge` losing the record type, `match` not narrowing a union, null-narrowing,
-// callback-arity leniency for bare function refs) are the checker's to close —
-// see todo/typecheck-findings.md. The already-checkable cousin of this program
-// lives in examples/typed/pipeline.jfn.
+// dispatch via `match`, strict contextual callback shapes, and an explicit
+// runtime contract boundary for arithmetic that must re-establish a refinement.
 {
   type Cents     = integer & min(0),
   type AccountId = string & pattern("^acc_"),
@@ -44,7 +39,7 @@
     { ledger: books.ledger, log: concat(books.log, [msg]) },
 
   adjust: (books: Books, id: AccountId, delta: integer, msg: string) -> Books =>
-    put(books, id, merge(acct, { balance: acct.balance + delta }), msg) where {
+    put(books, id, handle pure(merge(acct, { balance: acct.balance + delta })) -> Account with {}, msg) where {
       acct: books.ledger[id]
     },
 
@@ -67,13 +62,14 @@
     else -> books
   },
 
-  run: (txns: Tx[]) -> Books => reduce(apply, { ledger: {}, log: [] }, txns),
+  run: (txns: Tx[]) -> Books =>
+    reduce((books, tx, _index) => apply(books, tx), { ledger: {}, log: [] }, txns),
 
   // Curried return type: a reusable floor check, partially applied at call sites.
   overdraftGuard: (floor: Cents) -> (Account) -> boolean => (a) => a.balance >= floor,
 
   allAbove: (books: Books, floor: Cents) -> boolean =>
-    every(overdraftGuard(floor), values(books.ledger)),
+    every((account, _index) => overdraftGuard(floor)(account), values(books.ledger)),
 
   // Rest parameter folds any number of trailing lines into one report.
   report: (title: string, ...lines: string[]) -> string =>
@@ -81,15 +77,15 @@
 
   summary: (books: Books) -> string =>
     report(header, join(rows, "\n"), "log:", join(books.log, "\n")) where {
-      accts:  sortBy((a) => a.name, values(books.ledger)),
-      rows:   map((a) => `  ${a.name}: ${dollars(a.balance)}`, accts),
+      accts:  sortBy((a, _index) => a.name, values(books.ledger)),
+      rows:   map((a, _index) => `  ${a.name}: ${dollars(a.balance)}`, accts),
       header: `ledger — ${str(length(accts))} account(s):`
     },
 
   demo: () -> { report: string, solvent: boolean, balances: { ... } } => {
     report:   summary(final),
     solvent:  allAbove(final, 0),
-    balances: mapValues((a) => a.balance, final.ledger)
+    balances: mapValues((a, _id) => a.balance, final.ledger)
   } where {
     final: run(txns),
     txns: [
