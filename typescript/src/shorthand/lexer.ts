@@ -48,7 +48,7 @@ export type TokPunct =
   | "andand" //    &&
   | "oror" //      ||
   | "pipe" //      |    (type union)
-  | "question" //  ?    (optional object key)
+  | "question" //  ?    (optional key, parameter, or function-type slot)
   | "eof";
 
 /** A token plus its 1-based source position (start of the token). */

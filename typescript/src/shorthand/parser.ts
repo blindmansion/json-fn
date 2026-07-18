@@ -6,6 +6,7 @@
  */
 
 import type { JSONType, Param, FieldPattern } from "../types";
+import { analyzeParameters, formatParameterIssue } from "../params";
 import { TokenCursor, describe } from "./cursor";
 import { lex } from "./lexer";
 import type { TemplatePart, TokPunct } from "./lexer";
@@ -524,16 +525,23 @@ class Parser extends TokenCursor {
     }
     if (!fullyTyped) return null;
 
-    const params: Schema[] = [];
+    const analysis = analyzeParameters(parsed.params);
+    if (!analysis.ok) throw this.err(formatParameterIssue(analysis.issue));
+
+    const required: Schema[] = [];
+    const optional: Schema[] = [];
     let rest: Schema | undefined;
-    for (let i = 0; i < parsed.params.length; i++) {
-      if (i === parsed.restIndex) {
-        rest = parsed.slotSchemas[i]!;
+    for (const slot of analysis.layout.slots) {
+      const schema = parsed.slotSchemas[slot.index]!;
+      if (slot.kind === "rest") {
+        rest = schema;
+      } else if (slot.kind === "optional" || slot.kind === "defaulted") {
+        optional.push(schema);
       } else {
-        params.push(parsed.slotSchemas[i]!);
+        required.push(schema);
       }
     }
-    const sig: Record<string, JSONType> = { required: params, optional: [] };
+    const sig: Record<string, JSONType> = { required, optional };
     if (rest !== undefined) sig.rest = rest;
     sig.returns = returns!;
     return sig;
@@ -581,27 +589,45 @@ class Parser extends TokenCursor {
     const params: Param[] = [];
     // `slotSchemas[i]` is the annotation on `params[i]` (a rest slot holds its
     // *element* type, already unwrapped from the `T[]` surface), or `null` when
-    // unannotated. `restIndex` marks the sole `...rest` slot, if any.
+    // unannotated.
     const slotSchemas: (Schema | null)[] = [];
-    let restIndex = -1;
     if (this.peekType() === "rparen") {
       this.advance();
-      return { params, slotSchemas, restIndex };
+      return { params, slotSchemas };
     }
     for (;;) {
       let isRest = false;
+      let param: Param;
       if (this.peekType() === "dotdotdot") {
         this.advance();
         // A rest pattern `...{ x }` is unsupported: expectIdent rejects `{`.
-        params.push(`...${this.expectIdent("rest parameter name")}`);
+        param = `...${this.expectIdent("rest parameter name")}`;
         isRest = true;
-        restIndex = params.length - 1;
       } else if (this.peekType() === "lbrace") {
-        params.push(this.parseFieldPattern());
+        param = this.parseFieldPattern();
       } else {
-        params.push(this.expectIdent("parameter name"));
+        const name = this.expectIdent("parameter name");
+        if (this.peekType() === "question") {
+          this.advance();
+          param = { $param: name, $optional: true };
+        } else {
+          param = name;
+        }
       }
+      params.push(param);
+
       slotSchemas.push(this.parseParamAnnotation(isRest));
+      if (this.peekType() === "equals") {
+        if (isRest || typeof param !== "string") {
+          throw this.err(
+            isRest
+              ? "a rest parameter cannot have a default"
+              : "optional parameters and object patterns cannot have a whole-slot default",
+          );
+        }
+        this.advance();
+        params[params.length - 1] = { $param: param, $default: this.parseExpr() };
+      }
       const type = this.peekType();
       if (type === "comma") {
         this.advance();
@@ -612,7 +638,9 @@ class Parser extends TokenCursor {
         throw this.err("expected ',' or ')' in parameter list");
       }
     }
-    return { params, slotSchemas, restIndex };
+    const analysis = analyzeParameters(params);
+    if (!analysis.ok) throw this.err(formatParameterIssue(analysis.issue));
+    return { params, slotSchemas };
   }
 
   /** Parse an optional `: <type>` annotation on the param slot just read. A
@@ -638,11 +666,20 @@ class Parser extends TokenCursor {
     if (this.peekType() === "rbrace") {
       throw this.err("empty object pattern '{}' is not supported");
     }
-    const fields: string[] = [];
+    const fields: FieldPattern["$fields"] = [];
     for (;;) {
-      fields.push(this.expectIdent("field name in object pattern"));
+      const name = this.expectIdent("field name in object pattern");
       if (this.peekType() === "colon") {
         throw this.err("field rename/nesting in object patterns is not supported");
+      }
+      if (this.peekType() === "question") {
+        this.advance();
+        fields.push({ $field: name, $optional: true });
+      } else if (this.peekType() === "equals") {
+        this.advance();
+        fields.push({ $field: name, $default: this.parseExpr() });
+      } else {
+        fields.push(name);
       }
       const type = this.peekType();
       if (type === "comma") {
@@ -1034,8 +1071,6 @@ type ParsedParams = {
   // Parallel to `params`; `null` at unannotated slots. A rest slot holds its
   // element schema (unwrapped from the surface `T[]`).
   slotSchemas: (Schema | null)[];
-  // Index of the sole `...rest` slot in `params`, or -1 when there is none.
-  restIndex: number;
 };
 
 /** One parsed entry of a `do` block, before desugaring. */

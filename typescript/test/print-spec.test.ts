@@ -61,28 +61,16 @@ describe("printer round-trips canonical JSON (parse ∘ print = id)", () => {
 });
 
 describe("printer output shape", () => {
-  test("rejects optional callable slots until shorthand syntax exists", () => {
-    expect(() =>
+  test("prints optional callable slots", () => {
+    expect(
       printType({
         $fnType: {
-          required: [],
-          optional: [{ type: "string" }],
+          required: [{ type: "string" }],
+          optional: [{ type: "integer" }],
           returns: { type: "boolean" },
         },
       }),
-    ).toThrow("Cannot print optional function parameters");
-
-    expect(() =>
-      print({
-        $sig: {
-          required: [],
-          optional: [{ type: "string" }],
-          returns: { type: "boolean" },
-        },
-        $params: ["value"],
-        $return: true,
-      }),
-    ).toThrow("Cannot print optional function parameters");
+    ).toBe("(string, integer?) -> boolean");
   });
 
   test("erased task completion types print as Task<A>", () => {
@@ -198,17 +186,54 @@ describe("printer output shape", () => {
     expect(parse(print(node))).toEqual(node);
   });
 
-  test("rejects valid descriptors that shorthand cannot represent", () => {
-    const cases: [JSONType, string][] = [
-      [{ $param: "value", $optional: true }, "optional parameters"],
-      [{ $param: "value", $default: 1 }, "defaulted parameters"],
-      [{ $fields: [{ $field: "value", $optional: true }] }, "optional object fields"],
-      [{ $fields: [{ $field: "value", $default: 1 }] }, "defaulted object fields"],
-    ];
+  test("prints optional and defaulted parameter descriptors", () => {
+    const node: JSONType = {
+      $params: [
+        "required",
+        { $param: "optional", $optional: true },
+        { $param: "defaulted", $default: 1 },
+      ],
+      $return: null,
+    };
+    expect(print(node)).toBe("(required, optional?, defaulted = 1) => null");
+    expect(parse(print(node))).toEqual(node);
+  });
 
-    for (const [param, message] of cases) {
-      expect(() => print({ $params: [param], $return: null })).toThrow(message);
-    }
+  test("prints typed optional and defaulted parameters", () => {
+    const node: JSONType = {
+      $sig: {
+        required: [{ type: "string" }],
+        optional: [{ type: "integer" }, { type: "boolean" }],
+        returns: { type: "boolean" },
+      },
+      $params: [
+        "name",
+        { $param: "count", $optional: true },
+        { $param: "enabled", $default: true },
+      ],
+      $return: { $var: "enabled" },
+    };
+    expect(print(node)).toBe(
+      "(name: string, count?: integer, enabled: boolean = true) -> boolean => enabled",
+    );
+    expect(parse(print(node))).toEqual(node);
+  });
+
+  test("prints optional and defaulted object fields", () => {
+    const node: JSONType = {
+      $params: [
+        {
+          $fields: [
+            "required",
+            { $field: "label", $optional: true },
+            { $field: "count", $default: 0 },
+          ],
+        },
+      ],
+      $return: { $var: "count" },
+    };
+    expect(print(node)).toBe("({ required, label?, count = 0 }) => count");
+    expect(parse(print(node))).toEqual(node);
   });
 
   test("reports malformed descriptors with the shared canonical path", () => {

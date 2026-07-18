@@ -473,38 +473,60 @@ A bare `{...}` is **always** a data object — including immediately after `=>`:
 - **No params:** `() => …` lowers to a body with **no `$params`** key.
 - **Required param:** `(value) => …` lowers to `"$params": ["value"]`; omitting
   its argument is an evaluation error.
+- **Optional param:** `(value?) => …` lowers to
+  `"$params": [{ "$param": "value", "$optional": true }]`; omission binds
+  `null`.
+- **Defaulted param:** `(value = expr) => …` lowers to
+  `"$params": [{ "$param": "value", "$default": expr }]`; omission installs a
+  lazy default binding.
 - **Rest param:** `(first, ...rest) => …` → `"$params": ["first", "...rest"]`.
 - **Object-pattern param:** `({ from, to }) => …` — see below.
 
-A call supplies fixed parameters positionally. Without a rest parameter, the
-callee rejects arguments beyond its exact number of fixed slots instead of
-ignoring them. A final rest parameter collects all remaining arguments,
-including an empty remainder.
+A call supplies fixed parameters positionally. Required slots establish the
+minimum arity; optional and defaulted slots extend the fixed maximum. Without a
+rest parameter, the callee accepts every argument count in that inclusive
+range and rejects counts outside it. A final rest parameter removes the upper
+bound and collects all arguments after the fixed slots, including an empty
+remainder.
 
-Canonical JSON also supports optional and defaulted positional descriptors:
+The surface forms are direct spellings of the canonical descriptors:
+
+```jfn
+(id, nickname?, greeting = "hello", ...rest) => ...
+```
 
 ```json
 [
+  "id",
   { "$param": "nickname", "$optional": true },
-  { "$param": "name", "$default": "world" }
+  { "$param": "greeting", "$default": "hello" },
+  "...rest"
 ]
 ```
 
-Omitting an optional slot binds `null`. Omitting a defaulted slot evaluates its
-default lazily when the binding is first read. Explicit `null` is a supplied
-value and suppresses either omission behavior. There is no shorthand syntax for
-optional or defaulted parameters in this version; these descriptors must be
-authored as canonical JSON, and the shorthand printer rejects them rather than
-silently rendering them as required parameters.
+`?` means that the positional slot may be omitted; it does not make an
+explicitly supplied value nullable. Omitting an optional slot binds `null`.
+Omitting a defaulted slot installs its `$default` expression as the binding's
+lazy value, evaluated only if first read. Explicit `null` is supplied data and
+suppresses either omission behavior. json-fn has no `undefined` value.
+
+Default expressions are ordinary json-fn expressions. They are resolved in the
+complete recursive function-body scope, so they may reference earlier or later
+parameters, other defaults, object-pattern fields, body locals, local
+functions, and recursive definitions already visible to the body. This is
+deliberately not JavaScript's left-to-right, call-entry default evaluation
+despite the TypeScript-style surface spelling. A self-reference or dependency
+cycle is permitted syntactically and fails at runtime only if evaluation forces
+the cycle.
 
 Canonical parameter layouts place every required positional or object-pattern
 slot before all optional/defaulted positional slots, with a rest parameter last
 when present. Optional and defaulted slots may be mixed within that omittable
-suffix. For example,
-`["required", { "$param": "fallback", "$default": 0 }, "...rest"]` is valid;
-`[{ "$param": "fallback", "$default": 0 }, "required"]` is invalid. Shorthand
-cannot express an omittable slot yet, but every function it lowers observes
-this runtime invariant.
+suffix. For example, `(required, fallback = 0, label?, ...rest) => …` is valid,
+while `(fallback = 0, required) => …` is not. A rest parameter cannot be
+optional or defaulted. Combining both omission forms on one binding
+(`value? = expr`) is also invalid: an omittable binding either produces `null`
+or has a default, never both.
 
 Every name bound by one canonical `$params` array must be unique, including
 names introduced by object patterns and the rest parameter.
@@ -530,19 +552,23 @@ The **calling convention is unchanged**: `move({ from: 3, to: 7 })` is an
 ordinary positional call passing one data object — the "named-ness" lives
 entirely in the parameter, which destructures that object. The argument is
 required and must be a plain object (not an array or `null`); omitting it or
-supplying any non-object value is an evaluation error. Each shorthand field is
-required and must be an own property of that object. Absent or inherited
-required fields are errors, while extra object keys are ignored. This mirrors
-[shorthand-property punning](#data-objects--key-value): a destructured parameter
-and the record you build to pass it read identically.
+supplying any non-object value is an evaluation error. Each unmarked shorthand
+field is required and must be an own property of that object. Absent or
+inherited required fields are errors, while extra object keys are ignored. This
+mirrors [shorthand-property punning](#data-objects--key-value): a destructured
+parameter and the record you build to pass it read identically.
 
-Canonical `$fields` arrays may also contain optional and defaulted field
-descriptors:
+`?` and `= expr` apply the same binding behaviors to individual fields:
+
+```jfn
+({ from, via?, to = 0 }) => ...
+```
 
 ```json
 {
   "$fields": [
-    { "$field": "from", "$optional": true },
+    "from",
+    { "$field": "via", "$optional": true },
     { "$field": "to", "$default": 0 }
   ]
 }
@@ -551,19 +577,20 @@ descriptors:
 An absent optional own field binds `null`; an absent defaulted own field
 evaluates its default lazily when read. An own field whose value is explicitly
 `null` binds `null` and suppresses a default. The whole object-pattern argument
-remains required even when every field is omittable. Shorthand object patterns
-always lower to required field-name strings; there is no shorthand syntax for
-optional fields or field defaults in this version, and the printer rejects
-those canonical forms. Omission inside `$fields` does not make the containing
-positional pattern omittable, so that pattern must still precede every optional
-or defaulted positional slot.
+remains required even when every field is omittable. Omission inside `$fields`
+does not make the containing positional pattern omittable, so that pattern must
+still precede every optional or defaulted positional slot. There is no syntax
+for an optional or defaulted whole object-pattern argument.
 
 - A pattern consumes exactly **one required** positional slot, so it may mix
   with other required and rest params: `(label, { x, y }) => …`,
   `({ x }, ...rest) => …`, `({ a }, { b }) => …`.
 - A **trailing comma** inside the pattern is accepted and normalizes away.
-- The printer renders a `$fields` slot as `{ f1, f2 }` (space inside the braces,
-  `", "` between fields) inside the normal `(params) =>` header.
+- The printer renders a `$fields` slot as `{ required, optional?, defaulted =
+  expr }` (space inside the braces, `", "` between fields) inside the normal
+  `(params) =>` header.
+- A field cannot combine `?` and `=`, and field order does not affect whether
+  the containing positional slot is required.
 
 Not accepted in this version (each is a **parse error**, reserving the syntax
 for later): empty pattern `({}) => …`, rename `({ from: f }) => …`, nesting
@@ -675,9 +702,11 @@ funcLit     := "(" params ")" "=>" body
 body        := expr ( "where" "{" binding ("," binding)* "}" )?
 binding     := ident ":" expr
 params      := ( param ("," param)* )?               // last may be "...ident"
-param       := ident
+param       := ident ( "?" | "=" expr )?
              | "..." ident                           // rest (last slot only)
-             | "{" ident ("," ident)* ","? "}"        // object pattern → $fields
+             | objectPattern
+objectPattern := "{" fieldBinding ("," fieldBinding)* ","? "}"
+fieldBinding  := ident ( "?" | "=" expr )?
 dataEntry   := (ident | string) ":" expr
              | ident                                 // punned: { x } == { x: x }
 doEntry     := ident "<-" expr                       // effect binding (§13)
@@ -687,6 +716,11 @@ arm         := (expr | "else") "->" expr
 template    := "`" ( char | "${" expr "}" )* "`"     // strict; no coercion
 ident       := [A-Za-z_][A-Za-z0-9_]*
 ```
+
+Required positional and object-pattern parameters precede all `?`/`=`
+positional parameters; a rest parameter, when present, is final. These ordering
+rules apply to `param` entries, not to `fieldBinding` entries within one
+required object pattern.
 
 Canonical printing uses newline-and-indent for `where`, `cond`, `match`, and long
 argument/element lists; single-line for short forms. Parsers accept either.

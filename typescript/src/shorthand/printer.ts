@@ -449,8 +449,10 @@ function renderFunctionHeader(layout: ParameterLayout, sig: JSONType | undefined
   if (!isPlainObject(sig)) return `(${layout.slots.map(renderParam).join(", ")}) =>`;
   const required = Array.isArray(sig.required) ? sig.required : [];
   const optional = Array.isArray(sig.optional) ? sig.optional : [];
-  if (optional.length > 0) {
-    throw new Error("Cannot print optional function parameters before shorthand syntax exists");
+  if (required.length !== layout.requiredCount || optional.length !== layout.omittableCount) {
+    throw new Error(
+      "Cannot print function signature whose required/optional shape does not match $params",
+    );
   }
   const fixed = fixedParamSchemas({
     required,
@@ -467,7 +469,7 @@ function renderFunctionHeader(layout: ParameterLayout, sig: JSONType | undefined
     const schema = fixed[param.index];
     if (schema === undefined)
       throw new Error("Cannot print typed parameter without a matching signature slot");
-    return `${renderParam(param)}: ${printType(schema)}`;
+    return renderTypedParam(param, schema);
   });
   if (layout.fixedCount !== fixed.length) {
     throw new Error("Cannot print function signature with more fixed types than parameters");
@@ -488,25 +490,30 @@ function returnAbsorbsTrailingWhere(node: JSONType): boolean {
   return "$if" in node || "$return" in node;
 }
 
-/** Render one normalized `$params` slot using the currently available syntax. */
+/** Render one normalized `$params` slot. */
 function renderParam(param: NormalizedParameter): string {
   if (param.kind === "required") return param.name;
   if (param.kind === "rest") return `...${param.name}`;
   if (param.kind === "fields") {
     return `{ ${param.bindings.map(renderField).join(", ")} }`;
   }
-  if (param.kind === "optional") {
-    throw new Error("Cannot print optional parameters before shorthand syntax exists");
+  if (param.kind === "optional") return `${param.name}?`;
+  return `${param.name} = ${emit(param.defaultExpression, P_BLOCK, "")}`;
+}
+
+function renderTypedParam(param: NormalizedParameter, schema: JSONType): string {
+  const type = printType(schema);
+  if (param.kind === "optional") return `${param.name}?: ${type}`;
+  if (param.kind === "defaulted") {
+    return `${param.name}: ${type} = ${emit(param.defaultExpression, P_BLOCK, "")}`;
   }
-  throw new Error("Cannot print defaulted parameters before shorthand syntax exists");
+  return `${renderParam(param)}: ${type}`;
 }
 
 function renderField(field: NormalizedField): string {
   if (field.kind === "required") return field.name;
-  if (field.kind === "optional") {
-    throw new Error("Cannot print optional object fields before shorthand syntax exists");
-  }
-  throw new Error("Cannot print defaulted object fields before shorthand syntax exists");
+  if (field.kind === "optional") return `${field.name}?`;
+  return `${field.name} = ${emit(field.defaultExpression, P_BLOCK, "")}`;
 }
 
 // ----- data (spec §3) -----

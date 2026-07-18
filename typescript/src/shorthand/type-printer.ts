@@ -1,5 +1,4 @@
 import type { JSONType } from "../types";
-import { fixedParamSchemas } from "../check/schema";
 import type { Schema } from "./type-parser";
 
 const IDENT_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
@@ -114,16 +113,9 @@ function printFunction(schema: Record<string, JSONType>): string {
   const shape = schema.$fnType;
   if (!isObject(shape)) throw new Error("Cannot print malformed $fnType schema");
   const optional = Array.isArray(shape.optional) ? shape.optional : [];
-  if (optional.length > 0) {
-    throw new Error("Cannot print optional function parameters before shorthand syntax exists");
-  }
   const required = Array.isArray(shape.required) ? shape.required : [];
-  const params = fixedParamSchemas({
-    required,
-    optional,
-    rest: shape.rest,
-    returns: shape.returns ?? true,
-  }).map(printType);
+  const params = required.map(printType);
+  params.push(...optional.map((param) => `${printType(param)}?`));
   if (shape.rest !== undefined) params.push(`...${postfixOperand(shape.rest)}[]`);
   return `(${params.join(", ")}) -> ${printType(shape.returns ?? true)}`;
 }

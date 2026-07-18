@@ -33,15 +33,17 @@ type FunctionReference = {
 
 type FunctionDeclaration = string | FunctionBody;
 
-// A `$params` slot is a positional parameter name, a defaulted positional
-// binding, a `"...rest"` collector, or an object pattern destructuring one
-// positional object argument into named locals. See
+// A `$params` slot is a positional parameter name, an optional/defaulted
+// positional binding, a `"...rest"` collector, or an object pattern
+// destructuring one positional object argument into named locals. See
 // plans/active/strict-parameter-semantics.md and plans/destructured-params.md.
 type DefaultedParam = { $param: string; $default: JSONType };
+type OptionalParam = { $param: string; $optional: true };
 type DefaultedField = { $field: string; $default: JSONType };
-type FieldBinding = string | DefaultedField;
+type OptionalField = { $field: string; $optional: true };
+type FieldBinding = string | DefaultedField | OptionalField;
 type FieldPattern = { $fields: FieldBinding[] };
-type Param = string | DefaultedParam | FieldPattern;
+type Param = string | DefaultedParam | OptionalParam | FieldPattern;
 
 type VariableReference = {
   $var: string;

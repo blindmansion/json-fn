@@ -361,7 +361,8 @@ export class TypeParser extends TokenCursor {
 
   private parseFnType(): Schema {
     this.expect("lparen", "'(' to begin a function type");
-    const params: Schema[] = [];
+    const required: Schema[] = [];
+    const optional: Schema[] = [];
     let rest: Schema | undefined;
     if (this.peekType() === "rparen") {
       this.advance();
@@ -373,7 +374,16 @@ export class TypeParser extends TokenCursor {
           this.expect("rparen", "')' after function-type rest parameter");
           break;
         }
-        params.push(this.parseType());
+        const param = this.parseType();
+        if (this.peekType() === "question") {
+          this.advance();
+          optional.push(param);
+        } else {
+          if (optional.length > 0) {
+            throw this.err("required function-type parameters must precede optional parameters");
+          }
+          required.push(param);
+        }
         const sep = this.peekType();
         if (sep === "comma") {
           this.advance();
@@ -391,7 +401,7 @@ export class TypeParser extends TokenCursor {
     }
     this.expect("arrow", "'->' in function type");
     const returns = this.parseType();
-    const shape: Record<string, JSONType> = { required: params, optional: [] };
+    const shape: Record<string, JSONType> = { required, optional };
     if (rest !== undefined) shape.rest = rest;
     shape.returns = returns;
     return { $fnType: shape };

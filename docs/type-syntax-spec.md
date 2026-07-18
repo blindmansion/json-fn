@@ -17,8 +17,8 @@ lowers deterministically to that schema, and the schema pretty-prints back.
   Schema (§10); the static subschema checker never faces `not`, `if/then/else`,
   general `allOf`, etc.
 
-Deferred features (optional/default parameter shorthand, local types, bodyless
-signatures, annotated locals) are tracked in
+Remaining deferred features (local types, bodyless signatures, and annotated
+locals) are tracked in
 [`plans/type-syntax-deferred.md`](../plans/type-syntax-deferred.md).
 
 ---
@@ -208,8 +208,30 @@ node whose leaves are schemas.
 (string, ...number[]) -> string
 → {"$fnType": {"required": [{"type": "string"}], "optional": [], "rest": {"type": "number"},
                "returns": {"type": "string"}}}
+
+(string, integer?) -> boolean
+→ {"$fnType": {"required": [{"type": "string"}], "optional": [{"type": "integer"}],
+               "returns": {"type": "boolean"}}}
 ```
 
+- A `?` after a parameter type marks that callable slot as optional. It applies
+  to the complete preceding type: `(string, (number | null)?) -> boolean` has
+  one required slot and one optional slot whose supplied-value schema is
+  `number | null`.
+- Optionality is not nullability. `(A?) -> R` accepts zero or one arguments;
+  `(A | null) -> R` requires one argument whose value may be `null`.
+- Required slots precede optional slots, followed only by an optional rest
+  type. For example, `(A, B?, C?, ...D[]) -> R` is valid and
+  `(A?, B) -> R` is not.
+- A callable accepts at least its `required.length` arguments and, without
+  rest, at most `required.length + optional.length`. Rest removes only the
+  upper bound.
+- Function types do not record whether an optional slot is plain optional or
+  defaulted. That distinction belongs to a function body's `$params`;
+  `$fnType.optional` records only the callable omission contract.
+- Function compatibility first requires equal required counts, equal optional
+  counts, and matching rest presence. Within that shape, parameter schemas are
+  contravariant and the return schema is covariant.
 - The return type extends as far right as possible (lowest precedence within a
   function type), so `(A) -> B | C` returns `B | C`.
 - To use a function type as a union arm or array element, parenthesize:
@@ -253,13 +275,55 @@ Rules:
   do not consume additional signature positions.
 - **Rest aligns separately.** `$sig.rest`, when present, is the element schema
   for the final `"...rest"` slot and is not part of either fixed array.
-- **The current shorthand surface only authors required fixed slots and rest.**
-  It therefore emits `optional: []`. Canonical JSON may use `$sig.optional`
-  with optional/defaulted parameter descriptors, but the shorthand parser has
-  no syntax for those descriptors and the printer rejects them rather than
-  changing their meaning.
+- **Omittable annotations are supplied-value schemas.** In `name?: T` and
+  `name: T = expr`, `T` is the schema checked when the caller supplies that
+  argument. The local type of a plain optional binding is `T | null`; the local
+  type of a defaulted binding is `T`.
 
-### 7.1 Rest parameters
+### 7.1 Optional and defaulted parameters
+
+The binding marker determines the canonical `$params` descriptor and whether
+the aligned annotation enters `$sig.required` or `$sig.optional`:
+
+```jfn
+greet: (name: string, title?: string, punctuation: string = "!") -> string => ...
+```
+
+```json
+{
+  "$sig": {
+    "required": [{ "type": "string" }],
+    "optional": [{ "type": "string" }, { "type": "string" }],
+    "returns": { "type": "string" }
+  },
+  "$params": [
+    "name",
+    { "$param": "title", "$optional": true },
+    { "$param": "punctuation", "$default": "!" }
+  ]
+}
+```
+
+The marker precedes a type annotation for `?` (`name?: T`) and the default
+follows a complete type annotation (`name: T = expr`), matching
+TypeScript-style parameter spelling. Bare functions use the same binding forms
+without annotations: `(name, title?, punctuation = "!") => …`.
+
+`?` and `=` are mutually exclusive on one parameter. Both make the slot
+omittable, so every required parameter must precede them and a rest parameter
+may only follow them. The default expression is checked against `T` even when
+unused, but it is not represented in `$sig`: callable types preserve omission,
+not the implementation's fallback expression.
+
+The runtime meaning differs from JavaScript/TypeScript:
+
+- omission of `name?: T` produces `null`, not `undefined`;
+- explicit `null` is a supplied value and is accepted only when `T` permits it;
+- explicit `null` never activates a default;
+- defaults are lazy and use the complete recursive body scope rather than a
+  left-to-right parameter-initialization scope.
+
+### 7.2 Rest parameters
 
 Written with the array suffix (matching how the args arrive), lowering the
 element type to `$sig.rest`:
@@ -274,7 +338,7 @@ concatAll: (first: string, ...rest: string[]) -> string => ...
   "$params": ["first", "...rest"] }
 ```
 
-### 7.2 Object-pattern parameters
+### 7.3 Object-pattern parameters
 
 The annotation attaches to the whole pattern (which consumes one object
 argument); the object type becomes that param's schema:
@@ -290,7 +354,28 @@ daysInMonth: ({ year, month }: Date) -> integer => ...
 
 An inline object type works too: `({ from, to }: { from: integer, to: integer })`.
 
-### 7.3 Returned / curried functions
+Optional and defaulted pattern fields use `field?` and `field = expr`. Their
+binding behavior and their containing input contract remain distinct:
+
+```jfn
+normalize: (
+  { required, label?, count = 0 }:
+  { required: string, label?: string, count?: integer }
+) -> integer => ...
+```
+
+The pattern lowers `label` and `count` to optional/defaulted `$fields`
+descriptors. Independently, the object annotation omits both properties from
+its JSON Schema `required` array. A required pattern field must correspond to a
+required input property; an optional or defaulted pattern field must correspond
+to an optional input property. In particular, annotating `count` as required
+would make its default unreachable and is a checker error.
+
+The object-pattern slot itself remains required and contributes one schema to
+`$sig.required`, even when every field is omittable. There is no optional or
+defaulted whole-pattern form.
+
+### 7.4 Returned / curried functions
 
 The return type may itself be a function type; the inner lambda is contextually
 typed (no inner annotations) and the resolved `$sig` is stamped onto it:
@@ -401,9 +486,14 @@ moduleEntry := "type" ident "=" type                           // type declarati
              | dataEntry                                        // binding / constant / pun
 
 funcLit     := "(" params ")" ( "->" type )? "=>" body         // return type optional*
-param       := ident (":" type)?                               // annotation optional*
+param       := ident                                            // untyped required
+             | ident ":" type                                   // typed required
+             | ident "?" (":" type)?                            // optional
+             | ident (":" type)? "=" expr                       // defaulted
              | "..." ident (":" type)?                         // rest (array-suffixed type)
              | objectPattern (":" type)?                       // pattern annotation
+objectPattern := "{" fieldBinding ("," fieldBinding)* ","? "}"
+fieldBinding  := ident ( "?" | "=" expr )?
   // *within one funcLit, annotations are all-or-nothing (§7)
 
 type        := union
@@ -419,7 +509,11 @@ atom        := "null" | "boolean" | "number" | "integer" | "string"
              | "[" ( type ("," type)* ("," "..." type "[" "]")? )? "]"   // tuple
              | fnType
              | "(" type ")"
-fnType      := "(" ( type ("," type)* ("," "..." type "[" "]")? )? ")" "->" type
+fnType      := "(" fnTypeParams? ")" "->" type
+fnTypeParams := fnSlot ("," fnSlot)* ("," restType)?
+              | restType
+fnSlot      := type "?"?
+restType    := "..." type "[" "]"
 objectType  := "{" ( objField ("," objField)* )? ("," "...")? "}"
              | "{" "..." "}"
              | "{" "[" "string" "]" ":" type ("," "...")? "}"          // map (+ open)
@@ -427,15 +521,19 @@ objField    := (ident | string) "?"? ":" type
 refinement  := ident ( "(" (number | string) ")" )?           // e.g. min(0), unique, pattern("^u_")
 ```
 
-Two new lexical tokens: `|` (union) and `?` (optional key). Both are currently
-lexer errors elsewhere, so they are additive.
+`?` is a contextual omission marker: after an object-type key it makes the
+property optional; after a function binding or object-pattern field it selects
+the optional canonical descriptor; after a function-type slot it places that
+schema in `$fnType.optional`. These positions are grammatically distinct.
+Optional tuple elements remain unresolved below.
 
 ---
 
 ## 12. Open decisions (tracked)
 
 - 🔴 **Optional tuple elements** — `[string, number?]`: allow (→ `minItems`) or
-  disallow?
+  disallow? The resolved `(string, number?) -> R` function-slot syntax does not
+  imply an answer for tuples.
 - 🔴 **`integer | number` collapse** — normalize to `number` at parse time or
   leave to the checker?
 - 🔴 **Named-type inlining** — does `Piece | null` (named enum `Piece`) normalize
@@ -445,4 +543,3 @@ lexer errors elsewhere, so they are additive.
   (deferred doc §6).
 
 Everything else here is resolved and implementable.
-```

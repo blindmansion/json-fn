@@ -37,6 +37,66 @@
       "expected": { "$params": ["first", "...rest"], "$return": { "$var": "rest" } }
     },
     {
+      "description": "optional and defaulted params",
+      "source": "(name, title?, punctuation = \"!\") => punctuation",
+      "expected": {
+        "$params": [
+          "name",
+          { "$param": "title", "$optional": true },
+          { "$param": "punctuation", "$default": "!" }
+        ],
+        "$return": { "$var": "punctuation" }
+      }
+    },
+    {
+      "description": "typed optional and defaulted params",
+      "source": "(name: string, title?: string, punctuation: string = \"!\") -> string => punctuation",
+      "expected": {
+        "$sig": {
+          "required": [{ "type": "string" }],
+          "optional": [{ "type": "string" }, { "type": "string" }],
+          "returns": { "type": "string" }
+        },
+        "$params": [
+          "name",
+          { "$param": "title", "$optional": true },
+          { "$param": "punctuation", "$default": "!" }
+        ],
+        "$return": { "$var": "punctuation" }
+      }
+    },
+    {
+      "description": "optional function-type slot",
+      "source": "(callback: (string, integer?) -> boolean) -> boolean => callback(\"x\")",
+      "expected": {
+        "$sig": {
+          "required": [
+            {
+              "$fnType": {
+                "required": [{ "type": "string" }],
+                "optional": [{ "type": "integer" }],
+                "returns": { "type": "boolean" }
+              }
+            }
+          ],
+          "optional": [],
+          "returns": { "type": "boolean" }
+        },
+        "$params": ["callback"],
+        "$return": { "$call": "callback", "$args": ["x"] }
+      }
+    },
+    {
+      "description": "required param after optional is rejected",
+      "source": "(first?, second) => second",
+      "error": true
+    },
+    {
+      "description": "required function-type slot after optional is rejected",
+      "source": "(callback: (string?, integer) -> boolean) -> boolean => true",
+      "error": true
+    },
+    {
       "description": "nested closure",
       "source": "(x) => (y) => x + y",
       "expected": {
