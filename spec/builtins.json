@@ -106,6 +106,23 @@
       "description": "Round a number to the nearest integer.",
       "category": "arithmetic",
       "signatures": [{ "required": [{ "type": "number" }], "optional": [], "returns": { "type": "integer" } }] },
+    "trunc": {
+      "description": "Discard the fractional part of a number, rounding toward zero.",
+      "category": "arithmetic",
+      "signatures": [{ "required": [{ "type": "number" }], "optional": [], "returns": { "type": "integer" } }] },
+    "sign": {
+      "description": "Return -1, 0, or 1 according to the sign of a number.",
+      "category": "arithmetic",
+      "signatures": [{ "required": [{ "type": "number" }], "optional": [], "returns": { "type": "integer" } }] },
+    "clamp": {
+      "description": "Constrain a number to an inclusive minimum and maximum; throws when the minimum exceeds the maximum.",
+      "category": "arithmetic",
+      "signatures": [
+      {
+        "required": [{ "type": "number" }, { "type": "number" }, { "type": "number" }], "optional": [],
+        "returns": { "type": "number" }
+      }
+    ] },
     "max": {
       "description": "Return the largest number in a non-empty array; throws if the result is not finite.",
       "category": "arithmetic",
@@ -140,6 +157,15 @@
         "required": [{ "type": "array", "items": { "type": "integer" } }], "optional": [],
         "returns": { "type": "integer" }
       },
+      {
+        "required": [{ "type": "array", "items": { "type": "number" } }], "optional": [],
+        "returns": { "type": "number" }
+      }
+    ] },
+    "mean": {
+      "description": "Return the arithmetic mean of a non-empty array of numbers.",
+      "category": "arithmetic",
+      "signatures": [
       {
         "required": [{ "type": "array", "items": { "type": "number" } }], "optional": [],
         "returns": { "type": "number" }
@@ -296,6 +322,10 @@
       "description": "Test whether a value is a number.",
       "category": "type-checking",
       "signatures": [{ "required": [true], "optional": [], "returns": { "type": "boolean" } }] },
+    "isInteger": {
+      "description": "Test whether a value is an integer.",
+      "category": "type-checking",
+      "signatures": [{ "required": [true], "optional": [], "returns": { "type": "boolean" } }] },
     "isString": {
       "description": "Test whether a value is a string.",
       "category": "type-checking",
@@ -383,6 +413,19 @@
     ] },
     "padStart": {
       "description": "Left-pad a string to a Unicode code-point length, using a space when no fill string is supplied.",
+      "category": "strings",
+      "signatures": [
+      {
+        "required": [{ "type": "string" }, { "type": "integer" }], "optional": [],
+        "returns": { "type": "string" }
+      },
+      {
+        "required": [{ "type": "string" }, { "type": "integer" }, { "type": "string" }], "optional": [],
+        "returns": { "type": "string" }
+      }
+    ] },
+    "padEnd": {
+      "description": "Right-pad a string to a Unicode code-point length, using a space when no fill string is supplied.",
       "category": "strings",
       "signatures": [
       {

@@ -737,6 +737,21 @@ generated [Builtins reference](builtins.md).
 Arithmetic builtins reject results that are `NaN` or infinite, since those are
 not JSON numbers.
 
+Portable numeric semantics use finite IEEE 754 binary64 values. Implementations
+round each primitive arithmetic operation to binary64 and preserve the
+operation order specified by a builtin. Aggregate folds are evaluated from left
+to right.
+
+`mean` first sums its input from left to right and divides the finite sum by the
+array length. If that sum overflows, it recomputes from left to right by adding
+each value divided by the length. The fallback permits a finite mean when the
+unscaled sum is not finite; using it only after overflow avoids needless
+underflow for subnormal inputs.
+
+Transcendental builtins such as `sin`, `cos`, and `log` use the host math
+library. Their least-significant bits are not guaranteed to agree across
+implementations.
+
 ### Comparison
 
 `eq`/`neq` are **structural**: arrays and objects are compared recursively and object key order does not matter (on scalars this is just `===`). This is the only equality — json-fn values are immutable JSON, so there is no observable reference identity to compare. Equality does **not** coerce types, so `true` is not `1` and `"1"` is not `1`. The same structural equality backs `includes`/`indexOf` element membership. (`$match` compares its subject against case values by equality too, but restricts both to scalars — see [Scalar Value Match](#scalar-value-match--match-cases-else).)

@@ -24,9 +24,13 @@ more precisely than their portable signatures indicate.
 | `floor`   | `(number) → integer`                                          | Round a number down to the nearest integer.                                                                   |
 | `ceil`    | `(number) → integer`                                          | Round a number up to the nearest integer.                                                                     |
 | `round`   | `(number) → integer`                                          | Round a number to the nearest integer.                                                                        |
+| `trunc`   | `(number) → integer`                                          | Discard the fractional part of a number, rounding toward zero.                                                |
+| `sign`    | `(number) → integer`                                          | Return -1, 0, or 1 according to the sign of a number.                                                         |
+| `clamp`   | `(number, number, number) → number`                           | Constrain a number to an inclusive minimum and maximum; throws when the minimum exceeds the maximum.          |
 | `max`     | `(integer[]) → integer`<br>`(number[]) → number`              | Return the largest number in a non-empty array; throws if the result is not finite.                           |
 | `min`     | `(integer[]) → integer`<br>`(number[]) → number`              | Return the smallest number in a non-empty array; throws if the result is not finite.                          |
 | `sum`     | `(integer[]) → integer`<br>`(number[]) → number`              | Sum an array of numbers, returning zero for an empty array; throws if the result is not finite.               |
+| `mean`    | `(number[]) → number`                                         | Return the arithmetic mean of a non-empty array of numbers.                                                   |
 | `product` | `(integer[]) → integer`<br>`(number[]) → number`              | Multiply an array of numbers, returning one for an empty array; throws if the result is not finite.           |
 | `argmin`  | `(number[]) → integer \| null`                                | Return the index of the first smallest number, or null for an empty array.                                    |
 | `argmax`  | `(number[]) → integer \| null`                                | Return the index of the first largest number, or null for an empty array.                                     |
@@ -61,15 +65,16 @@ more precisely than their portable signatures indicate.
 
 ## Type Checking
 
-| Function   | Signature         | Description                                                              |
-| ---------- | ----------------- | ------------------------------------------------------------------------ |
-| `isNull`   | `(any) → boolean` | Test whether a value is null.                                            |
-| `isBool`   | `(any) → boolean` | Test whether a value is a boolean.                                       |
-| `isNumber` | `(any) → boolean` | Test whether a value is a number.                                        |
-| `isString` | `(any) → boolean` | Test whether a value is a string.                                        |
-| `isArray`  | `(any) → boolean` | Test whether a value is an array.                                        |
-| `isObject` | `(any) → boolean` | Test whether a value is a plain object, excluding arrays and null.       |
-| `isTask`   | `(any) → boolean` | Test whether a value is a plain object with a string-valued `@task` tag. |
+| Function    | Signature         | Description                                                              |
+| ----------- | ----------------- | ------------------------------------------------------------------------ |
+| `isNull`    | `(any) → boolean` | Test whether a value is null.                                            |
+| `isBool`    | `(any) → boolean` | Test whether a value is a boolean.                                       |
+| `isNumber`  | `(any) → boolean` | Test whether a value is a number.                                        |
+| `isInteger` | `(any) → boolean` | Test whether a value is an integer.                                      |
+| `isString`  | `(any) → boolean` | Test whether a value is a string.                                        |
+| `isArray`   | `(any) → boolean` | Test whether a value is an array.                                        |
+| `isObject`  | `(any) → boolean` | Test whether a value is a plain object, excluding arrays and null.       |
+| `isTask`    | `(any) → boolean` | Test whether a value is a plain object with a string-valued `@task` tag. |
 
 ## Type Coercion
 
@@ -80,18 +85,19 @@ more precisely than their portable signatures indicate.
 
 ## Strings
 
-| Function     | Signature                                                            | Description                                                                                      |
-| ------------ | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `upper`      | `(string) → string`                                                  | Convert a string to uppercase.                                                                   |
-| `lower`      | `(string) → string`                                                  | Convert a string to lowercase.                                                                   |
-| `trim`       | `(string) → string`                                                  | Remove whitespace from both ends of a string.                                                    |
-| `strcat`     | `(...string[]) → string`                                             | Concatenate any number of strings.                                                               |
-| `split`      | `(string, string) → string[]`                                        | Split a string on a separator.                                                                   |
-| `join`       | `(any[], string) → string`                                           | Join an array's elements with a separator.                                                       |
-| `startsWith` | `(string, string) → boolean`                                         | Test whether a string starts with a prefix.                                                      |
-| `endsWith`   | `(string, string) → boolean`                                         | Test whether a string ends with a suffix.                                                        |
-| `replace`    | `(string, string, string) → string`                                  | Replace all literal, non-overlapping occurrences of a non-empty search string.                   |
-| `padStart`   | `(string, integer) → string`<br>`(string, integer, string) → string` | Left-pad a string to a Unicode code-point length, using a space when no fill string is supplied. |
+| Function     | Signature                                                            | Description                                                                                       |
+| ------------ | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `upper`      | `(string) → string`                                                  | Convert a string to uppercase.                                                                    |
+| `lower`      | `(string) → string`                                                  | Convert a string to lowercase.                                                                    |
+| `trim`       | `(string) → string`                                                  | Remove whitespace from both ends of a string.                                                     |
+| `strcat`     | `(...string[]) → string`                                             | Concatenate any number of strings.                                                                |
+| `split`      | `(string, string) → string[]`                                        | Split a string on a separator.                                                                    |
+| `join`       | `(any[], string) → string`                                           | Join an array's elements with a separator.                                                        |
+| `startsWith` | `(string, string) → boolean`                                         | Test whether a string starts with a prefix.                                                       |
+| `endsWith`   | `(string, string) → boolean`                                         | Test whether a string ends with a suffix.                                                         |
+| `replace`    | `(string, string, string) → string`                                  | Replace all literal, non-overlapping occurrences of a non-empty search string.                    |
+| `padStart`   | `(string, integer) → string`<br>`(string, integer, string) → string` | Left-pad a string to a Unicode code-point length, using a space when no fill string is supplied.  |
+| `padEnd`     | `(string, integer) → string`<br>`(string, integer, string) → string` | Right-pad a string to a Unicode code-point length, using a space when no fill string is supplied. |
 
 ## Arrays
 

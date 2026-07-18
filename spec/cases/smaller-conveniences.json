@@ -1,0 +1,127 @@
+{
+  "description": "smaller scalar conveniences",
+  "cases": [
+    {
+      "description": "mean: averages numbers",
+      "body": { "$return": { "$call": "mean", "$args": [[1, 2, 3, 4]] } },
+      "expected": 2.5
+    },
+    {
+      "description": "mean: supports decimal and negative values",
+      "body": { "$return": { "$call": "mean", "$args": [[1.5, -2, 3.5]] } },
+      "expected": 1
+    },
+    {
+      "description": "mean: rejects an empty array",
+      "body": { "$return": { "$call": "mean", "$args": [[]] } },
+      "error": "must not be empty"
+    },
+    {
+      "description": "mean: rejects a non-array argument",
+      "body": { "$return": { "$call": "mean", "$args": [42] } },
+      "error": "must be an array"
+    },
+    {
+      "description": "mean: rejects a non-number element",
+      "body": { "$return": { "$call": "mean", "$args": [[1, "2", 3]] } },
+      "error": "elements must be numbers"
+    },
+    {
+      "description": "mean: avoids overflow for a finite result",
+      "body": { "$return": { "$call": "mean", "$args": [[1e308, 1e308]] } },
+      "expected": 1e308
+    },
+    {
+      "description": "mean: avoids underflow when the ordinary sum is finite",
+      "body": { "$return": { "$call": "mean", "$args": [[5e-324, 5e-324]] } },
+      "expected": 5e-324
+    },
+    {
+      "description": "clamp: constrains values to inclusive bounds",
+      "body": {
+        "$return": [
+          { "$call": "clamp", "$args": [-2, 0, 10] },
+          { "$call": "clamp", "$args": [4, 0, 10] },
+          { "$call": "clamp", "$args": [12, 0, 10] },
+          { "$call": "clamp", "$args": [10, 0, 10] }
+        ]
+      },
+      "expected": [0, 4, 10, 10]
+    },
+    {
+      "description": "clamp: rejects reversed bounds",
+      "body": { "$return": { "$call": "clamp", "$args": [5, 10, 0] } },
+      "error": "minimum must not exceed maximum"
+    },
+    {
+      "description": "trunc: discards fractional parts toward zero",
+      "body": {
+        "$return": [
+          { "$call": "trunc", "$args": [3.9] },
+          { "$call": "trunc", "$args": [-3.9] },
+          { "$call": "trunc", "$args": [4] }
+        ]
+      },
+      "expected": [3, -3, 4]
+    },
+    {
+      "description": "sign: reports negative, zero, and positive values",
+      "body": {
+        "$return": [
+          { "$call": "sign", "$args": [-8] },
+          { "$call": "sign", "$args": [0] },
+          { "$call": "sign", "$args": [2.5] }
+        ]
+      },
+      "expected": [-1, 0, 1]
+    },
+    {
+      "description": "isInteger: recognizes only integer numbers",
+      "body": {
+        "$return": [
+          { "$call": "isInteger", "$args": [3] },
+          { "$call": "isInteger", "$args": [-2] },
+          { "$call": "isInteger", "$args": [3.5] },
+          { "$call": "isInteger", "$args": ["3"] },
+          { "$call": "isInteger", "$args": [null] }
+        ]
+      },
+      "expected": [true, true, false, false, false]
+    },
+    {
+      "description": "padEnd: pads to the requested length",
+      "body": { "$return": { "$call": "padEnd", "$args": ["7", 3, "0"] } },
+      "expected": "700"
+    },
+    {
+      "description": "padEnd: defaults to a space fill",
+      "body": { "$return": { "$call": "padEnd", "$args": ["x", 3] } },
+      "expected": "x  "
+    },
+    {
+      "description": "padEnd: truncates a multi-character fill",
+      "body": { "$return": { "$call": "padEnd", "$args": ["x", 4, "ab"] } },
+      "expected": "xaba"
+    },
+    {
+      "description": "padEnd: measures Unicode code points",
+      "body": { "$return": { "$call": "padEnd", "$args": ["🙂", 3, "ab"] } },
+      "expected": "🙂ab"
+    },
+    {
+      "description": "padEnd: does not shorten a string",
+      "body": { "$return": { "$call": "padEnd", "$args": ["hello", 3, "."] } },
+      "expected": "hello"
+    },
+    {
+      "description": "padEnd: an empty fill leaves the string unchanged",
+      "body": { "$return": { "$call": "padEnd", "$args": ["x", 3, ""] } },
+      "expected": "x"
+    },
+    {
+      "description": "padEnd: rejects a negative target length",
+      "body": { "$return": { "$call": "padEnd", "$args": ["x", -1] } },
+      "error": "target length must be a non-negative integer"
+    }
+  ]
+}

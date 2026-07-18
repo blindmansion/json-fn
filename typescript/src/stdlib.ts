@@ -392,6 +392,12 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
     floor: pure((a: number) => finiteMathResult("floor", Math.floor(a))),
     ceil: pure((a: number) => finiteMathResult("ceil", Math.ceil(a))),
     round: pure((a: number) => finiteMathResult("round", Math.round(a))),
+    trunc: pure((value: number) => finiteMathResult("trunc", Math.trunc(value))),
+    sign: pure((value: number) => finiteMathResult("sign", Math.sign(value))),
+    clamp: pure((value: number, min: number, max: number) => {
+      if (min > max) throw new Error("clamp: minimum must not exceed maximum");
+      return finiteMathResult("clamp", Math.min(Math.max(value, min), max));
+    }),
     max: meteredPure((meter, arr) => {
       if (!Array.isArray(arr)) throw new Error("max: argument must be an array");
       if (arr.length === 0) throw new Error("max: argument must not be empty");
@@ -423,6 +429,23 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
         total += value;
       }
       return finiteMathResult("sum", total);
+    }),
+    mean: meteredPure((meter, arr) => {
+      if (!Array.isArray(arr)) throw new Error("mean: argument must be an array");
+      if (arr.length === 0) throw new Error("mean: argument must not be empty");
+      meter.charge(arr.length);
+      let total = 0;
+      for (const value of arr) {
+        if (typeof value !== "number") throw new Error("mean: array elements must be numbers");
+        total += value;
+      }
+      if (Number.isFinite(total)) return finiteMathResult("mean", total / arr.length);
+
+      // A finite mean can still have an overflowing sum. Recompute with each
+      // term scaled first; the ordinary path above avoids needless underflow.
+      total = 0;
+      for (const value of arr) total += value / arr.length;
+      return finiteMathResult("mean", total);
     }),
     product: meteredPure((meter, arr) => {
       if (!Array.isArray(arr)) throw new Error("product: argument must be an array");
@@ -476,6 +499,7 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
     isNull: pure((a: any) => a === null),
     isBool: pure((a: any) => typeof a === "boolean"),
     isNumber: pure((a: any) => typeof a === "number"),
+    isInteger: pure((a: any) => Number.isInteger(a)),
     isString: pure((a: any) => typeof a === "string"),
     isArray: pure((a: any) => Array.isArray(a)),
     isTask: pure(
@@ -729,6 +753,20 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
         (_, i) => fillChars[i % fillChars.length],
       ).join("");
       return padding + s;
+    }),
+    padEnd: pure((s: string, targetLength: number, fill = " ") => {
+      if (!Number.isInteger(targetLength) || targetLength < 0)
+        throw new Error("padEnd: target length must be a non-negative integer");
+      if (fill.length === 0) return s;
+      const value = Array.from(s);
+      const needed = targetLength - value.length;
+      if (needed <= 0) return s;
+      const fillChars = Array.from(fill);
+      const padding = Array.from(
+        { length: needed },
+        (_, i) => fillChars[i % fillChars.length],
+      ).join("");
+      return s + padding;
     }),
 
     // Object utilities
