@@ -22,15 +22,15 @@
   // `cond` arms narrow the union, so `op.value` / `op.by` / … resolve per case.
   step: (xs: number[], op: Op) -> number[] => cond {
     op.tag == "push"  -> concat(xs, [op.value]),
-    op.tag == "scale" -> map((x) => x * op.by, xs),
-    op.tag == "keep"  -> filter((x) => x > op.above, xs),
-    op.tag == "clamp" -> map((x) => clampTo({ lo: op.lo, hi: op.hi })(x), xs),
+    op.tag == "scale" -> map((x, _index) => x * op.by, xs),
+    op.tag == "keep"  -> filter((x, _index) => x > op.above, xs),
+    op.tag == "clamp" -> map((x, _index) => clampTo({ lo: op.lo, hi: op.hi })(x), xs),
     op.tag == "take"  -> slice(xs, 0, op.n),
     else              -> sort((a, b) => a - b, xs)
   },
 
-  run:   (ops: Op[]) -> number[] => reduce((xs, op) => step(xs, op), [], ops),
-  total: (xs: number[]) -> number => reduce((a, x) => a + x, 0, xs),
+  run:   (ops: Op[]) -> number[] => reduce((xs, op, _index) => step(xs, op), [], ops),
+  total: (xs: number[]) -> number => reduce((a, x, _index) => a + x, 0, xs),
 
   // `match` on the discriminant: the arms need no variant-specific fields.
   label: (op: Op) -> string => match op.tag {
@@ -48,14 +48,14 @@
 
   summary: (ops: Op[]) -> string =>
     report(header,
-           `steps: ${join(map((op) => label(op), ops), " -> ")}`,
-           `out:   [${join(map((x) => str(x), out), ", ")}]`,
+           `steps: ${join(map((op, _index) => label(op), ops), " -> ")}`,
+           `out:   [${join(map((x, _index) => str(x), out), ", ")}]`,
            `sum:   ${str(total(out))}`) where {
       out:    run(ops),
       header: `pipeline of ${str(length(ops))} op(s):`
     },
 
-  demo: () => {
+  demo: () -> { result: number[], sum: number, report: string } => {
     result: run(ops),
     sum:    total(run(ops)),
     report: summary(ops)
