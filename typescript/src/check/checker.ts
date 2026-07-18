@@ -1140,8 +1140,15 @@ function checkBody(
 ): void {
   const layout = analyzedLayout ?? analyzeBodyParameters(body, ctx);
   if (layout === null) return;
-  if (injectedSig !== undefined) checkInjectedBodyArity(layout, injectedSig, ctx);
-  const sig = injectedSig ?? sigOf(body);
+  const declaredSig = sigOf(body);
+  if (
+    (injectedSig !== undefined &&
+      !checkBodyParameterShape(layout, injectedSig, ctx, "Contextual signature")) ||
+    (declaredSig !== null && !checkBodyParameterShape(layout, declaredSig, ctx, "Body signature"))
+  ) {
+    return;
+  }
+  const sig = injectedSig ?? declaredSig;
   const { env, guards } = buildTypeScope(body, layout, ctx.env, ctx, true, injectedSig);
   const bctx: CheckContext = { ...ctx, env, guards };
   check(body.$return!, sig?.returns ?? true, at(bctx, "$return"));
@@ -1151,17 +1158,21 @@ function checkBody(
   }
 }
 
-// A contextually supplied signature owns the body's callable shape as well as
-// its parameter and return types. In particular, environment entry injection
-// must not silently accept a guest body with fewer/more parameters than the
-// operator contract (the removed entry-specific reconciliation pass enforced
-// this before entry checking moved onto the normal body path).
-function checkInjectedBodyArity(layout: ParameterLayout, sig: Sig, ctx: CheckContext): void {
-  if (parameterShapeMatches(layout, sig)) return;
-
+// A body's normalized declaration must agree with both its own signature and
+// any contextually supplied signature before schemas are aligned to names.
+// Returning false lets the caller stop the body after the single declaration
+// diagnostic instead of cascading through a scope built from shifted slots.
+function checkBodyParameterShape(
+  layout: ParameterLayout,
+  sig: Sig,
+  ctx: CheckContext,
+  source: "Body signature" | "Contextual signature",
+): boolean {
+  if (parameterShapeMatches(layout, sig)) return true;
   const expected = describeSigShape(sig);
   const actual = describeParameterLayout(layout);
-  report(at(ctx, "$params"), `Contextual signature expects ${expected}; body declares ${actual}.`);
+  report(at(ctx, "$params"), `${source} expects ${expected}; body declares ${actual}.`);
+  return false;
 }
 
 export {

@@ -241,7 +241,7 @@ describe("checkModule: clean programs", () => {
   test("required and optional schemas share one positional sequence", () => {
     const mod = {
       pickSecond: body(
-        ["number", "label"],
+        ["number", { $param: "label", $default: "" }],
         { required: [I], optional: [S], returns: S },
         { $var: "label" },
       ),
@@ -350,6 +350,44 @@ describe("checkModule: diagnostics", () => {
         path: ["malformed", "$params[0]"],
         message: expect.stringContaining("$params[0]: A defaulted parameter must contain exactly"),
         severity: "error",
+      },
+    ]);
+  });
+
+  test("a body's parameters must match its declared signature shape", () => {
+    const mod = {
+      requiredInOptionalSlot: body(
+        ["value"],
+        { required: [], optional: [I], returns: true },
+        { $var: "missing" },
+      ),
+      optionalInRequiredSlot: body(
+        [{ $param: "value", $optional: true }],
+        { required: [I], optional: [], returns: true },
+        { $var: "missing" },
+      ),
+      undeclaredRest: body(
+        ["value", "...rest"],
+        { required: [I], optional: [], returns: true },
+        { $var: "missing" },
+      ),
+    };
+
+    expect(checkModule(mod).map(({ path, message }) => ({ path, message }))).toEqual([
+      {
+        path: ["requiredInOptionalSlot", "$params"],
+        message:
+          "Body signature expects 0 required parameter(s), 1 optional parameter(s), and no rest parameter; body declares 1 required parameter(s), 0 optional parameter(s), and no rest parameter.",
+      },
+      {
+        path: ["optionalInRequiredSlot", "$params"],
+        message:
+          "Body signature expects 1 required parameter(s), 0 optional parameter(s), and no rest parameter; body declares 0 required parameter(s), 1 optional parameter(s), and no rest parameter.",
+      },
+      {
+        path: ["undeclaredRest", "$params"],
+        message:
+          "Body signature expects 1 required parameter(s), 0 optional parameter(s), and no rest parameter; body declares 1 required parameter(s), 0 optional parameter(s), and a rest parameter.",
       },
     ]);
   });
@@ -1111,7 +1149,7 @@ describe("checkModule: dangling $ref → hard error", () => {
   test("dangling refs in required and optional signature slots are both reported", () => {
     const mod = {
       f: body(
-        ["requiredValue", "optionalValue"],
+        ["requiredValue", { $param: "optionalValue", $optional: true }],
         {
           required: [ref("MissingRequired")],
           optional: [ref("MissingOptional")],
