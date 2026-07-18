@@ -268,21 +268,23 @@ function value that is then applied (`caps.db.query(sql)`). See §4.
 
 A closed set of operators. Precedence from highest to lowest:
 
-| Prec | Operators         | Assoc   | Lowers to                                        |
-| ---- | ----------------- | ------- | ------------------------------------------------ |
-| 0    | `x!` (assertion)  | postfix | `{ "$cast": x }`                                 |
-| 1    | `!x` `-x` (unary) | prefix  | `not(x)` · `neg(x)` (stdlib calls)               |
-| 2    | `*` `/` `%`       | left    | `mul` · `div` · `mod` (stdlib calls)             |
-| 3    | `+` `-` `++`      | left    | `add` · `sub` · `strcat` (stdlib calls)          |
-| 4    | `== != < <= > >=` | none    | `eq neq lt lte gt gte` (stdlib calls)            |
-| 5    | `&&`              | flatten | `$and` (short-circuit, variadic)                  |
-| 6    | `\|\|`            | flatten | `$or` (short-circuit, variadic)                   |
+| Prec | Operators             | Assoc   | Lowers to                                        |
+| ---- | --------------------- | ------- | ------------------------------------------------ |
+| 0    | `x!` (non-null)       | postfix | `{ "$nonnull": x }`                              |
+| 1    | `!x` `-x` (unary)     | prefix  | `not(x)` · `neg(x)` (stdlib calls)               |
+| 2    | `*` `/` `%`           | left    | `mul` · `div` · `mod` (stdlib calls)             |
+| 3    | `+` `-` `++`          | left    | `add` · `sub` · `strcat` (stdlib calls)          |
+| 4    | `== != < <= > >=`     | none    | `eq neq lt lte gt gte` (stdlib calls)            |
+| 5    | `&&`                  | flatten | `$and` (short-circuit, variadic)                  |
+| 6    | `\|\|`                | flatten | `$or` (short-circuit, variadic)                   |
+| 7    | `expression as Type`  | none    | `{ "$as": expression, "$type": schema }`          |
 
 ```jfn
 row * 8 + col
 !done
 x > 0 && x < 100
 cached || compute(x)
+balance + delta as Cents
 ```
 
 ```json
@@ -290,13 +292,15 @@ cached || compute(x)
 { "$call": "not", "$args": [{ "$var": "done" }] }
 { "$and": [{ "$call": "gt", "$args": [{ "$var": "x" }, 0] }, { "$call": "lt", "$args": [{ "$var": "x" }, 100] }] }
 { "$or": [{ "$var": "cached" }, { "$call": "compute", "$args": [{ "$var": "x" }] }] }
+{ "$as": { "$call": "add", "$args": [{ "$var": "balance" }, { "$var": "delta" }] }, "$type": { "$ref": "#/$defs/Cents" } }
 ```
 
 Rules and rationale:
 
-- **Arithmetic, `++`, comparisons, and `!`** lower to **stdlib `$call` calls**
-  (`add`, `strcat`, `eq`, `not`, …); only **`&&` and `||`** lower to **language
-  `$`-forms**, because they short-circuit.
+- **Arithmetic, `++`, comparisons, prefix `!`, and unary `-`** lower to
+  **stdlib `$call` calls** (`add`, `strcat`, `eq`, `not`, `neg`, …).
+  `&&`, `||`, postfix `!`, and checked `as` lower to dedicated language
+  `$`-forms.
 - `&&`/`||` **flatten**: `a && b && c` → one variadic `$and`. They map to the
   short-circuit language forms, **never** the eager stdlib `and`/`or` (call those
   by name: `and(a, b)`).
@@ -306,6 +310,12 @@ Rules and rationale:
 - Postfix `x!` is a runtime-checked non-null assertion. It removes `null` from
   the checker's inferred type, returns every non-null value unchanged, and
   raises an evaluation error on `null`.
+- Checked `expression as Type` evaluates the expression once, validates the
+  result against the type's runtime contract, and gives the expression that
+  declared type. It binds less tightly than `||`, so `a + b as Cents` means
+  `(a + b) as Cents`. It is non-associative; repeat checks as
+  `(x as A) as B`. Postfix assertion still binds tightly (`x! as T`), while
+  asserting an ascribed result requires parentheses (`(x as T)!`).
 - Only operators with a single unambiguous meaning and universal precedence are
   elevated. Everything else stays a named call.
 - The call form (`add(a, b)`) remains legal and parses identically, but the
@@ -672,7 +682,8 @@ contract. The shorthand only guarantees the JSON it produces.
 ```
 program     := expr
 
-expr        := orExpr
+expr        := ascription
+ascription  := orExpr ( "as" type )?                             // non-assoc
 orExpr      := andExpr ( "||" andExpr )*
 andExpr     := cmpExpr ( "&&" cmpExpr )*
 cmpExpr     := addExpr ( ("=="|"!="|"<"|"<="|">"|">=") addExpr )?   // non-assoc

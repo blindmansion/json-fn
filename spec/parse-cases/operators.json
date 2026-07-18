@@ -81,19 +81,19 @@
     {
       "description": "postfix non-null assertion",
       "source": "value!",
-      "expected": { "$cast": { "$var": "value" } }
+      "expected": { "$nonnull": { "$var": "value" } }
     },
     {
       "description": "postfix assertion binds before property access",
       "source": "move!.from",
-      "expected": { "$get": "from", "$from": { "$cast": { "$var": "move" } } }
+      "expected": { "$get": "from", "$from": { "$nonnull": { "$var": "move" } } }
     },
     {
       "description": "postfix assertion binds before prefix not",
       "source": "!value!",
       "expected": {
         "$call": "not",
-        "$args": [{ "$cast": { "$var": "value" } }]
+        "$args": [{ "$nonnull": { "$var": "value" } }]
       }
     }
   ]

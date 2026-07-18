@@ -1,0 +1,139 @@
+{
+  "description": "checked value ascription",
+  "cases": [
+    {
+      "description": "named type",
+      "source": "value as Count",
+      "expected": {
+        "$as": { "$var": "value" },
+        "$type": { "$ref": "#/$defs/Count" }
+      }
+    },
+    {
+      "description": "ascription binds less tightly than arithmetic",
+      "source": "a + b as Cents",
+      "expected": {
+        "$as": {
+          "$call": "add",
+          "$args": [{ "$var": "a" }, { "$var": "b" }]
+        },
+        "$type": { "$ref": "#/$defs/Cents" }
+      }
+    },
+    {
+      "description": "parentheses restrict the ascribed operand",
+      "source": "a + (b as Cents)",
+      "expected": {
+        "$call": "add",
+        "$args": [
+          { "$var": "a" },
+          {
+            "$as": { "$var": "b" },
+            "$type": { "$ref": "#/$defs/Cents" }
+          }
+        ]
+      }
+    },
+    {
+      "description": "non-null assertion binds before ascription",
+      "source": "value! as Count",
+      "expected": {
+        "$as": { "$nonnull": { "$var": "value" } },
+        "$type": { "$ref": "#/$defs/Count" }
+      }
+    },
+    {
+      "description": "parenthesized ascription can be asserted non-null",
+      "source": "(value as Count)!",
+      "expected": {
+        "$nonnull": {
+          "$as": { "$var": "value" },
+          "$type": { "$ref": "#/$defs/Count" }
+        }
+      }
+    },
+    {
+      "description": "parenthesized ascriptions can be repeated",
+      "source": "(value as Count) as number",
+      "expected": {
+        "$as": {
+          "$as": { "$var": "value" },
+          "$type": { "$ref": "#/$defs/Count" }
+        },
+        "$type": { "type": "number" }
+      }
+    },
+    {
+      "description": "unparenthesized repeated ascription is rejected",
+      "source": "value as Count as number",
+      "error": "checked ascription is non-associative"
+    },
+    {
+      "description": "inline closed object type",
+      "source": "value as { id: integer, name: string }",
+      "expected": {
+        "$as": { "$var": "value" },
+        "$type": {
+          "type": "object",
+          "properties": {
+            "id": { "type": "integer" },
+            "name": { "type": "string" }
+          },
+          "required": ["id", "name"],
+          "additionalProperties": false
+        }
+      }
+    },
+    {
+      "description": "inline primitive union",
+      "source": "value as integer | string",
+      "expected": {
+        "$as": { "$var": "value" },
+        "$type": { "type": ["integer", "string"] }
+      }
+    },
+    {
+      "description": "inline array type",
+      "source": "value as string[]",
+      "expected": {
+        "$as": { "$var": "value" },
+        "$type": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    {
+      "description": "inline tuple type",
+      "source": "value as [integer, string]",
+      "expected": {
+        "$as": { "$var": "value" },
+        "$type": {
+          "type": "array",
+          "prefixItems": [{ "type": "integer" }, { "type": "string" }],
+          "items": false,
+          "minItems": 2
+        }
+      }
+    },
+    {
+      "description": "inline refined type",
+      "source": "value as integer & min(0)",
+      "expected": {
+        "$as": { "$var": "value" },
+        "$type": { "type": "integer", "minimum": 0 }
+      }
+    },
+    {
+      "description": "inline function type",
+      "source": "value as (integer) -> string",
+      "expected": {
+        "$as": { "$var": "value" },
+        "$type": {
+          "$fnType": {
+            "required": [{ "type": "integer" }],
+            "optional": [],
+            "returns": { "type": "string" }
+          }
+        }
+      }
+    }
+  ]
+}

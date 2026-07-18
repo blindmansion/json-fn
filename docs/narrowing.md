@@ -6,8 +6,9 @@ It is a deliberately small, fixed set — it will not be extended. The reasoning
 agents, and deterministic, simple rules are easier for models to learn and stay
 stable across model generations than a fuzzy "does the checker narrow through
 this shape?" boundary. When a union in a local can't be discharged by one of the
-forms below, the sanctioned escape hatch is the `x!` assertion operator
-(`docs/language.md` §9), not more narrowing.
+forms below, the sanctioned escape hatches are checked assertions
+(`x!` for nullability and `value as Type` for an explicit runtime contract),
+not more narrowing.
 
 Behavior lives in `typescript/src/check/narrowing.ts`; the control-flow wiring is
 in `typescript/src/check/checker.ts` (the `$if` / `$cond` / `$match` cases). This
@@ -146,8 +147,8 @@ Recognized forms compose:
 
 - No narrowing on non-path subjects (call results, computed indices).
 - No arithmetic / refinement inference (`Score = integer & min(0)` stays opaque
-  to arithmetic). `x!` only removes `null`; use an explicit runtime contract
-  boundary when a computed result must be validated as a refinement.
+  to arithmetic). `x!` only removes `null`; use `expression as Score` when a
+  computed result must be validated as a refinement.
 - No single-subject fact from `$and`-false or `$or`-true.
 - No loosening of callback arity — adapting a unary `g` to an indexed callback
   still requires the exact wrapper shape

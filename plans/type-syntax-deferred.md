@@ -25,8 +25,9 @@ So the deferred items read in context, v1 locks in:
    no annotations. The rule: annotations required iff the funcLit is the RHS of a
    `name:` binding.
 4. **`where`-locals are never annotated** — typed lazily by synthesis.
-5. **Assertion operator is in v1** as the escape hatch for the narrowing gap:
-   postfix `x!`, lowering to the runtime-checked `{ "$cast": x }` node.
+5. **Checked assertion operators are in v1** as escape hatches for narrowing
+   gaps: postfix `x!`, lowering to `{ "$nonnull": x }`, and
+   `expression as Type`, lowering to `{ "$as": expression, "$type": schema }`.
 6. **Host/builtin functions are injected, never user-declared.**
 
 ---
@@ -173,9 +174,10 @@ v1 is in hand.
 
 ---
 
-## 7. Narrowing vs. the assertion operator — settled
+## 7. Narrowing vs. checked assertions — settled
 
-The operator is postfix `x!` and lowers to `{ "$cast": x }`. It removes `null`
-from the inferred type and performs the corresponding runtime check, raising
-when the operand evaluates to `null`. The spelling and runtime-node questions
-are no longer deferred.
+Postfix `x!` lowers to `{ "$nonnull": x }`. It removes `null` from the inferred
+type and performs the corresponding runtime check, raising when the operand
+evaluates to `null`. Checked `expression as Type` handles broader runtime
+contracts and lowers to `{ "$as": expression, "$type": schema }`. The spellings
+and runtime-node questions are no longer deferred.

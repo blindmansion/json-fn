@@ -57,25 +57,46 @@ Resolves a variable by name. `$var` must be the sole key, and its value is a pla
 { "$var": "x" }
 ```
 
-### Non-null assertion — `{ $cast }`
+### Non-null assertion — `{ $nonnull }`
 
-Evaluates `$cast` and returns its value when non-null. If the value is `null`,
-evaluation fails. `$cast` must be the sole key.
+Evaluates `$nonnull` and returns its value when non-null. If the value is
+`null`, evaluation fails. `$nonnull` must be the sole key.
 
 ```json
-{ "$cast": { "$var": "x" } }
+{ "$nonnull": { "$var": "x" } }
 ```
 
 The checker removes `null` from the operand's inferred type. In shorthand this
 is written as the postfix operator `x!`.
 
+### Checked type ascription — `{ $as, $type }`
+
+Evaluates `$as` exactly once, validates the result against the schema in
+`$type`, and returns the validated value. A failed contract raises a
+`RuntimeContractError`. Both keys are required and no sibling properties are
+allowed.
+
+```json
+{
+  "$as": { "$var": "value" },
+  "$type": { "$ref": "#/$defs/Score" }
+}
+```
+
+The checker gives the expression exactly the declared type without requiring
+the operand's inferred type to be a subtype. In shorthand this is written
+`value as Score`. This is a checked assertion, not a conversion: for example,
+`"1" as integer` fails rather than producing `1`.
+
 Refinements are intentionally opaque to arithmetic. For example, if
 `Score = integer & min(0)`, arithmetic involving a `Score` produces `integer`;
 the checker does not infer that the result still satisfies `min(0)`. Postfix
-`!` only removes `null` and does not establish a refinement. Keep such
-calculations at the primitive type and, when a refined result must be asserted,
-validate it at an explicit runtime contract boundary such as a total annotated
-`handle` result. Static arithmetic/refinement inference is not supported.
+`!` only removes `null`; use `expression as Score` to validate a computed
+result and establish the refinement explicitly.
+
+Data values pass through a successful ascription unchanged. Ascribing a
+function type installs a serializable contract wrapper that validates eventual
+arguments and return values.
 
 ### Property Access — `{ $get, $from }`
 

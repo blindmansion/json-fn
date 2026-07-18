@@ -8,9 +8,9 @@ lowers deterministically to that schema, and the schema pretty-prints back.
 - **Types describe JSON values.** The value universe is JSON, so the type
   universe is null / boolean / number / integer / string / arrays / objects,
   plus unions, literals, and refinements over them.
-- **Types live only in contracts.** They appear in function signatures and the
-  result contract on a total annotated `handle`; there are no general
-  standalone value annotations. Checking is derived from these contracts.
+- **Types live only in checked positions.** They appear in declarations,
+  function signatures, total-handler result contracts, and checked value
+  ascriptions. There are no unchecked standalone value annotations.
 - **Every type is also a runtime validator.** The same schema that types a call
   statically validates an `any` value at a function boundary.
 - **The shorthand is a gate.** It can only emit a tractable fragment of JSON
@@ -25,7 +25,7 @@ locals) are tracked in
 
 ## 1. Where types appear
 
-Exactly three positions:
+Exactly four positions:
 
 1. **Module-level type declarations** — `type Name = <type>` entries in the
    file's top-level object, lowering to the reserved `$types` sibling (§8).
@@ -33,10 +33,12 @@ Exactly three positions:
    type `-> <type>` on a function literal header (§7).
 3. **Total effect handlers** — `handle task -> <type> with { … }` declares the
    immediate result contract of the handler.
+4. **Checked value ascriptions** — `expression as <type>` validates the
+   expression at runtime and gives the successful result that type.
 
 Type *declarations* are module-top-level only. Type *expressions* (the `<type>`
-grammar, §2–§6) appear in all three positions, so they can occur inside nested
-function headers and handler expressions too.
+grammar, §2–§6) appear in all four positions, so they can occur inside nested
+function headers, handler expressions, and value ascriptions too.
 
 ---
 
@@ -451,7 +453,9 @@ type Event =
 
 ---
 
-## 9. Assertion operator (v1 escape hatch)
+## 9. Checked assertion operators
+
+### 9.1 Non-null assertion
 
 `x!` narrows away `null` when a value is known to be non-null at its use site:
 
@@ -459,9 +463,37 @@ type Event =
 legal: isLegalMove(state.board, move!.from, move!.to, state.turn)   // move! : Move
 ```
 
-The operator lowers to `{ "$cast": x }`. Evaluation returns a non-null operand
-unchanged and raises an evaluation error when the operand is `null`, so the
-assertion remains sound at runtime.
+The operator lowers to `{ "$nonnull": x }`. Evaluation returns a non-null
+operand unchanged and raises an evaluation error when the operand is `null`, so
+the assertion remains sound at runtime.
+
+### 9.2 Checked value ascription
+
+`expression as Type` validates a value against an explicit type and gives the
+successful expression exactly that type:
+
+```jfn
+balance + delta as Cents
+parse(input) as { id: integer, name: string }
+callback as (integer) -> string
+```
+
+It lowers to a canonical expression containing the value and the type's schema:
+
+```json
+{
+  "$as": { "$call": "add", "$args": [{ "$var": "balance" }, { "$var": "delta" }] },
+  "$type": { "$ref": "#/$defs/Cents" }
+}
+```
+
+The operand need not already be a static subtype of the target: the runtime
+contract is the evidence for the result type. Evaluation performs no
+conversion, and a failed contract raises `RuntimeContractError`. Function types
+install a wrapper that checks eventual arguments and return values.
+
+`as` has lower precedence than all logical and arithmetic operators and is
+non-associative. Write `(x as A) as B` for repeated checks.
 
 ---
 

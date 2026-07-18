@@ -115,6 +115,38 @@ describe("synth: checked ascription", () => {
     expect(defined.type).toEqual({ $ref: "#/$defs/Count" });
     expect(defined.diagnostics).toEqual([]);
   });
+
+  test("satisfies a context expecting the declared type", () => {
+    const mod = {
+      f: {
+        $params: [],
+        $sig: { required: [], optional: [], returns: { type: "string" } },
+        $return: { $as: 1, $type: { type: "string" } },
+      },
+    };
+    expect(checkModule(mod)).toEqual([]);
+  });
+
+  test("does not narrow later uses of the source variable", () => {
+    const source: Schema = {
+      anyOf: [{ type: "integer" }, { type: "string" }],
+    };
+    const ctx: CheckContext = {
+      defs: {},
+      env: { lookupType: (name) => (name === "value" ? source : undefined) },
+      diagnostics: [],
+      path: [],
+    };
+    expect(
+      synth([{ $as: { $var: "value" }, $type: { type: "integer" } }, { $var: "value" }], ctx),
+    ).toEqual({
+      type: "array",
+      prefixItems: [{ type: "integer" }, source],
+      items: false,
+      minItems: 2,
+    });
+    expect(ctx.diagnostics).toEqual([]);
+  });
 });
 
 describe("synth: visible `any` degradation", () => {
