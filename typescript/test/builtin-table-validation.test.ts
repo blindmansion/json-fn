@@ -50,7 +50,12 @@ describe("builtin table validation", () => {
       description: "test table",
       builtins: {
         declarative: { signatures: [signature] },
-        special: { signatures: [signature], rule: "core.handle" },
+        special: {
+          description: "Handle an effect.",
+          category: "effects",
+          signatures: [signature],
+          rule: "core.handle",
+        },
       },
     };
     validateCallableTable(value);
@@ -64,6 +69,16 @@ describe("builtin table validation", () => {
     expect(validationError(tableWith([signature], {}, "bad rule")).path).toBe(
       "table.builtins.example.rule",
     );
+    expect(
+      validationError({
+        builtins: { example: { description: "", signatures: [signature] } },
+      }).path,
+    ).toBe("table.builtins.example.description");
+    expect(
+      validationError({
+        builtins: { example: { category: 1, signatures: [signature] } },
+      }).path,
+    ).toBe("table.builtins.example.category");
     expect(validationError(tableWith([{ ...signature, typo: true }])).path).toBe(
       "table.builtins.example.signatures[0].typo",
     );

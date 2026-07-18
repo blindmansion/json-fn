@@ -347,7 +347,15 @@ export function validateCallableTable(value: unknown): asserts value is Callable
     const path = `table.builtins.${name}`;
     if (name.length === 0) fail(path, "builtin name cannot be empty");
     const contract = assertObject(entry, path);
-    assertOnlyKeys(contract, new Set(["signatures", "rule"]), path);
+    assertOnlyKeys(contract, new Set(["description", "category", "signatures", "rule"]), path);
+    for (const field of ["description", "category"] as const) {
+      if (
+        field in contract &&
+        (typeof contract[field] !== "string" || contract[field].length === 0)
+      ) {
+        fail(`${path}.${field}`, "expected a non-empty string");
+      }
+    }
     if (!Array.isArray(contract.signatures)) fail(`${path}.signatures`, "expected an array");
     if (contract.signatures.length === 0) {
       fail(`${path}.signatures`, "fallback signature set cannot be empty");

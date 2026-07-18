@@ -6,7 +6,12 @@ type TVarNode = { $tvar: string };
 type CallableSignature = FnTypeShape & {
   typeParams?: string[];
 };
-type CallableEntry = { signatures: CallableSignature[]; rule?: string };
+type CallableEntry = {
+  description?: string;
+  category?: string;
+  signatures: CallableSignature[];
+  rule?: string;
+};
 type CallableTable = { $defs?: Defs; builtins: Record<string, CallableEntry> };
 
 // A per-call-site type-variable environment (T, U, … → their inferred schema).
