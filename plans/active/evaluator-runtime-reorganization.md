@@ -1,6 +1,6 @@
 # Evaluator and runtime reorganization
 
-Status: active. Phases 0–3 completed 2026-07-18.
+Status: active. Phases 0–4 completed 2026-07-18.
 
 ## Summary
 
@@ -536,6 +536,35 @@ the module has a clear independent contract, and it does not require a mutable
 late-bound operations table merely to bypass ESM cycles.
 
 Reducing line count alone is not sufficient justification.
+
+#### Phase 4 record (2026-07-18)
+
+The post-extraction call graph supports keeping the recursive core together.
+`interpreter.ts` contains 15 named function nodes with 18 intra-module call
+edges, 30 outgoing call edges, and module cohesion of 1.2. `callCycles`
+identifies one recursive component containing `callFunctionInternal`,
+`callJSONFunction`, `evaluateExpression`, `evaluateFunctionCall`, and
+`evaluatePropertyAccess`.
+
+`buildScope` is also part of the same semantic component even though the static
+cycle analysis does not place it in that strongly connected component:
+`callJSONFunction` constructs the scope, while the scope's lazy `getVar`
+callback re-enters `evaluateExpression`. Moving either side would therefore
+introduce a back-import, require late-bound evaluator operations, or obscure
+the lazy-scope contract.
+
+No further split has a sufficiently independent contract. In particular,
+property-access operand evaluation and function-call preparation recurse
+directly into `evaluateExpression`, while native and JSON function dispatch are
+small branches of the same call boundary. Phase 4 therefore makes no code
+changes; the recursive core remains in `interpreter.ts` by design.
+
+Verification remained green:
+
+- `bun run check` completed with no type, lint, or formatting errors;
+- `bun test` passed 1,582 tests across 26 files; and
+- the import graph retained only the two pre-existing cycles, with no cycle
+  involving `eval/`.
 
 ### Phase 5: Clean shared internals
 
