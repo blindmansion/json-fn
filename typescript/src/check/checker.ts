@@ -98,6 +98,35 @@ function analyzeBodyParameters(
   return null;
 }
 
+// Callable declarations and normalized bodies must agree on each part of their
+// shape. Equal fixed counts are not enough: one required plus one optional
+// parameter admits different calls from two required parameters.
+function parameterShapeMatches(layout: ParameterLayout, sig: Sig): boolean {
+  return (
+    layout.requiredCount === sig.required.length &&
+    layout.omittableCount === sig.optional.length &&
+    (layout.rest !== null) === (sig.rest !== undefined)
+  );
+}
+
+function describeParameterLayout(layout: ParameterLayout): string {
+  return `${layout.requiredCount} required parameter(s), ${layout.omittableCount} optional parameter(s), and ${
+    layout.rest === null ? "no rest parameter" : "a rest parameter"
+  }`;
+}
+
+function describeSigShape(sig: Sig): string {
+  return `${sig.required.length} required parameter(s), ${sig.optional.length} optional parameter(s), and ${
+    sig.rest === undefined ? "no rest parameter" : "a rest parameter"
+  }`;
+}
+
+function acceptsArgumentCount(sig: Sig, argc: number): boolean {
+  const minimum = sig.required.length;
+  const maximum = fixedParamSchemas(sig).length;
+  return argc >= minimum && (sig.rest !== undefined || argc <= maximum);
+}
+
 // Bind a body's normalized parameters to their declared `$sig` schemas.
 function bindParams(layout: ParameterLayout, sig: Sig | null, eager: Record<string, Schema>): void {
   const sigParams = sig === null ? [] : fixedParamSchemas(sig);
@@ -347,17 +376,18 @@ function paramAt(sig: Sig, i: number): Schema | null {
 // lambda typing) that would otherwise pile spurious diagnostics onto the real
 // arity error.
 function checkArity(sig: Sig, argc: number, ctx: CheckContext): boolean {
-  const min = fixedParamSchemas(sig).length;
-  if (sig.rest === undefined) {
-    if (argc !== min) {
-      report(ctx, `Expected ${min} argument(s), got ${argc}.`);
-      return false;
-    }
-  } else if (argc < min) {
-    report(ctx, `Expected at least ${min} argument(s), got ${argc}.`);
-    return false;
-  }
-  return true;
+  if (acceptsArgumentCount(sig, argc)) return true;
+
+  const minimum = sig.required.length;
+  const maximum = fixedParamSchemas(sig).length;
+  const expected =
+    sig.rest !== undefined
+      ? `at least ${minimum}`
+      : minimum === maximum
+        ? `${minimum}`
+        : `${minimum} to ${maximum}`;
+  report(ctx, `Expected ${expected} argument(s), got ${argc}.`);
+  return false;
 }
 
 // Result type of a short-circuit `$and`/`$or` (docs/language.md): these are
@@ -822,15 +852,12 @@ function checkLambda(
   const layout = analyzeBodyParameters(body, ctx);
   if (layout === null) return;
   const shape = fnShape(exp);
-  const shapeParams = fixedParamSchemas(shape);
-  const fixed = layout.fixedCount;
-  const hasRest = layout.rest !== null;
-  if (fixed !== shapeParams.length || hasRest !== (shape.rest !== undefined)) {
+  if (!parameterShapeMatches(layout, shape)) {
     const actual: Schema = {
       $fnType: {
-        required: Array.from({ length: fixed }, () => true as Schema),
-        optional: [],
-        ...(hasRest ? { rest: true } : {}),
+        required: Array.from({ length: layout.requiredCount }, () => true as Schema),
+        optional: Array.from({ length: layout.omittableCount }, () => true as Schema),
+        ...(layout.rest !== null ? { rest: true } : {}),
         returns: true,
       },
     };
@@ -1013,19 +1040,19 @@ function checkBody(
 // operator contract (the removed entry-specific reconciliation pass enforced
 // this before entry checking moved onto the normal body path).
 function checkInjectedBodyArity(layout: ParameterLayout, sig: Sig, ctx: CheckContext): void {
-  const hasRest = layout.rest !== null;
-  const fixed = layout.fixedCount;
-  const expectsRest = sig.rest !== undefined;
-  const expectedFixed = fixedParamSchemas(sig).length;
-  if (fixed === expectedFixed && hasRest === expectsRest) return;
+  if (parameterShapeMatches(layout, sig)) return;
 
-  const expected = `${expectedFixed} fixed parameter(s)${expectsRest ? " and a rest parameter" : ""}`;
-  const actual = `${fixed} fixed parameter(s)${hasRest ? " and a rest parameter" : ""}`;
+  const expected = describeSigShape(sig);
+  const actual = describeParameterLayout(layout);
   report(at(ctx, "$params"), `Contextual signature expects ${expected}; body declares ${actual}.`);
 }
 
 export {
   analyzeBodyParameters,
+  parameterShapeMatches,
+  describeParameterLayout,
+  describeSigShape,
+  acceptsArgumentCount,
   buildTypeScope,
   synth,
   paramAt,

@@ -157,7 +157,7 @@ describe("environment checker integration", () => {
         severity: "error",
         path: ["main", "$params"],
         message:
-          "Contextual signature expects 1 fixed parameter(s); body declares 0 fixed parameter(s).",
+          "Contextual signature expects 1 required parameter(s), 0 optional parameter(s), and no rest parameter; body declares 0 required parameter(s), 0 optional parameter(s), and no rest parameter.",
       }),
     );
   });

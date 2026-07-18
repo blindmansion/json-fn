@@ -383,6 +383,55 @@ describe("checkModule: diagnostics", () => {
     expect(checkModule(mod)).toEqual([]);
   });
 
+  test("optional parameters define an accepted argument-count range", () => {
+    const optionalParam = { $param: "label", $optional: true };
+    const mod = {
+      flexible: body(
+        ["n", optionalParam],
+        { required: [I], optional: [S], returns: I },
+        { $var: "n" },
+      ),
+      oneArgument: body(
+        [],
+        { required: [], optional: [], returns: I },
+        { $call: "flexible", $args: [1] },
+      ),
+      twoArguments: body(
+        [],
+        { required: [], optional: [], returns: I },
+        { $call: "flexible", $args: [1, "label"] },
+      ),
+    };
+
+    expect(checkModule(mod)).toEqual([]);
+  });
+
+  test("optional-parameter arity diagnostics report the accepted range", () => {
+    const flexible = body(
+      ["n", { $param: "label", $optional: true }],
+      { required: [I], optional: [S], returns: I },
+      { $var: "n" },
+    );
+    const mod = {
+      flexible,
+      tooFew: body(
+        [],
+        { required: [], optional: [], returns: I },
+        { $call: "flexible", $args: [] },
+      ),
+      tooMany: body(
+        [],
+        { required: [], optional: [], returns: I },
+        { $call: "flexible", $args: [1, "label", 2] },
+      ),
+    };
+
+    expect(checkModule(mod).map((diagnostic) => diagnostic.message)).toEqual([
+      "Expected 1 to 2 argument(s), got 0.",
+      "Expected 1 to 2 argument(s), got 3.",
+    ]);
+  });
+
   test("a rest arg of the wrong element type is reported", () => {
     const mod = {
       variadic: body(["...xs"], { required: [], optional: [], rest: I, returns: I }, 0),
