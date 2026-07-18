@@ -1052,9 +1052,8 @@ describe("check: bidirectional un-annotated lambdas (Part A)", () => {
     const diags = checkModule(returning(lambda(["x"], { $var: "x" }), fn([], I)));
     expect(diags.length).toBe(1);
     expect(diags[0]!.severity).toBe("error");
-    expect(diags[0]!.path).toEqual(["f", "$return"]);
-    expect(diags[0]!.actual).toEqual(fn([true], true));
-    expect(diags[0]!.expected).toEqual(fn([], I));
+    expect(diags[0]!.path).toEqual(["f", "$return", "$params"]);
+    expect(diags[0]!.message).toContain("Contextual signature expects 0 required parameter(s)");
   });
 
   test("a rest param satisfies an expected rest signature", () => {
@@ -1062,7 +1061,7 @@ describe("check: bidirectional un-annotated lambdas (Part A)", () => {
     // …but a fixed-arity lambda does not satisfy an expected rest signature.
     const diags = checkModule(returning(lambda(["x"], { $var: "x" }), fn([], I, I)));
     expect(diags.length).toBe(1);
-    expect(diags[0]!.path).toEqual(["f", "$return"]);
+    expect(diags[0]!.path).toEqual(["f", "$return", "$params"]);
   });
 
   test("the expected fn type resolves through a $ref alias", () => {

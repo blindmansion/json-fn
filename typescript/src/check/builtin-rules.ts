@@ -31,6 +31,7 @@ import {
   buildTypeScope,
   check,
   checkArity,
+  checkBodyParameterShape,
   checkParameterDefaults,
   paramAt,
   reportMismatch,
@@ -274,35 +275,22 @@ function unifyTemplate(
   return true;
 }
 
-// Type an inline-lambda argument under the (instantiated) parameter types the
-// builtin supplies, returning its synthesized body type. A lambda may ignore
-// trailing callback arguments, but it cannot require more fixed arguments than
-// the builtin supplies. A rest parameter collects the remaining supplied
-// schemas rather than silently degrading to `any[]`. Returns null after an
-// arity error so the body is not checked under a bogus scope.
+// Type an inline-lambda argument under the complete instantiated callback shape
+// the builtin supplies, returning its synthesized body type. The declaration
+// must match required, optional, and rest shape exactly before defaults or the
+// body are checked.
 function inferLambdaReturn(body: JSONType, expectedFn: Schema, ctx: CheckContext): Schema | null {
   const bodyObject = body as Record<string, JSONType>;
   const layout = analyzeBodyParameters(bodyObject, ctx);
   if (layout === null) return null;
   const shape = fnShape(asObject(expectedFn));
-  const shapeParams = fixedParamSchemas(shape);
-  const fixed = layout.fixedCount;
-  if (fixed > shapeParams.length) {
-    report(
-      ctx,
-      `Inline callback declares ${fixed} fixed parameter(s), but the builtin supplies at most ${shapeParams.length}.`,
-    );
-    return null;
-  }
-
-  const remaining = shapeParams.slice(fixed);
-  if (shape.rest !== undefined) remaining.push(shape.rest);
+  if (!checkBodyParameterShape(layout, shape, ctx, "Contextual signature")) return null;
   const withSig: Record<string, JSONType> = {
     ...bodyObject,
     $sig: {
-      required: shapeParams.slice(0, fixed),
-      optional: [],
-      ...(layout.rest !== null ? { rest: unionOf(remaining) } : {}),
+      required: shape.required,
+      optional: shape.optional,
+      ...(shape.rest !== undefined ? { rest: shape.rest } : {}),
       returns: shape.returns,
     },
   };

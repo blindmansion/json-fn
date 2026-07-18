@@ -970,9 +970,9 @@ function checkArrayLiteral(
 // recurse into its nested locals — exactly as an annotated body is checked. This
 // is what finally lets a bare capability-record lambda (`() => task`) check
 // against a field's declared `() -> Task` instead of erasing to `any` and then
-// dumping a spurious `any ⊄ (fn)`. Arity is strict (mirroring `fnSubsumes`,
-// modulo rest); a mismatch is reported here rather than deferred, since the
-// un-annotated lambda has no synthesizable type for the whole-schema fallback.
+// dumping a spurious `any ⊄ (fn)`. Parameter shape is exact; a mismatch is
+// reported here rather than deferred, since the un-annotated lambda has no
+// synthesizable type for the whole-schema fallback.
 function checkLambda(
   body: Record<string, JSONType>,
   exp: Record<string, JSONType>,
@@ -981,18 +981,7 @@ function checkLambda(
   const layout = analyzeBodyParameters(body, ctx);
   if (layout === null) return;
   const shape = fnShape(exp);
-  if (!parameterShapeMatches(layout, shape)) {
-    const actual: Schema = {
-      $fnType: {
-        required: Array.from({ length: layout.requiredCount }, () => true as Schema),
-        optional: Array.from({ length: layout.omittableCount }, () => true as Schema),
-        ...(layout.rest !== null ? { rest: true } : {}),
-        returns: true,
-      },
-    };
-    reportMismatch(ctx, actual, exp);
-    return;
-  }
+  if (!checkBodyParameterShape(layout, shape, ctx, "Contextual signature")) return;
   const withSig: Record<string, JSONType> = {
     ...body,
     $sig: {
@@ -1206,6 +1195,7 @@ function checkBodyParameterShape(
 export {
   analyzeBodyParameters,
   parameterShapeMatches,
+  checkBodyParameterShape,
   describeParameterLayout,
   describeSigShape,
   acceptsArgumentCount,

@@ -275,6 +275,46 @@ describe("Section F — builtin signatures", () => {
     expect(checkExpr(call("refine", callback), {}, table, { typeRules }).diagnostics).toEqual([]);
   });
 
+  test("a rule contextual service requires an exact callback shape", () => {
+    const table: CallableTable = {
+      builtins: {
+        refine: {
+          signatures: [
+            {
+              required: [{ $fnType: { required: [I], optional: [], returns: true } }],
+              optional: [],
+              returns: true,
+            },
+          ],
+          rule: "example.refine",
+        },
+      },
+    };
+    const typeRules: CallableTypeRuleRegistry = {
+      "example.refine": {
+        contextualArguments: [0],
+        apply: (request, services) => {
+          services.contextualTypeCallback(0, {
+            $fnType: { required: [], optional: [I], returns: true },
+          });
+          return request.fallbackResult;
+        },
+      },
+    };
+    const callback = {
+      $params: ["value"],
+      $return: { $var: "missing" },
+    };
+
+    expect(checkExpr(call("refine", callback), {}, table, { typeRules }).diagnostics).toEqual([
+      expect.objectContaining({
+        path: ["$args[0]", "$params"],
+        message:
+          "Contextual signature expects 0 required parameter(s), 1 optional parameter(s), and no rest parameter; body declares 1 required parameter(s), 0 optional parameter(s), and no rest parameter.",
+      }),
+    ]);
+  });
+
   test("owned callbacks do not suppress fallback diagnostics for other arguments", () => {
     const table: CallableTable = {
       $defs: BT.$defs,
@@ -586,7 +626,7 @@ describe("Section F — builtin signatures", () => {
 
     test("reduce accepts a callback valid for its widened accumulator", () => {
       const finish = {
-        $params: ["acc", "n"],
+        $params: ["acc", "n", "i"],
         $return: {
           $if: call("eq", { $var: "n" }, 0),
           $then: "done",
@@ -600,7 +640,7 @@ describe("Section F — builtin signatures", () => {
 
     test("reduce rejects a callback unsafe for its widened accumulator", () => {
       const finishOrMultiply = {
-        $params: ["acc", "n"],
+        $params: ["acc", "n", "i"],
         $return: {
           $if: call("eq", { $var: "n" }, 0),
           $then: "done",
@@ -636,7 +676,7 @@ describe("Section F — builtin signatures", () => {
       expect(result.diagnostics).toEqual([]);
       expect(result.type).toEqual(I);
 
-      const nonBoolean = { $params: ["n"], $return: { $var: "n" } };
+      const nonBoolean = { $params: ["n", "i"], $return: { $var: "n" } };
       expect(
         synthB(call("count", nonBoolean, [1, 2, 3])).diagnostics.some(
           (d) => d.path.join(".") === "$args[0].$return",
@@ -725,7 +765,7 @@ describe("Section F — builtin signatures", () => {
 
     test("flatMap flattens nested callback arrays by exactly one level", () => {
       const nested = {
-        $params: ["n"],
+        $params: ["n", "i"],
         $return: [[{ $var: "n" }]],
       };
       const r = synthB(call("flatMap", nested, [1, 2, 3]));
@@ -752,7 +792,7 @@ describe("Section F — builtin signatures", () => {
 
     test("flatMap keeps fallback callback diagnostics when its rule is unavailable", () => {
       const invalid = {
-        $params: ["n"],
+        $params: ["n", "i"],
         $return: call("add", "x", true),
       };
       const result = checkExpr(call("flatMap", invalid, [1, 2, 3]), {}, BT, {
@@ -775,7 +815,7 @@ describe("Section F — builtin signatures", () => {
 
     test("flatMap does not duplicate callback diagnostics during rule refinement", () => {
       const invalid = {
-        $params: ["n"],
+        $params: ["n", "i"],
         $return: call("add", "x", true),
       };
       const r = synthB(call("flatMap", invalid, [1, 2, 3]));
@@ -1348,7 +1388,7 @@ describe("Section F — builtin signatures", () => {
     });
 
     test("joins mixed closed-record values through an identity callback", () => {
-      const identity = { $params: ["v"], $return: { $var: "v" } };
+      const identity = { $params: ["v", "k"], $return: { $var: "v" } };
       const r = synthB(call("mapValues", identity, { a: 1, b: "x" }));
       expect(r.diagnostics).toEqual([]);
       expect(r.type).toEqual(mapOf({ anyOf: [{ const: 1 }, { const: "x" }] }));
@@ -1363,7 +1403,7 @@ describe("Section F — builtin signatures", () => {
 
     test("flows a typed map value through the module checker", () => {
       const mapOfInt = mapOf(I);
-      const inc = { $params: ["v"], $return: call("add", { $var: "v" }, 1) };
+      const inc = { $params: ["v", "k"], $return: call("add", { $var: "v" }, 1) };
       const mod = {
         transform: body(
           ["obj"],
@@ -1375,7 +1415,7 @@ describe("Section F — builtin signatures", () => {
     });
 
     test("keeps a precise callback result for an open input object", () => {
-      const constant = { $params: ["v"], $return: "ok" };
+      const constant = { $params: ["v", "k"], $return: "ok" };
       const mod = {
         transform: body(
           ["obj"],
@@ -1398,7 +1438,7 @@ describe("Section F — builtin signatures", () => {
     });
 
     test("an empty closed record gives the callback a never value", () => {
-      const inc = { $params: ["v"], $return: call("add", { $var: "v" }, 1) };
+      const inc = { $params: ["v", "k"], $return: call("add", { $var: "v" }, 1) };
       const r = synthB(call("mapValues", inc, {}));
       expect(r.diagnostics).toEqual([]);
       expect(r.type).toEqual(mapOf(I));
@@ -1425,28 +1465,28 @@ describe("Section F — builtin signatures", () => {
     });
 
     test("map infers T from the array and U from the callback return", () => {
-      const identity = { $params: ["n"], $return: { $var: "n" } };
+      const identity = { $params: ["n", "i"], $return: { $var: "n" } };
       const r = synthB(call("map", identity, [1, 2, 3]));
       expect(r.diagnostics).toEqual([]);
       expect(isSubschema(r.type, arrOfInt)).toBe(true);
     });
 
     test("map callback bodies resolve nested builtins under the pushed param type", () => {
-      const addOne = { $params: ["n"], $return: call("add", { $var: "n" }, 1) };
+      const addOne = { $params: ["n", "i"], $return: call("add", { $var: "n" }, 1) };
       const r = synthB(call("map", addOne, [1, 2, 3]));
       expect(r.diagnostics).toEqual([]);
       expect(isSubschema(r.type, arrOfInt)).toBe(true);
     });
 
     test("filter accepts a boolean-returning callback", () => {
-      const gtOne = { $params: ["n"], $return: call("gt", { $var: "n" }, 1) };
+      const gtOne = { $params: ["n", "i"], $return: call("gt", { $var: "n" }, 1) };
       const r = synthB(call("filter", gtOne, [1, 2, 3]));
       expect(r.diagnostics).toEqual([]);
       expect(isSubschema(r.type, arrOfInt)).toBe(true);
     });
 
     test("filter reports a non-boolean callback return", () => {
-      const bad = { $params: ["n"], $return: { $var: "n" } };
+      const bad = { $params: ["n", "i"], $return: { $var: "n" } };
       const r = synthB(call("filter", bad, [1, 2, 3]));
       expect(r.diagnostics.length).toBeGreaterThan(0);
       expect(r.diagnostics.some((d) => d.path.join(".") === "$args[0].$return")).toBe(true);
@@ -1476,30 +1516,52 @@ describe("Section F — builtin signatures", () => {
       expect(isSubschema(r.type, arrOfInt)).toBe(true);
     });
 
-    test("a bare callback may omit trailing supplied parameters", () => {
+    test("a bare callback must declare every supplied parameter", () => {
       const callback = { $params: ["n"], $return: { $var: "n" } };
       const r = synthB(call("map", callback, [10, 20]));
-      expect(r.diagnostics).toEqual([]);
-      expect(isSubschema(r.type, arrOfInt)).toBe(true);
+      expect(r.diagnostics).toEqual([
+        expect.objectContaining({
+          path: ["$args[0]", "$params"],
+          message:
+            "Contextual signature expects 2 required parameter(s), 0 optional parameter(s), and no rest parameter; body declares 1 required parameter(s), 0 optional parameter(s), and no rest parameter.",
+          severity: "error",
+        }),
+      ]);
     });
 
-    test("a bare callback checks parameter defaults under its contextual scope", () => {
+    test("a defaulted callback slot cannot replace a required supplied parameter", () => {
       const callback = {
-        $params: [{ $param: "n", $default: "bad default" }],
+        $params: ["n", { $param: "i", $default: "bad default" }],
         $return: { $var: "n" },
       };
       const r = synthB(call("map", callback, [10, 20]));
 
       expect(r.diagnostics).toEqual([
         expect.objectContaining({
-          path: ["$args[0]", "$params[0]", "$default"],
-          expected: I,
-          actual: { const: "bad default" },
+          path: ["$args[0]", "$params"],
+          message:
+            "Contextual signature expects 2 required parameter(s), 0 optional parameter(s), and no rest parameter; body declares 1 required parameter(s), 1 optional parameter(s), and no rest parameter.",
         }),
       ]);
     });
 
-    test("a bare callback rejects more fixed parameters than the builtin supplies", () => {
+    test("an optional callback slot cannot replace a required supplied parameter", () => {
+      const callback = {
+        $params: ["n", { $param: "i", $optional: true }],
+        $return: { $var: "n" },
+      };
+      const r = synthB(call("map", callback, [10, 20]));
+
+      expect(r.diagnostics).toEqual([
+        expect.objectContaining({
+          path: ["$args[0]", "$params"],
+          message:
+            "Contextual signature expects 2 required parameter(s), 0 optional parameter(s), and no rest parameter; body declares 1 required parameter(s), 1 optional parameter(s), and no rest parameter.",
+        }),
+      ]);
+    });
+
+    test("a bare callback rejects extra fixed parameters", () => {
       const callback = {
         $params: ["n", "i", "extra"],
         $return: call("add", { $var: "extra" }, 1),
@@ -1507,22 +1569,62 @@ describe("Section F — builtin signatures", () => {
       const r = synthB(call("map", callback, [10, 20]));
       expect(r.diagnostics).toEqual([
         expect.objectContaining({
-          path: ["$args[0]"],
-          message: expect.stringContaining("declares 3 fixed parameter(s)"),
+          path: ["$args[0]", "$params"],
+          message: expect.stringContaining("body declares 3 required parameter(s)"),
           severity: "error",
         }),
       ]);
     });
 
-    test("a bare callback rest parameter collects remaining supplied types", () => {
+    test("a bare callback rest does not absorb fixed supplied parameters", () => {
       const callback = { $params: ["n", "...rest"], $return: { $var: "rest" } };
       const r = synthB(call("map", callback, [10, 20]));
-      const arrayOfArraysOfInt: Schema = {
-        type: "array",
-        items: { type: "array", items: I },
+      expect(r.diagnostics).toEqual([
+        expect.objectContaining({
+          path: ["$args[0]", "$params"],
+          message:
+            "Contextual signature expects 2 required parameter(s), 0 optional parameter(s), and no rest parameter; body declares 1 required parameter(s), 0 optional parameter(s), and a rest parameter.",
+          severity: "error",
+        }),
+      ]);
+    });
+
+    test("an exact required, optional, and rest callback checks its default", () => {
+      const table: CallableTable = {
+        builtins: {
+          inspect: {
+            signatures: [
+              {
+                required: [
+                  {
+                    $fnType: {
+                      required: [I],
+                      optional: [S],
+                      rest: B,
+                      returns: I,
+                    },
+                  },
+                ],
+                optional: [],
+                returns: I,
+              },
+            ],
+          },
+        },
       };
-      expect(r.diagnostics).toEqual([]);
-      expect(isSubschema(r.type, arrayOfArraysOfInt)).toBe(true);
+      const callback = {
+        $params: ["n", { $param: "label", $default: false }, "...flags"],
+        $return: { $var: "n" },
+      };
+      const r = checkExpr(call("inspect", callback), {}, table);
+
+      expect(r.diagnostics).toEqual([
+        expect.objectContaining({
+          path: ["$args[0]", "$params[1]", "$default"],
+          expected: S,
+          actual: { const: false },
+        }),
+      ]);
     });
 
     test("a lambda at a non-function param position reports, not throws", () => {
@@ -1571,7 +1673,7 @@ describe("Section F — builtin signatures", () => {
           { required: [arrOfInt], optional: [], returns: arrOfInt },
           call(
             "map",
-            { $params: ["n"], $return: call("add", { $var: "n" }, { $var: "n" }) },
+            { $params: ["n", "i"], $return: call("add", { $var: "n" }, { $var: "n" }) },
             {
               $var: "xs",
             },
@@ -1587,7 +1689,7 @@ describe("Section F — builtin signatures", () => {
         wrong: body(
           ["xs"],
           { required: [arrOfInt], optional: [], returns: strArr },
-          call("map", { $params: ["n"], $return: { $var: "n" } }, { $var: "xs" }),
+          call("map", { $params: ["n", "i"], $return: { $var: "n" } }, { $var: "xs" }),
         ),
       };
       const diags = checkModule(mod, BT);
