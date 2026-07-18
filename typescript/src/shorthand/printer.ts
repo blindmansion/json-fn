@@ -45,13 +45,14 @@ export function print(node: JSONType): string {
 // branch, `=>` body) consume a full expression greedily.
 
 const P_BLOCK = 0;
-const P_OR = 1;
-const P_AND = 2;
-const P_CMP = 3;
-const P_ADD = 4;
-const P_MUL = 5;
-const P_UNARY = 6;
-const P_ATOM = 7;
+const P_ASCRIPTION = 1;
+const P_OR = 2;
+const P_AND = 3;
+const P_CMP = 4;
+const P_ADD = 5;
+const P_MUL = 6;
+const P_UNARY = 7;
+const P_ATOM = 8;
 
 /** Binary stdlib functions that print as operators, with their precedence. */
 const BINARY_OPS: Record<string, { op: string; prec: number }> = {
@@ -123,7 +124,13 @@ function renderObject(node: { [k: string]: JSONType }, indent: string): Rendered
   if ("$match" in node) return renderMatch(node, indent);
   if ("$and" in node) return renderVariadicLogic(node.$and!, "&&", P_AND, indent);
   if ("$or" in node) return renderVariadicLogic(node.$or!, "||", P_OR, indent);
-  if ("$cast" in node) return atom(`${emit(node.$cast!, P_ATOM, indent)}!`);
+  if ("$nonnull" in node) return atom(`${emit(node.$nonnull!, P_ATOM, indent)}!`);
+  if ("$as" in node && "$type" in node) {
+    return {
+      text: `${emit(node.$as!, P_ASCRIPTION + 1, indent)} as ${printType(node.$type!)}`,
+      prec: P_ASCRIPTION,
+    };
+  }
   if ("$raw" in node) return atom(`raw ${JSON.stringify(node.$raw)}`);
   if ("$return" in node) return renderFunctionBody(node, indent);
   return atom(renderDataObject(node, indent));

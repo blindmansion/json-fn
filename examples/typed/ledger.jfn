@@ -39,7 +39,7 @@
     { ledger: books.ledger, log: concat(books.log, [msg]) },
 
   adjust: (books: Books, id: AccountId, delta: integer, msg: string) -> Books =>
-    put(books, id, handle pure(merge(acct, { balance: acct.balance + delta })) -> Account with {}, msg) where {
+    put(books, id, merge(acct, { balance: acct.balance + delta }) as Account, msg) where {
       acct: books.ledger[id]
     },
 

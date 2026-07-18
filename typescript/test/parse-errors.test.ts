@@ -88,3 +88,11 @@ describe("Task completion annotations", () => {
     );
   });
 });
+
+describe("checked ascription errors", () => {
+  test("requires parentheses around repeated ascriptions", () => {
+    expect(() => parse("value as integer as number")).toThrow(
+      "checked ascription is non-associative",
+    );
+  });
+});

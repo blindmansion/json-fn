@@ -56,7 +56,19 @@ class Parser extends TokenCursor {
   // ----- expression precedence ladder (spec section 6) -----
 
   parseExpr(): JSONType {
-    return this.parseOr();
+    return this.parseAscription();
+  }
+
+  private parseAscription(): JSONType {
+    const value = this.parseOr();
+    if (!this.eatKeyword("as")) return value;
+    const type = this.parseTypeExpr();
+    // Ascription is deliberately non-associative. Parentheses make repeated
+    // checks explicit: `(value as A) as B`.
+    if (this.isKeyword("as")) {
+      throw this.err("checked ascription is non-associative");
+    }
+    return { $as: value, $type: type };
   }
 
   private parseOr(): JSONType {
@@ -170,7 +182,7 @@ class Parser extends TokenCursor {
         // Postfix `!` is the runtime-checked non-null assertion. A bare
         // identifier becomes a variable read before the assertion is wrapped.
         this.advance();
-        val = { $cast: name !== null ? { $var: name } : val };
+        val = { $nonnull: name !== null ? { $var: name } : val };
         name = null;
       } else {
         return val;

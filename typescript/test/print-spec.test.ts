@@ -104,6 +104,46 @@ describe("printer output shape", () => {
     ).toBe("a - (b - c)");
   });
 
+  test("prints non-null assertions and checked ascriptions canonically", () => {
+    expect(print({ $nonnull: { $var: "value" } })).toBe("value!");
+    expect(
+      print({
+        $as: {
+          $call: "add",
+          $args: [{ $var: "balance" }, { $var: "delta" }],
+        },
+        $type: { $ref: "#/$defs/Cents" },
+      }),
+    ).toBe("balance + delta as Cents");
+  });
+
+  test("parenthesizes assertion forms to preserve precedence and association", () => {
+    const ascribed: JSONType = {
+      $as: { $var: "value" },
+      $type: { $ref: "#/$defs/Count" },
+    };
+    expect(print({ $call: "add", $args: [1, ascribed] })).toBe("1 + (value as Count)");
+    expect(print({ $nonnull: ascribed })).toBe("(value as Count)!");
+    expect(print({ $as: ascribed, $type: { type: "number" } })).toBe("(value as Count) as number");
+  });
+
+  test("parses assertion precedence and canonical forms", () => {
+    expect(parse("value! as Count")).toEqual({
+      $as: { $nonnull: { $var: "value" } },
+      $type: { $ref: "#/$defs/Count" },
+    });
+    expect(parse("balance + (delta as Cents)")).toEqual({
+      $call: "add",
+      $args: [
+        { $var: "balance" },
+        {
+          $as: { $var: "delta" },
+          $type: { $ref: "#/$defs/Cents" },
+        },
+      ],
+    });
+  });
+
   test("mixed string/expr strcat prints as a template", () => {
     expect(print({ $call: "strcat", $args: ["Illegal move: ", { $var: "moveDesc" }] })).toBe(
       "`Illegal move: ${moveDesc}`",
