@@ -245,6 +245,14 @@ function fixedParamSchemas(shape: FnTypeShape): Schema[] {
   return [...shape.required, ...shape.optional];
 }
 
+function fnParameterShapeMatches(a: FnTypeShape, b: FnTypeShape): boolean {
+  return (
+    a.required.length === b.required.length &&
+    a.optional.length === b.optional.length &&
+    (a.rest === undefined) === (b.rest === undefined)
+  );
+}
+
 function taskType(completion: Schema): Schema {
   return { $taskType: completion };
 }
@@ -603,6 +611,7 @@ export {
   requiredKeys,
   fnShape,
   fixedParamSchemas,
+  fnParameterShapeMatches,
   taskType,
   taskCompletion,
   isPortableTaskFloor,

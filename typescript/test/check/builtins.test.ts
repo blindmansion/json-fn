@@ -1185,6 +1185,43 @@ describe("Section F — builtin signatures", () => {
         }),
       );
     });
+
+    test("does not infer from a callback with a different required/optional split", () => {
+      const table: CallableTable = {
+        builtins: {
+          testCallback: {
+            signatures: [
+              {
+                typeParams: ["U"],
+                required: [
+                  {
+                    $fnType: {
+                      required: [],
+                      optional: [I],
+                      returns: T("U"),
+                    },
+                  },
+                ],
+                optional: [],
+                returns: T("U"),
+              },
+            ],
+          },
+        },
+      };
+      const callback = body(["value"], { required: [I], optional: [], returns: S }, "result");
+      const result = checkExpr(call("testCallback", callback), {}, table);
+
+      expect(result.type).toBe(true);
+      expect(result.diagnostics).toEqual([
+        expect.objectContaining({
+          path: ["$args[0]"],
+          actual: { $fnType: { required: [I], optional: [], returns: S } },
+          expected: { $fnType: { required: [], optional: [I], returns: true } },
+          severity: "error",
+        }),
+      ]);
+    });
   });
 
   describe("structural merge (merge's arg-dependent return)", () => {

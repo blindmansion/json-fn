@@ -19,6 +19,7 @@ import {
   requiredKeys,
   fixedParamSchemas,
   fnShape,
+  fnParameterShapeMatches,
   taskCompletion,
   isPortableTaskFloor,
 } from "./schema";
@@ -336,19 +337,18 @@ function fnSubsumes(
 ): boolean {
   const a = fnShape(sub);
   const b = fnShape(sup);
-  const aParams = fixedParamSchemas(a);
-  const bParams = fixedParamSchemas(b);
 
-  // v1: strict arity (modulo rest). Loosen later if idiomatic code demands.
-  if (aParams.length !== bParams.length) return false;
+  // v1: required, optional, and rest shape must agree exactly.
+  if (!fnParameterShapeMatches(a, b)) return false;
 
   // Params are contravariant: sup's param must be ⊆ sub's param.
+  const aParams = fixedParamSchemas(a);
+  const bParams = fixedParamSchemas(b);
   for (let i = 0; i < aParams.length; i++) {
     if (!subsumes(bParams[i]!, aParams[i]!, ctx)) return false;
   }
 
-  // Rest element, also contravariant; presence must match in v1.
-  if ((a.rest === undefined) !== (b.rest === undefined)) return false;
+  // Rest element is also contravariant.
   if (a.rest !== undefined && b.rest !== undefined && !subsumes(b.rest, a.rest, ctx)) return false;
 
   // Return is covariant.

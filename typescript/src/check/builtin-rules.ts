@@ -61,8 +61,8 @@ import {
   unionArms,
   unionOf,
   prefixItems,
-  fixedParamSchemas,
   fnShape,
+  fnParameterShapeMatches,
   properties,
   apMode,
   widenLiteral,
@@ -247,7 +247,7 @@ function unifyTemplateInto(
     if (classifySchema(resolved) !== SchemaKind.FnType) return false;
     const a = fnShape(asObject(template));
     const b = fnShape(asObject(resolved));
-    if (fixedParamSchemas(a).length !== fixedParamSchemas(b).length) return false;
+    if (!fnParameterShapeMatches(a, b)) return false;
     // Callback parameters are contravariant constraints, not inference
     // sources. Bind output variables from the covariant return, then validate
     // the complete concrete function against the finally instantiated type.

@@ -228,6 +228,14 @@ describe("function types", () => {
   const fn = (params: Schema[], returns: Schema): Schema => ({
     $fnType: { required: params, optional: [], returns },
   });
+  const shapedFn = (
+    required: Schema[],
+    optional: Schema[],
+    returns: Schema,
+    rest?: Schema,
+  ): Schema => ({
+    $fnType: { required, optional, ...(rest !== undefined ? { rest } : {}), returns },
+  });
 
   test("return covariance", () => {
     expect(isSubschema(fn([], { type: "integer" }), fn([], { type: "number" }))).toBe(true);
@@ -242,6 +250,30 @@ describe("function types", () => {
   });
   test("arity is strict in v1", () => {
     expect(isSubschema(fn([], true), fn([{ type: "number" }], true))).toBe(false);
+  });
+  test("required and optional counts must match independently", () => {
+    const requiredThenOptional = shapedFn([{ type: "number" }], [{ type: "string" }], true);
+    const bothRequired = shapedFn([{ type: "number" }, { type: "string" }], [], true);
+
+    expect(isSubschema(requiredThenOptional, bothRequired)).toBe(false);
+    expect(isSubschema(bothRequired, requiredThenOptional)).toBe(false);
+  });
+  test("optional parameters are compared contravariantly after shape agreement", () => {
+    const acceptsNumber = shapedFn([], [{ type: "number" }], true);
+    const acceptsInteger = shapedFn([], [{ type: "integer" }], true);
+
+    expect(isSubschema(acceptsNumber, acceptsInteger)).toBe(true);
+    expect(isSubschema(acceptsInteger, acceptsNumber)).toBe(false);
+  });
+  test("rest presence must match and rest types are contravariant", () => {
+    const fixed = shapedFn([], [], true);
+    const numberRest = shapedFn([], [], true, { type: "number" });
+    const integerRest = shapedFn([], [], true, { type: "integer" });
+
+    expect(isSubschema(fixed, numberRest)).toBe(false);
+    expect(isSubschema(numberRest, fixed)).toBe(false);
+    expect(isSubschema(numberRest, integerRest)).toBe(true);
+    expect(isSubschema(integerRest, numberRest)).toBe(false);
   });
 });
 
