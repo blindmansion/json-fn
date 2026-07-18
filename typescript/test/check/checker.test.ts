@@ -143,6 +143,7 @@ const body = (
 
 const I: Schema = { type: "integer" };
 const S: Schema = { type: "string" };
+const B: Schema = { type: "boolean" };
 
 describe("checkModule: clean programs", () => {
   test("every normalized parameter kind binds from its aligned signature schema", () => {
@@ -615,6 +616,82 @@ describe("checkModule: diagnostics", () => {
     expect(checkModule(mod).map((diagnostic) => diagnostic.message)).toEqual([
       "Expected 1 to 2 argument(s), got 0.",
       "Expected 1 to 2 argument(s), got 3.",
+    ]);
+  });
+
+  test("arity errors still traverse every supplied argument", () => {
+    const mod = {
+      pair: body(
+        ["left", "right"],
+        { required: [I, I], optional: [], returns: I },
+        {
+          $var: "left",
+        },
+      ),
+      tooFew: body(
+        [],
+        { required: [], optional: [], returns: I },
+        { $call: "pair", $args: [{ $var: "missingFew" }] },
+      ),
+      tooMany: body(
+        [],
+        { required: [], optional: [], returns: I },
+        { $call: "pair", $args: [1, 2, { $var: "missingExtra" }] },
+      ),
+    };
+
+    const diagnostics = checkModule(mod);
+    expect(diagnostics.map(({ path }) => path)).toEqual([
+      ["tooFew", "$return"],
+      ["tooFew", "$return", "$args[0]"],
+      ["tooFew", "$return", "$args[0]"],
+      ["tooMany", "$return"],
+      ["tooMany", "$return", "$args[2]"],
+    ]);
+    expect(
+      diagnostics
+        .map(({ message }) => message)
+        .filter((message) => message.startsWith("Expected ")),
+    ).toEqual(["Expected 2 argument(s), got 1.", "Expected 2 argument(s), got 3."]);
+  });
+
+  test("optional slots are checked before arguments flow into rest", () => {
+    const mod = {
+      flexible: body(
+        [
+          "n",
+          { $param: "label", $optional: true },
+          { $param: "enabled", $optional: true },
+          "...rest",
+        ],
+        { required: [I], optional: [S, B], rest: I, returns: I },
+        { $var: "n" },
+      ),
+      caller: body(
+        [],
+        { required: [], optional: [], returns: true },
+        {
+          $array: [
+            { $call: "flexible", $args: [1, null] },
+            { $call: "flexible", $args: [1, "label", true, "bad rest"] },
+          ],
+        },
+      ),
+    };
+
+    expect(
+      checkModule(mod).map(({ path, expected, actual }) => ({ path, expected, actual })),
+    ).toEqual([
+      {
+        path: ["caller", "$return", "$array", "[0]", "$args[1]"],
+        expected: S,
+        actual: { type: "null" },
+      },
+      {
+        path: ["caller", "$return", "$array", "[1]", "$args[3]"],
+        expected: I,
+        actual: { const: "bad rest" },
+      },
     ]);
   });
 
@@ -1091,6 +1168,60 @@ describe("check: do-block / where IIFE (Part A)", () => {
     const r = checkExpr(iife({ $var: "n" }, {}, ["n"], [5]));
     expect(r.type).toEqual({ const: 5 });
     expect(r.diagnostics).toEqual([]);
+  });
+
+  test("IIFE optional parameters define the same accepted range as a signature", () => {
+    const params: JSONType[] = [
+      "required",
+      { $param: "fallback", $default: "fallback" },
+      { $param: "optional", $optional: true },
+    ];
+    const run = (args: JSONType[]) => checkExpr(iife({ $var: "required" }, {}, params, args));
+
+    expect(run([]).diagnostics.map((diagnostic) => diagnostic.message)).toEqual([
+      "Expected 1 to 3 argument(s), got 0.",
+    ]);
+    for (const args of [[1], [1, "fallback"], [1, "fallback", true]]) {
+      expect(run(args).diagnostics).toEqual([]);
+    }
+    expect(
+      run([1, "fallback", true, 4]).diagnostics.map((diagnostic) => diagnostic.message),
+    ).toEqual(["Expected 1 to 3 argument(s), got 4."]);
+  });
+
+  test("IIFE optional and rest locals align with supplied argument positions", () => {
+    const omitted = checkExpr(
+      iife(
+        { $var: "fallback" },
+        {},
+        ["required", { $param: "fallback", $default: "default" }],
+        [1],
+      ),
+    );
+    expect(omitted.type).toBe(true);
+    expect(omitted.diagnostics).toEqual([]);
+
+    const supplied = checkExpr(
+      iife(
+        { fallback: { $var: "fallback" }, rest: { $var: "rest" } },
+        {},
+        ["required", { $param: "fallback", $default: "supplied" }, "...rest"],
+        [1, "supplied", true, 2],
+      ),
+    );
+    expect(supplied.diagnostics).toEqual([]);
+    expect(supplied.type).toEqual({
+      type: "object",
+      properties: {
+        fallback: { const: "supplied" },
+        rest: {
+          type: "array",
+          items: { anyOf: [{ const: true }, { const: 2 }] },
+        },
+      },
+      required: ["fallback", "rest"],
+      additionalProperties: false,
+    });
   });
 
   test("checks IIFE defaults under the synthesized body scope", () => {

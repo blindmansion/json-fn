@@ -1024,19 +1024,26 @@ function iifeBodyContext(
   if (layout === null) return null;
   const hasRest = layout.rest !== null;
   const fixed = layout.fixedCount;
+  const required = layout.requiredCount;
 
   // Arguments are outer expressions, synthesized in the caller's scope; their
-  // types become the (otherwise un-annotated) fixed params' types.
+  // types become the (otherwise un-annotated) params' supplied-value types.
   const argTypes = args.map((a, i) => synth(a, at(ctx, `$args[${i}]`)));
-  if (!hasRest && args.length !== fixed) {
-    report(ctx, `Expected ${fixed} argument(s), got ${args.length}.`);
-  } else if (hasRest && args.length < fixed) {
-    report(ctx, `Expected at least ${fixed} argument(s), got ${args.length}.`);
-  }
+  const restTypes = argTypes.slice(fixed);
+  const syntheticSig: Sig = {
+    required: Array.from({ length: required }, (_, i) => argTypes[i] ?? true),
+    optional: Array.from(
+      { length: layout.omittableCount },
+      (_, i) => argTypes[required + i] ?? true,
+    ),
+    returns: true,
+    ...(hasRest ? { rest: restTypes.length === 0 ? true : unionOf(restTypes) } : {}),
+  };
+  if (!checkArity(syntheticSig, args.length, ctx)) return null;
 
   const withSig: Record<string, JSONType> = {
     ...body,
-    $sig: { required: argTypes.slice(0, fixed), optional: [], returns: true },
+    $sig: syntheticSig,
   };
   const { env, guards, parameterDefaults } = buildTypeScope(withSig, layout, ctx.env, ctx);
   const bctx: CheckContext = { ...ctx, env, guards };
