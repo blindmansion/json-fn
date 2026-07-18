@@ -23,8 +23,8 @@ import { checkExpr, checkModule } from "./check/module";
 import type { Diagnostic } from "./check/context";
 import type { CallableTable } from "./check/builtin-types";
 import { loadBuiltinTable } from "./builtins";
-import { buildEffectNamespace, EFFECTS_BINDING } from "./effects";
-import { loadEnvironment, type Environment } from "./environment";
+import { buildEffectNamespace, EFFECTS_BINDING } from "./environment/effects";
+import { loadEnvironment, type Environment } from "./environment/environment";
 import { isFunctionBody } from "./function-value";
 
 const HELP = `jfn — a CLI for the json-fn language

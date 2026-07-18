@@ -1,6 +1,6 @@
 # Evaluator and runtime reorganization
 
-Status: active. Phases 0–5 completed 2026-07-18.
+Status: completed. Phases 0–6 completed 2026-07-18.
 
 ## Summary
 
@@ -632,6 +632,32 @@ ownership.
 Do not call this combined area `runtime/`: host execution, environment
 declarations, task semantics, and synchronous evaluation have different
 dependency and portability constraints.
+
+#### Phase 6 record (2026-07-18)
+
+The embedding-layer follow-up is complete:
+
+- `host.ts` was split into `host/run-task.ts`,
+  `host/environment-runtime.ts`, `host/task-serialization.ts`, and
+  `host/required-capabilities.ts`, with `host/index.ts` preserving the intended
+  public barrel.
+- Environment and effect declarations now live under `environment/`.
+  Dependency-light `effect-types.ts` keeps checker callable types independent
+  from effect validation and removes the remaining
+  `builtins.ts` → `check/builtin-types.ts` → `effects.ts` → `builtins.ts`
+  cycle.
+- Shared schema classification and concrete value semantics moved from
+  `check/` to `schema/`. Checker, environment, task, shorthand, and runtime
+  contract imports were rewritten with `blast`.
+- No compatibility shims were retained for the old internal paths because the
+  package has no external consumers yet.
+
+Verification completed successfully:
+
+- `bun run check` completed with no type, lint, or formatting errors;
+- `bun test` passed 1,582 tests across 26 files; and
+- `blast` reports 93 modules, 368 import edges, and no import cycles across
+  `src`, `test`, and `examples`.
 
 ## Verification
 

@@ -6,8 +6,8 @@ export {
   EffectManifestValidationError,
   loadEffectManifest,
   validateEffectManifest,
-} from "./effects";
-export type { EffectManifest, EffectSignature } from "./effects";
+} from "./environment";
+export type { EffectManifest, EffectSignature } from "./environment";
 export {
   DuplicateCallableContractError,
   EnvironmentConfigurationError,
@@ -37,7 +37,7 @@ export type {
   CallableTypeRuleServicesV1,
   CallableTypeRuleV1,
 } from "./check/builtin-types";
-export type { Defs, Schema } from "./check/schema";
+export type { Defs, Schema } from "./schema";
 export { builtin, pure, raw, getArity } from "./utils";
 export type {
   JSONType,

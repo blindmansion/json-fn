@@ -4,7 +4,7 @@ import {
   EffectManifestValidationError,
   loadEffectManifest,
   validateEffectManifest,
-} from "../src/effects";
+} from "../src/environment/effects";
 
 function validationError(value: unknown): EffectManifestValidationError {
   try {

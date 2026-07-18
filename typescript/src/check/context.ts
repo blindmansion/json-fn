@@ -6,8 +6,8 @@
 
 import type { CallableEntry, CallableTypeRuleRegistry } from "./builtin-types";
 import type { JSONType } from "../types";
-import type { EffectManifest } from "../effects";
-import { type Schema, type Defs, type FnTypeShape, isSchemaObject } from "./schema";
+import type { EffectManifest } from "../environment/effect-types";
+import { type Schema, type Defs, type FnTypeShape, isSchemaObject } from "../schema/schema.ts";
 
 // The tier of a diagnostic. An `error` is a definite type failure; an `info`
 // makes a permissive fallback visible (a `→ any` degradation) without claiming

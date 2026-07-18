@@ -1,6 +1,6 @@
 import type { JSONType } from "../types";
-import type { EffectManifest } from "../effects";
-import type { Defs, FnTypeShape, Schema } from "./schema";
+import type { EffectManifest } from "../environment/effect-types";
+import type { Defs, FnTypeShape, Schema } from "../schema/schema.ts";
 
 type TVarNode = { $tvar: string };
 type CallableSignature = FnTypeShape & {

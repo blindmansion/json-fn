@@ -30,9 +30,9 @@ import {
   unionOf,
   deepEqual,
   isSchemaObject,
-} from "./schema";
+} from "../schema/schema.ts";
 import { isSubschema } from "./subsumption";
-import { valueSatisfies } from "./values";
+import { valueSatisfies } from "../schema/values.ts";
 
 // The type a var has *right now*: its active narrowing if any, else its
 // declared type from Γ. `undefined` when the name is unbound (can't narrow).

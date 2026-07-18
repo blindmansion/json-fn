@@ -1,5 +1,5 @@
-import type { JSONType } from "../types";
-import type { Schema, Defs } from "./schema";
+import type { JSONType } from "../types.ts";
+import type { Schema, Defs } from "./schema.ts";
 import {
   SchemaKind,
   classifySchema,
@@ -15,7 +15,7 @@ import {
   properties,
   requiredKeys,
   tupleRest,
-} from "./schema";
+} from "./schema.ts";
 
 // Does a concrete JSON value satisfy a schema?
 function valueSatisfies(value: JSONType, schema: Schema, defs: Defs = {}): boolean {

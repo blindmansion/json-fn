@@ -3,14 +3,14 @@
 
 import type { JSONType } from "../types";
 import { mergeDefinitionPools, readModuleDefinitions } from "../definition-pool";
-import { buildEffectNamespace, EFFECTS_BINDING } from "../effects";
+import { buildEffectNamespace, EFFECTS_BINDING } from "../environment/effects";
 import type { ParameterLayout } from "../params";
 import {
   entryReturnType,
   mergeCallableTables,
   validateEnvironment,
   type Environment,
-} from "../environment";
+} from "../environment/environment";
 import type { CallableTable, CallableTypeRuleRegistry } from "./builtin-types";
 import { synthCallableCall } from "./builtin-rules";
 import { CORE_CALLABLE_TYPE_RULES } from "./callable-rules";
@@ -27,7 +27,7 @@ import {
   type Diagnostic,
   type Sig,
 } from "./context";
-import { collectSchemaRefs, type Defs, isSchemaObject, type Schema } from "./schema";
+import { collectSchemaRefs, type Defs, isSchemaObject, type Schema } from "../schema/schema.ts";
 
 const MODULE_PARAMETER_LAYOUT: ParameterLayout = {
   slots: [],

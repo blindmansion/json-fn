@@ -16,7 +16,7 @@
  */
 
 import type { JSONType, Meter } from "./types";
-import type { Defs, Schema } from "./check/schema";
+import type { Defs, Schema } from "./schema/schema.ts";
 import { enforceRuntimeContract, RuntimeContractError } from "./runtime-contract";
 import { raw } from "./utils";
 import { isFunctionDeclaration } from "./function-value";

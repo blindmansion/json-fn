@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { JSONType } from "../../src/types";
-import type { Schema, Defs } from "../../src/check/schema";
+import type { Schema, Defs } from "../../src/schema/schema.ts";
 import type { CheckContext } from "../../src/check/context";
 import { factsFromCondition, matchCaseFact, matchElseFact } from "../../src/check/narrowing";
 

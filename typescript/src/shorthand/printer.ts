@@ -22,7 +22,7 @@
  */
 
 import type { JSONType } from "../types";
-import { fixedParamSchemas } from "../check/schema";
+import { fixedParamSchemas } from "../schema/schema.ts";
 import {
   analyzeParameters,
   formatParameterIssue,

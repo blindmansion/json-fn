@@ -1,26 +1,10 @@
 import { readFileSync } from "fs";
-import type { CallableEntry, CallableSignature, CallableTable } from "./check/builtin-types";
-import type { Defs, Schema } from "./check/schema";
-import { taskType } from "./check/schema";
-import { CallableTableValidationError, validateCallableTable } from "./builtins";
-import type { EffectManifest } from "./effects";
+import type { CallableSignature, CallableTable } from "../check/builtin-types";
+import type { Defs, Schema } from "../schema/schema.ts";
+import { taskType } from "../schema/schema.ts";
+import { CallableTableValidationError, validateCallableTable } from "../builtins";
 import { EFFECTS_BINDING, EffectManifestValidationError, validateEffectManifest } from "./effects";
-
-type EntryReturn = Schema | { task: Schema };
-
-type EntryContract = {
-  name: string;
-  required: Schema[];
-  optional: Schema[];
-  returns: EntryReturn;
-};
-
-type Environment = {
-  $defs?: Defs;
-  functions?: Record<string, CallableEntry>;
-  effects?: EffectManifest;
-  entry: EntryContract;
-};
+import type { EntryReturn, Environment } from "./types";
 
 class EnvironmentValidationError extends Error {
   constructor(
@@ -193,4 +177,4 @@ export {
   mergeCallableTables,
   validateEnvironment,
 };
-export type { EntryContract, EntryReturn, Environment };
+export type { EntryContract, EntryReturn, Environment } from "./types";

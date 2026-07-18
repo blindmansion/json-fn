@@ -22,8 +22,8 @@ import {
   fnParameterShapeMatches,
   taskCompletion,
   isPortableTaskFloor,
-} from "./schema";
-import { valueSatisfies } from "./values";
+} from "../schema/schema.ts";
+import { valueSatisfies } from "../schema/values.ts";
 
 type SubCtx = {
   defs: Defs;

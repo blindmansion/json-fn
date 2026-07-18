@@ -6,7 +6,7 @@ import {
   type Defs,
   type Schema,
   unionOf,
-} from "../../src/check/schema";
+} from "../../src/schema/schema.ts";
 import { isSubschema } from "../../src/check/subsumption";
 
 // ---------------------------------------------------------------------------

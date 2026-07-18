@@ -1,4 +1,4 @@
-import type { JSONType } from "../types";
+import type { JSONType } from "../types.ts";
 
 // A type is represented as canonical-fragment JSON Schema, extended with
 // `$ref` (named types) and distinguished checker nodes. `$fnType` represents

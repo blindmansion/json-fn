@@ -61,7 +61,7 @@ import {
   unionOf,
   widenLiteral,
   type Schema,
-} from "./schema";
+} from "../schema/schema.ts";
 import { isSubschema } from "./subsumption";
 
 // Adapt a structured parameter issue to the checker's existing path format.

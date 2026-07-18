@@ -23,7 +23,7 @@ import {
   unionOf,
   widenLiteral,
   type Schema,
-} from "./schema";
+} from "../schema/schema.ts";
 
 class DuplicateCallableTypeRuleError extends Error {
   constructor(readonly ruleId: string) {

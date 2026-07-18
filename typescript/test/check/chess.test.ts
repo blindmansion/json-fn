@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { loadBuiltinTable } from "../../src/builtins";
 import type { JSONType } from "../../src/types";
-import { type Defs, type Schema } from "../../src/check/schema";
+import { type Defs, type Schema } from "../../src/schema/schema.ts";
 import { checkModule } from "../../src/check/module";
 
 // Convenience: a `$sig`-annotated function body.

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { type Defs, type Schema } from "../../src/check/schema";
+import { type Defs, type Schema } from "../../src/schema/schema.ts";
 import { isSubschema } from "../../src/check/subsumption";
 
 // ---------------------------------------------------------------------------

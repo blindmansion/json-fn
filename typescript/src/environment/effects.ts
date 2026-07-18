@@ -1,11 +1,9 @@
 import { readFileSync } from "fs";
-import type { CallableTable } from "./check/builtin-types";
-import { taskType, type Defs, type Schema } from "./check/schema";
-import { CallableTableValidationError, validateCallableTable } from "./builtins";
-import type { JSONType } from "./types";
-
-type EffectSignature = { params: Schema[]; returns: Schema };
-type EffectManifest = Record<string, EffectSignature>;
+import type { CallableTable } from "../check/builtin-types";
+import { taskType, type Defs, type Schema } from "../schema/schema.ts";
+import { CallableTableValidationError, validateCallableTable } from "../builtins";
+import type { JSONType } from "../types";
+import type { EffectManifest } from "./effect-types";
 const EFFECTS_BINDING = "effects";
 
 class EffectManifestValidationError extends Error {
@@ -139,4 +137,4 @@ export {
   loadEffectManifest,
   validateEffectManifest,
 };
-export type { EffectManifest, EffectSignature };
+export type { EffectManifest, EffectSignature } from "./effect-types";

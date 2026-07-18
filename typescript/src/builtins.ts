@@ -9,7 +9,7 @@
 import { readFileSync } from "fs";
 import { join } from "path";
 import type { CallableSignature, CallableTable } from "./check/builtin-types";
-import type { Schema } from "./check/schema";
+import type { Schema } from "./schema/schema.ts";
 
 const DEFAULT_PATH = join(import.meta.dir, "../../spec/builtins.json");
 

@@ -8,7 +8,7 @@ import {
   DuplicateCallableTypeRuleError,
   mergeCallableTypeRuleRegistries,
 } from "../../src";
-import { classifySchema, SchemaKind, type Schema } from "../../src/check/schema";
+import { classifySchema, SchemaKind, type Schema } from "../../src/schema/schema.ts";
 import { isSubschema } from "../../src/check/subsumption";
 import { checkExpr, checkModule } from "../../src/check/module";
 import { createStdlib } from "../../src/stdlib";

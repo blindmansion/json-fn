@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { type Defs, type Schema } from "../../src/check/schema";
-import { valueSatisfies } from "../../src/check/values";
+import { type Defs, type Schema } from "../../src/schema/schema.ts";
+import { valueSatisfies } from "../../src/schema/values.ts";
 
 // ---------------------------------------------------------------------------
 // valueSatisfies (runtime-validation seed)

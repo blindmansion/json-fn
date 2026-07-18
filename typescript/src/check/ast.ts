@@ -5,7 +5,7 @@
 // until then an unknown callee or un-annotated lambda degrades to `any`.
 
 import type { JSONType } from "../types";
-import { isSchemaObject } from "./schema";
+import { isSchemaObject } from "../schema/schema.ts";
 
 type NodeKind =
   | "scalar"

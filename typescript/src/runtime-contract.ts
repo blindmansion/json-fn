@@ -1,6 +1,6 @@
 import type { FunctionBody, JSONType } from "./types";
 import { isFunctionDeclaration } from "./function-value";
-import type { Defs, FnTypeShape, Schema } from "./check/schema";
+import type { Defs, FnTypeShape, Schema } from "./schema/schema.ts";
 import {
   SchemaKind,
   classifySchema,
@@ -10,8 +10,8 @@ import {
   isSchemaObject,
   refName,
   unionArms,
-} from "./check/schema";
-import { valueSatisfies } from "./check/values";
+} from "./schema/schema.ts";
+import { valueSatisfies } from "./schema/values.ts";
 import { raw } from "./utils";
 
 const CONTRACT_KEY = "$runtimeContract";

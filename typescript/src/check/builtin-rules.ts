@@ -66,7 +66,7 @@ import {
   properties,
   apMode,
   widenLiteral,
-} from "./schema";
+} from "../schema/schema.ts";
 import { isSubschema } from "./subsumption";
 
 function isTVar(s: Schema): s is TVarNode {
