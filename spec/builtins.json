@@ -107,7 +107,7 @@
       "category": "arithmetic",
       "signatures": [{ "required": [{ "type": "number" }], "optional": [], "returns": { "type": "integer" } }] },
     "max": {
-      "description": "Return the largest number in a non-empty array.",
+      "description": "Return the largest number in a non-empty array; throws if the result is not finite.",
       "category": "arithmetic",
       "signatures": [
       {
@@ -120,7 +120,7 @@
       }
     ] },
     "min": {
-      "description": "Return the smallest number in a non-empty array.",
+      "description": "Return the smallest number in a non-empty array; throws if the result is not finite.",
       "category": "arithmetic",
       "signatures": [
       {
@@ -133,7 +133,7 @@
       }
     ] },
     "sum": {
-      "description": "Sum an array of numbers, returning zero for an empty array.",
+      "description": "Sum an array of numbers, returning zero for an empty array; throws if the result is not finite.",
       "category": "arithmetic",
       "signatures": [
       {
@@ -146,13 +146,13 @@
       }
     ] },
     "sqrt": {
-      "description": "Return the square root of a number.",
+      "description": "Return the square root of a number; throws if the result is not finite.",
       "category": "arithmetic",
       "signatures": [
       { "required": [{ "type": "number" }], "optional": [], "returns": { "type": "number" } }
     ] },
     "pow": {
-      "description": "Raise a base to an exponent.",
+      "description": "Raise a base to an exponent; throws if the result is not finite.",
       "category": "arithmetic",
       "signatures": [
       {
@@ -229,11 +229,11 @@
       "category": "type-checking",
       "signatures": [{ "required": [true], "optional": [], "returns": { "type": "boolean" } }] },
     "isObject": {
-      "description": "Test whether a value is a plain object.",
+      "description": "Test whether a value is a plain object, excluding arrays and null.",
       "category": "type-checking",
       "signatures": [{ "required": [true], "optional": [], "returns": { "type": "boolean" } }] },
     "isTask": {
-      "description": "Test whether a value is a task.",
+      "description": "Test whether a value is a plain object with a string-valued `@task` tag.",
       "category": "type-checking",
       "signatures": [{ "required": [true], "optional": [], "returns": { "type": "boolean" } }] },
     "str": {
@@ -306,7 +306,7 @@
       }
     ] },
     "padStart": {
-      "description": "Left-pad a string to a Unicode code-point length.",
+      "description": "Left-pad a string to a Unicode code-point length, using a space when no fill string is supplied.",
       "category": "strings",
       "signatures": [
       {
@@ -366,7 +366,7 @@
       }
     ] },
     "take": {
-      "description": "Return the first requested number of array elements.",
+      "description": "Return the first requested number of array elements, or an empty array when the count is non-positive.",
       "category": "arrays",
       "signatures": [
       {
@@ -380,7 +380,7 @@
       }
     ] },
     "drop": {
-      "description": "Return an array without its first requested number of elements.",
+      "description": "Return an array without its first requested number of elements, or a copy when the count is non-positive.",
       "category": "arrays",
       "signatures": [
       {
@@ -934,7 +934,7 @@
       }
     ] },
     "sort": {
-      "description": "Return a sorted copy of an array, optionally using a comparator.",
+      "description": "Return a sorted copy of an array, optionally using a comparator; the default orders homogeneous numbers ascending or homogeneous strings by Unicode code point.",
       "category": "higher-order",
       "signatures": [
       {
@@ -1047,7 +1047,7 @@
       }
     ] },
     "flatMap": {
-      "description": "Transform array elements and flatten array results by one level.",
+      "description": "Transform array elements, flattening array results by one level and retaining scalar results.",
       "category": "higher-order",
       "signatures": [
         {
@@ -1068,7 +1068,7 @@
       "rule": "core.flatMap"
     },
     "flatMapIndexed": {
-      "description": "Flat-map with a callback that also receives each index.",
+      "description": "Flat-map while retaining scalar results, with a callback that also receives each index.",
       "category": "higher-order",
       "signatures": [
         {
@@ -1144,7 +1144,7 @@
       }
     ] },
     "reReplace": {
-      "description": "Replace all regex matches using a replacement string.",
+      "description": "Replace all regex matches using a replacement string, where `$&` is the full match and `$1`, `$2`, and so on are capture groups.",
       "category": "regex",
       "signatures": [
       {
@@ -1162,7 +1162,7 @@
       }
     ] },
     "reReplaceWith": {
-      "description": "Replace all regex matches using a callback.",
+      "description": "Replace all regex matches using a callback that receives a match object.",
       "category": "higher-order",
       "signatures": [
       {
@@ -1213,13 +1213,13 @@
       "rule": "core.bind"
     },
     "raise": {
-      "description": "Build a task requesting the raise effect.",
+      "description": "Build a task requesting the raise effect, equivalent to `perform(\"raise\", [value])`.",
       "category": "tasks-effects",
       "signatures": [{ "required": [true], "optional": [], "returns": { "$ref": "#/$defs/Task" } }],
       "rule": "core.raise"
     },
     "handle": {
-      "description": "Interpret a task's effects with handler clauses.",
+      "description": "Interpret a task's effects with handler clauses; an optional raw result schema makes the handler total and runtime-validated.",
       "category": "tasks-effects",
       "signatures": [
         { "required": [true, true], "optional": [], "returns": true },
@@ -1228,13 +1228,13 @@
       "rule": "core.handle"
     },
     "arity": {
-      "description": "Return a function's positional parameter count, or null when unknown.",
+      "description": "Return a function name or body's fixed positional parameter count, excluding its rest parameter, or null when unknown.",
       "category": "introspection",
       "signatures": [
       { "required": [true], "optional": [], "returns": { "anyOf": [{ "type": "integer" }, { "type": "null" }] } }
     ] },
     "log": {
-      "description": "Pass a value to the host-configured logger and return the value unchanged.",
+      "description": "Pass a value and optional label to the host-configured logger and return the value unchanged.",
       "category": "debugging",
       "signatures": [
       { "typeParams": ["T"], "required": [{ "$tvar": "T" }], "optional": [], "returns": { "$tvar": "T" } },

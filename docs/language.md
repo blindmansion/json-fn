@@ -729,107 +729,17 @@ does **not** subtract effects an in-language `handle` discharges — and sets
 
 ## Standard Library
 
-All functions listed below are available in the standard library.
+All standard-library functions, signatures, and descriptions are listed in the
+generated [Builtins reference](builtins.md).
 
 ### Arithmetic
-
-| Function | Args     | Description              |
-| -------- | -------- | ------------------------ |
-| `add`    | `(a, b)` | `a + b`                  |
-| `sub`    | `(a, b)` | `a - b`                  |
-| `mul`    | `(a, b)` | `a * b`                  |
-| `div`    | `(a, b)` | `a / b` (throws on zero) |
-| `mod`    | `(a, b)` | `a % b` (throws on zero) |
-| `abs`    | `(a)`    | absolute value           |
-| `neg`    | `(a)`    | `-a`                     |
-| `floor`  | `(a)`    | floor                    |
-| `ceil`   | `(a)`    | ceiling                  |
-| `round`  | `(a)`    | round                    |
-| `max`    | `(arr)`  | maximum number; throws for an empty array or non-finite result |
-| `min`    | `(arr)`  | minimum number; throws for an empty array or non-finite result |
-| `sum`    | `(arr)`  | sum of numbers (`0` if empty); throws if the result is not finite |
-| `sqrt`   | `(a)`    | square root; throws if the result is not finite |
-| `pow`    | `(base, exponent)` | exponentiation; throws if the result is not finite |
 
 Arithmetic builtins reject results that are `NaN` or infinite, since those are
 not JSON numbers.
 
 ### Comparison
 
-| Function | Args     | Description             |
-| -------- | -------- | ----------------------- |
-| `eq`     | `(a, b)` | structural equality     |
-| `neq`    | `(a, b)` | structural inequality   |
-| `gt`     | `(a, b)` | `a > b`                 |
-| `gte`    | `(a, b)` | `a >= b`                |
-| `lt`     | `(a, b)` | `a < b`                 |
-| `lte`    | `(a, b)` | `a <= b`                |
-
 `eq`/`neq` are **structural**: arrays and objects are compared recursively and object key order does not matter (on scalars this is just `===`). This is the only equality — json-fn values are immutable JSON, so there is no observable reference identity to compare. Equality does **not** coerce types, so `true` is not `1` and `"1"` is not `1`. The same structural equality backs `includes`/`indexOf` element membership. (`$match` compares its subject against case values by equality too, but restricts both to scalars — see [Scalar Value Match](#scalar-value-match--match-cases-else).)
-
-### Logic
-
-| Function | Args     | Description |
-| -------- | -------- | ----------- |
-| `not`    | `(a)`    | logical not |
-| `and`    | `(a, b)` | logical and |
-| `or`     | `(a, b)` | logical or  |
-
-### Type Checking
-
-| Function   | Args  | Description                           |
-| ---------- | ----- | ------------------------------------- |
-| `isNull`   | `(a)` | is null                               |
-| `isBool`   | `(a)` | is boolean                            |
-| `isNumber` | `(a)` | is number                             |
-| `isString` | `(a)` | is string                             |
-| `isArray`  | `(a)` | is array                              |
-| `isObject` | `(a)` | is plain object (not array, not null) |
-| `isTask`   | `(a)` | is a task (a plain object with an `@task` string tag) |
-
-### Type Coercion
-
-| Function | Args  | Description                        |
-| -------- | ----- | ---------------------------------- |
-| `str`    | `(a)` | to string (serializes non-strings) |
-| `num`    | `(a)` | to number (throws if unparseable)  |
-
-### Arrays
-
-| Function   | Args                 | Description                              |
-| ---------- | -------------------- | ---------------------------------------- |
-| `length`   | `(arr)`              | length (works on strings too)            |
-| `head`     | `(arr)`              | first element                            |
-| `last`     | `(arr)`              | last element (null if empty)             |
-| `tail`     | `(arr)`              | all but first                            |
-| `concat`   | `(...arrays)`        | concatenate arrays (variadic)            |
-| `range`    | `(n)`                | `[0, 1, ..., n-1]`                       |
-| `slice`    | `(arr, start, end?)` | slice                                    |
-| `reverse`  | `(arr)`              | reversed copy                            |
-| `take`     | `(arr, n)`           | first `n` elements; non-positive `n` gives `[]` |
-| `drop`     | `(arr, n)`           | all but the first `n` elements; non-positive `n` returns a copy |
-| `zip`      | `(left, right)`       | corresponding pairs, truncated to the shorter array |
-| `unique`   | `(arr)`               | first occurrence of each structurally distinct value |
-| `repeat`   | `(value, n)`          | repeat an array or string `n` times; `n` must be non-negative |
-| `includes` | `(arr, value)`       | structural contains check (substring check on strings) |
-| `indexOf`  | `(arr, value)`       | structural index of value, `null` if missing (substring index on strings) |
-| `flatten`  | `(arr)`              | flatten one level                        |
-| `setAt`    | `(arr, idx, value)`  | new array with element at idx replaced   |
-
-### Strings
-
-| Function     | Args           | Description                      |
-| ------------ | -------------- | -------------------------------- |
-| `upper`      | `(s)`          | uppercase                        |
-| `lower`      | `(s)`          | lowercase                        |
-| `trim`       | `(s)`          | trim whitespace                  |
-| `strcat`     | `(...strings)` | concatenate strings              |
-| `split`      | `(s, sep)`     | split string                     |
-| `join`       | `(arr, sep)`   | join array with separator        |
-| `startsWith` | `(s, prefix)`  | whether `s` starts with `prefix` |
-| `endsWith`   | `(s, suffix)`  | whether `s` ends with `suffix`   |
-| `replace`    | `(s, search, replacement)` | replace all literal, non-overlapping matches; `search` must be non-empty |
-| `padStart`   | `(s, length, fill?)` | left-pad to a Unicode code-point length; fill defaults to a space |
 
 ### Regex
 
@@ -837,62 +747,9 @@ Patterns are plain strings. Flags are specified via inline `(?flags)` prefix: `i
 
 Match results are objects with `match` (full matched text), `index` (start position), `groups` (positional captures, `null` for unmatched optional groups), and `named` (named capture groups, empty object if none).
 
-| Function     | Args                          | Description                                                |
-| ------------ | ----------------------------- | ---------------------------------------------------------- |
-| `reTest`     | `(pattern, str)`              | true if pattern matches anywhere in str                    |
-| `reMatch`    | `(pattern, str)`              | first match object, or `null`                              |
-| `reMatchAll` | `(pattern, str)`              | array of all non-overlapping match objects                 |
-| `reReplace`  | `(pattern, replacement, str)` | replace all matches. `$0` = full match, `$1`/`$2` = groups |
-| `reSplit`    | `(pattern, str)`              | split string by pattern                                    |
-
-`reReplaceWith` is a higher-order variant listed under [Higher-Order Functions](#higher-order-functions).
-
-### Objects
-
-| Function      | Args          | Description                        |
-| ------------- | ------------- | ---------------------------------- |
-| `keys`        | `(obj)`       | array of keys                      |
-| `values`      | `(obj)`       | array of values                    |
-| `entries`     | `(obj)`       | array of `[key, value]` pairs      |
-| `fromEntries` | `(pairs)`     | object from `[key, value]` pairs   |
-| `merge`       | `(a, b)`      | shallow merge (b wins on conflict) |
-| `hasKey`      | `(obj, key)`  | key exists check                   |
-| `pick`        | `(obj, keys)` | select specified keys              |
-| `omit`        | `(obj, keys)` | exclude specified keys             |
-
 ### Higher-Order Functions
 
 Higher-order functions can invoke json-fn callbacks. The callback argument can be a function reference (`{ "$fn": "name" }`), an inline function body, or a string name.
-
-| Function           | Args                          | Description                                                                      |
-| ------------------ | ----------------------------- | -------------------------------------------------------------------------------- |
-| `map`              | `(callback, arr)`             | map. Callback receives `(item)`.                                                 |
-| `mapIndexed`       | `(callback, arr)`             | map. Callback receives `(item, index)`.                                          |
-| `filter`           | `(callback, arr)`             | filter. Callback receives `(item)`.                                              |
-| `filterIndexed`    | `(callback, arr)`             | filter. Callback receives `(item, index)`.                                       |
-| `reduce`           | `(callback, init, arr)`       | reduce. Callback receives `(acc, item)`.                                         |
-| `reduceIndexed`    | `(callback, init, arr)`       | reduce. Callback receives `(acc, item, index)`.                                  |
-| `find`             | `(callback, arr)`             | first match or `null`. Callback receives `(item)`.                               |
-| `findIndexed`      | `(callback, arr)`             | first match or `null`. Callback receives `(item, index)`.                        |
-| `findIndex`        | `(callback, arr)`             | index of first match or `null`. Callback receives `(item)`.                      |
-| `findIndexIndexed` | `(callback, arr)`             | index of first match or `null`. Callback receives `(item, index)`.               |
-| `some`             | `(callback, arr)`             | any match. Callback receives `(item)`.                                           |
-| `someIndexed`      | `(callback, arr)`             | any match. Callback receives `(item, index)`.                                    |
-| `every`            | `(callback, arr)`             | all match. Callback receives `(item)`.                                           |
-| `everyIndexed`     | `(callback, arr)`             | all match. Callback receives `(item, index)`.                                    |
-| `count`            | `(callback, arr)`             | number of matches. Callback receives `(item)`.                                   |
-| `countIndexed`     | `(callback, arr)`             | number of matches. Callback receives `(item, index)`.                            |
-| `sort`             | `(arr)` / `(comparator, arr)` | sorted copy. The default orders homogeneous numbers ascending or homogeneous strings by Unicode code point. A comparator receives `(a, b)` and returns a number. |
-| `sortBy`           | `(keyFn, arr)`                | sorted copy by key function. keyFn receives `(item)`.                            |
-| `sortByIndexed`    | `(keyFn, arr)`                | sorted copy by key function. keyFn receives `(item, index)`.                     |
-| `flatMap`          | `(callback, arr)`             | map then flatten arrays one level; retain scalar results. Callback receives `(item)`. |
-| `flatMapIndexed`   | `(callback, arr)`             | indexed `flatMap`; same flattening behavior. Callback receives `(item, index)`.  |
-| `groupBy`          | `(keyFn, arr)`                | group into object. keyFn receives `(item)` and must return string or number.     |
-| `groupByIndexed`   | `(keyFn, arr)`                | indexed `groupBy`. keyFn receives `(item, index)` and must return string or number. |
-| `mapValues`        | `(callback, obj)`             | transform object values. Callback receives `(value, key)`.                       |
-| `apply`            | `(fn, argsArray)`             | call `fn` with elements of `argsArray` as positional arguments.                  |
-| `pipe`             | `(fns, init)`                 | thread value through array of functions left-to-right.                           |
-| `reReplaceWith`    | `(pattern, callback, str)`    | replace all regex matches via callback. Callback receives a match object.        |
 
 At runtime, a callback may be an inline function, a function reference, or a
 raw string name. The static checker contextually types bare inline functions
@@ -915,38 +772,21 @@ index, declare it explicitly with an ignored name such as `_index`.
 as object keys. `flatMap` and `flatMapIndexed` splice array callback results
 into the output and keep non-array results as single elements; nested arrays
 are therefore flattened by exactly one level.
-`reReplaceWith` callbacks statically return `string`, although the runtime
-defensively stringifies other return values. `mapValues` is typed as a
-string-keyed map and does not preserve exact input keys. `filter` and `find` do
-not infer type predicates from callback logic.
+`reReplaceWith` callbacks must return `string`; the runtime rejects other
+return values. `mapValues` is typed as a string-keyed map and does not preserve
+exact input keys. `filter` and `find` do not infer type predicates from callback
+logic.
 
 ### Tasks & Effects
 
 These build and run **tasks** — the effect representation described under [Tasks & Effects](#tasks--effects). Constructors build inert, tagged records; `handle` interprets them in-language.
 
-| Function  | Args              | Description                                                                                          |
-| --------- | ----------------- | ---------------------------------------------------------------------------------------------------- |
-| `perform` | `(name, args)`    | build an `effect` task requesting effect `name` with arguments `args`                                |
-| `pure`    | `(value)`         | build a completed task carrying `value`                                                              |
-| `bind`    | `(task, k)`       | sequence: run `task`, pass its result to continuation `k`, which returns the next task               |
-| `raise`   | `(err)`           | build a `raise` effect task (convenience for `perform("raise", [err])`)                              |
-| `handle`  | `(task, clauses[, raw(resultSchema)])` | run `task`, interpreting effects via `clauses`; the optional annotation makes the handler total and runtime-validated |
-
-`isTask(a)` (listed under [Type Checking](#type-checking)) reports whether a value is a task.
-
-### Introspection
-
-| Function | Args   | Description                                                                                                                                    |
-| -------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `arity`  | `(fn)` | returns parameter count. For rest params, excludes the rest param. `null` for unknown functions. Argument is a function name (string) or body. |
+`isTask(a)` reports whether a value is a task.
 
 ### Debugging
 
-| Function | Args              | Description                                                                             |
-| -------- | ----------------- | --------------------------------------------------------------------------------------- |
-| `log`    | `(value, label?)` | passes `value` and optional `label` to the host-configured logger, then returns `value` |
-
-`log` is a tap-style debugging helper:
+`log` is a tap-style debugging helper that passes a value and optional label to
+the host-configured logger, then returns the value unchanged:
 
 ```json
 {
