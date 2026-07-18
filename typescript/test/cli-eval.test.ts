@@ -64,6 +64,54 @@ describe("jfn eval bare functions", () => {
   });
 });
 
+describe("jfn eval arity diagnostics", () => {
+  test.each([
+    {
+      name: "required-only upper bound",
+      source: "((value) => null)(1, 2)",
+      expected: "Expected exactly 1 argument, received 2.",
+    },
+    {
+      name: "optional-only upper bound",
+      source: "((first?, second?) => null)(1, 2, 3)",
+      expected: "Expected 0 to 2 arguments, received 3.",
+    },
+    {
+      name: "required-plus-optional lower bound",
+      source: "((required, optional?) => null)()",
+      expected:
+        "Missing required argument at parameter position 1. Expected 1 to 2 arguments, received 0.",
+    },
+    {
+      name: "required-plus-optional upper bound",
+      source: "((required, optional?) => null)(1, 2, 3)",
+      expected: "Expected 1 to 2 arguments, received 3.",
+    },
+    {
+      name: "required-plus-defaulted upper bound",
+      source: "((required, defaulted = 2) => null)(1, 2, 3)",
+      expected: "Expected 1 to 2 arguments, received 3.",
+    },
+    {
+      name: "mixed optional/defaulted upper bound",
+      source: "((required, optional?, defaulted = 3) => null)(1, 2, 3, 4)",
+      expected: "Expected 1 to 3 arguments, received 4.",
+    },
+    {
+      name: "rest lower bound",
+      source: "((required, ...rest) => null)()",
+      expected:
+        "Missing required argument at parameter position 1. Expected at least 1 argument, received 0.",
+    },
+  ])("reports the accepted range at the $name", ({ source, expected }) => {
+    const result = runEval([source]);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toBe(`jfn: evaluation error: ${expected}\n`);
+  });
+});
+
 describe("jfn eval environment modes", () => {
   test("distinguishes the authoritative entry from a development function", () => {
     const directory = mkdtempSync(join(tmpdir(), "json-fn-eval-environment-"));

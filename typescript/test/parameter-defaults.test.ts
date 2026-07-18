@@ -132,7 +132,7 @@ describe("positional parameter defaults", () => {
     expect(callFunction(withRest, [1, 2, 3], stdlib)).toEqual({ head: 1, tail: [2, 3] });
     expect(() =>
       callFunction(fn([defaulted("head", 0)], { $var: "head" }), [1, 2], stdlib),
-    ).toThrow("Expected exactly 1 argument, received 2");
+    ).toThrow("Expected 0 to 1 arguments, received 2");
   });
 
   test("uses the normalized layout for JSON function arity", () => {

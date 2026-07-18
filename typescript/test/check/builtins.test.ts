@@ -68,13 +68,13 @@ describe("Section F — builtin signatures", () => {
     const run = (...args: JSONType[]) => checkExpr(call("flexible", ...args), {}, table);
 
     expect(run().diagnostics.map(({ message }) => message)).toEqual([
-      "Expected 1 to 3 argument(s), got 0.",
+      "Expected 1 to 3 arguments, got 0.",
     ]);
     for (const args of [[1], [1, "label"], [1, "label", true]]) {
       expect(run(...args).diagnostics).toEqual([]);
     }
     expect(run(1, "label", true, false).diagnostics.map(({ message }) => message)).toEqual([
-      "Expected 1 to 3 argument(s), got 4.",
+      "Expected 1 to 3 arguments, got 4.",
     ]);
     expect(run(1, false).diagnostics).toContainEqual(
       expect.objectContaining({ path: ["$args[1]"], expected: S, actual: { const: false } }),
@@ -116,7 +116,7 @@ describe("Section F — builtin signatures", () => {
     const run = (...args: JSONType[]) => checkExpr(call("variadic", ...args), {}, table);
 
     expect(run().diagnostics.map(({ message }) => message)).toEqual([
-      "Expected at least 1 argument(s), got 0.",
+      "Expected at least 1 argument, got 0.",
     ]);
     expect(run(1).diagnostics).toEqual([]);
     expect(run(1, "label", true, false).diagnostics).toEqual([]);
@@ -1680,7 +1680,7 @@ describe("Section F — builtin signatures", () => {
       const addOne = { $params: ["n"], $return: call("add", { $var: "n" }, 1) };
       const r = synthB(call("map", addOne));
       expect(r.diagnostics.length).toBe(1);
-      expect(/Expected 2 argument/.test(r.diagnostics[0]!.message)).toBe(true);
+      expect(/Expected exactly 2 arguments/.test(r.diagnostics[0]!.message)).toBe(true);
       expect(r.diagnostics.some((d) => d.path.join(".").includes("$return"))).toBe(false);
     });
 
@@ -1701,7 +1701,7 @@ describe("Section F — builtin signatures", () => {
       expect(r.diagnostics.map(({ path, message }) => ({ path, message }))).toEqual([
         {
           path: [],
-          message: "Expected 2 argument(s), got 3.",
+          message: "Expected exactly 2 arguments, got 3.",
         },
         {
           path: ["$args[1]"],

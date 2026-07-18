@@ -72,6 +72,102 @@ describe("strict runtime parameter semantics", () => {
     expect(callFunction(body, [{ value: 2, extra: 9 }], stdlib)).toBe(2);
   });
 
+  test.each([
+    {
+      name: "required-only",
+      params: ["value"],
+      accepted: [[1]],
+      rejected: [
+        [
+          [],
+          "Missing required argument at parameter position 1. Expected exactly 1 argument, received 0.",
+        ],
+        [[1, 2], "Expected exactly 1 argument, received 2."],
+      ],
+    },
+    {
+      name: "optional-only",
+      params: [
+        { $param: "first", $optional: true },
+        { $param: "second", $optional: true },
+      ],
+      accepted: [[], [1, 2]],
+      rejected: [[[1, 2, 3], "Expected 0 to 2 arguments, received 3."]],
+    },
+    {
+      name: "required-plus-optional",
+      params: ["required", { $param: "optional", $optional: true }],
+      accepted: [[1], [1, 2]],
+      rejected: [
+        [
+          [],
+          "Missing required argument at parameter position 1. Expected 1 to 2 arguments, received 0.",
+        ],
+        [[1, 2, 3], "Expected 1 to 2 arguments, received 3."],
+      ],
+    },
+    {
+      name: "required-plus-defaulted",
+      params: ["required", { $param: "defaulted", $default: 2 }],
+      accepted: [[1], [1, 2]],
+      rejected: [
+        [
+          [],
+          "Missing required argument at parameter position 1. Expected 1 to 2 arguments, received 0.",
+        ],
+        [[1, 2, 3], "Expected 1 to 2 arguments, received 3."],
+      ],
+    },
+    {
+      name: "mixed-optional-defaulted",
+      params: [
+        "required",
+        { $param: "optional", $optional: true },
+        { $param: "defaulted", $default: 3 },
+      ],
+      accepted: [[1], [1, 2, 3]],
+      rejected: [
+        [
+          [],
+          "Missing required argument at parameter position 1. Expected 1 to 3 arguments, received 0.",
+        ],
+        [[1, 2, 3, 4], "Expected 1 to 3 arguments, received 4."],
+      ],
+    },
+    {
+      name: "rest",
+      params: ["required", "...rest"],
+      accepted: [[1], [1, 2, 3]],
+      rejected: [
+        [
+          [],
+          "Missing required argument at parameter position 1. Expected at least 1 argument, received 0.",
+        ],
+      ],
+    },
+  ] satisfies {
+    name: string;
+    params: JSONType[];
+    accepted: JSONType[][];
+    rejected: [JSONType[], string][];
+  }[])("reports the accepted range for $name layouts", ({ params, accepted, rejected }) => {
+    const body = { $params: params, $return: null } as FunctionDeclaration;
+
+    for (const args of accepted) {
+      expect(callFunction(body, args, stdlib)).toBeNull();
+    }
+    for (const [args, expected] of rejected) {
+      let thrown: unknown;
+      try {
+        callFunction(body, args, stdlib);
+      } catch (error) {
+        thrown = error;
+      }
+      expect(thrown).toBeInstanceOf(Error);
+      expect((thrown as Error).message).toBe(expected);
+    }
+  });
+
   test("uses the same validation for direct, registry, inline, and program calls", () => {
     const unary = { $params: ["value"], $return: { $var: "value" } };
     const registry: FunctionRegistry = { ...stdlib, unary };

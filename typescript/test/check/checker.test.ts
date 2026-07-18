@@ -590,7 +590,7 @@ describe("checkModule: diagnostics", () => {
       ),
     };
     const diags = checkModule(mod);
-    expect(diags.some((d) => /Expected 1 argument/.test(d.message))).toBe(true);
+    expect(diags.some((d) => /Expected exactly 1 argument/.test(d.message))).toBe(true);
   });
 
   test("rest params accept extra arguments of the element type", () => {
@@ -649,8 +649,8 @@ describe("checkModule: diagnostics", () => {
     };
 
     expect(checkModule(mod).map((diagnostic) => diagnostic.message)).toEqual([
-      "Expected 1 to 2 argument(s), got 0.",
-      "Expected 1 to 2 argument(s), got 3.",
+      "Expected 1 to 2 arguments, got 0.",
+      "Expected 1 to 2 arguments, got 3.",
     ]);
   });
 
@@ -687,7 +687,7 @@ describe("checkModule: diagnostics", () => {
       diagnostics
         .map(({ message }) => message)
         .filter((message) => message.startsWith("Expected ")),
-    ).toEqual(["Expected 2 argument(s), got 1.", "Expected 2 argument(s), got 3."]);
+    ).toEqual(["Expected exactly 2 arguments, got 1.", "Expected exactly 2 arguments, got 3."]);
   });
 
   test("wrong user-function arity suppresses contextual lambda cascades", () => {
@@ -713,7 +713,7 @@ describe("checkModule: diagnostics", () => {
     expect(checkModule(mod)).toEqual([
       expect.objectContaining({
         path: ["caller", "$return"],
-        message: "Expected 2 argument(s), got 1.",
+        message: "Expected exactly 2 arguments, got 1.",
       }),
     ]);
   });
@@ -1241,14 +1241,14 @@ describe("check: do-block / where IIFE (Part A)", () => {
     const run = (args: JSONType[]) => checkExpr(iife({ $var: "required" }, {}, params, args));
 
     expect(run([]).diagnostics.map((diagnostic) => diagnostic.message)).toEqual([
-      "Expected 1 to 3 argument(s), got 0.",
+      "Expected 1 to 3 arguments, got 0.",
     ]);
     for (const args of [[1], [1, "fallback"], [1, "fallback", true]]) {
       expect(run(args).diagnostics).toEqual([]);
     }
     expect(
       run([1, "fallback", true, 4]).diagnostics.map((diagnostic) => diagnostic.message),
-    ).toEqual(["Expected 1 to 3 argument(s), got 4."]);
+    ).toEqual(["Expected 1 to 3 arguments, got 4."]);
   });
 
   test("IIFE optional and rest locals align with supplied argument positions", () => {
@@ -1309,7 +1309,7 @@ describe("check: do-block / where IIFE (Part A)", () => {
 
   test("an arity mismatch is reported at the call", () => {
     const r = checkExpr(iife({ $var: "n" }, {}, ["n"], []));
-    expect(r.diagnostics.some((d) => /Expected 1 argument\(s\), got 0\./.test(d.message))).toBe(
+    expect(r.diagnostics.some((d) => /Expected exactly 1 argument, got 0\./.test(d.message))).toBe(
       true,
     );
   });

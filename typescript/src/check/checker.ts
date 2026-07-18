@@ -12,6 +12,7 @@
 import type { JSONType } from "../types";
 import {
   analyzeParameters,
+  formatArgumentCountExpectation,
   formatParameterIssue,
   type ParameterLayout,
   type ParameterPath,
@@ -509,13 +510,8 @@ function checkArity(sig: Sig, argc: number, ctx: CheckContext): boolean {
 
   const minimum = sig.required.length;
   const maximum = fixedParamSchemas(sig).length;
-  const expected =
-    sig.rest !== undefined
-      ? `at least ${minimum}`
-      : minimum === maximum
-        ? `${minimum}`
-        : `${minimum} to ${maximum}`;
-  report(ctx, `Expected ${expected} argument(s), got ${argc}.`);
+  const expected = formatArgumentCountExpectation(minimum, maximum, sig.rest !== undefined);
+  report(ctx, `Expected ${expected}, got ${argc}.`);
   return false;
 }
 

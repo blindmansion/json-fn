@@ -383,15 +383,32 @@ export function requireParameterLayout(params: unknown, expression: JSONType): P
   return analysis.layout;
 }
 
+export function formatArgumentCountExpectation(
+  requiredCount: number,
+  fixedCount: number,
+  hasRest: boolean,
+): string {
+  if (hasRest) {
+    return `at least ${requiredCount} argument${requiredCount === 1 ? "" : "s"}`;
+  }
+  if (requiredCount === fixedCount) {
+    return `exactly ${fixedCount} argument${fixedCount === 1 ? "" : "s"}`;
+  }
+  return `${requiredCount} to ${fixedCount} arguments`;
+}
+
 /**
  * Enforce JSON-function invocation semantics after descriptor normalization.
  * Presence is positional/own-property based so explicit null remains data.
  */
 export function validateRuntimeArguments(layout: ParameterLayout, args: JSONType[]): void {
+  const expected = formatArgumentCountExpectation(
+    layout.requiredCount,
+    layout.fixedCount,
+    layout.rest !== null,
+  );
   if (layout.rest === null && args.length > layout.fixedCount) {
-    throw new Error(
-      `Expected exactly ${layout.fixedCount} argument${layout.fixedCount === 1 ? "" : "s"}, received ${args.length}.`,
-    );
+    throw new Error(`Expected ${expected}, received ${args.length}.`);
   }
 
   for (const slot of layout.slots) {
@@ -401,11 +418,11 @@ export function validateRuntimeArguments(layout: ParameterLayout, args: JSONType
     if (slot.index >= args.length) {
       if (slot.kind === "fields") {
         throw new Error(
-          `Missing object-pattern argument at parameter position ${position}. Expected at least ${position} argument${position === 1 ? "" : "s"}, received ${args.length}.`,
+          `Missing object-pattern argument at parameter position ${position}. Expected ${expected}, received ${args.length}.`,
         );
       }
       throw new Error(
-        `Missing required argument at parameter position ${position}. Expected at least ${position} argument${position === 1 ? "" : "s"}, received ${args.length}.`,
+        `Missing required argument at parameter position ${position}. Expected ${expected}, received ${args.length}.`,
       );
     }
 
