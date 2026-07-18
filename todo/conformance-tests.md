@@ -37,13 +37,6 @@ top-level constants. Testing these needs a new case variant, e.g.
 `{ "module": {...}, "entry": "name", "args": [...] }`, that dispatches to
 `callProgram` instead — implemented in all four runners (TS/Rust/Go/Python).
 
-### New stdlib builtins
-
-Every new builtin (see `todo/new-features.md`: `sum`, `unique`, `zip`, `take`,
-`drop`, `count`, `sqrt`/`pow`, `replace`, `padStart`, `repeat`,
-`startsWith`/`endsWith`, default `sort`) needs a `spec/cases` entry added
-alongside the four-impl implementation.
-
 ## Parser cases (`spec/parse-cases/`) — new entries (TS + Rust)
 
 - **`cond` requires `else ->`** — a negative parse case, once the policy lands

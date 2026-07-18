@@ -462,10 +462,12 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
         typeof arr === "string" ? arr.indexOf(value) : arr.findIndex((el) => jsonEqual(el, value));
       return i === -1 ? null : i;
     }),
-    flatten: pure((arr: any[]) => {
+    flatten: builtin((args, _call, _functions, meter) => {
+      const arr = args[0];
       if (!Array.isArray(arr)) throw new Error("flatten: argument must be an array");
+      meter.charge(arr.length);
       return arr.flat();
-    }),
+    }, 1),
     setAt: pure((arr: any[], idx: number, value: any) => {
       if (!Array.isArray(arr)) throw new Error("setAt: first argument must be an array");
       if (!Number.isInteger(idx)) throw new Error("setAt: second argument must be an integer");

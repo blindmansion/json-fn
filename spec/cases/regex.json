@@ -255,6 +255,16 @@
       "description": "combined flags: case-insensitive + multiline",
       "body": { "$return": { "$call": "reMatch", "$args": ["(?im)^hello", "first\nHELLO world"] } },
       "expected": { "match": "HELLO", "index": 6, "groups": [], "named": {} }
+    },
+    {
+      "description": "unicode flag: dot treats an astral symbol as one code point",
+      "body": { "$return": { "$call": "reTest", "$args": ["(?u)^.$", "😀"] } },
+      "expected": true
+    },
+    {
+      "description": "without unicode: dot treats an astral symbol as two code units",
+      "body": { "$return": { "$call": "reTest", "$args": ["^.$", "😀"] } },
+      "expected": false
     }
   ]
 }

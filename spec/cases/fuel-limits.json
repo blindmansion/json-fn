@@ -102,6 +102,65 @@
       "expected": 90000
     },
     {
+      "description": "constructing and measuring a 100-element range fits the aggregate test budget",
+      "body": {
+        "$return": { "$call": "length", "$args": [{ "$call": "range", "$args": [100] }] }
+      },
+      "limits": { "maxFuel": 150 },
+      "expected": 100
+    },
+    {
+      "description": "sum charges fuel for traversing its input",
+      "body": {
+        "$return": { "$call": "sum", "$args": [{ "$call": "range", "$args": [100] }] }
+      },
+      "limits": { "maxFuel": 150 },
+      "error": "Maximum fuel"
+    },
+    {
+      "description": "max charges fuel for traversing its input",
+      "body": {
+        "$return": { "$call": "max", "$args": [{ "$call": "range", "$args": [100] }] }
+      },
+      "limits": { "maxFuel": 150 },
+      "error": "Maximum fuel"
+    },
+    {
+      "description": "min charges fuel for traversing its input",
+      "body": {
+        "$return": { "$call": "min", "$args": [{ "$call": "range", "$args": [100] }] }
+      },
+      "limits": { "maxFuel": 150 },
+      "error": "Maximum fuel"
+    },
+    {
+      "description": "constructing and measuring 100 empty arrays fits the flatten test budget",
+      "body": {
+        "$return": {
+          "$call": "length",
+          "$args": [{ "$call": "repeat", "$args": [[[]], 100] }]
+        }
+      },
+      "limits": { "maxFuel": 150 },
+      "expected": 100
+    },
+    {
+      "description": "flatten charges fuel for traversing its input even when output is empty",
+      "body": {
+        "$return": {
+          "$call": "length",
+          "$args": [
+            {
+              "$call": "flatten",
+              "$args": [{ "$call": "repeat", "$args": [[[]], 100] }]
+            }
+          ]
+        }
+      },
+      "limits": { "maxFuel": 150 },
+      "error": "Maximum fuel"
+    },
+    {
       "description": "small program still runs under a modest budget (guards against over-charging)",
       "body": { "$return": { "$call": "map", "$args": ["neg", [1, 2, 3]] } },
       "limits": { "maxFuel": 1000 },
