@@ -80,7 +80,7 @@ describe("stdlib mapValues", () => {
   });
 });
 
-describe("stdlib log", () => {
+describe("stdlib tap", () => {
   test("returns the value without logging by default", () => {
     const originalLog = console.log;
     const calls: unknown[][] = [];
@@ -89,7 +89,7 @@ describe("stdlib log", () => {
     };
     try {
       const result = callFunction(
-        { $return: { $call: "log", $args: [{ answer: 42, ok: true }, "debug"] } },
+        { $return: { $call: "tap", $args: [{ answer: 42, ok: true }, "debug"] } },
         [],
         createStdlib(),
       );
@@ -104,7 +104,7 @@ describe("stdlib log", () => {
   test("calls the configured logger", () => {
     const calls: unknown[][] = [];
     const result = callFunction(
-      { $return: { $call: "log", $args: [{ answer: 42, ok: true }, "debug"] } },
+      { $return: { $call: "tap", $args: [{ answer: 42, ok: true }, "debug"] } },
       [],
       createStdlib({
         logger: (value, label) => {

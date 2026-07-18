@@ -3,17 +3,17 @@ import type { BuiltinFunction, FunctionRegistry, JSONType, Meter } from "./types
 import { effectTask, pureTask, bindTask, runHandle } from "./task";
 import { isFunctionDeclaration } from "./function-value";
 
-export type LogFn = (value: JSONType, label?: string) => void;
+export type LoggerFn = (value: JSONType, label?: string) => void;
 
 export type StdlibOptions = {
   /**
-   * Override the function used by `log`. Receives the value and an
+   * Override the logger used by `tap`. Receives the value and an
    * optional label. Defaults to a no-op.
    */
-  logger?: LogFn;
+  logger?: LoggerFn;
 };
 
-const noopLogger: LogFn = () => {};
+const noopLogger: LoggerFn = () => {};
 
 const INLINE_FLAGS_RE = /^\(\?([imsu]*)\)/;
 const VALID_FLAGS = new Set(["i", "m", "s", "u"]);
@@ -248,7 +248,7 @@ function arraySortByBuiltin(name: string, indexed: boolean): BuiltinFunction {
 }
 
 export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
-  const log = options.logger ?? noopLogger;
+  const logger = options.logger ?? noopLogger;
   return {
     // Arithmetic
     add: pure((a: number, b: number) => finiteMathResult("add", a + b)),
@@ -303,6 +303,13 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
     pow: pure((base: number, exponent: number) =>
       finiteMathResult("pow", Math.pow(base, exponent)),
     ),
+    exp: pure((value: number) => finiteMathResult("exp", Math.exp(value))),
+    log: pure((value: number) => finiteMathResult("log", Math.log(value))),
+    log10: pure((value: number) => finiteMathResult("log10", Math.log10(value))),
+    sin: pure((value: number) => finiteMathResult("sin", Math.sin(value))),
+    cos: pure((value: number) => finiteMathResult("cos", Math.cos(value))),
+    tan: pure((value: number) => finiteMathResult("tan", Math.tan(value))),
+    atan2: pure((y: number, x: number) => finiteMathResult("atan2", Math.atan2(y, x))),
 
     // Comparison. Equality is structural: json-fn values are immutable JSON, so
     // there is no observable reference identity to compare — deep equality is the
@@ -790,9 +797,9 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
       return getArity(args[0], functions) ?? null;
     }, 1),
 
-    // Debugging — logs the value (optionally with a label) and returns it unchanged (tap-style).
-    log: pure((value: JSONType, label?: string) => {
-      log(value, label);
+    // Debugging — logs the value (optionally with a label) and returns it unchanged.
+    tap: pure((value: JSONType, label?: string) => {
+      logger(value, label);
       return value;
     }),
   };

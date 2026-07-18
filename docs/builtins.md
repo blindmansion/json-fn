@@ -12,23 +12,30 @@ more precisely than their portable signatures indicate.
 
 ## Arithmetic
 
-| Function | Signature                                                     | Description                                                                                     |
-| -------- | ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `add`    | `(integer, integer) → integer`<br>`(number, number) → number` | Add two numbers.                                                                                |
-| `sub`    | `(integer, integer) → integer`<br>`(number, number) → number` | Subtract the second number from the first.                                                      |
-| `mul`    | `(integer, integer) → integer`<br>`(number, number) → number` | Multiply two numbers.                                                                           |
-| `mod`    | `(integer, integer) → integer`<br>`(number, number) → number` | Return the remainder after division; throws when the divisor is zero.                           |
-| `div`    | `(number, number) → number`                                   | Divide two numbers; throws when the divisor is zero.                                            |
-| `neg`    | `(integer) → integer`<br>`(number) → number`                  | Negate a number.                                                                                |
-| `abs`    | `(integer) → integer`<br>`(number) → number`                  | Return the absolute value of a number.                                                          |
-| `floor`  | `(number) → integer`                                          | Round a number down to the nearest integer.                                                     |
-| `ceil`   | `(number) → integer`                                          | Round a number up to the nearest integer.                                                       |
-| `round`  | `(number) → integer`                                          | Round a number to the nearest integer.                                                          |
-| `max`    | `(integer[]) → integer`<br>`(number[]) → number`              | Return the largest number in a non-empty array; throws if the result is not finite.             |
-| `min`    | `(integer[]) → integer`<br>`(number[]) → number`              | Return the smallest number in a non-empty array; throws if the result is not finite.            |
-| `sum`    | `(integer[]) → integer`<br>`(number[]) → number`              | Sum an array of numbers, returning zero for an empty array; throws if the result is not finite. |
-| `sqrt`   | `(number) → number`                                           | Return the square root of a number; throws if the result is not finite.                         |
-| `pow`    | `(number, number) → number`                                   | Raise a base to an exponent; throws if the result is not finite.                                |
+| Function | Signature                                                     | Description                                                                                                   |
+| -------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `add`    | `(integer, integer) → integer`<br>`(number, number) → number` | Add two numbers.                                                                                              |
+| `sub`    | `(integer, integer) → integer`<br>`(number, number) → number` | Subtract the second number from the first.                                                                    |
+| `mul`    | `(integer, integer) → integer`<br>`(number, number) → number` | Multiply two numbers.                                                                                         |
+| `mod`    | `(integer, integer) → integer`<br>`(number, number) → number` | Return the remainder after division; throws when the divisor is zero.                                         |
+| `div`    | `(number, number) → number`                                   | Divide two numbers; throws when the divisor is zero.                                                          |
+| `neg`    | `(integer) → integer`<br>`(number) → number`                  | Negate a number.                                                                                              |
+| `abs`    | `(integer) → integer`<br>`(number) → number`                  | Return the absolute value of a number.                                                                        |
+| `floor`  | `(number) → integer`                                          | Round a number down to the nearest integer.                                                                   |
+| `ceil`   | `(number) → integer`                                          | Round a number up to the nearest integer.                                                                     |
+| `round`  | `(number) → integer`                                          | Round a number to the nearest integer.                                                                        |
+| `max`    | `(integer[]) → integer`<br>`(number[]) → number`              | Return the largest number in a non-empty array; throws if the result is not finite.                           |
+| `min`    | `(integer[]) → integer`<br>`(number[]) → number`              | Return the smallest number in a non-empty array; throws if the result is not finite.                          |
+| `sum`    | `(integer[]) → integer`<br>`(number[]) → number`              | Sum an array of numbers, returning zero for an empty array; throws if the result is not finite.               |
+| `sqrt`   | `(number) → number`                                           | Return the square root of a number; throws if the result is not finite.                                       |
+| `pow`    | `(number, number) → number`                                   | Raise a base to an exponent; throws if the result is not finite.                                              |
+| `exp`    | `(number) → number`                                           | Raise Euler's number to a power; throws if the result is not finite.                                          |
+| `log`    | `(number) → number`                                           | Return the natural logarithm of a number; throws if the result is not finite.                                 |
+| `log10`  | `(number) → number`                                           | Return the base-10 logarithm of a number; throws if the result is not finite.                                 |
+| `sin`    | `(number) → number`                                           | Return the sine of an angle in radians; throws if the result is not finite.                                   |
+| `cos`    | `(number) → number`                                           | Return the cosine of an angle in radians; throws if the result is not finite.                                 |
+| `tan`    | `(number) → number`                                           | Return the tangent of an angle in radians; throws if the result is not finite.                                |
+| `atan2`  | `(number, number) → number`                                   | Return the angle in radians from the positive x-axis to the point (x, y); throws if the result is not finite. |
 
 ## Comparison
 
@@ -180,4 +187,4 @@ more precisely than their portable signatures indicate.
 
 | Function | Signature                            | Description                                                                                   |
 | -------- | ------------------------------------ | --------------------------------------------------------------------------------------------- |
-| `log`    | `<T>(T) → T`<br>`<T>(T, string) → T` | Pass a value and optional label to the host-configured logger and return the value unchanged. |
+| `tap`    | `<T>(T) → T`<br>`<T>(T, string) → T` | Pass a value and optional label to the host-configured logger and return the value unchanged. |

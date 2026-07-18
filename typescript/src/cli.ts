@@ -228,7 +228,7 @@ async function cmdEval(argv: string[]): Promise<void> {
   }
 
   const stdlib = createStdlib({
-    logger: (value, label) => console.error(label ? `${label}:` : "log:", value),
+    logger: (value, label) => console.error(label ? `${label}:` : "tap:", value),
   });
   let builtinDefs: CallableTable["$defs"];
   try {

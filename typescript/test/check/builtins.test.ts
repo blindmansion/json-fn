@@ -484,9 +484,20 @@ describe("Section F — builtin signatures", () => {
       expect(synthB(call("sum", [1.5, 2])).type).toEqual({ type: "number" });
     });
 
-    test("sqrt/pow return numbers", () => {
-      expect(synthB(call("sqrt", 9)).type).toEqual({ type: "number" });
-      expect(synthB(call("pow", 2, 10)).type).toEqual({ type: "number" });
+    test("math functions return numbers", () => {
+      for (const expression of [
+        call("sqrt", 9),
+        call("pow", 2, 10),
+        call("exp", 1),
+        call("log", 1),
+        call("log10", 10),
+        call("sin", 0),
+        call("cos", 0),
+        call("tan", 0),
+        call("atan2", 1, 0),
+      ]) {
+        expect(synthB(expression).type).toEqual({ type: "number" });
+      }
       expect(synthB(call("sqrt", "9")).diagnostics.length).toBeGreaterThan(0);
     });
 
@@ -538,9 +549,9 @@ describe("Section F — builtin signatures", () => {
       );
     });
 
-    test("log is identity on its value (both overloads)", () => {
-      expect(synthB(call("log", "hi")).type).toEqual({ const: "hi" });
-      expect(synthB(call("log", "hi", "label")).type).toEqual({ const: "hi" });
+    test("tap is identity on its value (both overloads)", () => {
+      expect(synthB(call("tap", "hi")).type).toEqual({ const: "hi" });
+      expect(synthB(call("tap", "hi", "label")).type).toEqual({ const: "hi" });
     });
   });
 

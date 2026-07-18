@@ -160,6 +160,51 @@
         "returns": { "type": "number" }
       }
     ] },
+    "exp": {
+      "description": "Raise Euler's number to a power; throws if the result is not finite.",
+      "category": "arithmetic",
+      "signatures": [
+      { "required": [{ "type": "number" }], "optional": [], "returns": { "type": "number" } }
+    ] },
+    "log": {
+      "description": "Return the natural logarithm of a number; throws if the result is not finite.",
+      "category": "arithmetic",
+      "signatures": [
+      { "required": [{ "type": "number" }], "optional": [], "returns": { "type": "number" } }
+    ] },
+    "log10": {
+      "description": "Return the base-10 logarithm of a number; throws if the result is not finite.",
+      "category": "arithmetic",
+      "signatures": [
+      { "required": [{ "type": "number" }], "optional": [], "returns": { "type": "number" } }
+    ] },
+    "sin": {
+      "description": "Return the sine of an angle in radians; throws if the result is not finite.",
+      "category": "arithmetic",
+      "signatures": [
+      { "required": [{ "type": "number" }], "optional": [], "returns": { "type": "number" } }
+    ] },
+    "cos": {
+      "description": "Return the cosine of an angle in radians; throws if the result is not finite.",
+      "category": "arithmetic",
+      "signatures": [
+      { "required": [{ "type": "number" }], "optional": [], "returns": { "type": "number" } }
+    ] },
+    "tan": {
+      "description": "Return the tangent of an angle in radians; throws if the result is not finite.",
+      "category": "arithmetic",
+      "signatures": [
+      { "required": [{ "type": "number" }], "optional": [], "returns": { "type": "number" } }
+    ] },
+    "atan2": {
+      "description": "Return the angle in radians from the positive x-axis to the point (x, y); throws if the result is not finite.",
+      "category": "arithmetic",
+      "signatures": [
+      {
+        "required": [{ "type": "number" }, { "type": "number" }], "optional": [],
+        "returns": { "type": "number" }
+      }
+    ] },
     "eq": {
       "description": "Test two values for structural equality.",
       "category": "comparison",
@@ -1233,7 +1278,7 @@
       "signatures": [
       { "required": [true], "optional": [], "returns": { "anyOf": [{ "type": "integer" }, { "type": "null" }] } }
     ] },
-    "log": {
+    "tap": {
       "description": "Pass a value and optional label to the host-configured logger and return the value unchanged.",
       "category": "debugging",
       "signatures": [

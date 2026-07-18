@@ -594,7 +594,7 @@ effects.log("starting")
 Each leaf is a typed task constructor equivalent to a literal
 `perform("http.get", [url])`; calling it remains pure and does not invoke the
 host capability. Qualification distinguishes effects from direct functions, so
-`log(...)` and `effects.log(...)` may coexist with different semantics. A module
+`tap(...)` and `effects.log(...)` may coexist with different semantics. A module
 checked or run with an environment may not declare its own top-level `effects`
 binding. Manifest names may not be namespace prefixes of other names (for
 example, `sensor` and `sensor.read` cannot both be declared). Raw `perform`
@@ -785,22 +785,22 @@ These build and run **tasks** — the effect representation described under [Tas
 
 ### Debugging
 
-`log` is a tap-style debugging helper that passes a value and optional label to
+`tap` is a debugging helper that passes a value and optional label to
 the host-configured logger, then returns the value unchanged:
 
 ```json
 {
   "$call": "map",
   "$args": [
-    { "$params": ["x"], "$return": { "$call": "log", "$args": [{ "$var": "x" }, "item"] } },
+    { "$params": ["x"], "$return": { "$call": "tap", "$args": [{ "$var": "x" }, "item"] } },
     [1, 2, 3]
   ]
 }
 ```
 
-By default, `log` is inert and produces no output. Host integrations may pass a logger when constructing the standard library to capture or emit logs. The output destination and format are host-defined.
+By default, `tap` is inert and produces no output. Host integrations may pass a logger when constructing the standard library to capture or emit logs. The output destination and format are host-defined.
 
-> **Note: lazy locals.** Because non-`$return` keys in a function body are [lazy](#lazy-local-variables), a `log` call placed in an unreferenced local is never evaluated. To log inside a function body, either put the `log` call in the path of `$return`, or reference the debug local from `$return` so it actually runs.
+> **Note: lazy locals.** Because non-`$return` keys in a function body are [lazy](#lazy-local-variables), a `tap` call placed in an unreferenced local is never evaluated. To log inside a function body, either put the `tap` call in the path of `$return`, or reference the debug local from `$return` so it actually runs.
 
 ## HOF Argument Order
 

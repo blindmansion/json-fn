@@ -24,17 +24,6 @@ the canonical TypeScript interpreter.
 - `flatten(array, depth)` — extend the existing one-level `flatten`; require a
   non-negative integer depth.
 
-## Standard math
-
-- `exp(x)`
-- natural logarithm (the name `log` currently belongs to the debug tap)
-- `log10(x)`
-- `sin(x)`, `cos(x)`, `tan(x)`
-- `atan2(y, x)`
-
-These should reject non-finite results. Floating-point conformance may need
-tolerances or carefully selected exact cases.
-
 ## Smaller conveniences
 
 - `mean(array<number>)` — reject an empty array.
@@ -46,4 +35,4 @@ tolerances or carefully selected exact cases.
 
 Implementation priority should favor operations that fuse traversal or remove
 interpreted callbacks: aggregates and expanded `range`, then `chunk`,
-`partition`, and `scan`, followed by the math pack and scalar conveniences.
+`partition`, and `scan`, followed by scalar conveniences.
