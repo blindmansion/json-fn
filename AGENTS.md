@@ -43,6 +43,7 @@ Uses **Bun** (not node/npm). Common commands, run inside `typescript/`:
 - `bun run check` — `tsc --noEmit`, oxlint, oxfmt --check, spec-case format check.
 - `bun run fix` — typecheck, lint --fix, format (TS + spec-case JSON).
 - `bun test` — run the test suite.
+- `bun run generate:builtins-doc` — regenerate `docs/builtins.md`; run whenever `spec/builtins.json` is updated.
 
 ### The `jfn` CLI
 
