@@ -27,6 +27,53 @@
       "error": "argument must be an array"
     },
     {
+      "description": "flattenDepth: depth zero returns a shallow copy",
+      "body": { "$return": { "$call": "flattenDepth", "$args": [[1, [2, [3]]], 0] } },
+      "expected": [1, [2, [3]]]
+    },
+    {
+      "description": "flattenDepth: flattens the requested number of levels",
+      "body": {
+        "$return": [
+          { "$call": "flattenDepth", "$args": [[1, [2, [3]], [[4]]], 1] },
+          { "$call": "flattenDepth", "$args": [[1, [2, [3]], [[4]]], 2] }
+        ]
+      },
+      "expected": [
+        [1, 2, [3], [4]],
+        [1, 2, 3, 4]
+      ]
+    },
+    {
+      "description": "flattenDepth: rejects a negative depth",
+      "body": { "$return": { "$call": "flattenDepth", "$args": [[[1]], -1] } },
+      "error": "depth must be a non-negative integer"
+    },
+    {
+      "description": "flattenDepth: rejects a non-integer depth",
+      "body": { "$return": { "$call": "flattenDepth", "$args": [[[1]], 1.5] } },
+      "error": "depth must be a non-negative integer"
+    },
+    {
+      "description": "flatten: can be passed directly as a unary callback",
+      "body": {
+        "$return": {
+          "$call": "map",
+          "$args": [
+            "flatten",
+            [
+              [[1], [2, 3]],
+              [[4, 5], [6]]
+            ]
+          ]
+        }
+      },
+      "expected": [
+        [1, 2, 3],
+        [4, 5, 6]
+      ]
+    },
+    {
       "description": "setAt: replaces element at given index",
       "body": { "$return": { "$call": "setAt", "$args": [["a", "b", "c"], 1, "X"] } },
       "expected": ["a", "X", "c"]

@@ -107,6 +107,71 @@
       },
       "limits": { "maxValueSize": 50 },
       "error": "Maximum value size"
+    },
+    {
+      "description": "rangeBy preflights output against maxValueSize",
+      "body": {
+        "$return": {
+          "$call": "length",
+          "$args": [{ "$call": "rangeBy", "$args": [0, 100000, 2] }]
+        }
+      },
+      "limits": { "maxValueSize": 1000 },
+      "error": "Maximum value size"
+    },
+    {
+      "description": "chunk checks the number of output chunks",
+      "body": {
+        "$return": {
+          "$call": "chunk",
+          "$args": [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], 1]
+        }
+      },
+      "limits": { "maxValueSize": 10 },
+      "error": "Maximum value size"
+    },
+    {
+      "description": "partition checks each output group",
+      "body": {
+        "$return": {
+          "$call": "partition",
+          "$args": [{ "$params": ["item"], "$return": true }, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]]
+        }
+      },
+      "limits": { "maxValueSize": 10 },
+      "error": "Maximum value size"
+    },
+    {
+      "description": "scan preflights its fixed output length",
+      "body": {
+        "$return": {
+          "$call": "scan",
+          "$args": [
+            { "$params": ["acc", "item"], "$return": { "$var": "item" } },
+            0,
+            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+          ]
+        }
+      },
+      "limits": { "maxValueSize": 10 },
+      "error": "Maximum value size"
+    },
+    {
+      "description": "flattenDepth checks its growing output",
+      "body": {
+        "$return": {
+          "$call": "flattenDepth",
+          "$args": [
+            [
+              [1, 2, 3, 4, 5, 6],
+              [7, 8, 9, 10, 11, 12]
+            ],
+            1
+          ]
+        }
+      },
+      "limits": { "maxValueSize": 10 },
+      "error": "Maximum value size"
     }
   ]
 }

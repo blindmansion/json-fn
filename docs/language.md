@@ -741,6 +741,13 @@ not JSON numbers.
 
 `eq`/`neq` are **structural**: arrays and objects are compared recursively and object key order does not matter (on scalars this is just `===`). This is the only equality — json-fn values are immutable JSON, so there is no observable reference identity to compare. Equality does **not** coerce types, so `true` is not `1` and `"1"` is not `1`. The same structural equality backs `includes`/`indexOf` element membership. (`$match` compares its subject against case values by equality too, but restricts both to scalars — see [Scalar Value Match](#scalar-value-match--match-cases-else).)
 
+### Arrays
+
+`range(end)` and `flatten(array)` remain unary so they can be passed directly
+to ordinary one-argument higher-order functions. Use `rangeFrom(start, end)`,
+`rangeBy(start, end, step)`, and `flattenDepth(array, depth)` for their
+fixed-arity extended forms.
+
 ### Regex
 
 Patterns are plain strings. Flags are specified via inline `(?flags)` prefix: `i` (case-insensitive), `m` (multiline), `s` (dotall), `u` (Unicode). Example: `"(?i)hello"`.
@@ -768,10 +775,13 @@ passed to an ordinary HOF, or rename the call to its `*Indexed` counterpart when
 the callback uses the index. For an indexed wrapper that ignores the supplied
 index, declare it explicitly with an ignored name such as `_index`.
 
-`groupBy` and `groupByIndexed` convert numeric keys to strings before using them
-as object keys. `flatMap` and `flatMapIndexed` splice array callback results
-into the output and keep non-array results as single elements; nested arrays
-are therefore flattened by exactly one level.
+`groupBy`, `groupByIndexed`, and `countBy` convert numeric keys to strings before
+using them as object keys. `frequencies` performs the same conversion for every
+scalar value, so numeric `1` and string `"1"` share a bucket. Counting safely
+supports object-special keys such as `__proto__` and `constructor`.
+`flatMap` and `flatMapIndexed` splice array callback results into the output and
+keep non-array results as single elements; nested arrays are therefore
+flattened by exactly one level.
 `reReplaceWith` callbacks must return `string`; the runtime rejects other
 return values. `mapValues` is typed as a string-keyed map and does not preserve
 exact input keys. `filter` and `find` do not infer type predicates from callback
@@ -804,7 +814,7 @@ By default, `tap` is inert and produces no output. Host integrations may pass a 
 
 ## HOF Argument Order
 
-Higher-order functions take **callback first, data second**. This is consistent across all HOFs: `map(callback, arr)`, `filter(callback, arr)`, `reduce(callback, init, arr)`, etc.
+Higher-order functions take **callback first, data second**. This is consistent across all HOFs: `map(callback, arr)`, `filter(callback, arr)`, `partition(callback, arr)`, `countBy(callback, arr)`, `reduce(callback, init, arr)`, `scan(callback, init, arr)`, etc.
 
 ## Patterns
 

@@ -112,6 +112,82 @@ function reduceCallbackArgs(
   return indexed ? [accumulator, item, index] : [accumulator, item];
 }
 
+function rangeValues(
+  name: string,
+  start: JSONType | undefined,
+  end: JSONType | undefined,
+  step: JSONType | undefined,
+  meter: Meter,
+): number[] {
+  if (typeof start !== "number" || !Number.isInteger(start))
+    throw new Error(`${name}: first argument must be an integer`);
+  if (typeof end !== "number" || !Number.isInteger(end))
+    throw new Error(`${name}: second argument must be an integer`);
+  if (typeof step !== "number" || !Number.isInteger(step))
+    throw new Error(`${name}: third argument must be an integer`);
+  if (step === 0) throw new Error(`${name}: step must not be zero`);
+
+  const distance = end - start;
+  const length =
+    (step > 0 && distance > 0) || (step < 0 && distance < 0)
+      ? Math.ceil(Math.abs(distance / step))
+      : 0;
+  meter.guardSize(length);
+  return Array.from({ length }, (_, index) => start + index * step);
+}
+
+function flattenToDepth(arr: JSONType[], depth: number, meter: Meter): JSONType[] {
+  const result: JSONType[] = [];
+  const stack = [{ values: arr, index: 0, depth }];
+  while (stack.length > 0) {
+    const frame = stack[stack.length - 1]!;
+    if (frame.index >= frame.values.length) {
+      stack.pop();
+      continue;
+    }
+    const value = frame.values[frame.index++]!;
+    meter.charge(1);
+    if (frame.depth > 0 && Array.isArray(value)) {
+      stack.push({ values: value, index: 0, depth: frame.depth - 1 });
+    } else {
+      meter.guardSize(result.length + 1);
+      result.push(value);
+    }
+  }
+  return result;
+}
+
+function incrementCount(counts: Record<string, number>, key: string): void {
+  if (Object.hasOwn(counts, key)) {
+    counts[key]!++;
+    return;
+  }
+  Object.defineProperty(counts, key, {
+    value: 1,
+    writable: true,
+    enumerable: true,
+    configurable: true,
+  });
+}
+
+function numericArgExtrema(name: "argmin" | "argmax", arr: JSONType, meter: Meter): number | null {
+  if (!Array.isArray(arr)) throw new Error(`${name}: argument must be an array`);
+  meter.charge(arr.length);
+  if (arr.length === 0) return null;
+  let bestIndex = 0;
+  let best = arr[0];
+  if (typeof best !== "number") throw new Error(`${name}: array elements must be numbers`);
+  for (let index = 1; index < arr.length; index++) {
+    const value = arr[index]!;
+    if (typeof value !== "number") throw new Error(`${name}: array elements must be numbers`);
+    if ((name === "argmin" && value < best) || (name === "argmax" && value > best)) {
+      best = value;
+      bestIndex = index;
+    }
+  }
+  return bestIndex;
+}
+
 function arrayMapBuiltin(name: string, indexed: boolean): BuiltinFunction {
   return builtin((args, call, _functions, meter) => {
     const [callback, arr] = args;
@@ -215,6 +291,55 @@ function arrayGroupByBuiltin(name: string, indexed: boolean): BuiltinFunction {
   }, 2);
 }
 
+function arrayPartitionBuiltin(): BuiltinFunction {
+  return builtin((args, call, _functions, meter) => {
+    const [predicate, arr] = args;
+    if (!Array.isArray(arr)) throw new Error("partition: second argument must be an array");
+    meter.charge(arr.length);
+    const matches: JSONType[] = [];
+    const nonMatches: JSONType[] = [];
+    for (const item of arr) {
+      const target = call(predicate!, [item]) ? matches : nonMatches;
+      meter.guardSize(target.length + 1);
+      target.push(item);
+    }
+    return [matches, nonMatches];
+  }, 2);
+}
+
+function arrayScanBuiltin(): BuiltinFunction {
+  return builtin((args, call, _functions, meter) => {
+    const [callback, initial, arr] = args;
+    if (!Array.isArray(arr)) throw new Error("scan: third argument must be an array");
+    meter.charge(arr.length);
+    meter.guardSize(arr.length);
+    const result: JSONType[] = [];
+    let accumulator: JSONType = initial ?? null;
+    for (const item of arr) {
+      accumulator = call(callback!, [accumulator, item]);
+      result.push(accumulator);
+    }
+    return result;
+  }, 3);
+}
+
+function arrayCountByBuiltin(): BuiltinFunction {
+  return builtin((args, call, _functions, meter) => {
+    const [keyFn, arr] = args;
+    if (!Array.isArray(arr)) throw new Error("countBy: second argument must be an array");
+    meter.charge(arr.length);
+    const counts: Record<string, number> = {};
+    for (const item of arr) {
+      const key = call(keyFn!, [item]);
+      if (typeof key !== "string" && typeof key !== "number") {
+        throw new Error("countBy: key function must return a string or number");
+      }
+      incrementCount(counts, String(key));
+    }
+    return counts;
+  }, 2);
+}
+
 function arraySortByBuiltin(name: string, indexed: boolean): BuiltinFunction {
   return builtin((args, call, _functions, meter) => {
     const [keyFn, arr] = args;
@@ -299,6 +424,18 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
       }
       return finiteMathResult("sum", total);
     }),
+    product: meteredPure((meter, arr) => {
+      if (!Array.isArray(arr)) throw new Error("product: argument must be an array");
+      meter.charge(arr.length);
+      let total = 1;
+      for (const value of arr) {
+        if (typeof value !== "number") throw new Error("product: array elements must be numbers");
+        total *= value;
+      }
+      return finiteMathResult("product", total);
+    }),
+    argmin: meteredPure((meter, arr) => numericArgExtrema("argmin", arr, meter)),
+    argmax: meteredPure((meter, arr) => numericArgExtrema("argmax", arr, meter)),
     sqrt: pure((value: number) => finiteMathResult("sqrt", Math.sqrt(value))),
     pow: pure((base: number, exponent: number) =>
       finiteMathResult("pow", Math.pow(base, exponent)),
@@ -398,6 +535,12 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
       meter.guardSize(len);
       return Array.from({ length: len }, (_, i) => i);
     }, 1),
+    rangeFrom: builtin((args, _call, _functions, meter) => {
+      return rangeValues("rangeFrom", args[0], args[1], 1, meter);
+    }, 2),
+    rangeBy: builtin((args, _call, _functions, meter) => {
+      return rangeValues("rangeBy", args[0], args[1], args[2], meter);
+    }, 3),
     slice: pure((value: any[] | string, start: number, end?: number) => {
       if (!Array.isArray(value) && typeof value !== "string")
         throw new Error("slice: first argument must be an array or string");
@@ -463,6 +606,38 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
       }
       throw new Error("repeat: first argument must be a string or array");
     }, 2),
+    chunk: meteredPure((meter, arr, size) => {
+      if (!Array.isArray(arr)) throw new Error("chunk: first argument must be an array");
+      if (typeof size !== "number" || !Number.isInteger(size) || size <= 0)
+        throw new Error("chunk: size must be a positive integer");
+      meter.charge(arr.length);
+      const chunkCount = Math.ceil(arr.length / size);
+      meter.guardSize(chunkCount);
+      const result: JSONType[][] = [];
+      for (let index = 0; index < arr.length; index += size) {
+        const chunk = arr.slice(index, index + size);
+        meter.guardSize(chunk.length);
+        result.push(chunk);
+      }
+      return result;
+    }),
+    frequencies: meteredPure((meter, arr) => {
+      if (!Array.isArray(arr)) throw new Error("frequencies: argument must be an array");
+      meter.charge(arr.length);
+      const counts: Record<string, number> = {};
+      for (const value of arr) {
+        if (
+          value !== null &&
+          typeof value !== "string" &&
+          typeof value !== "number" &&
+          typeof value !== "boolean"
+        ) {
+          throw new Error("frequencies: array elements must be scalars");
+        }
+        incrementCount(counts, String(value));
+      }
+      return counts;
+    }),
     // Membership uses the same structural equality as `eq` for array elements;
     // on strings these stay substring/char-index checks.
     includes: meteredPure((meter, arr: any[] | string, value: any) => {
@@ -490,6 +665,12 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
       if (!Array.isArray(arr)) throw new Error("flatten: argument must be an array");
       meter.charge(arr.length);
       return arr.flat();
+    }),
+    flattenDepth: meteredPure((meter, arr, depth) => {
+      if (!Array.isArray(arr)) throw new Error("flattenDepth: first argument must be an array");
+      if (typeof depth !== "number" || !Number.isInteger(depth) || depth < 0)
+        throw new Error("flattenDepth: depth must be a non-negative integer");
+      return flattenToDepth(arr, depth, meter);
     }),
     setAt: pure((arr: any[], idx: number, value: any) => {
       if (!Array.isArray(arr)) throw new Error("setAt: first argument must be an array");
@@ -609,6 +790,8 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
     filterIndexed: arrayFilterBuiltin("filterIndexed", true),
     reduce: arrayReduceBuiltin("reduce", false),
     reduceIndexed: arrayReduceBuiltin("reduceIndexed", true),
+    partition: arrayPartitionBuiltin(),
+    scan: arrayScanBuiltin(),
     find: arrayFindBuiltin("find", false, false),
     findIndexed: arrayFindBuiltin("findIndexed", true, false),
     findIndex: arrayFindBuiltin("findIndex", false, true),
@@ -619,6 +802,7 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
     everyIndexed: arrayQuantifierBuiltin("everyIndexed", true, "every"),
     count: arrayQuantifierBuiltin("count", false, "count"),
     countIndexed: arrayQuantifierBuiltin("countIndexed", true, "count"),
+    countBy: arrayCountByBuiltin(),
     sort: builtin((args, call, _functions, meter) => {
       if (args.length === 1) {
         const arr = args[0];

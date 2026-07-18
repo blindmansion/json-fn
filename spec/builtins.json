@@ -145,6 +145,37 @@
         "returns": { "type": "number" }
       }
     ] },
+    "product": {
+      "description": "Multiply an array of numbers, returning one for an empty array; throws if the result is not finite.",
+      "category": "arithmetic",
+      "signatures": [
+      {
+        "required": [{ "type": "array", "items": { "type": "integer" } }], "optional": [],
+        "returns": { "type": "integer" }
+      },
+      {
+        "required": [{ "type": "array", "items": { "type": "number" } }], "optional": [],
+        "returns": { "type": "number" }
+      }
+    ] },
+    "argmin": {
+      "description": "Return the index of the first smallest number, or null for an empty array.",
+      "category": "arithmetic",
+      "signatures": [
+      {
+        "required": [{ "type": "array", "items": { "type": "number" } }], "optional": [],
+        "returns": { "anyOf": [{ "type": "integer" }, { "type": "null" }] }
+      }
+    ] },
+    "argmax": {
+      "description": "Return the index of the first largest number, or null for an empty array.",
+      "category": "arithmetic",
+      "signatures": [
+      {
+        "required": [{ "type": "array", "items": { "type": "number" } }], "optional": [],
+        "returns": { "anyOf": [{ "type": "integer" }, { "type": "null" }] }
+      }
+    ] },
     "sqrt": {
       "description": "Return the square root of a number; throws if the result is not finite.",
       "category": "arithmetic",
@@ -498,6 +529,44 @@
         "returns": { "type": "array", "items": { "$tvar": "T" } }
       }
     ] },
+    "flattenDepth": {
+      "description": "Flatten an array by a non-negative number of levels.",
+      "category": "arrays",
+      "signatures": [
+      {
+        "required": [{ "type": "array" }, { "type": "integer" }], "optional": [],
+        "returns": { "type": "array" }
+      }
+    ] },
+    "chunk": {
+      "description": "Split an array into consecutive chunks of a positive size.",
+      "category": "arrays",
+      "signatures": [
+      {
+        "typeParams": ["T"],
+        "required": [
+          { "type": "array", "items": { "$tvar": "T" } },
+          { "type": "integer" }
+        ],
+        "optional": [],
+        "returns": {
+          "type": "array",
+          "items": { "type": "array", "items": { "$tvar": "T" } }
+        }
+      }
+    ] },
+    "frequencies": {
+      "description": "Count occurrences of scalar values after converting each value to an object key.",
+      "category": "arrays",
+      "signatures": [
+      {
+        "required": [
+          { "type": "array", "items": { "type": ["null", "boolean", "number", "string"] } }
+        ],
+        "optional": [],
+        "returns": { "type": "object", "additionalProperties": { "type": "integer" } }
+      }
+    ] },
     "concat": {
       "description": "Concatenate any number of arrays.",
       "category": "arrays",
@@ -515,6 +584,24 @@
       "signatures": [
       {
         "required": [{ "type": "integer" }], "optional": [],
+        "returns": { "type": "array", "items": { "type": "integer" } }
+      }
+    ] },
+    "rangeFrom": {
+      "description": "Create a half-open ascending range of integers between two endpoints.",
+      "category": "arrays",
+      "signatures": [
+      {
+        "required": [{ "type": "integer" }, { "type": "integer" }], "optional": [],
+        "returns": { "type": "array", "items": { "type": "integer" } }
+      }
+    ] },
+    "rangeBy": {
+      "description": "Create a half-open range of integers using a non-zero step.",
+      "category": "arrays",
+      "signatures": [
+      {
+        "required": [{ "type": "integer" }, { "type": "integer" }, { "type": "integer" }], "optional": [],
         "returns": { "type": "array", "items": { "type": "integer" } }
       }
     ] },
@@ -788,6 +875,53 @@
         "returns": { "$tvar": "U" }
       }
     ] },
+    "partition": {
+      "description": "Split an array into matching and non-matching elements after one predicate call per element.",
+      "category": "higher-order",
+      "signatures": [
+      {
+        "typeParams": ["T"],
+        "required": [
+          {
+            "$fnType": {
+              "required": [{ "$tvar": "T" }], "optional": [],
+              "returns": { "type": "boolean" }
+            }
+          },
+          { "type": "array", "items": { "$tvar": "T" } }
+        ],
+        "optional": [],
+        "returns": {
+          "type": "array",
+          "prefixItems": [
+            { "type": "array", "items": { "$tvar": "T" } },
+            { "type": "array", "items": { "$tvar": "T" } }
+          ],
+          "items": false,
+          "minItems": 2
+        }
+      }
+    ] },
+    "scan": {
+      "description": "Return each post-callback accumulator produced while folding an array.",
+      "category": "higher-order",
+      "signatures": [
+      {
+        "typeParams": ["T", "U"],
+        "required": [
+          {
+            "$fnType": {
+              "required": [{ "$tvar": "U" }, { "$tvar": "T" }], "optional": [],
+              "returns": { "$tvar": "U" }
+            }
+          },
+          { "$tvar": "U" },
+          { "type": "array", "items": { "$tvar": "T" } }
+        ],
+        "optional": [],
+        "returns": { "type": "array", "items": { "$tvar": "U" } }
+      }
+    ] },
     "find": {
       "description": "Return the first array element matching a callback, or null.",
       "category": "higher-order",
@@ -976,6 +1110,25 @@
         ],
         "optional": [],
         "returns": { "type": "integer" }
+      }
+    ] },
+    "countBy": {
+      "description": "Count array elements by callback-produced string or numeric keys.",
+      "category": "higher-order",
+      "signatures": [
+      {
+        "typeParams": ["T"],
+        "required": [
+          {
+            "$fnType": {
+              "required": [{ "$tvar": "T" }], "optional": [],
+              "returns": { "anyOf": [{ "type": "string" }, { "type": "number" }] }
+            }
+          },
+          { "type": "array", "items": { "$tvar": "T" } }
+        ],
+        "optional": [],
+        "returns": { "type": "object", "additionalProperties": { "type": "integer" } }
       }
     ] },
     "sort": {

@@ -6,6 +6,7 @@ import {
   CallableTypeRuleContractError,
   CallableTypeRuleOwnershipError,
   DuplicateCallableTypeRuleError,
+  getArity,
   mergeCallableTypeRuleRegistries,
 } from "../../src";
 import { classifySchema, SchemaKind, type Schema } from "../../src/schema/schema.ts";
@@ -477,11 +478,19 @@ describe("Section F — builtin signatures", () => {
   });
 
   describe("tier 1 — monomorphic & concrete overloads", () => {
-    test("max/min/sum preserve integer and widen to number", () => {
+    test("numeric aggregates preserve their declared result families", () => {
       expect(synthB(call("max", [1, 2, 3])).type).toEqual({ type: "integer" });
       expect(synthB(call("min", [1.5, 2])).type).toEqual({ type: "number" });
       expect(synthB(call("sum", [1, 2, 3])).type).toEqual({ type: "integer" });
       expect(synthB(call("sum", [1.5, 2])).type).toEqual({ type: "number" });
+      expect(synthB(call("product", [1, 2, 3])).type).toEqual({ type: "integer" });
+      expect(synthB(call("product", [1.5, 2])).type).toEqual({ type: "number" });
+      expect(
+        isSubschema(synthB(call("argmin", [3, 1, 2])).type, { type: ["integer", "null"] }),
+      ).toBe(true);
+      expect(isSubschema(synthB(call("argmax", [])).type, { type: ["integer", "null"] })).toBe(
+        true,
+      );
     });
 
     test("math functions return numbers", () => {
@@ -507,8 +516,10 @@ describe("Section F — builtin signatures", () => {
       expect(isSubschema(synthB(call("arity", 1)).type, { type: ["integer", "null"] })).toBe(true);
     });
 
-    test("range/split/join/strcat", () => {
+    test("range families, split, join, and strcat", () => {
       expect(isSubschema(synthB(call("range", 5)).type, arrOfInt)).toBe(true);
+      expect(isSubschema(synthB(call("rangeFrom", 2, 5)).type, arrOfInt)).toBe(true);
+      expect(isSubschema(synthB(call("rangeBy", 5, 0, -2)).type, arrOfInt)).toBe(true);
       expect(isSubschema(synthB(call("split", "a,b", ",")).type, { type: "array", items: S })).toBe(
         true,
       );
@@ -573,6 +584,16 @@ describe("Section F — builtin signatures", () => {
         [1, 2, 3],
       );
       expect(isSubschema(synthB(call("flatten", nested)).type, arrOfInt)).toBe(true);
+      expect(classifySchema(synthB(call("flattenDepth", [[1]], 1)).type)).toBe(SchemaKind.Array);
+    });
+
+    test("chunk preserves its element type and frequencies returns integer counts", () => {
+      const chunks: Schema = { type: "array", items: arrOfInt };
+      expect(isSubschema(synthB(call("chunk", [1, 2, 3], 2)).type, chunks)).toBe(true);
+      expect(synthB(call("frequencies", [1, "1", true, null])).type).toEqual({
+        type: "object",
+        additionalProperties: I,
+      });
     });
 
     test("slice: array arm stays generic, string arm returns string", () => {
@@ -772,6 +793,62 @@ describe("Section F — builtin signatures", () => {
           (d) => d.path.join(".") === "$args[0].$return",
         ),
       ).toBe(true);
+    });
+
+    test("partition, scan, and countBy infer their collection result types", () => {
+      const isPositive = { $params: ["n"], $return: call("gt", { $var: "n" }, 0) };
+      const partitionType: Schema = {
+        type: "array",
+        prefixItems: [arrOfInt, arrOfInt],
+        items: false,
+        minItems: 2,
+      };
+      expect(
+        isSubschema(synthB(call("partition", isPositive, [-1, 0, 1])).type, partitionType),
+      ).toBe(true);
+
+      const add = {
+        $params: ["acc", "n"],
+        $return: call("add", { $var: "acc" }, { $var: "n" }),
+      };
+      expect(isSubschema(synthB(call("scan", add, 0, [1, 2, 3])).type, arrOfInt)).toBe(true);
+
+      const parity = { $params: ["n"], $return: call("mod", { $var: "n" }, 2) };
+      expect(synthB(call("countBy", parity, [1, 2, 3])).type).toEqual({
+        type: "object",
+        additionalProperties: I,
+      });
+    });
+
+    test("new collection callables have fixed contextual arities", () => {
+      const expectedArities: Record<string, number> = {
+        range: 1,
+        rangeFrom: 2,
+        rangeBy: 3,
+        flatten: 1,
+        flattenDepth: 2,
+        chunk: 2,
+        partition: 2,
+        scan: 3,
+        countBy: 2,
+        frequencies: 1,
+        product: 1,
+        argmin: 1,
+        argmax: 1,
+      };
+      for (const [name, arity] of Object.entries(expectedArities)) {
+        const signatures = BT.builtins[name]!.signatures;
+        for (const signature of signatures) {
+          expect(signature.required, name).toHaveLength(arity);
+          expect(signature.optional, name).toEqual([]);
+        }
+      }
+    });
+
+    test("unary range and flatten retain callback-friendly runtime arities", () => {
+      const stdlib = createStdlib();
+      expect(getArity("range", stdlib)).toBe(1);
+      expect(getArity("flatten", stdlib)).toBe(1);
     });
 
     test("sort/sortBy preserve the element type", () => {

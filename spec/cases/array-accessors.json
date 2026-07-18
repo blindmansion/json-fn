@@ -335,6 +335,75 @@
       "description": "repeat: rejects a negative count",
       "body": { "$return": { "$call": "repeat", "$args": [[1, 2], -1] } },
       "error": "count must be a non-negative integer"
+    },
+    {
+      "description": "range: remains a zero-based half-open range",
+      "body": {
+        "$return": [
+          { "$call": "range", "$args": [4] },
+          { "$call": "range", "$args": [0] },
+          { "$call": "range", "$args": [-2] }
+        ]
+      },
+      "expected": [[0, 1, 2, 3], [], []]
+    },
+    {
+      "description": "rangeFrom: creates an ascending half-open range",
+      "body": { "$return": { "$call": "rangeFrom", "$args": [-2, 3] } },
+      "expected": [-2, -1, 0, 1, 2]
+    },
+    {
+      "description": "rangeFrom: descending endpoints produce an empty range",
+      "body": { "$return": { "$call": "rangeFrom", "$args": [3, -2] } },
+      "expected": []
+    },
+    {
+      "description": "rangeBy: supports positive and negative steps",
+      "body": {
+        "$return": [
+          { "$call": "rangeBy", "$args": [1, 8, 3] },
+          { "$call": "rangeBy", "$args": [7, 0, -3] }
+        ]
+      },
+      "expected": [
+        [1, 4, 7],
+        [7, 4, 1]
+      ]
+    },
+    {
+      "description": "rangeBy: mismatched directions produce empty ranges",
+      "body": {
+        "$return": [
+          { "$call": "rangeBy", "$args": [0, 5, -1] },
+          { "$call": "rangeBy", "$args": [5, 0, 1] }
+        ]
+      },
+      "expected": [[], []]
+    },
+    {
+      "description": "rangeBy: rejects a zero step",
+      "body": { "$return": { "$call": "rangeBy", "$args": [0, 5, 0] } },
+      "error": "step must not be zero"
+    },
+    {
+      "description": "range families: reject non-integer endpoints and steps",
+      "body": { "$return": { "$call": "rangeBy", "$args": [0, 5, 1.5] } },
+      "error": "third argument must be an integer"
+    },
+    {
+      "description": "rangeFrom: rejects a non-integer start",
+      "body": { "$return": { "$call": "rangeFrom", "$args": [0.5, 5] } },
+      "error": "first argument must be an integer"
+    },
+    {
+      "description": "rangeFrom: rejects a non-integer end",
+      "body": { "$return": { "$call": "rangeFrom", "$args": [0, 5.5] } },
+      "error": "second argument must be an integer"
+    },
+    {
+      "description": "range: can be passed directly as a unary callback",
+      "body": { "$return": { "$call": "map", "$args": ["range", [0, 2, 3]] } },
+      "expected": [[], [0, 1], [0, 1, 2]]
     }
   ]
 }

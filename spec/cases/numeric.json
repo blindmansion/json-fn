@@ -230,6 +230,76 @@
       "description": "pow: rejects a non-finite result",
       "body": { "$return": { "$call": "pow", "$args": [0, -1] } },
       "error": "result must be a finite number"
+    },
+    {
+      "description": "product: multiplies integer elements",
+      "body": { "$return": { "$call": "product", "$args": [[2, 3, 4]] } },
+      "expected": 24
+    },
+    {
+      "description": "product: multiplies decimal and negative elements",
+      "body": { "$return": { "$call": "product", "$args": [[1.5, -2, 3]] } },
+      "expected": -9
+    },
+    {
+      "description": "product: empty array returns one",
+      "body": { "$return": { "$call": "product", "$args": [[]] } },
+      "expected": 1
+    },
+    {
+      "description": "product: rejects a non-array argument",
+      "body": { "$return": { "$call": "product", "$args": [42] } },
+      "error": "must be an array"
+    },
+    {
+      "description": "product: rejects a non-number element",
+      "body": { "$return": { "$call": "product", "$args": [[2, "3"]] } },
+      "error": "elements must be numbers"
+    },
+    {
+      "description": "product: rejects a non-finite result",
+      "body": { "$return": { "$call": "product", "$args": [[1e308, 2]] } },
+      "error": "result must be a finite number"
+    },
+    {
+      "description": "argmin and argmax: return first best indices",
+      "body": {
+        "$return": [
+          { "$call": "argmin", "$args": [[3, -2, 4, -2]] },
+          { "$call": "argmax", "$args": [[3, 9, 4, 9]] }
+        ]
+      },
+      "expected": [1, 1]
+    },
+    {
+      "description": "argmin and argmax: support decimal and negative values",
+      "body": {
+        "$return": [
+          { "$call": "argmin", "$args": [[-1.5, -3.25, 0]] },
+          { "$call": "argmax", "$args": [[-1.5, -3.25, 0]] }
+        ]
+      },
+      "expected": [1, 2]
+    },
+    {
+      "description": "argmin and argmax: empty arrays return null",
+      "body": {
+        "$return": [
+          { "$call": "argmin", "$args": [[]] },
+          { "$call": "argmax", "$args": [[]] }
+        ]
+      },
+      "expected": [null, null]
+    },
+    {
+      "description": "argmin: rejects a non-array argument",
+      "body": { "$return": { "$call": "argmin", "$args": [42] } },
+      "error": "must be an array"
+    },
+    {
+      "description": "argmax: rejects a non-number element",
+      "body": { "$return": { "$call": "argmax", "$args": [[1, "2"]] } },
+      "error": "elements must be numbers"
     }
   ]
 }

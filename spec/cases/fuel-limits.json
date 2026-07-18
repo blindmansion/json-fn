@@ -228,6 +228,52 @@
       "body": { "$return": { "$call": "map", "$args": ["neg", [1, 2, 3]] } },
       "limits": { "maxFuel": 1000 },
       "expected": [-1, -2, -3]
+    },
+    {
+      "description": "product charges fuel for traversing its input",
+      "body": {
+        "$return": { "$call": "product", "$args": [{ "$call": "rangeFrom", "$args": [1, 101] }] }
+      },
+      "limits": { "maxFuel": 150 },
+      "error": "Maximum fuel"
+    },
+    {
+      "description": "frequencies charges fuel for traversing its input",
+      "body": {
+        "$return": {
+          "$call": "frequencies",
+          "$args": [{ "$call": "repeat", "$args": [["x"], 100] }]
+        }
+      },
+      "limits": { "maxFuel": 150 },
+      "error": "Maximum fuel"
+    },
+    {
+      "description": "scan charges native traversal and callback invocation fuel",
+      "body": {
+        "$return": {
+          "$call": "scan",
+          "$args": ["add", 0, { "$call": "range", "$args": [100] }]
+        }
+      },
+      "limits": { "maxFuel": 250 },
+      "error": "Maximum fuel"
+    },
+    {
+      "description": "flattenDepth charges fuel for each visited nested element",
+      "body": {
+        "$return": {
+          "$call": "length",
+          "$args": [
+            {
+              "$call": "flattenDepth",
+              "$args": [{ "$call": "repeat", "$args": [[[]], 100] }, 2]
+            }
+          ]
+        }
+      },
+      "limits": { "maxFuel": 150 },
+      "error": "Maximum fuel"
     }
   ]
 }
