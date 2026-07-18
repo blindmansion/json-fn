@@ -1,6 +1,6 @@
 # Evaluator and runtime reorganization
 
-Status: active. Phase 0 completed 2026-07-18.
+Status: active. Phases 0–1 completed 2026-07-18.
 
 ## Summary
 
@@ -390,6 +390,20 @@ to freeze the broader evaluator error surface.
 The compatibility file protects untracked deep imports and makes the structural
 move independently reviewable. It can be removed only after deciding whether
 deep `src/evaluate` imports are supported.
+
+#### Phase 1 record (2026-07-18)
+
+The evaluator implementation now lives in `src/eval/interpreter.ts`, with
+`src/eval/index.ts` as the internal barrel. `src/index.ts` and `host.ts` import
+through that barrel, while `src/evaluate.ts` preserves the previous deep-import
+path as a compatibility re-export. No evaluator function bodies changed.
+
+The post-move verification was green:
+
+- `bun run check` completed with no type, lint, or formatting errors;
+- `bun test` passed 1,582 tests across 26 files; and
+- the import graph retained only the two pre-existing cycles documented under
+  **Shared infrastructure**, with no cycle involving `eval/`.
 
 ### Phase 2: Extract leaf concerns
 

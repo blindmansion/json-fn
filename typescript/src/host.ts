@@ -15,7 +15,7 @@
 import type { ExecutionLimits, FunctionRegistry, JSONType } from "./types";
 import { buildEffectNamespace, EFFECTS_BINDING, type EffectManifest } from "./effects";
 import type { CallableTypeRuleRegistry } from "./check/builtin-types";
-import { prepareProgram } from "./evaluate";
+import { prepareProgram } from "./eval";
 import { loadBuiltinTable } from "./builtins";
 import {
   EnvironmentConfigurationError,

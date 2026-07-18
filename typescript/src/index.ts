@@ -1,4 +1,4 @@
-export { callFunction, callProgram, prepareProgram, createPerfStats } from "./evaluate";
+export { callFunction, callProgram, prepareProgram, createPerfStats } from "./eval";
 export { mergeDefinitionPools, ReservedDefinitionError } from "./definition-pool";
 export type { DefinitionPool, DefinitionSources } from "./definition-pool";
 export { CallableTableValidationError, loadBuiltinTable, validateCallableTable } from "./builtins";
