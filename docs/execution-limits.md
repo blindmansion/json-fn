@@ -28,8 +28,9 @@ Fuel is deterministic and additive:
   costs separately.
 
 Examples of explicitly metered native work include traversing numeric
-aggregates, collection higher-order functions, sorting comparisons, regex input,
-and structural comparisons performed by `unique`.
+aggregates, collection higher-order functions, structural equality and
+membership, object construction, string scans, sorting comparisons, and regex
+input.
 
 Evaluation fails as soon as accumulated fuel exceeds `maxFuel`.
 

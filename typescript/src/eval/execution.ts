@@ -88,8 +88,9 @@ export function guardValueSize(context: EvaluationContext, size: number): void {
 
 // Charges fuel and enforces the size cap for values produced by host functions,
 // proportional to the length of any produced array or string. This is the
-// chokepoint that keeps size-growing pure builtins (concat, flatten, split,
-// join, ...) honest without each needing to self-meter.
+// chokepoint that accounts for allocation by size-growing pure builtins. A
+// metered pure function may additionally charge for input traversal when its
+// output can be smaller than the work it performs.
 export function accountForResult(context: EvaluationContext, result: JSONType): void {
   if (typeof result === "string" || Array.isArray(result)) {
     guardValueSize(context, result.length);

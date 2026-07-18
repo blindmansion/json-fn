@@ -1,5 +1,5 @@
 import type { JSONType, BuiltinFunction, FunctionRegistry, Meter, RuntimeContext } from "./types";
-import { BUILTIN_MARKER, PURE_MARKER, ARITY_MARKER } from "./types";
+import { BUILTIN_MARKER, PURE_MARKER, METERED_PURE_MARKER, ARITY_MARKER } from "./types";
 import { isFunctionBody } from "./function-value";
 import { requireParameterLayout } from "./params";
 
@@ -24,6 +24,20 @@ export function isPure(fn: unknown): boolean {
 export function pure(fn: Function): Function {
   (fn as any)[PURE_MARKER] = true;
   return fn;
+}
+
+export function meteredPure(
+  fn: (meter: Meter, ...args: any[]) => JSONType,
+  arity = Math.max(0, fn.length - 1),
+): Function {
+  (fn as any)[PURE_MARKER] = true;
+  (fn as any)[METERED_PURE_MARKER] = true;
+  (fn as any)[ARITY_MARKER] = arity;
+  return fn;
+}
+
+export function isMeteredPure(fn: unknown): boolean {
+  return typeof fn === "function" && METERED_PURE_MARKER in fn;
 }
 
 export function builtin(

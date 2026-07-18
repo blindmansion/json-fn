@@ -134,6 +134,69 @@
       "error": "Maximum fuel"
     },
     {
+      "description": "includes charges fuel for unsuccessful input traversal",
+      "body": {
+        "$return": { "$call": "includes", "$args": [{ "$call": "range", "$args": [100] }, -1] }
+      },
+      "limits": { "maxFuel": 150 },
+      "error": "Maximum fuel"
+    },
+    {
+      "description": "structural equality charges fuel for visited values",
+      "body": {
+        "$return": {
+          "$call": "eq",
+          "$args": [
+            { "$call": "range", "$args": [100] },
+            { "$call": "range", "$args": [100] }
+          ]
+        }
+      },
+      "limits": { "maxFuel": 250 },
+      "error": "Maximum fuel"
+    },
+    {
+      "description": "join charges fuel for traversing inputs that produce an empty string",
+      "body": {
+        "$return": {
+          "$call": "join",
+          "$args": [{ "$call": "repeat", "$args": [[""], 100] }, ""]
+        }
+      },
+      "limits": { "maxFuel": 150 },
+      "error": "Maximum fuel"
+    },
+    {
+      "description": "trim charges fuel when a long input produces an empty string",
+      "body": {
+        "$return": {
+          "$call": "trim",
+          "$args": [{ "$call": "repeat", "$args": [" ", 100] }]
+        }
+      },
+      "limits": { "maxFuel": 150 },
+      "error": "Maximum fuel"
+    },
+    {
+      "description": "fromEntries charges fuel even though its result is an object",
+      "body": {
+        "$return": {
+          "$call": "fromEntries",
+          "$args": [
+            {
+              "$call": "zip",
+              "$args": [
+                { "$call": "repeat", "$args": [["key"], 100] },
+                { "$call": "range", "$args": [100] }
+              ]
+            }
+          ]
+        }
+      },
+      "limits": { "maxFuel": 350 },
+      "error": "Maximum fuel"
+    },
+    {
       "description": "constructing and measuring 100 empty arrays fits the flatten test budget",
       "body": {
         "$return": {

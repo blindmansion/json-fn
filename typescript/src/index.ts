@@ -38,7 +38,7 @@ export type {
   CallableTypeRuleV1,
 } from "./check/builtin-types";
 export type { Defs, Schema } from "./schema";
-export { builtin, pure, raw, getArity } from "./utils";
+export { builtin, pure, meteredPure, raw, getArity } from "./utils";
 export type {
   JSONType,
   BuiltinFunction,

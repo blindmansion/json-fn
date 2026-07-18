@@ -88,6 +88,7 @@ type PropertyAccess = {
 
 const BUILTIN_MARKER = Symbol("builtin");
 const PURE_MARKER = Symbol("pure");
+const METERED_PURE_MARKER = Symbol("meteredPure");
 const ARITY_MARKER = Symbol("arity");
 
 // Passed to builtins so they can account for work/size proportional to their
@@ -188,4 +189,4 @@ export type {
   PropertyAccess,
   EvaluatedFunctionCall,
 };
-export { BUILTIN_MARKER, PURE_MARKER, ARITY_MARKER, ExpressionType };
+export { BUILTIN_MARKER, PURE_MARKER, METERED_PURE_MARKER, ARITY_MARKER, ExpressionType };

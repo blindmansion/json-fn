@@ -18,7 +18,7 @@ import type {
 } from "../types";
 import { ExpressionType } from "../types";
 import { exprError } from "../expression-error";
-import { isCommentKey, isPure, isBuiltin, isRaw, raw } from "../utils";
+import { isCommentKey, isPure, isMeteredPure, isBuiltin, isRaw, raw } from "../utils";
 import {
   CONTRACT_KEY,
   enforceRuntimeContract,
@@ -122,10 +122,7 @@ export function callFunctionInternal(
         if (isBuiltin(entry)) {
           const call = (f: JSONType, a: JSONType[]) =>
             callFunctionInternal(f as FunctionDeclaration, a, context);
-          const meter: Meter = {
-            charge: (amount: number) => chargeFuel(context, amount),
-            guardSize: (size: number) => guardValueSize(context, size),
-          };
+          const meter = meterForContext(context);
           result = entry(args, call, functions, meter, { defs: context.runtimeDefs ?? {} });
           accountForResult(context, result);
         } else {
@@ -153,6 +150,13 @@ export function callFunctionInternal(
   }
 }
 
+function meterForContext(context: EvaluationContext): Meter {
+  return {
+    charge: (amount: number) => chargeFuel(context, amount),
+    guardSize: (size: number) => guardValueSize(context, size),
+  };
+}
+
 function callExternalFunction(
   fn: Function,
   args: JSONType[],
@@ -164,7 +168,7 @@ function callExternalFunction(
   if (isPure(fn)) {
     let result: JSONType;
     try {
-      result = fn(...args);
+      result = isMeteredPure(fn) ? fn(meterForContext(context), ...args) : fn(...args);
     } catch (e) {
       throw new Error(`Error calling external function ${name}: ${e}`);
     }
