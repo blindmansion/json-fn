@@ -345,6 +345,51 @@ describe("environment runtime integration", () => {
     ).rejects.toThrow(RuntimeContractError);
   });
 
+  test("accepts entry arguments from the required count through the optional maximum", async () => {
+    const env = environment({
+      entry: {
+        name: "main",
+        required: [I],
+        optional: [I, I],
+        returns: { task: true },
+      },
+    });
+    const mod = module(`{
+      main: (required, optional?, defaulted = 7) =>
+        pure([required, optional, defaulted])
+    }`);
+    const host = { registry: createStdlib(), capabilities: {} };
+
+    expect(checkModule(mod, loadBuiltinTable(), { environment: env })).toEqual([]);
+    expect(await runTask(mod, env, [1], host)).toEqual([1, null, 7]);
+    expect(await runTask(mod, env, [1, 2], host)).toEqual([1, 2, 7]);
+    expect(await runTask(mod, env, [1, 2, 3], host)).toEqual([1, 2, 3]);
+    expect(runTask(mod, env, [], host)).rejects.toThrow(RuntimeContractError);
+    expect(runTask(mod, env, [1, 2, 3, 4], host)).rejects.toThrow(RuntimeContractError);
+    expect(runTask(mod, env, [1, "wrong"], host)).rejects.toThrow(RuntimeContractError);
+    expect(runTask(mod, env, [1, null], host)).rejects.toThrow(RuntimeContractError);
+  });
+
+  test("validates supplied nullable optional entry arguments without requiring them", async () => {
+    const nullableInteger: JSONType = { anyOf: [I, { type: "null" }] };
+    const env = environment({
+      entry: {
+        name: "main",
+        required: [],
+        optional: [nullableInteger],
+        returns: { task: nullableInteger },
+      },
+    });
+    const mod = module("{ main: (value?) => pure(value) }");
+    const host = { registry: createStdlib(), capabilities: {} };
+
+    expect(checkModule(mod, loadBuiltinTable(), { environment: env })).toEqual([]);
+    expect(await runTask(mod, env, [], host)).toBeNull();
+    expect(await runTask(mod, env, [3], host)).toBe(3);
+    expect(await runTask(mod, env, [null], host)).toBeNull();
+    expect(runTask(mod, env, ["wrong"], host)).rejects.toThrow(RuntimeContractError);
+  });
+
   test("validates direct functions and entry arguments/results", async () => {
     const env = environment({
       functions: {

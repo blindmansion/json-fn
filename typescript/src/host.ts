@@ -104,6 +104,7 @@ export async function runTask(
       type: "array",
       prefixItems: [...environment.entry.required, ...environment.entry.optional],
       items: false,
+      minItems: environment.entry.required.length,
     },
     prepared.defs,
     `entry "${environment.entry.name}" arguments`,

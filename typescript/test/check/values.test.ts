@@ -31,6 +31,19 @@ describe("valueSatisfies", () => {
     expect(valueSatisfies([1, 2, 3], { type: "array", items: { type: "integer" } })).toBe(true);
     expect(valueSatisfies([1, "x"], { type: "array", items: { type: "integer" } })).toBe(false);
   });
+  test("tuple minItems permits trailing prefix items to be omitted", () => {
+    const tuple: Schema = {
+      type: "array",
+      prefixItems: [{ type: "integer" }, { type: "string" }],
+      items: false,
+      minItems: 1,
+    };
+
+    expect(valueSatisfies([1], tuple)).toBe(true);
+    expect(valueSatisfies([1, "optional"], tuple)).toBe(true);
+    expect(valueSatisfies([], tuple)).toBe(false);
+    expect(valueSatisfies([1, "optional", 3], tuple)).toBe(false);
+  });
   test("recursive value via $defs", () => {
     const defs: Defs = {
       Tree: {

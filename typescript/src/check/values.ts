@@ -80,7 +80,9 @@ function arrayValueMatches(value: JSONType, o: Record<string, JSONType>, defs: D
     if (elemSchema === null || elemSchema === undefined) return false; // closed tuple overflow
     if (!valueSatisfies(value[i]!, elemSchema, defs)) return false;
   }
-  if (prefix.length > value.length) return false; // missing required tuple elements
+  const requiredPrefixLength =
+    typeof o.minItems === "number" ? Math.min(o.minItems, prefix.length) : prefix.length;
+  if (requiredPrefixLength > value.length) return false; // missing required tuple elements
 
   if (o.uniqueItems === true) {
     for (let i = 0; i < value.length; i++) {
