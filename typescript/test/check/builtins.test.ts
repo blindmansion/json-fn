@@ -1414,6 +1414,22 @@ describe("Section F — builtin signatures", () => {
       expect(isSubschema(r.type, arrOfInt)).toBe(true);
     });
 
+    test("a bare callback checks parameter defaults under its contextual scope", () => {
+      const callback = {
+        $params: [{ $param: "n", $default: "bad default" }],
+        $return: { $var: "n" },
+      };
+      const r = synthB(call("map", callback, [10, 20]));
+
+      expect(r.diagnostics).toEqual([
+        expect.objectContaining({
+          path: ["$args[0]", "$params[0]", "$default"],
+          expected: I,
+          actual: { const: "bad default" },
+        }),
+      ]);
+    });
+
     test("a bare callback rejects more fixed parameters than the builtin supplies", () => {
       const callback = {
         $params: ["n", "i", "extra"],

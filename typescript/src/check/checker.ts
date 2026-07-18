@@ -252,6 +252,18 @@ function bindParams(
   return { eager, defaults, valid };
 }
 
+// Defaults run in the completed body scope but retain the supplied-value type
+// chosen during parameter binding. They neither narrow nor redefine the local.
+function checkParameterDefaults(defaults: readonly TypedDefault[], ctx: CheckContext): void {
+  for (const defaultBinding of defaults) {
+    check(
+      defaultBinding.expression,
+      defaultBinding.expected,
+      parameterIssueContext(ctx, defaultBinding.path),
+    );
+  }
+}
+
 // Collect every `$var` name syntactically referenced by an expression. Used to
 // over-approximate a lazy local's free variables (§5.5 M2 §2.2b): we descend
 // into everything except `$raw` payloads (unevaluated data), *including* nested
@@ -1026,8 +1038,9 @@ function iifeBodyContext(
     ...body,
     $sig: { required: argTypes.slice(0, fixed), optional: [], returns: true },
   };
-  const { env, guards } = buildTypeScope(withSig, layout, ctx.env, ctx);
+  const { env, guards, parameterDefaults } = buildTypeScope(withSig, layout, ctx.env, ctx);
   const bctx: CheckContext = { ...ctx, env, guards };
+  checkParameterDefaults(parameterDefaults, bctx);
   for (const key of bindingKeys(body)) {
     const val = body[key]!;
     if (isBody(val)) checkBody(val, at(bctx, key));
@@ -1149,8 +1162,16 @@ function checkBody(
     return;
   }
   const sig = injectedSig ?? declaredSig;
-  const { env, guards } = buildTypeScope(body, layout, ctx.env, ctx, true, injectedSig);
+  const { env, guards, parameterDefaults } = buildTypeScope(
+    body,
+    layout,
+    ctx.env,
+    ctx,
+    true,
+    injectedSig,
+  );
   const bctx: CheckContext = { ...ctx, env, guards };
+  checkParameterDefaults(parameterDefaults, bctx);
   check(body.$return!, sig?.returns ?? true, at(bctx, "$return"));
   for (const key of bindingKeys(body)) {
     const val = body[key]!;
@@ -1182,6 +1203,7 @@ export {
   describeSigShape,
   acceptsArgumentCount,
   buildTypeScope,
+  checkParameterDefaults,
   synth,
   paramAt,
   checkArity,

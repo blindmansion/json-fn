@@ -210,6 +210,19 @@ describe("checkModule: clean programs", () => {
     expect(checkModule(mod)).toEqual([]);
   });
 
+  test("parameter defaults can reference the complete body scope", () => {
+    const mod = {
+      scopedDefault: body(
+        ["seed", { $param: "fallback", $default: { $var: "later" } }],
+        { required: [I], optional: [I], returns: I },
+        { $var: "fallback" },
+        { later: { $var: "seed" } },
+      ),
+    };
+
+    expect(checkModule(mod)).toEqual([]);
+  });
+
   test("object parameter patterns resolve refs before projecting field types", () => {
     const mod = {
       $types: {
@@ -388,6 +401,45 @@ describe("checkModule: diagnostics", () => {
         path: ["undeclaredRest", "$params"],
         message:
           "Body signature expects 1 required parameter(s), 0 optional parameter(s), and no rest parameter; body declares 1 required parameter(s), 0 optional parameter(s), and a rest parameter.",
+      },
+    ]);
+  });
+
+  test("parameter defaults are checked before the return at their exact paths", () => {
+    const fieldInput: Schema = {
+      type: "object",
+      properties: { count: I },
+      required: [],
+      additionalProperties: false,
+    };
+    const mod = {
+      badDefaults: body(
+        [
+          { $fields: [{ $field: "count", $default: "bad field" }] },
+          { $param: "fallback", $default: "bad positional" },
+        ],
+        { required: [fieldInput], optional: [I], returns: I },
+        "bad return",
+      ),
+    };
+
+    expect(
+      checkModule(mod).map(({ path, expected, actual }) => ({ path, expected, actual })),
+    ).toEqual([
+      {
+        path: ["badDefaults", "$params[0]", "$fields[0]", "$default"],
+        expected: I,
+        actual: { const: "bad field" },
+      },
+      {
+        path: ["badDefaults", "$params[1]", "$default"],
+        expected: I,
+        actual: { const: "bad positional" },
+      },
+      {
+        path: ["badDefaults", "$return"],
+        expected: I,
+        actual: { const: "bad return" },
       },
     ]);
   });
@@ -1039,6 +1091,20 @@ describe("check: do-block / where IIFE (Part A)", () => {
     const r = checkExpr(iife({ $var: "n" }, {}, ["n"], [5]));
     expect(r.type).toEqual({ const: 5 });
     expect(r.diagnostics).toEqual([]);
+  });
+
+  test("checks IIFE defaults under the synthesized body scope", () => {
+    const r = checkExpr(
+      iife({ $var: "value" }, {}, [{ $param: "value", $default: "bad default" }], [1]),
+    );
+
+    expect(r.diagnostics).toContainEqual(
+      expect.objectContaining({
+        path: ["$params[0]", "$default"],
+        expected: { const: 1 },
+        actual: { const: "bad default" },
+      }),
+    );
   });
 
   test("a nested error inside the body is surfaced within the body scope", () => {

@@ -30,6 +30,7 @@ import {
   buildTypeScope,
   check,
   checkArity,
+  checkParameterDefaults,
   paramAt,
   reportMismatch,
   synth,
@@ -304,9 +305,10 @@ function inferLambdaReturn(body: JSONType, expectedFn: Schema, ctx: CheckContext
       returns: shape.returns,
     },
   };
-  const { env, guards } = buildTypeScope(withSig, layout, ctx.env, ctx);
-  const bctx: CheckContext = { ...ctx, env, guards, path: [...ctx.path, "$return"] };
-  return synth(bodyObject.$return!, bctx);
+  const { env, guards, parameterDefaults } = buildTypeScope(withSig, layout, ctx.env, ctx);
+  const bctx: CheckContext = { ...ctx, env, guards };
+  checkParameterDefaults(parameterDefaults, bctx);
+  return synth(bodyObject.$return!, at(bctx, "$return"));
 }
 
 // Trial: can this overload accept the arguments? Synthesizes every concrete
