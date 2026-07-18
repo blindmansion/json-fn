@@ -148,4 +148,37 @@ describe("jfn check coverage reporting", () => {
       rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  test("--environment accepts an entry with optional and defaulted body slots", () => {
+    const dir = mkdtempSync(join(tmpdir(), "json-fn-check-entry-optionals-"));
+    const path = join(dir, "environment.json");
+    try {
+      writeFileSync(
+        path,
+        JSON.stringify({
+          functions: {},
+          effects: {},
+          entry: {
+            name: "main",
+            required: [{ type: "integer" }],
+            optional: [{ type: "integer" }, { type: "integer" }],
+            returns: { task: true },
+          },
+        }),
+      );
+      const result = runCheck([
+        "--environment",
+        path,
+        "{ main: (required, optional?, defaulted = 7) => pure([required, optional, defaulted]) }",
+      ]);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stderr).toBe("");
+      expect(result.stdout).toBe(
+        "No type errors.\nType coverage: complete (no dynamic degradations).\n",
+      );
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
 });

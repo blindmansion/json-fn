@@ -151,6 +151,115 @@ describe("jfn eval environment modes", () => {
     }
   });
 
+  test("enforces environment entry ranges while preserving optional omission", () => {
+    const directory = mkdtempSync(join(tmpdir(), "json-fn-eval-entry-optionals-"));
+    const environmentPath = join(directory, "environment.json");
+    const module =
+      "{ main: (required, optional?, defaulted = 7) => pure([required, optional, defaulted]) }";
+
+    try {
+      writeFileSync(
+        environmentPath,
+        JSON.stringify({
+          functions: {},
+          effects: {},
+          entry: {
+            name: "main",
+            required: [{ type: "integer" }],
+            optional: [{ type: "integer" }, { type: "integer" }],
+            returns: { task: true },
+          },
+        }),
+      );
+
+      for (const [args, expected] of [
+        [[1], [1, null, 7]],
+        [
+          [1, 2],
+          [1, 2, 7],
+        ],
+        [
+          [1, 2, 3],
+          [1, 2, 3],
+        ],
+      ] as const) {
+        const result = runEval([
+          "--environment",
+          environmentPath,
+          "--args",
+          JSON.stringify(args),
+          module,
+          "--compact",
+        ]);
+
+        expect(result.exitCode).toBe(0);
+        expect(result.stderr).toBe("");
+        expect(JSON.parse(result.stdout)).toEqual(expected);
+      }
+
+      for (const args of [[], [1, 2, 3, 4], [1, "wrong"], [1, null]]) {
+        const result = runEval([
+          "--environment",
+          environmentPath,
+          "--args",
+          JSON.stringify(args),
+          module,
+        ]);
+
+        expect(result.exitCode).toBe(1);
+        expect(result.stdout).toBe("");
+        expect(result.stderr).toContain('entry "main" arguments contract failed');
+      }
+
+      writeFileSync(
+        environmentPath,
+        JSON.stringify({
+          functions: {},
+          effects: {},
+          entry: {
+            name: "main",
+            required: [],
+            optional: [{ anyOf: [{ type: "integer" }, { type: "null" }] }],
+            returns: { task: { anyOf: [{ type: "integer" }, { type: "null" }] } },
+          },
+        }),
+      );
+      const nullableModule = "{ main: (value?) => pure(value) }";
+
+      for (const [args, expected] of [
+        [[], null],
+        [[3], 3],
+        [[null], null],
+      ] as const) {
+        const result = runEval([
+          "--environment",
+          environmentPath,
+          "--args",
+          JSON.stringify(args),
+          nullableModule,
+          "--compact",
+        ]);
+
+        expect(result.exitCode).toBe(0);
+        expect(result.stderr).toBe("");
+        expect(JSON.parse(result.stdout)).toEqual(expected);
+      }
+
+      const wrongNullable = runEval([
+        "--environment",
+        environmentPath,
+        "--args",
+        '["wrong"]',
+        nullableModule,
+      ]);
+      expect(wrongNullable.exitCode).toBe(1);
+      expect(wrongNullable.stdout).toBe("");
+      expect(wrongNullable.stderr).toContain('entry "main" arguments contract failed');
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   test.each([
     {
       name: "thermostat",
