@@ -1,0 +1,32 @@
+import type { FunctionRegistry, JSONType, PerfStats } from "../types";
+
+export type ResolvedLimits = {
+  maxCallDepth: number;
+  maxFuel: number;
+  maxValueSize: number;
+  trackFuel: boolean;
+  signal?: AbortSignal;
+  /** Absolute deadline (Date.now() ms) or Infinity when no timeout is set. */
+  deadline: number;
+};
+
+export type CallState = {
+  depth: number;
+  fuel: number;
+};
+
+export type EvaluationContext = {
+  functions: FunctionRegistry;
+  getVar?: (name: string) => JSONType | undefined;
+  // Names of scoped local function declarations accumulated down the scope
+  // chain. Closure capture uses these to preserve registry-based recursion.
+  localFns?: ReadonlySet<string>;
+  // Subset of localFns eligible for attachment to escaping closures. Persistent
+  // module functions are excluded because they remain registry-addressable.
+  attachFns?: ReadonlySet<string>;
+  /** Merged definition pool propagated through calls for runtime contracts. */
+  runtimeDefs?: Record<string, JSONType>;
+  limits: ResolvedLimits;
+  state: CallState;
+  perf?: PerfStats;
+};

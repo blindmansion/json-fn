@@ -25,6 +25,7 @@ import type { CallableTable } from "./check/builtin-types";
 import { loadBuiltinTable } from "./builtins";
 import { buildEffectNamespace, EFFECTS_BINDING } from "./effects";
 import { loadEnvironment, type Environment } from "./environment";
+import { isFunctionBody } from "./function-value";
 
 const HELP = `jfn — a CLI for the json-fn language
 
@@ -431,10 +432,6 @@ function exitFromDiagnostics(diags: Diagnostic[], requireFullCoverage: boolean):
   if (hasError || (requireFullCoverage && hasDegradation)) {
     process.exit(1);
   }
-}
-
-function isFunctionBody(value: JSONType): value is { $return: JSONType } {
-  return typeof value === "object" && value !== null && !Array.isArray(value) && "$return" in value;
 }
 
 function stringify(value: JSONType, compact: boolean): string {

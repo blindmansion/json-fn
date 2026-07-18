@@ -1,11 +1,5 @@
-import type {
-  CallState,
-  EvaluationContext,
-  ExecutionLimits,
-  JSONType,
-  PerfStats,
-  ResolvedLimits,
-} from "../types";
+import type { ExecutionLimits, JSONType, PerfStats } from "../types";
+import type { CallState, EvaluationContext, ResolvedLimits } from "./internal-types";
 
 const DEFAULT_MAX_CALL_DEPTH = 256;
 

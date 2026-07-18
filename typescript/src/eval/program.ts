@@ -1,5 +1,4 @@
 import type {
-  EvaluationContext,
   ExecutionLimits,
   FunctionBody,
   FunctionDeclaration,
@@ -13,8 +12,10 @@ import {
   type DefinitionPool,
   type DefinitionSources,
 } from "../definition-pool";
+import { isFunctionBody } from "../function-value";
 import type { ParameterLayout } from "../params";
 import { chargeFuel, createExecutionState, guardValueSize } from "./execution";
+import type { EvaluationContext } from "./internal-types";
 import { buildScope, callFunctionInternal } from "./interpreter";
 
 const EMPTY_LOCAL_FNS: ReadonlySet<string> = new Set();
@@ -90,12 +91,7 @@ function getProgramEntry(
   const moduleEntry = Object.prototype.hasOwnProperty.call(module, entry)
     ? module[entry]
     : undefined;
-  const isModuleFunction =
-    typeof moduleEntry === "object" &&
-    moduleEntry !== null &&
-    !Array.isArray(moduleEntry) &&
-    "$return" in moduleEntry;
-  if (!isModuleFunction) {
+  if (!isFunctionBody(moduleEntry)) {
     throw new Error(`Program entry "${entry}" is not a function defined by the module`);
   }
   return scopedFunctions[entry] as FunctionDeclaration;

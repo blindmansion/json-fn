@@ -1,4 +1,5 @@
 import type { FunctionBody, JSONType } from "./types";
+import { isFunctionDeclaration } from "./function-value";
 import type { Defs, FnTypeShape, Schema } from "./check/schema";
 import {
   SchemaKind,
@@ -30,7 +31,7 @@ export class RuntimeContractError extends Error {
 }
 
 function isCallable(value: JSONType): boolean {
-  return typeof value === "string" || (isSchemaObject(value) && "$return" in value);
+  return isFunctionDeclaration(value);
 }
 
 function resolveSchema(schema: Schema, defs: Defs, seen = new Set<string>()): Schema {

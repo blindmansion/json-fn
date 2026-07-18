@@ -3,7 +3,6 @@ import type {
   FunctionCall,
   FunctionReference,
   FunctionDeclaration,
-  EvaluationContext,
   FunctionBody,
   FunctionRegistry,
   VariableReference,
@@ -25,9 +24,11 @@ import {
   readRuntimeFunctionContract,
 } from "../runtime-contract";
 import { requireParameterLayout, validateRuntimeArguments, type ParameterLayout } from "../params";
-import { isFnDeclaration, replaceVars } from "./closures";
+import { isFunctionBody, isFunctionDeclaration } from "../function-value";
+import { replaceVars } from "./closures";
 import { accountForResult, chargeFuel, checkInterrupt, guardValueSize } from "./execution";
 import { getExpressionType } from "./expression-type";
+import type { EvaluationContext } from "./internal-types";
 import { accessProperty } from "./property-access";
 
 function isScalarValue(value: JSONType): boolean {
@@ -104,7 +105,7 @@ export function callFunctionInternal(
       // binding (e.g. `add: 5`) does not hijack a call position; resolution falls
       // through to the registry below.
       const lexical = context.getVar?.(fn);
-      if (lexical !== undefined && isFnDeclaration(lexical)) {
+      if (lexical !== undefined && isFunctionDeclaration(lexical)) {
         result = callFunctionInternal(lexical, args, context);
         raw(result);
         return result;
@@ -212,7 +213,7 @@ export function buildScope(
       continue;
     const val = fn[key];
     if (key === "$comment" && typeof val === "string") continue;
-    if (typeof val === "object" && val !== null && !Array.isArray(val) && "$return" in val) {
+    if (isFunctionBody(val)) {
       if (scopedFunctions === functions) scopedFunctions = { ...functions };
       scopedFunctions[key] = val as FunctionBody;
       localFnKeys.push(key);
@@ -423,7 +424,7 @@ function evaluateExpression(expression: JSONType, context: EvaluationContext): J
       const fnRef = expression as FunctionReference;
       const evaluatedFnRef = evaluateExpression(fnRef.$fn, context);
 
-      if (!isFnDeclaration(evaluatedFnRef)) {
+      if (!isFunctionDeclaration(evaluatedFnRef)) {
         exprError(
           expression,
           `Evaluated function references must be strings or function bodies. Got ${typeof evaluatedFnRef}.`,
@@ -573,7 +574,7 @@ function evaluateFunctionCall(
     fnDeclaration = callee;
   } else {
     const evaluatedFn = evaluateExpression(callee, context);
-    if (!isFnDeclaration(evaluatedFn)) {
+    if (!isFunctionDeclaration(evaluatedFn)) {
       exprError(
         fnCall,
         `Evaluated function references must be strings or function bodies. Got ${typeof evaluatedFn}.`,

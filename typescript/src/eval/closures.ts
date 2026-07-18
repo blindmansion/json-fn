@@ -1,15 +1,10 @@
-import type { EvaluationContext, FunctionDeclaration, FunctionRegistry, JSONType } from "../types";
+import type { FunctionRegistry, JSONType } from "../types";
 import { CONTRACT_KEY } from "../runtime-contract";
 import { boundParameterNames, defaultBindings, requireParameterLayout } from "../params";
 import { isRaw } from "../utils";
+import { isFunctionBody, isFunctionDeclaration } from "../function-value";
 import { chargeFuel, guardValueSize } from "./execution";
-
-export function isFnDeclaration(value: JSONType): value is FunctionDeclaration {
-  return (
-    typeof value === "string" ||
-    (typeof value === "object" && value !== null && !Array.isArray(value) && "$return" in value)
-  );
-}
+import type { EvaluationContext } from "./internal-types";
 
 // Closure capture. Substitutes free `$var`s and captures function-valued
 // callees, and — when `localFnDefs` is supplied ("attach mode") — makes an
@@ -44,7 +39,7 @@ export function replaceVars(
       return varValue === undefined ? expression : varValue;
     }
 
-    if ("$return" in expression) {
+    if (isFunctionBody(expression)) {
       const localNames = new Set(
         Object.keys(expression).filter((key) => {
           if (
@@ -116,7 +111,7 @@ export function replaceVars(
       if (typeof callee === "string") {
         if (!localFns.has(callee)) {
           const captured = getVar(callee);
-          if (captured !== undefined && isFnDeclaration(captured)) newCallee = captured;
+          if (captured !== undefined && isFunctionDeclaration(captured)) newCallee = captured;
         }
       } else {
         newCallee = replaceVars(callee, getVar, localFns, attachFns, localFnDefs, context);
@@ -155,7 +150,7 @@ function collectLocalFnRefs(
     for (const item of node) collectLocalFnRefs(item, attachFns, out);
     return;
   }
-  if ("$return" in node) return;
+  if (isFunctionBody(node)) return;
 
   if ("$call" in node) {
     const callee = (node as Record<string, JSONType>).$call!;
@@ -238,12 +233,7 @@ function attachFreeLocalFns(
     const name = queue.shift()!;
     if (name in body || boundNames.has(name)) continue;
     const definition = localFnDefs[name];
-    if (
-      definition === undefined ||
-      typeof definition !== "object" ||
-      definition === null ||
-      !("$return" in definition)
-    ) {
+    if (!isFunctionBody(definition)) {
       continue;
     }
     // Meter the attachment (Part B safety net): charge and size-guard before

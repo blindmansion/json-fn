@@ -1,5 +1,6 @@
 import type { JSONType, PerfStats } from "../types";
 import { ExpressionType } from "../types";
+import { isFunctionBody } from "../function-value";
 import { requireParameterLayout } from "../params";
 import { exprError, expressionKeyCount } from "../utils";
 
@@ -42,7 +43,7 @@ function classifyExpressionType(json: JSONType): ExpressionType {
       return ExpressionType.PropertyAccess;
     }
 
-    if ("$return" in json) {
+    if (isFunctionBody(json)) {
       if ("$fn" in json || "$call" in json || "$args" in json) {
         exprError(json, "Function bodies cannot have other keyword properties.");
       }

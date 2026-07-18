@@ -1,5 +1,5 @@
 import type { JSONType } from "./types";
-import { exprError } from "./utils";
+import { exprError } from "./expression-error";
 
 type ParameterPath = readonly (string | number)[];
 

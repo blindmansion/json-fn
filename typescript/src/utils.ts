@@ -1,10 +1,8 @@
 import type { JSONType, BuiltinFunction, FunctionRegistry, Meter, RuntimeContext } from "./types";
 import { BUILTIN_MARKER, PURE_MARKER, ARITY_MARKER } from "./types";
+import { isFunctionBody } from "./function-value";
 import { requireParameterLayout } from "./params";
-
-export function exprError(expr: JSONType, message: string): never {
-  throw new Error(`Invalid JSON expression: ${JSON.stringify(expr, null, 2)}. ${message}`);
-}
+export { exprError } from "./expression-error";
 
 export function objectKeyCount(obj: Record<string, unknown>): number {
   let n = 0;
@@ -62,9 +60,8 @@ export function isRaw(value: unknown): boolean {
 const _rawValues = new WeakSet<object>();
 
 export function getArity(fn: unknown, registry?: FunctionRegistry): number | null {
-  if (typeof fn === "object" && fn !== null && !Array.isArray(fn) && "$return" in fn) {
-    return requireParameterLayout((fn as Record<string, unknown>).$params, fn as JSONType)
-      .fixedCount;
+  if (isFunctionBody(fn)) {
+    return requireParameterLayout(fn.$params, fn).fixedCount;
   }
 
   if (typeof fn === "string" && registry) {

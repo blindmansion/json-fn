@@ -1,6 +1,6 @@
 # Evaluator and runtime reorganization
 
-Status: active. Phases 0–4 completed 2026-07-18.
+Status: active. Phases 0–5 completed 2026-07-18.
 
 ## Summary
 
@@ -579,6 +579,31 @@ After the evaluator layout is stable:
 
 These are dependency cleanups, not prerequisites for establishing `eval/`,
 unless the graph shows they block an extraction.
+
+#### Phase 5 record (2026-07-18)
+
+The shared-internals cleanup is complete:
+
+- `exprError` now lives in the dependency-light `expression-error.ts`.
+  `utils.ts` retains a compatibility re-export, while `params.ts` imports the
+  helper directly. This removes the `params.ts` ↔ `utils.ts` cycle.
+- Evaluator-private `EvaluationContext`, `ResolvedLimits`, and `CallState` types
+  moved from the general `types.ts` module to `eval/internal-types.ts`. Public
+  execution configuration and reporting types remain in `types.ts`.
+- Structural checks for inline function bodies and callable function
+  declarations are centralized in `function-value.ts`. The evaluator, task
+  kernel, stdlib, runtime-contract layer, CLI, and arity helper now share those
+  predicates.
+
+This phase did not change public exports from `src/index.ts` or evaluator
+behavior. Verification completed successfully:
+
+- `bun run check` completed with no type, lint, or formatting errors;
+- `bun test` passed 1,582 tests across 26 files; and
+- `blast` reports that the parameter/utility cycle is gone. The only remaining
+  import cycle is the pre-existing
+  `builtins.ts` → `check/builtin-types.ts` → `effects.ts` → `builtins.ts`
+  cycle, with no cycle involving `eval/`.
 
 ### Phase 6: Optional embedding-layer follow-up
 

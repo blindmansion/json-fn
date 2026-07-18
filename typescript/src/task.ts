@@ -19,6 +19,7 @@ import type { JSONType, Meter } from "./types";
 import type { Defs, Schema } from "./check/schema";
 import { enforceRuntimeContract, RuntimeContractError } from "./runtime-contract";
 import { raw } from "./utils";
+import { isFunctionDeclaration } from "./function-value";
 
 /** The reserved tag key marking a value as a task node. */
 export const TASK_TAG = "@task";
@@ -48,14 +49,6 @@ export function isTask(value: unknown): value is TaskNode {
     value !== null &&
     !Array.isArray(value) &&
     typeof (value as Record<string, unknown>)[TASK_TAG] === "string"
-  );
-}
-
-/** A callable: a registry name (string) or an inline function body. */
-export function isFnDecl(value: JSONType): boolean {
-  return (
-    typeof value === "string" ||
-    (typeof value === "object" && value !== null && !Array.isArray(value) && "$return" in value)
   );
 }
 
@@ -162,7 +155,7 @@ export function stepTask(
     const tag = (current as Record<string, JSONType>)[TASK_TAG] as string;
     if (tag === "bind") {
       const then = (current as unknown as BindTask).then;
-      if (!isFnDecl(then)) {
+      if (!isFunctionDeclaration(then)) {
         throw new Error("Malformed task: bind `then` must be a function");
       }
       ks.push(then);
@@ -251,7 +244,7 @@ export function runHandle(
   const s = stepTask(task, call, meter);
   if ("done" in s) {
     const ret = handlers["return"];
-    if (ret !== undefined && isFnDecl(ret)) return finish(call(ret, [s.done]));
+    if (ret !== undefined && isFunctionDeclaration(ret)) return finish(call(ret, [s.done]));
     return finish(s.done);
   }
 
@@ -259,12 +252,12 @@ export function runHandle(
   const handleResume = wrapResume(resume, handlers, annotation);
 
   const named = handlers[name];
-  if (named !== undefined && isFnDecl(named)) {
+  if (named !== undefined && isFunctionDeclaration(named)) {
     return finish(call(named, [...args, handleResume]));
   }
 
   const wild = handlers["*"];
-  if (wild !== undefined && isFnDecl(wild)) {
+  if (wild !== undefined && isFunctionDeclaration(wild)) {
     return finish(call(wild, [{ name, args }, handleResume]));
   }
 

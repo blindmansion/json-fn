@@ -140,16 +140,6 @@ type ExecutionLimits = {
   usage?: ExecutionUsage;
 };
 
-type ResolvedLimits = {
-  maxCallDepth: number;
-  maxFuel: number;
-  maxValueSize: number;
-  trackFuel: boolean;
-  signal?: AbortSignal;
-  /** Absolute deadline (Date.now() ms) or Infinity when no timeout is set. */
-  deadline: number;
-};
-
 type PerfStats = {
   evaluateExpression: number;
   getExpressionType: number;
@@ -163,36 +153,6 @@ type PerfStats = {
   exprTypeCounts: Record<string, number>;
   functionCallCounts: Record<string, number>;
   maxCallDepth: number;
-};
-
-type CallState = {
-  depth: number;
-  fuel: number;
-};
-
-type EvaluationContext = {
-  functions: FunctionRegistry;
-  getVar?: (name: string) => JSONType | undefined;
-  // P4/Site 2: names of scoped local *function* declarations, accumulated down
-  // the scope chain. `replaceVars` uses this to decide whether a free callee is
-  // capturable: a callee that is not a local function name but resolves via
-  // `getVar` to a function declaration (i.e. a shadowing parameter/local) is
-  // inlined into an escaping closure, while local function names stay literal so
-  // they keep dispatching through the registry (recursion is preserved).
-  localFns?: ReadonlySet<string>;
-  // Subset of `localFns` eligible for escaping-closure *attachment* (see
-  // `attachFreeLocalFns`). Unlike `localFns`, this EXCLUDES the persistent
-  // module/registry scope: those functions resolve by name for the whole
-  // program, so an in-program reference never dangles, and inlining a
-  // self-referential module function into an escaping value blows capture up
-  // super-exponentially. Seeded empty at the root/module scope
-  // (`attachFns === undefined`); each nested scope adds its own local functions.
-  attachFns?: ReadonlySet<string>;
-  /** Merged definition pool propagated through calls for runtime contracts. */
-  runtimeDefs?: Record<string, JSONType>;
-  limits: ResolvedLimits;
-  state: CallState;
-  perf?: PerfStats;
 };
 
 export type {
@@ -209,12 +169,9 @@ export type {
   FieldBinding,
   FieldPattern,
   Param,
-  EvaluationContext,
   ExecutionLimits,
   ExecutionUsage,
   PerfStats,
-  ResolvedLimits,
-  CallState,
   FunctionBody,
   VariableReference,
   Conditional,

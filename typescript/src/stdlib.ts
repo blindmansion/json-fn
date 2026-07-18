@@ -1,6 +1,7 @@
 import { builtin, pure, getArity } from "./utils";
 import type { BuiltinFunction, FunctionRegistry, JSONType, Meter } from "./types";
-import { effectTask, pureTask, bindTask, isFnDecl, runHandle } from "./task";
+import { effectTask, pureTask, bindTask, runHandle } from "./task";
+import { isFunctionDeclaration } from "./function-value";
 
 export type LogFn = (value: JSONType, label?: string) => void;
 
@@ -727,7 +728,9 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
     pure: builtin((args) => pureTask(args[0] ?? null), 1),
     bind: builtin((args) => {
       const [task, then] = args;
-      if (!isFnDecl(then!)) throw new Error("bind: second argument must be a function");
+      if (!isFunctionDeclaration(then!)) {
+        throw new Error("bind: second argument must be a function");
+      }
       return bindTask(task!, then!);
     }, 2),
     raise: builtin((args) => effectTask("raise", [args[0] ?? null]), 1),
