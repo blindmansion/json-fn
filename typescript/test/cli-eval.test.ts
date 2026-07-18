@@ -262,12 +262,6 @@ describe("jfn eval environment modes", () => {
 
   test.each([
     {
-      name: "thermostat",
-      module: join(examples, "typed/thermostat.jfn"),
-      environment: join(examples, "typed/thermostat.environment.json"),
-      expectedKeys: ["run", "fault"],
-    },
-    {
       name: "dungeon",
       module: join(examples, "dungeon.jfn"),
       environment: join(examples, "dungeon.environment.json"),

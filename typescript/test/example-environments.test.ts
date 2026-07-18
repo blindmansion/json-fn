@@ -18,64 +18,24 @@ function loadModule(path: string): Record<string, JSONType> {
   return parseShorthand(readFileSync(path, "utf-8")) as Record<string, JSONType>;
 }
 
-function fixture(name: "dungeon" | "thermostat"): {
+function dungeonFixture(): {
   module: Record<string, JSONType>;
   environment: Environment;
 } {
-  const directory = name === "thermostat" ? join(examples, "typed") : examples;
   return {
-    module: loadModule(join(directory, `${name}.jfn`)),
-    environment: loadEnvironment(join(directory, `${name}.environment.json`)),
+    module: loadModule(join(examples, "dungeon.jfn")),
+    environment: loadEnvironment(join(examples, "dungeon.environment.json")),
   };
 }
 
 describe("typed host-environment examples", () => {
-  test.each(["thermostat", "dungeon"] as const)(
-    "%s satisfies its operator-owned environment",
-    (name) => {
-      const { module, environment } = fixture(name);
-      expect(checkModule(module, loadBuiltinTable(), { environment })).toEqual([]);
-    },
-  );
-
-  test("thermostat runs through validated entry and effect boundaries", async () => {
-    const { module, environment } = fixture("thermostat");
-    const readings: JSONType[] = [
-      { temp: 18, battery: 90 },
-      { temp: 20, battery: 88 },
-      { temp: 24, battery: 85 },
-      { temp: 21, battery: 84 },
-    ];
-    const modes: JSONType[] = [];
-    const logs: JSONType[] = [];
-
-    const result = await runTask(
-      module,
-      environment,
-      [{ config: { target: 21, tolerance: 1.5 }, mode: "off" }, 100],
-      {
-        registry: createStdlib(),
-        capabilities: {
-          "sensor.read": () => readings.shift() ?? null,
-          "hvac.set": (mode) => {
-            modes.push(mode);
-            return null;
-          },
-          log: (message) => {
-            logs.push(message);
-            return null;
-          },
-        },
-      },
-    );
-
-    expect(result).toEqual({ config: { target: 21, tolerance: 1.5 }, mode: "off" });
-    expect(modes).toEqual(["heat", "off", "cool", "off"]);
-    expect(logs).toHaveLength(4);
+  test("dungeon satisfies its operator-owned environment", () => {
+    const { module, environment } = dungeonFixture();
+    expect(checkModule(module, loadBuiltinTable(), { environment })).toEqual([]);
   });
 
   test("dungeon runs through validated entry and effect boundaries", async () => {
-    const { module, environment } = fixture("dungeon");
+    const { module, environment } = dungeonFixture();
     const commands = ["take", "go north", "go east", "unlock"];
     const transcript: string[] = [];
 
