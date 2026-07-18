@@ -294,7 +294,13 @@ function inferLambdaReturn(body: JSONType, expectedFn: Schema, ctx: CheckContext
       returns: shape.returns,
     },
   };
-  const { env, guards, parameterDefaults } = buildTypeScope(withSig, layout, ctx.env, ctx);
+  const { env, guards, parameterDefaults, parameterBindingsValid } = buildTypeScope(
+    withSig,
+    layout,
+    ctx.env,
+    ctx,
+  );
+  if (!parameterBindingsValid) return null;
   const bctx: CheckContext = { ...ctx, env, guards };
   checkParameterDefaults(parameterDefaults, bctx);
   return synth(bodyObject.$return!, at(bctx, "$return"));

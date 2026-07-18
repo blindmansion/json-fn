@@ -748,10 +748,11 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
         reportDegradation(ctx, "the callee has no known function type");
         return true;
       }
-      checkArity(sig, args.length, ctx);
+      const arityOk = checkArity(sig, args.length, ctx);
       args.forEach((a, i) => {
         const param = paramAt(sig, i);
         if (param === null) synth(a, at(ctx, `$args[${i}]`));
+        else if (!arityOk && isBody(a) && sigOf(a) === null) return;
         else check(a, param, at(ctx, `$args[${i}]`));
       });
       return sig.returns;
@@ -1034,7 +1035,13 @@ function iifeBodyContext(
     ...body,
     $sig: syntheticSig,
   };
-  const { env, guards, parameterDefaults } = buildTypeScope(withSig, layout, ctx.env, ctx);
+  const { env, guards, parameterDefaults, parameterBindingsValid } = buildTypeScope(
+    withSig,
+    layout,
+    ctx.env,
+    ctx,
+  );
+  if (!parameterBindingsValid) return null;
   const bctx: CheckContext = { ...ctx, env, guards };
   checkParameterDefaults(parameterDefaults, bctx);
   for (const key of bindingKeys(body)) {
@@ -1158,7 +1165,7 @@ function checkBody(
     return;
   }
   const sig = injectedSig ?? declaredSig;
-  const { env, guards, parameterDefaults } = buildTypeScope(
+  const { env, guards, parameterDefaults, parameterBindingsValid } = buildTypeScope(
     body,
     layout,
     ctx.env,
@@ -1166,6 +1173,7 @@ function checkBody(
     true,
     injectedSig,
   );
+  if (!parameterBindingsValid) return;
   const bctx: CheckContext = { ...ctx, env, guards };
   checkParameterDefaults(parameterDefaults, bctx);
   check(body.$return!, sig?.returns ?? true, at(bctx, "$return"));

@@ -1683,6 +1683,39 @@ describe("Section F — builtin signatures", () => {
       expect(/Expected 2 argument/.test(r.diagnostics[0]!.message)).toBe(true);
       expect(r.diagnostics.some((d) => d.path.join(".").includes("$return"))).toBe(false);
     });
+
+    test("wrong arity suppresses callback checking but still traverses ordinary arguments", () => {
+      const callback = {
+        $params: ["n", "i"],
+        $return: { $var: "missingFromCallback" },
+      };
+      const r = synthB(
+        call(
+          "map",
+          callback,
+          { $var: "independentlyMissingArray" },
+          { $var: "independentlyMissingExtra" },
+        ),
+      );
+
+      expect(r.diagnostics.map(({ path, message }) => ({ path, message }))).toEqual([
+        {
+          path: [],
+          message: "Expected 2 argument(s), got 3.",
+        },
+        {
+          path: ["$args[1]"],
+          message:
+            'expression degraded to `any` because variable "independentlyMissingArray" is unresolved.',
+        },
+        {
+          path: ["$args[2]"],
+          message:
+            'expression degraded to `any` because variable "independentlyMissingExtra" is unresolved.',
+        },
+      ]);
+      expect(r.diagnostics.some((d) => d.path.includes("$return"))).toBe(false);
+    });
   });
 
   describe("through the module checker", () => {

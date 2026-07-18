@@ -513,6 +513,41 @@ describe("checkModule: diagnostics", () => {
     ]);
   });
 
+  test("a field alignment error stops scope-dependent work only for that body", () => {
+    const input: Schema = {
+      type: "object",
+      properties: { missing: I, fallback: I },
+      required: [],
+      additionalProperties: false,
+    };
+    const mod = {
+      recovery: body(
+        [
+          {
+            $fields: ["missing", { $field: "fallback", $default: "bad default" }],
+          },
+        ],
+        { required: [input], optional: [], returns: true },
+        {
+          $array: [{ $var: "missing" }, { $var: "independentlyMissing" }],
+        },
+      ),
+      independent: body([], { required: [], optional: [], returns: I }, "bad return"),
+    };
+
+    expect(checkModule(mod)).toEqual([
+      expect.objectContaining({
+        path: ["recovery", "$params[0]", "$fields[0]"],
+        message: 'Required field "missing" is not guaranteed by the aligned object schema.',
+      }),
+      expect.objectContaining({
+        path: ["independent", "$return"],
+        expected: I,
+        actual: { const: "bad return" },
+      }),
+    ]);
+  });
+
   test("return type mismatch is reported", () => {
     const mod = {
       bad: body(["n"], { required: [I], optional: [], returns: S }, { $var: "n" }),
@@ -653,6 +688,34 @@ describe("checkModule: diagnostics", () => {
         .map(({ message }) => message)
         .filter((message) => message.startsWith("Expected ")),
     ).toEqual(["Expected 2 argument(s), got 1.", "Expected 2 argument(s), got 3."]);
+  });
+
+  test("wrong user-function arity suppresses contextual lambda cascades", () => {
+    const callbackType: Schema = {
+      $fnType: { required: [I], optional: [], returns: I },
+    };
+    const mod = {
+      consume: body(
+        ["callback", "value"],
+        { required: [callbackType, I], optional: [], returns: I },
+        { $var: "value" },
+      ),
+      caller: body(
+        [],
+        { required: [], optional: [], returns: I },
+        {
+          $call: "consume",
+          $args: [{ $params: ["n"], $return: { $var: "missingFromCallback" } }],
+        },
+      ),
+    };
+
+    expect(checkModule(mod)).toEqual([
+      expect.objectContaining({
+        path: ["caller", "$return"],
+        message: "Expected 2 argument(s), got 1.",
+      }),
+    ]);
   });
 
   test("optional slots are checked before arguments flow into rest", () => {
