@@ -20,12 +20,12 @@ import { readFileSync } from "fs";
 import { join } from "path";
 
 const source = readFileSync(
-  join(import.meta.dir, "../../examples/typed/parcel-sorter.jfn"),
+  join(import.meta.dir, "../../examples/parcel-sorter.jfn"),
   "utf-8",
 );
 const sorter = parseShorthand(source) as Record<string, JSONType>;
 const environment = loadEnvironment(
-  join(import.meta.dir, "../../examples/typed/parcel-sorter.environment.json"),
+  join(import.meta.dir, "../../examples/parcel-sorter.environment.json"),
 );
 
 const normalShift = [

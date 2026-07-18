@@ -30,10 +30,10 @@ import {
 import { readFileSync } from "fs";
 import { join } from "path";
 
-const source = readFileSync(join(import.meta.dir, "../../examples/typed/thermostat.jfn"), "utf-8");
+const source = readFileSync(join(import.meta.dir, "../../examples/thermostat.jfn"), "utf-8");
 const controller = parseShorthand(source) as Record<string, JSONType>;
 const environment = loadEnvironment(
-  join(import.meta.dir, "../../examples/typed/thermostat.environment.json"),
+  join(import.meta.dir, "../../examples/thermostat.environment.json"),
 );
 
 // A scripted sensor rig: each `sensor.read` shifts the next reading off this
