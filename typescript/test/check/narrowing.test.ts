@@ -42,6 +42,7 @@ const strOrNull: Schema = { anyOf: [{ type: "string" }, { type: "null" }] };
 const numOrNull: Schema = { anyOf: [{ type: "number" }, { type: "null" }] };
 const intOrNull: Schema = { anyOf: [{ type: "integer" }, { type: "null" }] };
 const strOrInt: Schema = { anyOf: [{ type: "string" }, { type: "integer" }] };
+const numOrStr: Schema = { anyOf: [{ type: "number" }, { type: "string" }] };
 const Color: Schema = { enum: ["w", "b"] };
 
 // A tagged union: { tag: "a", r: integer } | { tag: "b", side: string }.
@@ -163,6 +164,129 @@ describe("narrowing — type predicates (form 2)", () => {
       expected: { x: { type: "integer" } },
     },
     {
+      name: "isString intersects any with string",
+      env: { x: true },
+      cond: call("isString", v("x")),
+      sense: true,
+      expected: { x: { type: "string" } },
+    },
+    {
+      name: "isInteger turns number into integer on the true branch",
+      env: { x: { type: "number" } },
+      cond: call("isInteger", v("x")),
+      sense: true,
+      expected: { x: { type: "integer" } },
+    },
+    {
+      name: "isInteger conservatively retains number on the false branch",
+      env: { x: { type: "number" } },
+      cond: call("isInteger", v("x")),
+      sense: false,
+      expected: { x: { type: "number" } },
+    },
+    {
+      name: "isInteger intersects integer | string to integer",
+      env: { x: strOrInt },
+      cond: call("isInteger", v("x")),
+      sense: true,
+      expected: { x: { type: "integer" } },
+    },
+    {
+      name: "isInteger subtracts integer from integer | string",
+      env: { x: strOrInt },
+      cond: call("isInteger", v("x")),
+      sense: false,
+      expected: { x: { type: "string" } },
+    },
+    {
+      name: "isInteger intersects number | string to integer",
+      env: { x: numOrStr },
+      cond: call("isInteger", v("x")),
+      sense: true,
+      expected: { x: { type: "integer" } },
+    },
+    {
+      name: "isInteger cannot exactly subtract integer from number | string",
+      env: { x: numOrStr },
+      cond: call("isInteger", v("x")),
+      sense: false,
+      expected: { x: numOrStr },
+    },
+    {
+      name: "isInteger filters literal union arms exactly",
+      env: { x: { anyOf: [{ const: 1 }, { const: 1.5 }, { type: "string" }] } },
+      cond: call("isInteger", v("x")),
+      sense: true,
+      expected: { x: { const: 1 } },
+    },
+    {
+      name: "isInteger false filters integral literal union arms exactly",
+      env: { x: { anyOf: [{ const: 1 }, { const: 1.5 }, { type: "string" }] } },
+      cond: call("isInteger", v("x")),
+      sense: false,
+      expected: { x: { anyOf: [{ const: 1.5 }, { type: "string" }] } },
+    },
+    {
+      name: "isInteger filters a mixed enum on the true branch",
+      env: { x: { enum: [1, 1.5, "one"] } },
+      cond: call("isInteger", v("x")),
+      sense: true,
+      expected: { x: { const: 1 } },
+    },
+    {
+      name: "isInteger filters a mixed enum on the false branch",
+      env: { x: { enum: [1, 1.5, "one"] } },
+      cond: call("isInteger", v("x")),
+      sense: false,
+      expected: { x: { enum: [1.5, "one"] } },
+    },
+    {
+      name: "isInteger intersects any with integer",
+      env: { x: true },
+      cond: call("isInteger", v("x")),
+      sense: true,
+      expected: { x: { type: "integer" } },
+    },
+    {
+      name: "isInteger leaves any unchanged on the false branch",
+      env: { x: true },
+      cond: call("isInteger", v("x")),
+      sense: false,
+      expected: { x: true },
+    },
+    {
+      name: "isInteger preserves numeric refinements when changing the primitive",
+      env: { x: { type: "number", minimum: 0, exclusiveMaximum: 10, multipleOf: 0.5 } },
+      cond: call("isInteger", v("x")),
+      sense: true,
+      expected: {
+        x: { type: "integer", minimum: 0, exclusiveMaximum: 10, multipleOf: 0.5 },
+      },
+    },
+    {
+      name: "isInteger preserves and filters an enum attached to a refined number",
+      env: { x: { type: "number", enum: [-1, 1, 1.5], minimum: 0 } },
+      cond: call("isInteger", v("x")),
+      sense: true,
+      expected: { x: { type: "integer", enum: [-1, 1], minimum: 0 } },
+    },
+    {
+      name: "isInteger false preserves refinements while filtering a numeric enum",
+      env: { x: { type: "number", enum: [-1, 1, 1.5], minimum: 0 } },
+      cond: call("isInteger", v("x")),
+      sense: false,
+      expected: { x: { type: "number", enum: [1.5], minimum: 0 } },
+    },
+    {
+      name: "isInteger on a field path narrows the path",
+      env: {
+        m: { type: "object", properties: { value: numOrStr }, required: ["value"] },
+      },
+      cond: call("isInteger", get(v("m"), "value")),
+      sense: true,
+      expected: { "m.value": { type: "integer" } },
+    },
+    {
       name: "isNull on a field-path subject narrows the path",
       env: { m: { type: "object", properties: { from: strOrNull }, required: ["from"] } },
       cond: call("isNull", get(v("m"), "from")),
@@ -173,6 +297,13 @@ describe("narrowing — type predicates (form 2)", () => {
       name: "a shadowed predicate name yields no fact",
       env: { x: strOrNull, isNull: { type: "boolean" } },
       cond: call("isNull", v("x")),
+      sense: true,
+      expected: {},
+    },
+    {
+      name: "a shadowed isInteger yields no fact",
+      env: { x: numOrStr, isInteger: { type: "boolean" } },
+      cond: call("isInteger", v("x")),
       sense: true,
       expected: {},
     },
@@ -248,6 +379,13 @@ describe("narrowing — composition (form: not / $and / $or)", () => {
       expected: { x: { type: "null" } },
     },
     {
+      name: "not(isInteger(x)) then uses conservative subtraction",
+      env: { x: numOrStr },
+      cond: call("not", call("isInteger", v("x"))),
+      sense: true,
+      expected: { x: numOrStr },
+    },
+    {
       name: "$and on the true sense conjoins each operand's fact",
       env: { a: strOrNull, b: strOrNull },
       cond: { $and: [call("not", call("isNull", v("a"))), call("not", call("isNull", v("b")))] },
@@ -287,6 +425,14 @@ describe("narrowing — named boolean guards (where-locals)", () => {
       cond: v("empty"),
       sense: false,
       expected: { target: { type: "string" } },
+    },
+    {
+      name: "a named integer guard adopts its binding's facts",
+      env: { target: numOrStr },
+      guards: { integral: call("isInteger", v("target")) },
+      cond: v("integral"),
+      sense: true,
+      expected: { target: { type: "integer" } },
     },
     {
       name: "guard aliases are followed (ok: not(empty), empty: isNull(target))",

@@ -68,15 +68,39 @@ This is the `if x then x else 0` idiom, and it also applies to a bare
 
 ### 2. Type predicates
 
-The `isType` family — `isNull`, `isBool`, `isNumber`, `isString`, `isArray`,
-`isObject` — applied to a subject.
+The `isType` family — `isNull`, `isBool`, `isNumber`, `isInteger`, `isString`,
+`isArray`, `isObject` — applied to a subject.
 
-- then: keep only the arms compatible with that value-type category.
-- else: drop the arms wholly contained in that category.
+- then: intersect the subject schema with the tested runtime category. This is
+  a real category intersection, not arm filtering: `any` becomes the tested
+  category, and `number` becomes `integer` under `isInteger`. Compatible
+  refinements and already-more-precise arms are retained.
+- else: subtract the tested category where the remainder is representable.
+  Constants and finite enums are filtered exactly; broad overlapping schemas
+  stay unchanged when their remainder cannot be expressed.
+
+`isInteger` follows this exact table:
+
+| Subject | Then (`isInteger`) | Else (`not isInteger`) |
+| --- | --- | --- |
+| `any` | `integer` | `any` |
+| `number` | `integer` | `number` |
+| `integer` | `integer` | `never` |
+| `string` | `never` | `string` |
+| `number \| string` | `integer` | `number \| string` |
+| `integer \| string` | `integer` | `string` |
+| `1 \| 1.5 \| string` | `1` | `1.5 \| string` |
+
+Keeping `number` on the false branch is intentional: the schema fragment has
+no type for non-integral numbers, so `number - integer` cannot be represented.
+The sound approximation is the original `number`, not an under-approximation
+that could exclude valid fractional values.
 
 `isNull(x)` on `T | null` ⇒ `null` (then) / `T` (else) is the canonical
-guard-then-use case. `isNumber` and `isInteger`-shaped arms overlap (an
-`integer` arm survives `isNumber`).
+guard-then-use case. `isNumber(x)` preserves an `integer` arm because it is
+already more precise. For `x: number | string`, `isInteger(x)` gives `integer`
+then and `number | string` else; for `x: integer | string`, it gives `integer`
+then and `string` else.
 
 A predicate name that is **shadowed** by a user binding of the same name is not
 treated as a guard (runtime dispatch would pick the user value), so it yields no

@@ -75,39 +75,9 @@ function withNarrowings(ctx: CheckContext, facts: Record<string, Schema>): Check
 // The primitive value-type category a JSON value belongs to, matched against a
 // type predicate's name.
 function valueTypeMatches(v: JSONType, typeName: string): boolean {
-  if (typeName === "number" || typeName === "integer") return typeof v === "number";
+  if (typeName === "number") return typeof v === "number";
+  if (typeName === "integer") return typeof v === "number" && Number.isInteger(v);
   return valueType(v) === typeName;
-}
-
-// Does an arm *overlap* the values of primitive category `typeName` (used on
-// the true branch of a type predicate)? A conservative "could this arm produce
-// such a value" test.
-function armMatchesType(arm: Schema, typeName: string, defs: Defs): boolean {
-  const t = resolveDeep(arm, defs);
-  if (t === true) return true;
-  if (t === false) return false;
-  switch (classifySchema(t)) {
-    case SchemaKind.Primitive: {
-      const at = asObject(t).type as string;
-      if (at === typeName) return true;
-      return (
-        (typeName === "number" && at === "integer") || (typeName === "integer" && at === "number")
-      );
-    }
-    case SchemaKind.Const:
-      return valueTypeMatches(asObject(t).const!, typeName);
-    case SchemaKind.Enum:
-      return literalValues(t).some((v) => valueTypeMatches(v, typeName));
-    case SchemaKind.Union:
-      return (unionArms(t) ?? []).some((a) => armMatchesType(a, typeName, defs));
-    case SchemaKind.Array:
-    case SchemaKind.Tuple:
-      return typeName === "array";
-    case SchemaKind.Object:
-      return typeName === "object";
-    default:
-      return false;
-  }
 }
 
 // Rebuild an enum/const schema from a surviving literal set (empty ⇒ never).
@@ -117,30 +87,84 @@ function fromLiterals(vals: JSONType[]): Schema {
   return { enum: vals };
 }
 
-// Meet with "value is of category `typeName`": keep only the arms that could
-// produce such a value. `T | null` narrowed to non-null falls out of the
-// mirror `removeType`.
-function restrictToType(s: Schema, typeName: string, defs: Defs): Schema {
-  const t = resolveDeep(s, defs);
-  const arms = unionArms(t);
-  if (arms) return unionOf(arms.filter((a) => armMatchesType(a, typeName, defs)));
-  if (classifySchema(t) === SchemaKind.Enum) {
-    return fromLiterals(literalValues(t).filter((v) => valueTypeMatches(v, typeName)));
+// Filter a finite schema without discarding constraints attached alongside its
+// const/enum. Bare finite schemas retain the compact fact-map representation.
+function filterFiniteSchema(
+  s: Schema,
+  keep: (value: JSONType) => boolean,
+  replacementType?: string,
+): Schema {
+  const values = literalValues(s).filter(keep);
+  if (values.length === 0) return false;
+
+  const object = asObject(s);
+  const kind = classifySchema(s);
+  const literalKey = kind === SchemaKind.Const ? "const" : "enum";
+  if (Object.keys(object).every((key) => key === literalKey)) return fromLiterals(values);
+
+  const filtered: Record<string, JSONType> = { ...object };
+  if (kind === SchemaKind.Enum) filtered.enum = values;
+  if (replacementType !== undefined && object.type === "number") {
+    filtered.type = replacementType;
   }
-  return armMatchesType(t, typeName, defs) ? t : false;
+  return filtered;
 }
 
-// Meet with "value is NOT of category `typeName`": drop arms wholly contained
-// in that category. `Cell` on the `isNull`-false branch → `Piece`.
+// Meet with "value is of category `typeName`". This is a small, purpose-built
+// intersection over the runtime categories recognized by TYPE_PREDICATES, not
+// a general JSON Schema intersection.
+function restrictToType(s: Schema, typeName: string, defs: Defs): Schema {
+  const t = resolveDeep(s, defs);
+  if (t === true) return { type: typeName };
+  if (t === false) return false;
+
+  const arms = unionArms(t);
+  if (arms) return unionOf(arms.map((a) => restrictToType(a, typeName, defs)));
+
+  switch (classifySchema(t)) {
+    case SchemaKind.Const:
+    case SchemaKind.Enum:
+      return filterFiniteSchema(
+        t,
+        (value) => valueTypeMatches(value, typeName),
+        typeName === "integer" ? "integer" : undefined,
+      );
+    case SchemaKind.Primitive: {
+      const actual = asObject(t).type as string;
+      if (actual === typeName || (typeName === "number" && actual === "integer")) return t;
+      if (typeName === "integer" && actual === "number") {
+        return { ...asObject(t), type: "integer" };
+      }
+      return false;
+    }
+    case SchemaKind.Array:
+    case SchemaKind.Tuple:
+      return typeName === "array" ? t : false;
+    case SchemaKind.Object:
+      return typeName === "object" ? t : false;
+    default:
+      return false;
+  }
+}
+
+// Meet with "value is NOT of category `typeName`". Exact finite inhabitants
+// are filtered; broad overlapping schemas stay unchanged when their remainder
+// cannot be represented (notably `number - integer`).
 function removeType(s: Schema, typeName: string, defs: Defs): Schema {
   const probe: Schema = { type: typeName };
   const t = resolveDeep(s, defs);
+  if (t === true || t === false) return t;
+
   const arms = unionArms(t);
-  if (arms) return unionOf(arms.filter((a) => !isSubschema(a, probe, defs)));
-  if (classifySchema(t) === SchemaKind.Enum) {
-    return fromLiterals(literalValues(t).filter((v) => !valueTypeMatches(v, typeName)));
+  if (arms) return unionOf(arms.map((a) => removeType(a, typeName, defs)));
+
+  switch (classifySchema(t)) {
+    case SchemaKind.Const:
+    case SchemaKind.Enum:
+      return filterFiniteSchema(t, (value) => !valueTypeMatches(value, typeName));
+    default:
+      return isSubschema(t, probe, defs) ? false : t;
   }
-  return isSubschema(t, probe, defs) ? false : t;
 }
 
 // Meet with `{const v}`: the literal itself when admissible, else never (dead
@@ -226,6 +250,7 @@ const TYPE_PREDICATES: Record<string, string> = {
   isNull: "null",
   isBool: "boolean",
   isNumber: "number",
+  isInteger: "integer",
   isString: "string",
   isArray: "array",
   isObject: "object",

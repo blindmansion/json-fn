@@ -1094,6 +1094,100 @@ describe("check: bidirectional branch arms (Part A)", () => {
     expect(checkModule(mod)).toEqual([]);
   });
 
+  describe("$if: primitive predicate narrowing", () => {
+    const BT = loadBuiltinTable();
+    const numberOrString: Schema = { anyOf: [{ type: "number" }, S] };
+    const integers: Schema = { type: "array", items: I };
+
+    test("isInteger permits an integer-only call from number | string", () => {
+      const mod = {
+        f: body(
+          ["value"],
+          { required: [numberOrString], optional: [], returns: integers },
+          {
+            $if: { $call: "isInteger", $args: [{ $var: "value" }] },
+            $then: { $call: "range", $args: [{ $var: "value" }] },
+            $else: [],
+          },
+        ),
+      };
+
+      expect(checkModule(mod, BT)).toEqual([]);
+    });
+
+    test("isInteger false leaves a bare number neither string nor integer", () => {
+      const mod = {
+        asString: body(
+          ["value"],
+          { required: [{ type: "number" }], optional: [], returns: S },
+          {
+            $if: { $call: "isInteger", $args: [{ $var: "value" }] },
+            $then: "",
+            $else: { $call: "upper", $args: [{ $var: "value" }] },
+          },
+        ),
+        asInteger: body(
+          ["value"],
+          { required: [{ type: "number" }], optional: [], returns: integers },
+          {
+            $if: { $call: "isInteger", $args: [{ $var: "value" }] },
+            $then: [],
+            $else: { $call: "range", $args: [{ $var: "value" }] },
+          },
+        ),
+      };
+
+      const diagnostics = checkModule(mod, BT);
+      expect(diagnostics.filter((diagnostic) => diagnostic.severity === "error")).toHaveLength(2);
+      expect(diagnostics.map((diagnostic) => diagnostic.path)).toEqual([
+        ["asString", "$return", "$else", "$args[0]"],
+        ["asInteger", "$return", "$else", "$args[0]"],
+      ]);
+    });
+
+    test("isInteger partitions integral and fractional enum members for calls", () => {
+      const fractional: Schema = { const: 1.5 };
+      const mod = {
+        fractionalOnly: body(
+          ["value"],
+          { required: [fractional], optional: [], returns: integers },
+          [],
+        ),
+        f: body(
+          ["value"],
+          { required: [{ enum: [1, 1.5] }], optional: [], returns: integers },
+          {
+            $if: { $call: "isInteger", $args: [{ $var: "value" }] },
+            $then: { $call: "range", $args: [{ $var: "value" }] },
+            $else: { $call: "fractionalOnly", $args: [{ $var: "value" }] },
+          },
+        ),
+      };
+
+      expect(checkModule(mod, BT)).toEqual([]);
+    });
+
+    test("a shadowed isInteger does not authorize an integer-only call", () => {
+      const predicate: Schema = {
+        $fnType: { required: [true], optional: [], returns: B },
+      };
+      const mod = {
+        f: body(
+          ["value", "isInteger"],
+          { required: [numberOrString, predicate], optional: [], returns: integers },
+          {
+            $if: { $call: "isInteger", $args: [{ $var: "value" }] },
+            $then: { $call: "range", $args: [{ $var: "value" }] },
+            $else: [],
+          },
+        ),
+      };
+
+      const diagnostics = checkModule(mod, BT);
+      expect(diagnostics.some((diagnostic) => diagnostic.path.at(-1) === "$args[0]")).toBe(true);
+    });
+  });
+
   test("$cond: a mismatching arm is pinpointed to that arm", () => {
     const diags = checkModule(
       returning(
