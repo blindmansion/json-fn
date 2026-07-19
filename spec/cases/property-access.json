@@ -64,6 +64,14 @@
       "expected": null
     },
     {
+      "description": "path traversal into a present null value throws",
+      "body": {
+        "obj": { "a": null },
+        "$return": { "$get": ["a", "b"], "$from": { "$var": "obj" } }
+      },
+      "error": "Cannot access property"
+    },
+    {
       "description": "$get from function call result",
       "body": { "$return": { "$get": 0, "$from": { "$call": "concat", "$args": [[10], [20]] } } },
       "expected": 10
@@ -330,7 +338,7 @@
     {
       "description": "$get on string: non-numeric key throws",
       "body": { "$return": { "$get": "x", "$from": "hello" } },
-      "error": "string indices must be numbers"
+      "error": "string indices must be integers"
     },
     {
       "description": "$var bracket notation on string",
@@ -354,6 +362,81 @@
         "$return": { "$get": ["name", 0], "$from": { "$var": "data" } }
       },
       "expected": "A"
+    },
+    {
+      "description": "object access rejects a numeric key",
+      "body": { "$return": { "$get": 1, "$from": { "1": "one" } } },
+      "error": "Cannot index an object with key 1: object keys must be strings"
+    },
+    {
+      "description": "object access accepts an explicitly stringified numeric key",
+      "body": {
+        "$return": {
+          "$get": { "$call": "str", "$args": [1] },
+          "$from": { "1": "one" }
+        }
+      },
+      "expected": "one"
+    },
+    {
+      "description": "array access rejects a string index",
+      "body": { "$return": { "$get": "0", "$from": ["first"] } },
+      "error": "Cannot index an array with key \"0\": array indices must be integers"
+    },
+    {
+      "description": "array access rejects a fractional numeric index",
+      "body": { "$return": { "$get": 1.5, "$from": ["first", "second"] } },
+      "error": "Cannot index an array with key 1.5: array indices must be integers"
+    },
+    {
+      "description": "string access rejects a string index",
+      "body": { "$return": { "$get": "0", "$from": "hello" } },
+      "error": "Cannot index a string with key \"0\": string indices must be integers"
+    },
+    {
+      "description": "string access rejects a fractional numeric index",
+      "body": { "$return": { "$get": 1.5, "$from": "hello" } },
+      "error": "Cannot index a string with key 1.5: string indices must be integers"
+    },
+    {
+      "description": "folded paths validate each segment against its current target",
+      "body": {
+        "data": { "items": { "0": { "name": "first" } } },
+        "$return": { "$get": ["items", 0, "name"], "$from": { "$var": "data" } }
+      },
+      "error": "Cannot index an object with key 0: object keys must be strings"
+    },
+    {
+      "description": "negative array index is valid but out of bounds",
+      "body": { "$return": { "$get": -1, "$from": ["first"] } },
+      "expected": null
+    },
+    {
+      "description": "negative string index is valid but out of bounds",
+      "body": { "$return": { "$get": -1, "$from": "hello" } },
+      "expected": null
+    },
+    {
+      "description": "object access does not read inherited properties",
+      "body": { "$return": { "$get": "toString", "$from": { "$raw": {} } } },
+      "expected": null
+    },
+    {
+      "description": "object access reads an own constructor property",
+      "body": {
+        "$return": { "$get": "constructor", "$from": { "constructor": "data" } }
+      },
+      "expected": "data"
+    },
+    {
+      "description": "object access reads an own __proto__ property",
+      "body": {
+        "$return": {
+          "$get": "__proto__",
+          "$from": { "$raw": { "__proto__": "data" } }
+        }
+      },
+      "expected": "data"
     }
   ]
 }

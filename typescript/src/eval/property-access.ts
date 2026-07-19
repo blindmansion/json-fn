@@ -35,67 +35,58 @@ function keyHint(key: JSONType): string {
   return "";
 }
 
-export function accessProperty(evaluatedTarget: JSONType, evaluatedKey: JSONType): JSONType {
-  if (
-    evaluatedTarget === null ||
-    (typeof evaluatedTarget !== "object" && typeof evaluatedTarget !== "string")
-  ) {
-    throw new Error(
-      `Cannot access property ${JSON.stringify(evaluatedKey)}: the target is ` +
-        `${describeTarget(evaluatedTarget)}, not an object, array, or string.`,
-    );
-  }
+const missing = Symbol("missing property");
 
-  if (typeof evaluatedTarget === "string") {
-    if (typeof evaluatedKey === "number") {
-      return evaluatedTarget[evaluatedKey] ?? null;
+function accessOne(target: JSONType, key: JSONType): JSONType | typeof missing {
+  if (Array.isArray(target)) {
+    if (typeof key !== "number" || !Number.isInteger(key)) {
+      throw new Error(
+        `Cannot index an array with key ${JSON.stringify(key)}: array indices ` +
+          `must be integers.${keyHint(key)}`,
+      );
     }
-    throw new Error(
-      `Cannot index a string with key ${JSON.stringify(evaluatedKey)}: string ` +
-        `indices must be numbers.${keyHint(evaluatedKey)}`,
-    );
+    const value = target[key];
+    return value === undefined ? missing : value;
   }
 
+  if (typeof target === "string") {
+    if (typeof key !== "number" || !Number.isInteger(key)) {
+      throw new Error(
+        `Cannot index a string with key ${JSON.stringify(key)}: string indices ` +
+          `must be integers.${keyHint(key)}`,
+      );
+    }
+    const value = target[key];
+    return value === undefined ? missing : value;
+  }
+
+  if (target !== null && typeof target === "object") {
+    if (typeof key !== "string") {
+      throw new Error(
+        `Cannot index an object with key ${JSON.stringify(key)}: object keys ` +
+          `must be strings.${keyHint(key)}`,
+      );
+    }
+    return Object.hasOwn(target, key) ? target[key]! : missing;
+  }
+
+  throw new Error(
+    `Cannot access property ${JSON.stringify(key)}: the target is ` +
+      `${describeTarget(target)}, not an object, array, or string.`,
+  );
+}
+
+export function accessProperty(evaluatedTarget: JSONType, evaluatedKey: JSONType): JSONType {
   if (Array.isArray(evaluatedKey)) {
-    // Walk a folded static path one segment at a time, with the same per-step
-    // semantics as a single `$get`: index into strings by number, return null
-    // for a missing object key, and throw on a non-object/non-string target.
-    // Keeping this in lockstep with the scalar case makes static-segment
-    // folding purely an optimization (it never changes results).
-    let current: JSONType = evaluatedTarget;
+    let current = evaluatedTarget;
     for (const segment of evaluatedKey) {
-      if (typeof current === "string") {
-        if (typeof segment !== "number") {
-          throw new Error(
-            `Invalid $get key for string: expected number, got ${JSON.stringify(segment)}`,
-          );
-        }
-        const character: JSONType | undefined = current[segment];
-        if (character === undefined) return null;
-        current = character;
-      } else if (current === null || typeof current !== "object") {
-        throw new Error(
-          `Cannot access property ${JSON.stringify(segment)} partway through a ` +
-            `path: the value at that point is ${describeTarget(current)}, not an ` +
-            `object, array, or string.`,
-        );
-      } else {
-        const next: JSONType | undefined = (current as any)[segment as string | number];
-        if (next === undefined) return null;
-        current = next;
-      }
+      const next = accessOne(current, segment);
+      if (next === missing) return null;
+      current = next;
     }
     return current;
   }
 
-  if (typeof evaluatedKey === "string" || typeof evaluatedKey === "number") {
-    const result = (evaluatedTarget as any)[evaluatedKey];
-    return result === undefined ? null : result;
-  }
-
-  throw new Error(
-    `Invalid property key ${JSON.stringify(evaluatedKey)}: a key must be a ` +
-      `string, number, or array of strings/numbers. Target is ` +
-      `${describeTarget(evaluatedTarget)}.${keyHint(evaluatedKey)}`,
-  );
+  const result = accessOne(evaluatedTarget, evaluatedKey);
+  return result === missing ? null : result;
 }

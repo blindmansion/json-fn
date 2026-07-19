@@ -108,6 +108,116 @@
       "description": "omit: rejects a non-object first argument",
       "body": { "$return": { "$call": "omit", "$args": [[1, 2], ["0"]] } },
       "error": "first argument must be an object"
+    },
+    {
+      "description": "hasKey: rejects a numeric key",
+      "body": { "$return": { "$call": "hasKey", "$args": [{ "1": "one" }, 1] } },
+      "error": "second argument must be a string"
+    },
+    {
+      "description": "pick: rejects a non-array key list",
+      "body": { "$return": { "$call": "pick", "$args": [{ "a": 1 }, "a"] } },
+      "error": "second argument must be an array"
+    },
+    {
+      "description": "omit: rejects a non-array key list",
+      "body": { "$return": { "$call": "omit", "$args": [{ "a": 1 }, "a"] } },
+      "error": "second argument must be an array"
+    },
+    {
+      "description": "pick: rejects a non-string key-list member",
+      "body": { "$return": { "$call": "pick", "$args": [{ "1": "one" }, [1]] } },
+      "error": "keys must be strings"
+    },
+    {
+      "description": "omit: rejects a non-string key-list member",
+      "body": { "$return": { "$call": "omit", "$args": [{ "1": "one" }, [1]] } },
+      "error": "keys must be strings"
+    },
+    {
+      "description": "hasKey: accepts an explicitly stringified numeric key",
+      "body": {
+        "$return": {
+          "$call": "hasKey",
+          "$args": [{ "1": "one" }, { "$call": "str", "$args": [1] }]
+        }
+      },
+      "expected": true
+    },
+    {
+      "description": "pick: accepts an explicitly stringified numeric key",
+      "body": {
+        "$return": {
+          "$call": "pick",
+          "$args": [{ "1": "one" }, [{ "$call": "str", "$args": [1] }]]
+        }
+      },
+      "expected": { "1": "one" }
+    },
+    {
+      "description": "omit: accepts an explicitly stringified numeric key",
+      "body": {
+        "$return": {
+          "$call": "omit",
+          "$args": [{ "1": "one", "2": "two" }, [{ "$call": "str", "$args": [1] }]]
+        }
+      },
+      "expected": { "2": "two" }
+    },
+    {
+      "description": "hasKey: ignores inherited properties",
+      "body": {
+        "$return": { "$call": "hasKey", "$args": [{ "$raw": {} }, "toString"] }
+      },
+      "expected": false
+    },
+    {
+      "description": "hasKey: recognizes an own __proto__ property",
+      "body": {
+        "$return": {
+          "$call": "hasKey",
+          "$args": [{ "$raw": { "__proto__": "data" } }, "__proto__"]
+        }
+      },
+      "expected": true
+    },
+    {
+      "description": "pick: copies only own object-special properties",
+      "body": {
+        "$return": {
+          "$call": "pick",
+          "$args": [
+            {
+              "$raw": {
+                "__proto__": "proto",
+                "constructor": "constructor",
+                "keep": true
+              }
+            },
+            ["__proto__", "constructor", "toString"]
+          ]
+        }
+      },
+      "expected": { "__proto__": "proto", "constructor": "constructor" }
+    },
+    {
+      "description": "omit: preserves own object-special properties",
+      "body": {
+        "$return": {
+          "$call": "omit",
+          "$args": [
+            {
+              "$raw": {
+                "__proto__": "proto",
+                "constructor": "constructor",
+                "drop": true
+              }
+            },
+            ["drop"]
+          ]
+        }
+      },
+      "expected": { "__proto__": "proto", "constructor": "constructor" }
     }
   ]
 }

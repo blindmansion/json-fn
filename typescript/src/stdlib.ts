@@ -85,6 +85,25 @@ function isPlainObject(value: unknown): value is Record<string, JSONType> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function validateStringKeys(name: "pick" | "omit", value: unknown): asserts value is string[] {
+  if (!Array.isArray(value)) throw new Error(`${name}: second argument must be an array`);
+  if (value.some((key) => typeof key !== "string"))
+    throw new Error(`${name}: keys must be strings`);
+}
+
+function copyOwnProperty(
+  target: Record<string, JSONType>,
+  source: Record<string, JSONType>,
+  key: string,
+): void {
+  Object.defineProperty(target, key, {
+    value: source[key],
+    writable: true,
+    enumerable: true,
+    configurable: true,
+  });
+}
+
 function compareStrings(a: string, b: string, meter: Meter): number {
   const left = a[Symbol.iterator]();
   const right = b[Symbol.iterator]();
@@ -798,28 +817,31 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
       meter.charge(Object.keys(a).length + Object.keys(b).length);
       return { ...a, ...b };
     }),
-    hasKey: pure((obj: Record<string, any>, key: string) => {
+    hasKey: pure((obj: JSONType, key: JSONType) => {
       if (!isPlainObject(obj)) throw new Error("hasKey: first argument must be an object");
+      if (typeof key !== "string") throw new Error("hasKey: second argument must be a string");
       return Object.hasOwn(obj, key);
     }),
     isObject: pure((a: any) => isPlainObject(a)),
-    pick: meteredPure((meter, obj: Record<string, any>, ks: string[]) => {
+    pick: meteredPure((meter, obj: JSONType, ks: JSONType) => {
       if (!isPlainObject(obj)) throw new Error("pick: first argument must be an object");
+      validateStringKeys("pick", ks);
       const result: Record<string, any> = {};
       for (const k of ks) {
         meter.charge(1);
-        if (k in obj) result[k] = obj[k];
+        if (Object.hasOwn(obj, k)) copyOwnProperty(result, obj, k);
       }
       return result;
     }),
-    omit: meteredPure((meter, obj: Record<string, any>, ks: string[]) => {
+    omit: meteredPure((meter, obj: JSONType, ks: JSONType) => {
       if (!isPlainObject(obj)) throw new Error("omit: first argument must be an object");
+      validateStringKeys("omit", ks);
       meter.charge(ks.length);
       const exclude = new Set(ks);
       const result: Record<string, any> = {};
       for (const k of Object.keys(obj)) {
         meter.charge(1);
-        if (!exclude.has(k)) result[k] = obj[k];
+        if (!exclude.has(k)) copyOwnProperty(result, obj, k);
       }
       return result;
     }),
