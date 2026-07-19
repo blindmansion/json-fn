@@ -36,6 +36,21 @@
       "expected": {}
     },
     {
+      "description": "fromEntries: rejects a non-array argument",
+      "body": { "$return": { "$call": "fromEntries", "$args": [{}] } },
+      "error": "fromEntries: argument must be an array"
+    },
+    {
+      "description": "fromEntries: rejects malformed entries",
+      "body": { "$return": { "$call": "fromEntries", "$args": [[["key"]]] } },
+      "error": "fromEntries: each entry must be a [key, value] pair"
+    },
+    {
+      "description": "fromEntries: rejects non-string keys",
+      "body": { "$return": { "$call": "fromEntries", "$args": [[[1, "value"]]] } },
+      "error": "fromEntries: keys must be strings"
+    },
+    {
       "description": "entries → fromEntries roundtrip",
       "body": {
         "pairs": { "$call": "entries", "$args": [{ "name": "alice", "age": 30 }] },

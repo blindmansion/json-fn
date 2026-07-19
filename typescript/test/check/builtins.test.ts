@@ -1053,9 +1053,18 @@ describe("Section F — builtin signatures", () => {
       expect(synthB(call("bind", call("pure", 1), cont)).type).toEqual({
         $taskType: { const: 1 },
       });
-      expect(synthB(call("apply", { $params: ["n"], $return: { $var: "n" } }, [1])).type).toBe(
-        true,
+      const applied = synthB(
+        call(
+          "apply",
+          {
+            $params: ["a", "b"],
+            $return: call("sub", { $var: "a" }, { $var: "b" }),
+          },
+          [10, 3],
+        ),
       );
+      expect(applied.type).toBe(true);
+      expect(applied.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
       expect(synthB(call("pipe", [], 1)).type).toBe(true);
     });
 

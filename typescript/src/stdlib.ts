@@ -782,8 +782,14 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
       if (!isPlainObject(obj)) throw new Error("entries: argument must be an object");
       return Object.entries(obj);
     }),
-    fromEntries: meteredPure((meter, pairs: [string, any][]) => {
+    fromEntries: meteredPure((meter, pairs: any) => {
+      if (!Array.isArray(pairs)) throw new Error("fromEntries: argument must be an array");
       meter.charge(pairs.length);
+      for (const pair of pairs) {
+        if (!Array.isArray(pair) || pair.length < 2)
+          throw new Error("fromEntries: each entry must be a [key, value] pair");
+        if (typeof pair[0] !== "string") throw new Error("fromEntries: keys must be strings");
+      }
       return Object.fromEntries(pairs);
     }),
     merge: meteredPure((meter, a: Record<string, any>, b: Record<string, any>) => {

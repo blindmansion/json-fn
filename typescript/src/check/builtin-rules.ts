@@ -399,13 +399,14 @@ function applyOverload(
     const param = paramAt(sig, i)!;
     // A lambda supplied where the expected param isn't a function type (e.g.
     // args swapped, `map([1,2,3], (n) => n + 1)`) can't be contextually typed.
-    // Report the assignability error instead of destructuring an absent
-    // `$fnType`, which used to throw. Since an un-annotated lambda has no
-    // synthesizable type, describe it by its declared arity so the mismatch
-    // fires reliably rather than degrading to `any`.
+    // Describe it by its declared arity and check assignability rather than
+    // destructuring an absent `$fnType`. Top schemas such as `apply`'s callee
+    // parameter accept the function value, while concrete non-function schemas
+    // still produce the intended mismatch.
     if (classifySchema(param) !== SchemaKind.FnType) {
       const lambda = argExprs[i] as Record<string, JSONType>;
-      const layout = analyzeBodyParameters(lambda, at(ctx, `$args[${i}]`));
+      const actx = at(ctx, `$args[${i}]`);
+      const layout = analyzeBodyParameters(lambda, actx);
       if (layout === null) continue;
       const arity = layout.slots.length;
       const actual: Schema = {
@@ -415,7 +416,10 @@ function applyOverload(
           returns: true,
         },
       };
-      reportMismatch(at(ctx, `$args[${i}]`), actual, instantiate(param, bindings));
+      const expected = instantiate(param, bindings);
+      if (!isSubschema(actual, expected, ctx.defs)) {
+        reportMismatch(actx, actual, expected);
+      }
       continue;
     }
     const shape = fnShape(asObject(param));
