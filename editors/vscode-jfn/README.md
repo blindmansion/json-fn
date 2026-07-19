@@ -13,7 +13,7 @@ no build step, no runtime — so it works with any color theme.
   `=>` (function) / `->` (case) arrows
 - Function calls (`name(...)`) and function references (`&name`)
 - Object keys / `where` bindings and `.property` accessors
-- `// line comments`
+- `// line comments` and `/* block comments */`
 - **Types** (`docs/type-syntax-spec.md`):
   - `type Name = <type>` declarations — the name, the `=`, and the whole type
     expression are fully colored (see below)
