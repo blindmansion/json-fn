@@ -1,0 +1,89 @@
+{
+  "$defs": {
+    "Vector": {
+      "type": "object",
+      "required": ["x", "y"],
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" }
+      },
+      "additionalProperties": false
+    },
+    "Track": {
+      "type": "object",
+      "required": ["id", "position", "velocity", "radiusKm"],
+      "properties": {
+        "id": { "type": "string" },
+        "position": { "$ref": "#/$defs/Vector" },
+        "velocity": { "$ref": "#/$defs/Vector" },
+        "radiusKm": { "type": "number", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "Severity": {
+      "enum": ["critical", "danger", "watch", "clear"]
+    },
+    "Encounter": {
+      "type": "object",
+      "required": [
+        "primary",
+        "secondary",
+        "timeMinutes",
+        "missKm",
+        "protectedKm",
+        "severity",
+        "action"
+      ],
+      "properties": {
+        "primary": { "type": "string" },
+        "secondary": { "type": "string" },
+        "timeMinutes": { "type": "number" },
+        "missKm": { "type": "number" },
+        "protectedKm": { "type": "number" },
+        "severity": { "$ref": "#/$defs/Severity" },
+        "action": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "Report": {
+      "type": "object",
+      "required": [
+        "horizonMinutes",
+        "pairCount",
+        "counts",
+        "alerts",
+        "brief"
+      ],
+      "properties": {
+        "horizonMinutes": { "type": "number" },
+        "pairCount": { "type": "integer" },
+        "counts": {
+          "type": "object",
+          "additionalProperties": { "type": "integer" }
+        },
+        "alerts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Encounter" }
+        },
+        "brief": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "functions": {},
+  "effects": {},
+  "entry": {
+    "name": "screen",
+    "required": [
+      {
+        "type": "array",
+        "items": { "$ref": "#/$defs/Track" }
+      },
+      { "type": "number", "minimum": 0 }
+    ],
+    "optional": [],
+    "returns": {
+      "task": { "$ref": "#/$defs/Report" }
+    }
+  }
+}

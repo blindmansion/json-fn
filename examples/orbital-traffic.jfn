@@ -1,0 +1,107 @@
+// Orbital traffic control: project every pair of tracked objects to its closest
+// approach, rank conjunction alerts, and produce a compact operator report.
+//
+// Check and run it through the CLI:
+//   bun run src/cli.ts check --environment ../examples/orbital-traffic.environment.json --file ../examples/orbital-traffic.jfn
+//   bun run src/cli.ts eval --environment ../examples/orbital-traffic.environment.json --file ../examples/orbital-traffic.jfn --function demo
+{
+  type TrackPair = [Track, Track],
+
+  dot: (a: Vector, b: Vector) -> number => a.x * b.x + a.y * b.y,
+
+  relativePosition: (a: Track, b: Track) -> Vector =>
+    { x: b.position.x - a.position.x, y: b.position.y - a.position.y },
+
+  relativeVelocity: (a: Track, b: Track) -> Vector =>
+    { x: b.velocity.x - a.velocity.x, y: b.velocity.y - a.velocity.y },
+
+  magnitude: (v: Vector) -> number => sqrt(dot(v, v)),
+
+  atTime: (position: Vector, velocity: Vector, minutes: number) -> Vector => {
+    x: position.x + velocity.x * minutes,
+    y: position.y + velocity.y * minutes
+  },
+
+  // Minimize |r + vt| over the closed prediction window. Parallel tracks have
+  // no relative motion, so their current separation is their closest approach.
+  closestTime: (r: Vector, v: Vector, horizonMinutes: number) -> number =>
+    if dot(v, v) == 0
+      then 0
+      else clamp(-dot(r, v) / dot(v, v), 0, horizonMinutes),
+
+  severity: (missKm: number, protectedKm: number, timeMinutes: number) -> Severity => cond {
+    missKm <= protectedKm && timeMinutes <= 15 -> "critical",
+    missKm <= protectedKm                      -> "danger",
+    missKm <= protectedKm * 3                  -> "watch",
+    else                                       -> "clear"
+  },
+
+  recommendation: (level: Severity, a: Track, b: Track) -> string => match level {
+    "critical" -> `MANEUVER ${b.id}; coordinate immediately with ${a.id}`,
+    "danger"   -> `prepare avoidance plan for ${b.id}`,
+    "watch"    -> `increase tracking cadence for ${a.id}/${b.id}`,
+    else       -> "no action"
+  },
+
+  assess: (pair: TrackPair, horizonMinutes: number) -> Encounter => {
+    primary: pair[0].id,
+    secondary: pair[1].id,
+    timeMinutes: round(t),
+    missKm: round(miss * 100) / 100,
+    protectedKm: protected,
+    severity: level,
+    action: recommendation(level, pair[0], pair[1])
+  } where {
+    r: relativePosition(pair[0], pair[1]),
+    v: relativeVelocity(pair[0], pair[1]),
+    t: closestTime(r, v, horizonMinutes),
+    miss: magnitude(atTime(r, v, t)),
+    protected: pair[0].radiusKm + pair[1].radiusKm,
+    level: severity(miss, protected, t)
+  },
+
+  // Each unordered pair appears exactly once.
+  pairs: (tracks: Track[]) -> TrackPair[] =>
+    flatMapIndexed(
+      (a, index) => map((b) => [a, b] as TrackPair, drop(tracks, index + 1)),
+      tracks
+    ),
+
+  rank: (level: Severity) -> integer => match level {
+    "critical" -> 0,
+    "danger"   -> 1,
+    "watch"    -> 2,
+    else       -> 3
+  },
+
+  line: (e: Encounter) -> string =>
+    `${upper(e.severity)} ${e.primary}/${e.secondary}: ${str(e.missKm)}km in ${str(e.timeMinutes)}min — ${e.action}`,
+
+  analyze: (tracks: Track[], horizonMinutes: number) -> Report => report where {
+    assessed: map((pair) => assess(pair, horizonMinutes), pairs(tracks)),
+    ranked: sort((a, b) => rank(a.severity) - rank(b.severity), assessed),
+    alerts: filter((e) => e.severity != "clear", ranked),
+    report: {
+      horizonMinutes,
+      pairCount: length(assessed),
+      counts: countBy((e) => e.severity, assessed),
+      alerts,
+      brief: if length(alerts) == 0
+        then "All projected conjunctions are clear."
+        else join(map((e) => line(e), alerts), "\n")
+    }
+  },
+
+  // Environment entries are tasks, even though this computation is pure.
+  screen: (tracks, horizonMinutes) => pure(analyze(tracks, horizonMinutes)),
+
+  demo: () -> Report => analyze([
+    // A and B are converging head-on and cross in ten minutes.
+    { id: "AURORA-1", position: { x: 0, y: 0 }, velocity: { x: 1, y: 0 }, radiusKm: 2 },
+    { id: "BOREALIS-7", position: { x: 20, y: 1 }, velocity: { x: -1, y: 0 }, radiusKm: 2 },
+
+    // C passes near the crossing later; D remains far outside every corridor.
+    { id: "COMET-3", position: { x: 10, y: 12 }, velocity: { x: 0, y: -0.5 }, radiusKm: 1 },
+    { id: "DEEP-SPACE", position: { x: 100, y: 100 }, velocity: { x: 0.1, y: 0.1 }, radiusKm: 1 }
+  ], 60)
+}

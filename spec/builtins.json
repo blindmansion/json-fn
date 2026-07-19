@@ -1156,7 +1156,7 @@
       }
     ] },
     "countBy": {
-      "description": "Count array elements by callback-produced string or numeric keys.",
+      "description": "Count elements by callback key; output contains only observed keys, with numbers stringified.",
       "category": "higher-order",
       "signatures": [
       {
