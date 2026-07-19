@@ -10,6 +10,36 @@
       "description": "leading line comment",
       "source": "// leading\nx",
       "expected": { "$var": "x" }
+    },
+    {
+      "description": "inline block comment is discarded between tokens",
+      "source": "add(1, /* middle */ 2)",
+      "expected": { "$call": "add", "$args": [1, 2] }
+    },
+    {
+      "description": "multiline block comment tracks following token position",
+      "source": "/* first\n   second */\nx",
+      "expected": { "$var": "x" }
+    },
+    {
+      "description": "block comment next to division remains unambiguous",
+      "source": "6 /* comment */ / 2",
+      "expected": { "$call": "div", "$args": [6, 2] }
+    },
+    {
+      "description": "brace in block comment does not close a template hole",
+      "source": "`value: ${x /* } */}`",
+      "expected": { "$call": "strcat", "$args": ["value: ", { "$var": "x" }] }
+    },
+    {
+      "description": "brace in line comment does not close a template hole",
+      "source": "`value: ${x // }\n}`",
+      "expected": { "$call": "strcat", "$args": ["value: ", { "$var": "x" }] }
+    },
+    {
+      "description": "unterminated block comment is rejected",
+      "source": "x /* never closed",
+      "error": "unterminated block comment"
     }
   ]
 }

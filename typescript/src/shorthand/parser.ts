@@ -27,6 +27,20 @@ type Seg =
   | { kind: "static"; value: JSONType } // literal key/index that folds into a `$get` path
   | { kind: "computed"; value: JSONType }; // computed key that breaks a static run
 
+/** One ordered segment in an array literal or call argument list. */
+type SpreadPart = { kind: "plain"; values: JSONType[] } | { kind: "spread"; value: JSONType };
+
+type ParsedSpreadList = {
+  parts: SpreadPart[];
+  hasSpread: boolean;
+};
+
+/** One ordered object-literal chunk before `merge` lowering. */
+type ObjectChunk =
+  | { kind: "plain"; value: Record<string, JSONType> }
+  | { kind: "spread"; value: JSONType }
+  | { kind: "computed"; value: JSONType };
+
 // Comparison operators lower to stdlib function calls (exactly as `+`→`add`),
 // so the core no longer needs first-class comparator nodes.
 const COMPARISON_OPS: Partial<Record<TokPunct, string>> = {
@@ -170,8 +184,16 @@ class Parser extends TokenCursor {
         // else is an evaluated callee (spec section 4).
         const callee: JSONType = name !== null ? name : val;
         this.advance();
-        const args = this.parseCallArgs();
-        val = { $call: callee, $args: args };
+        const parsed = this.parseCallArgs();
+        if (parsed.hasSpread) {
+          // `apply` needs the callee as a value. A named `$fn` preserves direct
+          // call resolution, including registry fallback past non-function
+          // lexical bindings; a `$var` would not.
+          const calleeValue: JSONType = name !== null ? { $fn: name } : val;
+          val = fncall("apply", [calleeValue, lowerSpreadParts(parsed.parts, true)]);
+        } else {
+          val = { $call: callee, $args: plainValues(parsed.parts) };
+        }
         name = null;
       } else if (type === "dot" || type === "lbracket") {
         const segs = this.gatherAccess();
@@ -307,42 +329,38 @@ class Parser extends TokenCursor {
 
   private parseArray(): JSONType {
     // `[` already consumed.
-    const els: JSONType[] = [];
-    if (this.peekType() === "rbracket") {
-      this.advance();
-      return els;
-    }
-    for (;;) {
-      els.push(this.parseExpr());
-      const type = this.peekType();
-      if (type === "comma") {
-        this.advance();
-        if (this.peekType() === "rbracket") {
-          this.advance();
-          break;
-        }
-      } else if (type === "rbracket") {
-        this.advance();
-        break;
-      } else {
-        throw this.err("expected ',' or ']' in array");
-      }
-    }
-    return els;
+    const parsed = this.parseSpreadList("rbracket", "']'", "array");
+    return parsed.hasSpread ? lowerSpreadParts(parsed.parts, false) : plainValues(parsed.parts);
   }
 
   private parseDataObject(): JSONType {
-    // `{` already consumed. Keys are literal data; values are evaluated.
-    const map: Record<string, JSONType> = {};
+    // `{` already consumed. Ordinary keys are literal data; computed keys and
+    // spreads lower through `fromEntries` and `merge`.
+    let map: Record<string, JSONType> = {};
+    const chunks: ObjectChunk[] = [];
+    let hasDynamicEntry = false;
     if (this.peekType() === "rbrace") {
       this.advance();
       return map;
     }
     for (;;) {
-      this.parseDataEntry(map);
+      if (this.peekType() === "dotdotdot") {
+        hasDynamicEntry = true;
+        map = flushObjectMap(map, chunks);
+        this.advance();
+        chunks.push({ kind: "spread", value: this.parseExpr() });
+      } else if (this.peekType() === "lbracket") {
+        hasDynamicEntry = true;
+        map = flushObjectMap(map, chunks);
+        chunks.push({ kind: "computed", value: this.parseComputedDataEntry() });
+      } else {
+        this.parseDataEntry(map);
+      }
       if (this.consumeObjectSep("data object")) break;
     }
-    return map;
+    if (!hasDynamicEntry) return map;
+    flushObjectMap(map, chunks);
+    return lowerObjectChunks(chunks);
   }
 
   /** Parse one ordinary object entry (binding / constant / pun) into `map`.
@@ -373,6 +391,16 @@ class Parser extends TokenCursor {
     }
   }
 
+  /** Parse `[key]: value`, lowering the entry to a one-pair `fromEntries` call. */
+  private parseComputedDataEntry(): JSONType {
+    this.expect("lbracket", "'[' for computed data-object key");
+    const key = this.parseExpr();
+    this.expect("rbracket", "']' after computed data-object key");
+    this.expect("colon", "':' after computed data-object key");
+    const value = this.parseExpr();
+    return fncall("fromEntries", [[[key, value]]]);
+  }
+
   /** Consume the `,`/`}` after an object entry. Returns `true` when the object
    * has closed (a `}` was consumed), `false` to continue the loop. */
   private consumeObjectSep(what: string): boolean {
@@ -396,8 +424,10 @@ class Parser extends TokenCursor {
    * `parseDataObject` that also recognizes `type Name = <type>` declarations
    * and lowers them into a reserved `$types` sibling (spec §8). */
   private parseModule(): JSONType {
-    const map: Record<string, JSONType> = {};
+    let map: Record<string, JSONType> = {};
     const types: Record<string, Schema> = {};
+    const chunks: ObjectChunk[] = [];
+    let hasDynamicEntry = false;
     if (this.peekType() === "rbrace") {
       this.advance();
       return map;
@@ -416,10 +446,26 @@ class Parser extends TokenCursor {
         }
         this.expect("equals", "'=' in type declaration");
         types[name] = this.parseTypeExpr();
+      } else if (this.peekType() === "dotdotdot") {
+        hasDynamicEntry = true;
+        map = flushObjectMap(map, chunks);
+        this.advance();
+        chunks.push({ kind: "spread", value: this.parseExpr() });
+      } else if (this.peekType() === "lbracket") {
+        hasDynamicEntry = true;
+        map = flushObjectMap(map, chunks);
+        chunks.push({ kind: "computed", value: this.parseComputedDataEntry() });
       } else {
         this.parseDataEntry(map);
       }
       if (this.consumeObjectSep("module")) break;
+    }
+    if (hasDynamicEntry) {
+      if (Object.keys(types).length > 0) {
+        throw this.err("type declarations cannot be combined with object spread or computed keys");
+      }
+      flushObjectMap(map, chunks);
+      return lowerObjectChunks(chunks);
     }
     if (Object.keys(types).length > 0) {
       return { $types: types, ...map };
@@ -1048,30 +1094,52 @@ class Parser extends TokenCursor {
     return fncall("strcat", segs);
   }
 
-  private parseCallArgs(): JSONType[] {
+  private parseCallArgs(): ParsedSpreadList {
     // `(` already consumed.
-    const args: JSONType[] = [];
-    if (this.peekType() === "rparen") {
+    return this.parseSpreadList("rparen", "')'", "argument list");
+  }
+
+  /** Parse a comma-separated expression list with optional `...expr` entries. */
+  private parseSpreadList(
+    close: "rbracket" | "rparen",
+    expectedClose: string,
+    what: string,
+  ): ParsedSpreadList {
+    const parts: SpreadPart[] = [];
+    let plain: JSONType[] = [];
+    let hasSpread = false;
+    if (this.peekType() === close) {
       this.advance();
-      return args;
+      return { parts, hasSpread };
     }
     for (;;) {
-      args.push(this.parseExpr());
+      if (this.peekType() === "dotdotdot") {
+        hasSpread = true;
+        if (plain.length > 0) {
+          parts.push({ kind: "plain", values: plain });
+          plain = [];
+        }
+        this.advance();
+        parts.push({ kind: "spread", value: this.parseExpr() });
+      } else {
+        plain.push(this.parseExpr());
+      }
       const type = this.peekType();
       if (type === "comma") {
         this.advance();
-        if (this.peekType() === "rparen") {
+        if (this.peekType() === close) {
           this.advance();
           break;
         }
-      } else if (type === "rparen") {
+      } else if (type === close) {
         this.advance();
         break;
       } else {
-        throw this.err("expected ',' or ')' in argument list");
+        throw this.err(`expected ',' or ${expectedClose} in ${what}`);
       }
     }
-    return args;
+    if (plain.length > 0) parts.push({ kind: "plain", values: plain });
+    return { parts, hasSpread };
   }
 }
 
@@ -1106,6 +1174,46 @@ function collectDoPures(entries: DoEntry[], i: number): [[string, JSONType][], n
 
 function fncall(name: string, args: JSONType[]): JSONType {
   return { $call: name, $args: args };
+}
+
+function plainValues(parts: SpreadPart[]): JSONType[] {
+  return parts.flatMap((part) => (part.kind === "plain" ? part.values : []));
+}
+
+/** Lower ordered list segments to one variadic `concat`. A sole call spread can
+ * be passed directly to `apply`, whose second argument performs array validation. */
+function lowerSpreadParts(parts: SpreadPart[], directSoleSpread: boolean): JSONType {
+  if (directSoleSpread && parts.length === 1 && parts[0]!.kind === "spread") {
+    return parts[0]!.value;
+  }
+  return fncall(
+    "concat",
+    parts.map((part) => (part.kind === "plain" ? part.values : part.value)),
+  );
+}
+
+/** Move a non-empty run of ordinary object fields into the ordered chunk list. */
+function flushObjectMap(
+  map: Record<string, JSONType>,
+  chunks: ObjectChunk[],
+): Record<string, JSONType> {
+  if (Object.keys(map).length > 0) chunks.push({ kind: "plain", value: map });
+  return {};
+}
+
+/** Left-fold ordered object chunks. An initial spread is merged over `{}` so a
+ * spread-only literal still validates its operand as an object. */
+function lowerObjectChunks(chunks: ObjectChunk[]): JSONType {
+  if (chunks.length === 0) return {};
+  const first = chunks[0]!;
+  let value: JSONType =
+    first.kind === "spread" && chunks.length === 1
+      ? fncall("merge", [{}, first.value])
+      : first.value;
+  for (let i = 1; i < chunks.length; i++) {
+    value = fncall("merge", [value, chunks[i]!.value]);
+  }
+  return value;
 }
 
 /** Append an argument to an existing `{ "$call": name, "$args": [...] }` call

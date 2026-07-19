@@ -28,8 +28,9 @@ File extension: `.jfn`.
   `"\""`). Quoting is the **sole** signal for a literal string.
 - **Whitespace** is insignificant except as a token separator. Elements in
   arrays, objects, argument lists, and blocks are comma-separated.
-- **Comments:** `// …` to end of line. 🔴 **TODO(comments):** attachment rules
-  (which node a comment lowers to as `$comment`, group/section comments,
+- **Comments:** `// …` to end of line and non-nested `/* … */` block comments.
+  Both are currently discarded as trivia. 🔴 **TODO(comments):** attachment
+  rules (which node a comment lowers to as `$comment`, group/section comments,
   comments on non-object targets) are deferred and unspecified.
 
 ---
@@ -69,6 +70,21 @@ Elements are **evaluated**.
 [1, { "$call": "add", "$args": [2, 3] }]
 ```
 
+An array element may be spread with `...`. Consecutive ordinary elements form
+array-literal segments; the ordered segments lower to one variadic `concat`
+call. This evaluates every expression once, from left to right.
+
+```jfn
+[first, ...middle, last]
+```
+
+```json
+{ "$call": "concat", "$args": [[{ "$var": "first" }], { "$var": "middle" }, [{ "$var": "last" }]] }
+```
+
+The spread operand must evaluate to an array. Even a spread-only literal lowers
+through `concat` (`[...xs]` → `concat(xs)`), so that requirement is enforced.
+
 ### Data objects — `{ key: value }`
 
 **Values are evaluated; keys are literal data** (never evaluated). Keys may be
@@ -103,6 +119,37 @@ identifier** keys pun; a quoted-string key always requires an explicit value.
 The pun is the **canonical printback** for a `{ "$var": k }` value whose key `k`
 equals the variable name (a value with a `$get` path — `{ year: year.start }` —
 is not a pun and prints in full).
+
+Object entries may be spreads (`...object`) or computed keys (`[key]: value`).
+They lower in source order using the existing `merge` and `fromEntries`
+builtins; `merge` is shallow and its right-hand object wins conflicts.
+
+```jfn
+{ ...defaults, name: requestedName, [extraKey]: extraValue }
+```
+
+```json
+{
+  "$call": "merge",
+  "$args": [
+    {
+      "$call": "merge",
+      "$args": [{ "$var": "defaults" }, { "name": { "$var": "requestedName" } }]
+    },
+    {
+      "$call": "fromEntries",
+      "$args": [[[{ "$var": "extraKey" }, { "$var": "extraValue" }]]]
+    }
+  ]
+}
+```
+
+Ordinary entries between dynamic entries are grouped into plain-object chunks.
+A computed entry always uses `fromEntries`, including when its key expression
+is a string literal, so a computed `$`-prefixed result remains data rather than
+canonical expression syntax. Object spread operands must be objects; a
+spread-only literal lowers as `{ ...source }` → `merge({}, source)` to preserve
+that validation. Computed keys follow `fromEntries`' string-key contract.
 
 ### Inert data — `raw`
 
@@ -156,6 +203,37 @@ f()                       // zero-arg call
 { "$call": { "$var": "fnName" }, "$args": [3, 4] }
 { "$call": { "$params": ["x"], "$return": { "$call": "mul", "$args": [{ "$var": "x" }, { "$var": "x" }] } }, "$args": [5] }
 ```
+
+### Spread arguments
+
+Arguments may be spread from an array. Ordinary argument runs become array
+segments, those segments are combined with `concat`, and the callee plus final
+argument array are passed to `apply`.
+
+```jfn
+f(first, ...middle, last)
+```
+
+```json
+{
+  "$call": "apply",
+  "$args": [
+    { "$fn": "f" },
+    {
+      "$call": "concat",
+      "$args": [[{ "$var": "first" }], { "$var": "middle" }, [{ "$var": "last" }]]
+    }
+  ]
+}
+```
+
+A sole spread avoids the unnecessary `concat`: `f(...args)` lowers to
+`apply(&f, args)`. The `$fn` wrapper preserves the lexical-first,
+registry-second behavior of an ordinary named call. Evaluated callees use their
+ordinary expression value instead. Spread operands must evaluate to arrays.
+The current `core.apply` checker rule is intentionally imprecise, so a spread
+call's result type degrades to `any` even when the callee has a known signature;
+this is a checker limitation, not a new canonical JSON form.
 
 ### Method calls and chained application
 

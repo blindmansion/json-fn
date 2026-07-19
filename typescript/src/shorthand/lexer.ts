@@ -27,7 +27,7 @@ export type TokPunct =
   | "comma"
   | "colon"
   | "dot"
-  | "dotdotdot" // ...  (rest parameter)
+  | "dotdotdot" // ...  (rest parameter or spread)
   | "arrow" //     ->   (cond/match arm)
   | "fatarrow" //  =>   (function literal)
   | "amp" //       &    (function reference)
@@ -115,8 +115,8 @@ class Lexer {
     }
   }
 
-  /** Skip whitespace and `// ...` line comments. Comment attachment to
-   * `$comment` is deferred, so comments are simply discarded here. */
+  /** Skip whitespace plus line and non-nested block comments. Comment
+   * attachment to `$comment` is deferred, so comments are discarded here. */
   private skipTrivia(): void {
     for (;;) {
       const c = this.peek();
@@ -126,6 +126,23 @@ class Lexer {
         for (;;) {
           const n = this.peek();
           if (n === undefined || n === "\n") break;
+          this.bump();
+        }
+      } else if (c === "/" && this.peek2() === "*") {
+        const line = this.line;
+        const col = this.col;
+        this.bump();
+        this.bump();
+        for (;;) {
+          const n = this.peek();
+          if (n === undefined) {
+            throw new ParseError("unterminated block comment", line, col);
+          }
+          if (n === "*" && this.peek2() === "/") {
+            this.bump();
+            this.bump();
+            break;
+          }
           this.bump();
         }
       } else {
@@ -408,8 +425,8 @@ class Lexer {
   }
 
   /** Capture the raw source of a `${ ... }` hole (the `${` already consumed),
-   * consuming through the matching `}`. Tracks brace depth and skips over
-   * nested string literals so a `}` inside a string does not close the hole. */
+   * consuming through the matching `}`. Tracks brace depth and copies strings
+   * and comments whole so braces inside them do not close the hole. */
   private readHole(): string {
     let raw = "";
     let depth = 1;
@@ -438,6 +455,28 @@ class Lexer {
           } else {
             raw += s;
             this.bump();
+          }
+        }
+      } else if (c === "/" && this.peek2() === "/") {
+        // Preserve the comment for the recursive lexer, but do not interpret a
+        // brace inside it as part of the template-hole structure.
+        while (this.peek() !== undefined && this.peek() !== "\n") {
+          raw += this.bump();
+        }
+      } else if (c === "/" && this.peek2() === "*") {
+        const line = this.line;
+        const col = this.col;
+        raw += this.bump();
+        raw += this.bump();
+        for (;;) {
+          const n = this.peek();
+          if (n === undefined) {
+            throw new ParseError("unterminated block comment", line, col);
+          }
+          raw += this.bump();
+          if (n === "*" && this.peek() === "/") {
+            raw += this.bump();
+            break;
           }
         }
       } else if (c === "{") {
