@@ -54,8 +54,8 @@ eval options:
       --environment <path>
                       Treat input as a module and run the environment entry
       --function <name>
-                      Development mode: invoke another module function using
-                      the environment definitions and generated effects API
+                      Unchecked development invocation using the environment
+                      definitions and generated effects API
       --args <json>   JSON array of function/entry arguments (default: [])
   -j, --json          Print the result as JSON (default)
   -s, --shorthand     Print the result as .jfn shorthand (best effort)

@@ -10,7 +10,11 @@ import {
 } from "../definition-pool";
 import { buildEffectNamespace, EFFECTS_BINDING } from "../environment/effects";
 import type { EffectManifest } from "../environment/effect-types";
-import { EnvironmentConfigurationError, entryCompletionType } from "../environment/environment";
+import {
+  EnvironmentConfigurationError,
+  entryCompletionType,
+  isTaskReturn,
+} from "../environment/environment";
 import type { Environment } from "../environment/types";
 import { prepareProgram } from "../eval";
 import { enforceRuntimeContract, RuntimeContractError } from "../runtime-contract";
@@ -43,8 +47,8 @@ export class UnhandledEffectError extends Error {
 }
 
 /**
- * Run a module entry as a task, driving it to completion by answering each
- * suspended effect from the host capability table.
+ * Run a module entry according to its environment return contract. Task
+ * entries are driven to completion by answering suspended host effects.
  */
 export async function runTask(
   module: Record<string, JSONType>,
@@ -78,6 +82,7 @@ export async function runTask(
     runtimeModule,
     environment.entry.name,
     checkedArgs,
+    isTaskReturn(environment.entry.returns),
     prepared.registry,
     host.capabilities,
     limits,
@@ -96,6 +101,7 @@ async function runTaskConfigured(
   module: Record<string, JSONType>,
   entry: string,
   args: JSONType[],
+  taskReturn: boolean,
   registry: FunctionRegistry,
   capabilities: Record<string, Capability>,
   limits?: ExecutionLimits,
@@ -110,6 +116,7 @@ async function runTaskConfigured(
   );
   const defs = mergeDefinitionPools(definitions, readModuleDefinitions(module));
   let task = invokeEntry(entry, args);
+  if (!taskReturn) return task;
 
   for (;;) {
     const stepped = stepTask(task, call, meter);

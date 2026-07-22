@@ -701,14 +701,21 @@ rules as core builtins. Callable-name collisions are rejected rather than
 overridden. Entry contracts use mandatory `required` and `optional` arrays in
 that order. Entry calls accept every argument count from the required length
 through the combined required-plus-optional length; supplied optional arguments
-are still validated against their schemas. `entry.returns: { task: A }`
-describes the task's eventual completion value.
+are still validated against their schemas. Entry returns have two forms:
 
-`runTask` validates entry arguments and completion, wraps tractable direct host
-functions to validate their arguments/results, rejects effects absent from the
-environment, validates outgoing effect arguments before invoking host code, and
-validates capability results before resuming. Named references use the same
-merged builtin/environment/module definition pool as the checker.
+- `entry.returns: A` describes an immediate result. The host invokes the entry
+  once and validates that value directly; it does not interpret task-shaped
+  data returned under a direct contract.
+- `entry.returns: { task: A }` describes a task whose eventual completion value
+  matches `A`. The host drives this form through the task trampoline and
+  dispatches capabilities for effects that reach the host.
+
+Despite its compatibility-preserving name, `runTask` executes either declared
+entry mode. It validates entry arguments and results, wraps tractable direct
+host functions to validate their arguments/results, rejects effects absent from
+the environment, validates outgoing effect arguments before invoking host code,
+and validates capability results before resuming task entries. Named references
+use the same merged builtin/environment/module definition pool as the checker.
 
 `jfn check --environment <path>` loads the same artifact, preloads its named
 types, functions, and effects, and checks the entry body contextually against
@@ -716,10 +723,12 @@ the environment-owned signature. `jfn eval --environment <path>` executes that
 entry through the same validated host API. Adding `--function <name>` selects a
 development evaluation instead: the CLI injects the environment's definitions
 and generated `effects` namespace, then invokes that named module function
-without claiming it satisfies the production entry contract. This is suitable
-for in-language demos whose handlers discharge their own effects; it does not
-synthesize implementations for direct host functions or effects that escape to
-the host.
+without entry argument validation, entry return validation, or automatic task
+execution. Success in this mode does not show that the production entry can run.
+Test an environment module at least once without `--function`. The option is
+suitable for in-language demos whose handlers discharge their own effects; it
+does not synthesize implementations for direct host functions or effects that
+escape to the host.
 
 **Durable suspend/resume.** Because a `pending` task is plain JSON, a host can `serializeTask` it, store it, and later `hydrateTask` + resume — even in a different process. `hydrateTask` restores the inertness marks that keep embedded tasks opaque to the evaluator.
 

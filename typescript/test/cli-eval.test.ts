@@ -113,6 +113,34 @@ describe("jfn eval arity diagnostics", () => {
 });
 
 describe("jfn eval environment modes", () => {
+  test("executes a direct environment entry", () => {
+    const directory = mkdtempSync(join(tmpdir(), "json-fn-eval-direct-entry-"));
+    const environmentPath = join(directory, "environment.json");
+    writeFileSync(
+      environmentPath,
+      JSON.stringify({
+        functions: {},
+        effects: {},
+        entry: {
+          name: "main",
+          required: [],
+          optional: [],
+          returns: { type: "integer" },
+        },
+      }),
+    );
+
+    try {
+      const result = runEval(["--environment", environmentPath, "{ main: () => 42 }", "--compact"]);
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stderr).toBe("");
+      expect(result.stdout.trim()).toBe("42");
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   test("distinguishes the authoritative entry from a development function", () => {
     const directory = mkdtempSync(join(tmpdir(), "json-fn-eval-environment-"));
     const environmentPath = join(directory, "environment.json");
@@ -145,6 +173,45 @@ describe("jfn eval environment modes", () => {
       expect(production.exitCode).toBe(0);
       expect(production.stdout.trim()).toBe("7");
       expect(development.exitCode).toBe(0);
+      expect(development.stdout.trim()).toBe("9");
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  test("--function bypasses production entry validation and invocation", () => {
+    const directory = mkdtempSync(join(tmpdir(), "json-fn-eval-development-function-"));
+    const environmentPath = join(directory, "environment.json");
+    writeFileSync(
+      environmentPath,
+      JSON.stringify({
+        functions: {},
+        effects: {},
+        entry: {
+          name: "main",
+          required: [],
+          optional: [],
+          returns: { type: "integer" },
+        },
+      }),
+    );
+    const module = '{ main: () => "invalid", demo: () => 9 }';
+
+    try {
+      const production = runEval(["--environment", environmentPath, module, "--compact"]);
+      const development = runEval([
+        "--environment",
+        environmentPath,
+        "--function",
+        "demo",
+        module,
+        "--compact",
+      ]);
+
+      expect(production.exitCode).toBe(1);
+      expect(production.stderr).toContain('entry "main" result contract failed');
+      expect(development.exitCode).toBe(0);
+      expect(development.stderr).toBe("");
       expect(development.stdout.trim()).toBe("9");
     } finally {
       rmSync(directory, { recursive: true, force: true });

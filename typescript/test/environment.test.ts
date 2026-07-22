@@ -197,6 +197,32 @@ describe("environment checker integration", () => {
     ).toBe(true);
   });
 
+  test("checks direct and task entry return modes distinctly", () => {
+    const direct = environment({
+      entry: { name: "main", required: [], optional: [], returns: I },
+    });
+
+    expect(checkModule(module("{ main: () => 42 }"), builtins, { environment: direct })).toEqual(
+      [],
+    );
+    expect(
+      checkModule(module("{ main: () => pure(42) }"), builtins, {
+        environment: direct,
+      }).some(
+        (diagnostic) =>
+          diagnostic.severity === "error" && diagnostic.path.join(".") === "main.$return",
+      ),
+    ).toBe(true);
+    expect(
+      checkModule(module("{ main: () => 42 }"), builtins, {
+        environment: environment(),
+      }).some(
+        (diagnostic) =>
+          diagnostic.severity === "error" && diagnostic.path.join(".") === "main.$return",
+      ),
+    ).toBe(true);
+  });
+
   test("types manifest-derived effect calls through the injected namespace", () => {
     const env = environment({
       effects: {
@@ -326,6 +352,69 @@ describe("environment checker integration", () => {
 });
 
 describe("environment runtime integration", () => {
+  test("executes and validates a direct entry without task stepping", async () => {
+    const env = environment({
+      entry: { name: "main", required: [], optional: [], returns: I },
+    });
+    const host = { registry: createStdlib(), capabilities: {} };
+
+    expect(
+      checkModule(module("{ main: () => 42 }"), loadBuiltinTable(), { environment: env }),
+    ).toEqual([]);
+    expect(await runTask(module("{ main: () => 42 }"), env, [], host)).toBe(42);
+    expect(runTask(module('{ main: () => "wrong" }'), env, [], host)).rejects.toThrow(
+      RuntimeContractError,
+    );
+  });
+
+  test("does not auto-run task-shaped data returned by a direct entry", async () => {
+    const env = environment({
+      entry: { name: "main", required: [], optional: [], returns: true },
+    });
+
+    expect(
+      await runTask(module("{ main: () => pure(42) }"), env, [], {
+        registry: createStdlib(),
+        capabilities: {},
+      }),
+    ).toEqual({ "@task": "pure", value: 42 });
+  });
+
+  test("supports required and optional arguments for direct entries", async () => {
+    const env = environment({
+      entry: {
+        name: "main",
+        required: [I],
+        optional: [I],
+        returns: { type: "array" },
+      },
+    });
+    const mod = module("{ main: (required, optional?) => [required, optional] }");
+    const host = { registry: createStdlib(), capabilities: {} };
+
+    expect(checkModule(mod, loadBuiltinTable(), { environment: env })).toEqual([]);
+    expect(await runTask(mod, env, [1], host)).toEqual([1, null]);
+    expect(await runTask(mod, env, [1, 2], host)).toEqual([1, 2]);
+  });
+
+  test("returns ordinary object data from a direct entry", async () => {
+    const resultSchema: Environment["entry"]["returns"] = {
+      type: "object",
+      properties: { answer: I },
+      required: ["answer"],
+      additionalProperties: false,
+    };
+    const env = environment({
+      entry: { name: "main", required: [], optional: [], returns: resultSchema },
+    });
+    const mod = module("{ main: () => { answer: 42 } }");
+
+    expect(checkModule(mod, loadBuiltinTable(), { environment: env })).toEqual([]);
+    expect(await runTask(mod, env, [], { registry: createStdlib(), capabilities: {} })).toEqual({
+      answer: 42,
+    });
+  });
+
   test("rejects invalid initial entry arguments before evaluation", () => {
     const env = environment({
       entry: { name: "main", required: [I], optional: [], returns: { task: I } },
