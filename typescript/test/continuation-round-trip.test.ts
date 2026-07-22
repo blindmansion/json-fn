@@ -2,13 +2,15 @@ import { describe, expect, test } from "bun:test";
 import {
   createStdlib,
   hydrateTask,
+  hydrateWorkflowRecord,
   parseShorthand,
   prepareProgram,
-  raw,
   serializeTask,
+  serializeWorkflowRecord,
   stepTask,
   type JSONType,
   type Suspended,
+  type WorkflowRecord,
 } from "../src";
 
 const stdlib = createStdlib();
@@ -48,14 +50,25 @@ function resumeInFreshRuntime(
   resume: JSONType,
   result: JSONType,
 ): Suspended {
-  // A workflow record will restore both kinds of runtime-only inertness:
-  // recursively re-mark embedded task nodes, then re-mark the resume closure.
-  const carrier = serializeTask({ "@task": "pure", value: resume });
-  const hydratedCarrier = hydrateTask(carrier) as Record<string, JSONType>;
-  const hydratedResume = raw(hydratedCarrier.value!);
+  const record: WorkflowRecord = {
+    workflowId: "round-trip",
+    revision: 0,
+    deploymentId: "test",
+    effectSequence: 1,
+    fuelUsed: 0,
+    status: "suspended",
+    pending: {
+      effectId: "round-trip:0",
+      name: "test",
+      args: [],
+      resume,
+    },
+  };
+  const hydrated = hydrateWorkflowRecord(serializeWorkflowRecord(record));
+  if (hydrated.status !== "suspended") throw new Error("Expected a suspended workflow");
 
   const runtime = prepareProgram(freshModule(module), stdlib);
-  const task = runtime.call(hydratedResume, [result]);
+  const task = runtime.call(hydrated.pending.resume, [result]);
   return stepTask(task, runtime.call, runtime.meter);
 }
 

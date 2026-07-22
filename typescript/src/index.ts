@@ -59,8 +59,21 @@ export {
   runTask,
   serializeTask,
   hydrateTask,
+  serializeWorkflowRecord,
+  hydrateWorkflowRecord,
+  validateWorkflowRecord,
   requiredCapabilities,
   TaskRaiseError,
   UnhandledEffectError,
+  WorkflowRecordValidationError,
 } from "./host";
-export type { Capability, EnvironmentHostConfiguration, RequiredCapabilities } from "./host";
+export type {
+  Capability,
+  EnvironmentHostConfiguration,
+  PendingEffect,
+  RequiredCapabilities,
+  RunningBasis,
+  WorkflowFailure,
+  WorkflowFailureCode,
+  WorkflowRecord,
+} from "./host";

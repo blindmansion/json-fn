@@ -16,20 +16,20 @@ export function serializeTask(task: JSONType): string {
 /** Parse a serialized task and restore runtime-only task inertness marks. */
 export function hydrateTask(serialized: string): JSONType {
   const value = JSON.parse(serialized) as JSONType;
-  remark(value);
+  remarkTaskNodes(value);
   if (!isTask(value)) {
     throw new Error("hydrateTask: value is not a task");
   }
   return value;
 }
 
-function remark(value: JSONType): void {
+export function remarkTaskNodes(value: JSONType): void {
   if (Array.isArray(value)) {
-    for (const item of value) remark(item);
+    for (const item of value) remarkTaskNodes(item);
     return;
   }
   if (value !== null && typeof value === "object") {
     if (typeof value[TASK_TAG] === "string") raw(value);
-    for (const key of Object.keys(value)) remark(value[key]!);
+    for (const key of Object.keys(value)) remarkTaskNodes(value[key]!);
   }
 }
