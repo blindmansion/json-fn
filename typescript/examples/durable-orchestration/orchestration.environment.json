@@ -1,0 +1,109 @@
+{
+  "$defs": {
+    "AgentSpec": {
+      "type": "object",
+      "required": ["name", "prompt"],
+      "properties": {
+        "name": { "type": "string" },
+        "prompt": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "Handle": {
+      "type": "string"
+    },
+    "AgentResult": {
+      "anyOf": [
+        {
+          "type": "object",
+          "required": ["ok", "output"],
+          "properties": {
+            "ok": { "enum": [true] },
+            "output": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["ok", "error"],
+          "properties": {
+            "ok": { "enum": [false] },
+            "error": { "type": "string" }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "RaceResult": {
+      "type": "object",
+      "required": ["handle", "result"],
+      "properties": {
+        "handle": { "$ref": "#/$defs/Handle" },
+        "result": { "$ref": "#/$defs/AgentResult" }
+      },
+      "additionalProperties": false
+    },
+    "Report": {
+      "type": "object",
+      "required": ["pipeline", "fanout", "empty", "race"],
+      "properties": {
+        "pipeline": { "$ref": "#/$defs/AgentResult" },
+        "fanout": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/AgentResult" }
+        },
+        "empty": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/AgentResult" }
+        },
+        "race": { "$ref": "#/$defs/RaceResult" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "functions": {},
+  "effects": {
+    "agent.spawn": {
+      "params": [{ "$ref": "#/$defs/AgentSpec" }],
+      "returns": { "$ref": "#/$defs/Handle" }
+    },
+    "agent.await": {
+      "params": [{ "$ref": "#/$defs/Handle" }],
+      "returns": { "$ref": "#/$defs/AgentResult" }
+    },
+    "agent.awaitAll": {
+      "params": [
+        {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Handle" }
+        }
+      ],
+      "returns": {
+        "type": "array",
+        "items": { "$ref": "#/$defs/AgentResult" }
+      }
+    },
+    "agent.awaitAny": {
+      "params": [
+        {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Handle" },
+          "minItems": 1
+        }
+      ],
+      "returns": { "$ref": "#/$defs/RaceResult" }
+    },
+    "log": {
+      "params": [{ "type": "string" }],
+      "returns": { "type": "null" }
+    }
+  },
+  "entry": {
+    "name": "workflow",
+    "required": [],
+    "optional": [],
+    "returns": {
+      "task": { "$ref": "#/$defs/Report" }
+    }
+  }
+}

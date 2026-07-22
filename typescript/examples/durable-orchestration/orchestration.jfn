@@ -1,0 +1,106 @@
+{
+  // These four domain types come from orchestration.environment.json. Keeping
+  // them in the operator-owned environment lets both hosts enforce exactly the
+  // same boundary contracts.
+  type MockState = { transcript: string[] },
+  type MockRun = { report: Report, transcript: string[] },
+
+  // Spawn recursively before awaiting anything. This is the task-language
+  // equivalent of fan-out: every inline spawn gets a durable effect ID, then
+  // one suspending awaitAll joins the resulting handles.
+  spawnAll: (specs: AgentSpec[]) -> Task<Handle[]> =>
+    if length(specs) == 0
+      then pure([])
+      else do {
+        agentHandle <- effects.agent.spawn(head(specs)),
+        rest <- spawnAll(tail(specs)),
+        pure(concat([agentHandle], rest))
+      },
+
+  // The durable entry demonstrates:
+  //   1. a sequential pipeline whose second prompt consumes the first output;
+  //   2. fan-out/fan-in, including one in-band agent failure;
+  //   3. an empty join that still reaches the host; and
+  //   4. awaitAny, whose losing agent is intentionally not cancelled.
+  workflow: () => do {
+    _ <- effects.log("starting sequential pipeline"),
+    researchHandle <- effects.agent.spawn({
+      name: "research",
+      prompt: "Collect the release facts"
+    }),
+    research <- effects.agent.await(researchHandle),
+    summaryHandle <- effects.agent.spawn({
+      name: "summarize",
+      prompt: if research.ok then research.output else research.error
+    }),
+    pipeline <- effects.agent.await(summaryHandle),
+
+    _ <- effects.log("spawning fan-out group"),
+    fanoutHandles <- spawnAll([
+      { name: "alpha", prompt: "Analyze alpha" },
+      { name: "broken", prompt: "Demonstrate an in-band failure" },
+      { name: "bravo", prompt: "Analyze bravo" }
+    ]),
+    fanout <- effects.agent.awaitAll(fanoutHandles),
+
+    // There is deliberately no guest-side empty-list shortcut. The durable
+    // adapter observes this suspension and immediately completes it with [].
+    empty <- effects.agent.awaitAll([]),
+
+    raceHandles <- spawnAll([
+      { name: "fast", prompt: "Return first" },
+      { name: "slow", prompt: "Keep running after the winner" }
+    ]),
+    race <- effects.agent.awaitAny(raceHandles),
+    _ <- effects.log("workflow complete"),
+    pure({ pipeline, fanout, empty, race })
+  },
+
+  // Canned results make the in-language host deterministic. Agent failure is a
+  // normal AgentResult value, not a failed workflow.
+  mockResult: (agentHandle: Handle) -> AgentResult => match agentHandle {
+    "research"  -> { ok: true, output: "release facts" },
+    "summarize" -> { ok: true, output: "summary: release facts" },
+    "alpha"     -> { ok: true, output: "alpha report" },
+    "broken"    -> { ok: false, error: "agent failed safely" },
+    "bravo"     -> { ok: true, output: "bravo report" },
+    "fast"      -> { ok: true, output: "fast result" },
+    "slow"      -> { ok: true, output: "slow result" },
+    else        -> { ok: false, error: `unknown handle: ${agentHandle}` }
+  },
+
+  // This manual state-transformer handler is the non-durable host. Each clause
+  // returns a function awaiting MockState; `resume(value)(nextState)` threads
+  // the transcript through the continuation without mutable guest state.
+  runMock: (task: Task<Report>) -> MockRun =>
+    (handle task -> (MockState) -> MockRun with {
+      "agent.spawn": (spec, resume) => (state) =>
+        resume(spec.name)({
+          transcript: concat(state.transcript, [`spawn ${spec.name}`])
+        }),
+      "agent.await": (agentHandle, resume) => (state) =>
+        resume(mockResult(agentHandle))({
+          transcript: concat(state.transcript, [`await ${agentHandle}`])
+        }),
+      "agent.awaitAll": (handles, resume) => (state) =>
+        resume(map((agentHandle) => mockResult(agentHandle), handles))({
+          transcript: concat(state.transcript, ["awaitAll"])
+        }),
+      "agent.awaitAny": (handles, resume) => (state) =>
+        resume({ handle: head(handles), result: mockResult(head(handles)) })({
+          transcript: concat(state.transcript, ["awaitAny"])
+        }),
+      log: (message, resume) => (state) =>
+        resume(null)({
+          transcript: concat(state.transcript, [`log ${message}`])
+        }),
+      return: (report) => (state) => {
+        report,
+        transcript: state.transcript
+      }
+    })({ transcript: [] }),
+
+  // Development entry for the in-language interpretation. The durable driver
+  // uses `workflow`; the example runner invokes `demo` and compares reports.
+  demo: () -> MockRun => runMock(workflow())
+}
