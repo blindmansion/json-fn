@@ -450,6 +450,11 @@
       "signatures": [
       {
         "typeParams": ["T"],
+        "required": [{ "type": "array", "items": { "$tvar": "T" }, "minItems": 1 }], "optional": [],
+        "returns": { "$tvar": "T" }
+      },
+      {
+        "typeParams": ["T"],
         "required": [{ "type": "array", "items": { "$tvar": "T" } }], "optional": [],
         "returns": { "anyOf": [{ "$tvar": "T" }, { "type": "null" }] }
       }
@@ -458,6 +463,11 @@
       "description": "Return the last element of an array, or null when empty.",
       "category": "arrays",
       "signatures": [
+      {
+        "typeParams": ["T"],
+        "required": [{ "type": "array", "items": { "$tvar": "T" }, "minItems": 1 }], "optional": [],
+        "returns": { "$tvar": "T" }
+      },
       {
         "typeParams": ["T"],
         "required": [{ "type": "array", "items": { "$tvar": "T" } }], "optional": [],

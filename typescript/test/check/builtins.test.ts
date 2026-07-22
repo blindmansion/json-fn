@@ -165,14 +165,35 @@ describe("Section F — builtin signatures", () => {
     expect(nested).toHaveLength(2);
   });
 
-  test("type variables: head widens tuple elements and flattens T | null", () => {
-    expect(synthB(call("head", [1, 2, 3])).type).toEqual({
-      anyOf: [{ type: "integer" }, { type: "null" }],
-    });
+  test("type variables: head of a nonempty tuple widens elements, no null arm", () => {
+    expect(synthB(call("head", [1, 2, 3])).type).toEqual({ type: "integer" });
   });
 
   test("type variables: head of an empty tuple simplifies to null", () => {
     expect(synthB(call("head", [])).type).toEqual({ type: "null" });
+  });
+
+  test("head/last of a provably nonempty array drop the null arm", () => {
+    const nonempty: Schema = { type: "array", items: I, minItems: 1 };
+    for (const name of ["head", "last"]) {
+      const f = body(
+        ["xs"],
+        { required: [nonempty], optional: [], returns: I },
+        call(name, { $var: "xs" }),
+      );
+      expect(synthB(f).diagnostics).toEqual([]);
+    }
+  });
+
+  test("head of a possibly-empty declared array keeps the null arm", () => {
+    const f = body(
+      ["xs"],
+      { required: [arrOfInt], optional: [], returns: I },
+      call("head", { $var: "xs" }),
+    );
+    expect(synthB(f).diagnostics).toContainEqual(
+      expect.objectContaining({ severity: "error", path: ["$return"] }),
+    );
   });
 
   test("type variables: concat and setAt preserve the element type", () => {
