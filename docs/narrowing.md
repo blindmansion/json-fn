@@ -121,7 +121,9 @@ with the sense flipped), where `x` is a **bare-variable** subject:
 whose base `x` is a union: this refines the *base* `x`.
 
 - then: keep the union arms whose `field` admits `<lit>`.
-- else: drop the arm whose `field` is *exactly* `{const <lit>}`.
+- else: drop the arm whose `field` is *exactly* `{const <lit>}`. A singleton
+  `enum` (`{enum: [<lit>]}`) is the same schema as a `const` and counts as
+  exact.
 
 `match s.tag { "a" -> …, "b" -> … }`-style tagged dispatch narrows `s` to the
 matching arm in each case (see `$match` below).

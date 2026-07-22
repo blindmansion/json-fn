@@ -442,6 +442,7 @@ function equalityFact(
 // Meet a union with "arm's `field` (dis)agrees with `lit`" (§5.5 M3). On the
 // true branch keep arms whose `field` could hold `lit`; on the false branch
 // drop arms whose `field` is *exactly* `const lit` (the discriminant match).
+// A singleton `enum` is the same schema as a `const` and counts as exact.
 // A no-op for non-unions (nothing to discriminate).
 function restrictToDiscriminant(
   s: Schema,
@@ -455,8 +456,11 @@ function restrictToDiscriminant(
   const kept = arms.filter((arm) => {
     const fieldT = resolveDeep(projectField(arm, field, defs), defs);
     if (sense) return valueSatisfies(lit, fieldT, defs);
+    const kind = classifySchema(fieldT);
     const isExact =
-      classifySchema(fieldT) === SchemaKind.Const && deepEqual(asObject(fieldT).const!, lit);
+      (kind === SchemaKind.Const || kind === SchemaKind.Enum) &&
+      literalValues(fieldT).length === 1 &&
+      deepEqual(literalValues(fieldT)[0]!, lit);
     return !isExact;
   });
   return unionOf(kept);

@@ -60,6 +60,22 @@ const armB: Schema = {
 };
 const Tagged: Schema = { anyOf: [armA, armB] };
 
+// The same union with singleton-`enum` discriminants: hand-written JSON Schema
+// often spells `const x` as `enum [x]`; narrowing treats the two as identical.
+const armAEnum: Schema = {
+  type: "object",
+  properties: { tag: { enum: ["a"] }, r: { type: "integer" } },
+  required: ["tag", "r"],
+  additionalProperties: false,
+};
+const armBEnum: Schema = {
+  type: "object",
+  properties: { tag: { enum: ["b"] }, side: { type: "string" } },
+  required: ["tag", "side"],
+  additionalProperties: false,
+};
+const TaggedEnum: Schema = { anyOf: [armAEnum, armBEnum] };
+
 type Row = {
   name: string;
   env: Record<string, Schema>;
@@ -358,6 +374,44 @@ describe("narrowing — equality: discriminant on a field path (form 4)", () => 
       cond: call("eq", get(v("s"), "tag"), "a"),
       sense: false,
       expected: { s: armB },
+    },
+    {
+      name: "a singleton-enum discriminant counts as exact on the else branch",
+      env: { s: TaggedEnum },
+      cond: call("eq", get(v("s"), "tag"), "a"),
+      sense: false,
+      expected: { s: armBEnum },
+    },
+    {
+      name: "a multi-value enum discriminant is not exact and survives else",
+      env: {
+        s: {
+          anyOf: [
+            {
+              type: "object",
+              properties: { tag: { enum: ["a", "c"] }, r: { type: "integer" } },
+              required: ["tag", "r"],
+              additionalProperties: false,
+            },
+            armBEnum,
+          ],
+        },
+      },
+      cond: call("eq", get(v("s"), "tag"), "a"),
+      sense: false,
+      expected: {
+        s: {
+          anyOf: [
+            {
+              type: "object",
+              properties: { tag: { enum: ["a", "c"] }, r: { type: "integer" } },
+              required: ["tag", "r"],
+              additionalProperties: false,
+            },
+            armBEnum,
+          ],
+        },
+      },
     },
   ]);
 });
