@@ -100,22 +100,6 @@ export function prepareEnvironmentRuntime(
     ) as FunctionRegistry[string];
   }
 
-  const effectNames = new Set(Object.keys(environment.effects ?? {}));
-  for (const name of effectNames) {
-    if (host.capabilities[name] === undefined) {
-      throw new EnvironmentConfigurationError(
-        `effect contract "${name}" has no capability implementation`,
-      );
-    }
-  }
-  for (const name of Object.keys(host.capabilities)) {
-    if (!effectNames.has(name)) {
-      throw new EnvironmentConfigurationError(
-        `capability implementation "${name}" has no effect contract`,
-      );
-    }
-  }
-
   return {
     registry,
     definitions,

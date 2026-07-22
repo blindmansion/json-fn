@@ -63,6 +63,7 @@ export async function runTask(
     );
   }
   const prepared = prepareEnvironmentRuntime(environment, host, module);
+  validateEffectCapabilityParity(environment.effects ?? {}, host.capabilities);
   const runtimeModule = {
     ...module,
     [EFFECTS_BINDING]: buildEffectNamespace(environment.effects),
@@ -95,6 +96,27 @@ export async function runTask(
     prepared.defs,
     `entry "${environment.entry.name}" result`,
   );
+}
+
+function validateEffectCapabilityParity(
+  effects: EffectManifest,
+  capabilities: Record<string, Capability>,
+): void {
+  const effectNames = new Set(Object.keys(effects));
+  for (const name of effectNames) {
+    if (capabilities[name] === undefined) {
+      throw new EnvironmentConfigurationError(
+        `effect contract "${name}" has no capability implementation`,
+      );
+    }
+  }
+  for (const name of Object.keys(capabilities)) {
+    if (!effectNames.has(name)) {
+      throw new EnvironmentConfigurationError(
+        `capability implementation "${name}" has no effect contract`,
+      );
+    }
+  }
 }
 
 async function runTaskConfigured(
