@@ -57,18 +57,27 @@ export type { TaskNode, EffectTask, PureTask, BindTask, Suspended } from "./task
 export { RuntimeContractError } from "./runtime-contract";
 export {
   runTask,
+  InMemoryWorkflowStore,
   serializeTask,
   hydrateTask,
   serializeWorkflowRecord,
   hydrateWorkflowRecord,
+  validateDurableHostConfiguration,
   validateWorkflowRecord,
   requiredCapabilities,
   TaskRaiseError,
   UnhandledEffectError,
+  WorkflowAlreadyExistsError,
   WorkflowRecordValidationError,
+  WorkflowRevisionConflictError,
 } from "./host";
 export type {
   Capability,
+  ClaimOutcome,
+  DurableCapability,
+  DurableEffectContext,
+  DurableEffectMode,
+  DurableHostConfiguration,
   EnvironmentHostConfiguration,
   PendingEffect,
   RequiredCapabilities,
@@ -76,4 +85,5 @@ export type {
   WorkflowFailure,
   WorkflowFailureCode,
   WorkflowRecord,
+  WorkflowStore,
 } from "./host";

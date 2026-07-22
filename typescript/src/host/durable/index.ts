@@ -1,3 +1,16 @@
+export { validateDurableHostConfiguration } from "./config";
+export type {
+  DurableCapability,
+  DurableEffectContext,
+  DurableEffectMode,
+  DurableHostConfiguration,
+} from "./config";
+export {
+  InMemoryWorkflowStore,
+  WorkflowAlreadyExistsError,
+  WorkflowRevisionConflictError,
+} from "./store";
+export type { ClaimOutcome, WorkflowStore } from "./store";
 export {
   WorkflowRecordValidationError,
   hydrateWorkflowRecord,
