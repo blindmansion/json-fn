@@ -154,6 +154,7 @@ export function prepareProgram(
   call: (fn: JSONType, args: JSONType[]) => JSONType;
   meter: Meter;
   refreshDeadline: () => void;
+  fuelUsed: () => number;
 } {
   const session = createProgramSession(module, baseRegistry, limits, definitions);
   initializeProgramScope(session, module);
@@ -172,5 +173,14 @@ export function prepareProgram(
     guardSize: (size: number) => guardValueSize(session.context, size),
   };
 
-  return { invokeEntry, call, meter, refreshDeadline: session.refreshDeadline };
+  return {
+    invokeEntry,
+    call,
+    meter,
+    refreshDeadline: session.refreshDeadline,
+    fuelUsed: () => {
+      session.syncUsage();
+      return session.context.state.fuel;
+    },
+  };
 }
