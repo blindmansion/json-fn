@@ -1,6 +1,7 @@
 # Durable orchestration driver
 
-Status: proposed.
+Status: planned. This is the concrete revision of the earlier design sketch;
+the open questions in that sketch are resolved in **Decisions** below.
 
 ## Summary
 
@@ -22,526 +23,588 @@ effect is pending. It advances a workflow through fast effects, persists at a
 durable suspension point, returns control, and later restores the continuation
 when an external completion arrives.
 
-The motivating case is agent orchestration:
+The motivating case is agent orchestration: spawn subagents, retain their
+handles, suspend while waiting, resume in another process, feed results into
+later work, and eventually complete or fail the workflow.
 
-1. spawn one or more subagents;
-2. retain their handles;
-3. suspend while waiting for results;
-4. resume in another process;
-5. feed those results into later work; and
-6. eventually complete or fail the workflow.
+The TypeScript implementation is the only target.
 
-The TypeScript implementation is the first and canonical target.
+## Decisions
 
-## Goals
+Each of these was open in the design sketch. They are now fixed; changing one
+requires revisiting this plan, not silently diverging during implementation.
 
-- Run a task across arbitrarily many process lifetimes.
-- Keep the task and continuation representation plain JSON.
-- Reuse the environment's effect contracts for argument and result validation.
-- Preserve the existing distinction between pure in-language handlers and the
-  outer host.
-- Make replay behavior explicit and give every effect execution a stable
-  identity suitable for idempotency.
-- Keep storage and external work systems host-owned behind small interfaces.
-- Support sequential pipelines and host-concurrent fan-out/fan-in.
-- Let the same guest workflow run under an in-language mock for deterministic
-  tests and under the durable driver in production.
+1. **Task entries only.** The durable driver requires
+   `entry.returns: { task: ... }`. A direct-return entry (supported by
+   `runTask` since the entry-return-consistency change) is rejected at driver
+   construction with `EnvironmentConfigurationError`: a direct entry can never
+   suspend, so durable execution is meaningless for it.
+
+2. **Replay, not journaling.** The driver persists only at suspension and
+   terminal points. After a crash, every inline effect executed since the last
+   persisted basis re-runs. There is no per-effect event journal. In exchange,
+   inline capabilities carry a documented obligation: **given the same
+   `effectId`, an inline capability must return the same result value** (not
+   merely avoid duplicating its side effect). A replayed `agent.spawn` must
+   yield the same handle, or the recomputed continuation diverges from the
+   agents actually running. Deterministic external handles or
+   idempotency-keyed lookups both satisfy this.
+
+3. **Effect classification lives in durable host configuration.** The portable
+   effect manifest is unchanged. `DurableHostConfiguration` classifies every
+   environment effect as `"inline"` or `"suspending"`. Missing, extra, or
+   unknown names are configuration errors. `raise` is intrinsic and cannot be
+   classified.
+
+4. **Capability parity is mode-specific.** `prepareEnvironmentRuntime`
+   currently requires a capability for every effect and rejects extras. That
+   check is correct for `runTask` but wrong for the durable host, where
+   suspending effects have no capability at all. The effect/capability parity
+   check moves out of `prepareEnvironmentRuntime` (which keeps the
+   registry/host-function work) into each entry point: `runTask` keeps the
+   existing all-effects rule; the durable driver requires capabilities for
+   exactly the inline effects and rejects a capability for a suspending
+   effect.
+
+5. **Durable capabilities take a context first argument.** A new type,
+   distinct from the existing `Capability`:
+
+   ```typescript
+   type DurableEffectContext = { workflowId: string; effectId: string };
+   type DurableCapability = (
+     context: DurableEffectContext,
+     ...args: JSONType[]
+   ) => Promise<JSONType> | JSONType;
+   ```
+
+   `runTask` capabilities are unchanged. The shared task runtime (slice 2)
+   takes dispatch as a function argument, so each caller adapts its own
+   capability shape.
+
+6. **The driver persists, the host publishes.** On a suspending effect the
+   driver writes the suspended record first, then returns the pending
+   descriptor (`effectId`, `name`, `args` — never `resume`) to its caller.
+   Publishing that work to a queue, and any transactional-outbox machinery, is
+   the host's job. The driver only guarantees ordering: nothing is exposed for
+   dispatch before it is durable.
+
+7. **Deployment pinning is a mandatory opaque string.** The host supplies
+   `deploymentId: string` (a version, git SHA, content hash — the driver does
+   not interpret it). It is written into every record at creation. On resume,
+   a mismatch between the record and the current configuration throws
+   `DeploymentMismatchError` and leaves the record untouched; the operator
+   decides whether to migrate or explicitly fail the workflow. It is not a
+   guest-visible value.
+
+8. **Fuel is per-invocation.** Each driver invocation gets a fresh
+   `ExecutionLimits` from host configuration. The record accumulates
+   `fuelUsed` across hops for observability only; there is no cross-hop
+   budget enforcement in v1. Exceeding per-invocation limits fails the
+   workflow (terminal), like any other runtime error.
+
+9. **Serialization is exposed only as a workflow-record codec.** No generic
+   `Suspended` helper is exported. `serializeWorkflowRecord` /
+   `hydrateWorkflowRecord` validate the record shape, re-mark embedded
+   `@task` nodes with the existing recursive walk, and re-apply the `raw`
+   inertness mark to continuation closures (`pending.resume` and the resume
+   basis). The mark is a `WeakSet` membership, so it never survives
+   `JSON.parse`; the codec restores creation-time state rather than relying on
+   the mark being unnecessary.
+
+10. **Inline capability exceptions fail the workflow.** A thrown host
+    exception during an inline effect becomes a terminal `failed` record with
+    `code: "host"`. Hosts that want guest-visible errors declare them in the
+    effect's result contract and return them in-band. The driver never
+    converts a host exception into a guest `raise`.
+
+11. **External failure of suspended work uses `deliverFailure`.** For a
+    suspending effect whose external work dies, the host either delivers an
+    in-band error value (if the result contract declares one) via
+    `deliverCompletion`, or calls `deliverFailure(workflowId, effectId,
+    failure)`, which claims the suspension and writes a terminal `failed`
+    record. Same claim semantics as completion: stale deliveries are no-ops.
+
+12. **Join aggregation is example infrastructure, not driver core.** The core
+    store indexes by workflow ID and effect ID only. Buffering partial
+    results for `agent.awaitAll` (two of three subagents done, one running)
+    lives in the example's in-memory orchestration host, which maps subagent
+    completions onto single workflow-level completion deliveries. The
+    orchestration environment contracts are fixed in this plan (see
+    **Orchestration example**) so the example can be written without further
+    design work.
+
+13. **No dependency on stateful handler shorthand.** The deterministic
+    in-language mock in the acceptance example uses the manual
+    state-transformer expansion (`(handle task -> (State) -> Result with
+    {...})(initial)`). It migrates to the shorthand when that lands;
+    neither track blocks the other.
+
+14. **Slice 0 is a validation spike.** The plan's load-bearing assumption —
+    that a `resume` closure produced by `stepTask` survives a JSON round trip
+    and resumes correctly in a freshly prepared runtime — currently has almost
+    no test coverage (one hand-built round trip in
+    `typescript/test/prepared-program.test.ts`). Proving it is the first
+    slice, before any driver code. If it fails, this plan is revised rather
+    than patched around.
 
 ## Non-goals
 
 - A general workflow service, scheduler, queue, or database implementation.
 - Exactly-once execution of external side effects.
-- Parallel branches inside the task kernel.
-- New task node kinds or evaluator semantics.
-- Persisting stateful-handler state through a separate channel.
-- Stateful partial handlers that preserve local state while other effects
-  bubble to the durable host.
-- CLI support in the first implementation.
-- Bringing the non-TypeScript interpreters to parity.
+- A per-effect event journal (see decision 2).
+- Parallel branches inside the task kernel; no new task node kinds or
+  evaluator changes.
+- Worker leases, heartbeats, or automatic crash detection. Deciding *when* a
+  `running` record is abandoned is a host/deployment concern; the driver only
+  makes re-running it safe.
+- Cancellation of in-flight subagents (see **Orchestration example**).
+- Cross-hop fuel budgets (decision 8).
+- Persisting stateful-handler state through a separate channel; stateful
+  partial handlers.
+- CLI support.
+- Bringing the Go, Python, or Rust interpreters to parity.
 
-## Implemented foundation
+## Current code inventory
 
-The driver should build on the current runtime rather than introduce a second
-effect system.
+What the driver builds on, with post-reorganization paths:
 
-### Task stepping
+- `typescript/src/task.ts` — `stepTask` normalizes a task to
+  `{ done } | { pending: { name, args, resume } }`; `resume` is a
+  self-contained raw-marked closure built by `buildStepResume`.
+- `typescript/src/host/run-task.ts` — `runTask`, the run-to-completion
+  trampoline, now branching on `isTaskReturn`. Its per-hop logic (raise →
+  `TaskRaiseError`, unknown effect → `RuntimeContractError`, effect argument
+  and result contracts, `call(resume, [checked])`) is what slice 2 extracts.
+- `typescript/src/host/environment-runtime.ts` —
+  `prepareEnvironmentRuntime`: registry/contract parity, host-function
+  wrapping, and the effect/capability parity check that decision 4 relocates.
+- `typescript/src/host/task-serialization.ts` — `serializeTask` /
+  `hydrateTask` and the recursive `@task` re-mark walk the codec reuses.
+- `typescript/src/eval/program.ts` — `prepareProgram`: one prepared module
+  scope, shared execution state, `invokeEntry` / `call` / `meter` /
+  `refreshDeadline`.
+- `typescript/src/environment/` — environment types, effect manifest
+  validation, `buildEffectNamespace`, `EFFECTS_BINDING`, `isTaskReturn`,
+  `entryCompletionType`.
+- `typescript/src/utils.ts` — `raw` / `isRaw` (`WeakSet`-based, identity-keyed;
+  the reason hydration must re-mark).
 
-`stepTask` normalizes an inert task to one of:
+New code lives in `typescript/src/host/durable/` and is exported through
+`typescript/src/host/index.ts`.
 
-```typescript
-type Suspended =
-  | { done: JSONType }
-  | {
-      pending: {
-        name: string;
-        args: JSONType[];
-        resume: JSONType;
-      };
-    };
-```
+## Public API
 
-The kernel suspends on one effect at a time. The `resume` value is a
-self-contained json-fn closure that reconstructs the rest of the task when
-called with the effect result.
+Shapes below are the committed design. Field names may be adjusted during
+implementation; structure and semantics may not.
 
-### Host execution
-
-`runTask` is the existing run-to-completion trampoline. It:
-
-1. prepares the module and environment;
-2. validates entry arguments;
-3. calls `stepTask`;
-4. validates each effect's arguments;
-5. awaits the matching host capability;
-6. validates the capability result;
-7. applies `resume`; and
-8. repeats until the task completes.
-
-The durable driver should share this preparation, validation, dispatch, and
-error behavior. The difference is lifecycle: `runTask` awaits every capability
-in one invocation, while the durable driver may persist and return instead.
-
-### Typed environment
-
-The operator-owned environment already supplies:
-
-- shared named types;
-- direct host functions;
-- effect parameter and result contracts; and
-- the entrypoint contract.
-
-The runtime injects typed `effects.*` task constructors and validates effect
-arguments and results against the same environment. The driver must continue to
-use those contracts on both inline and resumed paths.
-
-### Serializable continuations
-
-Task nodes and suspended continuations are plain JSON. `serializeTask` and
-`hydrateTask` currently round-trip a top-level task and restore the runtime-only
-inertness marks on embedded `@task` nodes.
-
-A `Suspended` record is not itself a task, so it is not accepted by those
-helpers. The durable driver needs an equivalent round trip for its persisted
-workflow state. Hydration must use the same recursive re-marking behavior; it
-must not invent another closure or task encoding.
-
-## Execution model
-
-The driver is still the outermost effect handler. In-language `handle`
-expressions may discharge effects first; any unmatched effect bubbles to the
-driver.
-
-Each environment effect is classified by the durable host as one of:
-
-- **inline** — invoke the capability now and continue in the current driver
-  call; or
-- **suspending** — persist the pending continuation and return control without
-  awaiting the external result.
-
-For example:
-
-```text
-agent.spawn       inline
-log               inline
-agent.await       suspending
-agent.awaitAll    suspending
-agent.awaitAny    suspending
-```
-
-This classification belongs in durable host configuration, not in the portable
-effect manifest:
-
-- the manifest describes the API visible to guest code;
-- suspension is a deployment and execution-policy choice;
-- the checker needs the effect's argument and result types, but does not need to
-  know whether a particular host blocks, polls, or resumes from an event; and
-- the same environment can therefore run under `runTask`, a test host, or
-  different durable hosts without changing its public contract.
-
-The durable configuration must classify every environment effect. Missing or
-extra classifications are configuration errors. The built-in `raise` path
-remains intrinsic rather than configurable.
-
-### Advancing a workflow
-
-Starting or resuming a workflow enters the same advance loop:
-
-```text
-task
-  -> stepTask
-     -> done
-        -> validate entry completion
-        -> persist completed
-        -> return completed
-
-     -> pending effect
-        -> validate effect arguments
-        -> assign stable effect identity
-
-        -> inline
-           -> invoke capability
-           -> validate result
-           -> apply resume
-           -> continue loop
-
-        -> suspending
-           -> persist suspended workflow
-           -> publish/return pending work
-           -> return suspended
-```
-
-An external completion takes the inverse path:
-
-```text
-completion(workflow id, effect id, result)
-  -> atomically claim the matching suspension
-  -> hydrate the persisted continuation
-  -> validate result against the pending effect contract
-  -> apply resume(result)
-  -> enter the advance loop
-```
-
-Only a result for the workflow's current effect identity may resume it. A
-duplicate or stale completion must be recognized without running the
-continuation again.
-
-### Completion and failure
-
-A workflow has at least these durable states:
-
-```text
-running -> suspended -> running -> ... -> completed
-                                  \-----> failed
-```
-
-`completed` stores the validated entry result. `failed` stores a host-level
-failure description suitable for diagnostics and retry policy.
-
-An unhandled `raise`, unknown effect, missing capability, malformed task,
-runtime-contract failure, or exhausted execution limit fails the workflow with
-the same underlying error semantics as `runTask`.
-
-External operation failure is a host concern. A host may:
-
-- resume with a declared error value if the effect result contract includes it;
-- translate the failure into a guest-level protocol explicitly modeled by the
-  environment; or
-- mark the workflow failed.
-
-The driver must not silently convert arbitrary host exceptions into guest
-`raise` values.
-
-## Persistence model
-
-### Persisted workflow record
-
-The exact TypeScript shape should be finalized with the store interface, but a
-suspended record needs enough information to resume and deduplicate:
+### Configuration
 
 ```typescript
-type SuspendedWorkflow = {
-  workflowId: string;
-  revision: number;
-  status: "suspended";
-  pending: {
-    effectId: string;
-    name: string;
-    args: JSONType[];
-    resume: JSONType;
-  };
+type DurableHostConfiguration = {
+  registry: FunctionRegistry;
+  /** Every environment effect, exactly once. */
+  effects: Record<string, "inline" | "suspending">;
+  /** Exactly the inline effects. */
+  capabilities: Record<string, DurableCapability>;
+  /** Opaque version pin written into records and checked on resume. */
+  deploymentId: string;
+  limits?: ExecutionLimits;
 };
 ```
 
-The store may retain additional timestamps, ownership, retry, or indexing
-metadata. Those are not part of the json-fn task representation.
+Validation at driver construction:
 
-The persisted record does not need to duplicate the guest module, environment,
-callable registry, or capability implementations. Those are deployment inputs
-identified by the host and reloaded when a worker resumes the workflow. A
-production host must pin or version them so that a continuation is not resumed
-against incompatible code or contracts.
+- entry must be task-mode (decision 1);
+- `effects` keys must equal the environment's effect names exactly;
+- `capabilities` keys must equal the inline effect names exactly;
+- `"raise"` may not appear in either.
 
-### Serialization
-
-Add focused helpers for the actual persistence unit, for example:
+### Workflow record
 
 ```typescript
-serializeSuspendedWorkflow(value): string
-hydrateSuspendedWorkflow(serialized): SuspendedWorkflow
+type PendingEffect = {
+  effectId: string;
+  name: string;
+  args: JSONType[];
+  resume: JSONType;
+};
+
+type RunningBasis =
+  | { kind: "start"; args: JSONType[] }
+  | { kind: "resume"; pending: PendingEffect; result: JSONType };
+
+type WorkflowFailure = {
+  code:
+    | "raise"            // unhandled guest raise; payload holds the raise value
+    | "contract"         // runtime contract violation (args, results, completion)
+    | "unknown-effect"   // effect name absent from the manifest
+    | "malformed-task"   // stepTask structural error
+    | "limit"            // fuel / depth / size / timeout
+    | "host"             // inline capability threw (decision 10)
+    | "external";        // deliverFailure (decision 11)
+  message: string;
+  payload?: JSONType;
+};
+
+type WorkflowRecord = {
+  workflowId: string;
+  revision: number;
+  deploymentId: string;
+  /** Sequence number the next stepped effect receives when advancing from
+      this record's basis. */
+  effectSequence: number;
+  /** Cumulative, informational only (decision 8). */
+  fuelUsed: number;
+} & (
+  | { status: "running"; basis: RunningBasis }
+  | { status: "suspended"; pending: PendingEffect }
+  | { status: "completed"; result: JSONType }
+  | { status: "failed"; failure: WorkflowFailure }
+);
 ```
 
-The names and public granularity may change during implementation, but the
-behavior must:
-
-- reject malformed persisted records;
-- restore inertness on every embedded `@task` node using the existing re-mark
-  walk;
-- leave continuation closure bodies executable;
-- preserve effect name, arguments, and identity exactly; and
-- round-trip through ordinary `JSON.stringify`/`JSON.parse`.
-
-`serializeTask` and `hydrateTask` remain useful for top-level tasks. The new
-helpers close the distinct suspended-record gap rather than replacing them.
+A `running` record is not an in-flight marker that goes stale — it is the
+durable basis from which the current advance is (re)computable. Re-running it
+is always safe under decision 2.
 
 ### Store contract
 
-The driver defines the consistency operations it needs; the host chooses the
-storage backend. The first interface should support:
-
-- creating a workflow with a stable ID;
-- atomically writing a new suspended state at an expected revision;
-- atomically claiming the current suspension by workflow ID and effect ID;
-- writing terminal completion or failure;
-- reading current status for recovery and inspection; and
-- recovering work left in a nonterminal state after a worker crash.
-
-Compare-and-set or transaction semantics are required around revision changes.
-A simple load followed by an unconditional save would allow two completion
-events or workers to run the same continuation concurrently.
-
-The core store should index workflows by workflow and effect identity, not by
-agent-specific handle shape. An orchestration adapter may additionally index
-the pending arguments so that a completed subagent handle finds workflows
-waiting on `agent.await`, `agent.awaitAll`, or `agent.awaitAny`.
-
-## Effect identity and at-least-once execution
-
-Durable execution cannot promise exactly once. A worker can crash after an
-external side effect succeeds but before the next workflow state is committed.
-Recovery then sees the previous durable state and may execute the effect again.
-
-Every effect attempt therefore receives a stable identity derived from durable
-workflow state, such as:
-
-```text
-<workflow id>:<logical effect sequence>
-```
-
-Replaying the same logical effect must reuse the same identity. Advancing to a
-new effect must allocate a new one. The driver-specific capability context
-should expose at least:
-
 ```typescript
-type DurableEffectContext = {
-  workflowId: string;
-  effectId: string;
-};
-```
+type ClaimOutcome =
+  | { claimed: WorkflowRecord } // now running with a resume basis
+  | { stale: true };            // wrong status, wrong effectId, or terminal
 
-Capability adapters use `effectId` as an idempotency key when talking to
-external systems. This is especially important for `agent.spawn`, payments,
-notifications, deployment mutations, and other side effects. Deterministic
-external handles are another valid implementation of the same rule.
-
-The guest-visible effect arguments do not need to contain driver bookkeeping.
-An environment may still include a domain idempotency key when that key is part
-of its public API.
-
-Persistence must happen before a suspending request is exposed for dispatch.
-Publishing that request and committing it atomically may require a transactional
-outbox in a production host. The driver specifies the ordering and stable
-identity; it does not implement the host's queue/database transaction.
-
-Duplicate completion delivery is also expected. Claiming a suspension by its
-effect ID must make a second delivery a no-op or an explicit already-consumed
-result, never a second continuation run.
-
-## Concurrency and joins
-
-A task has one continuation stack and reaches one pending effect at a time. The
-driver does not add parallel task branches.
-
-Concurrency lives behind host effects:
-
-- `agent.spawn` starts out-of-band work and quickly returns a handle;
-- guest code may call it repeatedly to create concurrent work;
-- `agent.await` suspends for one handle;
-- `agent.awaitAll` suspends until every supplied handle completes; and
-- `agent.awaitAny` suspends until one supplied handle completes.
-
-The guest pattern is spawn-all-then-join:
-
-```jfn
-spawnAll: (specs: AgentSpec[]) -> Task<Handle[]> =>
-  if length(specs) == 0 then pure([])
-  else do {
-    handle <- effects.agent.spawn(head(specs)!),
-    rest <- spawnAll(tail(specs)),
-    pure(concat([handle], rest))
-  },
-
-research: (topics: string[]) -> Task<Report[]> => do {
-  handles <- spawnAll(
-    map((topic) => { role: "researcher", input: topic }, topics)
-  ),
-  results <- effects.agent.awaitAll(handles),
-  pure(map(toReport, results))
+interface WorkflowStore {
+  /** Fails if workflowId already exists. */
+  create(record: WorkflowRecord): Promise<void>;
+  /** Compare-and-set on revision; fails (distinguishably) on mismatch. */
+  transition(expectedRevision: number, record: WorkflowRecord): Promise<void>;
+  /**
+   * Atomically: if the workflow is suspended on exactly this effectId,
+   * transition it to running with a resume basis and revision + 1.
+   * Anything else returns { stale } without modifying the record.
+   */
+  claim(workflowId: string, effectId: string, result: JSONType): Promise<ClaimOutcome>;
+  read(workflowId: string): Promise<WorkflowRecord | undefined>;
+  /** Recovery scan: running and suspended workflows. */
+  listNonterminal(): Promise<string[]>;
 }
 ```
 
-Join behavior is an effect-level host contract, not a kernel primitive.
-Ordering, empty-input behavior, failure aggregation, cancellation, and
-`awaitAny` result shape must be declared by the orchestration environment and
-covered by its capability tests.
+CAS on `revision` is what makes two workers or two duplicate completions
+safe: the loser's `transition` fails and its computed state is discarded. Its
+inline side effects may already have run — that is the at-least-once window
+decision 2 accepts and the `effectId` obligation covers.
 
-## Relationship to stateful handler shorthand
+The reference implementation is an in-memory store used by tests and the
+example only.
 
-The durable driver and
-[stateful handler shorthand](stateful-handler-sugar.md) are independent
-implementation tracks:
+### Driver
 
-- stateful handler shorthand is parser/printer sugar over existing pure
-  closures and `handle`;
-- the durable driver consumes the already-lowered task and continuation data;
-  and
-- neither feature requires evaluator or task-node changes from the other.
+```typescript
+type AdvanceOutcome =
+  | { status: "completed"; result: JSONType }
+  | { status: "failed"; failure: WorkflowFailure }
+  | { status: "suspended"; pending: { effectId: string; name: string; args: JSONType[] } };
 
-They reinforce one another at the test and example layer. A stateful in-language
-handler can supply deterministic agent handles and results while recording an
-event transcript. The same unwrapped workflow can let those effects bubble to
-the durable host in production.
+type DeliveryOutcome = AdvanceOutcome | { status: "stale" };
 
-State captured by a lowered stateful handler is already enclosed in the
-persisted continuation. The driver needs no state-specific serializer, store,
-or commit protocol.
+function createDurableDriver(options: {
+  module: Record<string, JSONType>;
+  environment: Environment;
+  host: DurableHostConfiguration;
+  store: WorkflowStore;
+}): {
+  /** Validate entry args, persist the start basis, advance. */
+  start(workflowId: string, args: JSONType[]): Promise<AdvanceOutcome>;
+  /** Claim the suspension, validate the result, resume, advance. */
+  deliverCompletion(
+    workflowId: string,
+    effectId: string,
+    result: JSONType,
+  ): Promise<DeliveryOutcome>;
+  /** Claim the suspension and write a terminal failure (decision 11). */
+  deliverFailure(
+    workflowId: string,
+    effectId: string,
+    failure: { message: string; payload?: JSONType },
+  ): Promise<DeliveryOutcome>;
+  /** Re-run a running record from its persisted basis after a crash. */
+  recover(workflowId: string): Promise<AdvanceOutcome>;
+  read(workflowId: string): Promise<WorkflowRecord | undefined>;
+};
+```
 
-The driver core may be implemented before or in parallel with the shorthand.
-The orchestration example and paired mock/production acceptance tests should
-land after the shorthand, or initially use its manual state-transformer
-expansion and migrate as soon as the shorthand is available.
+Notes:
 
-Stateful partial handlers remain separate future work. The first shorthand
-version is a total in-language interpreter; it does not provide stateful
-middleware that handles some effects while allowing durable effects to bubble.
+- `resume` closures never leave the driver; outcomes expose only the pending
+  descriptor.
+- Every invocation rebuilds the runtime from `module` + `environment` +
+  configuration. Nothing lives across calls except the store.
+- `deliverCompletion` validates the external result against the effect's
+  declared result contract **after** claiming; a validation failure writes a
+  terminal `failed` record (`code: "contract"`), because the claim has already
+  consumed the suspension and retrying with the same bad payload cannot
+  succeed.
+- Serialization: `serializeWorkflowRecord(record): string` and
+  `hydrateWorkflowRecord(serialized): WorkflowRecord` per decision 9. Store
+  implementations that persist as text use the codec; the in-memory store
+  round-trips through it deliberately, so every test exercises hydration.
 
-## Orchestration acceptance example
+## Execution model
 
-Add one typed example centered on durable orchestration. Its environment should
-define at least:
+### Advance loop
 
-- `AgentSpec`;
-- `Handle`;
-- `AgentResult`;
-- `Report`;
-- `agent.spawn`;
-- `agent.await`; and
-- `agent.awaitAll`.
+`start`, `deliverCompletion` (after a successful claim), and `recover` all
+enter the same loop, beginning from a `running` record:
 
-The guest module should demonstrate both:
+```text
+basis "start":   task = invokeEntry(validated args)
+basis "resume":  task = applyResume(pending.resume, validated result)
 
-1. a pipeline in which one agent's output becomes another agent's input; and
-2. fan-out/fan-in in which several agents are spawned before one join.
+loop:
+  stepTask(task)
+    -> done
+       validate against entryCompletionType
+       CAS transition -> completed          (terminal)
 
-The example needs two hosts:
+    -> pending { name, args, resume }
+       name == "raise"        -> CAS transition -> failed (code "raise")
+       unknown effect         -> CAS transition -> failed (code "unknown-effect")
+       validate args against manifest; failure -> failed (code "contract")
+       effectId = `${workflowId}:${sequence}`; sequence += 1
 
-- a deterministic in-language mock, preferably using stateful handler
-  shorthand, with canned results and an event transcript; and
-- a durable test host with an in-memory store and explicitly delivered
-  completion events.
+       inline:
+         result = capability({ workflowId, effectId }, ...args)
+         throw               -> CAS transition -> failed (code "host")
+         validate result; failure -> failed (code "contract")
+         task = applyResume(resume, result); continue
 
-The in-memory store is test infrastructure, not the production storage
-recommendation.
+       suspending:
+         CAS transition -> suspended { effectId, name, args, resume },
+                           effectSequence = sequence
+         return { status: "suspended", pending descriptor }
+```
+
+Any evaluator error (malformed task, fuel, depth, timeout) maps to the failure
+codes above and is written as a terminal state via the same CAS transition.
+If a CAS transition itself fails (another worker won), the driver discards its
+computed state and returns the store's current record as the outcome.
+
+### Effect identity
+
+`effectId` is `` `${workflowId}:${sequence}` ``. The sequence counter starts
+at the record's `effectSequence` and increments once per stepped effect —
+inline and suspending alike. Because the guest is deterministic and inline
+capabilities must be result-deterministic per `effectId` (decision 2),
+re-running the advance from the same persisted basis allocates identical IDs
+to identical effects. The suspended record stores the suspending effect's ID
+in `pending.effectId`; the running record written by `claim` stores
+`effectSequence` = that ID's sequence + 1.
+
+### Error mapping parity with `runTask`
+
+The shared task runtime (slice 2) guarantees both drivers agree on:
+
+- entry argument and completion validation;
+- effect argument and result validation;
+- `raise` semantics (`TaskRaiseError` in `runTask`; `code: "raise"` here);
+- unknown-effect semantics;
+- `resume` application through the metered `call`.
+
+`runTask` surfaces errors as exceptions; the durable driver additionally
+persists them as terminal records. The underlying detection is one code path.
+
+## Persistence and hydration
+
+`hydrateWorkflowRecord` must:
+
+- reject structurally malformed records (unknown status, missing fields,
+  non-array args) with a dedicated error, before any evaluation;
+- run the recursive `@task` re-mark walk (shared with `hydrateTask`) over the
+  whole record;
+- re-apply `raw` to `pending.resume` and to `basis.pending.resume` when
+  present (decision 9);
+- leave everything else untouched — no closure or task re-encoding.
+
+`serializeTask` / `hydrateTask` remain exported for top-level tasks; the
+record codec composes the same walk rather than duplicating it.
+
+## Orchestration example
+
+One typed example, `examples/orchestration.*`, with these fixed environment
+contracts:
+
+- `AgentSpec`, `Handle`, `AgentResult`, `Report` named types. `AgentResult`
+  is a tagged union that includes failure in-band, e.g.
+  `{ ok: true, output: ... } | { ok: false, error: string }`.
+- `agent.spawn(spec) -> Handle` — **inline**.
+- `agent.await(handle) -> AgentResult` — **suspending**. Subagent failure
+  arrives as `ok: false`; it does not fail the workflow.
+- `agent.awaitAll(handles) -> AgentResult[]` — **suspending**. Results in
+  handle order; failures in-band; no aggregate host-level failure.
+  `awaitAll([])` still suspends; the orchestration host delivers `[]`
+  immediately. The guest does not special-case empty joins.
+- `agent.awaitAny(handles) -> { handle: Handle, result: AgentResult }` —
+  **suspending**. Losers keep running; their later completions hit a workflow
+  no longer suspended on that effect ID and come back `stale`. Cancellation
+  is explicitly out of scope for v1.
+- `log(message) -> null` — **inline**.
+
+The guest module demonstrates a sequential pipeline (one agent's output feeds
+the next spawn) and fan-out/fan-in (spawn several, one `awaitAll`), with the
+spawn-all-then-join recursion pattern from the design sketch.
+
+Two hosts run the same guest module:
+
+- a deterministic in-language mock using the manual state-transformer handler
+  expansion (decision 13), with canned results and an event transcript;
+- a durable test host: in-memory store plus an orchestration adapter that
+  tracks which workflow+effectId waits on which handles, buffers partial
+  results for `awaitAll`, and calls `deliverCompletion` when a join is
+  satisfied. The adapter is test infrastructure; its buffering state is
+  ordinary adapter data, not driver or store state.
 
 ## Implementation slices
 
-### 1. Extract a reusable task-driving runtime
+Each slice lands green (`bun run check`, `bun test`) before the next starts.
 
-Refactor the shared preparation and one-hop behavior currently internal to
-`runTask` so `runTask` and the durable driver cannot drift on:
+### 0. Continuation round-trip spike (tests only)
 
-- module/environment preparation;
-- entry argument and completion validation;
-- effect argument and result validation;
-- `raise` and unknown-effect behavior;
-- application of `resume`; and
-- execution limits.
+In `typescript/test/`, prove that a real `stepTask`-produced `resume`
+survives `JSON.stringify`/`JSON.parse` plus re-marking and resumes correctly
+in a **freshly prepared** runtime (new `prepareProgram` from the same module
+JSON, all prior runtime objects discarded). Cover continuations containing:
 
-Keep `runTask`'s public behavior unchanged.
+- recursive local functions;
+- nested tasks and multi-effect `do` chains;
+- an in-language `handle` wrapping the suspension point;
+- state-transformer handlers holding accumulated state across the suspension.
 
-### 2. Add suspended-state round trips
+Also add direct coverage for `serializeTask`/`hydrateTask` beyond the single
+existing case. Any failure here stops the plan for redesign.
 
-- Define the persisted suspended-workflow shape.
-- Add serialize/hydrate validation and inert-task re-marking.
-- Test continuations containing recursive local functions, nested tasks, and
-  in-language handlers across a JSON round trip.
-- Add direct coverage for the existing task serialize/hydrate helpers.
+### 1. Relocate capability parity
 
-### 3. Define durable host and store interfaces
+Split the effect/capability parity check out of `prepareEnvironmentRuntime`
+into the `runTask` path (behavior-preserving; existing
+`EnvironmentConfigurationError` messages and tests unchanged). This unblocks
+durable configuration validation without weakening `runTask`.
 
-- Add explicit inline/suspending effect classification.
-- Reject missing, extra, or invalid classifications.
-- Define stable workflow and effect identities.
-- Define compare-and-set transitions and duplicate-completion behavior.
-- Pass durable effect context to host adapters.
+### 2. Extract the shared task runtime
 
-Start with an in-memory reference store used only by tests and examples.
+New `typescript/src/host/task-runtime.ts`:
 
-### 4. Implement start, advance, and resume
+```typescript
+function prepareTaskRuntime(
+  module: Record<string, JSONType>,
+  environment: Environment,
+  registry: FunctionRegistry,
+  limits?: ExecutionLimits,
+): {
+  validateArgs(args: JSONType[]): JSONType[];
+  invokeEntry(args: JSONType[]): JSONType;
+  /** stepTask + raise / unknown-effect / arg-contract handling. */
+  step(task: JSONType): { done: JSONType } | { pending: PendingStep };
+  /** Validates result against the effect contract, then call(resume, [checked]). */
+  applyResume(resume: JSONType, name: string, result: JSONType): JSONType;
+  validateCompletion(value: JSONType): JSONType;
+  refreshDeadline(): void;
+  fuelUsed(): number;
+}
+```
 
-- Start from a validated module entry.
-- Drive through inline effects.
-- Persist and return on suspending effects.
-- Resume only the matching current effect.
-- Validate externally supplied results before applying the continuation.
-- Persist terminal completion and failure.
-- Recover safely from stale workers and duplicate events.
+It owns the `EFFECTS_BINDING` guard, effect-namespace injection,
+`prepareProgram`, and definition merging. Rewrite `runTask` on top of it;
+capability dispatch stays in `run-task.ts`. `runTask`'s public behavior,
+including direct-entry execution, is unchanged — verified by the existing
+`environment.test.ts` and `example-environments.test.ts` suites.
 
-### 5. Add orchestration joins and acceptance coverage
+### 3. Workflow record and codec
 
-- Define the agent orchestration environment and guest module.
-- Cover pipelines, fan-out/fan-in, empty joins, failures, and duplicate
-  completions.
-- Run the same guest workflow under the in-language mock and durable test host.
-- Simulate process boundaries by discarding runtime objects between suspend and
-  resume and rebuilding them solely from deployment inputs plus stored JSON.
+`typescript/src/host/durable/workflow-record.ts`: the `WorkflowRecord` types,
+structural validation, `serializeWorkflowRecord`, `hydrateWorkflowRecord`
+(re-mark walk shared with `task-serialization.ts`, `raw` re-application).
+Tests: malformed-record rejection, round trips for every status, and a resumed
+continuation from a hydrated record in a fresh runtime (reusing slice 0
+fixtures).
 
-### 6. Document the host contract
+### 4. Durable configuration and store
 
-Document:
+`typescript/src/host/durable/config.ts`: `DurableHostConfiguration`
+validation per **Public API**, including task-entry enforcement.
+`typescript/src/host/durable/store.ts`: the `WorkflowStore` interface and the
+in-memory reference store (serializing through the codec on every write/read).
+Tests: classification parity errors, CAS conflicts, claim/stale matrix
+(wrong status, wrong effectId, terminal, duplicate claim).
 
-- inline versus suspending configuration;
-- store consistency requirements;
-- module/environment version pinning;
-- at-least-once execution;
-- stable effect IDs and idempotent capabilities;
-- duplicate and stale completion handling; and
-- which errors fail a workflow versus resume a declared guest result.
+### 5. Driver
+
+`typescript/src/host/durable/driver.ts`: `createDurableDriver` with `start`,
+`deliverCompletion`, `deliverFailure`, `recover`, `read`, implementing the
+advance loop, effect-sequence accounting, deployment-pin check, and failure
+mapping. Tests:
+
+- inline-only workflow completes in one `start`;
+- suspend → serialize store contents → new driver instance from the same
+  deployment inputs → `deliverCompletion` → completion (process boundary
+  simulated by discarding all runtime objects);
+- duplicate and stale completions return `{ status: "stale" }` and never
+  re-run a continuation;
+- crash-mid-advance: re-`recover` from a running basis replays inline effects
+  with identical `effectId`s (asserted via a recording capability);
+- every failure code, including `deliverFailure` and deployment mismatch;
+- fuel accumulation across hops in `fuelUsed`.
+
+### 6. Orchestration example and acceptance coverage
+
+The example module, environment, in-language mock, and durable test host per
+**Orchestration example**. Acceptance tests run the same guest module under
+both hosts and assert equal reports; durable-side tests cover pipeline,
+fan-out/fan-in, empty `awaitAll`, in-band subagent failure, `awaitAny` with a
+losing straggler (stale delivery), and duplicate join completions.
+
+### 7. Documentation
+
+A durable-host section in `docs/` covering: inline versus suspending
+configuration; the store consistency contract; deployment pinning;
+at-least-once execution and the inline result-determinism obligation
+(decision 2, prominently); stable effect IDs; duplicate/stale handling; and
+the failure-code table. Update `AGENTS.md` pointers if a new doc file is
+added.
 
 ## Acceptance criteria
 
-- A workflow can suspend, be serialized, lose all live runtime state, and resume
-  to the same result in a newly prepared runtime.
-- Inline and suspending effects use the same environment contracts as
-  `runTask`.
-- The driver never awaits a suspending capability in the worker invocation that
-  reaches it.
-- A stale or duplicate completion cannot run a continuation twice.
-- Replaying an inline effect presents the same stable effect ID to its
-  capability adapter.
-- Completion, unhandled `raise`, contract errors, missing capabilities, and
-  execution-limit failures produce durable terminal states.
-- Fan-out work runs out of band and joins resume through ordinary effect
-  results; no parallel task node is introduced.
-- Stateful in-language mocks require no driver-specific state support.
-- The orchestration example passes under both its deterministic mock and the
-  durable in-memory test host.
+- A workflow can suspend, be serialized, lose all live runtime state, and
+  resume to the same result in a newly prepared runtime built only from
+  deployment inputs plus stored JSON.
+- Inline and suspending effects enforce the same environment contracts as
+  `runTask`, through the shared task runtime.
+- The driver never awaits a suspending capability; suspended work is exposed
+  only after its record is durable.
+- A stale or duplicate completion (or failure delivery) can never run a
+  continuation twice; it yields an explicit `stale` outcome.
+- Re-running an advance from the same persisted basis presents identical
+  `effectId`s to inline capabilities.
+- Unhandled `raise`, contract violations, unknown effects, malformed tasks,
+  execution limits, inline host exceptions, and external failures all produce
+  terminal records with the documented failure codes.
+- Fan-out runs out of band and joins resume through ordinary effect results;
+  no parallel task node exists.
+- The in-language mock needs no driver-specific state support.
+- The orchestration example passes under both the deterministic mock and the
+  durable in-memory host.
 
-## Open design details
+## Deferred work
 
-The architecture above fixes the major boundaries, but implementation should
-settle these concrete API details:
+Explicitly out of this plan, tracked for later consideration:
 
-- whether suspended serialization is exported as a generic `Suspended` helper
-  or only through the workflow-record codec;
-- the exact durable capability signature and effect-context shape;
-- the minimum compare-and-set store interface that supports recovery without
-  prescribing a database;
-- whether module/environment version identifiers are mandatory driver fields or
-  host-owned metadata validated by a resume hook;
-- how execution fuel is budgeted across hops: one persisted cumulative budget,
-  a fresh per-invocation budget, or both; and
-- the orchestration environment's exact `awaitAny`, cancellation, and aggregate
-  failure contracts.
-
-These choices should be resolved in slice 3 before the public durable-driver API
-is committed.
+- worker leases / abandoned-`running` detection;
+- an inline-result journal for hosts that cannot meet the determinism
+  obligation;
+- cross-hop fuel budgets enforced from persisted usage;
+- subagent cancellation effects and `awaitAny` loser cancellation;
+- stateful partial handlers that keep local state while durable effects
+  bubble;
+- migrating the example mock to stateful handler shorthand when it lands;
+- CLI integration and non-TypeScript implementations.
