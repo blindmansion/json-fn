@@ -66,6 +66,16 @@ under-approximate (soundness). Composites and functions are always truthy.
 This is the `if x then x else 0` idiom, and it also applies to a bare
 `where`-local used as a condition (see *named boolean guards* below).
 
+A field-path condition whose base is a **union** is additionally a
+*discriminant* (the truthiness analog of form 4): each branch keeps only the
+arms whose `field` has any truthy (then) / falsy (else) inhabitants. This is
+the boolean-discriminant idiom —
+`if r.ok then r.output else r.error` narrows
+`r : {ok: true, output: string} | {ok: false, error: string}` to the matching
+arm on each branch. An arm whose `field` admits both (e.g. a plain `boolean`)
+survives both branches; a non-union base yields no base fact (the path itself
+still narrows as above).
+
 ### 2. Type predicates
 
 The `isType` family — `isNull`, `isBool`, `isNumber`, `isInteger`, `isString`,

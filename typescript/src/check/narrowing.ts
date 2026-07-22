@@ -266,12 +266,29 @@ function isUnshadowed(name: string, ctx: CheckContext): boolean {
 // where the condition holds (`sense`), falsy otherwise. Applies to any static
 // access path (a bare `$var` or a `base.field` chain); other expressions yield
 // no fact.
+//
+// A field path on a union base is additionally a *discriminant* (the truthiness
+// analog of §5.5 M3): `if r.ok then r.output else r.error` keeps, per branch,
+// only the arms whose `ok` has any truthy / falsy inhabitants.
 function truthinessFact(expr: JSONType, sense: boolean, ctx: CheckContext): Record<string, Schema> {
   const subject = asPath(expr);
   if (subject === null) return {};
   const cur = currentTypeOfExpr(expr, ctx);
   if (cur === undefined) return {};
-  return { [subject]: sense ? restrictToTruthy(cur, ctx.defs) : restrictToFalsy(cur, ctx.defs) };
+  const facts: Record<string, Schema> = {
+    [subject]: sense ? restrictToTruthy(cur, ctx.defs) : restrictToFalsy(cur, ctx.defs),
+  };
+  const discriminant = discriminantSubject(expr, ctx);
+  if (discriminant !== null) {
+    const narrowed = restrictToTruthyDiscriminant(
+      discriminant.type,
+      discriminant.field,
+      sense,
+      ctx.defs,
+    );
+    if (narrowed !== null) facts[discriminant.base] = narrowed;
+  }
+  return facts;
 }
 
 // Facts learned about bare vars when `cond` evaluates to `sense` (true on the
@@ -463,6 +480,25 @@ function restrictToDiscriminant(
       deepEqual(literalValues(fieldT)[0]!, lit);
     return !isExact;
   });
+  return unionOf(kept);
+}
+
+// The truthiness analog of `restrictToDiscriminant`: keep the union arms whose
+// `field` has any truthy (then) / falsy (else) inhabitants — an arm whose
+// discriminant narrows to `never` under the branch's truthiness cannot be the
+// value flowing through that branch. Null for a non-union base: nothing to
+// discriminate, so no base fact is emitted.
+function restrictToTruthyDiscriminant(
+  s: Schema,
+  field: string,
+  sense: boolean,
+  defs: Defs,
+): Schema | null {
+  const arms = unionArms(resolveDeep(s, defs));
+  if (!arms) return null;
+  const kept = arms.filter(
+    (arm) => narrowTruthiness(projectField(arm, field, defs), sense, defs) !== false,
+  );
   return unionOf(kept);
 }
 

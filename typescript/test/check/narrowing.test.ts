@@ -76,6 +76,21 @@ const armBEnum: Schema = {
 };
 const TaggedEnum: Schema = { anyOf: [armAEnum, armBEnum] };
 
+// A boolean-discriminated union: { ok: true, output: string } | { ok: false, error: string }.
+const okArm: Schema = {
+  type: "object",
+  properties: { ok: { const: true }, output: { type: "string" } },
+  required: ["ok", "output"],
+  additionalProperties: false,
+};
+const errArm: Schema = {
+  type: "object",
+  properties: { ok: { const: false }, error: { type: "string" } },
+  required: ["ok", "error"],
+  additionalProperties: false,
+};
+const Result: Schema = { anyOf: [okArm, errArm] };
+
 type Row = {
   name: string;
   env: Record<string, Schema>;
@@ -138,6 +153,29 @@ describe("narrowing — truthiness (form 1)", () => {
       cond: get(v("u"), "active"),
       sense: true,
       expected: { "u.active": { type: "string" } },
+    },
+    {
+      name: "a boolean-discriminant path then keeps the truthy arm of the base",
+      env: { r: Result },
+      cond: get(v("r"), "ok"),
+      sense: true,
+      expected: { "r.ok": { const: true }, r: okArm },
+    },
+    {
+      name: "a boolean-discriminant path else keeps the falsy arm of the base",
+      env: { r: Result },
+      cond: get(v("r"), "ok"),
+      sense: false,
+      expected: { "r.ok": { const: false }, r: errArm },
+    },
+    {
+      name: "always-truthy discriminants leave both branches' base facts sound",
+      env: { s: Tagged },
+      cond: get(v("s"), "tag"),
+      sense: false,
+      // Every arm's tag is a nonempty-string const, so no arm admits a falsy
+      // discriminant: the else branch is dead for the base.
+      expected: { "s.tag": false, s: false },
     },
   ]);
 });
