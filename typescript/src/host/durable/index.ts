@@ -5,6 +5,8 @@ export type {
   DurableEffectMode,
   DurableHostConfiguration,
 } from "./config";
+export { DeploymentMismatchError, createDurableDriver } from "./driver";
+export type { AdvanceOutcome, DeliveryOutcome, DurableDriver } from "./driver";
 export {
   InMemoryWorkflowStore,
   WorkflowAlreadyExistsError,

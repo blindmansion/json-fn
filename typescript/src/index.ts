@@ -56,8 +56,10 @@ export { isTask, stepTask, runHandle, TASK_TAG } from "./task";
 export type { TaskNode, EffectTask, PureTask, BindTask, Suspended } from "./task";
 export { RuntimeContractError } from "./runtime-contract";
 export {
+  DeploymentMismatchError,
   runTask,
   InMemoryWorkflowStore,
+  createDurableDriver,
   serializeTask,
   hydrateTask,
   serializeWorkflowRecord,
@@ -72,9 +74,12 @@ export {
   WorkflowRevisionConflictError,
 } from "./host";
 export type {
+  AdvanceOutcome,
   Capability,
   ClaimOutcome,
+  DeliveryOutcome,
   DurableCapability,
+  DurableDriver,
   DurableEffectContext,
   DurableEffectMode,
   DurableHostConfiguration,
