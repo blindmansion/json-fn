@@ -717,6 +717,11 @@ the environment, validates outgoing effect arguments before invoking host code,
 and validates capability results before resuming task entries. Named references
 use the same merged builtin/environment/module definition pool as the checker.
 
+For task entries that must persist across process boundaries, the TypeScript
+implementation also provides `createDurableDriver`. See
+[Durable task hosting](durable-host.md) for effect classification, store
+consistency, recovery, and at-least-once execution semantics.
+
 `jfn check --environment <path>` loads the same artifact, preloads its named
 types, functions, and effects, and checks the entry body contextually against
 the environment-owned signature. `jfn eval --environment <path>` executes that

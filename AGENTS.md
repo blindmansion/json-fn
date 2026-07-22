@@ -9,6 +9,7 @@ json-fn is a pure-JSON functional expression language evaluated by a tree-walkin
 - `docs/` — language reference documentation.
   - `docs/language.md` — full language reference.
   - `docs/shorthand-spec.md` — the `.jfn` shorthand syntax spec.
+  - `docs/durable-host.md` — TypeScript durable task-host configuration, persistence, recovery, and failure semantics.
 - `plans/` — design plans and sketches for in-progress / proposed language work (e.g. `module-scope.md`, `effects-sketch.md`, `type-sketch.md`).
 - `todo/` — outstanding work items and tracking notes (e.g. `conformance-tests.md`, `impl-feature-parity.md`, `new-features.md`).
 - `examples/` — sample programs in `.jfn` shorthand and canonical `.json` (e.g. `chess`, `tictactoe`, `life`, `stretch`).
