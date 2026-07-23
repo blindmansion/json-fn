@@ -62,9 +62,9 @@ Commands:
   - `--contract <path>` — treat input as a module and run the
     environment-contract entry with an empty live runtime adapter/profile; the
     contract must declare no direct host functions.
-  - `--function <name>` — with `--contract`, development-evaluate any named module function through the shared linker.
+  - `--function <name>` — development-evaluate any named module function through the shared linker; `--contract` is optional.
   - `--args <json>` — JSON array of arguments (default `[]`).
- - `--json-input` — read canonical json-fn JSON instead of `.jfn` shorthand.
+  - `--json-input` — read canonical json-fn JSON instead of `.jfn` shorthand.
   - `-j/--json` (default) or `-s/--shorthand` — output format; `-c/--compact` minifies JSON.
 - `check` (alias `c`) — typecheck a module or expression; `--contract <path>`
   links the operator-owned environment contract and checks its entry boundary.
@@ -90,6 +90,9 @@ bun run src/cli.ts eval 'map((n) => n + 1, [1, 2, 3])' --shorthand
 
 # Run a module entry that needs no host function/effect implementations
 bun run src/cli.ts eval --file module.jfn --contract module.contract.json
+
+# Development-run a self-contained module function
+bun run src/cli.ts eval --file module.jfn --function demo
 
 # Development-run an in-language demo through the shared linker
 bun run src/cli.ts eval --file module.jfn --contract module.contract.json --function demo

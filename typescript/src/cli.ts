@@ -64,7 +64,8 @@ eval options:
                       Run the contract entry with an empty adapter; the contract
                       must declare no direct host functions
       --function <name>
-                      Development-only invocation of any named module function
+                      Development-only invocation of a named module function;
+                      --contract is optional
       --args <json>   JSON array of function/entry arguments (default: [])
       --max-call-depth <n>
                       Maximum nested guest function calls (default: 256)
@@ -102,6 +103,7 @@ Examples:
   echo '{ "$call": "add", "$args": [1, 2] }' | jfn to-shorthand
   jfn eval '(x) => x * x' --args '[9]'
   jfn eval 'map((n) => n + 1, [1, 2, 3])' --shorthand
+  jfn eval --file module.jfn --function demo
   jfn eval --file module.jfn --contract module.contract.json
   jfn eval --file module.jfn --contract module.contract.json --function demo
   jfn check --expr 'add(1, 2)'
@@ -283,9 +285,6 @@ async function cmdEval(argv: string[]): Promise<void> {
   try {
     const contractPath = parsed.options.contract;
     const functionName = parsed.options.function;
-    if (functionName !== undefined && contractPath === undefined) {
-      fail("--function requires --contract");
-    }
     if (contractPath !== undefined) {
       if (
         typeof parsedSource !== "object" ||
@@ -317,6 +316,26 @@ async function cmdEval(argv: string[]): Promise<void> {
           args,
         );
       }
+    } else if (functionName !== undefined) {
+      if (
+        typeof parsedSource !== "object" ||
+        parsedSource === null ||
+        Array.isArray(parsedSource)
+      ) {
+        fail("--function requires module input");
+      }
+      const linked = linkModule({
+        module: parsedSource as Record<string, JSONType>,
+        builtins,
+      });
+      result = callProgram(
+        linked.module,
+        functionName,
+        args,
+        stdlib,
+        limits,
+        linked.definitionSources,
+      );
     } else if (isFunctionBody(parsedSource)) {
       // A bare function literal applied to the supplied --args.
       result = callFunction(parsedSource, args, stdlib, limits, definitions);

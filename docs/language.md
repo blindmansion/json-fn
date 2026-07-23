@@ -792,11 +792,13 @@ performed). By default `eval` reads shorthand; pass `--json-input` to evaluate
 canonical json-fn JSON directly.
 
 Adding `--function <name>` selects a development evaluation instead: the CLI
-uses the shared module linker, then invokes that named module function without
-entry argument validation, entry return validation, or automatic task
-execution. Success in this mode does not show that the production entry can
-run. Test production hosting with `prepareDeployment` and the real profile and
-runtime adapter; the CLI does not synthesize their implementations.
+uses the shared module linker, then invokes that named module function. An
+environment contract may be supplied but is not required for self-contained
+modules. This mode skips entry argument validation, entry return validation,
+and automatic task execution. Success in this mode does not show that the
+production entry can run. Test production hosting with `prepareDeployment` and
+the real profile and runtime adapter; the CLI does not synthesize their
+implementations.
 
 **Durable suspend/resume.** A stepped `pending` record is host state, not itself
 a task accepted by `serializeTask`. Hosts may serialize its `resume` closure (or

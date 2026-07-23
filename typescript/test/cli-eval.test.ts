@@ -463,10 +463,39 @@ describe("jfn eval contract modes", () => {
     expect(Object.keys(JSON.parse(result.stdout))).toEqual([...fixture.expectedKeys]);
   });
 
-  test("--function requires an contract", () => {
-    const result = runEval(["--function", "demo", "{ demo: () => 1 }"]);
+  test("development-evaluates a named function without a contract", () => {
+    const result = runEval([
+      "--function",
+      "square",
+      "--args",
+      "[9]",
+      "{ square: (value) => value * value }",
+      "--compact",
+    ]);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout.trim()).toBe("81");
+  });
+
+  test("development-evaluates a typed example without a contract", () => {
+    const result = runEval([
+      "--file",
+      join(examples, "pipeline.jfn"),
+      "--function",
+      "demo",
+      "--compact",
+    ]);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(Object.keys(JSON.parse(result.stdout))).toEqual(["result", "sum", "report"]);
+  });
+
+  test("--function requires module input", () => {
+    const result = runEval(["--function", "demo", "1"]);
 
     expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain("--function requires --contract");
+    expect(result.stderr).toContain("--function requires module input");
   });
 });
