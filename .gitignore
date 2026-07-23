@@ -19,6 +19,9 @@ dist/
 # --- Rust ---
 /rust/target/
 
+# perf run output (baselines under perf/baselines/ are committed)
+/typescript/perf/results/
+
 # --- General ---
 out
 *.tgz

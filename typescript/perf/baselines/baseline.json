@@ -1,0 +1,3565 @@
+{
+  "version": 1,
+  "meta": {
+    "createdAt": "2026-07-23T00:46:18.831Z",
+    "mode": "full",
+    "bunVersion": "1.4.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "gitCommit": "dfc9407b13608fd34e7acd51292cc85ce9c8bf0a"
+  },
+  "results": [
+    {
+      "id": "raw-internal/body-literal?raw=false&records=100",
+      "suite": "raw-internal",
+      "name": "body-literal",
+      "params": {
+        "records": 100,
+        "raw": false
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 23,
+        "meanUs": 46.60791159420298,
+        "medianUs": 43.643130434784034,
+        "p95Us": 64.5996521739132,
+        "minUs": 41.38408695652259,
+        "totalMs": 128.74891699999995
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 1303,
+        "callFunctionInternal": 2,
+        "replaceVars": 0,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 2,
+        "fuel": 1305
+      }
+    },
+    {
+      "id": "raw-internal/body-literal?raw=true&records=100",
+      "suite": "raw-internal",
+      "name": "body-literal",
+      "params": {
+        "records": 100,
+        "raw": true
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 686,
+        "meanUs": 1.1232487487852223,
+        "medianUs": 0.7216355685129716,
+        "p95Us": 3.646379008746282,
+        "minUs": 0.2905131195335481,
+        "totalMs": 92.49350000000004
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 3,
+        "callFunctionInternal": 2,
+        "replaceVars": 0,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 2,
+        "fuel": 5
+      }
+    },
+    {
+      "id": "raw-internal/body-literal?raw=false&records=1000",
+      "suite": "raw-internal",
+      "name": "body-literal",
+      "params": {
+        "records": 1000,
+        "raw": false
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 3,
+        "meanUs": 508.1848249999993,
+        "medianUs": 449.97233333329706,
+        "p95Us": 884.6529999999954,
+        "minUs": 382.7360000000226,
+        "totalMs": 182.962666
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 13003,
+        "callFunctionInternal": 2,
+        "replaceVars": 0,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 2,
+        "fuel": 13005
+      }
+    },
+    {
+      "id": "raw-internal/body-literal?raw=true&records=1000",
+      "suite": "raw-internal",
+      "name": "body-literal",
+      "params": {
+        "records": 1000,
+        "raw": true
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 1413,
+        "meanUs": 0.25872724109459366,
+        "medianUs": 0.2609992922859058,
+        "p95Us": 0.3112767162066659,
+        "minUs": 0.21945081387116824,
+        "totalMs": 43.88566700000001
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 3,
+        "callFunctionInternal": 2,
+        "replaceVars": 0,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 2,
+        "fuel": 5
+      }
+    },
+    {
+      "id": "raw-internal/body-literal?raw=false&records=10000",
+      "suite": "raw-internal",
+      "name": "body-literal",
+      "params": {
+        "records": 10000,
+        "raw": false
+      },
+      "stats": {
+        "samples": 60,
+        "batch": 1,
+        "meanUs": 4186.518750000005,
+        "medianUs": 4123.124999999845,
+        "p95Us": 4598.0409999999665,
+        "minUs": 3835.2919999999813,
+        "totalMs": 251.2237500000001
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 130003,
+        "callFunctionInternal": 2,
+        "replaceVars": 0,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 2,
+        "fuel": 130005
+      }
+    },
+    {
+      "id": "raw-internal/body-literal?raw=true&records=10000",
+      "suite": "raw-internal",
+      "name": "body-literal",
+      "params": {
+        "records": 10000,
+        "raw": true
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 2001,
+        "meanUs": 0.23171938197568293,
+        "medianUs": 0.22553273363311124,
+        "p95Us": 0.259661669165423,
+        "minUs": 0.2206186906546784,
+        "totalMs": 55.65420900000004
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 3,
+        "callFunctionInternal": 2,
+        "replaceVars": 0,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 2,
+        "fuel": 5
+      }
+    },
+    {
+      "id": "raw-internal/pass-through-calls?calls=100&raw=false&records=100",
+      "suite": "raw-internal",
+      "name": "pass-through-calls",
+      "params": {
+        "records": 100,
+        "raw": false,
+        "calls": 100
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 2,
+        "meanUs": 517.3109708333378,
+        "medianUs": 508.24999999997544,
+        "p95Us": 612.7920000000131,
+        "minUs": 473.91700000002857,
+        "totalMs": 124.17570799999999
+      },
+      "error": null,
+      "native": {
+        "samples": 120,
+        "batch": 2184,
+        "meanUs": 0.03616865460928203,
+        "medianUs": 0.033653846153831164,
+        "p95Us": 0.03949175824178739,
+        "minUs": 0.03346336996341945,
+        "totalMs": 9.492457999999942
+      },
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 910,
+        "callFunctionInternal": 405,
+        "replaceVars": 36,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 204,
+        "fuel": 1315
+      }
+    },
+    {
+      "id": "raw-internal/pass-through-calls?calls=100&raw=true&records=100",
+      "suite": "raw-internal",
+      "name": "pass-through-calls",
+      "params": {
+        "records": 100,
+        "raw": true,
+        "calls": 100
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 2,
+        "meanUs": 546.6353958333275,
+        "medianUs": 511.6250000000946,
+        "p95Us": 820.3540000000658,
+        "minUs": 474.20850000003156,
+        "totalMs": 131.21712500000012
+      },
+      "error": null,
+      "native": {
+        "samples": 120,
+        "batch": 1716,
+        "meanUs": 0.03541544774669863,
+        "medianUs": 0.034406759906680094,
+        "p95Us": 0.04557575757570171,
+        "minUs": 0.03350815850809491,
+        "totalMs": 7.304082999999991
+      },
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 910,
+        "callFunctionInternal": 405,
+        "replaceVars": 36,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 204,
+        "fuel": 1315
+      }
+    },
+    {
+      "id": "raw-internal/pass-through-calls?calls=100&raw=false&records=1000",
+      "suite": "raw-internal",
+      "name": "pass-through-calls",
+      "params": {
+        "records": 1000,
+        "raw": false,
+        "calls": 100
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 2,
+        "meanUs": 594.6205041666566,
+        "medianUs": 517.2919999999976,
+        "p95Us": 1033.437499999991,
+        "minUs": 497.93750000003456,
+        "totalMs": 142.74479100000008
+      },
+      "error": null,
+      "native": {
+        "samples": 120,
+        "batch": 1500,
+        "meanUs": 0.05015225555556149,
+        "medianUs": 0.045749999999922394,
+        "p95Us": 0.06466666666680491,
+        "minUs": 0.04552733333336315,
+        "totalMs": 9.042749999999614
+      },
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 910,
+        "callFunctionInternal": 405,
+        "replaceVars": 36,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 204,
+        "fuel": 1315
+      }
+    },
+    {
+      "id": "raw-internal/pass-through-calls?calls=100&raw=true&records=1000",
+      "suite": "raw-internal",
+      "name": "pass-through-calls",
+      "params": {
+        "records": 1000,
+        "raw": true,
+        "calls": 100
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 2,
+        "meanUs": 600.7468708333153,
+        "medianUs": 500.10450000013407,
+        "p95Us": 1117.6249999998618,
+        "minUs": 472.04149999993206,
+        "totalMs": 144.20987499999956
+      },
+      "error": null,
+      "native": {
+        "samples": 120,
+        "batch": 2399,
+        "meanUs": 0.04641952897039915,
+        "medianUs": 0.04580033347232258,
+        "p95Us": 0.04809295539802339,
+        "minUs": 0.04550521050421662,
+        "totalMs": 13.37887499999988
+      },
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 910,
+        "callFunctionInternal": 405,
+        "replaceVars": 36,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 204,
+        "fuel": 1315
+      }
+    },
+    {
+      "id": "raw-internal/pass-through-calls?calls=100&raw=false&records=10000",
+      "suite": "raw-internal",
+      "name": "pass-through-calls",
+      "params": {
+        "records": 10000,
+        "raw": false,
+        "calls": 100
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 2,
+        "meanUs": 522.9986124999942,
+        "medianUs": 503.75000000008185,
+        "p95Us": 692.6665000000867,
+        "minUs": 477.7080000001206,
+        "totalMs": 125.54479199999969
+      },
+      "error": null,
+      "native": {
+        "samples": 120,
+        "batch": 6025,
+        "meanUs": 0.046289138312583404,
+        "medianUs": 0.04531120331944954,
+        "p95Us": 0.049004149377538414,
+        "minUs": 0.044453609958562165,
+        "totalMs": 33.48691599999984
+      },
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 910,
+        "callFunctionInternal": 405,
+        "replaceVars": 36,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 204,
+        "fuel": 1315
+      }
+    },
+    {
+      "id": "raw-internal/pass-through-calls?calls=100&raw=true&records=10000",
+      "suite": "raw-internal",
+      "name": "pass-through-calls",
+      "params": {
+        "records": 10000,
+        "raw": true,
+        "calls": 100
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 3,
+        "meanUs": 486.2711833333428,
+        "medianUs": 478.9860000000772,
+        "p95Us": 541.6110000001026,
+        "minUs": 472.0276666665389,
+        "totalMs": 175.07799999999997
+      },
+      "error": null,
+      "native": {
+        "samples": 120,
+        "batch": 3425,
+        "meanUs": 0.045308608272505047,
+        "medianUs": 0.044683795620545606,
+        "p95Us": 0.046423357664264385,
+        "minUs": 0.044501021897914626,
+        "totalMs": 18.63341700000001
+      },
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 910,
+        "callFunctionInternal": 405,
+        "replaceVars": 36,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 204,
+        "fuel": 1315
+      }
+    },
+    {
+      "id": "raw-internal/pass-through-calls?calls=100&raw=false&records=100000",
+      "suite": "raw-internal",
+      "name": "pass-through-calls",
+      "params": {
+        "records": 100000,
+        "raw": false,
+        "calls": 100
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 3,
+        "meanUs": 475.2219027777679,
+        "medianUs": 466.36133333322505,
+        "p95Us": 534.4446666666348,
+        "minUs": 459.30566666675077,
+        "totalMs": 171.09966699999995
+      },
+      "error": null,
+      "native": {
+        "samples": 120,
+        "batch": 3437,
+        "meanUs": 0.04530184754145651,
+        "medianUs": 0.04433372126845077,
+        "p95Us": 0.046467267966289486,
+        "minUs": 0.04422461448939297,
+        "totalMs": 18.69666700000016
+      },
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 910,
+        "callFunctionInternal": 405,
+        "replaceVars": 36,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 204,
+        "fuel": 1315
+      }
+    },
+    {
+      "id": "raw-internal/pass-through-calls?calls=100&raw=true&records=100000",
+      "suite": "raw-internal",
+      "name": "pass-through-calls",
+      "params": {
+        "records": 100000,
+        "raw": true,
+        "calls": 100
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 3,
+        "meanUs": 488.06039166665977,
+        "medianUs": 480.3470000000137,
+        "p95Us": 538.3609999998953,
+        "minUs": 472.9723333333216,
+        "totalMs": 175.72000000000025
+      },
+      "error": null,
+      "native": {
+        "samples": 120,
+        "batch": 3425,
+        "meanUs": 0.04502922141119285,
+        "medianUs": 0.044343065693303194,
+        "p95Us": 0.04652087591239251,
+        "minUs": 0.044209343065704426,
+        "totalMs": 18.519791000000623
+      },
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 910,
+        "callFunctionInternal": 405,
+        "replaceVars": 36,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 204,
+        "fuel": 1315
+      }
+    },
+    {
+      "id": "raw-internal/reduce-carry-big-acc?records=1000&steps=500",
+      "suite": "raw-internal",
+      "name": "reduce-carry-big-acc",
+      "params": {
+        "records": 1000,
+        "steps": 500
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 4,
+        "meanUs": 236.7633562500088,
+        "medianUs": 241.9897500001298,
+        "p95Us": 355.03124999991087,
+        "minUs": 166.45825000000514,
+        "totalMs": 113.66604199999983
+      },
+      "error": null,
+      "native": {
+        "samples": 120,
+        "batch": 889,
+        "meanUs": 0.15408547056616057,
+        "medianUs": 0.1511068616416183,
+        "p95Us": 0.1615579302583821,
+        "minUs": 0.15077840270032694,
+        "totalMs": 16.45483299999978
+      },
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 506,
+        "callFunctionInternal": 504,
+        "replaceVars": 5,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 3,
+        "fuel": 3010
+      }
+    },
+    {
+      "id": "raw-internal/reduce-carry-big-acc?records=10000&steps=500",
+      "suite": "raw-internal",
+      "name": "reduce-carry-big-acc",
+      "params": {
+        "records": 10000,
+        "steps": 500
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 1,
+        "meanUs": 543.3350333333237,
+        "medianUs": 360.45800000010786,
+        "p95Us": 1821.416999999201,
+        "minUs": 242.1250000006694,
+        "totalMs": 65.22170800000004
+      },
+      "error": null,
+      "native": {
+        "samples": 120,
+        "batch": 2179,
+        "meanUs": 0.160299238947511,
+        "medianUs": 0.15486874713185322,
+        "p95Us": 0.18311151904517323,
+        "minUs": 0.15091050940794642,
+        "totalMs": 41.93937499999993
+      },
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 506,
+        "callFunctionInternal": 504,
+        "replaceVars": 5,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 3,
+        "fuel": 12010
+      }
+    },
+    {
+      "id": "raw-internal/reduce-carry-big-acc?records=100000&steps=500",
+      "suite": "raw-internal",
+      "name": "reduce-carry-big-acc",
+      "params": {
+        "records": 100000,
+        "steps": 500
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 3,
+        "meanUs": 200.04744444445853,
+        "medianUs": 190.1943333335415,
+        "p95Us": 259.8610000001524,
+        "minUs": 136.0696666667233,
+        "totalMs": 72.03874999999971
+      },
+      "error": null,
+      "native": {
+        "samples": 120,
+        "batch": 1502,
+        "meanUs": 0.16295656347089443,
+        "medianUs": 0.15776165113149399,
+        "p95Us": 0.182589880159443,
+        "minUs": 0.1543215712378482,
+        "totalMs": 29.43341700000019
+      },
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 506,
+        "callFunctionInternal": 504,
+        "replaceVars": 5,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 3,
+        "fuel": 102010
+      }
+    },
+    {
+      "id": "raw-internal/indexed-get?reads=200&records=1000",
+      "suite": "raw-internal",
+      "name": "indexed-get",
+      "params": {
+        "records": 1000,
+        "reads": 200
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 9,
+        "meanUs": 112.16551203703885,
+        "medianUs": 105.55100000005444,
+        "p95Us": 148.87499999996282,
+        "minUs": 94.8425555555635,
+        "totalMs": 121.15766699999949
+      },
+      "error": null,
+      "native": {
+        "samples": 120,
+        "batch": 667,
+        "meanUs": 0.2107524112943225,
+        "medianUs": 0.20414842578659567,
+        "p95Us": 0.21707946026857977,
+        "minUs": 0.20377211394329736,
+        "totalMs": 16.88325000000077
+      },
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 1005,
+        "callFunctionInternal": 204,
+        "replaceVars": 8,
+        "rawSkips": 200,
+        "structuredClones": 0,
+        "maxCallDepth": 3,
+        "fuel": 2009
+      }
+    },
+    {
+      "id": "raw-internal/indexed-get?reads=200&records=10000",
+      "suite": "raw-internal",
+      "name": "indexed-get",
+      "params": {
+        "records": 10000,
+        "reads": 200
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 10,
+        "meanUs": 109.1182299999961,
+        "medianUs": 104.19999999994616,
+        "p95Us": 130.80829999998969,
+        "minUs": 100.81669999999576,
+        "totalMs": 130.99454200000037
+      },
+      "error": null,
+      "native": {
+        "samples": 120,
+        "batch": 1716,
+        "meanUs": 0.2061555167055013,
+        "medianUs": 0.20369580419576255,
+        "p95Us": 0.21134440559459713,
+        "minUs": 0.20243298368314905,
+        "totalMs": 42.47437499999978
+      },
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 1005,
+        "callFunctionInternal": 204,
+        "replaceVars": 8,
+        "rawSkips": 200,
+        "structuredClones": 0,
+        "maxCallDepth": 3,
+        "fuel": 2009
+      }
+    },
+    {
+      "id": "raw-internal/indexed-get?reads=200&records=100000",
+      "suite": "raw-internal",
+      "name": "indexed-get",
+      "params": {
+        "records": 100000,
+        "reads": 200
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 16,
+        "meanUs": 69.11479895833187,
+        "medianUs": 63.203124999972715,
+        "p95Us": 87.73956250001902,
+        "minUs": 60.51562499999363,
+        "totalMs": 132.71908299999996
+      },
+      "error": null,
+      "native": {
+        "samples": 120,
+        "batch": 1201,
+        "meanUs": 0.2060924091035589,
+        "medianUs": 0.2033721898415804,
+        "p95Us": 0.21097002497862058,
+        "minUs": 0.20257452123239836,
+        "totalMs": 29.720000000000255
+      },
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 1005,
+        "callFunctionInternal": 204,
+        "replaceVars": 8,
+        "rawSkips": 200,
+        "structuredClones": 0,
+        "maxCallDepth": 3,
+        "fuel": 2009
+      }
+    },
+    {
+      "id": "raw-internal/setat-copies?records=1000&updates=50",
+      "suite": "raw-internal",
+      "name": "setat-copies",
+      "params": {
+        "records": 1000,
+        "updates": 50
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 15,
+        "meanUs": 74.40851944444654,
+        "medianUs": 70.02220000000912,
+        "p95Us": 90.74166666662981,
+        "minUs": 66.76666666668704,
+        "totalMs": 133.95283300000028
+      },
+      "error": null,
+      "native": {
+        "samples": 120,
+        "batch": 34,
+        "meanUs": 26.96387892157013,
+        "medianUs": 28.003676470582246,
+        "p95Us": 30.598029411762315,
+        "minUs": 19.202205882346092,
+        "totalMs": 110.0326670000004
+      },
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 206,
+        "callFunctionInternal": 104,
+        "replaceVars": 8,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 4,
+        "fuel": 51410
+      }
+    },
+    {
+      "id": "raw-internal/setat-copies?records=10000&updates=50",
+      "suite": "raw-internal",
+      "name": "setat-copies",
+      "params": {
+        "records": 10000,
+        "updates": 50
+      },
+      "stats": {
+        "samples": 101,
+        "batch": 2,
+        "meanUs": 1238.7609851484922,
+        "medianUs": 898.7919999999576,
+        "p95Us": 2184.562499999629,
+        "minUs": 467.0415000000503,
+        "totalMs": 250.29483300000084
+      },
+      "error": null,
+      "native": {
+        "samples": 120,
+        "batch": 1,
+        "meanUs": 984.1013666666719,
+        "medianUs": 676.4579999999114,
+        "p95Us": 2864.6669999998267,
+        "minUs": 180.41599999924074,
+        "totalMs": 118.1434160000008
+      },
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 206,
+        "callFunctionInternal": 104,
+        "replaceVars": 8,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 4,
+        "fuel": 510410
+      }
+    },
+    {
+      "id": "raw-internal/setat-copies?records=50000&updates=50",
+      "suite": "raw-internal",
+      "name": "setat-copies",
+      "params": {
+        "records": 50000,
+        "updates": 50
+      },
+      "stats": {
+        "samples": 41,
+        "batch": 1,
+        "meanUs": 6107.311024390294,
+        "medianUs": 6529.041000000689,
+        "p95Us": 9496.791999999914,
+        "minUs": 2163.8339999999516,
+        "totalMs": 250.44675000000007
+      },
+      "error": null,
+      "native": {
+        "samples": 120,
+        "batch": 1,
+        "meanUs": 1227.3197916666954,
+        "medianUs": 898.8330000001952,
+        "p95Us": 3211.583000000246,
+        "minUs": 874.7499999999491,
+        "totalMs": 147.32574999999997
+      },
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 206,
+        "callFunctionInternal": 104,
+        "replaceVars": 8,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 4,
+        "fuel": 2550410
+      }
+    },
+    {
+      "id": "boundary/arg-length?raw=false&records=1000",
+      "suite": "boundary",
+      "name": "arg-length",
+      "params": {
+        "records": 1000,
+        "raw": false
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 462,
+        "meanUs": 0.7398093795093674,
+        "medianUs": 0.7141038961051819,
+        "p95Us": 0.8073593073584254,
+        "minUs": 0.6621558441563898,
+        "totalMs": 41.033917000000656
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 2,
+        "callFunctionInternal": 2,
+        "replaceVars": 0,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 2,
+        "fuel": 4
+      }
+    },
+    {
+      "id": "boundary/arg-length?raw=true&records=1000",
+      "suite": "boundary",
+      "name": "arg-length",
+      "params": {
+        "records": 1000,
+        "raw": true
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 960,
+        "meanUs": 0.5859299305555511,
+        "medianUs": 0.5710062500005126,
+        "p95Us": 0.637760416666803,
+        "minUs": 0.5513885416670897,
+        "totalMs": 67.51500000000033
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 2,
+        "callFunctionInternal": 2,
+        "replaceVars": 0,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 2,
+        "fuel": 4
+      }
+    },
+    {
+      "id": "boundary/arg-identity?records=1000",
+      "suite": "boundary",
+      "name": "arg-identity",
+      "params": {
+        "records": 1000
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 728,
+        "meanUs": 0.43343055173991674,
+        "medianUs": 0.42216071428661206,
+        "p95Us": 0.5126483516483199,
+        "minUs": 0.4076813186814504,
+        "totalMs": 37.880958000000646
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 1,
+        "callFunctionInternal": 1,
+        "replaceVars": 0,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 1,
+        "fuel": 2
+      }
+    },
+    {
+      "id": "boundary/arg-length?raw=false&records=10000",
+      "suite": "boundary",
+      "name": "arg-length",
+      "params": {
+        "records": 10000,
+        "raw": false
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 774,
+        "meanUs": 0.6324634689923215,
+        "medianUs": 0.5980297157624901,
+        "p95Us": 0.8067390180874101,
+        "minUs": 0.5724586563308981,
+        "totalMs": 58.76533300000028
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 2,
+        "callFunctionInternal": 2,
+        "replaceVars": 0,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 2,
+        "fuel": 4
+      }
+    },
+    {
+      "id": "boundary/arg-length?raw=true&records=10000",
+      "suite": "boundary",
+      "name": "arg-length",
+      "params": {
+        "records": 10000,
+        "raw": true
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 889,
+        "meanUs": 0.6268716816647885,
+        "medianUs": 0.5897547806524853,
+        "p95Us": 0.721737907761759,
+        "minUs": 0.5721788526434866,
+        "totalMs": 66.9098329999988
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 2,
+        "callFunctionInternal": 2,
+        "replaceVars": 0,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 2,
+        "fuel": 4
+      }
+    },
+    {
+      "id": "boundary/arg-identity?records=10000",
+      "suite": "boundary",
+      "name": "arg-identity",
+      "params": {
+        "records": 10000
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 1263,
+        "meanUs": 0.47541242412240337,
+        "medianUs": 0.42606888360976,
+        "p95Us": 0.6278044338881003,
+        "minUs": 0.40990419635767267,
+        "totalMs": 72.07395800000086
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 1,
+        "callFunctionInternal": 1,
+        "replaceVars": 0,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 1,
+        "fuel": 2
+      }
+    },
+    {
+      "id": "boundary/arg-length?raw=false&records=100000",
+      "suite": "boundary",
+      "name": "arg-length",
+      "params": {
+        "records": 100000,
+        "raw": false
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 1044,
+        "meanUs": 0.5803340996168944,
+        "medianUs": 0.569643678161434,
+        "p95Us": 0.6373726053641392,
+        "minUs": 0.5522825670498351,
+        "totalMs": 72.72112500000003
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 2,
+        "callFunctionInternal": 2,
+        "replaceVars": 0,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 2,
+        "fuel": 4
+      }
+    },
+    {
+      "id": "boundary/arg-length?raw=true&records=100000",
+      "suite": "boundary",
+      "name": "arg-length",
+      "params": {
+        "records": 100000,
+        "raw": true
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 889,
+        "meanUs": 0.5801579771278739,
+        "medianUs": 0.5686625421827318,
+        "p95Us": 0.5935039370065317,
+        "minUs": 0.5522125984263114,
+        "totalMs": 61.90533299999879
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 2,
+        "callFunctionInternal": 2,
+        "replaceVars": 0,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 2,
+        "fuel": 4
+      }
+    },
+    {
+      "id": "boundary/arg-identity?records=100000",
+      "suite": "boundary",
+      "name": "arg-identity",
+      "params": {
+        "records": 100000
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 960,
+        "meanUs": 0.41672600694444845,
+        "medianUs": 0.4061197916674549,
+        "p95Us": 0.4365010416677251,
+        "minUs": 0.3933166666665026,
+        "totalMs": 48.02799999999843
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 1,
+        "callFunctionInternal": 1,
+        "replaceVars": 0,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 1,
+        "fuel": 2
+      }
+    },
+    {
+      "id": "boundary/capture-then-invoke?invocations=50&raw=false&records=1000",
+      "suite": "boundary",
+      "name": "capture-then-invoke",
+      "params": {
+        "records": 1000,
+        "raw": false,
+        "invocations": 50
+      },
+      "stats": {
+        "samples": 13,
+        "batch": 1,
+        "meanUs": 20660.474230769563,
+        "medianUs": 20031.37500000048,
+        "p95Us": 22845.83300000122,
+        "minUs": 19643.834000000425,
+        "totalMs": 268.58983400000034
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 650255,
+        "callFunctionInternal": 54,
+        "replaceVars": 8,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 3,
+        "fuel": 650509
+      }
+    },
+    {
+      "id": "boundary/capture-then-invoke?invocations=50&raw=true&records=1000",
+      "suite": "boundary",
+      "name": "capture-then-invoke",
+      "params": {
+        "records": 1000,
+        "raw": true,
+        "invocations": 50
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 44,
+        "meanUs": 23.610299053032254,
+        "medianUs": 22.719681818175143,
+        "p95Us": 29.845659090907162,
+        "minUs": 21.2547272727451,
+        "totalMs": 124.67679099999987
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 255,
+        "callFunctionInternal": 54,
+        "replaceVars": 8,
+        "rawSkips": 50,
+        "structuredClones": 0,
+        "maxCallDepth": 3,
+        "fuel": 509
+      }
+    },
+    {
+      "id": "boundary/capture-then-invoke?invocations=50&raw=false&records=10000",
+      "suite": "boundary",
+      "name": "capture-then-invoke",
+      "params": {
+        "records": 10000,
+        "raw": false,
+        "invocations": 50
+      },
+      "stats": {
+        "samples": 5,
+        "batch": 1,
+        "meanUs": 210358.44140000007,
+        "medianUs": 213386.91599999947,
+        "p95Us": 215838.16599999956,
+        "minUs": 200446.2079999994,
+        "totalMs": 1051.794417000001
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 6500255,
+        "callFunctionInternal": 54,
+        "replaceVars": 8,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 3,
+        "fuel": 6500509
+      }
+    },
+    {
+      "id": "boundary/capture-then-invoke?invocations=50&raw=true&records=10000",
+      "suite": "boundary",
+      "name": "capture-then-invoke",
+      "params": {
+        "records": 10000,
+        "raw": true,
+        "invocations": 50
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 50,
+        "meanUs": 17.28095133333348,
+        "medianUs": 16.594159999986005,
+        "p95Us": 21.368340000008175,
+        "minUs": 15.261659999996482,
+        "totalMs": 103.7622080000001
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 255,
+        "callFunctionInternal": 54,
+        "replaceVars": 8,
+        "rawSkips": 50,
+        "structuredClones": 0,
+        "maxCallDepth": 3,
+        "fuel": 509
+      }
+    },
+    {
+      "id": "boundary/external-consume?pure=false&records=1000",
+      "suite": "boundary",
+      "name": "external-consume",
+      "params": {
+        "records": 1000,
+        "pure": false
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 2,
+        "meanUs": 754.6211458333347,
+        "medianUs": 732.6665000000503,
+        "p95Us": 880.500000000211,
+        "minUs": 723.0835000000297,
+        "totalMs": 181.12962499999958
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 2,
+        "callFunctionInternal": 2,
+        "replaceVars": 0,
+        "rawSkips": 0,
+        "structuredClones": 1,
+        "maxCallDepth": 2,
+        "fuel": 4
+      }
+    },
+    {
+      "id": "boundary/external-echo?pure=false&records=1000",
+      "suite": "boundary",
+      "name": "external-echo",
+      "params": {
+        "records": 1000,
+        "pure": false
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 1,
+        "meanUs": 1553.0687666666233,
+        "medianUs": 1526.7079999994166,
+        "p95Us": 1727.4580000012065,
+        "minUs": 1509.7079999995913,
+        "totalMs": 186.38687500000015
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 3,
+        "callFunctionInternal": 3,
+        "replaceVars": 0,
+        "rawSkips": 0,
+        "structuredClones": 2,
+        "maxCallDepth": 2,
+        "fuel": 1006
+      }
+    },
+    {
+      "id": "boundary/external-consume?pure=true&records=1000",
+      "suite": "boundary",
+      "name": "external-consume",
+      "params": {
+        "records": 1000,
+        "pure": true
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 1000,
+        "meanUs": 0.4783257750000909,
+        "medianUs": 0.4397499999995489,
+        "p95Us": 0.5793750000011642,
+        "minUs": 0.40004100000078324,
+        "totalMs": 57.41729099999975
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 2,
+        "callFunctionInternal": 2,
+        "replaceVars": 0,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 2,
+        "fuel": 4
+      }
+    },
+    {
+      "id": "boundary/external-echo?pure=true&records=1000",
+      "suite": "boundary",
+      "name": "external-echo",
+      "params": {
+        "records": 1000,
+        "pure": true
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 923,
+        "meanUs": 0.5946187251714559,
+        "medianUs": 0.5686175514624355,
+        "p95Us": 0.6812936078017408,
+        "minUs": 0.5547583965333611,
+        "totalMs": 65.87662500000079
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 3,
+        "callFunctionInternal": 3,
+        "replaceVars": 0,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 2,
+        "fuel": 1006
+      }
+    },
+    {
+      "id": "boundary/external-consume?pure=false&records=10000",
+      "suite": "boundary",
+      "name": "external-consume",
+      "params": {
+        "records": 10000,
+        "pure": false
+      },
+      "stats": {
+        "samples": 34,
+        "batch": 1,
+        "meanUs": 7540.087117647038,
+        "medianUs": 7504.209000000628,
+        "p95Us": 7854.12499999984,
+        "minUs": 7266.708999999537,
+        "totalMs": 256.4012079999993
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 2,
+        "callFunctionInternal": 2,
+        "replaceVars": 0,
+        "rawSkips": 0,
+        "structuredClones": 1,
+        "maxCallDepth": 2,
+        "fuel": 4
+      }
+    },
+    {
+      "id": "boundary/external-echo?pure=false&records=10000",
+      "suite": "boundary",
+      "name": "external-echo",
+      "params": {
+        "records": 10000,
+        "pure": false
+      },
+      "stats": {
+        "samples": 16,
+        "batch": 1,
+        "meanUs": 15664.721374999885,
+        "medianUs": 15638.41599999978,
+        "p95Us": 15925.834000001487,
+        "minUs": 15356.541999999536,
+        "totalMs": 250.6502500000006
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 3,
+        "callFunctionInternal": 3,
+        "replaceVars": 0,
+        "rawSkips": 0,
+        "structuredClones": 2,
+        "maxCallDepth": 2,
+        "fuel": 10006
+      }
+    },
+    {
+      "id": "boundary/external-consume?pure=true&records=10000",
+      "suite": "boundary",
+      "name": "external-consume",
+      "params": {
+        "records": 10000,
+        "pure": true
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 923,
+        "meanUs": 0.4959025279883487,
+        "medianUs": 0.49954929577517093,
+        "p95Us": 0.5656381365115679,
+        "minUs": 0.4130552546049445,
+        "totalMs": 54.9487079999999
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 2,
+        "callFunctionInternal": 2,
+        "replaceVars": 0,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 2,
+        "fuel": 4
+      }
+    },
+    {
+      "id": "boundary/external-echo?pure=true&records=10000",
+      "suite": "boundary",
+      "name": "external-echo",
+      "params": {
+        "records": 10000,
+        "pure": true
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 774,
+        "meanUs": 0.5673907299740821,
+        "medianUs": 0.5568475452179275,
+        "p95Us": 0.6033591731273295,
+        "minUs": 0.5443049095595408,
+        "totalMs": 52.716042000000016
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 3,
+        "callFunctionInternal": 3,
+        "replaceVars": 0,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 2,
+        "fuel": 10006
+      }
+    },
+    {
+      "id": "boundary/external-consume?pure=false&records=100000",
+      "suite": "boundary",
+      "name": "external-consume",
+      "params": {
+        "records": 100000,
+        "pure": false
+      },
+      "stats": {
+        "samples": 5,
+        "batch": 1,
+        "meanUs": 94729.15859999957,
+        "medianUs": 94604.54199999913,
+        "p95Us": 95281.95899999992,
+        "minUs": 94413.33399999894,
+        "totalMs": 473.65191700000105
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 2,
+        "callFunctionInternal": 2,
+        "replaceVars": 0,
+        "rawSkips": 0,
+        "structuredClones": 1,
+        "maxCallDepth": 2,
+        "fuel": 4
+      }
+    },
+    {
+      "id": "boundary/external-echo?pure=false&records=100000",
+      "suite": "boundary",
+      "name": "external-echo",
+      "params": {
+        "records": 100000,
+        "pure": false
+      },
+      "stats": {
+        "samples": 5,
+        "batch": 1,
+        "meanUs": 197778.69160000008,
+        "medianUs": 197424.37500000052,
+        "p95Us": 198733.3329999983,
+        "minUs": 196868.12500000087,
+        "totalMs": 988.9014589999988
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 3,
+        "callFunctionInternal": 3,
+        "replaceVars": 0,
+        "rawSkips": 0,
+        "structuredClones": 2,
+        "maxCallDepth": 2,
+        "fuel": 100006
+      }
+    },
+    {
+      "id": "boundary/external-consume?pure=true&records=100000",
+      "suite": "boundary",
+      "name": "external-consume",
+      "params": {
+        "records": 100000,
+        "pure": true
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 1143,
+        "meanUs": 0.5217161052784884,
+        "medianUs": 0.536089238845348,
+        "p95Us": 0.6625835520556099,
+        "minUs": 0.4202388451455271,
+        "totalMs": 71.57458299999962
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 2,
+        "callFunctionInternal": 2,
+        "replaceVars": 0,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 2,
+        "fuel": 4
+      }
+    },
+    {
+      "id": "boundary/external-echo?pure=true&records=100000",
+      "suite": "boundary",
+      "name": "external-echo",
+      "params": {
+        "records": 100000,
+        "pure": true
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 728,
+        "meanUs": 0.5056479853481792,
+        "medianUs": 0.4639986263735229,
+        "p95Us": 0.7342609890126898,
+        "minUs": 0.4492898351650133,
+        "totalMs": 44.19095800000105
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 3,
+        "callFunctionInternal": 3,
+        "replaceVars": 0,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 2,
+        "fuel": 100006
+      }
+    },
+    {
+      "id": "boundary/runtask-noop",
+      "suite": "boundary",
+      "name": "runtask-noop",
+      "params": {},
+      "stats": {
+        "samples": 120,
+        "batch": 2,
+        "meanUs": 786.0201416666239,
+        "medianUs": 730.6664999996428,
+        "p95Us": 1121.1874999999054,
+        "minUs": 637.0414999992136,
+        "totalMs": 188.67291699999987
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 2,
+        "callFunctionInternal": 2,
+        "replaceVars": 4,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 2,
+        "fuel": 4
+      }
+    },
+    {
+      "id": "boundary/effect-result?records=1000&strict=false",
+      "suite": "boundary",
+      "name": "effect-result",
+      "params": {
+        "records": 1000,
+        "strict": false
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 2,
+        "meanUs": 838.7909458333525,
+        "medianUs": 766.0415000000285,
+        "p95Us": 1323.1045000002268,
+        "minUs": 689.3955000005008,
+        "totalMs": 201.3538750000007
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 19,
+        "callFunctionInternal": 10,
+        "replaceVars": 41,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 3,
+        "fuel": 33
+      }
+    },
+    {
+      "id": "boundary/effect-result?records=1000&strict=true",
+      "suite": "boundary",
+      "name": "effect-result",
+      "params": {
+        "records": 1000,
+        "strict": true
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 1,
+        "meanUs": 1685.1732583333617,
+        "medianUs": 1368.8330000004498,
+        "p95Us": 2638.3330000007845,
+        "minUs": 1257.3329999995622,
+        "totalMs": 202.30262500000026
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 19,
+        "callFunctionInternal": 10,
+        "replaceVars": 91,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 3,
+        "fuel": 33
+      }
+    },
+    {
+      "id": "boundary/effect-result?records=10000&strict=false",
+      "suite": "boundary",
+      "name": "effect-result",
+      "params": {
+        "records": 10000,
+        "strict": false
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 2,
+        "meanUs": 774.9549000000267,
+        "medianUs": 741.5209999999206,
+        "p95Us": 1070.7920000004378,
+        "minUs": 684.0625000004366,
+        "totalMs": 186.02816600000006
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 19,
+        "callFunctionInternal": 10,
+        "replaceVars": 41,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 3,
+        "fuel": 33
+      }
+    },
+    {
+      "id": "boundary/effect-result?records=10000&strict=true",
+      "suite": "boundary",
+      "name": "effect-result",
+      "params": {
+        "records": 10000,
+        "strict": true
+      },
+      "stats": {
+        "samples": 39,
+        "batch": 1,
+        "meanUs": 6427.414538461725,
+        "medianUs": 6382.375000001048,
+        "p95Us": 7428.8329999981215,
+        "minUs": 5876.292000000831,
+        "totalMs": 250.69920900000216
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 19,
+        "callFunctionInternal": 10,
+        "replaceVars": 91,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 3,
+        "fuel": 33
+      }
+    },
+    {
+      "id": "boundary/effect-result?records=100000&strict=false",
+      "suite": "boundary",
+      "name": "effect-result",
+      "params": {
+        "records": 100000,
+        "strict": false
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 1,
+        "meanUs": 1163.9468499999869,
+        "medianUs": 1141.250000000582,
+        "p95Us": 1298.041000001831,
+        "minUs": 1112.5000000029104,
+        "totalMs": 139.69416700000147
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 19,
+        "callFunctionInternal": 10,
+        "replaceVars": 41,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 3,
+        "fuel": 33
+      }
+    },
+    {
+      "id": "boundary/effect-result?records=100000&strict=true",
+      "suite": "boundary",
+      "name": "effect-result",
+      "params": {
+        "records": 100000,
+        "strict": true
+      },
+      "stats": {
+        "samples": 5,
+        "batch": 1,
+        "meanUs": 55150.458400000934,
+        "medianUs": 54969.624999997905,
+        "p95Us": 56097.66700000182,
+        "minUs": 54247.04200000269,
+        "totalMs": 275.76429199999984
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 19,
+        "callFunctionInternal": 10,
+        "replaceVars": 91,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 3,
+        "fuel": 33
+      }
+    },
+    {
+      "id": "boundary/trampoline-hops?hops=10&payloadRecords=0",
+      "suite": "boundary",
+      "name": "trampoline-hops",
+      "params": {
+        "hops": 10,
+        "payloadRecords": 0
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 2,
+        "meanUs": 727.8050208332843,
+        "medianUs": 702.4169999986043,
+        "p95Us": 871.083500000168,
+        "minUs": 680.5834999995568,
+        "totalMs": 174.6959999999999
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 231,
+        "callFunctionInternal": 115,
+        "replaceVars": 238,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 5,
+        "fuel": 386
+      }
+    },
+    {
+      "id": "boundary/trampoline-hops?hops=10&payloadRecords=10000",
+      "suite": "boundary",
+      "name": "trampoline-hops",
+      "params": {
+        "hops": 10,
+        "payloadRecords": 10000
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 1,
+        "meanUs": 1228.2282166667453,
+        "medianUs": 1200.8749999986321,
+        "p95Us": 1398.9169999986188,
+        "minUs": 1169.2499999990105,
+        "totalMs": 147.40358299999934
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 231,
+        "callFunctionInternal": 115,
+        "replaceVars": 238,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 5,
+        "fuel": 386
+      }
+    },
+    {
+      "id": "boundary/trampoline-hops?hops=100&payloadRecords=0",
+      "suite": "boundary",
+      "name": "trampoline-hops",
+      "params": {
+        "hops": 100,
+        "payloadRecords": 0
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 1,
+        "meanUs": 1149.0929916664754,
+        "medianUs": 1093.8330000026326,
+        "p95Us": 1392.2919999968144,
+        "minUs": 1014.3329999991693,
+        "totalMs": 137.9091249999983
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 2211,
+        "callFunctionInternal": 1105,
+        "replaceVars": 1858,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 5,
+        "fuel": 3716
+      }
+    },
+    {
+      "id": "boundary/trampoline-hops?hops=100&payloadRecords=10000",
+      "suite": "boundary",
+      "name": "trampoline-hops",
+      "params": {
+        "hops": 100,
+        "payloadRecords": 10000
+      },
+      "stats": {
+        "samples": 41,
+        "batch": 1,
+        "meanUs": 6155.511243902388,
+        "medianUs": 6163.62499999741,
+        "p95Us": 6431.9589999977325,
+        "minUs": 5973.625000002357,
+        "totalMs": 252.3845829999991
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 2211,
+        "callFunctionInternal": 1105,
+        "replaceVars": 1858,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 5,
+        "fuel": 3716
+      }
+    },
+    {
+      "id": "boundary/entry-arg-validation?records=1000&strict=false",
+      "suite": "boundary",
+      "name": "entry-arg-validation",
+      "params": {
+        "records": 1000,
+        "strict": false
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 2,
+        "meanUs": 677.1291791666954,
+        "medianUs": 642.1460000001389,
+        "p95Us": 817.0209999989311,
+        "minUs": 627.146000000721,
+        "totalMs": 162.5299159999995
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 3,
+        "callFunctionInternal": 3,
+        "replaceVars": 6,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 2,
+        "fuel": 6
+      }
+    },
+    {
+      "id": "boundary/entry-arg-validation?records=1000&strict=true",
+      "suite": "boundary",
+      "name": "entry-arg-validation",
+      "params": {
+        "records": 1000,
+        "strict": true
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 1,
+        "meanUs": 1220.7774500000899,
+        "medianUs": 1183.8339999994787,
+        "p95Us": 1459.0000000025611,
+        "minUs": 1153.9169999996375,
+        "totalMs": 146.5112909999989
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 3,
+        "callFunctionInternal": 3,
+        "replaceVars": 6,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 2,
+        "fuel": 6
+      }
+    },
+    {
+      "id": "boundary/entry-arg-validation?records=10000&strict=false",
+      "suite": "boundary",
+      "name": "entry-arg-validation",
+      "params": {
+        "records": 10000,
+        "strict": false
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 2,
+        "meanUs": 738.045650000034,
+        "medianUs": 697.1874999999272,
+        "p95Us": 875.7709999990766,
+        "minUs": 684.624999999869,
+        "totalMs": 177.1526249999988
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 3,
+        "callFunctionInternal": 3,
+        "replaceVars": 6,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 2,
+        "fuel": 6
+      }
+    },
+    {
+      "id": "boundary/entry-arg-validation?records=10000&strict=true",
+      "suite": "boundary",
+      "name": "entry-arg-validation",
+      "params": {
+        "records": 10000,
+        "strict": true
+      },
+      "stats": {
+        "samples": 42,
+        "batch": 1,
+        "meanUs": 6058.59711904772,
+        "medianUs": 6013.667000002897,
+        "p95Us": 6275.499999999738,
+        "minUs": 5866.666000001715,
+        "totalMs": 254.4699580000015
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 3,
+        "callFunctionInternal": 3,
+        "replaceVars": 6,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 2,
+        "fuel": 6
+      }
+    },
+    {
+      "id": "boundary/entry-arg-validation?records=100000&strict=false",
+      "suite": "boundary",
+      "name": "entry-arg-validation",
+      "params": {
+        "records": 100000,
+        "strict": false
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 1,
+        "meanUs": 1177.430533333154,
+        "medianUs": 1150.4170000007434,
+        "p95Us": 1362.9999999975553,
+        "minUs": 1132.3330000013812,
+        "totalMs": 141.30704199999673
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 3,
+        "callFunctionInternal": 3,
+        "replaceVars": 6,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 2,
+        "fuel": 6
+      }
+    },
+    {
+      "id": "boundary/entry-arg-validation?records=100000&strict=true",
+      "suite": "boundary",
+      "name": "entry-arg-validation",
+      "params": {
+        "records": 100000,
+        "strict": true
+      },
+      "stats": {
+        "samples": 5,
+        "batch": 1,
+        "meanUs": 54588.499999999476,
+        "medianUs": 54289.12499999933,
+        "p95Us": 55620.24999999994,
+        "minUs": 54127.62499999735,
+        "totalMs": 272.94495800000004
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 3,
+        "callFunctionInternal": 3,
+        "replaceVars": 6,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 2,
+        "fuel": 6
+      }
+    },
+    {
+      "id": "closures/escape-body-size?bodyCalls=16",
+      "suite": "closures",
+      "name": "escape-body-size",
+      "params": {
+        "bodyCalls": 16
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 93,
+        "meanUs": 2.827225448028233,
+        "medianUs": 2.769709677405415,
+        "p95Us": 3.0654086021772806,
+        "minUs": 2.6254408602194075,
+        "totalMs": 31.565582999999606
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 1,
+        "callFunctionInternal": 1,
+        "replaceVars": 36,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 1,
+        "fuel": 2
+      }
+    },
+    {
+      "id": "closures/escape-body-size?bodyCalls=128",
+      "suite": "closures",
+      "name": "escape-body-size",
+      "params": {
+        "bodyCalls": 128
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 49,
+        "meanUs": 16.123909353740178,
+        "medianUs": 15.135204081607112,
+        "p95Us": 19.854591836724005,
+        "minUs": 13.520408163235608,
+        "totalMs": 94.82670899999721
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 1,
+        "callFunctionInternal": 1,
+        "replaceVars": 260,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 1,
+        "fuel": 2
+      }
+    },
+    {
+      "id": "closures/escape-body-size?bodyCalls=1024",
+      "suite": "closures",
+      "name": "escape-body-size",
+      "params": {
+        "bodyCalls": 1024
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 9,
+        "meanUs": 121.13251851851604,
+        "medianUs": 118.3518888889618,
+        "p95Us": 143.72688888882598,
+        "minUs": 110.36577777768899,
+        "totalMs": 130.8447500000002
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 1,
+        "callFunctionInternal": 1,
+        "replaceVars": 2052,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 1,
+        "fuel": 2
+      }
+    },
+    {
+      "id": "closures/escape-body-size?bodyCalls=8192",
+      "suite": "closures",
+      "name": "escape-body-size",
+      "params": {
+        "bodyCalls": 8192
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 1,
+        "meanUs": 1041.423616666513,
+        "medianUs": 953.2919999983278,
+        "p95Us": 1328.3330000012938,
+        "minUs": 880.1249999996799,
+        "totalMs": 124.98783399999957
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 1,
+        "callFunctionInternal": 1,
+        "replaceVars": 16388,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 1,
+        "fuel": 2
+      }
+    },
+    {
+      "id": "closures/escape-capture-count?vars=8",
+      "suite": "closures",
+      "name": "escape-capture-count",
+      "params": {
+        "vars": 8
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 394,
+        "meanUs": 1.734386548222821,
+        "medianUs": 1.6498527918810197,
+        "p95Us": 2.1070203045678566,
+        "minUs": 1.526332487305508,
+        "totalMs": 82.03870800000004
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 9,
+        "callFunctionInternal": 1,
+        "replaceVars": 20,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 1,
+        "fuel": 10
+      }
+    },
+    {
+      "id": "closures/escape-capture-count?vars=64",
+      "suite": "closures",
+      "name": "escape-capture-count",
+      "params": {
+        "vars": 64
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 56,
+        "meanUs": 13.246423660716905,
+        "medianUs": 13.101196428578987,
+        "p95Us": 15.41294642856883,
+        "minUs": 11.447910714261004,
+        "totalMs": 89.02979100000084
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 65,
+        "callFunctionInternal": 1,
+        "replaceVars": 132,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 1,
+        "fuel": 66
+      }
+    },
+    {
+      "id": "closures/escape-capture-count?vars=512",
+      "suite": "closures",
+      "name": "escape-capture-count",
+      "params": {
+        "vars": 512
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 9,
+        "meanUs": 110.2234574074188,
+        "medianUs": 107.29166666674752,
+        "p95Us": 125.94444444443475,
+        "minUs": 101.12955555572019,
+        "totalMs": 119.06308300000092
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 513,
+        "callFunctionInternal": 1,
+        "replaceVars": 1028,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 1,
+        "fuel": 514
+      }
+    },
+    {
+      "id": "closures/capture-big-value?raw=false&records=1000",
+      "suite": "closures",
+      "name": "capture-big-value",
+      "params": {
+        "records": 1000,
+        "raw": false
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 586,
+        "meanUs": 0.6774589306029891,
+        "medianUs": 0.6198805460725524,
+        "p95Us": 0.877914675770424,
+        "minUs": 0.5779999999988307,
+        "totalMs": 47.654374999998254
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 1,
+        "callFunctionInternal": 1,
+        "replaceVars": 6,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 1,
+        "fuel": 2
+      }
+    },
+    {
+      "id": "closures/capture-big-value?raw=true&records=1000",
+      "suite": "closures",
+      "name": "capture-big-value",
+      "params": {
+        "records": 1000,
+        "raw": true
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 800,
+        "meanUs": 0.6486736770831764,
+        "medianUs": 0.6120312500024738,
+        "p95Us": 0.9055212499970366,
+        "minUs": 0.5743237499973475,
+        "totalMs": 62.2880830000031
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 1,
+        "callFunctionInternal": 1,
+        "replaceVars": 6,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 1,
+        "fuel": 2
+      }
+    },
+    {
+      "id": "closures/capture-big-value?raw=false&records=100000",
+      "suite": "closures",
+      "name": "capture-big-value",
+      "params": {
+        "records": 100000,
+        "raw": false
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 750,
+        "meanUs": 0.6603120222220848,
+        "medianUs": 0.6191666666660847,
+        "p95Us": 0.9125000000009702,
+        "minUs": 0.5828333333338378,
+        "totalMs": 59.443208999997296
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 1,
+        "callFunctionInternal": 1,
+        "replaceVars": 6,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 1,
+        "fuel": 2
+      }
+    },
+    {
+      "id": "closures/capture-big-value?raw=true&records=100000",
+      "suite": "closures",
+      "name": "capture-big-value",
+      "params": {
+        "records": 100000,
+        "raw": true
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 889,
+        "meanUs": 0.6633331833520304,
+        "medianUs": 0.6077052868371154,
+        "p95Us": 0.8824994375716965,
+        "minUs": 0.5778492688398056,
+        "totalMs": 70.78258300000016
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 1,
+        "callFunctionInternal": 1,
+        "replaceVars": 6,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 1,
+        "fuel": 2
+      }
+    },
+    {
+      "id": "closures/invoke-big-capture?invocations=50&raw=false&records=1000",
+      "suite": "closures",
+      "name": "invoke-big-capture",
+      "params": {
+        "records": 1000,
+        "raw": false,
+        "invocations": 50
+      },
+      "stats": {
+        "samples": 13,
+        "batch": 1,
+        "meanUs": 20320.621769231086,
+        "medianUs": 20261.375000001863,
+        "p95Us": 21024.207999998907,
+        "minUs": 19784.167000001617,
+        "totalMs": 264.1914579999975
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 650256,
+        "callFunctionInternal": 54,
+        "replaceVars": 16,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 3,
+        "fuel": 650510
+      }
+    },
+    {
+      "id": "closures/invoke-big-capture?invocations=50&raw=true&records=1000",
+      "suite": "closures",
+      "name": "invoke-big-capture",
+      "params": {
+        "records": 1000,
+        "raw": true,
+        "invocations": 50
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 58,
+        "meanUs": 16.97013951148755,
+        "medianUs": 16.058189655174424,
+        "p95Us": 22.752155172415296,
+        "minUs": 14.598431034442157,
+        "totalMs": 118.12858400000187
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 256,
+        "callFunctionInternal": 54,
+        "replaceVars": 16,
+        "rawSkips": 50,
+        "structuredClones": 0,
+        "maxCallDepth": 3,
+        "fuel": 510
+      }
+    },
+    {
+      "id": "closures/invoke-big-capture?invocations=50&raw=false&records=10000",
+      "suite": "closures",
+      "name": "invoke-big-capture",
+      "params": {
+        "records": 10000,
+        "raw": false,
+        "invocations": 50
+      },
+      "stats": {
+        "samples": 5,
+        "batch": 1,
+        "meanUs": 205111.68340000004,
+        "medianUs": 204854.99999999956,
+        "p95Us": 207022.08400000018,
+        "minUs": 203685.37500000093,
+        "totalMs": 1025.5712079999976
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 6500256,
+        "callFunctionInternal": 54,
+        "replaceVars": 16,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 3,
+        "fuel": 6500510
+      }
+    },
+    {
+      "id": "closures/invoke-big-capture?invocations=50&raw=true&records=10000",
+      "suite": "closures",
+      "name": "invoke-big-capture",
+      "params": {
+        "records": 10000,
+        "raw": true,
+        "invocations": 50
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 54,
+        "meanUs": 17.57496959876729,
+        "medianUs": 15.780092592615768,
+        "p95Us": 24.36264814814085,
+        "minUs": 15.296296296313542,
+        "totalMs": 113.90241700000115
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 256,
+        "callFunctionInternal": 54,
+        "replaceVars": 16,
+        "rawSkips": 50,
+        "structuredClones": 0,
+        "maxCallDepth": 3,
+        "fuel": 510
+      }
+    },
+    {
+      "id": "closures/apply-escaped-closure?records=10000",
+      "suite": "closures",
+      "name": "apply-escaped-closure",
+      "params": {
+        "records": 10000
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 1334,
+        "meanUs": 0.2888912793603731,
+        "medianUs": 0.2752998500771878,
+        "p95Us": 0.36334932533729764,
+        "minUs": 0.25958920539879676,
+        "totalMs": 46.27066600000035
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 3,
+        "callFunctionInternal": 1,
+        "replaceVars": 0,
+        "rawSkips": 1,
+        "structuredClones": 0,
+        "maxCallDepth": 1,
+        "fuel": 4
+      }
+    },
+    {
+      "id": "closures/closure-per-element?closures=100",
+      "suite": "closures",
+      "name": "closure-per-element",
+      "params": {
+        "closures": 100
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 14,
+        "meanUs": 79.11244761906431,
+        "medianUs": 73.3065000001391,
+        "p95Us": 122.47321428575171,
+        "minUs": 66.61307142868671,
+        "totalMs": 132.93299999999726
+      },
+      "error": null,
+      "native": {
+        "samples": 120,
+        "batch": 1043,
+        "meanUs": 0.6216442313838965,
+        "medianUs": 0.5681131351890129,
+        "p95Us": 0.7774448705649225,
+        "minUs": 0.5285234899298165,
+        "totalMs": 77.82441599999947
+      },
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 105,
+        "callFunctionInternal": 104,
+        "replaceVars": 609,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 3,
+        "fuel": 509
+      }
+    },
+    {
+      "id": "closures/closure-per-element?closures=1000",
+      "suite": "closures",
+      "name": "closure-per-element",
+      "params": {
+        "closures": 1000
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 2,
+        "meanUs": 628.7570833332514,
+        "medianUs": 572.4375000008877,
+        "p95Us": 809.312499999578,
+        "minUs": 544.4375000006403,
+        "totalMs": 150.9181669999998
+      },
+      "error": null,
+      "native": {
+        "samples": 120,
+        "batch": 156,
+        "meanUs": 5.911019871794832,
+        "medianUs": 5.681358974354039,
+        "p95Us": 7.466346153845594,
+        "minUs": 5.082532051300148,
+        "totalMs": 110.67079100000046
+      },
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 1005,
+        "callFunctionInternal": 1004,
+        "replaceVars": 6009,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 3,
+        "fuel": 5009
+      }
+    },
+    {
+      "id": "closures/closure-per-element?closures=10000",
+      "suite": "closures",
+      "name": "closure-per-element",
+      "params": {
+        "closures": 10000
+      },
+      "stats": {
+        "samples": 34,
+        "batch": 1,
+        "meanUs": 7361.182588235298,
+        "medianUs": 6861.042000000452,
+        "p95Us": 11223.708000001352,
+        "minUs": 5729.500000001281,
+        "totalMs": 250.29287499999919
+      },
+      "error": null,
+      "native": {
+        "samples": 120,
+        "batch": 7,
+        "meanUs": 64.10714761902587,
+        "medianUs": 57.08928571454765,
+        "p95Us": 121.22628571471849,
+        "minUs": 50.75000000007484,
+        "totalMs": 53.86633300000176
+      },
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 10005,
+        "callFunctionInternal": 10004,
+        "replaceVars": 60009,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 3,
+        "fuel": 50009
+      }
+    },
+    {
+      "id": "closures/curried-apply?depth=4",
+      "suite": "closures",
+      "name": "curried-apply",
+      "params": {
+        "depth": 4
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 105,
+        "meanUs": 10.055192142854287,
+        "medianUs": 9.5869047618873,
+        "p95Us": 14.604761904774932,
+        "minUs": 8.579761904755808,
+        "totalMs": 126.71320900000137
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 13,
+        "callFunctionInternal": 9,
+        "replaceVars": 89,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 2,
+        "fuel": 14
+      }
+    },
+    {
+      "id": "closures/curried-apply?depth=16",
+      "suite": "closures",
+      "name": "curried-apply",
+      "params": {
+        "depth": 16
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 9,
+        "meanUs": 112.75566851851788,
+        "medianUs": 91.59722222223839,
+        "p95Us": 205.35188888890036,
+        "minUs": 83.48155555561083,
+        "totalMs": 121.7992919999997
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 49,
+        "callFunctionInternal": 33,
+        "replaceVars": 1019,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 2,
+        "fuel": 50
+      }
+    },
+    {
+      "id": "closures/curried-apply?depth=64",
+      "suite": "closures",
+      "name": "curried-apply",
+      "params": {
+        "depth": 64
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 1,
+        "meanUs": 1927.61843333307,
+        "medianUs": 1844.2499999982829,
+        "p95Us": 2324.625000001106,
+        "minUs": 1733.58300000109,
+        "totalMs": 231.335833000001
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 193,
+        "callFunctionInternal": 129,
+        "replaceVars": 14819,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 2,
+        "fuel": 194
+      }
+    },
+    {
+      "id": "closures/curried-apply?depth=128",
+      "suite": "closures",
+      "name": "curried-apply",
+      "params": {
+        "depth": 128
+      },
+      "stats": {
+        "samples": 23,
+        "batch": 1,
+        "meanUs": 10996.737260869533,
+        "medianUs": 10917.457999999897,
+        "p95Us": 11452.625000001717,
+        "minUs": 10631.083000000217,
+        "totalMs": 252.9298340000023
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 385,
+        "callFunctionInternal": 257,
+        "replaceVars": 58307,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 2,
+        "fuel": 386
+      }
+    },
+    {
+      "id": "closures/attach-local-fns?localFns=4",
+      "suite": "closures",
+      "name": "attach-local-fns",
+      "params": {
+        "localFns": 4
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 78,
+        "meanUs": 8.65871153846378,
+        "medianUs": 7.968474358979924,
+        "p95Us": 11.105769230804677,
+        "minUs": 6.795948717971885,
+        "totalMs": 81.08704099999886
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 1,
+        "callFunctionInternal": 1,
+        "replaceVars": 50,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 1,
+        "fuel": 79
+      }
+    },
+    {
+      "id": "closures/attach-local-fns?localFns=32",
+      "suite": "closures",
+      "name": "attach-local-fns",
+      "params": {
+        "localFns": 32
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 15,
+        "meanUs": 55.33571944444701,
+        "medianUs": 52.69166666669965,
+        "p95Us": 72.43060000012822,
+        "minUs": 47.774999999819556,
+        "totalMs": 99.61870800000179
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 1,
+        "callFunctionInternal": 1,
+        "replaceVars": 330,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 1,
+        "fuel": 4223
+      }
+    },
+    {
+      "id": "closures/attach-local-fns?localFns=128",
+      "suite": "closures",
+      "name": "attach-local-fns",
+      "params": {
+        "localFns": 128
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 5,
+        "meanUs": 233.43034666666426,
+        "medianUs": 226.37500000055297,
+        "p95Us": 270.3165999999328,
+        "minUs": 210.85840000014286,
+        "totalMs": 140.07095800000025
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 1,
+        "callFunctionInternal": 1,
+        "replaceVars": 1290,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 1,
+        "fuel": 66047
+      }
+    },
+    {
+      "id": "closures/attach-local-fns?localFns=512",
+      "suite": "closures",
+      "name": "attach-local-fns",
+      "params": {
+        "localFns": 512
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 1,
+        "meanUs": 1151.5715166668695,
+        "medianUs": 983.0829999991693,
+        "p95Us": 2094.041999996989,
+        "minUs": 837.8750000010768,
+        "totalMs": 138.21237499999916
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 1,
+        "callFunctionInternal": 1,
+        "replaceVars": 5130,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 1,
+        "fuel": 1050623
+      }
+    },
+    {
+      "id": "closures/attach-per-escape?escapes=100&localFns=4",
+      "suite": "closures",
+      "name": "attach-per-escape",
+      "params": {
+        "localFns": 4,
+        "escapes": 100
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 2,
+        "meanUs": 612.9331541665275,
+        "medianUs": 566.6459999993094,
+        "p95Us": 835.8750000006694,
+        "minUs": 532.4375000000146,
+        "totalMs": 147.12137500000244
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 105,
+        "callFunctionInternal": 104,
+        "replaceVars": 2460,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 3,
+        "fuel": 7686
+      }
+    },
+    {
+      "id": "closures/attach-per-escape?escapes=100&localFns=32",
+      "suite": "closures",
+      "name": "attach-per-escape",
+      "params": {
+        "localFns": 32,
+        "escapes": 100
+      },
+      "stats": {
+        "samples": 9,
+        "batch": 1,
+        "meanUs": 28527.824111111437,
+        "medianUs": 26926.58300000039,
+        "p95Us": 43895.33300000039,
+        "minUs": 22643.167000001995,
+        "totalMs": 256.7766249999986
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 105,
+        "callFunctionInternal": 104,
+        "replaceVars": 16740,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 3,
+        "fuel": 4360230
+      }
+    },
+    {
+      "id": "closures/attach-per-escape?escapes=100&localFns=128",
+      "suite": "closures",
+      "name": "attach-per-escape",
+      "params": {
+        "localFns": 128,
+        "escapes": 100
+      },
+      "stats": {
+        "samples": 5,
+        "batch": 1,
+        "meanUs": 514929.6502000004,
+        "medianUs": 507595.5840000024,
+        "p95Us": 571888.4169999983,
+        "minUs": 448416.33300000103,
+        "totalMs": 2574.6668339999997
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 105,
+        "callFunctionInternal": 104,
+        "replaceVars": 65700,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 3,
+        "fuel": 279631654
+      }
+    },
+    {
+      "id": "recursion/countdown?depth=1000",
+      "suite": "recursion",
+      "name": "countdown",
+      "params": {
+        "depth": 1000
+      },
+      "stats": {
+        "samples": 11,
+        "batch": 1,
+        "meanUs": 24712.26909090877,
+        "medianUs": 31946.91700000112,
+        "p95Us": 33362.208999998984,
+        "minUs": 14937.667000001966,
+        "totalMs": 271.9084159999984
+      },
+      "error": null,
+      "native": {
+        "samples": 120,
+        "batch": 828,
+        "meanUs": 0.5593313808374559,
+        "medianUs": 0.5496678743966273,
+        "p95Us": 0.6201690821223349,
+        "minUs": 0.5460942028974932,
+        "totalMs": 55.613124999999854
+      },
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 8006,
+        "callFunctionInternal": 4002,
+        "replaceVars": 96,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 2002,
+        "fuel": 12008
+      }
+    },
+    {
+      "id": "recursion/countdown?depth=2500",
+      "suite": "recursion",
+      "name": "countdown",
+      "params": {
+        "depth": 2500
+      },
+      "stats": {
+        "samples": 5,
+        "batch": 1,
+        "meanUs": 199494.7752000007,
+        "medianUs": 195098.04100000474,
+        "p95Us": 216635.3339999987,
+        "minUs": 194898.45899999636,
+        "totalMs": 997.4812089999978
+      },
+      "error": null,
+      "native": {
+        "samples": 120,
+        "batch": 429,
+        "meanUs": 2.224141375290538,
+        "medianUs": 2.1985244755189495,
+        "p95Us": 2.5045641025536183,
+        "minUs": 2.1387925407992263,
+        "totalMs": 114.53387500000099
+      },
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 20006,
+        "callFunctionInternal": 10002,
+        "replaceVars": 96,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 5002,
+        "fuel": 30008
+      }
+    },
+    {
+      "id": "recursion/countdown?depth=5000",
+      "suite": "recursion",
+      "name": "countdown",
+      "params": {
+        "depth": 5000
+      },
+      "stats": {
+        "samples": 4,
+        "batch": 1,
+        "meanUs": 782512.7295000001,
+        "medianUs": 774473.5839999993,
+        "p95Us": 802192.332999999,
+        "minUs": 774136.5420000001,
+        "totalMs": 3130.0552499999976
+      },
+      "error": null,
+      "native": {
+        "samples": 120,
+        "batch": 204,
+        "meanUs": 4.474697017973631,
+        "medianUs": 4.394813725501117,
+        "p95Us": 4.975289215686715,
+        "minUs": 4.159107843139174,
+        "totalMs": 109.60579200000211
+      },
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 40006,
+        "callFunctionInternal": 20002,
+        "replaceVars": 96,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 10002,
+        "fuel": 60008
+      }
+    },
+    {
+      "id": "recursion/countdown?depth=10000",
+      "suite": "recursion",
+      "name": "countdown",
+      "params": {
+        "depth": 10000
+      },
+      "stats": null,
+      "error": "Maximum call stack size exceeded.",
+      "native": {
+        "samples": 120,
+        "batch": 79,
+        "meanUs": 8.86703217299715,
+        "medianUs": 8.769518987362604,
+        "p95Us": 8.95675949362192,
+        "minUs": 8.370784810181307,
+        "totalMs": 84.09237500000017
+      },
+      "nativeError": null,
+      "metrics": null
+    },
+    {
+      "id": "recursion/sum-accumulator?depth=1000",
+      "suite": "recursion",
+      "name": "sum-accumulator",
+      "params": {
+        "depth": 1000
+      },
+      "stats": {
+        "samples": 6,
+        "batch": 1,
+        "meanUs": 45196.67383333217,
+        "medianUs": 44922.583999999915,
+        "p95Us": 45920.791999997164,
+        "minUs": 44653.50000000035,
+        "totalMs": 271.22270800000115
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 11006,
+        "callFunctionInternal": 5002,
+        "replaceVars": 100,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 2002,
+        "fuel": 16008
+      }
+    },
+    {
+      "id": "recursion/sum-accumulator?depth=5000",
+      "suite": "recursion",
+      "name": "sum-accumulator",
+      "params": {
+        "depth": 5000
+      },
+      "stats": {
+        "samples": 3,
+        "batch": 1,
+        "meanUs": 1108745.3056666686,
+        "medianUs": 1103767.1250000058,
+        "p95Us": 1122307.0000000007,
+        "minUs": 1100161.791999999,
+        "totalMs": 3326.2570419999975
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 55006,
+        "callFunctionInternal": 25002,
+        "replaceVars": 100,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 10002,
+        "fuel": 80008
+      }
+    },
+    {
+      "id": "recursion/mutual-even-odd?depth=1000",
+      "suite": "recursion",
+      "name": "mutual-even-odd",
+      "params": {
+        "depth": 1000
+      },
+      "stats": {
+        "samples": 8,
+        "batch": 1,
+        "meanUs": 32471.239750000677,
+        "medianUs": 32322.917000004963,
+        "p95Us": 33264.58300000377,
+        "minUs": 32095.166999999492,
+        "totalMs": 259.8154579999973
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 8007,
+        "callFunctionInternal": 4002,
+        "replaceVars": 108,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 2002,
+        "fuel": 13010
+      }
+    },
+    {
+      "id": "recursion/mutual-even-odd?depth=5000",
+      "suite": "recursion",
+      "name": "mutual-even-odd",
+      "params": {
+        "depth": 5000
+      },
+      "stats": {
+        "samples": 4,
+        "batch": 1,
+        "meanUs": 785394.5207500019,
+        "medianUs": 785677.625000004,
+        "p95Us": 790770.1250000028,
+        "minUs": 778270.875000002,
+        "totalMs": 3141.673415999998
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 40007,
+        "callFunctionInternal": 20002,
+        "replaceVars": 108,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 10002,
+        "fuel": 65010
+      }
+    },
+    {
+      "id": "recursion/fib?n=16",
+      "suite": "recursion",
+      "name": "fib",
+      "params": {
+        "n": 16
+      },
+      "stats": {
+        "samples": 45,
+        "batch": 1,
+        "meanUs": 5577.67971111122,
+        "medianUs": 5566.5420000004815,
+        "p95Us": 5850.500000000466,
+        "minUs": 4350.791999997455,
+        "totalMs": 251.06074999999691
+      },
+      "error": null,
+      "native": {
+        "samples": 120,
+        "batch": 225,
+        "meanUs": 4.0445388148148576,
+        "medianUs": 3.995928888907656,
+        "p95Us": 4.253519999975753,
+        "minUs": 3.9511111110914494,
+        "totalMs": 109.22620800000004
+      },
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 28734,
+        "callFunctionInternal": 14366,
+        "replaceVars": 101,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 32,
+        "fuel": 43100
+      }
+    },
+    {
+      "id": "recursion/fib?n=20",
+      "suite": "recursion",
+      "name": "fib",
+      "params": {
+        "n": 20
+      },
+      "stats": {
+        "samples": 6,
+        "batch": 1,
+        "meanUs": 45272.23600000192,
+        "medianUs": 45100.29200000281,
+        "p95Us": 46194.41600000573,
+        "minUs": 44912.33300000022,
+        "totalMs": 271.637917
+      },
+      "error": null,
+      "native": {
+        "samples": 120,
+        "batch": 24,
+        "meanUs": 43.65985486110982,
+        "medianUs": 43.15454166650549,
+        "p95Us": 47.89758333330004,
+        "minUs": 42.520833333279974,
+        "totalMs": 125.77799999999843
+      },
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 197016,
+        "callFunctionInternal": 98507,
+        "replaceVars": 101,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 40,
+        "fuel": 295523
+      }
+    },
+    {
+      "id": "recursion/fib?n=22",
+      "suite": "recursion",
+      "name": "fib",
+      "params": {
+        "n": 22
+      },
+      "stats": {
+        "samples": 5,
+        "batch": 1,
+        "meanUs": 127807.94999999781,
+        "medianUs": 127373.79099999816,
+        "p95Us": 130493.99999999878,
+        "minUs": 126782.3339999959,
+        "totalMs": 639.0580000000045
+      },
+      "error": null,
+      "native": {
+        "samples": 120,
+        "batch": 9,
+        "meanUs": 120.73714814817289,
+        "medianUs": 118.93977777799591,
+        "p95Us": 133.08799999989182,
+        "minUs": 117.40277777749321,
+        "totalMs": 130.4312080000018
+      },
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 515814,
+        "callFunctionInternal": 257906,
+        "replaceVars": 101,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 44,
+        "fuel": 773720
+      }
+    },
+    {
+      "id": "recursion/deep-carry-payload?depth=2000&records=1000",
+      "suite": "recursion",
+      "name": "deep-carry-payload",
+      "params": {
+        "depth": 2000,
+        "records": 1000
+      },
+      "stats": {
+        "samples": 5,
+        "batch": 1,
+        "meanUs": 197437.5247999982,
+        "medianUs": 197573.70799999626,
+        "p95Us": 197730.20800000086,
+        "minUs": 196936.1659999995,
+        "totalMs": 987.1904590000049
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 18007,
+        "callFunctionInternal": 8003,
+        "replaceVars": 99,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 4002,
+        "fuel": 26010
+      }
+    },
+    {
+      "id": "recursion/deep-carry-payload?depth=2000&records=100000",
+      "suite": "recursion",
+      "name": "deep-carry-payload",
+      "params": {
+        "depth": 2000,
+        "records": 100000
+      },
+      "stats": {
+        "samples": 5,
+        "batch": 1,
+        "meanUs": 198472.0333999983,
+        "medianUs": 197681.87499999476,
+        "p95Us": 201383.20899999962,
+        "minUs": 197554.1249999951,
+        "totalMs": 992.3629579999979
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 18007,
+        "callFunctionInternal": 8003,
+        "replaceVars": 99,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 4002,
+        "fuel": 26010
+      }
+    },
+    {
+      "id": "recursion/deep-expression?depth=1000",
+      "suite": "recursion",
+      "name": "deep-expression",
+      "params": {
+        "depth": 1000
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 4,
+        "meanUs": 268.60068750003546,
+        "medianUs": 259.552249999615,
+        "p95Us": 312.17724999987695,
+        "minUs": 253.34375000056752,
+        "totalMs": 128.99612499999785
+      },
+      "error": null,
+      "native": {
+        "samples": 120,
+        "batch": 1411,
+        "meanUs": 0.146206667847897,
+        "medianUs": 0.1439581856839121,
+        "p95Us": 0.15010063784167435,
+        "minUs": 0.1428065202004622,
+        "totalMs": 24.771292000004905
+      },
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 2001,
+        "callFunctionInternal": 1001,
+        "replaceVars": 2003,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 2,
+        "fuel": 3002
+      }
+    },
+    {
+      "id": "recursion/deep-expression?depth=5000",
+      "suite": "recursion",
+      "name": "deep-expression",
+      "params": {
+        "depth": 5000
+      },
+      "stats": {
+        "samples": 93,
+        "batch": 1,
+        "meanUs": 2691.115118279413,
+        "medianUs": 1311.2919999985024,
+        "p95Us": 7149.457999999868,
+        "minUs": 1274.9169999951846,
+        "totalMs": 250.34666699999798
+      },
+      "error": null,
+      "native": {
+        "samples": 120,
+        "batch": 511,
+        "meanUs": 1.3581126549253497,
+        "medianUs": 0.7022994129263309,
+        "p95Us": 3.120841487273123,
+        "minUs": 0.6820782778859585,
+        "totalMs": 83.35362500000338
+      },
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 10001,
+        "callFunctionInternal": 5001,
+        "replaceVars": 10003,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 2,
+        "fuel": 15002
+      }
+    },
+    {
+      "id": "recursion/deep-expression?depth=10000",
+      "suite": "recursion",
+      "name": "deep-expression",
+      "params": {
+        "depth": 10000
+      },
+      "stats": {
+        "samples": 88,
+        "batch": 1,
+        "meanUs": 2884.5222500002074,
+        "medianUs": 2613.2500000021537,
+        "p95Us": 3825.250000001688,
+        "minUs": 2565.9580000065034,
+        "totalMs": 253.8678329999966
+      },
+      "error": null,
+      "native": {
+        "samples": 120,
+        "batch": 649,
+        "meanUs": 1.3782389060089075,
+        "medianUs": 1.3672958397510453,
+        "p95Us": 1.4088335901284261,
+        "minUs": 1.3535562403686092,
+        "totalMs": 107.3695829999997
+      },
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 20001,
+        "callFunctionInternal": 10001,
+        "replaceVars": 20003,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 2,
+        "fuel": 30002
+      }
+    },
+    {
+      "id": "recursion/deep-expression?depth=30000",
+      "suite": "recursion",
+      "name": "deep-expression",
+      "params": {
+        "depth": 30000
+      },
+      "stats": null,
+      "error": "Maximum call stack size exceeded.",
+      "native": {
+        "samples": 120,
+        "batch": 234,
+        "meanUs": 4.11913885327755,
+        "medianUs": 4.075854700857189,
+        "p95Us": 4.562854700864583,
+        "minUs": 4.041311965811785,
+        "totalMs": 115.70112499999959
+      },
+      "nativeError": null,
+      "metrics": null
+    }
+  ]
+}
