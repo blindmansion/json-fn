@@ -11,18 +11,55 @@
 import {
   createStdlib,
   parseShorthand,
+  prepareDeployment,
   prepareProgram,
-  runTask,
+  runTask as runPreparedTask,
   serializeTask,
   stepTask,
 } from "../../src";
-import type { Environment, ExecutionLimits, JSONType } from "../../src";
+import type { EnvironmentContract, ExecutionLimits, JSONType, LiveRuntimeAdapter } from "../../src";
 import type { BenchDef, Mode, Suite } from "../harness";
 import { withMetrics } from "../harness";
 import { makeRecords } from "../data";
 
 const registry = createStdlib();
 const HOPS = 8;
+
+function runTask(
+  module: Record<string, JSONType>,
+  contract: EnvironmentContract,
+  args: JSONType[],
+  host: { capabilities: Record<string, (...args: any[]) => any> },
+  limits: ExecutionLimits,
+) {
+  const portable = {
+    ...(limits.maxCallDepth === undefined ? {} : { maxCallDepth: limits.maxCallDepth }),
+    ...(limits.maxFuel === undefined ? {} : { maxFuel: limits.maxFuel }),
+    ...(limits.maxValueSize === undefined ? {} : { maxValueSize: limits.maxValueSize }),
+  };
+  const local = {
+    signal: limits.signal,
+    timeoutMs: limits.timeoutMs,
+    perf: limits.perf,
+    usage: limits.usage,
+  };
+  const adapter: LiveRuntimeAdapter = { functions: {}, effects: host.capabilities };
+  return runPreparedTask(
+    prepareDeployment({
+      module,
+      contract,
+      profile: {
+        version: 1,
+        mode: "live",
+        effects: Object.keys(host.capabilities),
+        limits: portable,
+      },
+      adapter,
+    }),
+    args,
+    local,
+  );
+}
 
 const flowThrough = parseShorthand(`{
   run: (hops) => go(hops, 0),
@@ -49,7 +86,8 @@ const capturedEnvironment = parseShorthand(`{
 }`) as Record<string, JSONType>;
 
 const anySchema = true as unknown as Record<string, never>;
-const environment = {
+const contract = {
+  version: 1,
   effects: {
     fetch: { params: [{ type: "number" }], returns: anySchema },
     ping: { params: [{ type: "number" }], returns: { type: "number" } },
@@ -60,7 +98,7 @@ const environment = {
     optional: [],
     returns: { task: { type: "number" } },
   },
-} as unknown as Environment;
+} as unknown as EnvironmentContract;
 
 function manualTrampoline(
   module: Record<string, JSONType>,
@@ -119,7 +157,7 @@ export function makeSuite(mode: Mode): Suite {
       benches.push({
         name: `run-task-${name}`,
         params: { records, hops: HOPS },
-        ...withMetrics((limits) => () => runTask(module, environment, [HOPS], host, limits)),
+        ...withMetrics((limits) => () => runTask(module, contract, [HOPS], host, limits)),
       });
     }
 

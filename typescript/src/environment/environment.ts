@@ -2,31 +2,35 @@ import { readFileSync } from "fs";
 import type { CallableSignature, CallableTable } from "../check/builtin-types";
 import type { Defs, Schema } from "../schema/schema.ts";
 import { taskType } from "../schema/schema.ts";
-import { CallableTableValidationError, validateCallableTable } from "../builtins";
+import { CallableTableValidationError, loadBuiltinTable, validateCallableTable } from "../builtins";
 import { EFFECTS_BINDING, EffectManifestValidationError, validateEffectManifest } from "./effects";
-import type { EntryReturn, Environment } from "./types";
+import type { EntryReturn, EnvironmentContract } from "./types";
 
-class EnvironmentValidationError extends Error {
+const CONTRACT_VERSION = 1;
+
+class EnvironmentContractValidationError extends Error {
+  readonly code = "INVALID_CONTRACT";
+
   constructor(
     readonly path: string,
     message: string,
   ) {
     super(`${path}: ${message}`);
-    this.name = "EnvironmentValidationError";
+    this.name = "EnvironmentContractValidationError";
   }
 }
 
 class DuplicateCallableContractError extends Error {
-  constructor(readonly callable: string) {
+  readonly code = "DUPLICATE_CALLABLE";
+  readonly path: string;
+
+  constructor(
+    readonly callable: string,
+    path = `callables.${callable}`,
+  ) {
     super(`duplicate callable contract "${callable}"`);
     this.name = "DuplicateCallableContractError";
-  }
-}
-
-class EnvironmentConfigurationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "EnvironmentConfigurationError";
+    this.path = path;
   }
 }
 
@@ -35,7 +39,7 @@ function isObject(value: unknown): value is Record<string, unknown> {
 }
 
 function fail(path: string, message: string): never {
-  throw new EnvironmentValidationError(path, message);
+  throw new EnvironmentContractValidationError(path, message);
 }
 
 function assertOnlyKeys(value: Record<string, unknown>, allowed: Set<string>, path: string): void {
@@ -46,7 +50,7 @@ function assertOnlyKeys(value: Record<string, unknown>, allowed: Set<string>, pa
 
 function remapCallableError(error: CallableTableValidationError, from: string, to: string): never {
   const path = error.path.startsWith(from) ? `${to}${error.path.slice(from.length)}` : error.path;
-  throw new EnvironmentValidationError(path, error.message.slice(error.path.length + 2));
+  throw new EnvironmentContractValidationError(path, error.message.slice(error.path.length + 2));
 }
 
 function isTaskReturn(value: EntryReturn): value is { task: Schema } {
@@ -62,65 +66,92 @@ function entryCompletionType(value: EntryReturn): Schema {
 }
 
 /**
- * Validate one complete operator-owned environment. `baseDefs` lets host
- * contracts refer to core names while still validating every reference against
- * the same effective definition pool the checker and runtime will use.
+ * Validate one complete operator-owned contract. Core callables and definitions
+ * participate by default so standalone validation is complete.
  */
-function validateEnvironment(value: unknown, baseDefs: Defs = {}): asserts value is Environment {
-  if (!isObject(value)) fail("environment", "expected an object");
-  assertOnlyKeys(value, new Set(["$defs", "functions", "effects", "entry"]), "environment");
+function validateEnvironmentContract(
+  value: unknown,
+  core: CallableTable | false = loadBuiltinTable(),
+): asserts value is EnvironmentContract {
+  if (!isObject(value)) fail("contract", "expected an object");
+  assertOnlyKeys(value, new Set(["version", "$defs", "functions", "effects", "entry"]), "contract");
+  if (typeof value.version !== "number" || !Number.isInteger(value.version)) {
+    fail("contract.version", "expected an integer");
+  }
+  if (value.version !== CONTRACT_VERSION) {
+    fail(
+      "contract.version",
+      `unsupported contract version ${value.version}; expected ${CONTRACT_VERSION}`,
+    );
+  }
 
+  const baseDefs = core === false ? {} : core.$defs;
   const ownDefs = "$defs" in value ? value.$defs : {};
-  if (!isObject(ownDefs)) fail("environment.$defs", "expected an object");
+  if (!isObject(ownDefs)) fail("contract.$defs", "expected an object");
   if (Object.prototype.hasOwnProperty.call(ownDefs, "Task")) {
-    fail("environment.$defs.Task", '"Task" is reserved for the built-in Task<A> type constructor');
+    fail("contract.$defs.Task", '"Task" is reserved for the built-in Task<A> type constructor');
+  }
+  for (const name of Object.keys(ownDefs)) {
+    if (Object.prototype.hasOwnProperty.call(baseDefs, name)) {
+      fail(`contract.$defs.${name}`, `duplicates builtin definition "${name}"`);
+    }
   }
   const defs = { ...baseDefs, ...ownDefs } as Defs;
 
   const functions = "functions" in value ? value.functions : {};
-  if (!isObject(functions)) fail("environment.functions", "expected an object");
+  if (!isObject(functions)) fail("contract.functions", "expected an object");
+  if (core !== false) {
+    for (const name of Object.keys(functions)) {
+      if (Object.prototype.hasOwnProperty.call(core.builtins, name)) {
+        throw new DuplicateCallableContractError(name, `contract.functions.${name}`);
+      }
+    }
+  }
   try {
     validateCallableTable({ $defs: defs, builtins: functions });
   } catch (error) {
     if (!(error instanceof CallableTableValidationError)) throw error;
-    remapCallableError(error, "table.builtins", "environment.functions");
+    remapCallableError(error, "table.builtins", "contract.functions");
   }
 
   const effects = "effects" in value ? value.effects : {};
+  if (isObject(effects) && Object.prototype.hasOwnProperty.call(effects, "raise")) {
+    fail("contract.effects.raise", '"raise" is intrinsic and cannot be declared');
+  }
   try {
     validateEffectManifest(effects, defs);
   } catch (error) {
     if (!(error instanceof EffectManifestValidationError)) throw error;
-    throw new EnvironmentValidationError(
-      `environment.${error.path}`,
+    throw new EnvironmentContractValidationError(
+      `contract.${error.path}`,
       error.message.slice(error.path.length + 2),
     );
   }
 
-  if (!isObject(value.entry)) fail("environment.entry", "expected an object");
+  if (!isObject(value.entry)) fail("contract.entry", "expected an object");
   assertOnlyKeys(
     value.entry,
     new Set(["name", "required", "optional", "returns"]),
-    "environment.entry",
+    "contract.entry",
   );
   if (typeof value.entry.name !== "string" || value.entry.name.length === 0) {
-    fail("environment.entry.name", "expected a non-empty string");
+    fail("contract.entry.name", "expected a non-empty string");
   }
   if (value.entry.name === EFFECTS_BINDING) {
-    fail("environment.entry.name", `"${EFFECTS_BINDING}" is reserved for declared effects`);
+    fail("contract.entry.name", `"${EFFECTS_BINDING}" is reserved for declared effects`);
   }
   if (!Array.isArray(value.entry.required)) {
-    fail("environment.entry.required", "expected an array");
+    fail("contract.entry.required", "expected an array");
   }
   if (!Array.isArray(value.entry.optional)) {
-    fail("environment.entry.optional", "expected an array");
+    fail("contract.entry.optional", "expected an array");
   }
-  if (!("returns" in value.entry)) fail("environment.entry.returns", "field is required");
+  if (!("returns" in value.entry)) fail("contract.entry.returns", "field is required");
 
   const rawReturn = value.entry.returns;
   let portableReturn = rawReturn;
   if (isObject(rawReturn) && "task" in rawReturn) {
-    assertOnlyKeys(rawReturn, new Set(["task"]), "environment.entry.returns");
+    assertOnlyKeys(rawReturn, new Set(["task"]), "contract.entry.returns");
     portableReturn = rawReturn.task;
   }
   const signature: CallableSignature = {
@@ -135,34 +166,38 @@ function validateEnvironment(value: unknown, baseDefs: Defs = {}): asserts value
     });
   } catch (error) {
     if (!(error instanceof CallableTableValidationError)) throw error;
-    remapCallableError(error, "table.builtins.entry.signatures[0]", "environment.entry");
+    remapCallableError(error, "table.builtins.entry.signatures[0]", "contract.entry");
   }
 }
 
-function loadEnvironment(path: string, baseDefs: Defs = {}): Environment {
+function loadEnvironmentContract(
+  path: string,
+  core: CallableTable | false = loadBuiltinTable(),
+): EnvironmentContract {
   const parsed: unknown = JSON.parse(readFileSync(path, "utf-8"));
-  validateEnvironment(parsed, baseDefs);
+  validateEnvironmentContract(parsed, core);
   return parsed;
 }
 
 /**
- * Compose core and operator callable contracts. Definitions intentionally use
- * the established builtin < environment precedence, while callable names never
- * silently override one another.
+ * Compose core and operator callable contracts. Definitions and callable names
+ * must remain unambiguous across ownership layers.
  */
 function mergeCallableTables(
   core: CallableTable,
-  operator: Pick<Environment, "$defs" | "functions">,
+  operator: Pick<EnvironmentContract, "$defs" | "functions">,
 ): CallableTable {
   const hostFunctions = operator.functions ?? {};
   const operatorDefs = operator.$defs ?? {};
   // Nothing to merge: the (already validated) core table is the result, and
-  // re-validating it per call is the dominant cost of environment preparation.
+  // re-validating it per call is the dominant cost of contract preparation.
   if (Object.keys(hostFunctions).length === 0 && Object.keys(operatorDefs).length === 0) {
     return core;
   }
   for (const name of Object.keys(hostFunctions)) {
-    if (name in core.builtins) throw new DuplicateCallableContractError(name);
+    if (name in core.builtins) {
+      throw new DuplicateCallableContractError(name, `contract.functions.${name}`);
+    }
   }
   const merged: CallableTable = {
     $defs: { ...core.$defs, ...operator.$defs },
@@ -174,12 +209,12 @@ function mergeCallableTables(
 
 export {
   DuplicateCallableContractError,
-  EnvironmentConfigurationError,
-  EnvironmentValidationError,
+  CONTRACT_VERSION,
+  EnvironmentContractValidationError,
   entryCompletionType,
   entryReturnType,
   isTaskReturn,
-  loadEnvironment,
+  loadEnvironmentContract,
   mergeCallableTables,
-  validateEnvironment,
+  validateEnvironmentContract,
 };

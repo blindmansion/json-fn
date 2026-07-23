@@ -8,13 +8,13 @@ export {
 export type { EffectManifest, EffectSignature } from "./effect-types";
 export {
   DuplicateCallableContractError,
-  EnvironmentConfigurationError,
-  EnvironmentValidationError,
+  CONTRACT_VERSION,
+  EnvironmentContractValidationError,
   entryCompletionType,
   entryReturnType,
   isTaskReturn,
-  loadEnvironment,
+  loadEnvironmentContract,
   mergeCallableTables,
-  validateEnvironment,
+  validateEnvironmentContract,
 } from "./environment";
-export type { EntryContract, EntryReturn, Environment } from "./types";
+export type { EntryContract, EntryReturn, EnvironmentContract } from "./types";

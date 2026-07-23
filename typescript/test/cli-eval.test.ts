@@ -112,13 +112,14 @@ describe("jfn eval arity diagnostics", () => {
   });
 });
 
-describe("jfn eval environment modes", () => {
-  test("executes a direct environment entry", () => {
+describe("jfn eval contract modes", () => {
+  test("executes a direct contract entry", () => {
     const directory = mkdtempSync(join(tmpdir(), "json-fn-eval-direct-entry-"));
-    const environmentPath = join(directory, "environment.json");
+    const contractPath = join(directory, "contract.json");
     writeFileSync(
-      environmentPath,
+      contractPath,
       JSON.stringify({
+        version: 1,
         functions: {},
         effects: {},
         entry: {
@@ -131,7 +132,7 @@ describe("jfn eval environment modes", () => {
     );
 
     try {
-      const result = runEval(["--environment", environmentPath, "{ main: () => 42 }", "--compact"]);
+      const result = runEval(["--contract", contractPath, "{ main: () => 42 }", "--compact"]);
 
       expect(result.exitCode).toBe(0);
       expect(result.stderr).toBe("");
@@ -142,11 +143,12 @@ describe("jfn eval environment modes", () => {
   });
 
   test("distinguishes the authoritative entry from a development function", () => {
-    const directory = mkdtempSync(join(tmpdir(), "json-fn-eval-environment-"));
-    const environmentPath = join(directory, "environment.json");
+    const directory = mkdtempSync(join(tmpdir(), "json-fn-eval-contract-"));
+    const contractPath = join(directory, "contract.json");
     writeFileSync(
-      environmentPath,
+      contractPath,
       JSON.stringify({
+        version: 1,
         functions: {},
         effects: {},
         entry: {
@@ -160,10 +162,10 @@ describe("jfn eval environment modes", () => {
     const module = "{ main: () => pure(7), demo: () => 9 }";
 
     try {
-      const production = runEval(["--environment", environmentPath, module, "--compact"]);
+      const production = runEval(["--contract", contractPath, module, "--compact"]);
       const development = runEval([
-        "--environment",
-        environmentPath,
+        "--contract",
+        contractPath,
         "--function",
         "demo",
         module,
@@ -181,10 +183,11 @@ describe("jfn eval environment modes", () => {
 
   test("--function bypasses production entry validation and invocation", () => {
     const directory = mkdtempSync(join(tmpdir(), "json-fn-eval-development-function-"));
-    const environmentPath = join(directory, "environment.json");
+    const contractPath = join(directory, "contract.json");
     writeFileSync(
-      environmentPath,
+      contractPath,
       JSON.stringify({
+        version: 1,
         functions: {},
         effects: {},
         entry: {
@@ -198,10 +201,10 @@ describe("jfn eval environment modes", () => {
     const module = '{ main: () => "invalid", demo: () => 9 }';
 
     try {
-      const production = runEval(["--environment", environmentPath, module, "--compact"]);
+      const production = runEval(["--contract", contractPath, module, "--compact"]);
       const development = runEval([
-        "--environment",
-        environmentPath,
+        "--contract",
+        contractPath,
         "--function",
         "demo",
         module,
@@ -218,16 +221,17 @@ describe("jfn eval environment modes", () => {
     }
   });
 
-  test("enforces environment entry ranges while preserving optional omission", () => {
+  test("enforces contract entry ranges while preserving optional omission", () => {
     const directory = mkdtempSync(join(tmpdir(), "json-fn-eval-entry-optionals-"));
-    const environmentPath = join(directory, "environment.json");
+    const contractPath = join(directory, "contract.json");
     const module =
       "{ main: (required, optional?, defaulted = 7) => pure([required, optional, defaulted]) }";
 
     try {
       writeFileSync(
-        environmentPath,
+        contractPath,
         JSON.stringify({
+          version: 1,
           functions: {},
           effects: {},
           entry: {
@@ -251,8 +255,8 @@ describe("jfn eval environment modes", () => {
         ],
       ] as const) {
         const result = runEval([
-          "--environment",
-          environmentPath,
+          "--contract",
+          contractPath,
           "--args",
           JSON.stringify(args),
           module,
@@ -266,8 +270,8 @@ describe("jfn eval environment modes", () => {
 
       for (const args of [[], [1, 2, 3, 4], [1, "wrong"], [1, null]]) {
         const result = runEval([
-          "--environment",
-          environmentPath,
+          "--contract",
+          contractPath,
           "--args",
           JSON.stringify(args),
           module,
@@ -279,8 +283,9 @@ describe("jfn eval environment modes", () => {
       }
 
       writeFileSync(
-        environmentPath,
+        contractPath,
         JSON.stringify({
+          version: 1,
           functions: {},
           effects: {},
           entry: {
@@ -299,8 +304,8 @@ describe("jfn eval environment modes", () => {
         [[null], null],
       ] as const) {
         const result = runEval([
-          "--environment",
-          environmentPath,
+          "--contract",
+          contractPath,
           "--args",
           JSON.stringify(args),
           nullableModule,
@@ -313,8 +318,8 @@ describe("jfn eval environment modes", () => {
       }
 
       const wrongNullable = runEval([
-        "--environment",
-        environmentPath,
+        "--contract",
+        contractPath,
         "--args",
         '["wrong"]',
         nullableModule,
@@ -331,15 +336,15 @@ describe("jfn eval environment modes", () => {
     {
       name: "dungeon",
       module: join(examples, "dungeon.jfn"),
-      environment: join(examples, "dungeon.environment.json"),
+      contract: join(examples, "dungeon.contract.json"),
       expectedKeys: ["escape", "silence"],
     },
-  ])("development-evaluates the $name demo with its environment", (fixture) => {
+  ])("development-evaluates the $name demo with its contract", (fixture) => {
     const result = runEval([
       "--file",
       fixture.module,
-      "--environment",
-      fixture.environment,
+      "--contract",
+      fixture.contract,
       "--function",
       "demo",
       "--compact",
@@ -350,10 +355,10 @@ describe("jfn eval environment modes", () => {
     expect(Object.keys(JSON.parse(result.stdout))).toEqual([...fixture.expectedKeys]);
   });
 
-  test("--function requires an environment", () => {
+  test("--function requires an contract", () => {
     const result = runEval(["--function", "demo", "{ demo: () => 1 }"]);
 
     expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain("--function requires --environment");
+    expect(result.stderr).toContain("--function requires --contract");
   });
 });

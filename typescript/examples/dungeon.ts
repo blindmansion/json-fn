@@ -2,7 +2,7 @@
 //
 // The game's `play` loop performs exactly two effects — `input` (read a
 // command) and `print` (show a line) — declared by the operator-owned
-// environment. The dungeon's own `runScript` handler interprets them *in-language*
+// contract. The dungeon's own `runScript` handler interprets them *in-language*
 // for its demos; this host instead answers them from a real terminal via
 // `runTask`, so the same pure game logic becomes a playable game.
 //
@@ -18,9 +18,10 @@
 
 import {
   runTask,
-  createStdlib,
-  loadEnvironment,
+  loadEnvironmentContract,
+  loadDeploymentProfile,
   parseShorthand,
+  prepareDeployment,
   TaskRaiseError,
   type JSONType,
 } from "../src";
@@ -30,9 +31,14 @@ import { createInterface } from "readline";
 
 const source = readFileSync(join(import.meta.dir, "../../examples/dungeon.jfn"), "utf-8");
 const game = parseShorthand(source) as Record<string, JSONType>;
-const environment = loadEnvironment(
-  join(import.meta.dir, "../../examples/dungeon.environment.json"),
+const contract = loadEnvironmentContract(
+  join(import.meta.dir, "../../examples/dungeon.contract.json"),
 );
+const profile = loadDeploymentProfile(
+  join(import.meta.dir, "../../examples/dungeon.profile.json"),
+  contract,
+);
+if (profile.mode !== "live") throw new Error("dungeon requires a live deployment profile");
 
 // A promise-based line reader over stdin. Resolves to null at EOF — the very
 // sentinel the dungeon's `play` loop checks with `isNull(cmd)`.
@@ -68,10 +74,15 @@ const capabilities = {
 
 const start: JSONType = { at: "cell", held: [] };
 try {
-  const ending = await runTask(game, environment, [start], {
-    registry: createStdlib(),
-    capabilities,
-  });
+  const ending = await runTask(
+    prepareDeployment({
+      module: game,
+      contract,
+      profile,
+      adapter: { functions: {}, effects: capabilities },
+    }),
+    [start],
+  );
   rl.close();
   console.log(`\n${ending as string}`);
   process.exit(0);

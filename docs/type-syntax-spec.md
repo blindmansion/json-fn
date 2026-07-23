@@ -36,7 +36,7 @@ Exactly four positions:
 4. **Checked value ascriptions** — `expression as <type>` validates the
    expression at runtime and gives the successful result that type.
 
-Type *declarations* are module-top-level only. Type *expressions* (the `<type>`
+Type _declarations_ are module-top-level only. Type _expressions_ (the `<type>`
 grammar, §2–§6) appear in all four positions, so they can occur inside nested
 function headers, handler expressions, and value ascriptions too.
 
@@ -253,16 +253,24 @@ otherColor: (color: Color) -> Color => if color == "w" then "b" else "w"
 
 ```json
 {
-  "$sig": { "required": [{ "$ref": "#/$defs/Color" }], "optional": [], "returns": { "$ref": "#/$defs/Color" } },
+  "$sig": {
+    "required": [{ "$ref": "#/$defs/Color" }],
+    "optional": [],
+    "returns": { "$ref": "#/$defs/Color" }
+  },
   "$params": ["color"],
-  "$return": { "$if": { "$call": "eq", "$args": [{ "$var": "color" }, "w"] }, "$then": "b", "$else": "w" }
+  "$return": {
+    "$if": { "$call": "eq", "$args": [{ "$var": "color" }, "w"] },
+    "$then": "b",
+    "$else": "w"
+  }
 }
 ```
 
 Rules:
 
 - **All-or-nothing.** A function literal is either **fully typed** (every param
-  annotated *and* a `-> Ret` return type) or **bare** (no annotations, no `$sig`).
+  annotated _and_ a `-> Ret` return type) or **bare** (no annotations, no `$sig`).
   A partial signature (some params typed, or params typed without a return type)
   is a **parse error**.
 - **Module-level functions must be fully typed.** A top-level function binding
@@ -335,9 +343,15 @@ concatAll: (first: string, ...rest: string[]) -> string => ...
 ```
 
 ```json
-{ "$sig": { "required": [{ "type": "string" }], "optional": [], "rest": { "type": "string" },
-            "returns": { "type": "string" } },
-  "$params": ["first", "...rest"] }
+{
+  "$sig": {
+    "required": [{ "type": "string" }],
+    "optional": [],
+    "rest": { "type": "string" },
+    "returns": { "type": "string" }
+  },
+  "$params": ["first", "...rest"]
+}
 ```
 
 ### 7.3 Object-pattern parameters
@@ -350,8 +364,14 @@ daysInMonth: ({ year, month }: Date) -> integer => ...
 ```
 
 ```json
-{ "$sig": { "required": [{ "$ref": "#/$defs/Date" }], "optional": [], "returns": { "type": "integer" } },
-  "$params": [{ "$fields": ["year", "month"] }] }
+{
+  "$sig": {
+    "required": [{ "$ref": "#/$defs/Date" }],
+    "optional": [],
+    "returns": { "type": "integer" }
+  },
+  "$params": [{ "$fields": ["year", "month"] }]
+}
 ```
 
 An inline object type works too: `({ from, to }: { from: integer, to: integer })`.
@@ -406,13 +426,22 @@ makeAdder: (x: number) -> (number) -> number => (y) => x + y
 {
   "$types": {
     "UserId": { "type": "string", "pattern": "^u_" },
-    "User": { "type": "object",
-              "properties": { "id": { "$ref": "#/$defs/UserId" }, "name": { "type": "string" } },
-              "required": ["id", "name"], "additionalProperties": false }
+    "User": {
+      "type": "object",
+      "properties": { "id": { "$ref": "#/$defs/UserId" }, "name": { "type": "string" } },
+      "required": ["id", "name"],
+      "additionalProperties": false
+    }
   },
-  "makeUser": { "$sig": { "required": [{ "$ref": "#/$defs/UserId" }, { "type": "string" }], "optional": [],
-                          "returns": { "$ref": "#/$defs/User" } },
-                "$params": ["id", "name"], "$return": { "id": { "$var": "id" }, "name": { "$var": "name" } } }
+  "makeUser": {
+    "$sig": {
+      "required": [{ "$ref": "#/$defs/UserId" }, { "type": "string" }],
+      "optional": [],
+      "returns": { "$ref": "#/$defs/User" }
+    },
+    "$params": ["id", "name"],
+    "$return": { "id": { "$var": "id" }, "name": { "$var": "name" } }
+  }
 }
 ```
 
@@ -423,7 +452,32 @@ makeAdder: (x: number) -> (number) -> number => (y) => x + y
   contextual keyword only when followed by an identifier (`type Color = …`).
   `type: expr` (a data entry) and `{ type }` (punning) are unaffected.
 
-### 8.1 Recursion
+### 8.1 Definition sources and ownership
+
+Module `$types` are one source in the effective named-schema pool. A
+contract-linked module resolves references across three ownership layers:
+
+1. core builtin `$defs`;
+2. operator-owned contract `$defs`;
+3. guest-owned module `$types`.
+
+The [environment contract](environment-contract.md) owns schemas used at the
+host boundary: direct-function signatures, effect parameters/results, and entry
+arguments/completion. The guest owns schemas that are internal to the module.
+Both may refer to contract definitions, but a module declaration does not
+replace or refine a contract-owned boundary definition.
+
+Definition names do not use value-level lexical shadowing. A duplicate name
+across any two sources is a `DUPLICATE_DEFINITION` link error, including
+builtin/contract, builtin/module, and contract/module collisions. The sources
+are merged only after proving their names disjoint, so the checker and runtime
+resolve every `$ref` identically. `Task` is reserved by the built-in task type
+constructor and may not appear in contract `$defs` or module `$types`.
+
+This cross-source rule is distinct from ordinary module bindings, where lexical
+shadowing remains part of the language.
+
+### 8.2 Recursion
 
 Legal when **contractive** (recursion passes through an array or object
 constructor):
@@ -440,7 +494,7 @@ type A = A            // ERROR: non-contractive
 type B = B | null     // ERROR: union arm refers directly to self
 ```
 
-### 8.2 Discriminated unions
+### 8.3 Discriminated unions
 
 No special syntax — a union of closed objects sharing a `const` field:
 

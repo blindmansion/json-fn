@@ -1,8 +1,9 @@
-import type { Environment } from "../../environment/types";
 import { RuntimeContractError } from "../../runtime-contract";
+import { ExternalFunctionError } from "../../eval";
 import type { JSONType } from "../../types";
-import { TaskRaiseError, prepareTaskRuntime } from "../task-runtime";
-import { type DurableHostConfiguration, validateDurableHostConfiguration } from "./config";
+import type { PreparedDurableDeployment } from "../deployment";
+import { UnhandledEffectError } from "../run-task";
+import { TaskRaiseError } from "../task-runtime";
 import { WorkflowRevisionConflictError, type WorkflowStore } from "./store";
 import type { PendingEffect, WorkflowFailure, WorkflowRecord } from "./workflow-record";
 
@@ -46,17 +47,18 @@ export class DeploymentMismatchError extends Error {
 }
 
 export function createDurableDriver(options: {
-  module: Record<string, JSONType>;
-  environment: Environment;
-  host: DurableHostConfiguration;
+  deployment: PreparedDurableDeployment;
   store: WorkflowStore;
 }): DurableDriver {
-  const { module, environment, host, store } = options;
-  validateDurableHostConfiguration(environment, host);
+  const { deployment, store } = options;
 
   const assertDeployment = (record: WorkflowRecord): void => {
-    if (record.deploymentId !== host.deploymentId) {
-      throw new DeploymentMismatchError(record.workflowId, record.deploymentId, host.deploymentId);
+    if (record.deploymentId !== deployment.profile.deploymentId) {
+      throw new DeploymentMismatchError(
+        record.workflowId,
+        record.deploymentId,
+        deployment.profile.deploymentId,
+      );
     }
   };
 
@@ -97,10 +99,7 @@ export function createDurableDriver(options: {
   ): Promise<AdvanceOutcome> {
     assertDeployment(current);
     const usage = { fuel: 0 };
-    const runtime = prepareTaskRuntime(module, environment, host.registry, {
-      ...host.limits,
-      usage,
-    });
+    const runtime = deployment.createTaskSession({ usage });
     let sequence = current.effectSequence;
     let task: JSONType;
 
@@ -129,7 +128,9 @@ export function createDurableDriver(options: {
         const effectId = `${current.workflowId}:${sequence}`;
         sequence += 1;
 
-        if (host.effects[name] === "suspending") {
+        const classification = deployment.profile.effects[name];
+        if (classification === undefined) throw new UnhandledEffectError(name);
+        if (classification === "suspending") {
           const pending: PendingEffect = { effectId, name, args, resume };
           return transition(current, {
             ...metadataAfter(current, sequence, runtime.fuelUsed()),
@@ -138,7 +139,7 @@ export function createDurableDriver(options: {
           });
         }
 
-        const capability = host.capabilities[name]!;
+        const capability = deployment.effects[name]!;
         let result: JSONType;
         try {
           runtime.refreshDeadline();
@@ -161,15 +162,12 @@ export function createDurableDriver(options: {
   return {
     async start(workflowId, args) {
       // Validate before creation so an invalid request does not reserve an ID.
-      const runtime = prepareTaskRuntime(module, environment, host.registry, {
-        ...host.limits,
-        usage: { fuel: 0 },
-      });
+      const runtime = deployment.createTaskSession({ usage: { fuel: 0 } });
       const checkedArgs = runtime.validateArgs(args);
       const record: Extract<WorkflowRecord, { status: "running" }> = {
         workflowId,
         revision: 0,
-        deploymentId: host.deploymentId,
+        deploymentId: deployment.profile.deploymentId,
         effectSequence: 0,
         fuelUsed: 0,
         status: "running",
@@ -259,8 +257,14 @@ function outcomeOf(record: Exclude<WorkflowRecord, { status: "running" }>): Adva
 }
 
 function mapExecutionFailure(error: unknown): WorkflowFailure {
+  if (error instanceof ExternalFunctionError && error.functionName.startsWith("@adapter:")) {
+    return { code: "host", message: error.message };
+  }
   if (error instanceof TaskRaiseError) {
     return { code: "raise", message: error.message, payload: error.payload };
+  }
+  if (error instanceof UnhandledEffectError) {
+    return { code: "unknown-effect", message: error.message };
   }
   if (error instanceof RuntimeContractError) {
     return {

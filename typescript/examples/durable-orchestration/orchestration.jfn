@@ -1,6 +1,6 @@
 {
-  // These four domain types come from orchestration.environment.json. Keeping
-  // them in the operator-owned environment lets both hosts enforce exactly the
+  // These four domain types come from orchestration.contract.json. Keeping
+  // them in the operator-owned contract lets both hosts enforce exactly the
   // same boundary contracts.
   type MockState = { transcript: string[] },
   type MockRun = { report: Report, transcript: string[] },

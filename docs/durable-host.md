@@ -1,9 +1,14 @@
 # Durable task hosting
 
-The TypeScript implementation can persist and resume task-mode environment
-entries through `createDurableDriver`. Unlike `runTask`, which owns a live task
+The TypeScript implementation can persist and resume task-mode contract entries
+through `createDurableDriver`. Unlike `runTask`, which owns a live task
 until it completes, the durable driver stores every continuation needed to
 cross a process boundary.
+
+The portable inputs are defined in [Environment contract](environment-contract.md)
+and [Deployment profile](deployment-profile.md). This document begins after
+`prepareDeployment({module, contract, profile, adapter})` has linked those
+artifacts to executable host bindings.
 
 Durability here means that a workflow can suspend, lose all in-memory runtime
 objects, and resume in a newly prepared runtime from its stored JSON record.
@@ -17,40 +22,48 @@ The driver combines deployment inputs with a workflow store:
 import {
   InMemoryWorkflowStore,
   createDurableDriver,
-  createStdlib,
+  loadEnvironmentContract,
+  loadDeploymentProfile,
+  prepareDeployment,
 } from "json-fn";
+
+const contract = loadEnvironmentContract("orders.contract.json");
+const profile = loadDeploymentProfile("orders.profile.json", contract);
+if (profile.mode !== "durable") throw new Error("durable profile required");
 
 const store = new InMemoryWorkflowStore();
 const driver = createDurableDriver({
-  module,
-  environment,
-  store,
-  host: {
-    registry: createStdlib(),
-    deploymentId: "orders-2026-07-22",
-    effects: {
-      log: "inline",
-      "payment.await": "suspending",
-    },
-    capabilities: {
-      log: ({ workflowId, effectId }, message) => {
-        console.log(workflowId, effectId, message);
-        return null;
+  deployment: prepareDeployment({
+    module,
+    contract,
+    profile,
+    adapter: {
+      functions: {},
+      effects: {
+        log: ({ workflowId, effectId }, message) => {
+          console.log(workflowId, effectId, message);
+          return null;
+        },
       },
     },
-  },
+  }),
+  store,
 });
 ```
 
-The environment entry must return `Task<A>`. Driver construction also requires:
+The contract entry must return `Task<A>`. Deployment preparation also requires:
 
-- `effects` to classify every environment effect exactly once;
-- every classification to be either `"inline"` or `"suspending"`;
-- `capabilities` to contain exactly the inline effects;
+- every effect selected by the durable profile to be classified as `"inline"`
+  or `"suspending"`;
+- the runtime adapter to implement exactly the selected inline effects;
+- the runtime adapter to implement exactly every direct contract function;
 - a non-empty `deploymentId`; and
-- the intrinsic `raise` effect to be absent from both maps.
+- the intrinsic `raise` effect to be absent from the profile.
 
-Configuration errors throw `EnvironmentConfigurationError`.
+Invalid profiles throw `DeploymentProfileValidationError`; runtime-adapter/profile
+mismatches throw `AdapterLinkError`. EnvironmentContract effects may be omitted from the
+profile when guest handlers are expected to discharge them. If one reaches the
+driver anyway, the workflow fails with code `"unknown-effect"`.
 
 `start(workflowId, args)` validates entry arguments before creating the
 workflow. Invalid start arguments throw `RuntimeContractError` and do not
@@ -68,7 +81,7 @@ type DurableEffectContext = {
 };
 ```
 
-The driver awaits the capability, validates its result against the environment
+The driver awaits the capability, validates its result against the contract
 effect contract, applies the stored continuation, and keeps advancing. If the
 capability throws or rejects, the workflow becomes terminal with failure code
 `"host"`.
@@ -85,7 +98,7 @@ returns:
 ```
 
 The continuation is intentionally omitted from this public outcome. An
-application adapter may dispatch the pending work only after receiving the
+application runtime adapter may dispatch the pending work only after receiving the
 outcome, because the corresponding continuation is already durable. Queue
 publication, transactional outboxes, webhooks, and join aggregation remain
 application responsibilities.
@@ -93,11 +106,7 @@ application responsibilities.
 When external work finishes, deliver its result:
 
 ```typescript
-const outcome = await driver.deliverCompletion(
-  workflowId,
-  effectId,
-  effectResult,
-);
+const outcome = await driver.deliverCompletion(workflowId, effectId, effectResult);
 ```
 
 The result is validated after the suspension is claimed. An invalid result
@@ -199,9 +208,9 @@ A running record is a durable replay basis, not a transient lock:
   the delivered result.
 
 Call `recover(workflowId)` when the host decides a running workflow should be
-replayed. The driver creates a fresh task runtime from the module, environment,
-registry, and configured limits. It keeps no live runtime object between API
-calls.
+replayed. The driver calls the prepared deployment's `createTaskSession` method
+to create a fresh task runtime from its module, contract, runtime-adapter
+registry, and profile limits. It keeps no live runtime object between API calls.
 
 Every record stores the configured `deploymentId`. Before recovery or delivery,
 the driver compares that value with the current host configuration. A mismatch
@@ -250,23 +259,29 @@ Terminal failures use one of these codes:
 - `"raise"` — an unhandled guest `raise`; `payload` contains the raised value.
 - `"contract"` — a contract failed while advancing a durable basis, including
   effect arguments, effect results, or workflow completion.
-- `"unknown-effect"` — the task performed an effect absent from the environment
-  manifest.
+- `"unknown-effect"` — the task performed an effect absent from the contract or
+  not selected by the durable profile.
 - `"malformed-task"` — task structure could not be stepped.
-- `"limit"` — fuel, call depth, value size, timeout, or cancellation stopped
-  evaluation.
-- `"host"` — an inline capability threw or rejected.
+- `"limit"` — fuel, call depth, or value size stopped evaluation.
+- `"host"` — an inline capability or direct runtime-adapter function threw or rejected.
 - `"external"` — the host called `deliverFailure` for suspended work.
 
-Failures detected while advancing are persisted as terminal records. Store and
-configuration errors remain host exceptions rather than workflow failures.
+Failures detected while advancing are persisted as terminal records. Host API
+exceptions are deliberately separate: invalid `start` arguments throw before a
+record is created; a deployment pin mismatch throws
+`DeploymentMismatchError` before recovery or either delivery mutates the
+record; runtime-adapter/profile/linking errors throw during preparation; and workflow
+store I/O or consistency errors propagate to the caller. Stale delivery remains
+a normal `{status: "stale"}` outcome rather than an exception.
 
 ## 10. Limits and fuel
 
-`host.limits` applies fresh limits to each driver invocation. Suspension and a
-later delivery therefore use separate per-invocation fuel and timeout budgets.
-The record's `fuelUsed` field accumulates consumed fuel across persisted hops
-for observability only; it is not a cross-hop budget.
+Portable profile `limits` (`maxCallDepth`, `maxFuel`, and `maxValueSize`) apply
+fresh limits to each driver invocation. Suspension and a later delivery
+therefore use separate per-invocation budgets. The record's `fuelUsed` field
+accumulates consumed fuel across persisted hops for observability only; it is
+not a cross-hop budget. Host-local `timeoutMs`, abort signals, and instrumentation
+are accepted by live `runTask`, not by the current public durable-driver API.
 
 See [Execution limits](execution-limits.md) for the interpreter's fuel, depth,
 size, cancellation, and timeout model.
@@ -278,7 +293,7 @@ example with:
 
 - a typed guest workflow;
 - an in-language deterministic mock;
-- an in-memory durable adapter;
+- an in-memory durable runtime adapter;
 - sequential and fan-out/fan-in orchestration;
 - empty joins and in-band subagent failure; and
 - duplicate and late-straggler stale deliveries.

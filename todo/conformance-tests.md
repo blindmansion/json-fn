@@ -6,11 +6,39 @@ Cross-impl behavior is pinned by two shared suites:
   (TS, Rust, Go, Python).
 - **`spec/parse-cases/*.json`** — shorthand parser conformance, run by **TS +
   Rust** (Go/Python have no parser).
+- **`spec/validation-cases/*.json`** — portable artifact and linking validation
+  vectors. TypeScript currently runs them; every runtime that implements
+  contracts/profiles should consume the same JSON vectors.
 
 Several features landed in TS (sometimes Rust) with **only impl-local unit
 tests**. Promoting them to the shared suites will make the un-ported
 implementations **fail loudly** — which is the point: the failures become the
 port checklist in `todo/impl-feature-parity.md`.
+
+## Portable validation cases (`spec/validation-cases/`)
+
+These files describe cross-runtime **structural validation**, not TypeScript
+unit-test fixtures. They cover:
+
+- `contracts.json` — versioned environment-contract structure and stable
+  validation code/path results;
+- `deployment-profiles.json` — live/durable profile structure and contract
+  effect-subset checks;
+- `schema-fragments.json` — the portable schema dialect;
+- `module-linking.json` — contract/module composition, reserved bindings, and
+  definition collisions.
+
+Ports should keep the case format language-neutral and compare the expected
+`valid`, `code`, and `path` fields. Add vectors whenever a portable artifact
+rule changes; implementation-specific exception text is not a shared contract.
+
+Structural acceptance does not establish **behavioral adapter conformance**.
+Future shared vectors need an executable host harness to compare exact function
+and effect binding, direct-entry versus task-entry execution, argument/result
+contract timing, omitted-effect behavior, live `UnhandledEffectError`
+classification, and durable inline/suspending outcomes. Keep those future
+behavioral vectors separate from `spec/validation-cases/`: the existing suite
+must remain runnable without native adapter implementations.
 
 ## Evaluator cases (`spec/cases/`) — new files/entries
 

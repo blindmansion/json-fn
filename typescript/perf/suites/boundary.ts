@@ -7,12 +7,21 @@
  * per-hop trampoline overhead with large payloads in flight).
  */
 
-import { callFunction, createStdlib, pure, raw, runTask } from "../../src";
+import {
+  callFunction,
+  createStdlib,
+  prepareDeployment,
+  pure,
+  raw,
+  runTask as runPreparedTask,
+} from "../../src";
 import type {
-  Environment,
+  EnvironmentContract,
+  ExecutionLimits,
   FunctionDeclaration,
   FunctionRegistry,
   JSONType,
+  LiveRuntimeAdapter,
   Schema,
 } from "../../src";
 import type { BenchDef, Mode, Suite } from "../harness";
@@ -20,6 +29,45 @@ import { withMetrics } from "../harness";
 import { call, callExpr, fn, get, iff, makeRecords, v } from "../data";
 
 const registry = createStdlib();
+
+function runTask(
+  module: Record<string, JSONType>,
+  contract: EnvironmentContract,
+  args: JSONType[],
+  host: {
+    registry?: FunctionRegistry;
+    capabilities: Record<string, (...args: any[]) => any>;
+  },
+  limits: ExecutionLimits,
+) {
+  const portable = {
+    ...(limits.maxCallDepth === undefined ? {} : { maxCallDepth: limits.maxCallDepth }),
+    ...(limits.maxFuel === undefined ? {} : { maxFuel: limits.maxFuel }),
+    ...(limits.maxValueSize === undefined ? {} : { maxValueSize: limits.maxValueSize }),
+  };
+  const local = {
+    signal: limits.signal,
+    timeoutMs: limits.timeoutMs,
+    perf: limits.perf,
+    usage: limits.usage,
+  };
+  const adapter: LiveRuntimeAdapter = { functions: {}, effects: host.capabilities };
+  return runPreparedTask(
+    prepareDeployment({
+      module,
+      contract,
+      profile: {
+        version: 1,
+        mode: "live",
+        effects: Object.keys(host.capabilities),
+        limits: portable,
+      },
+      adapter,
+    }),
+    args,
+    local,
+  );
+}
 
 const recordSchema: Schema = {
   type: "object",
@@ -41,8 +89,9 @@ const strictArray: Schema = { type: "array", items: recordSchema } as Schema;
 function taskEnvironment(
   effects: Record<string, { params: Schema[]; returns: Schema }>,
   required: Schema[] = [],
-): Environment {
+): EnvironmentContract {
   return {
+    version: 1,
     functions: {},
     effects,
     entry: {

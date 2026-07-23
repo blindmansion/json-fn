@@ -1,15 +1,23 @@
 import { EFFECTS_BINDING } from "../environment/effects";
-import type { Environment } from "../environment/types";
+import type { EnvironmentContract } from "../environment/types";
 import { TASK_TAG } from "../task";
 import type { JSONType } from "../types";
+import type { DeploymentProfile } from "./deployment";
 
-/** Static over-approximation of capabilities a module or task may require. */
-export type RequiredCapabilities = { names: string[]; dynamic: boolean };
+/** Conservative, non-fatal analysis of a deployment's possible host effects. */
+export type DeploymentCapabilityAnalysis = {
+  possibleNames: string[];
+  dynamic: boolean;
+  profileBindings: string[];
+  uncovered: string[];
+};
 
-export function requiredCapabilities(
-  node: JSONType,
-  environment?: Pick<Environment, "effects">,
-): RequiredCapabilities {
+export function analyzeDeploymentCapabilities(options: {
+  module: JSONType;
+  contract: Pick<EnvironmentContract, "effects">;
+  profile: DeploymentProfile;
+}): DeploymentCapabilityAnalysis {
+  const { module: node, contract, profile } = options;
   const names = new Set<string>();
   let dynamic = false;
 
@@ -36,13 +44,13 @@ export function requiredCapabilities(
       } else if (callee === "raise") {
         names.add("raise");
       }
-    } else if (callee !== undefined && Array.isArray(callArgs) && environment !== undefined) {
+    } else if (callee !== undefined && Array.isArray(callArgs)) {
       const path = effectAccessPath(callee);
       if (path === "dynamic") {
         dynamic = true;
       } else if (path !== null && path.length > 0) {
         const name = path.join(".");
-        if (environment.effects?.[name] !== undefined) names.add(name);
+        if (contract.effects?.[name] !== undefined) names.add(name);
       }
     }
 
@@ -50,7 +58,23 @@ export function requiredCapabilities(
   };
 
   walk(node);
-  return { names: [...names].sort(), dynamic };
+  names.delete("raise");
+  const profileBindings =
+    profile.mode === "live" ? [...profile.effects] : Object.keys(profile.effects);
+  const bound = new Set(profileBindings);
+  const possibleNames = [...names].sort();
+  const uncovered = new Set(possibleNames.filter((name) => !bound.has(name)));
+  if (dynamic) {
+    for (const name of Object.keys(contract.effects ?? {})) {
+      if (!bound.has(name)) uncovered.add(name);
+    }
+  }
+  return {
+    possibleNames,
+    dynamic,
+    profileBindings: profileBindings.sort(),
+    uncovered: [...uncovered].sort(),
+  };
 }
 
 function effectAccessPath(node: JSONType): string[] | "dynamic" | null {

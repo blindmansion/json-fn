@@ -1,8 +1,8 @@
-// thermostat.ts — host driver for examples/typed/thermostat.jfn.
+// thermostat.ts — host driver for examples/thermostat.jfn.
 //
 // The controller's `loop` performs exactly three effects — `sensor.read` (get
 // the next reading), `hvac.set` (actuate), and `log` (narrate) — declared by
-// the operator-owned environment — and escalates a bad reading as an
+// the operator-owned contract — and escalates a bad reading as an
 // in-language `raise`. The example's own `runScript` handler interprets them
 // *in-language* for its demos; this host instead answers them from a mock
 // sensor rig via `runTask`, so the same pure control logic drives "real" gear.
@@ -21,9 +21,10 @@
 
 import {
   runTask,
-  createStdlib,
-  loadEnvironment,
+  loadEnvironmentContract,
+  loadDeploymentProfile,
   parseShorthand,
+  prepareDeployment,
   TaskRaiseError,
   type JSONType,
 } from "../src";
@@ -32,9 +33,14 @@ import { join } from "path";
 
 const source = readFileSync(join(import.meta.dir, "../../examples/thermostat.jfn"), "utf-8");
 const controller = parseShorthand(source) as Record<string, JSONType>;
-const environment = loadEnvironment(
-  join(import.meta.dir, "../../examples/thermostat.environment.json"),
+const contract = loadEnvironmentContract(
+  join(import.meta.dir, "../../examples/thermostat.contract.json"),
 );
+const profile = loadDeploymentProfile(
+  join(import.meta.dir, "../../examples/thermostat.profile.json"),
+  contract,
+);
+if (profile.mode !== "live") throw new Error("thermostat requires a live deployment profile");
 
 // A scripted sensor rig: each `sensor.read` shifts the next reading off this
 // queue; when it runs dry the capability returns null and the loop stops.
@@ -74,10 +80,15 @@ console.log("running controller:");
 try {
   // `fuel` bounds the loop; the sensor rig runs dry well before it, so the run
   // ends on the loop's own null guard rather than the fuel limit.
-  const finalState = await runTask(controller, environment, [start, 100], {
-    registry: createStdlib(),
-    capabilities,
-  });
+  const finalState = await runTask(
+    prepareDeployment({
+      module: controller,
+      contract,
+      profile,
+      adapter: { functions: {}, effects: capabilities },
+    }),
+    [start, 100],
+  );
   console.log("\nfinal state:");
   console.log(JSON.stringify(finalState, null, 2));
   process.exit(0);

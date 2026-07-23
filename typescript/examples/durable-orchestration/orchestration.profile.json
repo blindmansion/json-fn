@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "mode": "durable",
+  "deploymentId": "orchestration-example-v1",
+  "effects": {
+    "agent.spawn": "inline",
+    "agent.await": "suspending",
+    "agent.awaitAll": "suspending",
+    "agent.awaitAny": "suspending",
+    "log": "inline"
+  }
+}

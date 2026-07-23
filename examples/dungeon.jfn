@@ -1,5 +1,5 @@
 {
-  // RoomId, Room, and PlayerState come from dungeon.environment.json.
+  // RoomId, Room, and PlayerState come from dungeon.contract.json.
   type Turn = { state: PlayerState, message: string, done: boolean },
   type ScriptState = { pending: string[], transcript: string[] },
   type ScriptReport = { ending: string, transcript: string[] },

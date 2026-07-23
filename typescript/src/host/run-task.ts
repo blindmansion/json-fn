@@ -3,17 +3,10 @@
  * The in-language task kernel is pure and synchronous; capabilities run here.
  */
 
-import { EFFECTS_BINDING } from "../environment/effects";
-import type { EffectManifest } from "../environment/effect-types";
-import { EnvironmentConfigurationError, isTaskReturn } from "../environment/environment";
-import type { Environment } from "../environment/types";
-import type { ExecutionLimits, JSONType } from "../types";
-import {
-  prepareEnvironmentRuntime,
-  type Capability,
-  type EnvironmentHostConfiguration,
-} from "./environment-runtime";
-import { prepareTaskRuntime } from "./task-runtime";
+import { isTaskReturn } from "../environment/environment";
+import type { JSONType } from "../types";
+import type { PreparedLiveDeployment } from "./deployment";
+import type { HostLocalRunOptions } from "./task-runtime";
 
 export { TaskRaiseError } from "./task-runtime";
 
@@ -28,28 +21,19 @@ export class UnhandledEffectError extends Error {
 }
 
 /**
- * Run a module entry according to its environment return contract. Task
+ * Run a prepared module entry according to its portable contract. Task
  * entries are driven to completion by answering suspended host effects.
  */
 export async function runTask(
-  module: Record<string, JSONType>,
-  environment: Environment,
+  deployment: PreparedLiveDeployment,
   args: JSONType[],
-  host: EnvironmentHostConfiguration,
-  limits?: ExecutionLimits,
+  runOptions?: HostLocalRunOptions,
 ): Promise<JSONType> {
-  if (Object.prototype.hasOwnProperty.call(module, EFFECTS_BINDING)) {
-    throw new EnvironmentConfigurationError(
-      `"${EFFECTS_BINDING}" is reserved for environment-declared effects`,
-    );
-  }
-  const prepared = prepareEnvironmentRuntime(environment, host, module);
-  validateEffectCapabilityParity(environment.effects ?? {}, host.capabilities);
-  const runtime = prepareTaskRuntime(module, environment, prepared.registry, limits);
+  const runtime = deployment.createTaskSession(runOptions);
   const checkedArgs = runtime.validateArgs(args);
   let result = runtime.invokeEntry(checkedArgs);
 
-  if (isTaskReturn(environment.entry.returns)) {
+  if (isTaskReturn(deployment.contract.entry.returns)) {
     let task = result;
     for (;;) {
       const stepped = runtime.step(task);
@@ -59,7 +43,7 @@ export async function runTask(
       }
 
       const { name, args: effectArgs, resume } = stepped.pending;
-      const capability = host.capabilities[name];
+      const capability = deployment.effects[name];
       if (capability === undefined) {
         throw new UnhandledEffectError(name);
       }
@@ -71,25 +55,4 @@ export async function runTask(
   }
 
   return runtime.validateCompletion(result);
-}
-
-function validateEffectCapabilityParity(
-  effects: EffectManifest,
-  capabilities: Record<string, Capability>,
-): void {
-  const effectNames = new Set(Object.keys(effects));
-  for (const name of effectNames) {
-    if (capabilities[name] === undefined) {
-      throw new EnvironmentConfigurationError(
-        `effect contract "${name}" has no capability implementation`,
-      );
-    }
-  }
-  for (const name of Object.keys(capabilities)) {
-    if (!effectNames.has(name)) {
-      throw new EnvironmentConfigurationError(
-        `capability implementation "${name}" has no effect contract`,
-      );
-    }
-  }
 }

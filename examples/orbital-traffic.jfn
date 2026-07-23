@@ -2,8 +2,8 @@
 // approach, rank conjunction alerts, and produce a compact operator report.
 //
 // Check and run it through the CLI:
-//   bun run src/cli.ts check --environment ../examples/orbital-traffic.environment.json --file ../examples/orbital-traffic.jfn
-//   bun run src/cli.ts eval --environment ../examples/orbital-traffic.environment.json --file ../examples/orbital-traffic.jfn --function demo
+//   bun run src/cli.ts check --contract ../examples/orbital-traffic.contract.json --file ../examples/orbital-traffic.jfn
+//   bun run src/cli.ts eval --contract ../examples/orbital-traffic.contract.json --file ../examples/orbital-traffic.jfn --function demo
 {
   type TrackPair = [Track, Track],
 
@@ -92,7 +92,7 @@
     }
   },
 
-  // Environment entries are tasks, even though this computation is pure.
+  // EnvironmentContract entries may be tasks even when the computation is pure.
   screen: (tracks, horizonMinutes) => pure(analyze(tracks, horizonMinutes)),
 
   demo: () -> Report => analyze([

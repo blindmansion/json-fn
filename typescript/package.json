@@ -12,8 +12,8 @@
     "fix": "bun run fix:typescript && bun run format:spec-cases",
     "fix:typescript": "bunx tsc --noEmit && oxlint --fix && oxfmt",
     "generate:builtins-doc": "bun run scripts/generate-builtin-doc.ts",
-    "format:spec-cases": "cd .. && ./typescript/node_modules/.bin/oxfmt 'spec/cases/*.json' 'spec/parse-cases/*.json'",
-    "format:spec-cases:check": "cd .. && ./typescript/node_modules/.bin/oxfmt --check 'spec/cases/*.json' 'spec/parse-cases/*.json'"
+    "format:spec-cases": "cd .. && ./typescript/node_modules/.bin/oxfmt 'spec/cases/*.json' 'spec/parse-cases/*.json' 'spec/validation-cases/*.json'",
+    "format:spec-cases:check": "cd .. && ./typescript/node_modules/.bin/oxfmt --check 'spec/cases/*.json' 'spec/parse-cases/*.json' 'spec/validation-cases/*.json'"
   },
   "devDependencies": {
     "@types/bun": "latest",

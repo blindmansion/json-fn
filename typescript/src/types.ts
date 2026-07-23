@@ -100,7 +100,7 @@ type Meter = {
 };
 
 type RuntimeContext = {
-  /** Merged builtin, environment, and module definitions for boundary contracts. */
+  /** Merged builtin, contract, and module definitions for boundary contracts. */
   defs: Record<string, JSONType>;
 };
 

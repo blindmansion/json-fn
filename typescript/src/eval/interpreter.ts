@@ -43,6 +43,29 @@ import { getExpressionType } from "./expression-type";
 import type { EvaluationContext } from "./internal-types";
 import { accessProperty } from "./property-access";
 
+const ADAPTER_ALIAS_PREFIX = "@adapter:";
+
+export class ExternalFunctionError extends Error {
+  readonly code = "EXTERNAL_FUNCTION_ERROR";
+
+  constructor(
+    readonly functionName: string,
+    override readonly cause: unknown,
+  ) {
+    super(`Error calling external function ${functionName}: ${errorMessage(cause)}`);
+    this.name = "ExternalFunctionError";
+  }
+}
+
+export class ReservedAdapterAliasError extends Error {
+  readonly code = "RESERVED_ADAPTER_ALIAS";
+
+  constructor(readonly alias: string) {
+    super(`Function alias "${alias}" is reserved for contract wrappers`);
+    this.name = "ReservedAdapterAliasError";
+  }
+}
+
 function isScalarValue(value: JSONType): boolean {
   return (
     value === null ||
@@ -116,6 +139,9 @@ export function callFunctionInternal(
     const { functions } = context;
     let result: JSONType;
     if (typeof fn === "string") {
+      if (fn.startsWith(ADAPTER_ALIAS_PREFIX) && context.allowAdapterAlias !== true) {
+        throw new ReservedAdapterAliasError(fn);
+      }
       if (perf) {
         perf.functionCallCounts[fn] = (perf.functionCallCounts[fn] ?? 0) + 1;
       }
@@ -217,7 +243,7 @@ function callExternalFunction(
     try {
       result = isMeteredPure(fn) ? fn(meterForContext(context), ...args) : fn(...args);
     } catch (e) {
-      throw new Error(`Error calling external function ${name}: ${e}`);
+      throw new ExternalFunctionError(name, e);
     }
     accountForResult(context, result);
     return result;
@@ -227,7 +253,7 @@ function callExternalFunction(
   try {
     result = cloneIfNeeded(fn(...safeArgs), perf);
   } catch (e) {
-    throw new Error(`Error calling external function ${name}: ${e}`);
+    throw new ExternalFunctionError(name, e);
   }
   accountForResult(context, result);
   return result;
@@ -424,11 +450,10 @@ function callJSONFunction(fn: FunctionBody, args: JSONType[], context: Evaluatio
   const contract = readRuntimeFunctionContract(fn);
   if (contract !== null) {
     const prepared = prepareRuntimeContractCall(contract, args);
-    const result = callFunctionInternal(
-      contract.target as FunctionDeclaration,
-      prepared.args,
-      context,
-    );
+    const result = callFunctionInternal(contract.target as FunctionDeclaration, prepared.args, {
+      ...context,
+      allowAdapterAlias: true,
+    });
     return enforceRuntimeContractReturn(result, prepared.returns, contract.defs);
   }
 
@@ -446,6 +471,10 @@ function callJSONFunction(fn: FunctionBody, args: JSONType[], context: Evaluatio
     perf,
     runtimeDefs: context.runtimeDefs,
   });
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function evaluateExpression(expression: JSONType, context: EvaluationContext): JSONType {

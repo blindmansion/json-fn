@@ -1,24 +1,45 @@
 import { describe, expect, test } from "bun:test";
 import {
-  EnvironmentConfigurationError,
+  ModuleLinkError,
   RuntimeContractError,
-  createStdlib,
   parseShorthand,
-  type Environment,
+  prepareDeployment,
+  type EnvironmentContract,
   type JSONType,
 } from "../src";
-import { prepareTaskRuntime, TaskRaiseError } from "../src/host/task-runtime";
+import { TaskRaiseError, type HostLocalRunOptions } from "../src/host/task-runtime";
 
 const integer = { type: "integer" } as const;
-const stdlib = createStdlib();
 
 function module(source: string): Record<string, JSONType> {
   return parseShorthand(source) as Record<string, JSONType>;
 }
 
-describe("prepareTaskRuntime", () => {
+describe("TaskSession", () => {
+  test("prepared deployments own fresh task sessions and are frozen", () => {
+    const contract: EnvironmentContract = {
+      version: 1,
+      entry: {
+        name: "main",
+        required: [],
+        optional: [],
+        returns: integer,
+      },
+    };
+    const deployment = prepareDeployment({
+      module: module(`{ main: () => 1 }`),
+      contract,
+      profile: { version: 1, mode: "live", effects: [] },
+      adapter: { functions: {}, effects: {} },
+    });
+
+    expect(Object.isFrozen(deployment)).toBe(true);
+    expect(deployment.createTaskSession()).not.toBe(deployment.createTaskSession());
+  });
+
   test("validates and advances a task across a host effect", () => {
-    const environment: Environment = {
+    const contract: EnvironmentContract = {
+      version: 1,
       effects: {
         echo: { params: [integer], returns: integer },
       },
@@ -30,15 +51,14 @@ describe("prepareTaskRuntime", () => {
       },
     };
     const usage = { fuel: 0 };
-    const runtime = prepareTaskRuntime(
+    const runtime = session(
       module(`{
         main: (start) => do {
           value <- effects.echo(start),
           pure(value + 1)
         }
       }`),
-      environment,
-      stdlib,
+      contract,
       { usage },
     );
 
@@ -67,7 +87,8 @@ describe("prepareTaskRuntime", () => {
   });
 
   test("resumes through a do-block discard continuation", () => {
-    const environment: Environment = {
+    const contract: EnvironmentContract = {
+      version: 1,
       effects: {
         echo: { params: [integer], returns: integer },
       },
@@ -78,15 +99,14 @@ describe("prepareTaskRuntime", () => {
         returns: { task: integer },
       },
     };
-    const runtime = prepareTaskRuntime(
+    const runtime = session(
       module(`{
         main: (start) => do {
           effects.echo(start),
           pure(start + 1)
         }
       }`),
-      environment,
-      stdlib,
+      contract,
     );
 
     const first = runtime.step(runtime.invokeEntry([2]));
@@ -97,7 +117,8 @@ describe("prepareTaskRuntime", () => {
   });
 
   test("maps raise and unknown effects at the shared stepping boundary", () => {
-    const environment: Environment = {
+    const contract: EnvironmentContract = {
+      version: 1,
       effects: {},
       entry: {
         name: "main",
@@ -107,11 +128,7 @@ describe("prepareTaskRuntime", () => {
       },
     };
 
-    const raising = prepareTaskRuntime(
-      module(`{ main: () => raise("boom") }`),
-      environment,
-      stdlib,
-    );
+    const raising = session(module(`{ main: () => raise("boom") }`), contract);
     try {
       raising.step(raising.invokeEntry([]));
       throw new Error("Expected raise to escape");
@@ -120,16 +137,13 @@ describe("prepareTaskRuntime", () => {
       expect((error as TaskRaiseError).payload).toBe("boom");
     }
 
-    const unknown = prepareTaskRuntime(
-      module(`{ main: () => perform("missing", []) }`),
-      environment,
-      stdlib,
-    );
+    const unknown = session(module(`{ main: () => perform("missing", []) }`), contract);
     expect(() => unknown.step(unknown.invokeEntry([]))).toThrow('unknown effect "missing"');
   });
 
   test("rejects a module that shadows the generated effects namespace", () => {
-    const environment: Environment = {
+    const contract: EnvironmentContract = {
+      version: 1,
       effects: {},
       entry: {
         name: "main",
@@ -140,14 +154,30 @@ describe("prepareTaskRuntime", () => {
     };
 
     expect(() =>
-      prepareTaskRuntime(
+      session(
         {
           effects: null,
           main: { $params: [], $return: { $call: "pure", $args: [1] } },
         },
-        environment,
-        stdlib,
+        contract,
       ),
-    ).toThrow(EnvironmentConfigurationError);
+    ).toThrow(ModuleLinkError);
   });
 });
+
+function session(
+  source: Record<string, JSONType>,
+  contract: EnvironmentContract,
+  runOptions: HostLocalRunOptions = {},
+) {
+  const effects = Object.fromEntries(
+    Object.keys(contract.effects ?? {}).map((name) => [name, () => null]),
+  );
+  const deployment = prepareDeployment({
+    module: source,
+    contract,
+    profile: { version: 1, mode: "live", effects: Object.keys(effects) },
+    adapter: { functions: {}, effects },
+  });
+  return deployment.createTaskSession(runOptions);
+}

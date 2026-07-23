@@ -26,6 +26,8 @@ export type EvaluationContext = {
   attachFns?: ReadonlySet<string>;
   /** Merged definition pool propagated through calls for runtime contracts. */
   runtimeDefs?: Record<string, JSONType>;
+  /** Allows a trusted runtime-contract wrapper to invoke its private adapter alias. */
+  allowAdapterAlias?: boolean;
   limits: ResolvedLimits;
   state: CallState;
   perf?: PerfStats;

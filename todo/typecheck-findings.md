@@ -182,12 +182,12 @@ leniency inline lambdas already get.
 
 ## Gaps surfaced by `examples/typed/thermostat.jfn`
 
-Resolved by the typed host-environment B5 migration. The operator now owns the
-domain types, effect contracts, and `loop` entry contract in
-`examples/typed/thermostat.environment.json`; the guest uses literal `perform`
-calls so manifest result types flow through `bind`. The former
+Resolved by the portable contract migration. The operator now owns the domain
+types, effect contracts, and `loop` entry contract in
+`examples/thermostat.contract.json`; the guest uses qualified effect calls so
+manifest result types flow through `bind`. The former
 `thermostat-checked.jfn` workaround was removed.
 
-The example checks with zero errors against its environment. Its in-language
+The example checks with zero errors against its contract. Its in-language
 `runScript` demo still reports information-level coverage degradations for bare
 handler-clause lambdas; those do not affect the typed host entry path.

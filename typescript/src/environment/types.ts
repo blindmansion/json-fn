@@ -11,7 +11,8 @@ export type EntryContract = {
   returns: EntryReturn;
 };
 
-export type Environment = {
+export type EnvironmentContract = {
+  version: number;
   $defs?: Defs;
   functions?: Record<string, CallableEntry>;
   effects?: EffectManifest;

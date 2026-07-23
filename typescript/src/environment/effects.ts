@@ -23,7 +23,7 @@ function isObject(value: unknown): value is Record<string, unknown> {
 /**
  * Validate the portable effect table with the same schema dialect as callable
  * contracts. Definitions are supplied separately because slice 8 packages both
- * into one operator-owned environment.
+ * into one operator-owned contract.
  */
 function validateEffectManifest(value: unknown, defs: Defs = {}): asserts value is EffectManifest {
   if (!isObject(value)) {

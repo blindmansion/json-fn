@@ -2,15 +2,9 @@
 // then check its `$return` against the declared return type. Nested function
 
 import type { JSONType } from "../types";
-import { mergeDefinitionPools, readModuleDefinitions } from "../definition-pool";
-import { buildEffectNamespace, EFFECTS_BINDING } from "../environment/effects";
-import type { Environment } from "../environment/types";
+import type { EnvironmentContract } from "../environment/types";
+import { linkModule } from "../module-linker";
 import type { ParameterLayout } from "../params";
-import {
-  entryReturnType,
-  mergeCallableTables,
-  validateEnvironment,
-} from "../environment/environment";
 import type { CallableTable, CallableTypeRuleRegistry } from "./builtin-types";
 import { synthCallableCall } from "./builtin-rules";
 import { CORE_CALLABLE_TYPE_RULES } from "./callable-rules";
@@ -52,12 +46,12 @@ type CheckModuleOptions = {
   typeRules?: CallableTypeRuleRegistry;
   // The sole operator-owned package: named types, direct callable contracts,
   // effects, and the required module entry.
-  environment?: Environment;
+  contract?: EnvironmentContract;
 };
 
 type CheckExprOptions = {
   typeRules?: CallableTypeRuleRegistry;
-  environment?: Environment;
+  contract?: EnvironmentContract;
 };
 
 // Public entry, mirroring `callProgram`: lift `$types` into the defs pool, wire
@@ -68,63 +62,44 @@ function checkModule(
   builtins?: CallableTable,
   options: CheckModuleOptions = {},
 ): Diagnostic[] {
-  const environment = options.environment;
-  if (environment !== undefined) validateEnvironment(environment, builtins?.$defs);
-  const callableTable =
-    environment === undefined
-      ? builtins
-      : mergeCallableTables(builtins ?? { builtins: {} }, environment);
-  const moduleDefs = readModuleDefinitions(module);
-  const defs: Defs = mergeDefinitionPools(
-    {
-      builtinDefs: builtins?.$defs,
-      environmentDefs: environment?.$defs,
-    },
-    moduleDefs,
-  );
+  const contract = options.contract;
+  const linked = linkModule({
+    module,
+    builtins: builtins ?? false,
+    contract,
+    validateEntry: false,
+  });
+  const moduleDefs = linked.moduleDefinitions;
+  const defs = linked.definitions as Defs;
   const ctx: CheckContext = {
     defs,
     env: EMPTY_ENV,
     diagnostics: [],
     path: [],
-    callables: callableTable?.builtins,
+    callables: linked.callableTable?.builtins,
     synthCallableCall,
     typeRules: options.typeRules ?? CORE_CALLABLE_TYPE_RULES,
-    effects: environment?.effects,
+    effects: contract?.effects,
   };
-  let checkingModule = module;
+  let checkingModule = linked.module as Record<string, JSONType>;
   let entrySig: Sig | undefined;
-  if (environment !== undefined) {
-    if (Object.prototype.hasOwnProperty.call(module, EFFECTS_BINDING)) {
-      report(
-        { ...ctx, path: [EFFECTS_BINDING] },
-        `"${EFFECTS_BINDING}" is reserved for environment-declared effects`,
-      );
-    }
-    const { entry } = environment;
-    const body = module[entry.name];
+  if (contract !== undefined) {
+    const entryName = linked.entryName!;
+    const body = module[entryName];
     if (body === undefined || !isBody(body)) {
       report(
-        { ...ctx, path: [entry.name] },
-        `environment entry "${entry.name}" is not a function defined by the module`,
+        { ...ctx, path: [entryName] },
+        `contract entry "${entryName}" is not a function defined by the module`,
       );
     } else {
-      entrySig = {
-        required: entry.required,
-        optional: entry.optional,
-        returns: entryReturnType(entry.returns),
-      };
-      checkingModule = { ...module, [entry.name]: { ...body, $sig: entrySig } };
+      entrySig = linked.entrySignature as Sig;
+      checkingModule = { ...linked.module, [entryName]: { ...body, $sig: entrySig } };
     }
-    checkingModule = {
-      ...checkingModule,
-      [EFFECTS_BINDING]: buildEffectNamespace(environment.effects),
-    };
   }
 
   // Declare-before-use: a `$ref` to an undeclared type name would otherwise
   // resolve to top (`resolveRef`), so a typo like `-> Reprot` checks clean.
-  // The environment-owned entry signature replaces any guest annotation before
+  // The contract-owned entry signature replaces any guest annotation before
   // this walk; the guest copy is not part of the entry contract.
   checkDanglingRefs(checkingModule, defs, ctx);
   const nonContractive = nonContractiveDefinitions(Object.keys(moduleDefs), defs);
@@ -146,7 +121,7 @@ function checkModule(
       // §9: top-level functions must be fully typed (on by default). A missing
       // `$sig` is reported here rather than in the parser, which lacks module
       // context.
-      const injectedSig = environment?.entry.name === key ? entrySig : undefined;
+      const injectedSig = linked.entryName === key ? entrySig : undefined;
       if (sigOf(val) === null && injectedSig === undefined) {
         if (options.requireTypedModuleFunctions !== false) {
           report(
@@ -266,25 +241,22 @@ function checkExpr(
   builtins?: CallableTable,
   options: CheckExprOptions = {},
 ): { type: Schema; diagnostics: Diagnostic[] } {
-  const environment = options.environment;
-  if (environment !== undefined) validateEnvironment(environment, builtins?.$defs);
-  const callableTable =
-    environment === undefined
-      ? builtins
-      : mergeCallableTables(builtins ?? { builtins: {} }, environment);
-  const merged: Defs = mergeDefinitionPools({
-    builtinDefs: builtins?.$defs,
-    environmentDefs: { ...defs, ...environment?.$defs },
+  const contract = options.contract;
+  const linked = linkModule({
+    module: Object.keys(defs).length === 0 ? {} : { $types: defs },
+    builtins: builtins ?? false,
+    contract,
+    validateEntry: false,
   });
   const ctx: CheckContext = {
-    defs: merged,
+    defs: linked.definitions as Defs,
     env: EMPTY_ENV,
     diagnostics: [],
     path: [],
-    callables: callableTable?.builtins,
+    callables: linked.callableTable?.builtins,
     synthCallableCall,
     typeRules: options.typeRules ?? CORE_CALLABLE_TYPE_RULES,
-    effects: environment?.effects,
+    effects: contract?.effects,
   };
   return { type: synth(expr, ctx), diagnostics: ctx.diagnostics };
 }

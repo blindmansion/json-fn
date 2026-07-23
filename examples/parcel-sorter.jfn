@@ -1,13 +1,13 @@
 // A typed parcel sorter: scan parcels, choose lanes, and drive a conveyor.
 //
-// The operator-owned environment supplies Region, Lane, Parcel, State, the
+// The operator-owned contract supplies Region, Lane, Parcel, State, the
 // three effect contracts, and the loop entry contract. The guest owns routing
 // policy, fault handling, and its in-language test rig.
 //
 // Run it through the host:
 //   bun run typescript/examples/parcel-sorter.ts
-// Check it against the environment:
-//   bun run typescript/src/cli.ts check --environment examples/typed/parcel-sorter.environment.json --file examples/typed/parcel-sorter.jfn
+// Check it against the contract:
+//   bun run typescript/src/cli.ts check --contract examples/parcel-sorter.contract.json --file examples/parcel-sorter.jfn
 {
   type Fault =
       { tag: "Overweight", id: string, kilograms: number }

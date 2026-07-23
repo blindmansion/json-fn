@@ -6,6 +6,7 @@
 //   to-json       .jfn shorthand          ->  canonical json-fn JSON
 //   eval          evaluate a .jfn expression (or module entry) and print it
 //   check         parse a .jfn expression/module and typecheck it
+//   validate-*    validate portable deployment artifacts
 //
 // Input is read from a positional argument, a --file, or stdin (in that order),
 // so all three compose well with pipes and heredocs.
@@ -15,18 +16,21 @@ import {
   callProgram,
   createStdlib,
   parseShorthand,
+  prepareDeployment,
   printShorthand,
   runTask,
+  validateEnvironmentContract,
+  validateDeploymentProfile,
   type JSONType,
 } from "./index";
 import { checkExpr, checkModule } from "./check/module";
 import type { Diagnostic } from "./check/context";
 import type { CallableTable } from "./check/builtin-types";
 import { loadBuiltinTable } from "./builtins";
-import { buildEffectNamespace, EFFECTS_BINDING } from "./environment/effects";
-import { loadEnvironment } from "./environment/environment";
-import type { Environment } from "./environment/types";
+import { loadEnvironmentContract } from "./environment/environment";
+import type { EnvironmentContract } from "./environment/types";
 import { isFunctionBody } from "./function-value";
+import { linkModule } from "./module-linker";
 
 const HELP = `jfn — a CLI for the json-fn language
 
@@ -38,6 +42,10 @@ Commands:
   to-json        Read .jfn shorthand, print canonical json-fn JSON   (alias: s2j, parse)
   eval           Evaluate a .jfn expression and print the result     (alias: e)
   check          Typecheck a canonical json-fn module or expression  (alias: c)
+  validate-contract
+                  Validate a portable contract JSON artifact
+  validate-profile
+                  Validate a portable deployment profile JSON artifact
 
 Input:
   Pass the source as a positional argument, with --file <path>, or on stdin.
@@ -51,11 +59,11 @@ to-json options:
   -c, --compact       Emit minified JSON (default: pretty, 2-space indent)
 
 eval options:
-      --environment <path>
-                      Treat input as a module and run the environment entry
+      --contract <path>
+                      Run the contract entry with an empty adapter; the contract
+                      must declare no direct host functions
       --function <name>
-                      Unchecked development invocation using the environment
-                      definitions and generated effects API
+                      Development-only invocation of any named module function
       --args <json>   JSON array of function/entry arguments (default: [])
   -j, --json          Print the result as JSON (default)
   -s, --shorthand     Print the result as .jfn shorthand (best effort)
@@ -70,21 +78,25 @@ check options:
                       Emit diagnostics as a JSON array (path/message/severity/
                       expected/actual) instead of prose
       --no-builtins   Don't load the builtin signature table (spec/builtins.json)
-      --environment <path>
-                      Load an operator-owned typed environment JSON file
+      --contract <path>
+                      Load an operator-owned portable contract JSON file
       --allow-untyped-functions
                       Don't require top-level functions to declare a $sig
       --require-full-coverage
                       Exit non-zero when any expression degrades to any
   -c, --compact       Emit JSON output (inferred type, --json-diagnostics) minified
 
+validate-profile options:
+      --contract <path>
+                      EnvironmentContract used to validate selected profile effects
+
 Examples:
   jfn to-json '1 + 2 * 3'
   echo '{ "$call": "add", "$args": [1, 2] }' | jfn to-shorthand
   jfn eval '(x) => x * x' --args '[9]'
   jfn eval 'map((n) => n + 1, [1, 2, 3])' --shorthand
-  jfn eval --file module.jfn --environment module.environment.json
-  jfn eval --file module.jfn --environment module.environment.json --function demo
+  jfn eval --file module.jfn --contract module.contract.json
+  jfn eval --file module.jfn --contract module.contract.json --function demo
   jfn check --expr 'add(1, 2)'
   jfn check --file ../examples/typed/types.jfn
 `;
@@ -193,7 +205,7 @@ async function cmdEval(argv: string[]): Promise<void> {
     {
       "-f": "file",
       "--file": "file",
-      "--environment": "environment",
+      "--contract": "contract",
       "--function": "function",
       "--args": "args",
     },
@@ -230,54 +242,51 @@ async function cmdEval(argv: string[]): Promise<void> {
   const stdlib = createStdlib({
     logger: (value, label) => console.error(label ? `${label}:` : "tap:", value),
   });
-  let builtinDefs: CallableTable["$defs"];
+  let builtins: CallableTable;
   try {
-    builtinDefs = loadBuiltinTable().$defs;
+    builtins = loadBuiltinTable();
   } catch (e) {
     fail(`could not load builtin table: ${errMessage(e)}`);
   }
-  const definitions = { builtinDefs };
+  const definitions = { builtinDefs: builtins.$defs };
 
   let result: JSONType;
   try {
-    const environmentPath = parsed.options.environment;
+    const contractPath = parsed.options.contract;
     const functionName = parsed.options.function;
-    if (functionName !== undefined && environmentPath === undefined) {
-      fail("--function requires --environment");
+    if (functionName !== undefined && contractPath === undefined) {
+      fail("--function requires --contract");
     }
-    if (environmentPath !== undefined) {
+    if (contractPath !== undefined) {
       if (
         typeof parsedSource !== "object" ||
         parsedSource === null ||
         Array.isArray(parsedSource)
       ) {
-        fail("--environment requires module input");
+        fail("--contract requires module input");
       }
-      const environment = loadEnvironment(environmentPath, builtinDefs);
+      const contract = loadEnvironmentContract(contractPath, builtins);
       const module = parsedSource as Record<string, JSONType>;
       if (functionName !== undefined) {
-        if (Object.prototype.hasOwnProperty.call(module, EFFECTS_BINDING)) {
-          fail(`"${EFFECTS_BINDING}" is reserved for environment-declared effects`);
-        }
+        const linked = linkModule({ module, builtins, contract });
         result = callProgram(
-          {
-            ...module,
-            [EFFECTS_BINDING]: buildEffectNamespace(environment.effects),
-          },
+          linked.module,
           functionName,
           args,
           stdlib,
           undefined,
-          {
-            builtinDefs,
-            environmentDefs: environment.$defs,
-          },
+          linked.definitionSources,
         );
       } else {
-        result = await runTask(module, environment, args, {
-          registry: stdlib,
-          capabilities: {},
-        });
+        result = await runTask(
+          prepareDeployment({
+            module,
+            contract,
+            profile: { version: 1, mode: "live", effects: [] },
+            adapter: { functions: {}, effects: {} },
+          }),
+          args,
+        );
       }
     } else if (isFunctionBody(parsedSource)) {
       // A bare function literal applied to the supplied --args.
@@ -308,7 +317,7 @@ async function cmdCheck(argv: string[]): Promise<void> {
     {
       "-f": "file",
       "--file": "file",
-      "--environment": "environment",
+      "--contract": "contract",
     },
     {
       "-e": "expr",
@@ -352,12 +361,12 @@ async function cmdCheck(argv: string[]): Promise<void> {
       fail(`could not load builtin table: ${errMessage(e)}`);
     }
   }
-  let environment: Environment | undefined;
-  if (parsed.options.environment !== undefined) {
+  let contract: EnvironmentContract | undefined;
+  if (parsed.options.contract !== undefined) {
     try {
-      environment = loadEnvironment(parsed.options.environment, builtins?.$defs);
+      contract = loadEnvironmentContract(parsed.options.contract, builtins ?? false);
     } catch (e) {
-      fail(`could not load environment: ${errMessage(e)}`);
+      fail(`could not load contract: ${errMessage(e)}`);
     }
   }
 
@@ -366,7 +375,7 @@ async function cmdCheck(argv: string[]): Promise<void> {
   const jsonDiagnostics = parsed.flags.has("json-diagnostics");
 
   if (parsed.flags.has("expr")) {
-    const { type, diagnostics } = checkExpr(json, {}, builtins, { environment });
+    const { type, diagnostics } = checkExpr(json, {}, builtins, { contract });
     if (jsonDiagnostics) {
       reportDiagnosticsJson(diagnostics, compact);
     } else {
@@ -383,7 +392,7 @@ async function cmdCheck(argv: string[]): Promise<void> {
 
   const diagnostics = checkModule(json as Record<string, JSONType>, builtins, {
     requireTypedModuleFunctions: !parsed.flags.has("allow-untyped-functions"),
-    environment,
+    contract,
   });
   if (jsonDiagnostics) {
     reportDiagnosticsJson(diagnostics, compact);
@@ -391,6 +400,40 @@ async function cmdCheck(argv: string[]): Promise<void> {
     reportDiagnostics(diagnostics);
   }
   exitFromDiagnostics(diagnostics, requireFullCoverage);
+}
+
+async function cmdValidateContract(argv: string[]): Promise<void> {
+  const parsed = parseArgs(argv, { "-f": "file", "--file": "file" }, {});
+  const value = await readJsonArtifact(parsed);
+  try {
+    validateEnvironmentContract(value);
+  } catch (e) {
+    fail(`invalid contract: ${errMessage(e)}`);
+  }
+  console.log("Valid contract.");
+}
+
+async function cmdValidateProfile(argv: string[]): Promise<void> {
+  const parsed = parseArgs(argv, { "-f": "file", "--file": "file", "--contract": "contract" }, {});
+  const contractPath = parsed.options.contract;
+  if (contractPath === undefined) fail("validate-profile requires --contract <path>");
+  const value = await readJsonArtifact(parsed);
+  try {
+    const contract = loadEnvironmentContract(contractPath);
+    validateDeploymentProfile(value, contract);
+  } catch (e) {
+    fail(`invalid deployment profile: ${errMessage(e)}`);
+  }
+  console.log("Valid deployment profile.");
+}
+
+async function readJsonArtifact(parsed: ParsedArgs): Promise<unknown> {
+  const raw = await readInput(parsed);
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch (e) {
+    fail(`invalid JSON input: ${errMessage(e)}`);
+  }
 }
 
 // Emit the raw `Diagnostic[]` as JSON (pretty by default, minified with
@@ -468,6 +511,12 @@ async function main(): Promise<void> {
     case "check":
     case "c":
       await cmdCheck(rest);
+      break;
+    case "validate-contract":
+      await cmdValidateContract(rest);
+      break;
+    case "validate-profile":
+      await cmdValidateProfile(rest);
       break;
     default:
       fail(`unknown command "${command}". Run "jfn --help" for usage.`);

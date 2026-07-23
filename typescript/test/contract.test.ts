@@ -1,19 +1,25 @@
 import { describe, expect, test } from "bun:test";
 import {
   DuplicateCallableContractError,
-  EnvironmentConfigurationError,
-  EnvironmentValidationError,
+  DuplicateDefinitionError,
+  EnvironmentContractValidationError,
+  ExternalFunctionError,
+  ModuleLinkError,
   ReservedDefinitionError,
   RuntimeContractError,
+  ReservedAdapterAliasError,
+  RunOptionsValidationError,
+  UnhandledEffectError,
   checkModule,
   createStdlib,
   loadBuiltinTable,
   mergeCallableTables,
   parseShorthand,
-  requiredCapabilities,
-  runTask,
-  validateEnvironment,
-  type Environment,
+  analyzeDeploymentCapabilities,
+  prepareDeployment,
+  runTask as runPreparedTask,
+  validateEnvironmentContract,
+  type EnvironmentContract,
   type JSONType,
 } from "../src";
 
@@ -28,8 +34,9 @@ function body(
   return { $params: params, $sig: signature, $return: returns };
 }
 
-function environment(overrides: Partial<Environment> = {}): Environment {
+function contract(overrides: Partial<EnvironmentContract> = {}): EnvironmentContract {
   return {
+    version: 1,
     functions: {},
     effects: {},
     entry: { name: "main", required: [], optional: [], returns: { task: I } },
@@ -41,11 +48,32 @@ function module(source: string): Record<string, JSONType> {
   return parseShorthand(source) as Record<string, JSONType>;
 }
 
-describe("environment validation and composition", () => {
-  test("reserves Task across environment and canonical module definitions", () => {
-    expect(() =>
-      validateEnvironment(environment({ $defs: { Task: true } }), loadBuiltinTable().$defs),
-    ).toThrow(EnvironmentValidationError);
+function runTask(
+  mod: Record<string, JSONType>,
+  contract: EnvironmentContract,
+  args: JSONType[],
+  host: { registry: Record<string, any>; capabilities: Record<string, any> },
+) {
+  const functions = Object.fromEntries(
+    Object.keys(contract.functions ?? {}).map((name) => [name, host.registry[name]]),
+  );
+  const effects = Object.keys(host.capabilities);
+  return runPreparedTask(
+    prepareDeployment({
+      module: mod,
+      contract,
+      profile: { version: 1, mode: "live", effects },
+      adapter: { functions, effects: host.capabilities },
+    }),
+    args,
+  );
+}
+
+describe("contract validation and composition", () => {
+  test("reserves Task across contract and canonical module definitions", () => {
+    expect(() => validateEnvironmentContract(contract({ $defs: { Task: true } }))).toThrow(
+      EnvironmentContractValidationError,
+    );
     expect(() =>
       checkModule(
         {
@@ -53,13 +81,13 @@ describe("environment validation and composition", () => {
           main: { $params: [], $return: { $call: "pure", $args: [1] } },
         },
         loadBuiltinTable(),
-        { environment: environment() },
+        { contract: contract() },
       ),
     ).toThrow(ReservedDefinitionError);
   });
 
   test("validates all contracts against the shared definition pool", () => {
-    const env = environment({
+    const env = contract({
       $defs: { Count: I },
       functions: {
         "host.label": {
@@ -79,12 +107,12 @@ describe("environment validation and composition", () => {
         returns: { task: { $ref: "#/$defs/Count" } },
       },
     });
-    expect(() => validateEnvironment(env, loadBuiltinTable().$defs)).not.toThrow();
+    expect(() => validateEnvironmentContract(env)).not.toThrow();
   });
 
-  test("reports malformed environment paths", () => {
+  test("reports malformed contract paths", () => {
     expect(() =>
-      validateEnvironment({
+      validateEnvironmentContract({
         functions: {},
         effects: {},
         entry: {
@@ -94,22 +122,35 @@ describe("environment validation and composition", () => {
           returns: true,
         },
       }),
-    ).toThrow(EnvironmentValidationError);
+    ).toThrow(EnvironmentContractValidationError);
   });
 
   test("rejects callable collisions instead of overriding core contracts", () => {
     expect(() =>
-      mergeCallableTables(
-        loadBuiltinTable(),
-        environment({ functions: { map: { signatures: [] } } }),
-      ),
+      mergeCallableTables(loadBuiltinTable(), contract({ functions: { map: { signatures: [] } } })),
     ).toThrow(DuplicateCallableContractError);
+  });
+
+  test("rejects definition collisions across builtin, contract, and module sources", () => {
+    expect(() => validateEnvironmentContract(contract({ $defs: { Match: I } }))).toThrow(
+      EnvironmentContractValidationError,
+    );
+    expect(() =>
+      checkModule(
+        {
+          $types: { Match: I },
+          main: { $params: [], $return: { $call: "pure", $args: [1] } },
+        },
+        loadBuiltinTable(),
+        { contract: contract() },
+      ),
+    ).toThrow(DuplicateDefinitionError);
   });
 
   test("rejects effect names that conflict with namespace prefixes", () => {
     expect(() =>
-      validateEnvironment(
-        environment({
+      validateEnvironmentContract(
+        contract({
           effects: {
             sensor: { params: [], returns: I },
             "sensor.read": { params: [], returns: I },
@@ -120,11 +161,11 @@ describe("environment validation and composition", () => {
   });
 });
 
-describe("environment checker integration", () => {
+describe("contract checker integration", () => {
   const builtins = loadBuiltinTable();
 
-  test("injects the environment entry signature into normal body checking", () => {
-    const env = environment({
+  test("injects the contract entry signature into normal body checking", () => {
+    const env = contract({
       functions: {
         "host.inc": { signatures: [{ required: [I], optional: [], returns: I }] },
       },
@@ -138,11 +179,11 @@ describe("environment checker integration", () => {
         },
       },
     } as Record<string, JSONType>;
-    expect(checkModule(mod, builtins, { environment: env })).toEqual([]);
+    expect(checkModule(mod, builtins, { contract: env })).toEqual([]);
   });
 
   test("rejects an entry body whose parameters do not match the injected signature", () => {
-    const env = environment({
+    const env = contract({
       entry: { name: "main", required: [I], optional: [], returns: { task: I } },
     });
     const mod = {
@@ -152,7 +193,7 @@ describe("environment checker integration", () => {
       },
     } as Record<string, JSONType>;
 
-    expect(checkModule(mod, builtins, { environment: env })).toContainEqual(
+    expect(checkModule(mod, builtins, { contract: env })).toContainEqual(
       expect.objectContaining({
         severity: "error",
         path: ["main", "$params"],
@@ -163,7 +204,7 @@ describe("environment checker integration", () => {
   });
 
   test("rejects malformed entry parameters before injected body checking", () => {
-    const env = environment({
+    const env = contract({
       entry: { name: "main", required: [I], optional: [], returns: { task: I } },
     });
     const mod = {
@@ -173,7 +214,7 @@ describe("environment checker integration", () => {
       },
     } as Record<string, JSONType>;
 
-    expect(checkModule(mod, builtins, { environment: env })).toEqual([
+    expect(checkModule(mod, builtins, { contract: env })).toEqual([
       {
         path: ["main", "$params[0]"],
         message: expect.stringContaining("$params[0]: A defaulted parameter must contain exactly"),
@@ -190,7 +231,7 @@ describe("environment checker integration", () => {
       },
     } as Record<string, JSONType>;
     expect(
-      checkModule(mod, builtins, { environment: environment() }).some(
+      checkModule(mod, builtins, { contract: contract() }).some(
         (diagnostic) =>
           diagnostic.severity === "error" && diagnostic.path.join(".") === "main.$return",
       ),
@@ -198,16 +239,14 @@ describe("environment checker integration", () => {
   });
 
   test("checks direct and task entry return modes distinctly", () => {
-    const direct = environment({
+    const direct = contract({
       entry: { name: "main", required: [], optional: [], returns: I },
     });
 
-    expect(checkModule(module("{ main: () => 42 }"), builtins, { environment: direct })).toEqual(
-      [],
-    );
+    expect(checkModule(module("{ main: () => 42 }"), builtins, { contract: direct })).toEqual([]);
     expect(
       checkModule(module("{ main: () => pure(42) }"), builtins, {
-        environment: direct,
+        contract: direct,
       }).some(
         (diagnostic) =>
           diagnostic.severity === "error" && diagnostic.path.join(".") === "main.$return",
@@ -215,7 +254,7 @@ describe("environment checker integration", () => {
     ).toBe(true);
     expect(
       checkModule(module("{ main: () => 42 }"), builtins, {
-        environment: environment(),
+        contract: contract(),
       }).some(
         (diagnostic) =>
           diagnostic.severity === "error" && diagnostic.path.join(".") === "main.$return",
@@ -224,7 +263,7 @@ describe("environment checker integration", () => {
   });
 
   test("types manifest-derived effect calls through the injected namespace", () => {
-    const env = environment({
+    const env = contract({
       effects: {
         "sensor.read": { params: [], returns: I },
       },
@@ -232,13 +271,13 @@ describe("environment checker integration", () => {
 
     expect(
       checkModule(module("{ main: () => effects.sensor.read() }"), builtins, {
-        environment: env,
+        contract: env,
       }),
     ).toEqual([]);
   });
 
   test("preserves effect completion types through explicitly typed helpers", () => {
-    const env = environment({
+    const env = contract({
       effects: {
         "sensor.read": { params: [], returns: I },
       },
@@ -248,7 +287,7 @@ describe("environment checker integration", () => {
       main: () => read()
     }`);
 
-    expect(checkModule(mod, builtins, { environment: env })).toEqual([]);
+    expect(checkModule(mod, builtins, { contract: env })).toEqual([]);
   });
 
   test("checks recursive helper completion types through their eager signatures", () => {
@@ -258,7 +297,7 @@ describe("environment checker integration", () => {
       main: () => loop(2)
     }`);
 
-    expect(checkModule(mod, builtins, { environment: environment() })).toEqual([]);
+    expect(checkModule(mod, builtins, { contract: contract() })).toEqual([]);
   });
 
   test("rejects a helper body with the wrong declared completion type", () => {
@@ -268,7 +307,7 @@ describe("environment checker integration", () => {
     }`);
 
     expect(
-      checkModule(mod, builtins, { environment: environment() }).some(
+      checkModule(mod, builtins, { contract: contract() }).some(
         (diagnostic) =>
           diagnostic.severity === "error" && diagnostic.path.join(".") === "wrong.$return",
       ),
@@ -276,7 +315,7 @@ describe("environment checker integration", () => {
   });
 
   test("checks generated effect-call arguments against the manifest", () => {
-    const env = environment({
+    const env = contract({
       effects: {
         log: { params: [I], returns: { type: "null" } },
       },
@@ -285,13 +324,13 @@ describe("environment checker integration", () => {
 
     expect(
       checkModule(module('{ main: () => effects.log("wrong") }'), builtins, {
-        environment: env,
+        contract: env,
       }).some((diagnostic) => diagnostic.severity === "error"),
     ).toBe(true);
   });
 
-  test("contextually types annotated handler clauses from the environment", () => {
-    const env = environment({
+  test("contextually types annotated handler clauses from the contract", () => {
+    const env = contract({
       effects: {
         log: { params: [S], returns: { type: "null" } },
       },
@@ -304,11 +343,11 @@ describe("environment checker integration", () => {
       main: () => pure(1)
     }`);
 
-    expect(checkModule(mod, builtins, { environment: env })).toEqual([]);
+    expect(checkModule(mod, builtins, { contract: env })).toEqual([]);
   });
 
   test("checks handler parameters, resume input, and clause results", () => {
-    const env = environment({
+    const env = contract({
       effects: {
         log: { params: [S], returns: { type: "null" } },
       },
@@ -320,7 +359,7 @@ describe("environment checker integration", () => {
       },
       main: () => pure(1)
     }`);
-    const diagnostics = checkModule(mod, builtins, { environment: env });
+    const diagnostics = checkModule(mod, builtins, { contract: env });
 
     expect(diagnostics).toContainEqual(
       expect.objectContaining({
@@ -338,28 +377,23 @@ describe("environment checker integration", () => {
   });
 
   test("rejects a guest binding that shadows the injected effects namespace", () => {
-    const diagnostics = checkModule(module("{ effects: {}, main: () => pure(1) }"), builtins, {
-      environment: environment(),
-    });
-
-    expect(diagnostics).toContainEqual(
-      expect.objectContaining({
-        path: ["effects"],
-        message: '"effects" is reserved for environment-declared effects',
+    expect(() =>
+      checkModule(module("{ effects: {}, main: () => pure(1) }"), builtins, {
+        contract: contract(),
       }),
-    );
+    ).toThrow(ModuleLinkError);
   });
 });
 
-describe("environment runtime integration", () => {
+describe("contract runtime integration", () => {
   test("executes and validates a direct entry without task stepping", async () => {
-    const env = environment({
+    const env = contract({
       entry: { name: "main", required: [], optional: [], returns: I },
     });
     const host = { registry: createStdlib(), capabilities: {} };
 
     expect(
-      checkModule(module("{ main: () => 42 }"), loadBuiltinTable(), { environment: env }),
+      checkModule(module("{ main: () => 42 }"), loadBuiltinTable(), { contract: env }),
     ).toEqual([]);
     expect(await runTask(module("{ main: () => 42 }"), env, [], host)).toBe(42);
     expect(runTask(module('{ main: () => "wrong" }'), env, [], host)).rejects.toThrow(
@@ -368,7 +402,7 @@ describe("environment runtime integration", () => {
   });
 
   test("does not auto-run task-shaped data returned by a direct entry", async () => {
-    const env = environment({
+    const env = contract({
       entry: { name: "main", required: [], optional: [], returns: true },
     });
 
@@ -381,7 +415,7 @@ describe("environment runtime integration", () => {
   });
 
   test("supports required and optional arguments for direct entries", async () => {
-    const env = environment({
+    const env = contract({
       entry: {
         name: "main",
         required: [I],
@@ -392,31 +426,31 @@ describe("environment runtime integration", () => {
     const mod = module("{ main: (required, optional?) => [required, optional] }");
     const host = { registry: createStdlib(), capabilities: {} };
 
-    expect(checkModule(mod, loadBuiltinTable(), { environment: env })).toEqual([]);
+    expect(checkModule(mod, loadBuiltinTable(), { contract: env })).toEqual([]);
     expect(await runTask(mod, env, [1], host)).toEqual([1, null]);
     expect(await runTask(mod, env, [1, 2], host)).toEqual([1, 2]);
   });
 
   test("returns ordinary object data from a direct entry", async () => {
-    const resultSchema: Environment["entry"]["returns"] = {
+    const resultSchema: EnvironmentContract["entry"]["returns"] = {
       type: "object",
       properties: { answer: I },
       required: ["answer"],
       additionalProperties: false,
     };
-    const env = environment({
+    const env = contract({
       entry: { name: "main", required: [], optional: [], returns: resultSchema },
     });
     const mod = module("{ main: () => { answer: 42 } }");
 
-    expect(checkModule(mod, loadBuiltinTable(), { environment: env })).toEqual([]);
+    expect(checkModule(mod, loadBuiltinTable(), { contract: env })).toEqual([]);
     expect(await runTask(mod, env, [], { registry: createStdlib(), capabilities: {} })).toEqual({
       answer: 42,
     });
   });
 
   test("rejects invalid initial entry arguments before evaluation", () => {
-    const env = environment({
+    const env = contract({
       entry: { name: "main", required: [I], optional: [], returns: { task: I } },
     });
     const mod = {
@@ -435,7 +469,7 @@ describe("environment runtime integration", () => {
   });
 
   test("accepts entry arguments from the required count through the optional maximum", async () => {
-    const env = environment({
+    const env = contract({
       entry: {
         name: "main",
         required: [I],
@@ -449,7 +483,7 @@ describe("environment runtime integration", () => {
     }`);
     const host = { registry: createStdlib(), capabilities: {} };
 
-    expect(checkModule(mod, loadBuiltinTable(), { environment: env })).toEqual([]);
+    expect(checkModule(mod, loadBuiltinTable(), { contract: env })).toEqual([]);
     expect(await runTask(mod, env, [1], host)).toEqual([1, null, 7]);
     expect(await runTask(mod, env, [1, 2], host)).toEqual([1, 2, 7]);
     expect(await runTask(mod, env, [1, 2, 3], host)).toEqual([1, 2, 3]);
@@ -461,7 +495,7 @@ describe("environment runtime integration", () => {
 
   test("validates supplied nullable optional entry arguments without requiring them", async () => {
     const nullableInteger: JSONType = { anyOf: [I, { type: "null" }] };
-    const env = environment({
+    const env = contract({
       entry: {
         name: "main",
         required: [],
@@ -472,7 +506,7 @@ describe("environment runtime integration", () => {
     const mod = module("{ main: (value?) => pure(value) }");
     const host = { registry: createStdlib(), capabilities: {} };
 
-    expect(checkModule(mod, loadBuiltinTable(), { environment: env })).toEqual([]);
+    expect(checkModule(mod, loadBuiltinTable(), { contract: env })).toEqual([]);
     expect(await runTask(mod, env, [], host)).toBeNull();
     expect(await runTask(mod, env, [3], host)).toBe(3);
     expect(await runTask(mod, env, [null], host)).toBeNull();
@@ -480,7 +514,7 @@ describe("environment runtime integration", () => {
   });
 
   test("validates direct functions and entry arguments/results", async () => {
-    const env = environment({
+    const env = contract({
       functions: {
         "host.inc": { signatures: [{ required: [I], optional: [], returns: I }] },
       },
@@ -504,8 +538,33 @@ describe("environment runtime integration", () => {
     ).toBe(2);
   });
 
+  test("erases generic contract variables for runtime host-function wrapping", async () => {
+    const generic = contract({
+      functions: {
+        identity: {
+          signatures: [
+            {
+              typeParams: ["T"],
+              required: [{ $tvar: "T" }],
+              optional: [],
+              returns: { $tvar: "T" },
+            },
+          ],
+        },
+      },
+      entry: { name: "main", required: [], optional: [], returns: { task: true } },
+    });
+    const mod = module("{ main: () => pure(identity({ ok: true })) }");
+    const value = await runTask(mod, generic, [], {
+      registry: { ...createStdlib(), identity: (input: JSONType) => input },
+      capabilities: {},
+    });
+
+    expect(value).toEqual({ ok: true });
+  });
+
   test("rejects bad host-function results at the boundary", async () => {
-    const env = environment({
+    const env = contract({
       functions: {
         "host.inc": { signatures: [{ required: [I], optional: [], returns: I }] },
       },
@@ -528,8 +587,45 @@ describe("environment runtime integration", () => {
     ).rejects.toThrow(RuntimeContractError);
   });
 
-  test("requires implementations for every declared host boundary", () => {
-    const env = environment({
+  test("keeps adapter aliases private while contract wrappers remain callable", async () => {
+    const env = contract({
+      functions: {
+        inc: { signatures: [{ required: [I], optional: [], returns: I }] },
+      },
+      entry: { name: "main", required: [S], optional: [], returns: { task: I } },
+    });
+    const host = {
+      registry: { ...createStdlib(), inc: (value: number) => value + 1 },
+      capabilities: {},
+    };
+
+    expect(await runTask(module("{ main: (_name) => pure(inc(1)) }"), env, ["inc"], host)).toBe(2);
+    await expect(
+      runTask(module("{ main: (name) => pure(name(1)) }"), env, ["@adapter:inc"], host),
+    ).rejects.toBeInstanceOf(ReservedAdapterAliasError);
+  });
+
+  test("surfaces thrown adapter functions as typed external errors in live mode", async () => {
+    const env = contract({
+      functions: {
+        explode: { signatures: [{ required: [], optional: [], returns: I }] },
+      },
+    });
+    await expect(
+      runTask(module("{ main: () => pure(explode()) }"), env, [], {
+        registry: {
+          ...createStdlib(),
+          explode: () => {
+            throw new Error("boom");
+          },
+        },
+        capabilities: {},
+      }),
+    ).rejects.toBeInstanceOf(ExternalFunctionError);
+  });
+
+  test("allows contract effects omitted from the live profile", async () => {
+    const env = contract({
       effects: { read: { params: [], returns: I } },
     });
     const mod = {
@@ -539,12 +635,46 @@ describe("environment runtime integration", () => {
         { $call: "pure", $args: [1] },
       ),
     } as Record<string, JSONType>;
-    expect(() => runTask(mod, env, [], { registry: createStdlib(), capabilities: {} })).toThrow(
-      EnvironmentConfigurationError,
+    expect(await runTask(mod, env, [], { registry: createStdlib(), capabilities: {} })).toBe(1);
+  });
+
+  test("allows guest handlers to consume effects omitted from the live profile", async () => {
+    const env = contract({
+      effects: { read: { params: [], returns: I } },
+    });
+    const mod = module(`{
+      main: () => pure(handle effects.read() with {
+        read: (resume) => resume(7)
+      })
+    }`);
+    expect(await runTask(mod, env, [], { registry: createStdlib(), capabilities: {} })).toBe(7);
+  });
+
+  test("throws when an omitted live effect escapes guest handlers", async () => {
+    const env = contract({
+      effects: { read: { params: [], returns: I } },
+    });
+    await expect(
+      runTask(module("{ main: () => effects.read() }"), env, [], {
+        registry: createStdlib(),
+        capabilities: {},
+      }),
+    ).rejects.toBeInstanceOf(UnhandledEffectError);
+  });
+
+  test("does not allow run options to override portable profile limits", () => {
+    const deployment = prepareDeployment({
+      module: module("{ main: () => pure(1) }"),
+      contract: contract(),
+      profile: { version: 1, mode: "live", effects: [], limits: { maxFuel: 100 } },
+      adapter: { functions: {}, effects: {} },
+    });
+    expect(() => runPreparedTask(deployment, [], { maxFuel: 1000 } as never)).toThrow(
+      RunOptionsValidationError,
     );
   });
 
-  test("rejects runtime functions that have no callable contract", () => {
+  test("rejects adapter functions that have no callable contract", () => {
     const mod = {
       main: body(
         [],
@@ -553,16 +683,18 @@ describe("environment runtime integration", () => {
       ),
     } as Record<string, JSONType>;
     expect(() =>
-      runTask(mod, environment(), [], {
-        registry: { ...createStdlib(), accidental: () => null },
-        capabilities: {},
+      prepareDeployment({
+        module: mod,
+        contract: contract(),
+        profile: { version: 1, mode: "live", effects: [] },
+        adapter: { functions: { accidental: () => null }, effects: {} },
       }),
-    ).toThrow('runtime function "accidental" has no callable contract');
+    ).toThrow('adapter.functions.accidental: implementation has no contract function "accidental"');
   });
 
   test("runs a qualified effect when a direct function has the same name", async () => {
     let directCalled = false;
-    const env = environment({
+    const env = contract({
       functions: {
         ping: { signatures: [{ required: [], optional: [], returns: I }] },
       },
@@ -588,16 +720,16 @@ describe("environment runtime integration", () => {
 
   test("rejects a runtime module that shadows the effects namespace", () => {
     expect(() =>
-      runTask(module("{ effects: {}, main: () => pure(1) }"), environment(), [], {
+      runTask(module("{ effects: {}, main: () => pure(1) }"), contract(), [], {
         registry: createStdlib(),
         capabilities: {},
       }),
-    ).toThrow('"effects" is reserved for environment-declared effects');
+    ).toThrow('"effects" is reserved for contract-declared effects');
   });
 });
 
-describe("environment capability admission", () => {
-  const env = environment({
+describe("contract capability admission", () => {
+  const env = contract({
     effects: {
       "sensor.read": { params: [], returns: I },
       log: { params: [S], returns: { type: "null" } },
@@ -606,17 +738,33 @@ describe("environment capability admission", () => {
 
   test("collects only statically referenced qualified effects", () => {
     const mod = module('{ main: () => effects.sensor.read(), helper: () => pure("unused") }');
-    expect(requiredCapabilities(mod, env)).toEqual({
-      names: ["sensor.read"],
+    expect(
+      analyzeDeploymentCapabilities({
+        module: mod,
+        contract: env,
+        profile: { version: 1, mode: "live", effects: ["sensor.read"] },
+      }),
+    ).toEqual({
+      possibleNames: ["sensor.read"],
       dynamic: false,
+      profileBindings: ["sensor.read"],
+      uncovered: [],
     });
   });
 
   test("marks computed effects access as dynamic", () => {
     const mod = module("{ main: (name) => effects[name]() }");
-    expect(requiredCapabilities(mod, env)).toEqual({
-      names: [],
+    expect(
+      analyzeDeploymentCapabilities({
+        module: mod,
+        contract: env,
+        profile: { version: 1, mode: "live", effects: [] },
+      }),
+    ).toEqual({
+      possibleNames: [],
       dynamic: true,
+      profileBindings: [],
+      uncovered: ["log", "sensor.read"],
     });
   });
 });

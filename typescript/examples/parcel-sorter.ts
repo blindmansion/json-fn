@@ -1,4 +1,4 @@
-// parcel-sorter.ts — host driver for examples/typed/parcel-sorter.jfn.
+// parcel-sorter.ts — host driver for examples/parcel-sorter.jfn.
 //
 // The guest owns routing policy and performs three declared effects:
 // `scanner.read`, `conveyor.route`, and `log`. This host connects those effects
@@ -10,9 +10,10 @@
 
 import {
   runTask,
-  createStdlib,
-  loadEnvironment,
+  loadEnvironmentContract,
+  loadDeploymentProfile,
   parseShorthand,
+  prepareDeployment,
   TaskRaiseError,
   type JSONType,
 } from "../src";
@@ -21,9 +22,14 @@ import { join } from "path";
 
 const source = readFileSync(join(import.meta.dir, "../../examples/parcel-sorter.jfn"), "utf-8");
 const sorter = parseShorthand(source) as Record<string, JSONType>;
-const environment = loadEnvironment(
-  join(import.meta.dir, "../../examples/parcel-sorter.environment.json"),
+const contract = loadEnvironmentContract(
+  join(import.meta.dir, "../../examples/parcel-sorter.contract.json"),
 );
+const profile = loadDeploymentProfile(
+  join(import.meta.dir, "../../examples/parcel-sorter.profile.json"),
+  contract,
+);
+if (profile.mode !== "live") throw new Error("parcel sorter requires a live deployment profile");
 
 const normalShift = [
   { id: "N-104", region: "north", weightKg: 4.2, express: false },
@@ -53,10 +59,15 @@ const capabilities = {
 
 console.log("starting parcel shift:");
 try {
-  const finalState = await runTask(sorter, environment, [{ routed: 0 }, 100], {
-    registry: createStdlib(),
-    capabilities,
-  });
+  const finalState = await runTask(
+    prepareDeployment({
+      module: sorter,
+      contract,
+      profile,
+      adapter: { functions: {}, effects: capabilities },
+    }),
+    [{ routed: 0 }, 100],
+  );
   console.log("\nshift complete:");
   console.log(JSON.stringify(finalState, null, 2));
   process.exit(0);

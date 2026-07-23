@@ -1,14 +1,14 @@
 // A typed thermostat controller: read a sensor, decide, actuate — as effects.
 //
-// The operator-owned environment supplies Celsius, Percent, Mode, Config,
+// The operator-owned contract supplies Celsius, Percent, Mode, Config,
 // Reading, State, the three effect contracts, and the loop entry contract.
 // This guest module owns only its internal control and demo types. The injected
 // `effects` namespace carries each manifest result through ordinary calls.
 //
-// Run it through the validated host environment:
+// Run it through the validated host contract:
 //   bun run typescript/examples/thermostat.ts
-// Check it against the same environment:
-//   bun run typescript/src/cli.ts check --environment examples/typed/thermostat.environment.json --file examples/typed/thermostat.jfn
+// Check it against the same contract:
+//   bun run typescript/src/cli.ts check --contract examples/thermostat.contract.json --file examples/thermostat.jfn
 {
   // A fault the controller reports rather than silently swallowing.
   type Fault =
@@ -67,7 +67,7 @@
   },
 
   // Read the sensor up to `fuel` times. A `null` reading (the sensor is out of
-  // data) ends the run gracefully with the final state. The environment owns
+  // data) ends the run gracefully with the final state. The contract owns
   // this entry's parameter and Task<State> completion contract.
   loop: (st, fuel) =>
     if fuel <= 0

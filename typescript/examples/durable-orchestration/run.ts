@@ -6,9 +6,9 @@
 //
 // The same `workflow()` task is interpreted twice:
 //   1. entirely in json-fn by the state-transformer handler in orchestration.jfn;
-//   2. by createDurableDriver plus this small in-memory orchestration adapter.
+//   2. by createDurableDriver plus this small in-memory runtime adapter.
 //
-// The adapter is intentionally ordinary application code. The durable driver
+// The runtime adapter is intentionally ordinary application code. The durable driver
 // knows effect IDs and continuations, but it does not know what an "agent" or a
 // join means. Tracking handles and aggregating joins belongs here.
 
@@ -18,40 +18,45 @@ import {
   createDurableDriver,
   createStdlib,
   loadBuiltinTable,
-  loadEnvironment,
+  loadEnvironmentContract,
+  loadDeploymentProfile,
+  linkModule,
   parseShorthand,
+  prepareDeployment,
   type AdvanceOutcome,
   type DeliveryOutcome,
   type DurableDriver,
   type JSONType,
 } from "../../src";
-import { buildEffectNamespace } from "../../src/environment/effects";
-
 const modulePath = `${import.meta.dir}/orchestration.jfn`;
-const environmentPath = `${import.meta.dir}/orchestration.environment.json`;
+const contractPath = `${import.meta.dir}/orchestration.contract.json`;
+const profilePath = `${import.meta.dir}/orchestration.profile.json`;
 const source = await Bun.file(modulePath).text();
 const program = parseShorthand(source) as Record<string, JSONType>;
-const environment = loadEnvironment(environmentPath);
+const builtins = loadBuiltinTable();
+const contract = loadEnvironmentContract(contractPath, builtins);
+const profile = loadDeploymentProfile(profilePath, contract);
+if (profile.mode !== "durable") {
+  throw new Error("orchestration requires a durable deployment profile");
+}
+const linked = linkModule({ module: program, builtins, contract });
 const registry = createStdlib();
 
 // Development invocation of `demo` needs the same generated effect namespace
 // that a task host injects. `demo` then handles every effect in-language, so no
 // TypeScript capability runs for this first interpretation.
 const mockRun = callProgram(
-  { ...program, effects: buildEffectNamespace(environment.effects) },
+  linked.module,
   "demo",
   [],
   registry,
   undefined,
-  {
-    builtinDefs: loadBuiltinTable().$defs,
-    environmentDefs: environment.$defs,
-  },
+  linked.definitionSources,
 ) as { report: JSONType; transcript: JSONType[] };
 
 type AgentResult = { ok: true; output: string } | { ok: false; error: string };
 
-// These results stand in for real remote workers. A production adapter would
+// These results stand in for real remote workers. A production runtime adapter would
 // receive them from queues or webhooks; keeping them deterministic makes the
 // persistence and join behavior easy to see.
 const cannedResults: Record<string, AgentResult> = {
@@ -71,37 +76,32 @@ let driver: DurableDriver;
 let staleDeliveries = 0;
 
 driver = createDurableDriver({
-  module: program,
-  environment,
-  host: {
-    registry,
-    deploymentId: "orchestration-example-v1",
-    effects: {
-      "agent.spawn": "inline",
-      "agent.await": "suspending",
-      "agent.awaitAll": "suspending",
-      "agent.awaitAny": "suspending",
-      log: "inline",
-    },
-    capabilities: {
-      // Spawn is inline, so recovery may call it more than once. Memoizing by
-      // effectId makes the returned handle deterministic across replays.
-      "agent.spawn": ({ effectId }, spec) => {
-        const existing = handlesBySpawnEffect.get(effectId);
-        if (existing !== undefined) return existing;
-        const handle = (spec as { name: string }).name;
-        handlesBySpawnEffect.set(effectId, handle);
-        durableEvents.push(`spawn ${handle} (${effectId})`);
-        return handle;
-      },
-      // Log is also inline. A real host must accept at-least-once execution;
-      // this example de-duplicates by effectId to keep its display concise.
-      log: ({ effectId }, message) => {
-        durableEvents.push(`log ${String(message)} (${effectId})`);
-        return null;
+  deployment: prepareDeployment({
+    module: program,
+    contract,
+    profile,
+    adapter: {
+      functions: {},
+      effects: {
+        // Spawn is inline, so recovery may call it more than once. Memoizing by
+        // effectId makes the returned handle deterministic across replays.
+        "agent.spawn": ({ effectId }, spec) => {
+          const existing = handlesBySpawnEffect.get(effectId);
+          if (existing !== undefined) return existing;
+          const handle = (spec as { name: string }).name;
+          handlesBySpawnEffect.set(effectId, handle);
+          durableEvents.push(`spawn ${handle} (${effectId})`);
+          return handle;
+        },
+        // Log is also inline. A real host must accept at-least-once execution;
+        // this example de-duplicates by effectId to keep its display concise.
+        log: ({ effectId }, message) => {
+          durableEvents.push(`log ${String(message)} (${effectId})`);
+          return null;
+        },
       },
     },
-  },
+  }),
   store,
 });
 
@@ -117,7 +117,7 @@ assertEqual(outcome.result, mockRun.report, "durable and in-language reports");
 
 console.log("In-language transcript:");
 for (const event of mockRun.transcript) console.log(`  ${String(event)}`);
-console.log("\nDurable adapter transcript:");
+console.log("\nDurable runtime-adapter transcript:");
 for (const event of durableEvents) console.log(`  ${event}`);
 console.log(`\nStale duplicate/straggler deliveries: ${staleDeliveries}`);
 console.log("\nFinal report:");

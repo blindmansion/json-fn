@@ -1,8 +1,32 @@
 export { runTask, TaskRaiseError, UnhandledEffectError } from "./run-task";
-export type { Capability, EnvironmentHostConfiguration } from "./environment-runtime";
+export {
+  AdapterLinkError,
+  DEPLOYMENT_PROFILE_VERSION,
+  DeploymentProfileValidationError,
+  loadDeploymentProfile,
+  prepareDeployment,
+  validateDeploymentProfile,
+} from "./deployment";
+export type {
+  Capability,
+  DeploymentFunction,
+  DeploymentFunctions,
+  DeploymentProfile,
+  DurableDeploymentProfile,
+  LiveDeploymentProfile,
+  PortableExecutionLimits,
+  PreparedDeployment,
+  PreparedDurableDeployment,
+  PreparedLiveDeployment,
+  DurableRuntimeAdapter,
+  LiveRuntimeAdapter,
+  RuntimeAdapter,
+} from "./deployment";
 export { serializeTask, hydrateTask } from "./task-serialization";
-export { requiredCapabilities } from "./required-capabilities";
-export type { RequiredCapabilities } from "./required-capabilities";
+export { analyzeDeploymentCapabilities } from "./required-capabilities";
+export type { DeploymentCapabilityAnalysis } from "./required-capabilities";
+export { RunOptionsValidationError } from "./task-runtime";
+export type { HostLocalRunOptions, TaskSession } from "./task-runtime";
 export {
   DeploymentMismatchError,
   InMemoryWorkflowStore,
@@ -12,7 +36,6 @@ export {
   createDurableDriver,
   hydrateWorkflowRecord,
   serializeWorkflowRecord,
-  validateDurableHostConfiguration,
   validateWorkflowRecord,
 } from "./durable";
 export type {
@@ -23,7 +46,6 @@ export type {
   DurableDriver,
   DurableEffectContext,
   DurableEffectMode,
-  DurableHostConfiguration,
   PendingEffect,
   RunningBasis,
   WorkflowFailure,

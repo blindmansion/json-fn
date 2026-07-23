@@ -1,17 +1,10 @@
-import { loadBuiltinTable } from "../builtins";
-import {
-  mergeDefinitionPools,
-  readModuleDefinitions,
-  type DefinitionSources,
-} from "../definition-pool";
-import { buildEffectNamespace, EFFECTS_BINDING } from "../environment/effects";
 import type { EffectManifest } from "../environment/effect-types";
-import { EnvironmentConfigurationError, entryCompletionType } from "../environment/environment";
-import type { Environment } from "../environment/types";
+import { entryCompletionType } from "../environment/environment";
 import { prepareProgram } from "../eval";
 import { enforceRuntimeContract, RuntimeContractError } from "../runtime-contract";
 import { stepTask } from "../task";
-import type { ExecutionLimits, FunctionRegistry, JSONType } from "../types";
+import type { ExecutionLimits, JSONType, PerfStats, ExecutionUsage } from "../types";
+import type { PreparedDeployment } from "./deployment";
 
 export type PendingStep = {
   name: string;
@@ -19,7 +12,14 @@ export type PendingStep = {
   resume: JSONType;
 };
 
-export type PreparedTaskRuntime = {
+export type HostLocalRunOptions = {
+  signal?: AbortSignal;
+  timeoutMs?: number;
+  perf?: PerfStats;
+  usage?: ExecutionUsage;
+};
+
+export type TaskSession = {
   validateArgs(args: JSONType[]): JSONType[];
   invokeEntry(args: JSONType[]): JSONType;
   step(task: JSONType): { done: JSONType } | { pending: PendingStep };
@@ -28,6 +28,17 @@ export type PreparedTaskRuntime = {
   refreshDeadline(): void;
   fuelUsed(): number;
 };
+
+export class RunOptionsValidationError extends Error {
+  readonly code = "INVALID_RUN_OPTIONS";
+  constructor(
+    readonly path: string,
+    message: string,
+  ) {
+    super(`${path}: ${message}`);
+    this.name = "RunOptionsValidationError";
+  }
+}
 
 /** Thrown when a task performs `raise(err)` that no in-language handler caught. */
 export class TaskRaiseError extends Error {
@@ -39,30 +50,29 @@ export class TaskRaiseError extends Error {
   }
 }
 
-export function prepareTaskRuntime(
-  module: Record<string, JSONType>,
-  environment: Environment,
-  registry: FunctionRegistry,
-  limits?: ExecutionLimits,
-): PreparedTaskRuntime {
-  if (Object.prototype.hasOwnProperty.call(module, EFFECTS_BINDING)) {
-    throw new EnvironmentConfigurationError(
-      `"${EFFECTS_BINDING}" is reserved for environment-declared effects`,
-    );
+export function createTaskSession(
+  deployment: PreparedDeployment,
+  runOptions: HostLocalRunOptions = {},
+): TaskSession {
+  for (const key of Object.keys(runOptions)) {
+    if (!new Set(["signal", "timeoutMs", "perf", "usage"]).has(key)) {
+      throw new RunOptionsValidationError(
+        `runOptions.${key}`,
+        "portable execution limits must come from the deployment profile",
+      );
+    }
   }
-
-  const effects = environment.effects ?? {};
-  const runtimeModule = {
-    ...module,
-    [EFFECTS_BINDING]: buildEffectNamespace(environment.effects),
-  };
-  const definitions: DefinitionSources = {
-    builtinDefs: loadBuiltinTable().$defs,
-    environmentDefs: environment.$defs,
-  };
-  const defs = mergeDefinitionPools(definitions, readModuleDefinitions(runtimeModule));
-  const usage = limits?.usage ?? { fuel: 0 };
-  const prepared = prepareProgram(runtimeModule, registry, { ...limits, usage }, definitions);
+  const { contract, linked, registry, profile } = deployment;
+  const effects = contract.effects ?? {};
+  const usage = runOptions.usage ?? { fuel: 0 };
+  const limits: ExecutionLimits = { ...profile.limits, ...runOptions, usage };
+  const prepared = prepareProgram(
+    linked.module as Record<string, JSONType>,
+    registry,
+    limits,
+    linked.definitionSources,
+  );
+  const defs = linked.definitions;
 
   const effectContract = (name: string): EffectManifest[string] => {
     const effect = effects[name];
@@ -78,17 +88,17 @@ export function prepareTaskRuntime(
         args,
         {
           type: "array",
-          prefixItems: [...environment.entry.required, ...environment.entry.optional],
+          prefixItems: [...contract.entry.required, ...contract.entry.optional],
           items: false,
-          minItems: environment.entry.required.length,
+          minItems: contract.entry.required.length,
         },
         defs,
-        `entry "${environment.entry.name}" arguments`,
+        `entry "${contract.entry.name}" arguments`,
       ) as JSONType[];
     },
 
     invokeEntry(args) {
-      return prepared.invokeEntry(environment.entry.name, args);
+      return prepared.invokeEntry(contract.entry.name, args);
     },
 
     step(task) {
@@ -126,9 +136,9 @@ export function prepareTaskRuntime(
     validateCompletion(value) {
       return enforceRuntimeContract(
         value,
-        entryCompletionType(environment.entry.returns),
+        entryCompletionType(contract.entry.returns),
         defs,
-        `entry "${environment.entry.name}" result`,
+        `entry "${contract.entry.name}" result`,
       );
     },
 

@@ -1,5 +1,16 @@
-export { callFunction, callProgram, prepareProgram, createPerfStats } from "./eval";
-export { mergeDefinitionPools, ReservedDefinitionError } from "./definition-pool";
+export {
+  callFunction,
+  callProgram,
+  prepareProgram,
+  createPerfStats,
+  ExternalFunctionError,
+  ReservedAdapterAliasError,
+} from "./eval";
+export {
+  DuplicateDefinitionError,
+  mergeDefinitionPools,
+  ReservedDefinitionError,
+} from "./definition-pool";
 export type { DefinitionPool, DefinitionSources } from "./definition-pool";
 export { CallableTableValidationError, loadBuiltinTable, validateCallableTable } from "./builtins";
 export {
@@ -10,15 +21,17 @@ export {
 export type { EffectManifest, EffectSignature } from "./environment";
 export {
   DuplicateCallableContractError,
-  EnvironmentConfigurationError,
-  EnvironmentValidationError,
+  CONTRACT_VERSION,
+  EnvironmentContractValidationError,
   entryCompletionType,
   entryReturnType,
-  loadEnvironment,
+  loadEnvironmentContract,
   mergeCallableTables,
-  validateEnvironment,
+  validateEnvironmentContract,
 } from "./environment";
-export type { EntryContract, EntryReturn, Environment } from "./environment";
+export type { EntryContract, EntryReturn, EnvironmentContract } from "./environment";
+export { linkModule, ModuleLinkError } from "./module-linker";
+export type { LinkedEntrySignature, LinkedModule, LinkModuleOptions } from "./module-linker";
 export { checkExpr, checkModule } from "./check/module";
 export type { CheckExprOptions, CheckModuleOptions } from "./check/module";
 export {
@@ -38,6 +51,12 @@ export type {
   CallableTypeRuleV1,
 } from "./check/builtin-types";
 export type { Defs, Schema } from "./schema";
+export {
+  SchemaFragmentValidationError,
+  validateCallableSignature,
+  validateDefinitionTable,
+  validateSchemaFragment,
+} from "./schema";
 export { builtin, pure, meteredPure, raw, getArity } from "./utils";
 export type {
   JSONType,
@@ -56,17 +75,23 @@ export { isTask, stepTask, runHandle, TASK_TAG } from "./task";
 export type { TaskNode, EffectTask, PureTask, BindTask, Suspended } from "./task";
 export { RuntimeContractError } from "./runtime-contract";
 export {
+  AdapterLinkError,
+  analyzeDeploymentCapabilities,
   DeploymentMismatchError,
+  DEPLOYMENT_PROFILE_VERSION,
+  DeploymentProfileValidationError,
+  loadDeploymentProfile,
   runTask,
+  RunOptionsValidationError,
   InMemoryWorkflowStore,
   createDurableDriver,
+  prepareDeployment,
   serializeTask,
   hydrateTask,
   serializeWorkflowRecord,
   hydrateWorkflowRecord,
-  validateDurableHostConfiguration,
+  validateDeploymentProfile,
   validateWorkflowRecord,
-  requiredCapabilities,
   TaskRaiseError,
   UnhandledEffectError,
   WorkflowAlreadyExistsError,
@@ -76,16 +101,28 @@ export {
 export type {
   AdvanceOutcome,
   Capability,
+  DeploymentFunction,
+  DeploymentCapabilityAnalysis,
+  DeploymentFunctions,
   ClaimOutcome,
   DeliveryOutcome,
   DurableCapability,
   DurableDriver,
   DurableEffectContext,
   DurableEffectMode,
-  DurableHostConfiguration,
-  EnvironmentHostConfiguration,
+  DeploymentProfile,
+  DurableDeploymentProfile,
+  HostLocalRunOptions,
+  DurableRuntimeAdapter,
+  LiveRuntimeAdapter,
+  PreparedDeployment,
+  PreparedDurableDeployment,
+  PreparedLiveDeployment,
+  LiveDeploymentProfile,
   PendingEffect,
-  RequiredCapabilities,
+  PortableExecutionLimits,
+  RuntimeAdapter,
+  TaskSession,
   RunningBasis,
   WorkflowFailure,
   WorkflowFailureCode,

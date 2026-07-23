@@ -57,6 +57,20 @@ describe("jfn check coverage reporting", () => {
     expect(result.stdout).toContain("Type coverage: incomplete (1 dynamic degradation site).");
   });
 
+  test("--no-builtins explicitly removes engine callable contracts", () => {
+    const expression = asJsonArg({ $call: "add", $args: [1, 2] });
+    expect(runCheck(["--expr", "--json", expression]).stdout).toContain("Type coverage: complete");
+    const withoutBuiltins = runCheck([
+      "--expr",
+      "--json",
+      "--no-builtins",
+      "--require-full-coverage",
+      expression,
+    ]);
+    expect(withoutBuiltins.exitCode).toBe(1);
+    expect(withoutBuiltins.stdout).toContain("Type coverage: incomplete");
+  });
+
   test("--allow-untyped-functions remains permissive but reports partial coverage", () => {
     const mod = { f: { $params: [], $return: 1 } };
     const result = runCheck(["--allow-untyped-functions", "--json", asJsonArg(mod)]);
@@ -92,13 +106,14 @@ describe("jfn check coverage reporting", () => {
     expect(result.stdout).toContain("Type coverage: complete (no dynamic degradations).");
   });
 
-  test("--environment preloads host callables and verifies the entry", () => {
-    const dir = mkdtempSync(join(tmpdir(), "json-fn-environment-"));
-    const path = join(dir, "environment.json");
+  test("--contract preloads host callables and verifies the entry", () => {
+    const dir = mkdtempSync(join(tmpdir(), "json-fn-contract-"));
+    const path = join(dir, "contract.json");
     try {
       writeFileSync(
         path,
         JSON.stringify({
+          version: 1,
           functions: {
             "host.inc": {
               signatures: [
@@ -129,7 +144,7 @@ describe("jfn check coverage reporting", () => {
           },
         },
       };
-      const result = runCheck(["--json", "--environment", path, asJsonArg(mod)]);
+      const result = runCheck(["--json", "--contract", path, asJsonArg(mod)]);
       expect(result.stderr).toBe("");
       expect(result.stdout).toContain("No type errors.");
       expect(result.exitCode).toBe(0);
@@ -138,13 +153,14 @@ describe("jfn check coverage reporting", () => {
     }
   });
 
-  test("--environment accepts an entry with optional and defaulted body slots", () => {
+  test("--contract accepts an entry with optional and defaulted body slots", () => {
     const dir = mkdtempSync(join(tmpdir(), "json-fn-check-entry-optionals-"));
-    const path = join(dir, "environment.json");
+    const path = join(dir, "contract.json");
     try {
       writeFileSync(
         path,
         JSON.stringify({
+          version: 1,
           functions: {},
           effects: {},
           entry: {
@@ -156,7 +172,7 @@ describe("jfn check coverage reporting", () => {
         }),
       );
       const result = runCheck([
-        "--environment",
+        "--contract",
         path,
         "{ main: (required, optional?, defaulted = 7) => pure([required, optional, defaulted]) }",
       ]);

@@ -31,7 +31,10 @@ Nested calls — arguments can themselves be calls:
 ```json
 {
   "$call": "mul",
-  "$args": [{ "$call": "add", "$args": [2, 3] }, { "$call": "sub", "$args": [10, 4] }]
+  "$args": [
+    { "$call": "add", "$args": [2, 3] },
+    { "$call": "sub", "$args": [10, 4] }
+  ]
 }
 ```
 
@@ -189,7 +192,11 @@ Array of expressions evaluated left-to-right. Returns the first falsy value, or 
 
 ```json
 {
-  "$and": [{ "$call": "gt", "$args": [{ "$var": "x" }, 0] }, { "$call": "lt", "$args": [{ "$var": "x" }, 100] }, "in range"]
+  "$and": [
+    { "$call": "gt", "$args": [{ "$var": "x" }, 0] },
+    { "$call": "lt", "$args": [{ "$var": "x" }, 100] },
+    "in range"
+  ]
 }
 ```
 
@@ -455,7 +462,7 @@ Called with `[42]`, returns a body that carries `go` as an attached local so it 
 
 Only the local functions actually referenced (transitively) are attached, and a name shadowed by the returned body's own `$params` or locals is never attached — the inner binder wins.
 
-**Module-level (registry) functions are not attached.** Attachment applies only to functions defined by an *enclosing scope that goes away* when the closure escapes it — `where`-locals and nested locals. A top-level module function lives in the registry for the whole program, so an in-program reference to it never dangles and it resolves by name at call time like a stdlib builtin; attaching it would be redundant and, for a self-referential constructor that returns a record of closures (`makeThing` → `{ … next: () => makeThing(…) }`), would make capture copy the definition into itself on every call and blow up super-exponentially. The consequence is a small, consistent contract: a closure serialized and shipped *out of the program* keeps its local functions inline, but still relies on the target host providing the registry (module + stdlib) — exactly as it already relies on `add`, `map`, and friends being present.
+**Module-level (registry) functions are not attached.** Attachment applies only to functions defined by an _enclosing scope that goes away_ when the closure escapes it — `where`-locals and nested locals. A top-level module function lives in the registry for the whole program, so an in-program reference to it never dangles and it resolves by name at call time like a stdlib builtin; attaching it would be redundant and, for a self-referential constructor that returns a record of closures (`makeThing` → `{ … next: () => makeThing(…) }`), would make capture copy the definition into itself on every call and blow up super-exponentially. The consequence is a small, consistent contract: a closure serialized and shipped _out of the program_ keeps its local functions inline, but still relies on the target host providing the registry (module + stdlib) — exactly as it already relies on `add`, `map`, and friends being present.
 
 ## Scoping Rules
 
@@ -475,7 +482,10 @@ Functions can call themselves by name if registered in the function registry.
     "$then": 1,
     "$else": {
       "$call": "mul",
-      "$args": [{ "$var": "n" }, { "$call": "fact", "$args": [{ "$call": "sub", "$args": [{ "$var": "n" }, 1] }] }]
+      "$args": [
+        { "$var": "n" },
+        { "$call": "fact", "$args": [{ "$call": "sub", "$args": [{ "$var": "n" }, 1] }] }
+      ]
     }
   }
 }
@@ -495,7 +505,10 @@ Local variables whose values are function bodies (have a `$return` key) can be c
       "$then": 1,
       "$else": {
         "$call": "mul",
-        "$args": [{ "$var": "x" }, { "$call": "fact", "$args": [{ "$call": "sub", "$args": [{ "$var": "x" }, 1] }] }]
+        "$args": [
+          { "$var": "x" },
+          { "$call": "fact", "$args": [{ "$call": "sub", "$args": [{ "$var": "x" }, 1] }] }
+        ]
       }
     }
   },
@@ -553,7 +566,7 @@ Called with `["add"]` returns `7`. Called with `["mul"]` returns `12`.
 
 ## Tasks & Effects
 
-json-fn is pure: evaluating an expression never performs I/O or any observable side effect. **Effects** are represented as *data* — inert values called **tasks** that *describe* an effectful computation without running it. Running a task is a separate step, performed either in-language by the `handle` builtin (which interprets each effect) or at the host boundary by a trampoline (`runTask`) that answers effects with real I/O.
+json-fn is pure: evaluating an expression never performs I/O or any observable side effect. **Effects** are represented as _data_ — inert values called **tasks** that _describe_ an effectful computation without running it. Running a task is a separate step, performed either in-language by the `handle` builtin (which interprets each effect) or at the host boundary by a trampoline (`runTask`) that answers effects with real I/O.
 
 The kernel is deliberately small: three task **constructors** (`perform`, `pure`, `bind`), one `raise` convenience, and one `handle` builtin. Everything richer — retries, error recovery, threaded state, dry-runs, capability attenuation — is ordinary json-fn library code, because [escaping-closure capture](#escaping-closures-carry-the-local-functions-they-call) makes every suspended continuation a self-contained JSON value.
 
@@ -571,7 +584,7 @@ A task is a tagged plain object. The tag key is `@task` — deliberately **not**
 - **`pure`** is a completed task whose result is `value`.
 - **`bind`** sequences: run `task`, then apply the continuation `then` to obtain the next task. A one-parameter continuation receives the completed value; a zero-parameter continuation discards it (the shape emitted by a non-final bare expression in `do` notation).
 
-Because tasks are inert data, laziness composes with them cleanly: a task held in an [unreferenced lazy local](#lazy-local-variables) is never built, and building a task never performs its effect. Nothing happens until something *runs* the task.
+Because tasks are inert data, laziness composes with them cleanly: a task held in an [unreferenced lazy local](#lazy-local-variables) is never built, and building a task never performs its effect. Nothing happens until something _runs_ the task.
 
 ### Constructors
 
@@ -592,7 +605,7 @@ is checker-only, and task records contain no runtime type metadata. A dynamic
 effect name cannot be resolved statically and is reported as degraded type
 coverage.
 
-An environment-configured module also receives a reserved `effects` binding
+A contract-linked module also receives a reserved `effects` binding
 derived from that manifest. Dot-separated effect names become nested callable
 paths:
 
@@ -605,7 +618,7 @@ Each leaf is a typed task constructor equivalent to a literal
 `perform("http.get", [url])`; calling it remains pure and does not invoke the
 host capability. Qualification distinguishes effects from direct functions, so
 `tap(...)` and `effects.log(...)` may coexist with different semantics. A module
-checked or run with an environment may not declare its own top-level `effects`
+checked or run with a contract may not declare its own top-level `effects`
 binding. Manifest names may not be namespace prefixes of other names (for
 example, `sensor` and `sensor.read` cannot both be declared). Raw `perform`
 remains available as a low-level constructor.
@@ -644,7 +657,7 @@ partial form has no declared `R`, so it retains its imprecise static result.
 
 `resume` is itself plain JSON built by `handle`, so continuations stay serializable mid-handle and multi-shot resumption is free: calling `resume` twice re-runs the rest of the task twice (the basis for nondeterminism, retry, and backtracking combinators).
 
-**Bubbling.** In the partial form, an effect with no matching clause (and no `"*"`) is *not* an error: `handle` re-performs it, wrapping the surrounding continuation so it re-enters the same handler afterward. The effect bubbles outward to the next enclosing `handle`, and ultimately to the host. This is what lets a partial handler discharge only the effects it cares about while staying transparent to the rest of the effect set. The annotated form is total and rejects the same unmatched effect.
+**Bubbling.** In the partial form, an effect with no matching clause (and no `"*"`) is _not_ an error: `handle` re-performs it, wrapping the surrounding continuation so it re-enters the same handler afterward. The effect bubbles outward to the next enclosing `handle`, and ultimately to the host. This is what lets a partial handler discharge only the effects it cares about while staying transparent to the rest of the effect set. The annotated form is total and rejects the same unmatched effect.
 
 For a function result annotation such as `(State) -> Report`, validation installs a serializable callable boundary. The function value is checked when produced; each eventual argument and return value is checked when it is called. This is what lets a state handler declare its actual immediate result:
 
@@ -665,15 +678,30 @@ Handler clauses are invoked through the normal call path, so fuel and call-depth
 
 ### Host trampoline
 
-`handle` interprets effects *in-language*; to connect a task to the real world,
+`handle` interprets effects _in-language_; to connect a task to the real world,
 a host drives it with `runTask` (in TypeScript, exported from the package).
-The preferred typed form takes one operator-owned environment:
+The host prepares a deployment from portable contract/profile data and
+executable runtime-adapter bindings:
+
+The two portable artifacts are specified separately:
+
+- the [environment contract](environment-contract.md) owns boundary schemas,
+  direct functions, effects, and the production entry;
+- the [deployment profile](deployment-profile.md) selects a live or durable
+  hosting mode, an effect subset, and portable execution limits.
 
 ```ts
-const environment = {
-  $defs: { /* shared domain schemas */ },
-  functions: { /* direct host callable contracts */ },
-  effects: { /* capability argument/result contracts */ },
+const contract = {
+  version: 1,
+  $defs: {
+    /* shared domain schemas */
+  },
+  functions: {
+    /* direct host callable contracts */
+  },
+  effects: {
+    /* capability argument/result contracts */
+  },
   entry: {
     name: "main",
     required: [],
@@ -682,29 +710,52 @@ const environment = {
   },
 };
 
-const result = await runTask(module, environment, [], {
-  registry,
-  capabilities: {
-    "io.readLine": async () => prompt(),
-    "io.print": async (msg) => { console.log(msg); },
+const profile = {
+  version: 1,
+  mode: "live",
+  effects: ["io.readLine", "io.print"],
+};
+
+const deployment = prepareDeployment({
+  module,
+  contract,
+  profile,
+  adapter: {
+    functions: {},
+    effects: {
+      "io.readLine": async () => prompt(),
+      "io.print": async (msg) => {
+        console.log(msg);
+        return null;
+      },
+    },
   },
-}, limits);
+});
+const result = await runTask(deployment, [], {
+  signal,
+  timeoutMs: 30_000,
+});
 ```
 
-The host is the *outermost handler*: any effect that no in-language `handle` discharged bubbles all the way out to `runTask`, which
+The host is the _outermost handler_: any effect that no in-language `handle` discharged bubbles all the way out to `runTask`, which
 
 - returns the value on `{ done }`;
 - throws `TaskRaiseError` (carrying the guest payload) for an unhandled `raise`;
 - throws `UnhandledEffectError` for an effect with no capability;
 - otherwise `await`s the capability, applies `resume` to its result, and loops.
 
-The environment is portable contract data, separate from the host
-implementations. Its `functions` use the same fallback signatures and optional
-rules as core builtins. Callable-name collisions are rejected rather than
-overridden. Entry contracts use mandatory `required` and `optional` arrays in
-that order. Entry calls accept every argument count from the required length
-through the combined required-plus-optional length; supplied optional arguments
-are still validated against their schemas. Entry returns have two forms:
+The contract and profile are portable JSON data, separate from host
+implementations. `prepareDeployment({module, contract, profile, adapter})`
+validates and links them once. The `RuntimeAdapter` must bind exactly all contract
+functions and exactly the effects executed inline by that profile; profile
+effect selection is allowed to be a subset of the contract. See
+[Environment contract](environment-contract.md) and
+[Deployment profile](deployment-profile.md) for the complete JSON shapes,
+collision rules, validation APIs, and runtime-adapter requirements.
+
+Entry calls accept every argument count from the required length through the
+combined required-plus-optional length; supplied optional arguments are still
+validated against their schemas. Entry returns have two forms:
 
 - `entry.returns: A` describes an immediate result. The host invokes the entry
   once and validates that value directly; it does not interpret task-shaped
@@ -713,41 +764,49 @@ are still validated against their schemas. Entry returns have two forms:
   matches `A`. The host drives this form through the task trampoline and
   dispatches capabilities for effects that reach the host.
 
-Despite its compatibility-preserving name, `runTask` executes either declared
-entry mode. It validates entry arguments and results, wraps tractable direct
-host functions to validate their arguments/results, rejects effects absent from
-the environment, validates outgoing effect arguments before invoking host code,
-and validates capability results before resuming task entries. Named references
-use the same merged builtin/environment/module definition pool as the checker.
+Despite its compatibility-preserving name,
+`runTask(preparedLiveDeployment, args, hostLocalRunOptions?)` executes either
+declared entry mode. It validates entry arguments and results, wraps tractable
+direct host functions to validate their arguments/results, rejects effects
+absent from the contract, validates outgoing effect arguments before invoking
+host code, and validates capability results before resuming task entries. Named
+references use the same merged builtin/contract/module definition pool as the
+checker. Portable `maxCallDepth`, `maxFuel`, and `maxValueSize` limits belong in
+the profile; the optional third argument is only for host-local cancellation,
+timeout, and instrumentation.
 
 For task entries that must persist across process boundaries, the TypeScript
-implementation also provides `createDurableDriver`. See
-[Durable task hosting](durable-host.md) for effect classification, store
-consistency, recovery, and at-least-once execution semantics.
+implementation provides
+`createDurableDriver({deployment: preparedDurableDeployment, store})`. See
+[Deployment profile](deployment-profile.md) for durable selection and
+runtime-adapter binding, then [Durable task hosting](durable-host.md) for store consistency,
+delivery, recovery, and at-least-once execution semantics.
 
-`jfn check --environment <path>` loads the same artifact, preloads its named
+`jfn check --contract <path>` loads the same artifact, preloads its named
 types, functions, and effects, and checks the entry body contextually against
-the environment-owned signature. `jfn eval --environment <path>` executes that
-entry through the same validated host API. Adding `--function <name>` selects a
-development evaluation instead: the CLI injects the environment's definitions
-and generated `effects` namespace, then invokes that named module function
-without entry argument validation, entry return validation, or automatic task
-execution. Success in this mode does not show that the production entry can run.
-Test an environment module at least once without `--function`. The option is
-suitable for in-language demos whose handlers discharge their own effects; it
-does not synthesize implementations for direct host functions or effects that
-escape to the host.
+the contract-owned signature. `jfn eval --contract <path>` prepares a live
+deployment with an empty effect selection and empty runtime adapter, then executes the
+contract entry. It is therefore suitable only when the contract has no direct
+host functions and every task effect is handled in-language (or no effect is
+performed).
 
-**Durable suspend/resume.** Because a `pending` task is plain JSON, a host can `serializeTask` it, store it, and later `hydrateTask` + resume — even in a different process. `hydrateTask` restores the inertness marks that keep embedded tasks opaque to the evaluator.
+Adding `--function <name>` selects a development evaluation instead: the CLI
+uses the shared module linker, then invokes that named module function without
+entry argument validation, entry return validation, or automatic task
+execution. Success in this mode does not show that the production entry can
+run. Test production hosting with `prepareDeployment` and the real profile and
+runtime adapter; the CLI does not synthesize their implementations.
 
-**Static admission.** `requiredCapabilities(module | task, environment?)` walks
-the JSON and returns the effect names a program could ever perform, as
-`{ names, dynamic }`. Supplying the environment also recognizes calls through
-the generated `effects` namespace. A host can enumerate what a program might ask
-for _before_ running it and reject at admission time rather than hitting
-`UnhandledEffectError` mid-run. It is a conservative over-approximation — it
-does **not** subtract effects an in-language `handle` discharges — and sets
-`dynamic: true` when a `perform` name or `effects` access is computed.
+**Durable suspend/resume.** A stepped `pending` record is host state, not itself
+a task accepted by `serializeTask`. Hosts may serialize its `resume` closure (or
+a task that embeds that continuation), but production durable hosting should use
+the workflow-record codec and durable driver described above.
+
+**Static admission.** `analyzeDeploymentCapabilities({ module, contract,
+profile })` reports possible names, dynamic access, profile bindings, and
+uncovered effects. A host can reject uncovered capabilities before running. It
+is a conservative over-approximation and does not subtract effects discharged
+by an in-language `handle`.
 
 **Idempotency caveat.** `runTask` answers each `pending` exactly once, but durable suspend/resume makes **at-least-once** effect execution the practical reality: a crash between running a capability and persisting the resumed task reruns that effect on recovery (the same tradeoff as Temporal). In-language multi-shot `resume` is a feature; at the host boundary, replay is not free — capabilities with external side effects should take idempotency keys.
 
@@ -955,14 +1014,20 @@ This detection is part of the language: it is always on, needs no configuration,
 
 ### Host-configured resource limits
 
-Beyond the always-on circular check, hosts may cap the resources a program consumes. Two of these caps are **deterministic and part of the conformance spec**, so their observable behavior is guaranteed across implementations:
+Beyond the always-on circular check, hosts may cap the resources a program
+consumes. Fuel accounting is deterministic and specified for conformance;
+produced-value size has a portable definition. When explicitly configured:
 
 - **Fuel** (`maxFuel`) bounds total metered work; exceeding it errors with `Maximum fuel limit of N exceeded`.
 - **Value size** (`maxValueSize`) bounds the length of any array or string a program produces; exceeding it errors with `Maximum value size of N exceeded`.
 
 A third cap, **call depth** (`maxCallDepth`), guards recursion against host stack overflow and uses an implementation-defined default when unset. Hosts may additionally cancel a run cooperatively or impose a wall-clock timeout; those are host-only safety nets and, being non-deterministic, are **not** part of the conformance spec.
 
-How limits are supplied, the per-language cancellation/timeout APIs, and default behavior are host concerns — see [`docs/host-integration.md`](./host-integration.md). For the normative cost model (exactly what each node and builtin charges), see [`docs/execution-limits.md`](./execution-limits.md).
+Portable deployment limits are supplied through a
+[deployment profile](deployment-profile.md); host entry and runtime-adapter boundaries
+are described by the [environment contract](environment-contract.md), with
+persistent TypeScript behavior in [Durable task hosting](durable-host.md). For
+the normative cost model, see [Execution limits](execution-limits.md).
 
 ## Constraints
 

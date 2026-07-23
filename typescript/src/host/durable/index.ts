@@ -1,10 +1,4 @@
-export { validateDurableHostConfiguration } from "./config";
-export type {
-  DurableCapability,
-  DurableEffectContext,
-  DurableEffectMode,
-  DurableHostConfiguration,
-} from "./config";
+export type { DurableCapability, DurableEffectContext, DurableEffectMode } from "./config";
 export { DeploymentMismatchError, createDurableDriver } from "./driver";
 export type { AdvanceOutcome, DeliveryOutcome, DurableDriver } from "./driver";
 export {

@@ -780,8 +780,9 @@ the parent frame (stdlib + native builtins) and picks an entry point to invoke.
 may run the resulting object as a program — treating it as the outermost scope
 over the stdlib registry and invoking a named entry point (as with `chess.jsonc`
 and `life.jfn`) — or evaluate a file that is a bare expression down to a value.
-See [`docs/host-integration.md`](./host-integration.md) for the entry-point
-contract. The shorthand only guarantees the JSON it produces.
+See [Environment contract](environment-contract.md) for portable entry linking
+and [Durable task hosting](durable-host.md) for the TypeScript persistent host.
+The shorthand only guarantees the JSON it produces.
 
 > **Future direction (not specified):** module-level `import` / `export` and a
 > brace-less top-level declaration form (so a file reads as a list of

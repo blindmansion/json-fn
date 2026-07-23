@@ -1,13 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import {
-  EnvironmentConfigurationError,
+  AdapterLinkError,
   InMemoryWorkflowStore,
   WorkflowAlreadyExistsError,
   WorkflowRevisionConflictError,
-  createStdlib,
-  validateDurableHostConfiguration,
-  type DurableHostConfiguration,
-  type Environment,
+  prepareDeployment,
+  type EnvironmentContract,
   type JSONType,
   type PendingEffect,
   type WorkflowRecord,
@@ -15,7 +13,8 @@ import {
 import { isRaw } from "../src/utils";
 
 const integer = { type: "integer" } as const;
-const environment: Environment = {
+const contract: EnvironmentContract = {
+  version: 1,
   effects: {
     inline: { params: [integer], returns: integer },
     wait: { params: [integer], returns: integer },
@@ -27,92 +26,127 @@ const environment: Environment = {
     returns: { task: integer },
   },
 };
-const validHost: DurableHostConfiguration = {
-  registry: createStdlib(),
-  effects: { inline: "inline", wait: "suspending" },
-  capabilities: { inline: (_context, value) => value ?? null },
+const durableProfile = {
+  version: 1,
+  mode: "durable",
   deploymentId: "deployment-a",
-};
+  effects: { inline: "inline", wait: "suspending" },
+} as const;
+const durableModule = {
+  main: { $params: [], $return: { $call: "pure", $args: [1] } },
+} as Record<string, JSONType>;
 
-describe("durable host configuration", () => {
-  test("accepts exact effect classifications and inline capabilities", () => {
-    expect(() => validateDurableHostConfiguration(environment, validHost)).not.toThrow();
+describe("durable deployment preparation", () => {
+  test("accepts only inline effect implementations", () => {
+    expect(() =>
+      prepareDeployment({
+        module: durableModule,
+        contract: contract,
+        profile: durableProfile,
+        adapter: { functions: {}, effects: { inline: (_context, value) => value ?? null } },
+      }),
+    ).not.toThrow();
   });
 
   test("requires a task entry", () => {
-    const directEnvironment: Environment = {
-      ...environment,
-      entry: { ...environment.entry, returns: integer },
+    expect(() =>
+      prepareDeployment({
+        module: durableModule,
+        contract: { ...contract, entry: { ...contract.entry, returns: integer } },
+        profile: durableProfile,
+        adapter: { functions: {}, effects: { inline: () => null } },
+      }),
+    ).toThrow(/requires a task entry/);
+  });
+
+  test("reports stable codes and paths for adapter parity", () => {
+    expect(() =>
+      prepareDeployment({
+        module: durableModule,
+        contract: contract,
+        profile: durableProfile,
+        adapter: { functions: {}, effects: {} },
+      }),
+    ).toThrow(
+      expect.objectContaining({
+        name: "AdapterLinkError",
+        code: "MISSING_ADAPTER_EFFECT",
+        path: "adapter.effects.inline",
+      }),
+    );
+    expect(() =>
+      prepareDeployment({
+        module: durableModule,
+        contract: contract,
+        profile: durableProfile,
+        adapter: { functions: {}, effects: { inline: () => null, wait: () => null } },
+      }),
+    ).toThrow(AdapterLinkError);
+  });
+
+  test("requires exactly the contract functions and inline profile effects", () => {
+    const contractWithFunction: EnvironmentContract = {
+      ...contract,
+      functions: {
+        lookup: {
+          signatures: [{ required: [], optional: [], returns: integer }],
+        },
+      },
     };
-    expect(() => validateDurableHostConfiguration(directEnvironment, validHost)).toThrow(
-      /requires a task entry/,
+    expect(() =>
+      prepareDeployment({
+        module: durableModule,
+        contract: contractWithFunction,
+        profile: durableProfile,
+        adapter: { functions: {}, effects: { inline: () => null } },
+      }),
+    ).toThrow(
+      expect.objectContaining({
+        code: "MISSING_ADAPTER_FUNCTION",
+        path: "adapter.functions.lookup",
+      }),
+    );
+    expect(() =>
+      prepareDeployment({
+        module: durableModule,
+        contract: contractWithFunction,
+        profile: durableProfile,
+        adapter: {
+          functions: { lookup: () => 1 },
+          effects: { inline: () => null, wait: () => null },
+        },
+      }),
+    ).toThrow(
+      expect.objectContaining({
+        code: "EXTRA_ADAPTER_EFFECT",
+        path: "adapter.effects.wait",
+      }),
     );
   });
 
-  test("rejects missing, extra, and unknown classifications", () => {
+  test("keeps raise intrinsic rather than profile-selectable", () => {
     expect(() =>
-      validateDurableHostConfiguration(environment, {
-        ...validHost,
-        effects: { inline: "inline" },
-      }),
-    ).toThrow(/"wait" has no durable classification/);
-    expect(() =>
-      validateDurableHostConfiguration(environment, {
-        ...validHost,
-        effects: { ...validHost.effects, extra: "suspending" },
-      }),
-    ).toThrow(/classification "extra" has no effect contract/);
-    expect(() =>
-      validateDurableHostConfiguration(environment, {
-        ...validHost,
-        effects: {
-          inline: "other",
-          wait: "suspending",
-        } as unknown as DurableHostConfiguration["effects"],
-      }),
-    ).toThrow(/unknown durable classification "other"/);
-  });
-
-  test("requires capabilities for exactly the inline effects", () => {
-    expect(() =>
-      validateDurableHostConfiguration(environment, {
-        ...validHost,
-        capabilities: {},
-      }),
-    ).toThrow(/inline effect "inline" has no capability/);
-    expect(() =>
-      validateDurableHostConfiguration(environment, {
-        ...validHost,
-        capabilities: {
-          ...validHost.capabilities,
-          wait: () => null,
+      prepareDeployment({
+        module: durableModule,
+        contract: {
+          ...contract,
+          effects: {
+            ...contract.effects,
+            raise: { params: [true], returns: true },
+          },
         },
+        profile: {
+          ...durableProfile,
+          effects: { ...durableProfile.effects, raise: "inline" },
+        },
+        adapter: { functions: {}, effects: { inline: () => null, raise: () => null } },
       }),
-    ).toThrow(/"wait" has no inline effect classification/);
-  });
-
-  test("forbids classifying or implementing intrinsic raise", () => {
-    expect(() =>
-      validateDurableHostConfiguration(environment, {
-        ...validHost,
-        effects: { ...validHost.effects, raise: "inline" },
+    ).toThrow(
+      expect.objectContaining({
+        code: "INVALID_DEPLOYMENT_PROFILE",
+        path: "profile.effects.raise",
       }),
-    ).toThrow(/"raise" is intrinsic and cannot be classified/);
-    expect(() =>
-      validateDurableHostConfiguration(environment, {
-        ...validHost,
-        capabilities: { ...validHost.capabilities, raise: () => null },
-      }),
-    ).toThrow(/"raise" is intrinsic and cannot have a capability/);
-  });
-
-  test("reports configuration errors with the shared error type", () => {
-    expect(() =>
-      validateDurableHostConfiguration(environment, {
-        ...validHost,
-        deploymentId: "",
-      }),
-    ).toThrow(EnvironmentConfigurationError);
+    );
   });
 });
 

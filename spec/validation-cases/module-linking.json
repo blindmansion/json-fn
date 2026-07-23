@@ -1,0 +1,114 @@
+{
+  "description": "Portable contract and module linking validation",
+  "cases": [
+    {
+      "name": "links an entry and generated effects namespace",
+      "validator": "link",
+      "contract": {
+        "version": 1,
+        "effects": {
+          "clock.now": { "params": [], "returns": { "type": "integer" } }
+        },
+        "entry": {
+          "name": "main",
+          "required": [],
+          "optional": [],
+          "returns": { "task": { "type": "integer" } }
+        }
+      },
+      "module": {
+        "main": {
+          "$params": [],
+          "$return": { "$call": "pure", "$args": [1] }
+        }
+      },
+      "expected": { "valid": true }
+    },
+    {
+      "name": "rejects contract and module definition collisions",
+      "validator": "link",
+      "contract": {
+        "version": 1,
+        "$defs": { "Shared": { "type": "string" } },
+        "entry": {
+          "name": "main",
+          "required": [],
+          "optional": [],
+          "returns": true
+        }
+      },
+      "module": {
+        "$types": { "Shared": { "type": "integer" } },
+        "main": { "$params": [], "$return": 1 }
+      },
+      "expected": {
+        "valid": false,
+        "code": "DUPLICATE_DEFINITION",
+        "path": "definitions.Shared"
+      }
+    },
+    {
+      "name": "rejects the reserved effects binding",
+      "validator": "link",
+      "contract": {
+        "version": 1,
+        "entry": {
+          "name": "main",
+          "required": [],
+          "optional": [],
+          "returns": true
+        }
+      },
+      "module": {
+        "effects": null,
+        "main": { "$params": [], "$return": 1 }
+      },
+      "expected": {
+        "valid": false,
+        "code": "RESERVED_MODULE_BINDING",
+        "path": "effects"
+      }
+    },
+    {
+      "name": "rejects reserved module Task definitions",
+      "validator": "link",
+      "module": {
+        "$types": { "Task": true },
+        "main": { "$params": [], "$return": 1 }
+      },
+      "expected": {
+        "valid": false,
+        "code": "RESERVED_DEFINITION",
+        "path": "module.$types.Task"
+      }
+    },
+    {
+      "name": "rejects a missing prepared contract entry",
+      "validator": "link",
+      "contract": {
+        "version": 1,
+        "entry": { "name": "main", "required": [], "optional": [], "returns": true }
+      },
+      "module": {},
+      "expected": {
+        "valid": false,
+        "code": "MISSING_CONTRACT_ENTRY",
+        "path": "module.main"
+      }
+    },
+    {
+      "name": "rejects a non-function prepared contract entry",
+      "validator": "link",
+      "contract": {
+        "version": 1,
+        "entry": { "name": "main", "required": [], "optional": [], "returns": true }
+      },
+      "module": { "main": 1 },
+      "expected": {
+        "valid": false,
+        "code": "INVALID_CONTRACT_ENTRY",
+        "path": "module.main"
+      }
+    }
+  ]
+}
