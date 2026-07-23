@@ -745,8 +745,8 @@ A `.jfn` file is **one json-fn expression**, and lowers to a single JSON value.
 There is no file-level construct beyond "an expression."
 
 A typical multi-function file is an **object mapping names to expressions** —
-constants and function literals — as in `examples/chess.jsonc` and
-`examples/life.jfn`. This object is the **outermost `letrec` scope**: top-level
+constants and function literals — as in `examples/pipeline.jfn` and
+`examples/dungeon.jfn`. This object is the **outermost `letrec` scope**: top-level
 names (constants _and_ functions) are visible via `$var` throughout the file,
 and functions are callable via `$call`, with the same lazy, order-independent,
 mutually-recursive semantics a function body gives its locals. The host supplies
@@ -778,8 +778,9 @@ the parent frame (stdlib + native builtins) and picks an entry point to invoke.
 
 **How a file is consumed is a host concern**, unchanged from raw JSON: the host
 may run the resulting object as a program — treating it as the outermost scope
-over the stdlib registry and invoking a named entry point (as with `chess.jsonc`
-and `life.jfn`) — or evaluate a file that is a bare expression down to a value.
+over the stdlib registry and invoking a named entry point (as with
+`pipeline.jfn` and `dungeon.jfn`) — or evaluate a file that is a bare expression
+down to a value.
 See [Environment contract](environment-contract.md) for portable entry linking
 and [Durable task hosting](durable-host.md) for the TypeScript persistent host.
 The shorthand only guarantees the JSON it produces.

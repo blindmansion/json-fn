@@ -14,7 +14,7 @@ json-fn is a pure-JSON functional expression language evaluated by a tree-walkin
   - `docs/durable-host.md` — TypeScript durable task-host configuration, persistence, recovery, and failure semantics.
 - `plans/` — design plans and sketches for in-progress / proposed language work (e.g. `module-scope.md`, `effects-sketch.md`, `type-sketch.md`).
 - `todo/` — outstanding work items and tracking notes (e.g. `conformance-tests.md`, `impl-feature-parity.md`, `new-features.md`).
-- `examples/` — sample programs in `.jfn` shorthand and canonical `.json` (e.g. `chess`, `tictactoe`, `life`, `stretch`).
+- `examples/` — sample `.jfn` programs with portable environment contracts and deployment profiles (e.g. `dungeon`, `thermostat`, `orbital-traffic`, `parcel-sorter`).
 
 ## Implementations
 
