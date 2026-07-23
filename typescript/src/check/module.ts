@@ -15,6 +15,7 @@ import type { CallableTable, CallableTypeRuleRegistry } from "./builtin-types";
 import { synthCallableCall } from "./builtin-rules";
 import { CORE_CALLABLE_TYPE_RULES } from "./callable-rules";
 import { buildTypeScope, checkBody, synth } from "./checker";
+import { nonContractiveDefinitions } from "./type-defs";
 import {
   bindingKeys,
   EMPTY_ENV,
@@ -73,12 +74,13 @@ function checkModule(
     environment === undefined
       ? builtins
       : mergeCallableTables(builtins ?? { builtins: {} }, environment);
+  const moduleDefs = readModuleDefinitions(module);
   const defs: Defs = mergeDefinitionPools(
     {
       builtinDefs: builtins?.$defs,
       environmentDefs: environment?.$defs,
     },
-    readModuleDefinitions(module),
+    moduleDefs,
   );
   const ctx: CheckContext = {
     defs,
@@ -125,6 +127,13 @@ function checkModule(
   // The environment-owned entry signature replaces any guest annotation before
   // this walk; the guest copy is not part of the entry contract.
   checkDanglingRefs(checkingModule, defs, ctx);
+  const nonContractive = nonContractiveDefinitions(Object.keys(moduleDefs), defs);
+  for (const name of nonContractive) {
+    report({ ...ctx, path: ["$types", name] }, `type declaration "${name}" is non-contractive`);
+  }
+  // Unsafe aliases can make ordinary checking recurse forever or overflow
+  // before another useful diagnostic is produced.
+  if (nonContractive.length > 0) return dedupeDiagnostics(ctx.diagnostics);
 
   const scopeModule = withoutTypes(checkingModule);
   const { env, guards } = buildTypeScope(scopeModule, MODULE_PARAMETER_LAYOUT, null, ctx, false);

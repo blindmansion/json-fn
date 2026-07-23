@@ -1574,6 +1574,71 @@ describe("check: do-block / where IIFE (Part A)", () => {
   });
 });
 
+describe("checkModule: recursive type contractivity", () => {
+  const ref = (name: string): Schema => ({ $ref: `#/$defs/${name}` });
+
+  test("rejects a direct recursive alias before checking its uses", () => {
+    const A = ref("A");
+    const mod = {
+      $types: { A },
+      f: body(["x"], { required: [A], optional: [], returns: A }, { $var: "x" }),
+    };
+    expect(checkModule(mod)).toEqual([
+      {
+        path: ["$types", "A"],
+        message: 'type declaration "A" is non-contractive',
+        severity: "error",
+      },
+    ]);
+  });
+
+  test("rejects recursion through a union", () => {
+    const B: Schema = { anyOf: [ref("B"), { type: "null" }] };
+    const mod = {
+      $types: { B },
+      f: body(["x"], { required: [B], optional: [], returns: B }, { $var: "x" }),
+    };
+    expect(checkModule(mod).map((d) => d.path)).toEqual([["$types", "B"]]);
+  });
+
+  test("rejects every declaration in an unguarded mutual cycle", () => {
+    const diags = checkModule({
+      $types: { A: ref("B"), B: ref("C"), C: ref("A") },
+    });
+    expect(diags.map((d) => d.path)).toEqual([
+      ["$types", "A"],
+      ["$types", "B"],
+      ["$types", "C"],
+    ]);
+  });
+
+  test("accepts recursion guarded by arrays or objects", () => {
+    const mod: Record<string, JSONType> = {
+      $types: {
+        Json: {
+          anyOf: [
+            { type: "null" },
+            { type: "boolean" },
+            { type: "number" },
+            { type: "string" },
+            { type: "array", items: ref("Json") },
+            { type: "object", additionalProperties: ref("Json") },
+          ],
+        },
+        Tree: {
+          type: "object",
+          properties: {
+            value: { type: "number" },
+            children: { type: "array", items: ref("Tree") },
+          },
+          required: ["value", "children"],
+        },
+      },
+    };
+    expect(checkModule(mod)).toEqual([]);
+  });
+});
+
 describe("checkModule: dangling $ref → hard error", () => {
   const ref = (name: string): Schema => ({ $ref: `#/$defs/${name}` });
 
