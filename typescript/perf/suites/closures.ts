@@ -67,8 +67,8 @@ export function makeSuite(mode: Mode): Suite {
   }
 
   // -- 4. Invoking a closure that holds a big captured value. ------------------
-  // The captured array sits in the closure body in expression position; raw
-  // data is skipped per invocation, unmarked data is re-walked per invocation.
+  // The captured array sits in expression position. Substitution should
+  // auto-mark the unmarked case, keeping both variants flat per invocation.
   const invokeProgram = fn(["xs"], call("sum", call("map", v("f"), call("range", 50))), {
     f: { $params: ["i"], $return: get("score", get(v("i"), v("xs"))) },
   }) as FunctionDeclaration;

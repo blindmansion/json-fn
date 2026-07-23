@@ -215,7 +215,10 @@ Comparison and negation have **no dedicated expression forms**. Comparisons (`eq
 
 ### Raw — `{ $raw }`
 
-Returns the value as-is without evaluating nested expressions. Use for constant data in hot paths or to prevent keyword collisions (data that happens to contain `$fn`, `$var`, etc. keys).
+Returns the value as-is without evaluating nested expressions. Plain constant
+arrays and objects are cached automatically after their first evaluation; use
+`$raw` to skip that first traversal or to prevent keyword collisions (data that
+happens to contain `$fn`, `$var`, etc. keys).
 
 ```json
 {

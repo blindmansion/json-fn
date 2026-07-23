@@ -18,7 +18,16 @@ import type {
 } from "../types";
 import { ExpressionType } from "../types";
 import { exprError } from "../expression-error";
-import { isCommentKey, isPure, isMeteredPure, isBuiltin, isRaw, raw } from "../utils";
+import {
+  isCommentKey,
+  isPure,
+  isMeteredPure,
+  isBuiltin,
+  isRaw,
+  isInert,
+  markEvaluated,
+  raw,
+} from "../utils";
 import {
   CONTRACT_KEY,
   enforceRuntimeContract,
@@ -57,6 +66,18 @@ function cloneIfNeeded(value: JSONType, perf?: PerfStats): JSONType {
 }
 
 const EMPTY_LOCAL_FNS: ReadonlySet<string> = new Set();
+
+// Pure-data literals keep their original identity after evaluation. Cache the
+// number of expression nodes that first evaluation visited so later evaluations
+// can skip descendant classification/allocation without making normative fuel
+// depend on whether this object was already evaluated in the current process.
+const constantEvaluationCosts = new WeakMap<object, number>();
+
+function constantChildCost(original: JSONType, evaluated: JSONType): number | null {
+  if (evaluated !== original) return null;
+  if (original === null || typeof original !== "object") return 1;
+  return constantEvaluationCosts.get(original) ?? (isRaw(original) ? 1 : null);
+}
 
 function resolveVar(
   name: string,
@@ -110,7 +131,7 @@ export function callFunctionInternal(
       const lexical = context.getVar?.(fn);
       if (lexical !== undefined && isFunctionDeclaration(lexical)) {
         result = callFunctionInternal(lexical, args, context);
-        raw(result);
+        markEvaluated(result);
         return result;
       }
       const entry = functions[fn];
@@ -131,6 +152,12 @@ export function callFunctionInternal(
       } else {
         result = callJSONFunction(entry as FunctionBody, args, {
           functions,
+          // These sets describe which local definitions must be attached when
+          // a closure escapes; they are metadata, not a lexical getVar parent.
+          // Dropping them makes a registry-dispatched module function look
+          // like module root and loses its nested local functions on escape.
+          localFns: context.localFns,
+          attachFns: context.attachFns,
           limits: context.limits,
           state: context.state,
           perf,
@@ -163,7 +190,7 @@ export function callFunctionInternal(
             },
       );
     }
-    raw(result);
+    markEvaluated(result);
     return result;
   } finally {
     context.state.depth--;
@@ -429,6 +456,16 @@ function evaluateExpression(expression: JSONType, context: EvaluationContext): J
 
   chargeFuel(context, 1);
 
+  if (expression !== null && typeof expression === "object") {
+    // Raw values are values, not syntax. Check before expression
+    // classification so data containing keys such as $call or $var remains
+    // inert when it is captured into expression position.
+    if (isInert(expression)) {
+      if (perf) perf.rawSkips++;
+      return expression;
+    }
+  }
+
   const { getVar } = context;
   const expressionType = getExpressionType(expression, perf);
   if (perf) {
@@ -583,27 +620,33 @@ function evaluateExpression(expression: JSONType, context: EvaluationContext): J
 
 // Array/object literals: constant-subtree detection. Scalars evaluate to
 // themselves, so a pure-data subtree evaluates to identical children at every
-// level; when that happens we return the original node and raw-mark it, making
-// the first evaluation prove const-ness and every later evaluation O(1). This
-// is what keeps big unmarked data (literals in program bodies, values
-// substituted into closures by replaceVars) from being deep-rebuilt on every
-// evaluation. Any expression child ($var, $call, ...) yields a different
-// object, which suppresses the marking. Without a scope (getVar undefined) a
-// function-body child also evaluates to itself, so identity would not prove
-// const-ness; the permanent marking is skipped in that case.
+// level. Cache its original identity and evaluation-node count: later
+// evaluations avoid classification and allocation but charge the same fuel as
+// the first. Any dynamic child ($var, $call, ...) suppresses caching. Without a
+// scope (getVar undefined), a function-body child also evaluates to itself, so
+// identity would not prove const-ness and the cache is not populated.
 function evaluateArrayLiteral(array: JSONType[], context: EvaluationContext): JSONType {
+  const constantCost = constantEvaluationCosts.get(array);
+  if (constantCost !== undefined) {
+    chargeFuel(context, constantCost - 1);
+    if (context.perf) context.perf.rawSkips++;
+    return array;
+  }
   if (isRaw(array)) {
     if (context.perf) context.perf.rawSkips++;
     return array;
   }
   let allSame = true;
+  let evaluationCost = 1;
   const evaluatedItems = array.map((item) => {
     const evaluated = evaluateExpression(item, context);
-    if (evaluated !== item) allSame = false;
+    const childCost = constantChildCost(item, evaluated);
+    if (childCost === null) allSame = false;
+    else evaluationCost += childCost;
     return evaluated;
   });
   if (allSame) {
-    if (context.getVar) raw(array);
+    if (context.getVar) constantEvaluationCosts.set(array, evaluationCost);
     return array;
   }
   return evaluatedItems;
@@ -613,21 +656,30 @@ function evaluateObjectLiteral(
   object: { [key: string]: JSONType },
   context: EvaluationContext,
 ): JSONType {
+  const constantCost = constantEvaluationCosts.get(object);
+  if (constantCost !== undefined) {
+    chargeFuel(context, constantCost - 1);
+    if (context.perf) context.perf.rawSkips++;
+    return object;
+  }
   if (isRaw(object)) {
     if (context.perf) context.perf.rawSkips++;
     return object;
   }
   const stripComment = isCommentKey(object);
   let allSame = !stripComment;
+  let evaluationCost = 1;
   const evaluatedObject: Record<string, JSONType> = {};
   for (const [key, value] of Object.entries(object)) {
     if (stripComment && key === "$comment") continue;
     const evaluated = evaluateExpression(value, context);
-    if (evaluated !== value) allSame = false;
+    const childCost = constantChildCost(value, evaluated);
+    if (childCost === null) allSame = false;
+    else evaluationCost += childCost;
     evaluatedObject[key] = evaluated;
   }
   if (allSame) {
-    if (context.getVar) raw(object);
+    if (context.getVar) constantEvaluationCosts.set(object, evaluationCost);
     return object;
   }
   return evaluatedObject;

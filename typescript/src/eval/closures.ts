@@ -1,7 +1,7 @@
 import type { FunctionRegistry, JSONType } from "../types";
 import { CONTRACT_KEY } from "../runtime-contract";
 import { boundParameterNames, defaultBindings, requireParameterLayout } from "../params";
-import { isRaw } from "../utils";
+import { isRaw, raw } from "../utils";
 import { isFunctionBody, isFunctionDeclaration } from "../function-value";
 import { chargeFuel, guardValueSize } from "./execution";
 import type { EvaluationContext } from "./internal-types";
@@ -36,7 +36,15 @@ export function replaceVars(
   if (typeof expression === "object" && expression !== null) {
     if ("$var" in expression && typeof expression.$var === "string") {
       const varValue = getVar(expression.$var);
-      return varValue === undefined ? expression : varValue;
+      if (varValue === undefined) return expression;
+      // Substitution moves an already-evaluated value into expression
+      // position. Mark data values so they remain inert there, including host
+      // objects whose keys happen to look like expression syntax. Function
+      // declarations stay live for nested capture and attachment.
+      if (typeof varValue === "object" && varValue !== null && !isFunctionDeclaration(varValue)) {
+        raw(varValue);
+      }
+      return varValue;
     }
 
     if (isFunctionBody(expression)) {

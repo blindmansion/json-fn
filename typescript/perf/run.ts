@@ -18,12 +18,14 @@ import { compareResults, printComparison } from "./compare";
 import { makeSuite as makeRawInternal } from "./suites/raw-internal";
 import { makeSuite as makeBoundary } from "./suites/boundary";
 import { makeSuite as makeClosures } from "./suites/closures";
+import { makeSuite as makeEffects } from "./suites/effects";
 import { makeSuite as makeRecursion } from "./suites/recursion";
 
 const SUITE_FACTORIES: Record<string, (mode: Mode) => Suite> = {
   "raw-internal": makeRawInternal,
   boundary: makeBoundary,
   closures: makeClosures,
+  effects: makeEffects,
   recursion: makeRecursion,
 };
 

@@ -20,8 +20,8 @@ export function makeSuite(mode: Mode): Suite {
   const benches: BenchDef[] = [];
 
   // -- 1. Large literal embedded in the program body, raw vs unmarked. -------
-  // Locals are lazy but re-evaluated on every call, so an unmarked literal is
-  // deep-walked and rebuilt per call while `$raw` returns it untouched.
+  // The first unmarked evaluation discovers and caches a constant subtree;
+  // warmed calls should then be as flat as the explicit `$raw` control.
   for (const n of pick([100, 1_000, 10_000], [100, 1_000])) {
     for (const marked of [false, true]) {
       // Separate instances: `$raw` marking is permanent (identity WeakSet).

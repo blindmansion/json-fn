@@ -27,6 +27,16 @@ Fuel is deterministic and additive:
 - callback invocations accrue their ordinary call, expression, and builtin
   costs separately.
 
+Raw and cached values refine the expression-node rule:
+
+- a `$raw` wrapper costs 1, but its payload is not evaluated and its descendants
+  are not charged;
+- re-entering an explicitly raw or already-evaluated runtime value costs 1 for
+  the value itself, with no descendant charges; and
+- a cached constant program subtree skips repeated interpreter work but charges
+  the same complete node count measured by its first evaluation. Reusing a
+  program object therefore does not change its constant-subtree fuel cost.
+
 Examples of explicitly metered native work include traversing numeric
 aggregates, collection higher-order functions, structural equality and
 membership, object construction, string scans, sorting comparisons, and regex

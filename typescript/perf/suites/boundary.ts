@@ -85,9 +85,8 @@ export function makeSuite(mode: Mode): Suite {
   }
 
   // -- 2. Argument captured into a closure, then invoked. ---------------------
-  // Substitution inlines the value by reference, but every invocation of the
-  // closure re-encounters it in expression position: raw skips it, an
-  // unmarked argument is deep-walked and rebuilt per invocation.
+  // Substitution inlines the value by reference and auto-marks data values.
+  // The unmarked case should therefore match the explicit raw control.
   const captureProgram = fn(
     ["xs"],
     call("sum", call("map", fn(["i"], get("score", get(v("i"), v("xs")))), call("range", 50))),

@@ -31,11 +31,11 @@ improvements (▼). `compare.ts` exits non-zero when regressions are present.
 
 ## What is measured
 
-Benchmarks are grouped into four suites, one file each under `suites/`:
+Benchmarks are grouped into five suites, one file each under `suites/`:
 
 - **`raw-internal`** — large objects and raw marking inside the interpreter:
-  unmarked vs `$raw` literals in program bodies, big values threaded through
-  call chains and `reduce`, indexed reads, and `setAt` copy costs. Most
+  automatically cached vs `$raw` literals in program bodies, big values threaded
+  through call chains and `reduce`, indexed reads, and `setAt` copy costs. Most
   benchmarks scale data size while holding guest work fixed, so a flat series
   means by-reference handling and a linear slope means re-walking/copying.
 - **`boundary`** — large values crossing the host boundary: argument passing
@@ -44,10 +44,12 @@ Benchmarks are grouped into four suites, one file each under `suites/`:
   and the effects kernel via `runTask`: fixed trampoline overhead, per-hop
   cost, and loose vs strict runtime contracts over big payloads.
 - **`closures`** — capture/escape costs: body size, captured-binding count,
-  big captured values (creation should be O(1); invocation is where unmarked
-  captures hurt), one-closure-per-element, curried application (expected
-  O(depth²) today — anything worse is a bug), and transitive local-function
-  attachment.
+  big captured values (automatic substitution marking should match explicit
+  raw marking), one-closure-per-element, curried application (expected O(depth²)
+  today — anything worse is a bug), and transitive local-function attachment.
+- **`effects`** — orchestration with large effect payloads: flow-through versus
+  continuation-captured values through both the manual task kernel and
+  `runTask`, plus durable task serialization as a separately scaling cost.
 - **`recursion`** — deep guest recursion (self, mutual, accumulator, tree),
   recursion carrying a big payload, and deep expression nesting. Depths that
   exceed limits or overflow the JS stack are recorded as `error` in the
