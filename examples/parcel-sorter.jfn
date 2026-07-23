@@ -48,10 +48,10 @@
 
   routeOne: (st: State, parcel: Parcel) -> Task<State> => do {
     decision: decide(parcel),
-    _ <- effects.log(describe(parcel, decision)),
+    effects.log(describe(parcel, decision)),
     match decision.tag {
       "route" -> do {
-        _ <- effects.conveyor.route(parcel.id, decision.lane),
+        effects.conveyor.route(parcel.id, decision.lane),
         pure(apply(st, decision))
       },
       else -> raise(decision.fault)

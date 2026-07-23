@@ -61,8 +61,8 @@
   // type at this helper boundary.
   onReading: (st: State, reading: Reading) -> Task<State> => do {
     action: decide(st.config, st.mode, reading),
-    _ <- effects.log(describe(action, reading)),
-    _ <- actuate(action),
+    effects.log(describe(action, reading)),
+    actuate(action),
     pure(apply(st, action))
   },
 

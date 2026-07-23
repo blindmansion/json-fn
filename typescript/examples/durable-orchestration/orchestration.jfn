@@ -23,7 +23,7 @@
   //   3. an empty join that still reaches the host; and
   //   4. awaitAny, whose losing agent is intentionally not cancelled.
   workflow: () => do {
-    _ <- effects.log("starting sequential pipeline"),
+    effects.log("starting sequential pipeline"),
     researchHandle <- effects.agent.spawn({
       name: "research",
       prompt: "Collect the release facts"
@@ -35,7 +35,7 @@
     }),
     pipeline <- effects.agent.await(summaryHandle),
 
-    _ <- effects.log("spawning fan-out group"),
+    effects.log("spawning fan-out group"),
     fanoutHandles <- spawnAll([
       { name: "alpha", prompt: "Analyze alpha" },
       { name: "broken", prompt: "Demonstrate an in-band failure" },
@@ -52,7 +52,7 @@
       { name: "slow", prompt: "Keep running after the winner" }
     ]),
     race <- effects.agent.awaitAny(raceHandles),
-    _ <- effects.log("workflow complete"),
+    effects.log("workflow complete"),
     pure({ pipeline, fanout, empty, race })
   },
 
