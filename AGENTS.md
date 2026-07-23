@@ -64,6 +64,7 @@ Commands:
     contract must declare no direct host functions.
   - `--function <name>` — with `--contract`, development-evaluate any named module function through the shared linker.
   - `--args <json>` — JSON array of arguments (default `[]`).
+ - `--json-input` — read canonical json-fn JSON instead of `.jfn` shorthand.
   - `-j/--json` (default) or `-s/--shorthand` — output format; `-c/--compact` minifies JSON.
 - `check` (alias `c`) — typecheck a module or expression; `--contract <path>`
   links the operator-owned environment contract and checks its entry boundary.

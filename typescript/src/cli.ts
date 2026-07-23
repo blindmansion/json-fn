@@ -71,6 +71,7 @@ eval options:
       --max-fuel <n>  Maximum metered work (default: unlimited)
       --max-value-size <n>
                       Maximum produced array/string length (default: unlimited)
+      --json-input    Read canonical json-fn JSON instead of .jfn shorthand
   -j, --json          Print the result as JSON (default)
   -s, --shorthand     Print the result as .jfn shorthand (best effort)
   -c, --compact       With --json, emit minified JSON
@@ -219,6 +220,7 @@ async function cmdEval(argv: string[]): Promise<void> {
       "--max-value-size": "max-value-size",
     },
     {
+      "--json-input": "json-input",
       "-j": "json",
       "--json": "json",
       "-s": "shorthand",
@@ -231,10 +233,18 @@ async function cmdEval(argv: string[]): Promise<void> {
   const src = await readInput(parsed);
 
   let parsedSource: JSONType;
-  try {
-    parsedSource = parseShorthand(src);
-  } catch (e) {
-    fail(`could not parse shorthand: ${errMessage(e)}`);
+  if (parsed.flags.has("json-input")) {
+    try {
+      parsedSource = JSON.parse(src) as JSONType;
+    } catch (e) {
+      fail(`invalid JSON input: ${errMessage(e)}`);
+    }
+  } else {
+    try {
+      parsedSource = parseShorthand(src);
+    } catch (e) {
+      fail(`could not parse shorthand: ${errMessage(e)}`);
+    }
   }
 
   let args: JSONType[] = [];

@@ -64,6 +64,37 @@ describe("jfn eval bare functions", () => {
   });
 });
 
+describe("jfn eval canonical JSON input", () => {
+  test("evaluates a canonical expression", () => {
+    const source = JSON.stringify({ $call: "add", $args: [1, 2] });
+    const result = runEval(["--json-input", source, "--compact"]);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout.trim()).toBe("3");
+  });
+
+  test("applies arguments to a canonical function", () => {
+    const source = JSON.stringify({
+      $params: ["value"],
+      $return: { $call: "mul", $args: [{ $var: "value" }, { $var: "value" }] },
+    });
+    const result = runEval(["--json-input", source, "--args", "[9]", "--compact"]);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout.trim()).toBe("81");
+  });
+
+  test("reports malformed canonical JSON as JSON input", () => {
+    const result = runEval(["--json-input", '{"$call":']);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain("jfn: invalid JSON input:");
+  });
+});
+
 describe("jfn eval arity diagnostics", () => {
   test.each([
     {
@@ -186,10 +217,20 @@ describe("jfn eval contract modes", () => {
 
     try {
       const result = runEval(["--contract", contractPath, "{ main: () => 42 }", "--compact"]);
+      const canonicalResult = runEval([
+        "--contract",
+        contractPath,
+        "--json-input",
+        JSON.stringify({ main: { $params: [], $return: 42 } }),
+        "--compact",
+      ]);
 
       expect(result.exitCode).toBe(0);
       expect(result.stderr).toBe("");
       expect(result.stdout.trim()).toBe("42");
+      expect(canonicalResult.exitCode).toBe(0);
+      expect(canonicalResult.stderr).toBe("");
+      expect(canonicalResult.stdout.trim()).toBe("42");
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }

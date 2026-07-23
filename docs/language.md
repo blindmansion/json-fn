@@ -788,7 +788,8 @@ the contract-owned signature. `jfn eval --contract <path>` prepares a live
 deployment with an empty effect selection and empty runtime adapter, then executes the
 contract entry. It is therefore suitable only when the contract has no direct
 host functions and every task effect is handled in-language (or no effect is
-performed).
+performed). By default `eval` reads shorthand; pass `--json-input` to evaluate
+canonical json-fn JSON directly.
 
 Adding `--function <name>` selects a development evaluation instead: the CLI
 uses the shared module linker, then invokes that named module function without
