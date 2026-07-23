@@ -112,6 +112,59 @@ describe("jfn eval arity diagnostics", () => {
   });
 });
 
+describe("jfn eval execution limits", () => {
+  const recursive = "(() => go(300) where { go: (n) => if n <= 0 then 0 else go(n - 1) })()";
+
+  test("allows the call-depth limit to be raised", () => {
+    const defaultResult = runEval([recursive]);
+    const raisedResult = runEval([recursive, "--max-call-depth", "1024", "--compact"]);
+
+    expect(defaultResult.exitCode).toBe(1);
+    expect(defaultResult.stderr).toContain("Maximum call depth of 256 exceeded");
+    expect(raisedResult.exitCode).toBe(0);
+    expect(raisedResult.stderr).toBe("");
+    expect(raisedResult.stdout.trim()).toBe("0");
+  });
+
+  test.each([
+    {
+      option: "--max-call-depth",
+      value: "2",
+      source: "(() => go(3) where { go: (n) => if n <= 0 then 0 else go(n - 1) })()",
+      error: "Maximum call depth of 2 exceeded",
+    },
+    {
+      option: "--max-fuel",
+      value: "0",
+      source: "1",
+      error: "Maximum fuel limit of 0 exceeded",
+    },
+    {
+      option: "--max-value-size",
+      value: "2",
+      source: "range(3)",
+      error: "Maximum value size of 2 exceeded",
+    },
+  ])("enforces $option", ({ option, value, source, error }) => {
+    const result = runEval([source, option, value]);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain(error);
+  });
+
+  test.each(["-1", "1.5", "nope", "9007199254740992"])(
+    "rejects invalid execution limit %s",
+    (value) => {
+      const result = runEval(["1", "--max-fuel", value]);
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toBe("jfn: invalid --max-fuel: expected a non-negative integer\n");
+    },
+  );
+});
+
 describe("jfn eval contract modes", () => {
   test("executes a direct contract entry", () => {
     const directory = mkdtempSync(join(tmpdir(), "json-fn-eval-direct-entry-"));
@@ -171,11 +224,25 @@ describe("jfn eval contract modes", () => {
         module,
         "--compact",
       ]);
+      const limitedProduction = runEval(["--contract", contractPath, "--max-fuel", "0", module]);
+      const limitedDevelopment = runEval([
+        "--contract",
+        contractPath,
+        "--function",
+        "demo",
+        "--max-fuel",
+        "0",
+        module,
+      ]);
 
       expect(production.exitCode).toBe(0);
       expect(production.stdout.trim()).toBe("7");
       expect(development.exitCode).toBe(0);
       expect(development.stdout.trim()).toBe("9");
+      expect(limitedProduction.exitCode).toBe(1);
+      expect(limitedProduction.stderr).toContain("Maximum fuel limit of 0 exceeded");
+      expect(limitedDevelopment.exitCode).toBe(1);
+      expect(limitedDevelopment.stderr).toContain("Maximum fuel limit of 0 exceeded");
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }

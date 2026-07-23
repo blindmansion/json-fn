@@ -21,6 +21,7 @@ import {
   runTask,
   validateEnvironmentContract,
   validateDeploymentProfile,
+  type ExecutionLimits,
   type JSONType,
 } from "./index";
 import { checkExpr, checkModule } from "./check/module";
@@ -65,6 +66,11 @@ eval options:
       --function <name>
                       Development-only invocation of any named module function
       --args <json>   JSON array of function/entry arguments (default: [])
+      --max-call-depth <n>
+                      Maximum nested guest function calls (default: 256)
+      --max-fuel <n>  Maximum metered work (default: unlimited)
+      --max-value-size <n>
+                      Maximum produced array/string length (default: unlimited)
   -j, --json          Print the result as JSON (default)
   -s, --shorthand     Print the result as .jfn shorthand (best effort)
   -c, --compact       With --json, emit minified JSON
@@ -208,6 +214,9 @@ async function cmdEval(argv: string[]): Promise<void> {
       "--contract": "contract",
       "--function": "function",
       "--args": "args",
+      "--max-call-depth": "max-call-depth",
+      "--max-fuel": "max-fuel",
+      "--max-value-size": "max-value-size",
     },
     {
       "-j": "json",
@@ -237,6 +246,16 @@ async function cmdEval(argv: string[]): Promise<void> {
     } catch (e) {
       fail(`invalid --args: ${errMessage(e)}`);
     }
+  }
+
+  const limits: ExecutionLimits = {};
+  for (const [option, field] of [
+    ["max-call-depth", "maxCallDepth"],
+    ["max-fuel", "maxFuel"],
+    ["max-value-size", "maxValueSize"],
+  ] as const) {
+    const raw = parsed.options[option];
+    if (raw !== undefined) limits[field] = parseNonNegativeIntegerOption(`--${option}`, raw);
   }
 
   const stdlib = createStdlib({
@@ -274,7 +293,7 @@ async function cmdEval(argv: string[]): Promise<void> {
           functionName,
           args,
           stdlib,
-          undefined,
+          limits,
           linked.definitionSources,
         );
       } else {
@@ -282,7 +301,7 @@ async function cmdEval(argv: string[]): Promise<void> {
           prepareDeployment({
             module,
             contract,
-            profile: { version: 1, mode: "live", effects: [] },
+            profile: { version: 1, mode: "live", effects: [], limits },
             adapter: { functions: {}, effects: {} },
           }),
           args,
@@ -290,11 +309,11 @@ async function cmdEval(argv: string[]): Promise<void> {
       }
     } else if (isFunctionBody(parsedSource)) {
       // A bare function literal applied to the supplied --args.
-      result = callFunction(parsedSource, args, stdlib, undefined, definitions);
+      result = callFunction(parsedSource, args, stdlib, limits, definitions);
     } else {
       // A bare expression is evaluated as the body of a zero-arg function so it
       // runs through the same interpreter path everything else uses.
-      result = callFunction({ $return: parsedSource }, args, stdlib, undefined, definitions);
+      result = callFunction({ $return: parsedSource }, args, stdlib, limits, definitions);
     }
   } catch (e) {
     fail(`evaluation error: ${errMessage(e)}`);
@@ -483,6 +502,14 @@ function stringify(value: JSONType, compact: boolean): string {
 
 function errMessage(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
+}
+
+function parseNonNegativeIntegerOption(option: string, raw: string): number {
+  const value = Number(raw);
+  if (!Number.isSafeInteger(value) || value < 0) {
+    fail(`invalid ${option}: expected a non-negative integer`);
+  }
+  return value;
 }
 
 async function main(): Promise<void> {

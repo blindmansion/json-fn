@@ -1027,7 +1027,9 @@ Portable deployment limits are supplied through a
 [deployment profile](deployment-profile.md); host entry and runtime-adapter boundaries
 are described by the [environment contract](environment-contract.md), with
 persistent TypeScript behavior in [Durable task hosting](durable-host.md). For
-the normative cost model, see [Execution limits](execution-limits.md).
+the normative cost model, see [Execution limits](execution-limits.md). The
+TypeScript CLI's `eval` command accepts `--max-call-depth`, `--max-fuel`, and
+`--max-value-size` to set these limits for an individual run.
 
 ## Constraints
 
