@@ -286,10 +286,9 @@ describe("printer output shape", () => {
   });
 
   // A function body with locals prints its `$return` followed by `where { ... }`.
-  // If the return is an `if` (or a nested lambda), the trailing `where` would
-  // re-parse as attaching to the return's open tail instead of the body, so the
-  // return must be parenthesized.
-  test("if-return with where locals is parenthesized so where binds to the body", () => {
+  // `where` binds looser than a complete `if`, so no defensive parentheses are
+  // needed around a conditional return.
+  test("if-return with where locals binds to the body without parentheses", () => {
     const node: JSONType = {
       $params: ["s"],
       len: { $call: "length", $args: [{ $var: "s" }] },
@@ -299,9 +298,7 @@ describe("printer output shape", () => {
         $else: null,
       },
     };
-    expect(print(node)).toBe(
-      "(s) => (if len == 2 then len else null) where {\n  len: length(s)\n}",
-    );
+    expect(print(node)).toBe("(s) => if len == 2 then len else null where {\n  len: length(s)\n}");
     expect(parse(print(node))).toEqual(node);
   });
 

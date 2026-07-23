@@ -438,13 +438,10 @@ function renderFunctionBody(node: { [k: string]: JSONType }, indent: string): Re
     return { text: `${header} ${emit(node.$return!, P_BLOCK, indent)}`, prec: P_BLOCK };
   }
   const inner = indent + "  ";
-  // The `where` clause is a postfix on the return expression. If the return's
-  // surface form ends with an *open* expression whose parse would greedily
-  // extend — an `if/then/else` (its `else` tail) or a nested function literal
-  // (its `=>` body) — the trailing `where` would re-attach to that inner tail
-  // instead of this body on re-parse. Parenthesize such returns so the `where`
-  // binds here. Brace-terminated blocks (`cond`/`match`) and every operator/
-  // call/data form stop before `where`, so they need no guard.
+  // A nested function literal starts its own body, so its open `=>` tail would
+  // consume a following `where`. Parenthesize that return to keep this body's
+  // locals outside it. An `if` no longer needs a guard: `where` binds looser
+  // than the complete conditional.
   const retText = emit(node.$return!, P_BLOCK, indent);
   const ret = returnAbsorbsTrailingWhere(node.$return!) ? `(${retText})` : retText;
   const bindings = locals.map((k) => `${inner}${k}: ${emit(node[k]!, P_BLOCK, inner)}`);
@@ -488,13 +485,11 @@ function renderFunctionHeader(layout: ParameterLayout, sig: JSONType | undefined
 }
 
 /** Whether a function-body `$return`, printed bare, would swallow a following
- * `where` into a sub-expression rather than the body. True for `if/then/else`
- * (the `else` branch is an open expression) and nested function literals (the
- * `=>` body is open). `cond`/`match` close with `}` and all operator/call/data
- * forms stop before `where`, so they are safe. */
+ * `where` into a nested body. Only a nested function literal does: its `=>`
+ * opens a new body and therefore owns the clause. */
 function returnAbsorbsTrailingWhere(node: JSONType): boolean {
   if (node === null || typeof node !== "object" || Array.isArray(node)) return false;
-  return "$if" in node || "$return" in node;
+  return "$return" in node;
 }
 
 /** Render one normalized `$params` slot. */

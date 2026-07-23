@@ -510,11 +510,11 @@ distinguished from `match` purely by the absence of a subject after the keyword.
 { "$params": ["a", "b"], "$return": { "$call": "add", "$args": [{ "$var": "a" }, { "$var": "b" }] } }
 ```
 
-### `expr where { name: value, … }`
+### `body-expr where { name: value, … }`
 
-The return expression comes first; the trailing `where { … }` clause supplies
-the locals. Bindings use `:` (mirroring the JSON, where locals are literally
-key–value entries on the function-body object).
+The result expression comes first; the trailing `where { … }` clause supplies
+the locals. Bindings use `:` (mirroring the JSON, where function locals are
+literally key–value entries on the function-body object).
 
 ```jfn
 (x, y) => doubled where {
@@ -540,8 +540,43 @@ that only terminates because it is forced solely in the branch that uses it.)
 Placing the answer first and its supporting locals after mirrors how these
 functions read: headline, then the details that back it up.
 
-`where` is not an operator — `parseExpr` stops before it — so it is only valid
-as a postfix clause on a function body, not inside arbitrary expressions.
+`where` is a lowest-precedence postfix clause on a **body**. Bodies occur at the
+program top level, after `=>`, inside a parenthesized group, in a `where` binding
+value, in a `cond`/`match` result arm, and in the body positions of `do`.
+In a function body, the bindings lower directly into that function's scope.
+In any other body, they lower to an immediately invoked zero-argument function:
+
+```jfn
+answer where { answer: 40 + 2 }
+```
+
+```json
+{
+  "$call": {
+    "answer": { "$call": "add", "$args": [40, 2] },
+    "$return": { "$var": "answer" }
+  },
+  "$args": []
+}
+```
+
+An unparenthesized clause attaches to the largest expression in its current
+body. In particular, it scopes over a complete conditional:
+
+```jfn
+(x) => if doubled > 0 then doubled else 0 where { doubled: x * 2 }
+```
+
+To scope locals to only one branch, make that branch a parenthesized body:
+
+```jfn
+if x > 0 then x else (fallback(x) where { fallback: (n) => n - 1 })
+```
+
+A nested function literal starts a new body after its `=>`, so its trailing
+`where` naturally belongs to the nested function. Parenthesize the complete
+nested literal before `where` when the clause should belong to an enclosing
+body instead.
 
 A bare `{...}` is **always** a data object — including immediately after `=>`:
 
@@ -758,7 +793,7 @@ contract. The shorthand only guarantees the JSON it produces.
 ## 10. Grammar (informal EBNF)
 
 ```
-program     := expr
+program     := body
 
 expr        := ascription
 ascription  := orExpr ( "as" type )?                             // non-assoc
@@ -776,7 +811,7 @@ postfix     := primary ( "." ident
 primary     := number | string | template | "true" | "false" | "null"
              | ident                                 // variable, or fn name if called
              | "&" ident | "&" "(" expr ")"          // function reference
-             | "(" expr ")"
+             | "(" body ")"
              | funcLit
              | "[" (expr ("," expr)*)? "]"           // array
              | "{" (dataEntry ("," dataEntry)*)? "}" // data object
@@ -789,7 +824,7 @@ primary     := number | string | template | "true" | "false" | "null"
 
 funcLit     := "(" params ")" "=>" body
 body        := expr ( "where" "{" binding ("," binding)* "}" )?
-binding     := ident ":" expr
+binding     := ident ":" body
 params      := ( param ("," param)* )?               // last may be "...ident"
 param       := ident ( "?" | "=" expr )?
              | "..." ident                           // rest (last slot only)
@@ -800,8 +835,8 @@ dataEntry   := (ident | string) ":" expr
              | ident                                 // punned: { x } == { x: x }
 doEntry     := ident "<-" expr                       // effect binding (§13)
              | ident ":" body                        // pure (lazy-local) binding
-             | expr                                  // discard (non-final) / result (final)
-arm         := (expr | "else") "->" expr
+             | body                                  // discard (non-final) / result (final)
+arm         := (expr | "else") "->" body
 template    := "`" ( char | "${" expr "}" )* "`"     // strict; no coercion
 ident       := [A-Za-z_][A-Za-z0-9_]*
 ```

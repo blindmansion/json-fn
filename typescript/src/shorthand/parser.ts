@@ -786,9 +786,13 @@ class Parser extends TokenCursor {
   private parseIf(): JSONType {
     const cond = this.parseExpr();
     this.expectKeyword("then");
-    const then = this.parseBody();
+    // `where` has lower precedence than `if`: an unparenthesized trailing
+    // clause belongs to the body containing the whole conditional, not to one
+    // of its open-ended branches. A branch-local clause must therefore be
+    // parenthesized, and the grouped primary's `parseBody` consumes it there.
+    const then = this.parseExpr();
     this.expectKeyword("else");
-    const els = this.parseBody();
+    const els = this.parseExpr();
     return { $if: cond, $then: then, $else: els };
   }
 
