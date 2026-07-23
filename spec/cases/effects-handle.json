@@ -529,6 +529,25 @@
       "expected": [3, 2, 1]
     },
     {
+      "description": "bind accepts a zero-parameter continuation that discards the completed value",
+      "body": {
+        "$return": {
+          "$call": "handle",
+          "$args": [
+            {
+              "$call": "bind",
+              "$args": [
+                { "$call": "pure", "$args": [1] },
+                { "$return": { "$call": "pure", "$args": ["ok"] } }
+              ]
+            },
+            {}
+          ]
+        }
+      },
+      "expected": "ok"
+    },
+    {
       "description": "malformed forged task: bind with a non-closure then fails with a clean guest-visible error",
       "body": {
         "$return": {

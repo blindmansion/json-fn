@@ -569,7 +569,7 @@ A task is a tagged plain object. The tag key is `@task` — deliberately **not**
 
 - **`effect`** requests one effect by `name`, carrying its `args`. `raise(err)` is the distinguished effect named `raise`.
 - **`pure`** is a completed task whose result is `value`.
-- **`bind`** sequences: run `task`, then apply the continuation `then` (an ordinary one-parameter function) to its result to obtain the next task.
+- **`bind`** sequences: run `task`, then apply the continuation `then` to obtain the next task. A one-parameter continuation receives the completed value; a zero-parameter continuation discards it (the shape emitted by a non-final bare expression in `do` notation).
 
 Because tasks are inert data, laziness composes with them cleanly: a task held in an [unreferenced lazy local](#lazy-local-variables) is never built, and building a task never performs its effect. Nothing happens until something *runs* the task.
 

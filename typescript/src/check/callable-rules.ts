@@ -130,7 +130,10 @@ const bindRule: CallableTypeRuleApplyV1 = (request, services) => {
   const expectedCallback: Schema = {
     $fnType: { required: [input], optional: [], returns: taskType(true) },
   };
-  let callbackReturn = services.contextualTypeCallback(1, expectedCallback);
+  const discardCallback: Schema = {
+    $fnType: { required: [], optional: [], returns: taskType(true) },
+  };
+  let callbackReturn = services.contextualTypeCallback(1, expectedCallback, [discardCallback]);
   if (callbackReturn === null) {
     const callback = services.resolveSchema(services.synthArgument(1));
     if (classifySchema(callback) !== SchemaKind.FnType) {

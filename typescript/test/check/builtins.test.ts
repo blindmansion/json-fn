@@ -1117,6 +1117,16 @@ describe("Section F — builtin signatures", () => {
       expect(result.type).toEqual({ $taskType: I });
     });
 
+    test("bind accepts a zero-parameter discard continuation", () => {
+      const callback = {
+        $return: call("pure", "done"),
+      };
+      const result = synthB(call("bind", call("pure", 1), callback));
+
+      expect(result.diagnostics).toEqual([]);
+      expect(result.type).toEqual({ $taskType: { const: "done" } });
+    });
+
     test("bind retains only its fallback arity or non-owned argument error", () => {
       const callback = {
         $params: ["value"],

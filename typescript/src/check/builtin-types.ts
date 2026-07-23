@@ -40,7 +40,11 @@ type CallableTypeRuleServicesV1 = {
   synthArgument: (index: number) => Schema;
   checkArgument: (index: number, expected: Schema) => void;
   contextualCheckArgument: (index: number, expected: Schema) => void;
-  contextualTypeCallback: (index: number, expectedFn: Schema) => Schema | null;
+  contextualTypeCallback: (
+    index: number,
+    expectedFn: Schema,
+    alternateExpectedFns?: readonly Schema[],
+  ) => Schema | null;
   resolveSchema: (schema: Schema) => Schema;
   instantiateSchema: (schema: Schema, bindings: Bindings) => Schema;
   reportError: (message: string, options?: RuleDiagnosticOptions) => void;

@@ -66,6 +66,36 @@ describe("prepareTaskRuntime", () => {
     expect(() => runtime.validateCompletion("bad")).toThrow(RuntimeContractError);
   });
 
+  test("resumes through a do-block discard continuation", () => {
+    const environment: Environment = {
+      effects: {
+        echo: { params: [integer], returns: integer },
+      },
+      entry: {
+        name: "main",
+        required: [integer],
+        optional: [],
+        returns: { task: integer },
+      },
+    };
+    const runtime = prepareTaskRuntime(
+      module(`{
+        main: (start) => do {
+          effects.echo(start),
+          pure(start + 1)
+        }
+      }`),
+      environment,
+      stdlib,
+    );
+
+    const first = runtime.step(runtime.invokeEntry([2]));
+    if ("done" in first) throw new Error("Expected echo to suspend");
+    const completed = runtime.step(runtime.applyResume(first.pending.resume, "echo", 99));
+
+    expect(completed).toEqual({ done: 3 });
+  });
+
   test("maps raise and unknown effects at the shared stepping boundary", () => {
     const environment: Environment = {
       effects: {},

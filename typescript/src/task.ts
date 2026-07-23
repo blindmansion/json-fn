@@ -18,6 +18,7 @@
 import type { JSONType, Meter } from "./types";
 import type { Defs, Schema } from "./schema/schema.ts";
 import { enforceRuntimeContract, RuntimeContractError } from "./runtime-contract";
+import { requireParameterLayout } from "./params";
 import { raw } from "./utils";
 import { isFunctionDeclaration } from "./function-value";
 
@@ -165,7 +166,14 @@ export function stepTask(
     if (tag === "pure") {
       const value = (current as unknown as PureTask).value;
       if (ks.length === 0) return { done: value };
-      current = call(ks.pop()!, [value]);
+      const continuation = ks.pop()!;
+      // `do` discards deliberately lower to a zero-parameter continuation,
+      // unlike `_ <- task`, whose one parameter receives the completed value.
+      const discards =
+        typeof continuation !== "string" &&
+        requireParameterLayout((continuation as Record<string, JSONType>).$params, continuation)
+          .slots.length === 0;
+      current = call(continuation, discards ? [] : [value]);
       continue;
     }
     if (tag === "effect") {
