@@ -141,7 +141,27 @@ export function callFunctionInternal(
       if (perf) {
         perf.functionCallCounts["<inline>"] = (perf.functionCallCounts["<inline>"] ?? 0) + 1;
       }
-      result = callJSONFunction(fn as FunctionBody, args, context);
+      // Function values are self-contained closures (free variables were
+      // substituted by replaceVars at capture), so the callee must not chain
+      // the caller's scope: linking getVar here turns lexical scope into a
+      // dynamic chain that grows with recursion depth, making every name
+      // lookup O(depth) and recursion O(depth^2) overall. This mirrors the
+      // registry-dispatch branch above, which already drops getVar.
+      result = callJSONFunction(
+        fn as FunctionBody,
+        args,
+        context.getVar === undefined
+          ? context
+          : {
+              functions: context.functions,
+              localFns: context.localFns,
+              attachFns: context.attachFns,
+              limits: context.limits,
+              state: context.state,
+              perf,
+              runtimeDefs: context.runtimeDefs,
+            },
+      );
     }
     raw(result);
     return result;
@@ -540,27 +560,14 @@ function evaluateExpression(expression: JSONType, context: EvaluationContext): J
       raw(rawValue);
       return rawValue;
 
+    // Kept as helper calls so their locals do not enlarge this function's
+    // stack frame: evaluateExpression recurses deeply for nested expressions
+    // and its frame size directly bounds the evaluable nesting depth.
     case ExpressionType.Array:
-      const array = expression as JSONType[];
-      if (isRaw(array)) {
-        if (perf) perf.rawSkips++;
-        return array;
-      }
-      return array.map((item) => evaluateExpression(item, context));
+      return evaluateArrayLiteral(expression as JSONType[], context);
 
     case ExpressionType.Object:
-      const object = expression as { [key: string]: JSONType };
-      if (isRaw(object)) {
-        if (perf) perf.rawSkips++;
-        return object;
-      }
-      const stripComment = isCommentKey(object);
-      const evaluatedObject: Record<string, JSONType> = {};
-      for (const [key, value] of Object.entries(object)) {
-        if (stripComment && key === "$comment") continue;
-        evaluatedObject[key] = evaluateExpression(value, context);
-      }
-      return evaluatedObject;
+      return evaluateObjectLiteral(expression as { [key: string]: JSONType }, context);
 
     case ExpressionType.String:
     case ExpressionType.Integer:
@@ -572,6 +579,58 @@ function evaluateExpression(expression: JSONType, context: EvaluationContext): J
     default:
       exprError(expression, "Unrecognized expression type.");
   }
+}
+
+// Array/object literals: constant-subtree detection. Scalars evaluate to
+// themselves, so a pure-data subtree evaluates to identical children at every
+// level; when that happens we return the original node and raw-mark it, making
+// the first evaluation prove const-ness and every later evaluation O(1). This
+// is what keeps big unmarked data (literals in program bodies, values
+// substituted into closures by replaceVars) from being deep-rebuilt on every
+// evaluation. Any expression child ($var, $call, ...) yields a different
+// object, which suppresses the marking. Without a scope (getVar undefined) a
+// function-body child also evaluates to itself, so identity would not prove
+// const-ness; the permanent marking is skipped in that case.
+function evaluateArrayLiteral(array: JSONType[], context: EvaluationContext): JSONType {
+  if (isRaw(array)) {
+    if (context.perf) context.perf.rawSkips++;
+    return array;
+  }
+  let allSame = true;
+  const evaluatedItems = array.map((item) => {
+    const evaluated = evaluateExpression(item, context);
+    if (evaluated !== item) allSame = false;
+    return evaluated;
+  });
+  if (allSame) {
+    if (context.getVar) raw(array);
+    return array;
+  }
+  return evaluatedItems;
+}
+
+function evaluateObjectLiteral(
+  object: { [key: string]: JSONType },
+  context: EvaluationContext,
+): JSONType {
+  if (isRaw(object)) {
+    if (context.perf) context.perf.rawSkips++;
+    return object;
+  }
+  const stripComment = isCommentKey(object);
+  let allSame = !stripComment;
+  const evaluatedObject: Record<string, JSONType> = {};
+  for (const [key, value] of Object.entries(object)) {
+    if (stripComment && key === "$comment") continue;
+    const evaluated = evaluateExpression(value, context);
+    if (evaluated !== value) allSame = false;
+    evaluatedObject[key] = evaluated;
+  }
+  if (allSame) {
+    if (context.getVar) raw(object);
+    return object;
+  }
+  return evaluatedObject;
 }
 
 function evaluatePropertyAccess(expression: PropertyAccess, context: EvaluationContext): JSONType {

@@ -133,61 +133,82 @@ export function replaceVars(
   return expression;
 }
 
-// Collect names in `attachFns` referenced by `node` at its own scope level, in
+// Collect every function name referenced by `node` at its own scope level, in
 // call position (`{ $call: "name", $args: [...] }`) or as a function reference
 // (`{ $fn: "name" }`). Nested function bodies are scope boundaries: they are
 // skipped here because they re-attach their own free local functions when they
 // are themselves captured. `$var`-position references to local functions are
 // already inlined by `replaceVars`, so they never reach this scan as names.
-function collectLocalFnRefs(
+// With `filter` null the collection is unfiltered (all names) so the result is
+// a property of the node alone and can be cached by identity; with a filter
+// set, only matching names are collected (used for one-shot scans of freshly
+// built bodies, where a smaller result set is cheaper than caching).
+function collectFnNameRefs(
   node: JSONType,
-  attachFns: ReadonlySet<string>,
+  filter: ReadonlySet<string> | null,
   out: Set<string>,
 ): void {
   if (node === null || typeof node !== "object") return;
   if (isRaw(node)) return;
   if (Array.isArray(node)) {
-    for (const item of node) collectLocalFnRefs(item, attachFns, out);
+    for (const item of node) collectFnNameRefs(item, filter, out);
     return;
   }
   if (isFunctionBody(node)) return;
 
   if ("$call" in node) {
     const callee = (node as Record<string, JSONType>).$call!;
-    if (typeof callee === "string" && attachFns.has(callee)) out.add(callee);
-    else collectLocalFnRefs(callee, attachFns, out);
+    if (typeof callee === "string") {
+      if (filter === null || filter.has(callee)) out.add(callee);
+    } else collectFnNameRefs(callee, filter, out);
     const args = (node as Record<string, JSONType>).$args;
     if (Array.isArray(args)) {
-      for (const item of args) collectLocalFnRefs(item, attachFns, out);
+      for (const item of args) collectFnNameRefs(item, filter, out);
     }
     return;
   }
   const fnValue = (node as Record<string, JSONType>).$fn;
   if (typeof fnValue === "string") {
-    if (attachFns.has(fnValue)) out.add(fnValue);
+    if (filter === null || filter.has(fnValue)) out.add(fnValue);
     return;
   }
-  for (const value of Object.values(node)) collectLocalFnRefs(value, attachFns, out);
+  for (const value of Object.values(node)) collectFnNameRefs(value, filter, out);
 }
 
-// Scan a function body's own level (its `$return` and locals, not nested
-// lambdas) for referenced attachable-function names.
-function collectBodyLevelLocalFnRefs(
+// Scan a function body's own level (its `$return`, locals, and parameter
+// defaults — not nested lambdas) for referenced function names.
+function scanBodyLevelFnNameRefs(
   body: Record<string, JSONType>,
-  attachFns: ReadonlySet<string>,
+  filter: ReadonlySet<string> | null,
   out: Set<string>,
 ): void {
   const layout = requireParameterLayout(body.$params, body);
   for (const binding of defaultBindings(layout)) {
-    collectLocalFnRefs(binding.expression, attachFns, out);
+    collectFnNameRefs(binding.expression, filter, out);
   }
-
   for (const [key, value] of Object.entries(body)) {
     if (key === "$params") continue;
     if (key === "$sig" || key === "$types" || key === CONTRACT_KEY) continue;
     if (key === "$comment" && typeof value === "string") continue;
-    collectLocalFnRefs(value, attachFns, out);
+    collectFnNameRefs(value, filter, out);
   }
+}
+
+// Cache of body-level name references per function-body object. Closed-over
+// local function definitions are stable objects reused across every escape
+// from their scope, so without this cache `attachFreeLocalFns` re-scans each
+// definition once per escaping closure (quadratic in escapes x definitions).
+// Only stable definition objects go through this; freshly-built escaping
+// bodies use `scanBodyLevelFnNameRefs` directly since they can never hit.
+const bodyFnNameRefsCache = new WeakMap<object, ReadonlySet<string>>();
+
+function cachedBodyLevelFnNameRefs(body: Record<string, JSONType>): ReadonlySet<string> {
+  const cached = bodyFnNameRefsCache.get(body);
+  if (cached !== undefined) return cached;
+  const out = new Set<string>();
+  scanBodyLevelFnNameRefs(body, null, out);
+  bodyFnNameRefsCache.set(body, out);
+  return out;
 }
 
 // Count the JSON nodes in a value — used to meter escaping-closure attachment
@@ -201,6 +222,19 @@ function countNodes(node: JSONType): number {
   } else {
     for (const value of Object.values(node)) count += countNodes(value);
   }
+  return count;
+}
+
+// Memoized at the top-level definition only (not per inner node), for the same
+// reason as `bodyFnNameRefsCache`: an attached definition is a stable object
+// re-counted once per escaping closure otherwise.
+const nodeCountCache = new WeakMap<object, number>();
+
+function cachedCountNodes(node: object): number {
+  const cached = nodeCountCache.get(node);
+  if (cached !== undefined) return cached;
+  const count = countNodes(node as JSONType);
+  nodeCountCache.set(node, count);
   return count;
 }
 
@@ -225,7 +259,10 @@ function attachFreeLocalFns(
 ): void {
   const queue: string[] = [];
   const seen = new Set<string>();
-  collectBodyLevelLocalFnRefs(body, attachFns, seen);
+  // The escaping body is freshly built for this escape, so scan it directly
+  // (a cache entry for it could never be reused, and the body is mutated
+  // below, which would leave a stale entry).
+  scanBodyLevelFnNameRefs(body, attachFns, seen);
   queue.push(...seen);
 
   let attachedNodes = 0;
@@ -239,14 +276,17 @@ function attachFreeLocalFns(
     // Meter the attachment (Part B safety net): charge and size-guard before
     // embedding, so an unexpectedly large or growing capture raises a clean
     // limit error rather than silently ballooning.
-    attachedNodes += countNodes(definition as JSONType);
+    attachedNodes += cachedCountNodes(definition);
     guardValueSize(context, attachedNodes);
     chargeFuel(context, attachedNodes);
     body[name] = definition as JSONType;
-    const more = new Set<string>();
-    collectBodyLevelLocalFnRefs(definition as Record<string, JSONType>, attachFns, more);
-    for (const reference of more) {
-      if (!(reference in body) && !boundNames.has(reference) && !seen.has(reference)) {
+    for (const reference of cachedBodyLevelFnNameRefs(definition as Record<string, JSONType>)) {
+      if (
+        attachFns.has(reference) &&
+        !(reference in body) &&
+        !boundNames.has(reference) &&
+        !seen.has(reference)
+      ) {
         seen.add(reference);
         queue.push(reference);
       }

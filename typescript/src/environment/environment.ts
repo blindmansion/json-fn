@@ -155,6 +155,12 @@ function mergeCallableTables(
   operator: Pick<Environment, "$defs" | "functions">,
 ): CallableTable {
   const hostFunctions = operator.functions ?? {};
+  const operatorDefs = operator.$defs ?? {};
+  // Nothing to merge: the (already validated) core table is the result, and
+  // re-validating it per call is the dominant cost of environment preparation.
+  if (Object.keys(hostFunctions).length === 0 && Object.keys(operatorDefs).length === 0) {
+    return core;
+  }
   for (const name of Object.keys(hostFunctions)) {
     if (name in core.builtins) throw new DuplicateCallableContractError(name);
   }

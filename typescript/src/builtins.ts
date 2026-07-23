@@ -373,8 +373,16 @@ export function validateCallableTable(value: unknown): asserts value is Callable
   }
 }
 
+// The table is static for the process lifetime, and hosts (e.g. runTask) load
+// it on every invocation — parse + validate costs ~700µs, so cache per path.
+// Only successful loads are cached; callers treat the table as read-only.
+const loadedTables = new Map<string, CallableTable>();
+
 export function loadBuiltinTable(path: string = DEFAULT_PATH): CallableTable {
+  const cached = loadedTables.get(path);
+  if (cached !== undefined) return cached;
   const parsed: unknown = JSON.parse(readFileSync(path, "utf-8"));
   validateCallableTable(parsed);
+  loadedTables.set(path, parsed);
   return parsed;
 }
