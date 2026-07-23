@@ -24,6 +24,7 @@ interface ParseSuite {
 }
 
 const CASES_DIR = join(import.meta.dir, "../../spec/parse-cases");
+const EXAMPLES_DIR = join(import.meta.dir, "../../examples");
 
 function roundTrips(json: JSONType): void {
   const parsed = parse(print(json));
@@ -61,6 +62,17 @@ describe("printer round-trips canonical JSON (parse ∘ print = id)", () => {
 });
 
 describe("printer output shape", () => {
+  test("prints typed modules as declarations and typed bindings", () => {
+    const node = parse("{ type N = integer, id: (x: N) -> N => x }");
+    expect(print(node)).toBe("{\n  type N = integer,\n  id: (x: N) -> N => x\n}");
+    expect(parse(print(node))).toEqual(node);
+  });
+
+  test("round-trips the type syntax showcase module", () => {
+    const source = readFileSync(join(EXAMPLES_DIR, "types.jfn"), "utf-8");
+    roundTrips(parse(source));
+  });
+
   test("prints optional callable slots", () => {
     expect(
       printType({

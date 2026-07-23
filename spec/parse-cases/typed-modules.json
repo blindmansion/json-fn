@@ -1,0 +1,38 @@
+{
+  "description": "typed modules (type syntax spec section 8)",
+  "cases": [
+    {
+      "description": "named types and typed function bindings",
+      "source": "{\n  type N = integer,\n  type Box = { value: N },\n  id: (x: N) -> N => x,\n  unbox: ({ value }: Box) -> N => value\n}",
+      "expected": {
+        "$types": {
+          "N": { "type": "integer" },
+          "Box": {
+            "type": "object",
+            "properties": { "value": { "$ref": "#/$defs/N" } },
+            "required": ["value"],
+            "additionalProperties": false
+          }
+        },
+        "id": {
+          "$sig": {
+            "required": [{ "$ref": "#/$defs/N" }],
+            "optional": [],
+            "returns": { "$ref": "#/$defs/N" }
+          },
+          "$params": ["x"],
+          "$return": { "$var": "x" }
+        },
+        "unbox": {
+          "$sig": {
+            "required": [{ "$ref": "#/$defs/Box" }],
+            "optional": [],
+            "returns": { "$ref": "#/$defs/N" }
+          },
+          "$params": [{ "$fields": ["value"] }],
+          "$return": { "$var": "value" }
+        }
+      }
+    }
+  ]
+}

@@ -34,6 +34,9 @@ import { printType } from "./type-printer";
 
 /** Pretty-print canonical json-fn JSON as `.jfn` shorthand source. */
 export function print(node: JSONType): string {
+  // Type declarations are legal only in the top-level module object, so module
+  // rendering must happen here rather than in recursive object dispatch.
+  if (isPlainObject(node) && "$types" in node) return renderModule(node, "");
   return emit(node, 0, "");
 }
 
@@ -525,6 +528,37 @@ function renderArray(arr: JSONType[], indent: string): string {
   return `[${arr.map((el) => emit(el, P_BLOCK, indent)).join(", ")}]`;
 }
 
+function renderModule(node: { [k: string]: JSONType }, indent: string): string {
+  const types = node.$types;
+  if (!isPlainObject(types)) throw new Error("Cannot print module with malformed $types pool");
+
+  const typeEntries = Object.entries(types).map(([name, schema]) => {
+    if (!IDENT_RE.test(name)) {
+      throw new Error(`Cannot print type declaration with invalid name ${JSON.stringify(name)}`);
+    }
+    if (name === "Task") {
+      throw new Error("Cannot print type declaration named 'Task'; it is reserved");
+    }
+    return `type ${name} = ${printType(schema)}`;
+  });
+  if (typeEntries.length === 0) {
+    throw new Error("Cannot print module with an empty $types pool");
+  }
+
+  const bindingKeys = Object.keys(node).filter((k) => k !== "$types" && k !== "$comment");
+  const reserved = bindingKeys.find((k) => k.startsWith("$"));
+  if (reserved !== undefined) {
+    throw new Error(
+      `Cannot print module with unsupported reserved key ${JSON.stringify(reserved)}`,
+    );
+  }
+
+  const inner = indent + "  ";
+  const entries = [...typeEntries, ...bindingKeys.map((key) => renderDataEntry(node, key, inner))];
+  if (entries.length === 1) return `{ ${entries[0]} }`;
+  return `{\n${entries.map((entry) => inner + entry).join(",\n")}\n${indent}}`;
+}
+
 function renderDataObject(node: { [k: string]: JSONType }, indent: string): string {
   // `$comment` has no canonical shorthand surface form, so we ignore it for now
   // rather than letting it force the whole object into a `raw` island.
@@ -534,17 +568,18 @@ function renderDataObject(node: { [k: string]: JSONType }, indent: string): stri
   if (keys.some((k) => k.startsWith("$"))) return `raw ${JSON.stringify(node)}`;
   if (keys.length === 0) return "{}";
 
-  const entry = (k: string, ind: string): string => {
-    // Shorthand-property punning: `{ key: { $var: key } }` prints as `{ key }`
-    // when the key is a bare identifier (the canonical, narrower spelling).
-    if (IDENT_RE.test(k) && isVarPun(node[k]!, k)) return k;
-    return `${IDENT_RE.test(k) ? k : JSON.stringify(k)}: ${emit(node[k]!, P_BLOCK, ind)}`;
-  };
-
-  if (keys.length === 1) return `{ ${entry(keys[0]!, indent)} }`;
+  if (keys.length === 1) return `{ ${renderDataEntry(node, keys[0]!, indent)} }`;
 
   const inner = indent + "  ";
-  return `{\n${keys.map((k) => inner + entry(k, inner)).join(",\n")}\n${indent}}`;
+  return `{\n${keys.map((k) => inner + renderDataEntry(node, k, inner)).join(",\n")}\n${indent}}`;
+}
+
+function renderDataEntry(node: { [k: string]: JSONType }, key: string, indent: string): string {
+  // Shorthand-property punning: `{ key: { $var: key } }` prints as `{ key }`
+  // when the key is a bare identifier (the canonical, narrower spelling).
+  if (IDENT_RE.test(key) && isVarPun(node[key]!, key)) return key;
+  const renderedKey = IDENT_RE.test(key) ? key : JSON.stringify(key);
+  return `${renderedKey}: ${emit(node[key]!, P_BLOCK, indent)}`;
 }
 
 /** Whether `value` is exactly `{ "$var": name }` (a bare variable read of

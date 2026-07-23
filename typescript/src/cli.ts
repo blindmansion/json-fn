@@ -327,8 +327,7 @@ async function cmdCheck(argv: string[]): Promise<void> {
   let json: JSONType;
   if (parsed.flags.has("json-input")) {
     // Escape hatch: read canonical json-fn JSON directly, skipping the parser.
-    // Useful for `to-json | check` pipelines and canonical type modules that
-    // don't yet round-trip through the shorthand printer.
+    // Useful for `to-json | check` pipelines and other machine-produced input.
     try {
       json = JSON.parse(src) as JSONType;
     } catch (e) {
