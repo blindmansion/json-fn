@@ -5,6 +5,7 @@ import type {
   FunctionDeclaration,
   FunctionBody,
   FunctionRegistry,
+  LetExpression,
   VariableReference,
   Conditional,
   Cond,
@@ -40,6 +41,7 @@ import { isFunctionBody, isFunctionDeclaration } from "../function-value";
 import { replaceVars } from "./closures";
 import { accountForResult, chargeFuel, checkInterrupt, guardValueSize } from "./execution";
 import { getExpressionType } from "./expression-type";
+import { getFunctionEnvironment, registerFunctionEnvironment } from "./function-environments";
 import type { EvaluationContext } from "./internal-types";
 import { accessProperty } from "./property-access";
 
@@ -154,7 +156,7 @@ export function callFunctionInternal(
       // to the registry — local recursion is preserved. A non-function lexical
       // binding (e.g. `add: 5`) does not hijack a call position; resolution falls
       // through to the registry below.
-      const lexical = context.getVar?.(fn);
+      const lexical = context.localFns?.has(fn) ? undefined : context.getVar?.(fn);
       if (lexical !== undefined && isFunctionDeclaration(lexical)) {
         result = callFunctionInternal(lexical, args, context);
         markEvaluated(result);
@@ -176,14 +178,11 @@ export function callFunctionInternal(
           result = callExternalFunction(entry, args, fn, context);
         }
       } else {
+        const owner = getFunctionEnvironment(entry as FunctionBody);
         result = callJSONFunction(entry as FunctionBody, args, {
-          functions,
-          // These sets describe which local definitions must be attached when
-          // a closure escapes; they are metadata, not a lexical getVar parent.
-          // Dropping them makes a registry-dispatched module function look
-          // like module root and loses its nested local functions on escape.
-          localFns: context.localFns,
-          attachFns: context.attachFns,
+          functions: owner?.functions ?? functions,
+          localFns: owner?.localFns ?? EMPTY_LOCAL_FNS,
+          attachFns: owner?.attachFns ?? EMPTY_LOCAL_FNS,
           limits: context.limits,
           state: context.state,
           perf,
@@ -200,21 +199,15 @@ export function callFunctionInternal(
       // dynamic chain that grows with recursion depth, making every name
       // lookup O(depth) and recursion O(depth^2) overall. This mirrors the
       // registry-dispatch branch above, which already drops getVar.
-      result = callJSONFunction(
-        fn as FunctionBody,
-        args,
-        context.getVar === undefined
-          ? context
-          : {
-              functions: context.functions,
-              localFns: context.localFns,
-              attachFns: context.attachFns,
-              limits: context.limits,
-              state: context.state,
-              perf,
-              runtimeDefs: context.runtimeDefs,
-            },
-      );
+      result = callJSONFunction(fn as FunctionBody, args, {
+        functions: context.functions,
+        localFns: EMPTY_LOCAL_FNS,
+        attachFns: EMPTY_LOCAL_FNS,
+        limits: context.limits,
+        state: context.state,
+        perf,
+        runtimeDefs: context.runtimeDefs,
+      });
     }
     markEvaluated(result);
     return result;
@@ -259,49 +252,35 @@ function callExternalFunction(
   return result;
 }
 
-// Construct the lazy, mutually-recursive `letrec` scope shared by every
-// object-of-bindings — a function body's locals today, and (via `callProgram`)
-// the top-level module. Registers function-valued siblings into a
-// `scopedFunctions` table (callable via `$fn`), binds params, exposes every
-// binding as a lazily-evaluated, memoized, cycle-checked `$var` through
-// `getVar`, and closes the local functions over that scope with `replaceVars`.
-// The caller decides what to do with the resulting scope (evaluate a `$return`,
-// or invoke a chosen entry point).
-export function buildScope(
-  fn: FunctionBody,
-  args: JSONType[],
-  layout: ParameterLayout,
-  context: EvaluationContext,
-): {
+export type ScopeResult = {
   getVar: (name: string) => JSONType | undefined;
-  scopedFunctions: FunctionRegistry;
+  functions: FunctionRegistry;
   localFns: ReadonlySet<string>;
   attachFns: ReadonlySet<string>;
-} {
+};
+
+type LazyFramePolicy = {
+  attachLocalFunctions: boolean;
+};
+
+function createLazyFrame(
+  evaluatedBindings: Record<string, JSONType>,
+  lazyBindings: Record<string, JSONType>,
+  context: EvaluationContext,
+  policy: LazyFramePolicy,
+): ScopeResult {
   const { functions, getVar: getVarParent, limits, state } = context;
 
   const localFnKeys: string[] = [];
   let scopedFunctions = functions;
-  for (const key of Object.keys(fn)) {
-    if (
-      key === "$return" ||
-      key === "$params" ||
-      key === "$sig" ||
-      key === "$types" ||
-      key === CONTRACT_KEY
-    )
-      continue;
-    const val = fn[key];
-    if (key === "$comment" && typeof val === "string") continue;
-    if (isFunctionBody(val)) {
+  for (const [key, value] of Object.entries(lazyBindings)) {
+    if (isFunctionBody(value)) {
       if (scopedFunctions === functions) scopedFunctions = { ...functions };
-      scopedFunctions[key] = val as FunctionBody;
+      scopedFunctions[key] = value;
       localFnKeys.push(key);
     }
   }
 
-  // Accumulate this scope's local function names onto the parent chain. Only
-  // allocate a new set when this scope actually introduces local functions.
   const parentLocalFns = context.localFns ?? EMPTY_LOCAL_FNS;
   let localFns = parentLocalFns;
   if (localFnKeys.length > 0) {
@@ -310,28 +289,84 @@ export function buildScope(
     localFns = merged;
   }
 
-  // Attachable subset for escaping-closure capture. `context.attachFns` is
-  // `undefined` only at the root/module scope, whose functions are registry-
-  // backed for the program's whole lifetime and so must never be attached
-  // (attaching a self-referential module function is the source of the
-  // capture blow-up). Nested scopes accumulate their own local functions.
-  const parentAttachFns = context.attachFns;
-  let attachFns: ReadonlySet<string>;
-  if (parentAttachFns === undefined) {
-    attachFns = EMPTY_LOCAL_FNS;
-  } else if (localFnKeys.length > 0) {
+  const parentAttachFns = context.attachFns ?? EMPTY_LOCAL_FNS;
+  let attachFns = parentAttachFns;
+  if (policy.attachLocalFunctions && localFnKeys.length > 0) {
     const merged = new Set(parentAttachFns);
     for (const key of localFnKeys) merged.add(key);
     attachFns = merged;
-  } else {
-    attachFns = parentAttachFns;
   }
 
-  const evaluatedVars: Record<string, JSONType> = {};
-  const pendingDefaults = new Map<string, JSONType>();
+  const evaluatedVars = { ...evaluatedBindings };
+  const pendingBindings = new Map(Object.entries(lazyBindings));
+  const resolvingVars: string[] = [];
+
+  const getVar = (name: string): JSONType | undefined => {
+    if (Object.prototype.hasOwnProperty.call(evaluatedVars, name)) {
+      return evaluatedVars[name];
+    }
+
+    if (resolvingVars.includes(name)) {
+      const cycle = [...resolvingVars.slice(resolvingVars.indexOf(name)), name];
+      throw new Error(`Circular variable dependency detected: ${cycle.join(" -> ")}`);
+    }
+
+    if (pendingBindings.has(name)) {
+      resolvingVars.push(name);
+      try {
+        const evaluated = evaluateExpression(pendingBindings.get(name)!, {
+          functions: scopedFunctions,
+          getVar,
+          localFns,
+          attachFns,
+          limits,
+          state,
+          perf: context.perf,
+          runtimeDefs: context.runtimeDefs,
+        });
+        pendingBindings.delete(name);
+        evaluatedVars[name] = evaluated;
+        return evaluated;
+      } finally {
+        resolvingVars.pop();
+      }
+    }
+
+    return getVarParent?.(name);
+  };
+
+  if (localFnKeys.length > 0) {
+    for (const key of localFnKeys) {
+      scopedFunctions[key] = replaceVars(
+        lazyBindings[key]!,
+        getVar,
+        localFns,
+        attachFns,
+        undefined,
+        context,
+      ) as FunctionBody;
+    }
+    const environment = { functions: scopedFunctions, localFns, attachFns };
+    for (const key of localFnKeys) {
+      registerFunctionEnvironment(scopedFunctions[key] as FunctionBody, environment);
+    }
+  }
+
+  return { getVar, functions: scopedFunctions, localFns, attachFns };
+}
+
+function materializeParameterBindings(
+  args: JSONType[],
+  layout: ParameterLayout,
+): {
+  evaluated: Record<string, JSONType>;
+  lazy: Record<string, JSONType>;
+} {
+  const evaluated: Record<string, JSONType> = {};
+  const lazy: Record<string, JSONType> = {};
   for (const slot of layout.slots) {
     if (slot.kind === "rest") {
-      evaluatedVars[slot.name] = args.slice(slot.index);
+      evaluated[slot.name] = args.slice(slot.index);
       continue;
     }
     if (slot.kind === "fields") {
@@ -341,106 +376,122 @@ export function buildScope(
       const value = args[slot.index] as Record<string, JSONType>;
       for (const binding of slot.bindings) {
         if (Object.prototype.hasOwnProperty.call(value, binding.name)) {
-          evaluatedVars[binding.name] = value[binding.name]!;
+          evaluated[binding.name] = value[binding.name]!;
         } else if (binding.kind === "defaulted") {
-          pendingDefaults.set(binding.name, binding.defaultExpression);
+          lazy[binding.name] = binding.defaultExpression;
         } else if (binding.kind === "optional") {
-          evaluatedVars[binding.name] = null;
+          evaluated[binding.name] = null;
         }
       }
       continue;
     }
     if (slot.index < args.length) {
-      // Presence is positional, so explicit null and other falsy values suppress
-      // a default.
-      evaluatedVars[slot.name] = args[slot.index]!;
+      evaluated[slot.name] = args[slot.index]!;
     } else if (slot.kind === "defaulted") {
-      pendingDefaults.set(slot.name, slot.defaultExpression);
+      lazy[slot.name] = slot.defaultExpression;
     } else if (slot.kind === "optional") {
-      evaluatedVars[slot.name] = null;
+      evaluated[slot.name] = null;
+    }
+  }
+  return { evaluated, lazy };
+}
+
+function bindParameters(
+  layout: ParameterLayout,
+  args: JSONType[],
+  context: EvaluationContext,
+): ScopeResult {
+  const bindings = materializeParameterBindings(args, layout);
+  return createLazyFrame(bindings.evaluated, bindings.lazy, context, {
+    attachLocalFunctions: false,
+  });
+}
+
+function bindExpressionBindings(
+  bindings: Record<string, JSONType>,
+  context: EvaluationContext,
+): ScopeResult {
+  return createLazyFrame({}, bindings, context, { attachLocalFunctions: true });
+}
+
+export function initializeModuleBindings(
+  module: Record<string, JSONType>,
+  context: EvaluationContext,
+): ScopeResult {
+  return createLazyFrame({}, module, context, { attachLocalFunctions: false });
+}
+
+function legacyFunctionBindings(fn: FunctionBody): Record<string, JSONType> {
+  const bindings: Record<string, JSONType> = {};
+  for (const [key, value] of Object.entries(fn)) {
+    if (
+      key === "$return" ||
+      key === "$params" ||
+      key === "$sig" ||
+      key === "$types" ||
+      key === "$captures" ||
+      key === CONTRACT_KEY ||
+      (key === "$comment" && typeof value === "string")
+    ) {
+      continue;
+    }
+    bindings[key] = value;
+  }
+  return bindings;
+}
+
+// TODO(let-phase4): delete once function bodies no longer contain inline locals.
+function bindLegacyFunctionFrame(
+  fn: FunctionBody,
+  layout: ParameterLayout,
+  args: JSONType[],
+  context: EvaluationContext,
+): ScopeResult {
+  const parameters = materializeParameterBindings(args, layout);
+  return createLazyFrame(
+    parameters.evaluated,
+    { ...legacyFunctionBindings(fn), ...parameters.lazy },
+    context,
+    { attachLocalFunctions: true },
+  );
+}
+
+function seedFunctionCaptures(fn: FunctionBody, context: EvaluationContext): EvaluationContext {
+  const captures = fn.$captures;
+  if (captures === undefined) return context;
+  if (captures === null || typeof captures !== "object" || Array.isArray(captures)) {
+    exprError(fn, "Function $captures must be a non-null object of function bodies.");
+  }
+
+  const names = Object.keys(captures);
+  if (names.length === 0) return context;
+  const functions = { ...context.functions };
+  for (const name of names) {
+    const definition = captures[name];
+    if (!isFunctionBody(definition)) {
+      exprError(fn, `Function capture "${name}" must be a function body.`);
+    }
+    if (!context.localFns?.has(name) || !isFunctionBody(functions[name])) {
+      functions[name] = definition;
     }
   }
 
-  const resolvingVars: string[] = [];
-
-  const getVar = (name: string): JSONType | undefined => {
-    if (name in evaluatedVars) {
-      return evaluatedVars[name];
-    }
-
-    if (resolvingVars.includes(name)) {
-      const cycle = [...resolvingVars.slice(resolvingVars.indexOf(name)), name];
-      throw new Error(`Circular variable dependency detected: ${cycle.join(" -> ")}`);
-    }
-
-    if (pendingDefaults.has(name)) {
-      resolvingVars.push(name);
-      try {
-        const evaluated = evaluateExpression(pendingDefaults.get(name)!, {
-          functions: scopedFunctions,
-          getVar,
-          localFns,
-          attachFns,
-          limits,
-          state,
-          perf: context.perf,
-          runtimeDefs: context.runtimeDefs,
-        });
-        pendingDefaults.delete(name);
-        evaluatedVars[name] = evaluated;
-        return evaluated;
-      } finally {
-        resolvingVars.pop();
-      }
-    }
-
-    const expression = fn[name];
-    if (expression !== undefined && !(name === "$comment" && typeof expression === "string")) {
-      resolvingVars.push(name);
-      try {
-        const evaluated = evaluateExpression(expression, {
-          functions: scopedFunctions,
-          getVar,
-          localFns,
-          attachFns,
-          limits,
-          state,
-          perf: context.perf,
-          runtimeDefs: context.runtimeDefs,
-        });
-        evaluatedVars[name] = evaluated;
-        return evaluated;
-      } finally {
-        resolvingVars.pop();
-      }
-    }
-
-    if (getVarParent) {
-      return getVarParent(name);
-    }
-
-    return undefined;
-  };
-
-  if (localFnKeys.length > 0) {
-    for (const key of localFnKeys) {
-      // Close over for in-scope registry dispatch: substitute free `$var`s but
-      // keep sibling function names literal (attach mode off), so recursion and
-      // mutual recursion resolve through `scopedFunctions`. These closed-over
-      // bodies are what `attachFreeLocalFns` later re-attaches to escaping
-      // closures.
-      scopedFunctions[key] = replaceVars(
-        fn[key]!,
-        getVar,
-        localFns,
-        attachFns,
-        undefined,
-        context,
-      ) as FunctionBody;
-    }
+  const localFns = new Set(context.localFns ?? EMPTY_LOCAL_FNS);
+  const attachFns = new Set(context.attachFns ?? EMPTY_LOCAL_FNS);
+  for (const name of names) {
+    localFns.add(name);
+    attachFns.add(name);
   }
-
-  return { getVar, scopedFunctions, localFns, attachFns };
+  const getVarParent = context.getVar;
+  const getVar = (name: string): JSONType | undefined =>
+    Object.prototype.hasOwnProperty.call(captures, name)
+      ? (functions[name] as FunctionBody)
+      : getVarParent?.(name);
+  const environment = { functions, localFns, attachFns };
+  for (const name of names) {
+    registerFunctionEnvironment(captures[name]!, environment);
+  }
+  return { ...context, functions, getVar, localFns, attachFns };
 }
 
 function callJSONFunction(fn: FunctionBody, args: JSONType[], context: EvaluationContext) {
@@ -459,10 +510,15 @@ function callJSONFunction(fn: FunctionBody, args: JSONType[], context: Evaluatio
 
   const layout = requireParameterLayout((fn as any).$params, fn);
   validateRuntimeArguments(layout, args);
-  const { getVar, scopedFunctions, localFns, attachFns } = buildScope(fn, args, layout, context);
+  const captureContext = seedFunctionCaptures(fn, context);
+  const legacyBindings = legacyFunctionBindings(fn);
+  const { getVar, functions, localFns, attachFns } =
+    Object.keys(legacyBindings).length > 0
+      ? bindLegacyFunctionFrame(fn, layout, args, captureContext)
+      : bindParameters(layout, args, captureContext);
 
   return evaluateExpression(fn.$return, {
-    functions: scopedFunctions,
+    functions,
     getVar,
     localFns,
     attachFns,
@@ -470,6 +526,17 @@ function callJSONFunction(fn: FunctionBody, args: JSONType[], context: Evaluatio
     state,
     perf,
     runtimeDefs: context.runtimeDefs,
+  });
+}
+
+function evaluateLet(expression: LetExpression, context: EvaluationContext): JSONType {
+  const scope = bindExpressionBindings(expression.$let, context);
+  return evaluateExpression(expression.$in, {
+    ...context,
+    functions: scope.functions,
+    getVar: scope.getVar,
+    localFns: scope.localFns,
+    attachFns: scope.attachFns,
   });
 }
 
@@ -545,6 +612,9 @@ function evaluateExpression(expression: JSONType, context: EvaluationContext): J
         context.functions,
         context,
       );
+
+    case ExpressionType.Let:
+      return evaluateLet(expression as LetExpression, context);
 
     case ExpressionType.Conditional:
       const conditional = expression as Conditional;

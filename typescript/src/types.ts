@@ -5,6 +5,7 @@ enum ExpressionType {
   FunctionReference,
   VariableReference,
   FunctionBody,
+  Let,
   Conditional,
   Cond,
   Match,
@@ -50,9 +51,18 @@ type VariableReference = {
   $var: string;
 };
 
+type LetExpression = {
+  $let: Record<string, JSONType>;
+  $in: JSONType;
+};
+
+type FunctionCaptures = Record<string, FunctionBody>;
+
 type FunctionBody = {
   [key: string]: JSONType;
   $return: JSONType;
+} & {
+  $captures?: FunctionCaptures;
 };
 
 type Conditional = {
@@ -180,6 +190,8 @@ export type {
   ExecutionUsage,
   PerfStats,
   FunctionBody,
+  FunctionCaptures,
+  LetExpression,
   VariableReference,
   Conditional,
   Cond,

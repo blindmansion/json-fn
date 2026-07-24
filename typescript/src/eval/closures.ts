@@ -47,6 +47,45 @@ export function replaceVars(
       return varValue;
     }
 
+    if (
+      "$let" in expression &&
+      "$in" in expression &&
+      typeof expression.$let === "object" &&
+      expression.$let !== null &&
+      !Array.isArray(expression.$let)
+    ) {
+      const bindings = expression.$let as Record<string, JSONType>;
+      const names = new Set(Object.keys(bindings));
+      const maskedGetVar = (name: string) => (names.has(name) ? undefined : getVar(name));
+      const maskedAttachFns = new Set([...attachFns].filter((name) => !names.has(name)));
+      const scopedLocalFns = new Set(localFns);
+      for (const [name, value] of Object.entries(bindings)) {
+        if (isFunctionBody(value)) scopedLocalFns.add(name);
+      }
+      const newBindings: Record<string, JSONType> = {};
+      for (const [name, value] of Object.entries(bindings)) {
+        newBindings[name] = replaceVars(
+          value,
+          maskedGetVar,
+          scopedLocalFns,
+          maskedAttachFns,
+          localFnDefs,
+          context,
+        );
+      }
+      return {
+        $let: newBindings,
+        $in: replaceVars(
+          expression.$in as JSONType,
+          maskedGetVar,
+          scopedLocalFns,
+          maskedAttachFns,
+          localFnDefs,
+          context,
+        ),
+      };
+    }
+
     if (isFunctionBody(expression)) {
       const localNames = new Set(
         Object.keys(expression).filter((key) => {
@@ -55,6 +94,7 @@ export function replaceVars(
             key === "$params" ||
             key === "$sig" ||
             key === "$types" ||
+            key === "$captures" ||
             key === CONTRACT_KEY
           ) {
             return false;
@@ -71,6 +111,22 @@ export function replaceVars(
 
       const layout = requireParameterLayout(expression.$params, expression);
       for (const name of boundParameterNames(layout)) localNames.add(name);
+      const captures =
+        expression.$captures !== undefined &&
+        expression.$captures !== null &&
+        typeof expression.$captures === "object" &&
+        !Array.isArray(expression.$captures)
+          ? expression.$captures
+          : undefined;
+      if (captures !== undefined) {
+        for (const name of Object.keys(captures)) localNames.add(name);
+      }
+      const scopedLocalFns = new Set(localFns);
+      for (const name of Object.keys(captures ?? {})) scopedLocalFns.add(name);
+      for (const [name, value] of Object.entries(expression)) {
+        if (!localNames.has(name) || name in (captures ?? {})) continue;
+        if (isFunctionBody(value)) scopedLocalFns.add(name);
+      }
 
       const maskedGetVar =
         localNames.size > 0
@@ -82,7 +138,7 @@ export function replaceVars(
         newObject[key] = replaceVars(
           value,
           maskedGetVar,
-          localFns,
+          scopedLocalFns,
           attachFns,
           localFnDefs,
           context,
@@ -155,32 +211,49 @@ function collectFnNameRefs(
   node: JSONType,
   filter: ReadonlySet<string> | null,
   out: Set<string>,
+  blocked: ReadonlySet<string> = new Set(),
 ): void {
   if (node === null || typeof node !== "object") return;
   if (isRaw(node)) return;
   if (Array.isArray(node)) {
-    for (const item of node) collectFnNameRefs(item, filter, out);
+    for (const item of node) collectFnNameRefs(item, filter, out, blocked);
     return;
   }
   if (isFunctionBody(node)) return;
 
+  if (
+    "$let" in node &&
+    "$in" in node &&
+    typeof node.$let === "object" &&
+    node.$let !== null &&
+    !Array.isArray(node.$let)
+  ) {
+    const letBlocked = new Set(blocked);
+    for (const name of Object.keys(node.$let)) letBlocked.add(name);
+    for (const value of Object.values(node.$let)) {
+      collectFnNameRefs(value, filter, out, letBlocked);
+    }
+    collectFnNameRefs(node.$in as JSONType, filter, out, letBlocked);
+    return;
+  }
+
   if ("$call" in node) {
     const callee = (node as Record<string, JSONType>).$call!;
     if (typeof callee === "string") {
-      if (filter === null || filter.has(callee)) out.add(callee);
-    } else collectFnNameRefs(callee, filter, out);
+      if (!blocked.has(callee) && (filter === null || filter.has(callee))) out.add(callee);
+    } else collectFnNameRefs(callee, filter, out, blocked);
     const args = (node as Record<string, JSONType>).$args;
     if (Array.isArray(args)) {
-      for (const item of args) collectFnNameRefs(item, filter, out);
+      for (const item of args) collectFnNameRefs(item, filter, out, blocked);
     }
     return;
   }
   const fnValue = (node as Record<string, JSONType>).$fn;
   if (typeof fnValue === "string") {
-    if (filter === null || filter.has(fnValue)) out.add(fnValue);
+    if (!blocked.has(fnValue) && (filter === null || filter.has(fnValue))) out.add(fnValue);
     return;
   }
-  for (const value of Object.values(node)) collectFnNameRefs(value, filter, out);
+  for (const value of Object.values(node)) collectFnNameRefs(value, filter, out, blocked);
 }
 
 // Scan a function body's own level (its `$return`, locals, and parameter
@@ -189,7 +262,10 @@ function scanBodyLevelFnNameRefs(
   body: Record<string, JSONType>,
   filter: ReadonlySet<string> | null,
   out: Set<string>,
+  visited: WeakSet<object> = new WeakSet(),
 ): void {
+  if (visited.has(body)) return;
+  visited.add(body);
   const layout = requireParameterLayout(body.$params, body);
   for (const binding of defaultBindings(layout)) {
     collectFnNameRefs(binding.expression, filter, out);
@@ -198,6 +274,19 @@ function scanBodyLevelFnNameRefs(
     if (key === "$params") continue;
     if (key === "$sig" || key === "$types" || key === CONTRACT_KEY) continue;
     if (key === "$comment" && typeof value === "string") continue;
+    if (
+      key === "$captures" &&
+      value !== null &&
+      typeof value === "object" &&
+      !Array.isArray(value)
+    ) {
+      for (const definition of Object.values(value)) {
+        if (isFunctionBody(definition)) {
+          scanBodyLevelFnNameRefs(definition as Record<string, JSONType>, filter, out, visited);
+        }
+      }
+      continue;
+    }
     collectFnNameRefs(value, filter, out);
   }
 }
@@ -249,7 +338,7 @@ function cachedCountNodes(node: object): number {
 // Make an escaping function body self-contained: for every enclosing local
 // function it still references by name (kept literal so recursion/mutual
 // recursion dispatch through the scope), attach that function's closed-over
-// definition as a sibling local. Only `attachFns` names are eligible —
+// definition under `$captures`. Only `attachFns` names are eligible —
 // registry-backed module functions are deliberately excluded (see
 // `attachFns` in types.ts). Definitions come from `localFnDefs` (the scope's
 // closed-over registry) rather than `getVar`, so mutually recursive clusters
@@ -273,10 +362,15 @@ function attachFreeLocalFns(
   scanBodyLevelFnNameRefs(body, attachFns, seen);
   queue.push(...seen);
 
+  const existingCaptures =
+    body.$captures !== null && typeof body.$captures === "object" && !Array.isArray(body.$captures)
+      ? (body.$captures as Record<string, JSONType>)
+      : {};
+  const capturedNames = new Set(Object.keys(existingCaptures));
   let attachedNodes = 0;
   while (queue.length > 0) {
     const name = queue.shift()!;
-    if (name in body || boundNames.has(name)) continue;
+    if (capturedNames.has(name) || boundNames.has(name)) continue;
     const definition = localFnDefs[name];
     if (!isFunctionBody(definition)) {
       continue;
@@ -287,11 +381,12 @@ function attachFreeLocalFns(
     attachedNodes += cachedCountNodes(definition);
     guardValueSize(context, attachedNodes);
     chargeFuel(context, attachedNodes);
-    body[name] = definition as JSONType;
+    existingCaptures[name] = definition as JSONType;
+    capturedNames.add(name);
     for (const reference of cachedBodyLevelFnNameRefs(definition as Record<string, JSONType>)) {
       if (
         attachFns.has(reference) &&
-        !(reference in body) &&
+        !capturedNames.has(reference) &&
         !boundNames.has(reference) &&
         !seen.has(reference)
       ) {
@@ -300,4 +395,5 @@ function attachFreeLocalFns(
       }
     }
   }
+  if (capturedNames.size > 0) body.$captures = existingCaptures;
 }

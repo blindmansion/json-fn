@@ -22,6 +22,24 @@ function classifyExpressionType(json: JSONType): ExpressionType {
   if (Array.isArray(json)) return ExpressionType.Array;
 
   if (typeof json === "object" && json !== null) {
+    const hasLet = "$let" in json;
+    const hasIn = "$in" in json;
+    if (hasLet || hasIn) {
+      if (!(hasLet && hasIn)) {
+        exprError(json, "$let expressions must have both $let and $in properties.");
+      }
+      if (Object.keys(json).length !== 2) {
+        exprError(json, "$let expressions cannot have other properties.");
+      }
+      if (typeof json.$let !== "object" || json.$let === null || Array.isArray(json.$let)) {
+        exprError(json, "$let must be a non-null object of bindings.");
+      }
+      if (Object.keys(json.$let).length === 0) {
+        exprError(json, "$let must contain at least one binding.");
+      }
+      return ExpressionType.Let;
+    }
+
     if ("$var" in json) {
       if (typeof json.$var !== "string") {
         exprError(json, "Variable references must have a string $var property.");

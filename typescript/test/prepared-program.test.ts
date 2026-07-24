@@ -59,6 +59,7 @@ describe("prepareProgram", () => {
 
     expect(prepared.call(helper, [5])).toBe(5);
     expect(Object.prototype.hasOwnProperty.call(helper, "helper")).toBe(false);
+    expect(Object.prototype.hasOwnProperty.call(helper, "$captures")).toBe(false);
   });
 
   test("attaches mutually recursive local functions transitively and cycle-safely", () => {
@@ -87,8 +88,15 @@ describe("prepareProgram", () => {
     const prepared = prepareProgram(module, stdlib);
     const even = prepared.invokeEntry("makeEven", []);
 
+    expect(Object.keys((even as Record<string, JSONType>).$captures as object).sort()).toEqual([
+      "even",
+      "odd",
+    ]);
+    expect(Object.prototype.hasOwnProperty.call(even, "even")).toBe(false);
+    expect(Object.prototype.hasOwnProperty.call(even, "odd")).toBe(false);
     expect(prepared.call(even, [6])).toBe(true);
     expect(prepared.call(even, [5])).toBe(false);
+    expect(callFunction(JSON.parse(JSON.stringify(even)), [8], stdlib)).toBe(true);
   });
 
   test("shares one fuel budget across prepared calls", () => {

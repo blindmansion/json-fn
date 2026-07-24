@@ -18,11 +18,11 @@ export type CallState = {
 export type EvaluationContext = {
   functions: FunctionRegistry;
   getVar?: (name: string) => JSONType | undefined;
-  // Names of scoped local function declarations accumulated down the scope
-  // chain. Closure capture uses these to preserve registry-based recursion.
+  // Names in the current definition-owned function registry environment.
+  // Closure capture uses these to preserve registry-based recursion.
   localFns?: ReadonlySet<string>;
-  // Subset of localFns eligible for attachment to escaping closures. Persistent
-  // module functions are excluded because they remain registry-addressable.
+  // Definition-owned subset eligible for attachment to escaping closures.
+  // Persistent module functions are excluded because they remain addressable.
   attachFns?: ReadonlySet<string>;
   /** Merged definition pool propagated through calls for runtime contracts. */
   runtimeDefs?: Record<string, JSONType>;

@@ -1,6 +1,5 @@
 import type {
   ExecutionLimits,
-  FunctionBody,
   FunctionDeclaration,
   FunctionRegistry,
   JSONType,
@@ -13,19 +12,11 @@ import {
   type DefinitionSources,
 } from "../definition-pool";
 import { isFunctionBody } from "../function-value";
-import type { ParameterLayout } from "../params";
 import { chargeFuel, createExecutionState, guardValueSize } from "./execution";
 import type { EvaluationContext } from "./internal-types";
-import { buildScope, callFunctionInternal } from "./interpreter";
+import { callFunctionInternal, initializeModuleBindings } from "./interpreter";
 
 const EMPTY_LOCAL_FNS: ReadonlySet<string> = new Set();
-const EMPTY_PARAMETER_LAYOUT: ParameterLayout = {
-  slots: [],
-  fixedCount: 0,
-  requiredCount: 0,
-  omittableCount: 0,
-  rest: null,
-};
 
 type EvaluationSession = {
   context: EvaluationContext;
@@ -66,15 +57,13 @@ function initializeProgramScope(
   session: EvaluationSession,
   module: Record<string, JSONType>,
 ): void {
-  const { getVar, scopedFunctions, localFns, attachFns } = buildScope(
-    module as unknown as FunctionBody,
-    [],
-    EMPTY_PARAMETER_LAYOUT,
+  const { getVar, functions, localFns, attachFns } = initializeModuleBindings(
+    module,
     session.context,
   );
   session.context = {
     ...session.context,
-    functions: scopedFunctions,
+    functions,
     getVar,
     localFns,
     attachFns,

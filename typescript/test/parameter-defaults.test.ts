@@ -285,6 +285,7 @@ describe("defaults in escaping closures", () => {
     } as FunctionDeclaration;
     const inner = callFunction(outer, [], stdlib) as FunctionDeclaration;
     expect(callFunction(inner, [], stdlib)).toBe(11);
+    expect(callFunction(JSON.parse(JSON.stringify(inner)), [], stdlib)).toBe(11);
   });
 
   test("every parameter kind shadows same-named outer bindings", () => {
