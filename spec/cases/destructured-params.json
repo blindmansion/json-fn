@@ -2,54 +2,157 @@
   "description": "destructured (object-pattern) parameters — $fields (plans/destructured-params.md)",
   "functions": {
     "move": {
-      "$params": [{ "$fields": ["from", "to"] }],
-      "$return": { "$call": "sub", "$args": [{ "$var": "to" }, { "$var": "from" }] }
+      "$params": [
+        {
+          "$fields": ["from", "to"]
+        }
+      ],
+      "$return": {
+        "$call": "sub",
+        "$args": [
+          {
+            "$var": "to"
+          },
+          {
+            "$var": "from"
+          }
+        ]
+      }
     }
   },
   "cases": [
     {
       "description": "binds named fields from an object argument",
       "body": {
-        "$params": [{ "$fields": ["from", "to"] }],
-        "$return": { "$call": "sub", "$args": [{ "$var": "to" }, { "$var": "from" }] }
+        "$params": [
+          {
+            "$fields": ["from", "to"]
+          }
+        ],
+        "$return": {
+          "$call": "sub",
+          "$args": [
+            {
+              "$var": "to"
+            },
+            {
+              "$var": "from"
+            }
+          ]
+        }
       },
-      "args": [{ "from": 3, "to": 7 }],
+      "args": [
+        {
+          "from": 3,
+          "to": 7
+        }
+      ],
       "expected": 4
     },
     {
       "description": "called in-language with a data object is an ordinary positional call",
-      "body": { "$return": { "$call": "move", "$args": [{ "from": 3, "to": 7 }] } },
+      "body": {
+        "$return": {
+          "$call": "move",
+          "$args": [
+            {
+              "from": 3,
+              "to": 7
+            }
+          ]
+        }
+      },
       "expected": 4
     },
     {
       "description": "single field pattern",
       "body": {
-        "$params": [{ "$fields": ["x"] }],
-        "$return": { "$call": "mul", "$args": [{ "$var": "x" }, 2] }
+        "$params": [
+          {
+            "$fields": ["x"]
+          }
+        ],
+        "$return": {
+          "$call": "mul",
+          "$args": [
+            {
+              "$var": "x"
+            },
+            2
+          ]
+        }
       },
-      "args": [{ "x": 21 }],
+      "args": [
+        {
+          "x": 21
+        }
+      ],
       "expected": 42
     },
     {
       "description": "absent required key is rejected",
-      "body": { "$params": [{ "$fields": ["from", "to"] }], "$return": { "$var": "to" } },
-      "args": [{ "from": 5 }],
+      "body": {
+        "$params": [
+          {
+            "$fields": ["from", "to"]
+          }
+        ],
+        "$return": {
+          "$var": "to"
+        }
+      },
+      "args": [
+        {
+          "from": 5
+        }
+      ],
       "error": "Missing required field \"to\""
     },
     {
       "description": "extra keys are ignored",
       "body": {
-        "$params": [{ "$fields": ["from", "to"] }],
-        "$return": { "$call": "add", "$args": [{ "$var": "from" }, { "$var": "to" }] }
+        "$params": [
+          {
+            "$fields": ["from", "to"]
+          }
+        ],
+        "$return": {
+          "$call": "add",
+          "$args": [
+            {
+              "$var": "from"
+            },
+            {
+              "$var": "to"
+            }
+          ]
+        }
       },
-      "args": [{ "from": 1, "to": 2, "extra": 99 }],
+      "args": [
+        {
+          "from": 1,
+          "to": 2,
+          "extra": 99
+        }
+      ],
       "expected": 3
     },
     {
       "description": "non-object argument (number) is rejected",
       "body": {
-        "$params": [{ "$fields": ["a"] }],
-        "$return": { "$call": "isNull", "$args": [{ "$var": "a" }] }
+        "$params": [
+          {
+            "$fields": ["a"]
+          }
+        ],
+        "$return": {
+          "$call": "isNull",
+          "$args": [
+            {
+              "$var": "a"
+            }
+          ]
+        }
       },
       "args": [5],
       "error": "expected a plain object, received number"
@@ -57,16 +160,38 @@
     {
       "description": "missing object-pattern argument is rejected",
       "body": {
-        "$params": [{ "$fields": ["a", "b"] }],
-        "$return": { "$call": "isNull", "$args": [{ "$var": "b" }] }
+        "$params": [
+          {
+            "$fields": ["a", "b"]
+          }
+        ],
+        "$return": {
+          "$call": "isNull",
+          "$args": [
+            {
+              "$var": "b"
+            }
+          ]
+        }
       },
       "error": "Missing object-pattern argument at parameter position 1"
     },
     {
       "description": "null object-pattern argument is rejected",
       "body": {
-        "$params": [{ "$fields": ["a"] }],
-        "$return": { "$call": "isNull", "$args": [{ "$var": "a" }] }
+        "$params": [
+          {
+            "$fields": ["a"]
+          }
+        ],
+        "$return": {
+          "$call": "isNull",
+          "$args": [
+            {
+              "$var": "a"
+            }
+          ]
+        }
       },
       "args": [null],
       "error": "expected a plain object, received null"
@@ -74,8 +199,19 @@
     {
       "description": "array object-pattern argument is rejected",
       "body": {
-        "$params": [{ "$fields": ["a"] }],
-        "$return": { "$call": "isNull", "$args": [{ "$var": "a" }] }
+        "$params": [
+          {
+            "$fields": ["a"]
+          }
+        ],
+        "$return": {
+          "$call": "isNull",
+          "$args": [
+            {
+              "$var": "a"
+            }
+          ]
+        }
       },
       "args": [[1, 2, 3]],
       "error": "expected a plain object, received array"
@@ -83,88 +219,277 @@
     {
       "description": "mixed positional and pattern slots",
       "body": {
-        "$params": ["label", { "$fields": ["x", "y"] }],
+        "$params": [
+          "label",
+          {
+            "$fields": ["x", "y"]
+          }
+        ],
         "$return": {
-          "label": { "$var": "label" },
-          "sum": { "$call": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] }
+          "label": {
+            "$var": "label"
+          },
+          "sum": {
+            "$call": "add",
+            "$args": [
+              {
+                "$var": "x"
+              },
+              {
+                "$var": "y"
+              }
+            ]
+          }
         }
       },
-      "args": ["p", { "x": 1, "y": 2 }],
-      "expected": { "label": "p", "sum": 3 }
+      "args": [
+        "p",
+        {
+          "x": 1,
+          "y": 2
+        }
+      ],
+      "expected": {
+        "label": "p",
+        "sum": 3
+      }
     },
     {
       "description": "pattern slot followed by a rest parameter",
       "body": {
-        "$params": [{ "$fields": ["x"] }, "...rest"],
-        "$return": { "x": { "$var": "x" }, "rest": { "$var": "rest" } }
+        "$params": [
+          {
+            "$fields": ["x"]
+          },
+          "...rest"
+        ],
+        "$return": {
+          "x": {
+            "$var": "x"
+          },
+          "rest": {
+            "$var": "rest"
+          }
+        }
       },
-      "args": [{ "x": 1 }, 2, 3],
-      "expected": { "x": 1, "rest": [2, 3] }
+      "args": [
+        {
+          "x": 1
+        },
+        2,
+        3
+      ],
+      "expected": {
+        "x": 1,
+        "rest": [2, 3]
+      }
     },
     {
       "description": "multiple pattern slots each destructure their own argument",
       "body": {
-        "$params": [{ "$fields": ["a"] }, { "$fields": ["b"] }],
-        "$return": { "$call": "add", "$args": [{ "$var": "a" }, { "$var": "b" }] }
+        "$params": [
+          {
+            "$fields": ["a"]
+          },
+          {
+            "$fields": ["b"]
+          }
+        ],
+        "$return": {
+          "$call": "add",
+          "$args": [
+            {
+              "$var": "a"
+            },
+            {
+              "$var": "b"
+            }
+          ]
+        }
       },
-      "args": [{ "a": 1 }, { "b": 2 }],
+      "args": [
+        {
+          "a": 1
+        },
+        {
+          "b": 2
+        }
+      ],
       "expected": 3
     },
     {
       "description": "fields are visible to lazy locals",
       "body": {
-        "$params": [{ "$fields": ["n"] }],
-        "twice": { "$call": "mul", "$args": [{ "$var": "n" }, 2] },
-        "$return": { "$var": "twice" }
+        "$params": [
+          {
+            "$fields": ["n"]
+          }
+        ],
+        "$return": {
+          "$let": {
+            "twice": {
+              "$call": "mul",
+              "$args": [
+                {
+                  "$var": "n"
+                },
+                2
+              ]
+            }
+          },
+          "$in": {
+            "$var": "twice"
+          }
+        }
       },
-      "args": [{ "n": 21 }],
+      "args": [
+        {
+          "n": 21
+        }
+      ],
       "expected": 42
     },
     {
       "description": "fields are visible inside a nested inline function call",
       "body": {
-        "$params": [{ "$fields": ["x"] }],
+        "$params": [
+          {
+            "$fields": ["x"]
+          }
+        ],
         "$return": {
           "$call": {
             "$params": ["y"],
-            "$return": { "$call": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] }
+            "$return": {
+              "$call": "add",
+              "$args": [
+                {
+                  "$var": "x"
+                },
+                {
+                  "$var": "y"
+                }
+              ]
+            }
           },
           "$args": [5]
         }
       },
-      "args": [{ "x": 10 }],
+      "args": [
+        {
+          "x": 10
+        }
+      ],
       "expected": 15
     },
     {
       "description": "an inner parameter shadows an outer field of the same name",
       "body": {
-        "$params": [{ "$fields": ["x"] }],
-        "$return": { "$call": { "$params": ["x"], "$return": { "$var": "x" } }, "$args": [99] }
+        "$params": [
+          {
+            "$fields": ["x"]
+          }
+        ],
+        "$return": {
+          "$call": {
+            "$params": ["x"],
+            "$return": {
+              "$var": "x"
+            }
+          },
+          "$args": [99]
+        }
       },
-      "args": [{ "x": 1 }],
+      "args": [
+        {
+          "x": 1
+        }
+      ],
       "expected": 99
     },
     {
       "description": "arity counts a pattern slot as one parameter",
       "body": {
-        "$return": { "$call": "arity", "$args": [{ "$var": "fn" }] },
-        "fn": { "$params": [{ "$fields": ["from", "to"] }], "$return": { "$var": "from" } }
+        "$return": {
+          "$let": {
+            "fn": {
+              "$params": [
+                {
+                  "$fields": ["from", "to"]
+                }
+              ],
+              "$return": {
+                "$var": "from"
+              }
+            }
+          },
+          "$in": {
+            "$call": "arity",
+            "$args": [
+              {
+                "$var": "fn"
+              }
+            ]
+          }
+        }
       },
       "expected": 1
     },
     {
       "description": "arity counts positional plus pattern slots",
       "body": {
-        "$return": { "$call": "arity", "$args": [{ "$var": "fn" }] },
-        "fn": { "$params": ["a", { "$fields": ["x", "y"] }], "$return": { "$var": "a" } }
+        "$return": {
+          "$let": {
+            "fn": {
+              "$params": [
+                "a",
+                {
+                  "$fields": ["x", "y"]
+                }
+              ],
+              "$return": {
+                "$var": "a"
+              }
+            }
+          },
+          "$in": {
+            "$call": "arity",
+            "$args": [
+              {
+                "$var": "fn"
+              }
+            ]
+          }
+        }
       },
       "expected": 2
     },
     {
       "description": "arity excludes the rest parameter after a pattern slot",
       "body": {
-        "$return": { "$call": "arity", "$args": [{ "$var": "fn" }] },
-        "fn": { "$params": [{ "$fields": ["x"] }, "...rest"], "$return": { "$var": "x" } }
+        "$return": {
+          "$let": {
+            "fn": {
+              "$params": [
+                {
+                  "$fields": ["x"]
+                },
+                "...rest"
+              ],
+              "$return": {
+                "$var": "x"
+              }
+            }
+          },
+          "$in": {
+            "$call": "arity",
+            "$args": [
+              {
+                "$var": "fn"
+              }
+            ]
+          }
+        }
       },
       "expected": 1
     }

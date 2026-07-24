@@ -3,63 +3,145 @@
   "cases": [
     {
       "description": "arity of external JS function (by name)",
-      "body": { "$return": { "$call": "arity", "$args": ["add"] } },
+      "body": {
+        "$return": {
+          "$call": "arity",
+          "$args": ["add"]
+        }
+      },
       "expected": 2
     },
     {
       "description": "arity of single-param external function",
-      "body": { "$return": { "$call": "arity", "$args": ["abs"] } },
+      "body": {
+        "$return": {
+          "$call": "arity",
+          "$args": ["abs"]
+        }
+      },
       "expected": 1
     },
     {
       "description": "arity of a builtin (map)",
-      "body": { "$return": { "$call": "arity", "$args": ["map"] } },
+      "body": {
+        "$return": {
+          "$call": "arity",
+          "$args": ["map"]
+        }
+      },
       "expected": 2
     },
     {
       "description": "arity of a builtin (reduce)",
-      "body": { "$return": { "$call": "arity", "$args": ["reduce"] } },
+      "body": {
+        "$return": {
+          "$call": "arity",
+          "$args": ["reduce"]
+        }
+      },
       "expected": 3
     },
     {
       "description": "arity of a JSON function (by name)",
-      "body": { "$return": { "$call": "arity", "$args": ["myFn"] } },
-      "functions": { "myFn": { "$params": ["a", "b", "c"], "$return": { "$var": "a" } } },
+      "body": {
+        "$return": {
+          "$call": "arity",
+          "$args": ["myFn"]
+        }
+      },
+      "functions": {
+        "myFn": {
+          "$params": ["a", "b", "c"],
+          "$return": {
+            "$var": "a"
+          }
+        }
+      },
       "expected": 3
     },
     {
       "description": "arity of a JSON function body (inline)",
       "body": {
-        "body": {
-          "$params": ["x", "y"],
-          "$return": { "$call": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] }
-        },
-        "$return": { "$call": "arity", "$args": [{ "$var": "body" }] }
+        "$return": {
+          "$let": {
+            "body": {
+              "$params": ["x", "y"],
+              "$return": {
+                "$call": "add",
+                "$args": [
+                  {
+                    "$var": "x"
+                  },
+                  {
+                    "$var": "y"
+                  }
+                ]
+              }
+            }
+          },
+          "$in": {
+            "$call": "arity",
+            "$args": [
+              {
+                "$var": "body"
+              }
+            ]
+          }
+        }
       },
       "expected": 2
     },
     {
       "description": "arity of a zero-param JSON function",
-      "body": { "$return": { "$call": "arity", "$args": ["noArgs"] } },
-      "functions": { "noArgs": { "$return": 42 } },
+      "body": {
+        "$return": {
+          "$call": "arity",
+          "$args": ["noArgs"]
+        }
+      },
+      "functions": {
+        "noArgs": {
+          "$return": 42
+        }
+      },
       "expected": 0
     },
     {
       "description": "arity of a JSON function with rest params excludes the rest",
-      "body": { "$return": { "$call": "arity", "$args": ["varFn"] } },
+      "body": {
+        "$return": {
+          "$call": "arity",
+          "$args": ["varFn"]
+        }
+      },
       "functions": {
-        "varFn": { "$params": ["first", "second", "...rest"], "$return": { "$var": "first" } }
+        "varFn": {
+          "$params": ["first", "second", "...rest"],
+          "$return": {
+            "$var": "first"
+          }
+        }
       },
       "expected": 2
     },
     {
       "description": "arity of unknown function returns null",
-      "body": { "$return": { "$call": "arity", "$args": ["nonexistent"] } },
+      "body": {
+        "$return": {
+          "$call": "arity",
+          "$args": ["nonexistent"]
+        }
+      },
       "expected": null
     },
     {
       "description": "arity of arity is 1",
-      "body": { "$return": { "$call": "arity", "$args": ["arity"] } },
+      "body": {
+        "$return": {
+          "$call": "arity",
+          "$args": ["arity"]
+        }
+      },
       "expected": 1
     }
   ]

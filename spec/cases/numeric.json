@@ -3,270 +3,569 @@
   "cases": [
     {
       "description": "add: rejects a non-finite result",
-      "body": { "$return": { "$call": "add", "$args": [1e308, 1e308] } },
+      "body": {
+        "$return": {
+          "$call": "add",
+          "$args": [1e308, 1e308]
+        }
+      },
       "error": "result must be a finite number"
     },
     {
       "description": "sub: rejects a non-finite result",
-      "body": { "$return": { "$call": "sub", "$args": [1e308, -1e308] } },
+      "body": {
+        "$return": {
+          "$call": "sub",
+          "$args": [1e308, -1e308]
+        }
+      },
       "error": "result must be a finite number"
     },
     {
       "description": "mul: rejects a non-finite result",
-      "body": { "$return": { "$call": "mul", "$args": [1e308, 2] } },
+      "body": {
+        "$return": {
+          "$call": "mul",
+          "$args": [1e308, 2]
+        }
+      },
       "error": "result must be a finite number"
     },
     {
       "description": "div: rejects a non-finite result",
-      "body": { "$return": { "$call": "div", "$args": [1e308, 1e-308] } },
+      "body": {
+        "$return": {
+          "$call": "div",
+          "$args": [1e308, 1e-308]
+        }
+      },
       "error": "result must be a finite number"
     },
     {
       "description": "mod: rejects division by zero",
-      "body": { "$return": { "$call": "mod", "$args": [5, 0] } },
+      "body": {
+        "$return": {
+          "$call": "mod",
+          "$args": [5, 0]
+        }
+      },
       "error": "division by zero"
     },
     {
       "description": "floor: rounds down positive decimal",
-      "body": { "$return": { "$call": "floor", "$args": [3.7] } },
+      "body": {
+        "$return": {
+          "$call": "floor",
+          "$args": [3.7]
+        }
+      },
       "expected": 3
     },
     {
       "description": "floor: rounds down negative decimal",
-      "body": { "$return": { "$call": "floor", "$args": [-2.3] } },
+      "body": {
+        "$return": {
+          "$call": "floor",
+          "$args": [-2.3]
+        }
+      },
       "expected": -3
     },
     {
       "description": "floor: integer unchanged",
-      "body": { "$return": { "$call": "floor", "$args": [5] } },
+      "body": {
+        "$return": {
+          "$call": "floor",
+          "$args": [5]
+        }
+      },
       "expected": 5
     },
     {
       "description": "floor: zero unchanged",
-      "body": { "$return": { "$call": "floor", "$args": [0] } },
+      "body": {
+        "$return": {
+          "$call": "floor",
+          "$args": [0]
+        }
+      },
       "expected": 0
     },
     {
       "description": "ceil: rounds up positive decimal",
-      "body": { "$return": { "$call": "ceil", "$args": [3.2] } },
+      "body": {
+        "$return": {
+          "$call": "ceil",
+          "$args": [3.2]
+        }
+      },
       "expected": 4
     },
     {
       "description": "ceil: rounds up negative decimal",
-      "body": { "$return": { "$call": "ceil", "$args": [-2.7] } },
+      "body": {
+        "$return": {
+          "$call": "ceil",
+          "$args": [-2.7]
+        }
+      },
       "expected": -2
     },
     {
       "description": "ceil: integer unchanged",
-      "body": { "$return": { "$call": "ceil", "$args": [5] } },
+      "body": {
+        "$return": {
+          "$call": "ceil",
+          "$args": [5]
+        }
+      },
       "expected": 5
     },
     {
       "description": "ceil: zero unchanged",
-      "body": { "$return": { "$call": "ceil", "$args": [0] } },
+      "body": {
+        "$return": {
+          "$call": "ceil",
+          "$args": [0]
+        }
+      },
       "expected": 0
     },
     {
       "description": "round: rounds down when below .5",
-      "body": { "$return": { "$call": "round", "$args": [3.3] } },
+      "body": {
+        "$return": {
+          "$call": "round",
+          "$args": [3.3]
+        }
+      },
       "expected": 3
     },
     {
       "description": "round: rounds up when above .5",
-      "body": { "$return": { "$call": "round", "$args": [3.7] } },
+      "body": {
+        "$return": {
+          "$call": "round",
+          "$args": [3.7]
+        }
+      },
       "expected": 4
     },
     {
       "description": "round: rounds up at .5",
-      "body": { "$return": { "$call": "round", "$args": [2.5] } },
+      "body": {
+        "$return": {
+          "$call": "round",
+          "$args": [2.5]
+        }
+      },
       "expected": 3
     },
     {
       "description": "round: integer unchanged",
-      "body": { "$return": { "$call": "round", "$args": [5] } },
+      "body": {
+        "$return": {
+          "$call": "round",
+          "$args": [5]
+        }
+      },
       "expected": 5
     },
     {
       "description": "round: negative rounds toward zero",
-      "body": { "$return": { "$call": "round", "$args": [-2.3] } },
+      "body": {
+        "$return": {
+          "$call": "round",
+          "$args": [-2.3]
+        }
+      },
       "expected": -2
     },
     {
       "description": "max: returns largest element",
-      "body": { "$return": { "$call": "max", "$args": [[3, 1, 4, 1, 5, 9, 2, 6]] } },
+      "body": {
+        "$return": {
+          "$call": "max",
+          "$args": [[3, 1, 4, 1, 5, 9, 2, 6]]
+        }
+      },
       "expected": 9
     },
     {
       "description": "max: single element",
-      "body": { "$return": { "$call": "max", "$args": [[42]] } },
+      "body": {
+        "$return": {
+          "$call": "max",
+          "$args": [[42]]
+        }
+      },
       "expected": 42
     },
     {
       "description": "max: works with negative numbers",
-      "body": { "$return": { "$call": "max", "$args": [[-3, -1, -4, -1, -5]] } },
+      "body": {
+        "$return": {
+          "$call": "max",
+          "$args": [[-3, -1, -4, -1, -5]]
+        }
+      },
       "expected": -1
     },
     {
       "description": "max: non-array argument throws",
-      "body": { "$return": { "$call": "max", "$args": [42] } },
+      "body": {
+        "$return": {
+          "$call": "max",
+          "$args": [42]
+        }
+      },
       "error": "must be an array"
     },
     {
       "description": "max: rejects an empty array",
-      "body": { "$return": { "$call": "max", "$args": [[]] } },
+      "body": {
+        "$return": {
+          "$call": "max",
+          "$args": [[]]
+        }
+      },
       "error": "must not be empty"
     },
     {
       "description": "max: rejects a non-number element",
-      "body": { "$return": { "$call": "max", "$args": [[1, "9", 3]] } },
+      "body": {
+        "$return": {
+          "$call": "max",
+          "$args": [[1, "9", 3]]
+        }
+      },
       "error": "elements must be numbers"
     },
     {
       "description": "min: returns smallest element",
-      "body": { "$return": { "$call": "min", "$args": [[3, 1, 4, 1, 5, 9, 2, 6]] } },
+      "body": {
+        "$return": {
+          "$call": "min",
+          "$args": [[3, 1, 4, 1, 5, 9, 2, 6]]
+        }
+      },
       "expected": 1
     },
     {
       "description": "min: single element",
-      "body": { "$return": { "$call": "min", "$args": [[42]] } },
+      "body": {
+        "$return": {
+          "$call": "min",
+          "$args": [[42]]
+        }
+      },
       "expected": 42
     },
     {
       "description": "min: works with negative numbers",
-      "body": { "$return": { "$call": "min", "$args": [[-3, -1, -4, -1, -5]] } },
+      "body": {
+        "$return": {
+          "$call": "min",
+          "$args": [[-3, -1, -4, -1, -5]]
+        }
+      },
       "expected": -5
     },
     {
       "description": "min: non-array argument throws",
-      "body": { "$return": { "$call": "min", "$args": [42] } },
+      "body": {
+        "$return": {
+          "$call": "min",
+          "$args": [42]
+        }
+      },
       "error": "must be an array"
     },
     {
       "description": "min: rejects an empty array",
-      "body": { "$return": { "$call": "min", "$args": [[]] } },
+      "body": {
+        "$return": {
+          "$call": "min",
+          "$args": [[]]
+        }
+      },
       "error": "must not be empty"
     },
     {
       "description": "min: rejects a non-number element",
-      "body": { "$return": { "$call": "min", "$args": [[1, "-9", 3]] } },
+      "body": {
+        "$return": {
+          "$call": "min",
+          "$args": [[1, "-9", 3]]
+        }
+      },
       "error": "elements must be numbers"
     },
     {
       "description": "floor and ceil: bracket a decimal",
       "body": {
-        "val": 3.7,
-        "lo": { "$call": "floor", "$args": [{ "$var": "val" }] },
-        "hi": { "$call": "ceil", "$args": [{ "$var": "val" }] },
-        "$return": [{ "$var": "lo" }, { "$var": "hi" }]
+        "$return": {
+          "$let": {
+            "val": 3.7,
+            "lo": {
+              "$call": "floor",
+              "$args": [
+                {
+                  "$var": "val"
+                }
+              ]
+            },
+            "hi": {
+              "$call": "ceil",
+              "$args": [
+                {
+                  "$var": "val"
+                }
+              ]
+            }
+          },
+          "$in": [
+            {
+              "$var": "lo"
+            },
+            {
+              "$var": "hi"
+            }
+          ]
+        }
       },
       "expected": [3, 4]
     },
     {
       "description": "max and min: range of array",
       "body": {
-        "arr": [5, 2, 8, 1, 9, 3],
-        "hi": { "$call": "max", "$args": [{ "$var": "arr" }] },
-        "lo": { "$call": "min", "$args": [{ "$var": "arr" }] },
-        "$return": { "$call": "sub", "$args": [{ "$var": "hi" }, { "$var": "lo" }] }
+        "$return": {
+          "$let": {
+            "arr": [5, 2, 8, 1, 9, 3],
+            "hi": {
+              "$call": "max",
+              "$args": [
+                {
+                  "$var": "arr"
+                }
+              ]
+            },
+            "lo": {
+              "$call": "min",
+              "$args": [
+                {
+                  "$var": "arr"
+                }
+              ]
+            }
+          },
+          "$in": {
+            "$call": "sub",
+            "$args": [
+              {
+                "$var": "hi"
+              },
+              {
+                "$var": "lo"
+              }
+            ]
+          }
+        }
       },
       "expected": 8
     },
     {
       "description": "sum: adds integer elements",
-      "body": { "$return": { "$call": "sum", "$args": [[1, 2, 3, 4]] } },
+      "body": {
+        "$return": {
+          "$call": "sum",
+          "$args": [[1, 2, 3, 4]]
+        }
+      },
       "expected": 10
     },
     {
       "description": "sum: adds decimal and negative elements",
-      "body": { "$return": { "$call": "sum", "$args": [[1.5, -2, 3.25]] } },
+      "body": {
+        "$return": {
+          "$call": "sum",
+          "$args": [[1.5, -2, 3.25]]
+        }
+      },
       "expected": 2.75
     },
     {
       "description": "sum: empty array returns zero",
-      "body": { "$return": { "$call": "sum", "$args": [[]] } },
+      "body": {
+        "$return": {
+          "$call": "sum",
+          "$args": [[]]
+        }
+      },
       "expected": 0
     },
     {
       "description": "sum: rejects a non-array argument",
-      "body": { "$return": { "$call": "sum", "$args": [42] } },
+      "body": {
+        "$return": {
+          "$call": "sum",
+          "$args": [42]
+        }
+      },
       "error": "must be an array"
     },
     {
       "description": "sum: rejects a non-number element",
-      "body": { "$return": { "$call": "sum", "$args": [[1, "2", 3]] } },
+      "body": {
+        "$return": {
+          "$call": "sum",
+          "$args": [[1, "2", 3]]
+        }
+      },
       "error": "elements must be numbers"
     },
     {
       "description": "sum: rejects a non-finite result",
-      "body": { "$return": { "$call": "sum", "$args": [[1e308, 1e308]] } },
+      "body": {
+        "$return": {
+          "$call": "sum",
+          "$args": [[1e308, 1e308]]
+        }
+      },
       "error": "result must be a finite number"
     },
     {
       "description": "sqrt: computes a square root",
-      "body": { "$return": { "$call": "sqrt", "$args": [81] } },
+      "body": {
+        "$return": {
+          "$call": "sqrt",
+          "$args": [81]
+        }
+      },
       "expected": 9
     },
     {
       "description": "sqrt: accepts a fractional input",
-      "body": { "$return": { "$call": "sqrt", "$args": [0.25] } },
+      "body": {
+        "$return": {
+          "$call": "sqrt",
+          "$args": [0.25]
+        }
+      },
       "expected": 0.5
     },
     {
       "description": "sqrt: rejects a negative input whose result is not finite",
-      "body": { "$return": { "$call": "sqrt", "$args": [-1] } },
+      "body": {
+        "$return": {
+          "$call": "sqrt",
+          "$args": [-1]
+        }
+      },
       "error": "result must be a finite number"
     },
     {
       "description": "pow: raises a base to an exponent",
-      "body": { "$return": { "$call": "pow", "$args": [2, 10] } },
+      "body": {
+        "$return": {
+          "$call": "pow",
+          "$args": [2, 10]
+        }
+      },
       "expected": 1024
     },
     {
       "description": "pow: supports negative exponents",
-      "body": { "$return": { "$call": "pow", "$args": [4, -1] } },
+      "body": {
+        "$return": {
+          "$call": "pow",
+          "$args": [4, -1]
+        }
+      },
       "expected": 0.25
     },
     {
       "description": "pow: rejects a non-finite result",
-      "body": { "$return": { "$call": "pow", "$args": [0, -1] } },
+      "body": {
+        "$return": {
+          "$call": "pow",
+          "$args": [0, -1]
+        }
+      },
       "error": "result must be a finite number"
     },
     {
       "description": "product: multiplies integer elements",
-      "body": { "$return": { "$call": "product", "$args": [[2, 3, 4]] } },
+      "body": {
+        "$return": {
+          "$call": "product",
+          "$args": [[2, 3, 4]]
+        }
+      },
       "expected": 24
     },
     {
       "description": "product: multiplies decimal and negative elements",
-      "body": { "$return": { "$call": "product", "$args": [[1.5, -2, 3]] } },
+      "body": {
+        "$return": {
+          "$call": "product",
+          "$args": [[1.5, -2, 3]]
+        }
+      },
       "expected": -9
     },
     {
       "description": "product: empty array returns one",
-      "body": { "$return": { "$call": "product", "$args": [[]] } },
+      "body": {
+        "$return": {
+          "$call": "product",
+          "$args": [[]]
+        }
+      },
       "expected": 1
     },
     {
       "description": "product: rejects a non-array argument",
-      "body": { "$return": { "$call": "product", "$args": [42] } },
+      "body": {
+        "$return": {
+          "$call": "product",
+          "$args": [42]
+        }
+      },
       "error": "must be an array"
     },
     {
       "description": "product: rejects a non-number element",
-      "body": { "$return": { "$call": "product", "$args": [[2, "3"]] } },
+      "body": {
+        "$return": {
+          "$call": "product",
+          "$args": [[2, "3"]]
+        }
+      },
       "error": "elements must be numbers"
     },
     {
       "description": "product: rejects a non-finite result",
-      "body": { "$return": { "$call": "product", "$args": [[1e308, 2]] } },
+      "body": {
+        "$return": {
+          "$call": "product",
+          "$args": [[1e308, 2]]
+        }
+      },
       "error": "result must be a finite number"
     },
     {
       "description": "argmin and argmax: return first best indices",
       "body": {
         "$return": [
-          { "$call": "argmin", "$args": [[3, -2, 4, -2]] },
-          { "$call": "argmax", "$args": [[3, 9, 4, 9]] }
+          {
+            "$call": "argmin",
+            "$args": [[3, -2, 4, -2]]
+          },
+          {
+            "$call": "argmax",
+            "$args": [[3, 9, 4, 9]]
+          }
         ]
       },
       "expected": [1, 1]
@@ -275,8 +574,14 @@
       "description": "argmin and argmax: support decimal and negative values",
       "body": {
         "$return": [
-          { "$call": "argmin", "$args": [[-1.5, -3.25, 0]] },
-          { "$call": "argmax", "$args": [[-1.5, -3.25, 0]] }
+          {
+            "$call": "argmin",
+            "$args": [[-1.5, -3.25, 0]]
+          },
+          {
+            "$call": "argmax",
+            "$args": [[-1.5, -3.25, 0]]
+          }
         ]
       },
       "expected": [1, 2]
@@ -285,20 +590,36 @@
       "description": "argmin and argmax: empty arrays return null",
       "body": {
         "$return": [
-          { "$call": "argmin", "$args": [[]] },
-          { "$call": "argmax", "$args": [[]] }
+          {
+            "$call": "argmin",
+            "$args": [[]]
+          },
+          {
+            "$call": "argmax",
+            "$args": [[]]
+          }
         ]
       },
       "expected": [null, null]
     },
     {
       "description": "argmin: rejects a non-array argument",
-      "body": { "$return": { "$call": "argmin", "$args": [42] } },
+      "body": {
+        "$return": {
+          "$call": "argmin",
+          "$args": [42]
+        }
+      },
       "error": "must be an array"
     },
     {
       "description": "argmax: rejects a non-number element",
-      "body": { "$return": { "$call": "argmax", "$args": [[1, "2"]] } },
+      "body": {
+        "$return": {
+          "$call": "argmax",
+          "$args": [[1, "2"]]
+        }
+      },
       "error": "elements must be numbers"
     }
   ]

@@ -5,15 +5,42 @@
       "description": "a function-valued param shadows an operator (x + 1 uses the passed `add`)",
       "body": {
         "$params": ["add", "x"],
-        "$return": { "$call": "add", "$args": [{ "$var": "x" }, 1] }
+        "$return": {
+          "$call": "add",
+          "$args": [
+            {
+              "$var": "x"
+            },
+            1
+          ]
+        }
       },
       "args": ["sub", 10],
       "expected": 9
     },
     {
       "description": "a function-valued param shadows a stdlib function in a direct call",
-      "body": { "$params": ["map"], "$return": { "$call": "map", "$args": [2] } },
-      "args": [{ "$params": ["x"], "$return": { "$call": "mul", "$args": [{ "$var": "x" }, 10] } }],
+      "body": {
+        "$params": ["map"],
+        "$return": {
+          "$call": "map",
+          "$args": [2]
+        }
+      },
+      "args": [
+        {
+          "$params": ["x"],
+          "$return": {
+            "$call": "mul",
+            "$args": [
+              {
+                "$var": "x"
+              },
+              10
+            ]
+          }
+        }
+      ],
       "expected": 20
     },
     {
@@ -21,7 +48,17 @@
       "functions": {
         "makeMapper": {
           "$params": ["map"],
-          "$return": { "$params": ["x"], "$return": { "$call": "map", "$args": [{ "$var": "x" }] } }
+          "$return": {
+            "$params": ["x"],
+            "$return": {
+              "$call": "map",
+              "$args": [
+                {
+                  "$var": "x"
+                }
+              ]
+            }
+          }
         }
       },
       "body": {
@@ -29,7 +66,18 @@
           "$call": {
             "$call": "makeMapper",
             "$args": [
-              { "$params": ["n"], "$return": { "$call": "mul", "$args": [{ "$var": "n" }, 10] } }
+              {
+                "$params": ["n"],
+                "$return": {
+                  "$call": "mul",
+                  "$args": [
+                    {
+                      "$var": "n"
+                    },
+                    10
+                  ]
+                }
+              }
             ]
           },
           "$args": [5]
@@ -44,7 +92,19 @@
           "$params": ["add", "g"],
           "$return": {
             "$params": ["x"],
-            "$return": { "$call": "add", "$args": [{ "$call": "g", "$args": [{ "$var": "x" }] }] }
+            "$return": {
+              "$call": "add",
+              "$args": [
+                {
+                  "$call": "g",
+                  "$args": [
+                    {
+                      "$var": "x"
+                    }
+                  ]
+                }
+              ]
+            }
           }
         }
       },
@@ -53,8 +113,30 @@
           "$call": {
             "$call": "compose",
             "$args": [
-              { "$params": ["n"], "$return": { "$call": "mul", "$args": [{ "$var": "n" }, 10] } },
-              { "$params": ["n"], "$return": { "$call": "add", "$args": [{ "$var": "n" }, 1] } }
+              {
+                "$params": ["n"],
+                "$return": {
+                  "$call": "mul",
+                  "$args": [
+                    {
+                      "$var": "n"
+                    },
+                    10
+                  ]
+                }
+              },
+              {
+                "$params": ["n"],
+                "$return": {
+                  "$call": "add",
+                  "$args": [
+                    {
+                      "$var": "n"
+                    },
+                    1
+                  ]
+                }
+              }
             ]
           },
           "$args": [5]
@@ -66,8 +148,22 @@
       "description": "a where-local function shadows stdlib `length`",
       "body": {
         "$params": ["x"],
-        "length": { "$params": ["v"], "$return": 999 },
-        "$return": { "$call": "length", "$args": [{ "$var": "x" }] }
+        "$return": {
+          "$let": {
+            "length": {
+              "$params": ["v"],
+              "$return": 999
+            }
+          },
+          "$in": {
+            "$call": "length",
+            "$args": [
+              {
+                "$var": "x"
+              }
+            ]
+          }
+        }
       },
       "args": [[1, 2, 3]],
       "expected": 999
@@ -76,11 +172,33 @@
       "description": "a where-local function shadows an operator (`add` → subtracts)",
       "body": {
         "$params": ["x"],
-        "add": {
-          "$params": ["a", "b"],
-          "$return": { "$call": "sub", "$args": [{ "$var": "a" }, { "$var": "b" }] }
-        },
-        "$return": { "$call": "add", "$args": [{ "$var": "x" }, 1] }
+        "$return": {
+          "$let": {
+            "add": {
+              "$params": ["a", "b"],
+              "$return": {
+                "$call": "sub",
+                "$args": [
+                  {
+                    "$var": "a"
+                  },
+                  {
+                    "$var": "b"
+                  }
+                ]
+              }
+            }
+          },
+          "$in": {
+            "$call": "add",
+            "$args": [
+              {
+                "$var": "x"
+              },
+              1
+            ]
+          }
+        }
       },
       "args": [10],
       "expected": 9
@@ -89,21 +207,55 @@
       "description": "local recursion still dispatches through the registry (canary)",
       "body": {
         "$params": ["n"],
-        "fact": {
-          "$params": ["m"],
-          "$return": {
-            "$if": { "$call": "lte", "$args": [{ "$var": "m" }, 1] },
-            "$then": 1,
-            "$else": {
-              "$call": "mul",
-              "$args": [
-                { "$var": "m" },
-                { "$call": "fact", "$args": [{ "$call": "sub", "$args": [{ "$var": "m" }, 1] }] }
-              ]
+        "$return": {
+          "$let": {
+            "fact": {
+              "$params": ["m"],
+              "$return": {
+                "$if": {
+                  "$call": "lte",
+                  "$args": [
+                    {
+                      "$var": "m"
+                    },
+                    1
+                  ]
+                },
+                "$then": 1,
+                "$else": {
+                  "$call": "mul",
+                  "$args": [
+                    {
+                      "$var": "m"
+                    },
+                    {
+                      "$call": "fact",
+                      "$args": [
+                        {
+                          "$call": "sub",
+                          "$args": [
+                            {
+                              "$var": "m"
+                            },
+                            1
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
             }
+          },
+          "$in": {
+            "$call": "fact",
+            "$args": [
+              {
+                "$var": "n"
+              }
+            ]
           }
-        },
-        "$return": { "$call": "fact", "$args": [{ "$var": "n" }] }
+        }
       },
       "args": [5],
       "expected": 120
@@ -112,29 +264,76 @@
       "description": "mutual recursion via where-locals stays green (even)",
       "body": {
         "$params": ["n"],
-        "isEven": {
-          "$params": ["m"],
-          "$return": {
-            "$if": { "$call": "eq", "$args": [{ "$var": "m" }, 0] },
-            "$then": true,
-            "$else": {
-              "$call": "isOdd",
-              "$args": [{ "$call": "sub", "$args": [{ "$var": "m" }, 1] }]
+        "$return": {
+          "$let": {
+            "isEven": {
+              "$params": ["m"],
+              "$return": {
+                "$if": {
+                  "$call": "eq",
+                  "$args": [
+                    {
+                      "$var": "m"
+                    },
+                    0
+                  ]
+                },
+                "$then": true,
+                "$else": {
+                  "$call": "isOdd",
+                  "$args": [
+                    {
+                      "$call": "sub",
+                      "$args": [
+                        {
+                          "$var": "m"
+                        },
+                        1
+                      ]
+                    }
+                  ]
+                }
+              }
+            },
+            "isOdd": {
+              "$params": ["m"],
+              "$return": {
+                "$if": {
+                  "$call": "eq",
+                  "$args": [
+                    {
+                      "$var": "m"
+                    },
+                    0
+                  ]
+                },
+                "$then": false,
+                "$else": {
+                  "$call": "isEven",
+                  "$args": [
+                    {
+                      "$call": "sub",
+                      "$args": [
+                        {
+                          "$var": "m"
+                        },
+                        1
+                      ]
+                    }
+                  ]
+                }
+              }
             }
+          },
+          "$in": {
+            "$call": "isEven",
+            "$args": [
+              {
+                "$var": "n"
+              }
+            ]
           }
-        },
-        "isOdd": {
-          "$params": ["m"],
-          "$return": {
-            "$if": { "$call": "eq", "$args": [{ "$var": "m" }, 0] },
-            "$then": false,
-            "$else": {
-              "$call": "isEven",
-              "$args": [{ "$call": "sub", "$args": [{ "$var": "m" }, 1] }]
-            }
-          }
-        },
-        "$return": { "$call": "isEven", "$args": [{ "$var": "n" }] }
+        }
       },
       "args": [10],
       "expected": true
@@ -143,43 +342,104 @@
       "description": "mutual recursion via where-locals stays green (odd)",
       "body": {
         "$params": ["n"],
-        "isEven": {
-          "$params": ["m"],
-          "$return": {
-            "$if": { "$call": "eq", "$args": [{ "$var": "m" }, 0] },
-            "$then": true,
-            "$else": {
-              "$call": "isOdd",
-              "$args": [{ "$call": "sub", "$args": [{ "$var": "m" }, 1] }]
+        "$return": {
+          "$let": {
+            "isEven": {
+              "$params": ["m"],
+              "$return": {
+                "$if": {
+                  "$call": "eq",
+                  "$args": [
+                    {
+                      "$var": "m"
+                    },
+                    0
+                  ]
+                },
+                "$then": true,
+                "$else": {
+                  "$call": "isOdd",
+                  "$args": [
+                    {
+                      "$call": "sub",
+                      "$args": [
+                        {
+                          "$var": "m"
+                        },
+                        1
+                      ]
+                    }
+                  ]
+                }
+              }
+            },
+            "isOdd": {
+              "$params": ["m"],
+              "$return": {
+                "$if": {
+                  "$call": "eq",
+                  "$args": [
+                    {
+                      "$var": "m"
+                    },
+                    0
+                  ]
+                },
+                "$then": false,
+                "$else": {
+                  "$call": "isEven",
+                  "$args": [
+                    {
+                      "$call": "sub",
+                      "$args": [
+                        {
+                          "$var": "m"
+                        },
+                        1
+                      ]
+                    }
+                  ]
+                }
+              }
             }
+          },
+          "$in": {
+            "$call": "isEven",
+            "$args": [
+              {
+                "$var": "n"
+              }
+            ]
           }
-        },
-        "isOdd": {
-          "$params": ["m"],
-          "$return": {
-            "$if": { "$call": "eq", "$args": [{ "$var": "m" }, 0] },
-            "$then": false,
-            "$else": {
-              "$call": "isEven",
-              "$args": [{ "$call": "sub", "$args": [{ "$var": "m" }, 1] }]
-            }
-          }
-        },
-        "$return": { "$call": "isEven", "$args": [{ "$var": "n" }] }
+        }
       },
       "args": [7],
       "expected": false
     },
     {
       "description": "a bare stdlib name in value position resolves to its `&`-free reference",
-      "body": { "$return": { "$var": "length" } },
+      "body": {
+        "$return": {
+          "$var": "length"
+        }
+      },
       "expected": "length"
     },
     {
       "description": "map(length, xss) works without `&` (bare registry name as argument)",
       "body": {
         "$params": ["xss"],
-        "$return": { "$call": "map", "$args": [{ "$var": "length" }, { "$var": "xss" }] }
+        "$return": {
+          "$call": "map",
+          "$args": [
+            {
+              "$var": "length"
+            },
+            {
+              "$var": "xss"
+            }
+          ]
+        }
       },
       "args": [
         [
@@ -191,21 +451,47 @@
     },
     {
       "description": "a local binding shadows the stdlib name in value position",
-      "body": { "$params": ["x"], "length": 42, "$return": { "$var": "length" } },
+      "body": {
+        "$params": ["x"],
+        "$return": {
+          "$let": {
+            "length": 42
+          },
+          "$in": {
+            "$var": "length"
+          }
+        }
+      },
       "args": [7],
       "expected": 42
     },
     {
       "description": "an unknown bare name still errors",
-      "body": { "$return": { "$var": "definitelyNotRegistered" } },
+      "body": {
+        "$return": {
+          "$var": "definitelyNotRegistered"
+        }
+      },
       "error": "Variable definitelyNotRegistered not found"
     },
     {
       "description": "a non-function local named like a builtin does NOT hijack the operator",
       "body": {
         "$params": ["x"],
-        "add": 5,
-        "$return": { "$call": "add", "$args": [{ "$var": "x" }, 1] }
+        "$return": {
+          "$let": {
+            "add": 5
+          },
+          "$in": {
+            "$call": "add",
+            "$args": [
+              {
+                "$var": "x"
+              },
+              1
+            ]
+          }
+        }
       },
       "args": [10],
       "expected": 11

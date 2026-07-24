@@ -4,11 +4,35 @@
     {
       "description": "variables can reference each other",
       "body": {
-        "a": 5,
-        "b": 10,
-        "sum": { "$call": "add", "$args": [{ "$var": "a" }, { "$var": "b" }] },
-        "doubled": { "$call": "mul", "$args": [{ "$var": "sum" }, 2] },
-        "$return": { "$var": "doubled" }
+        "$return": {
+          "$let": {
+            "a": 5,
+            "b": 10,
+            "sum": {
+              "$call": "add",
+              "$args": [
+                {
+                  "$var": "a"
+                },
+                {
+                  "$var": "b"
+                }
+              ]
+            },
+            "doubled": {
+              "$call": "mul",
+              "$args": [
+                {
+                  "$var": "sum"
+                },
+                2
+              ]
+            }
+          },
+          "$in": {
+            "$var": "doubled"
+          }
+        }
       },
       "expected": 30
     },
@@ -16,8 +40,24 @@
       "description": "variables can reference arguments via $params",
       "body": {
         "$params": ["x", "y"],
-        "product": { "$call": "mul", "$args": [{ "$var": "x" }, { "$var": "y" }] },
-        "$return": { "$var": "product" }
+        "$return": {
+          "$let": {
+            "product": {
+              "$call": "mul",
+              "$args": [
+                {
+                  "$var": "x"
+                },
+                {
+                  "$var": "y"
+                }
+              ]
+            }
+          },
+          "$in": {
+            "$var": "product"
+          }
+        }
       },
       "args": [7, 8],
       "expected": 56

@@ -3,49 +3,138 @@
   "cases": [
     {
       "description": "pure builds a tagged pure record",
-      "body": { "$return": { "$call": "pure", "$args": [42] } },
-      "expected": { "@task": "pure", "value": 42 }
+      "body": {
+        "$return": {
+          "$call": "pure",
+          "$args": [42]
+        }
+      },
+      "expected": {
+        "@task": "pure",
+        "value": 42
+      }
     },
     {
       "description": "pure wraps any value, including objects",
-      "body": { "$return": { "$call": "pure", "$args": [{ "a": 1, "b": [2, 3] }] } },
-      "expected": { "@task": "pure", "value": { "a": 1, "b": [2, 3] } }
+      "body": {
+        "$return": {
+          "$call": "pure",
+          "$args": [
+            {
+              "a": 1,
+              "b": [2, 3]
+            }
+          ]
+        }
+      },
+      "expected": {
+        "@task": "pure",
+        "value": {
+          "a": 1,
+          "b": [2, 3]
+        }
+      }
     },
     {
       "description": "isTask recognizes a constructed task",
-      "body": { "$return": { "$call": "isTask", "$args": [{ "$call": "pure", "$args": [42] }] } },
+      "body": {
+        "$return": {
+          "$call": "isTask",
+          "$args": [
+            {
+              "$call": "pure",
+              "$args": [42]
+            }
+          ]
+        }
+      },
       "expected": true
     },
     {
       "description": "isTask rejects ordinary values",
       "body": {
         "$return": [
-          { "$call": "isTask", "$args": [42] },
-          { "$call": "isTask", "$args": [[{ "@task": "pure" }]] },
-          { "$call": "isTask", "$args": [{ "value": 42 }] }
+          {
+            "$call": "isTask",
+            "$args": [42]
+          },
+          {
+            "$call": "isTask",
+            "$args": [
+              [
+                {
+                  "@task": "pure"
+                }
+              ]
+            ]
+          },
+          {
+            "$call": "isTask",
+            "$args": [
+              {
+                "value": 42
+              }
+            ]
+          }
         ]
       },
       "expected": [false, false, false]
     },
     {
       "description": "perform builds a tagged effect record",
-      "body": { "$return": { "$call": "perform", "$args": ["http.get", ["https://example.com"]] } },
-      "expected": { "@task": "effect", "name": "http.get", "args": ["https://example.com"] }
+      "body": {
+        "$return": {
+          "$call": "perform",
+          "$args": ["http.get", ["https://example.com"]]
+        }
+      },
+      "expected": {
+        "@task": "effect",
+        "name": "http.get",
+        "args": ["https://example.com"]
+      }
     },
     {
       "description": "perform requires a string effect name",
-      "body": { "$return": { "$call": "perform", "$args": [5, []] } },
+      "body": {
+        "$return": {
+          "$call": "perform",
+          "$args": [5, []]
+        }
+      },
       "error": "perform: first argument must be a string"
     },
     {
       "description": "perform requires an array of args",
-      "body": { "$return": { "$call": "perform", "$args": ["e", "not-an-array"] } },
+      "body": {
+        "$return": {
+          "$call": "perform",
+          "$args": ["e", "not-an-array"]
+        }
+      },
       "error": "perform: second argument must be an array"
     },
     {
       "description": "raise is a distinguished effect named raise",
-      "body": { "$return": { "$call": "raise", "$args": [{ "tag": "NotFound" }] } },
-      "expected": { "@task": "effect", "name": "raise", "args": [{ "tag": "NotFound" }] }
+      "body": {
+        "$return": {
+          "$call": "raise",
+          "$args": [
+            {
+              "tag": "NotFound"
+            }
+          ]
+        }
+      },
+      "expected": {
+        "@task": "effect",
+        "name": "raise",
+        "args": [
+          {
+            "tag": "NotFound"
+          }
+        ]
+      }
     },
     {
       "description": "bind nests a continuation closure",
@@ -53,52 +142,145 @@
         "$return": {
           "$call": "bind",
           "$args": [
-            { "$call": "pure", "$args": [1] },
-            { "$params": ["x"], "$return": { "$call": "pure", "$args": [{ "$var": "x" }] } }
+            {
+              "$call": "pure",
+              "$args": [1]
+            },
+            {
+              "$params": ["x"],
+              "$return": {
+                "$call": "pure",
+                "$args": [
+                  {
+                    "$var": "x"
+                  }
+                ]
+              }
+            }
           ]
         }
       },
       "expected": {
         "@task": "bind",
-        "task": { "@task": "pure", "value": 1 },
-        "then": { "$params": ["x"], "$return": { "$call": "pure", "$args": [{ "$var": "x" }] } }
+        "task": {
+          "@task": "pure",
+          "value": 1
+        },
+        "then": {
+          "$params": ["x"],
+          "$return": {
+            "$call": "pure",
+            "$args": [
+              {
+                "$var": "x"
+              }
+            ]
+          }
+        }
       }
     },
     {
       "description": "bind requires a function continuation",
-      "body": { "$return": { "$call": "bind", "$args": [{ "$call": "pure", "$args": [1] }, 5] } },
+      "body": {
+        "$return": {
+          "$call": "bind",
+          "$args": [
+            {
+              "$call": "pure",
+              "$args": [1]
+            },
+            5
+          ]
+        }
+      },
       "error": "bind: second argument must be a function"
     },
     {
       "description": "a constructed task passes through an array literal inert",
       "body": {
         "$return": [
-          { "$call": "pure", "$args": [1] },
-          { "$call": "perform", "$args": ["e", []] }
+          {
+            "$call": "pure",
+            "$args": [1]
+          },
+          {
+            "$call": "perform",
+            "$args": ["e", []]
+          }
         ]
       },
       "expected": [
-        { "@task": "pure", "value": 1 },
-        { "@task": "effect", "name": "e", "args": [] }
+        {
+          "@task": "pure",
+          "value": 1
+        },
+        {
+          "@task": "effect",
+          "name": "e",
+          "args": []
+        }
       ]
     },
     {
       "description": "a constructed task nested in an object literal is not re-walked",
-      "body": { "$return": { "wrapped": { "$call": "perform", "$args": ["e", [1, 2]] } } },
-      "expected": { "wrapped": { "@task": "effect", "name": "e", "args": [1, 2] } }
+      "body": {
+        "$return": {
+          "wrapped": {
+            "$call": "perform",
+            "$args": ["e", [1, 2]]
+          }
+        }
+      },
+      "expected": {
+        "wrapped": {
+          "@task": "effect",
+          "name": "e",
+          "args": [1, 2]
+        }
+      }
     },
     {
       "description": "a task in an unreferenced lazy local never runs (laziness interaction)",
-      "body": { "unused": { "$call": "perform", "$args": ["boom", []] }, "$return": 99 },
+      "body": {
+        "$return": {
+          "$let": {
+            "unused": {
+              "$call": "perform",
+              "$args": ["boom", []]
+            }
+          },
+          "$in": 99
+        }
+      },
       "expected": 99
     },
     {
       "description": "a constructed task is returned from a closure unchanged",
       "body": {
-        "mk": { "$params": ["n"], "$return": { "$call": "pure", "$args": [{ "$var": "n" }] } },
-        "$return": { "$call": "mk", "$args": [7] }
+        "$return": {
+          "$let": {
+            "mk": {
+              "$params": ["n"],
+              "$return": {
+                "$call": "pure",
+                "$args": [
+                  {
+                    "$var": "n"
+                  }
+                ]
+              }
+            }
+          },
+          "$in": {
+            "$call": "mk",
+            "$args": [7]
+          }
+        }
       },
-      "expected": { "@task": "pure", "value": 7 }
+      "expected": {
+        "@task": "pure",
+        "value": 7
+      }
     }
   ]
 }
