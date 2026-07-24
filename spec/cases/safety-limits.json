@@ -138,6 +138,52 @@
       "error": "Maximum call depth of 10 exceeded"
     },
     {
+      "description": "nested lets do not consume call depth",
+      "body": {
+        "$return": {
+          "$let": {
+            "first": 1
+          },
+          "$in": {
+            "$let": {
+              "second": {
+                "$var": "first"
+              }
+            },
+            "$in": {
+              "$let": {
+                "third": {
+                  "$var": "second"
+                }
+              },
+              "$in": {
+                "$var": "third"
+              }
+            }
+          }
+        }
+      },
+      "limits": {
+        "maxCallDepth": 1
+      },
+      "expected": 1
+    },
+    {
+      "description": "a genuine zero-argument IIFE consumes call depth",
+      "body": {
+        "$return": {
+          "$call": {
+            "$return": 1
+          },
+          "$args": []
+        }
+      },
+      "limits": {
+        "maxCallDepth": 1
+      },
+      "error": "Maximum call depth of 1 exceeded"
+    },
+    {
       "description": "allows recursion within configured limits",
       "body": {
         "$return": {
