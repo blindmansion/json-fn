@@ -7,6 +7,7 @@
 import type { CallableEntry, CallableTypeRuleRegistry } from "./builtin-types";
 import type { JSONType } from "../types";
 import type { EffectManifest } from "../environment/effect-types";
+import { FUNCTION_BODY_FIELDS } from "../function-body-structure";
 import { type Schema, type Defs, type FnTypeShape, isSchemaObject } from "../schema/schema.ts";
 
 // The tier of a diagnostic. An `error` is a definite type failure; an `info`
@@ -147,16 +148,10 @@ function bodyFnTypeSchema(body: Record<string, JSONType>): Schema {
   return isSchemaObject(sig) ? { $fnType: sig } : true;
 }
 
-// Canonical structural fields on a function body. `$captures` is evaluator-
-// owned closure state; it is structural too, but is kept separate from source
-// fields so authoring paths do not accidentally start accepting it.
-const FUNCTION_BODY_SOURCE_KEYS = new Set(["$return", "$params", "$sig", "$comment"]);
-const FUNCTION_BODY_STRUCTURAL_KEYS = new Set([...FUNCTION_BODY_SOURCE_KEYS, "$captures"]);
-
 // TODO(let-phase4): delete this compatibility scan after shorthand and shared
 // fixtures stop emitting inline function-body locals.
 function bindingKeys(body: Record<string, JSONType>): string[] {
-  return Object.keys(body).filter((k) => !FUNCTION_BODY_STRUCTURAL_KEYS.has(k));
+  return Object.keys(body).filter((key) => !FUNCTION_BODY_FIELDS.has(key));
 }
 
 export type { CheckContext, TypeEnv, Diagnostic, Severity, Sig };
@@ -170,7 +165,5 @@ export {
   sigOf,
   bodyFnTypeSchema,
   bindingKeys,
-  FUNCTION_BODY_SOURCE_KEYS,
-  FUNCTION_BODY_STRUCTURAL_KEYS,
   stableStringify,
 };

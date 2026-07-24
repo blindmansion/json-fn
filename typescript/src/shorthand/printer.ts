@@ -22,6 +22,7 @@
  */
 
 import type { JSONType } from "../types";
+import { FUNCTION_BODY_SOURCE_FIELDS } from "../function-body-structure";
 import { fixedParamSchemas } from "../schema/schema.ts";
 import {
   analyzeParameters,
@@ -356,8 +357,6 @@ function hasExactKeys(node: { [k: string]: JSONType }, expected: string[]): bool
   return keys.length === expected.length && expected.every((key) => key in node);
 }
 
-const PRINTABLE_FUNCTION_KEYS = new Set(["$params", "$sig", "$return", "$comment"]);
-
 /** Reject runtime-only or non-canonical structures before any printer sugar can
  * consume and hide them. Raw payloads are deliberately opaque. */
 function validatePrintableTree(node: JSONType, path: string): void {
@@ -376,7 +375,7 @@ function validatePrintableTree(node: JSONType, path: string): void {
         `Cannot print evaluator-produced function with $captures at ${path}; runtime closure state has no shorthand syntax.`,
       );
     }
-    const stray = Object.keys(node).find((key) => !PRINTABLE_FUNCTION_KEYS.has(key));
+    const stray = Object.keys(node).find((key) => !FUNCTION_BODY_SOURCE_FIELDS.has(key));
     if (stray !== undefined) {
       throw new Error(
         `Cannot print non-canonical function at ${path}: unsupported key ${JSON.stringify(stray)}.`,

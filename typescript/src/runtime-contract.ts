@@ -1,5 +1,9 @@
 import type { FunctionBody, JSONType } from "./types";
 import { isFunctionDeclaration } from "./function-value";
+import {
+  isReadableRuntimeFunctionContract,
+  RUNTIME_CONTRACT_FIELD as CONTRACT_KEY,
+} from "./function-body-structure";
 import type { Defs, FnTypeShape, Schema } from "./schema/schema.ts";
 import { isRuntimeContractSchema } from "./schema/contract.ts";
 import {
@@ -15,7 +19,6 @@ import {
 import { valueSatisfies } from "./schema/values.ts";
 import { raw } from "./utils";
 
-const CONTRACT_KEY = "$runtimeContract";
 const CONTRACT_ARGS = "__contractArgs";
 
 type RuntimeFunctionContract = {
@@ -126,14 +129,7 @@ export function enforceRuntimeContract(
 
 export function readRuntimeFunctionContract(fn: FunctionBody): RuntimeFunctionContract | null {
   const candidate = fn[CONTRACT_KEY];
-  if (!isSchemaObject(candidate)) return null;
-  if (
-    !("schema" in candidate) ||
-    !isSchemaObject(candidate.defs) ||
-    !("target" in candidate) ||
-    !isCallable(candidate.target!)
-  )
-    return null;
+  if (!isSchemaObject(candidate) || !isReadableRuntimeFunctionContract(candidate)) return null;
   return {
     schema: candidate.schema!,
     defs: candidate.defs as Defs,
