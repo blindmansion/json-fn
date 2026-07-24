@@ -1,4 +1,12 @@
-import type { FunctionRegistry, JSONType } from "../types";
+import type {
+  DefaultedField,
+  DefaultedParam,
+  FieldPattern,
+  FunctionBody,
+  FunctionCaptures,
+  FunctionRegistry,
+  JSONType,
+} from "../types";
 import { boundParameterNames, defaultBindings, requireParameterLayout } from "../params";
 import { isRaw, raw } from "../utils";
 import { isFunctionBody, isFunctionDeclaration } from "../function-value";
@@ -12,6 +20,22 @@ import type { EvaluationContext } from "./internal-types";
 // is off while the interpreter closes over local functions for *in-scope*
 // registry dispatch: those must keep sibling names literal, and `localFnDefs`
 // is exactly the set of closed-over bodies produced there.
+export function replaceVars(
+  expression: FunctionBody,
+  getVar: (name: string) => JSONType | undefined,
+  localFns: ReadonlySet<string>,
+  attachFns: ReadonlySet<string>,
+  localFnDefs: FunctionRegistry | undefined,
+  context: EvaluationContext,
+): FunctionBody;
+export function replaceVars(
+  expression: JSONType,
+  getVar: (name: string) => JSONType | undefined,
+  localFns: ReadonlySet<string>,
+  attachFns: ReadonlySet<string>,
+  localFnDefs: FunctionRegistry | undefined,
+  context: EvaluationContext,
+): JSONType;
 export function replaceVars(
   expression: JSONType,
   getVar: (name: string) => JSONType | undefined,
@@ -106,13 +130,13 @@ export function replaceVars(
           ? (name: string) => (localNames.has(name) ? undefined : getVar(name))
           : getVar;
 
-      const newObject: Record<string, JSONType> = { ...expression };
+      const newObject: FunctionBody = { ...expression };
       if (expression.$params !== undefined) {
-        const params = [...(expression.$params as JSONType[])];
+        const params = [...expression.$params];
         for (const slot of layout.slots) {
           if (slot.kind === "defaulted") {
             params[slot.index] = {
-              ...(params[slot.index] as Record<string, JSONType>),
+              ...(params[slot.index] as DefaultedParam),
               $default: replaceVars(
                 slot.defaultExpression,
                 maskedGetVar,
@@ -125,12 +149,12 @@ export function replaceVars(
             continue;
           }
           if (slot.kind !== "fields") continue;
-          const pattern = params[slot.index] as { $fields: JSONType[] };
+          const pattern = params[slot.index] as FieldPattern;
           const fields = [...pattern.$fields];
           for (const binding of slot.bindings) {
             if (binding.kind !== "defaulted") continue;
             fields[binding.fieldIndex] = {
-              ...(fields[binding.fieldIndex] as Record<string, JSONType>),
+              ...(fields[binding.fieldIndex] as DefaultedField),
               $default: replaceVars(
                 binding.defaultExpression,
                 maskedGetVar,
@@ -154,7 +178,7 @@ export function replaceVars(
         context,
       );
       if (captures !== undefined) {
-        const newCaptures: Record<string, JSONType> = {};
+        const newCaptures: FunctionCaptures = {};
         for (const [name, definition] of Object.entries(captures)) {
           newCaptures[name] = replaceVars(
             definition,
@@ -193,7 +217,7 @@ export function replaceVars(
     // parameters and captures are masked out of `getVar` upstream, so only free lexical
     // bindings of *enclosing* scopes are captured.
     if ("$call" in expression) {
-      const callee = (expression as Record<string, JSONType>).$call!;
+      const callee = expression.$call;
       let newCallee: JSONType = callee;
       if (typeof callee === "string") {
         if (!localFns.has(callee)) {
@@ -203,7 +227,7 @@ export function replaceVars(
       } else {
         newCallee = replaceVars(callee, getVar, localFns, attachFns, localFnDefs, context);
       }
-      const args = (expression as Record<string, JSONType>).$args;
+      const args = expression.$args;
       const newArgs = Array.isArray(args)
         ? args.map((item) => replaceVars(item, getVar, localFns, attachFns, localFnDefs, context))
         : args!;

@@ -181,8 +181,8 @@ export function callFunctionInternal(
           result = callExternalFunction(entry, args, fn, context);
         }
       } else {
-        const owner = getFunctionEnvironment(entry as FunctionBody);
-        result = callJSONFunction(entry as FunctionBody, args, {
+        const owner = getFunctionEnvironment(entry);
+        result = callJSONFunction(entry, args, {
           functions: owner?.functions ?? functions,
           localFns: owner?.localFns ?? EMPTY_LOCAL_FNS,
           attachFns: owner?.attachFns ?? EMPTY_LOCAL_FNS,
@@ -202,7 +202,7 @@ export function callFunctionInternal(
       // dynamic chain that grows with recursion depth, making every name
       // lookup O(depth) and recursion O(depth^2) overall. This mirrors the
       // registry-dispatch branch above, which already drops getVar.
-      result = callJSONFunction(fn as FunctionBody, args, {
+      result = callJSONFunction(fn, args, {
         functions: context.functions,
         localFns: EMPTY_LOCAL_FNS,
         attachFns: EMPTY_LOCAL_FNS,
@@ -340,18 +340,15 @@ function createLazyFrame(
 
   if (localFnKeys.length > 0) {
     for (const key of localFnKeys) {
-      scopedFunctions[key] = replaceVars(
-        lazyBindings[key]!,
-        getVar,
+      const body = lazyBindings[key]!;
+      if (!isFunctionBody(body)) continue;
+      const closedBody = replaceVars(body, getVar, localFns, attachFns, undefined, context);
+      scopedFunctions[key] = closedBody;
+      registerFunctionEnvironment(closedBody, {
+        functions: scopedFunctions,
         localFns,
         attachFns,
-        undefined,
-        context,
-      ) as FunctionBody;
-    }
-    const environment = { functions: scopedFunctions, localFns, attachFns };
-    for (const key of localFnKeys) {
-      registerFunctionEnvironment(scopedFunctions[key] as FunctionBody, environment);
+      });
     }
   }
 
@@ -452,9 +449,7 @@ function seedFunctionCaptures(fn: FunctionBody, context: EvaluationContext): Eva
   }
   const getVarParent = context.getVar;
   const getVar = (name: string): JSONType | undefined =>
-    Object.prototype.hasOwnProperty.call(captures, name)
-      ? (functions[name] as FunctionBody)
-      : getVarParent?.(name);
+    Object.prototype.hasOwnProperty.call(captures, name) ? captures[name] : getVarParent?.(name);
   const environment = { functions, localFns, attachFns };
   for (const name of names) {
     registerFunctionEnvironment(captures[name]!, environment);
@@ -480,7 +475,7 @@ function callJSONFunction(fn: FunctionBody, args: JSONType[], context: Evaluatio
     return enforceRuntimeContractReturn(result, prepared.returns, contract.defs);
   }
 
-  const layout = requireParameterLayout((fn as any).$params, fn);
+  const layout = requireParameterLayout(fn.$params, fn);
   validateRuntimeArguments(layout, args);
   const captureContext = seedFunctionCaptures(fn, context);
   const { getVar, functions, localFns, attachFns } = bindParameters(layout, args, captureContext);

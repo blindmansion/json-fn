@@ -59,10 +59,12 @@ type LetExpression = {
 type FunctionCaptures = Record<string, FunctionBody>;
 
 type FunctionBody = {
-  [key: string]: JSONType;
   $return: JSONType;
-} & {
+  $params?: Param[];
+  $sig?: JSONType;
+  $comment?: string;
   $captures?: FunctionCaptures;
+  $runtimeContract?: JSONType;
 };
 
 type Conditional = {

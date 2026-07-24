@@ -5,7 +5,7 @@
  * `docs/shorthand-spec.md` are applied inline.
  */
 
-import type { JSONType, Param, FieldPattern } from "../types";
+import type { FieldPattern, FunctionBody, JSONType, Param } from "../types";
 import { analyzeParameters, formatParameterIssue } from "../params";
 import { TokenCursor, describe } from "./cursor";
 import { lex } from "./lexer";
@@ -609,16 +609,15 @@ class Parser extends TokenCursor {
     params: Param[],
     result: JSONType,
     sig: Schema | null = null,
-  ): Record<string, JSONType> {
-    const map: Record<string, JSONType> = {};
+  ): FunctionBody {
+    const body: FunctionBody = { $return: result };
     if (sig !== null) {
-      map.$sig = sig;
+      body.$sig = sig;
     }
     if (params.length > 0) {
-      map.$params = params;
+      body.$params = params;
     }
-    map.$return = result;
-    return map;
+    return body;
   }
 
   /** Parse an expression that may carry a trailing `expr where { ... }` clause.

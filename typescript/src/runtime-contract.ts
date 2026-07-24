@@ -128,7 +128,7 @@ export function enforceRuntimeContract(
 }
 
 export function readRuntimeFunctionContract(fn: FunctionBody): RuntimeFunctionContract | null {
-  const candidate = fn[CONTRACT_KEY];
+  const candidate = fn.$runtimeContract;
   if (!isSchemaObject(candidate) || !isReadableRuntimeFunctionContract(candidate)) return null;
   return {
     schema: candidate.schema!,

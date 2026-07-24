@@ -11,25 +11,31 @@ import type { FunctionDeclaration, FunctionRegistry, JSONType } from "../src";
 
 const stdlib = createStdlib();
 type JSONFunction = Exclude<FunctionDeclaration, string>;
+type Param = NonNullable<JSONFunction["$params"]>[number];
+type FieldBinding = Extract<Param, { $fields: unknown }>["$fields"][number];
 
-function defaulted(name: string, expression: JSONType): JSONType {
+function defaulted(name: string, expression: JSONType): Param {
   return { $param: name, $default: expression };
 }
 
-function defaultedField(name: string, expression: JSONType): JSONType {
+function defaultedField(name: string, expression: JSONType): FieldBinding {
   return { $field: name, $default: expression };
 }
 
-function optional(name: string): JSONType {
+function optional(name: string): Param {
   return { $param: name, $optional: true };
 }
 
-function optionalField(name: string): JSONType {
+function optionalField(name: string): FieldBinding {
   return { $field: name, $optional: true };
 }
 
-function fn(params: JSONType[], returnExpression: JSONType): JSONFunction {
+function fn(params: Param[], returnExpression: JSONType): JSONFunction {
   return { $params: params, $return: returnExpression };
+}
+
+function malformedFn(params: JSONType[], returnExpression: JSONType): JSONFunction {
+  return { $params: params, $return: returnExpression } as unknown as JSONFunction;
 }
 
 function closeOver(bindings: Record<string, JSONType>, body: JSONFunction): JSONFunction {
@@ -147,7 +153,7 @@ describe("positional parameter defaults", () => {
   });
 
   test("rejects malformed parameters during arity introspection", () => {
-    const malformed = fn([{ $param: "value" }], null);
+    const malformed = malformedFn([{ $param: "value" }], null);
 
     expect(() => getArity(malformed)).toThrow("Invalid JSON expression");
     expect(() => getArity(malformed)).toThrow(
@@ -345,7 +351,7 @@ describe("defaults in escaping closures", () => {
 
   test("rejects malformed nested parameters while creating a closure", () => {
     const outer = {
-      $return: fn([{ $param: "value" }], null),
+      $return: malformedFn([{ $param: "value" }], null),
     } as FunctionDeclaration;
 
     expect(() => callFunction(outer, [], stdlib)).toThrow(
@@ -461,13 +467,15 @@ describe("positional default validation", () => {
     ];
 
     for (const params of invalidParams) {
-      expect(() => callFunction(fn(params, null), [], stdlib)).toThrow("Invalid JSON expression");
+      expect(() => callFunction(malformedFn(params, null), [], stdlib)).toThrow(
+        "Invalid JSON expression",
+      );
     }
   });
 
   test("preserves specific validation errors after a defaulted slot", () => {
     expect(() =>
-      callFunction(fn([defaulted("first", 1), { $param: "second" }], null), [], stdlib),
+      callFunction(malformedFn([defaulted("first", 1), { $param: "second" }], null), [], stdlib),
     ).toThrow("A defaulted parameter must contain exactly");
     expect(() => callFunction(fn([defaulted("same", 1), "same"], null), [1, 2], stdlib)).toThrow(
       'Duplicate parameter binding "same"',
@@ -478,7 +486,7 @@ describe("positional default validation", () => {
   });
 
   test("uses the same validation through registry, program, and prepared calls", () => {
-    const invalid = fn([{ $param: "x" }], null);
+    const invalid = malformedFn([{ $param: "x" }], null);
     const registry: FunctionRegistry = { ...stdlib, invalid };
     const module: Record<string, JSONType> = { invalid: invalid as JSONType };
 
