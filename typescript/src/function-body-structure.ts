@@ -16,8 +16,6 @@ const FUNCTION_BODY_FIELDS: ReadonlySet<string> = new Set([
   ...FUNCTION_BODY_RUNTIME_FIELDS,
 ]);
 
-const RUNTIME_CONTRACT_FIELD = "$runtimeContract";
-
 type FunctionBodyStructureIssue =
   | { code: "not-object" | "missing-return"; path: [] }
   | { code: "unsupported-field"; path: [string]; field: string }
@@ -114,10 +112,10 @@ function analyzeFunctionBodyStructure(value: unknown): FunctionBodyStructureAnal
   }
 
   if (
-    hasOwn(value, RUNTIME_CONTRACT_FIELD) &&
-    !isReadableRuntimeFunctionContract(value[RUNTIME_CONTRACT_FIELD])
+    hasOwn(value, "$runtimeContract") &&
+    !isReadableRuntimeFunctionContract(value.$runtimeContract)
   ) {
-    issues.push({ code: "invalid-runtime-contract", path: [RUNTIME_CONTRACT_FIELD] });
+    issues.push({ code: "invalid-runtime-contract", path: ["$runtimeContract"] });
   }
 
   return issues.length === 0 ? { ok: true, issues: [] } : { ok: false, issues };
@@ -127,7 +125,6 @@ export {
   FUNCTION_BODY_FIELDS,
   FUNCTION_BODY_RUNTIME_FIELDS,
   FUNCTION_BODY_SOURCE_FIELDS,
-  RUNTIME_CONTRACT_FIELD,
   analyzeFunctionBodyStructure,
   formatFunctionBodyStructureIssue,
   isReadableRuntimeFunctionContract,

@@ -1,9 +1,6 @@
 import type { FunctionBody, JSONType } from "./types";
 import { isFunctionDeclaration } from "./function-value";
-import {
-  isReadableRuntimeFunctionContract,
-  RUNTIME_CONTRACT_FIELD as CONTRACT_KEY,
-} from "./function-body-structure";
+import { isReadableRuntimeFunctionContract } from "./function-body-structure";
 import type { Defs, FnTypeShape, Schema } from "./schema/schema.ts";
 import { isRuntimeContractSchema } from "./schema/contract.ts";
 import {
@@ -93,7 +90,7 @@ function wrapFunction(value: JSONType, schema: Schema, defs: Defs): JSONType {
   const contract: RuntimeFunctionContract = { schema, defs, target: value };
   return raw({
     $params: [`...${CONTRACT_ARGS}`],
-    [CONTRACT_KEY]: contract as unknown as JSONType,
+    $runtimeContract: contract as unknown as JSONType,
     // The evaluator recognizes the metadata above and calls `target` directly.
     // Keeping an inert return makes this remain an ordinary serializable
     // function body without relying on a shadowable internal builtin name.
@@ -172,5 +169,3 @@ export function enforceRuntimeContractReturn(
 ): JSONType {
   return enforceRuntimeContract(value, schema, defs, "function return");
 }
-
-export { CONTRACT_KEY };
