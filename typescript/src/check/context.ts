@@ -147,14 +147,16 @@ function bodyFnTypeSchema(body: Record<string, JSONType>): Schema {
   return isSchemaObject(sig) ? { $fnType: sig } : true;
 }
 
-// Keys of an object-of-bindings that name a local binding (mirrors the
-// evaluator's filter in `buildScope`), excluding the reserved keys.
+// Canonical structural fields on a function body. `$captures` is evaluator-
+// owned closure state; it is structural too, but is kept separate from source
+// fields so authoring paths do not accidentally start accepting it.
+const FUNCTION_BODY_SOURCE_KEYS = new Set(["$return", "$params", "$sig", "$comment"]);
+const FUNCTION_BODY_STRUCTURAL_KEYS = new Set([...FUNCTION_BODY_SOURCE_KEYS, "$captures"]);
+
+// TODO(let-phase4): delete this compatibility scan after shorthand and shared
+// fixtures stop emitting inline function-body locals.
 function bindingKeys(body: Record<string, JSONType>): string[] {
-  return Object.keys(body).filter((k) => {
-    if (k === "$return" || k === "$params" || k === "$sig") return false;
-    if (k === "$comment" && typeof body[k] === "string") return false;
-    return true;
-  });
+  return Object.keys(body).filter((k) => !FUNCTION_BODY_STRUCTURAL_KEYS.has(k));
 }
 
 export type { CheckContext, TypeEnv, Diagnostic, Severity, Sig };
@@ -168,5 +170,7 @@ export {
   sigOf,
   bodyFnTypeSchema,
   bindingKeys,
+  FUNCTION_BODY_SOURCE_KEYS,
+  FUNCTION_BODY_STRUCTURAL_KEYS,
   stableStringify,
 };

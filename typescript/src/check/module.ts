@@ -4,14 +4,12 @@
 import type { JSONType } from "../types";
 import type { EnvironmentContract } from "../environment/types";
 import { linkModule } from "../module-linker";
-import type { ParameterLayout } from "../params";
 import type { CallableTable, CallableTypeRuleRegistry } from "./builtin-types";
 import { synthCallableCall } from "./builtin-rules";
 import { CORE_CALLABLE_TYPE_RULES } from "./callable-rules";
-import { buildTypeScope, checkBody, synth } from "./checker";
+import { buildModuleTypeScope, checkBody, synth } from "./checker";
 import { nonContractiveDefinitions } from "./type-defs";
 import {
-  bindingKeys,
   EMPTY_ENV,
   isBody,
   report,
@@ -23,14 +21,6 @@ import {
   type Sig,
 } from "./context";
 import { collectSchemaRefs, type Defs, isSchemaObject, type Schema } from "../schema/schema.ts";
-
-const MODULE_PARAMETER_LAYOUT: ParameterLayout = {
-  slots: [],
-  fixedCount: 0,
-  requiredCount: 0,
-  omittableCount: 0,
-  rest: null,
-};
 
 // Options controlling optional (soft-rollout) module lints.
 type CheckModuleOptions = {
@@ -111,11 +101,11 @@ function checkModule(
   if (nonContractive.length > 0) return dedupeDiagnostics(ctx.diagnostics);
 
   const scopeModule = withoutTypes(checkingModule);
-  const { env, guards } = buildTypeScope(scopeModule, MODULE_PARAMETER_LAYOUT, null, ctx, false);
+  const { env, guards } = buildModuleTypeScope(scopeModule, ctx);
   ctx.env = env;
   ctx.guards = guards;
 
-  for (const key of bindingKeys(scopeModule)) {
+  for (const key of Object.keys(scopeModule)) {
     const val = checkingModule[key]!;
     if (isBody(val)) {
       // §9: top-level functions must be fully typed (on by default). A missing

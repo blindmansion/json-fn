@@ -1100,7 +1100,7 @@ describe("Section F — builtin signatures", () => {
       expect(result.diagnostics).toHaveLength(1);
       expect(result.diagnostics[0]).toEqual(
         expect.objectContaining({
-          path: ["bad"],
+          path: ["$args[1]", "bad"],
           severity: "error",
         }),
       );

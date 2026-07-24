@@ -11,6 +11,7 @@ type NodeKind =
   | "scalar"
   | "array"
   | "object"
+  | "let"
   | "var"
   | "call"
   | "ref"
@@ -32,6 +33,7 @@ function nodeKind(node: JSONType): NodeKind {
   if (Array.isArray(node)) return "array";
   if (typeof node !== "object") return "scalar";
   const o = node as Record<string, JSONType>;
+  if ("$let" in o || "$in" in o) return "let";
   if ("$var" in o) return "var";
   if ("$get" in o || "$from" in o) return "get";
   if ("$return" in o) return "body";

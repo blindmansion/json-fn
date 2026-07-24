@@ -28,11 +28,12 @@ import { CallableTypeRuleContractError, CallableTypeRuleOwnershipError } from ".
 import {
   acceptsArgumentCount,
   analyzeBodyParameters,
-  buildTypeScope,
+  buildFunctionTypeScope,
   check,
   checkArity,
   checkBodyParameterShape,
   checkParameterDefaults,
+  legacyFunctionBindings,
   paramAt,
   reportMismatch,
   synth,
@@ -294,11 +295,13 @@ function inferLambdaReturn(body: JSONType, expectedFn: Schema, ctx: CheckContext
       returns: shape.returns,
     },
   };
-  const { env, guards, parameterDefaults, parameterBindingsValid } = buildTypeScope(
+  const { env, guards, parameterDefaults, parameterBindingsValid } = buildFunctionTypeScope(
     withSig,
     layout,
     ctx.env,
     ctx,
+    legacyFunctionBindings(bodyObject),
+    shape,
   );
   if (!parameterBindingsValid) return null;
   const bctx: CheckContext = { ...ctx, env, guards };

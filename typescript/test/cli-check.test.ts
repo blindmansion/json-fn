@@ -89,6 +89,23 @@ describe("jfn check coverage reporting", () => {
     expect(result.stdout).toContain("Type coverage: complete (no dynamic degradations).");
   });
 
+  test("prints canonical $let binding and $in diagnostic paths", () => {
+    const mod = {
+      f: {
+        $params: [],
+        $sig: { required: [], optional: [], returns: { type: "integer" } },
+        $return: {
+          $let: { bad: { $var: "missing" } },
+          $in: { $var: "bad" },
+        },
+      },
+    };
+    const result = runCheck(["--json", asJsonArg(mod)]);
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toContain("f.$return.$let.bad");
+    expect(result.stdout).toContain("f.$return.$in");
+  });
+
   test("a former narrowable warning is now a hard error (§4.5)", () => {
     // A `number`-typed index into a tuple used to degrade to a runtime-checkable
     // warning; the warning tier is gone, so it now exits non-zero as an error.

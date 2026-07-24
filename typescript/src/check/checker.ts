@@ -6,8 +6,7 @@
 // Params bind eagerly from the declared `$sig`. Sibling function declarations
 // bind eagerly to their `$fnType`. Other locals (un-annotated expression
 // bindings) are typed *lazily* at their first lookup — reusing the shape of
-// `getVar`'s `resolvingVars` cycle guard — because the dominant idiom binds
-// everything in a `where` block and only some bindings are ever forced.
+// `getVar`'s `resolvingVars` cycle guard.
 
 import type { JSONType } from "../types";
 import {
@@ -267,58 +266,116 @@ function checkParameterDefaults(defaults: readonly TypedDefault[], ctx: CheckCon
   }
 }
 
+function isLetBindingMap(value: JSONType | undefined): value is Record<string, JSONType> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function validateLet(
+  value: Record<string, JSONType>,
+  ctx: CheckContext,
+): { bindings: Record<string, JSONType>; result: JSONType } | null {
+  const hasLet = "$let" in value;
+  const hasIn = "$in" in value;
+  if (!(hasLet && hasIn)) {
+    report(ctx, "$let expressions must have both $let and $in properties.");
+    return null;
+  }
+  if (Object.keys(value).length !== 2) {
+    report(ctx, "$let expressions cannot have other properties.");
+    return null;
+  }
+  if (!isLetBindingMap(value.$let)) {
+    report(at(ctx, "$let"), "$let must be a non-null object of bindings.");
+    return null;
+  }
+  if (Object.keys(value.$let).length === 0) {
+    report(at(ctx, "$let"), "$let must contain at least one binding.");
+    return null;
+  }
+  return { bindings: value.$let, result: value.$in! };
+}
+
+function withoutShadowedNarrowings(ctx: CheckContext, names: readonly string[]): CheckContext {
+  if (ctx.narrowings === undefined) return ctx;
+  const shadowed = new Set(names);
+  const narrowings = Object.fromEntries(
+    Object.entries(ctx.narrowings).filter(([path]) => !shadowed.has(path.split(".", 1)[0]!)),
+  );
+  return { ...ctx, narrowings: Object.keys(narrowings).length === 0 ? undefined : narrowings };
+}
+
 // Collect every `$var` name syntactically referenced by an expression. Used to
 // over-approximate a lazy local's free variables (§5.5 M2 §2.2b): we descend
 // into everything except `$raw` payloads (unevaluated data), *including* nested
 // lambda bodies — ignoring their shadowing is a sound over-approximation (a
 // superset only ever triggers a harmless extra re-synth, never a stale type).
 function collectVars(expr: JSONType, acc: Set<string>): void {
+  collectFreeVars(expr, acc, new Set());
+}
+
+function collectFreeVars(expr: JSONType, acc: Set<string>, bound: ReadonlySet<string>): void {
   if (expr === null || typeof expr !== "object") return;
   if (Array.isArray(expr)) {
-    for (const e of expr) collectVars(e, acc);
+    for (const e of expr) collectFreeVars(e, acc, bound);
     return;
   }
   const o = expr as Record<string, JSONType>;
   if (typeof o.$var === "string") {
-    acc.add(o.$var);
+    if (!bound.has(o.$var)) acc.add(o.$var);
     return;
   }
   if ("$raw" in o) return;
+  if (nodeKind(o) === "let") {
+    const bindings = isLetBindingMap(o.$let) ? o.$let : {};
+    const nestedBound = new Set([...bound, ...Object.keys(bindings)]);
+    for (const value of Object.values(bindings)) collectFreeVars(value, acc, nestedBound);
+    if ("$in" in o) collectFreeVars(o.$in!, acc, nestedBound);
+    return;
+  }
   // A static access path (`move.from`) is itself a narrowable subject (§5.5 M3),
   // so record it alongside its root var — a local that reaches through it must
   // re-synth when that path is narrowed. Then descend as usual (the root var is
   // still collected from `$from`).
   if (nodeKind(o) === "get") {
     const p = asPath(o);
-    if (p !== null) acc.add(p);
+    if (p !== null && !bound.has(p.split(".", 1)[0]!)) acc.add(p);
   }
-  for (const val of Object.values(o)) collectVars(val, acc);
+  for (const val of Object.values(o)) collectFreeVars(val, acc, bound);
 }
 
-function buildTypeScope(
-  body: Record<string, JSONType>,
-  layout: ParameterLayout,
-  parent: TypeEnv | null,
-  ctx: CheckContext,
-  reportUntypedBodies = true,
-  injectedSig?: Sig,
-): {
+type TypeScopeResult = {
   env: TypeEnv;
   guards: Record<string, JSONType>;
+};
+
+type FunctionTypeScopeResult = TypeScopeResult & {
   parameterDefaults: TypedDefault[];
   parameterBindingsValid: boolean;
-} {
+};
+
+function buildLetrecTypeScope(
+  bindings: Record<string, JSONType>,
+  initialEager: Record<string, Schema>,
+  parent: TypeEnv | null,
+  ctx: CheckContext,
+  options: {
+    reportUntypedFunctions: boolean;
+    bindingPath: CheckContext;
+    checkFunctionBodies: boolean;
+  },
+): TypeScopeResult {
   const exprLocals: Record<string, JSONType> = {};
+  const functionLocals: Record<string, Record<string, JSONType>> = {};
+  const eager = { ...initialEager };
 
-  const sig = injectedSig ?? sigOf(body);
-  const parameterBindings = bindParams(layout, sig, ctx);
-  const { eager } = parameterBindings;
-
-  for (const key of bindingKeys(body)) {
-    const val = body[key]!;
+  for (const [key, val] of Object.entries(bindings)) {
     if (isBody(val)) {
-      if (reportUntypedBodies && sigOf(val) === null) {
-        reportDegradation(at(ctx, key), `function binding "${key}" has no declared signature`);
+      functionLocals[key] = val;
+      if (options.reportUntypedFunctions && sigOf(val) === null) {
+        reportDegradation(
+          at(options.bindingPath, key),
+          `function binding "${key}" has no declared signature`,
+        );
       }
       eager[key] = bodyFnTypeSchema(val); // sibling function: eager `$fnType`
     } else {
@@ -331,8 +388,8 @@ function buildTypeScope(
   const guards: Record<string, JSONType> = { ...ctx.guards, ...exprLocals };
   // Facts that dominate creation of this lexical scope also dominate every
   // evaluation of its lazy locals. A forcing site can add facts, but crossing
-  // an IIFE/callback boundary must not erase the facts under which the scope
-  // itself was created.
+  // an inline-function or callback boundary must not erase the facts under
+  // which the scope itself was created.
   const creationNarrowings = ctx.narrowings ?? {};
 
   // Two-tier cache: `memo` is the type when no creation/forcing facts relevant
@@ -373,12 +430,17 @@ function buildTypeScope(
   function resolveLocal(name: string, narrowings: Record<string, Schema> | undefined): Schema {
     if (resolving.includes(name)) {
       const cycle = [...resolving.slice(resolving.indexOf(name)), name].join(" -> ");
-      report(ctx, `Circular local type dependency: ${cycle}`);
+      report(at(options.bindingPath, name), `Circular local type dependency: ${cycle}`);
       return true;
     }
     resolving.push(name);
     try {
-      return synth(exprLocals[name]!, { ...ctx, env, guards, path: [name], narrowings });
+      return synth(exprLocals[name]!, {
+        ...at(options.bindingPath, name),
+        env,
+        guards,
+        narrowings,
+      });
     } finally {
       resolving.pop();
     }
@@ -411,12 +473,97 @@ function buildTypeScope(
     },
   };
 
+  if (options.checkFunctionBodies) {
+    const functionCtx = { ...ctx, env, guards };
+    for (const [name, body] of Object.entries(functionLocals)) {
+      checkBody(body, at({ ...functionCtx, path: options.bindingPath.path }, name));
+    }
+  }
+
+  return { env, guards };
+}
+
+function legacyFunctionBindings(body: Record<string, JSONType>): Record<string, JSONType> {
+  // TODO(let-phase4): delete after the parser and fixtures emit only `$let`.
+  return Object.fromEntries(bindingKeys(body).map((key) => [key, body[key]!]));
+}
+
+function captureBindings(
+  body: Record<string, JSONType>,
+  ctx: CheckContext,
+): Record<string, JSONType> {
+  if (!("$captures" in body)) return {};
+  const captureCtx = at(ctx, "$captures");
+  if (!isLetBindingMap(body.$captures)) {
+    report(captureCtx, "$captures must be a non-null object of function bodies.");
+    return {};
+  }
+  const captures: Record<string, JSONType> = {};
+  for (const [name, value] of Object.entries(body.$captures)) {
+    if (!isBody(value)) {
+      report(at(captureCtx, name), "capture entry must be a function body.");
+      continue;
+    }
+    captures[name] = value;
+  }
+  return captures;
+}
+
+function buildExpressionTypeScope(
+  bindings: Record<string, JSONType>,
+  parent: TypeEnv | null,
+  ctx: CheckContext,
+): TypeScopeResult {
+  return buildLetrecTypeScope(bindings, {}, parent, ctx, {
+    reportUntypedFunctions: true,
+    bindingPath: at(ctx, "$let"),
+    checkFunctionBodies: true,
+  });
+}
+
+function buildFunctionTypeScope(
+  body: Record<string, JSONType>,
+  layout: ParameterLayout,
+  parent: TypeEnv | null,
+  ctx: CheckContext,
+  legacyBindings: Record<string, JSONType>,
+  injectedSig?: Sig,
+): FunctionTypeScopeResult {
+  const captures = captureBindings(body, ctx);
+  const captureScope = buildLetrecTypeScope(captures, {}, parent, ctx, {
+    reportUntypedFunctions: true,
+    bindingPath: at(ctx, "$captures"),
+    checkFunctionBodies: true,
+  });
+  const sig = injectedSig ?? sigOf(body);
+  const parameterBindings = bindParams(layout, sig, ctx);
+  const scope = buildLetrecTypeScope(
+    legacyBindings,
+    parameterBindings.eager,
+    captureScope.env,
+    { ...ctx, env: captureScope.env, guards: captureScope.guards },
+    {
+      reportUntypedFunctions: true,
+      bindingPath: ctx,
+      checkFunctionBodies: true,
+    },
+  );
   return {
-    env,
-    guards,
+    ...scope,
     parameterDefaults: parameterBindings.defaults,
     parameterBindingsValid: parameterBindings.valid,
   };
+}
+
+function buildModuleTypeScope(
+  bindings: Record<string, JSONType>,
+  ctx: CheckContext,
+): TypeScopeResult {
+  return buildLetrecTypeScope(bindings, {}, null, ctx, {
+    reportUntypedFunctions: false,
+    bindingPath: ctx,
+    checkFunctionBodies: false,
+  });
 }
 
 // Structural type of literal JSON *data* (a `$raw` payload or a nested literal):
@@ -648,6 +795,14 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
       return { type: "array", prefixItems: items, items: false, minItems: items.length };
     }
 
+    case "let": {
+      const letNode = validateLet(expr as Record<string, JSONType>, ctx);
+      if (letNode === null) return true;
+      const letCtx = withoutShadowedNarrowings(ctx, Object.keys(letNode.bindings));
+      const scope = buildExpressionTypeScope(letNode.bindings, ctx.env, letCtx);
+      return synth(letNode.result, at({ ...letCtx, env: scope.env, guards: scope.guards }, "$in"));
+    }
+
     case "object": {
       const o = expr as Record<string, JSONType>;
       const props: Record<string, Schema> = {};
@@ -714,14 +869,12 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
     case "call": {
       const call = expr as { $call: JSONType; $args: JSONType[] };
       const args = Array.isArray(call.$args) ? call.$args : [];
-      // An inline *un-annotated* body callee is an IIFE — the zero-arg wrapper
-      // the shorthand emits for a standalone `expr where { … }` and for a
-      // `do { … }` block with leading pure bindings. It carries no `$sig`, so
-      // `resolveCalleeSig` can't recover a function type; synthesize the body's
-      // `$return` directly instead of degrading the whole call to `any`.
+      // An inline unannotated body callee has no `$sig`, so
+      // `resolveCalleeSig` cannot recover a function type. Infer parameter
+      // types from its arguments and synthesize the structural `$return`.
       const callee = call.$call;
       if (isBody(callee) && sigOf(callee) === null) {
-        const bctx = iifeBodyContext(callee, args, ctx);
+        const bctx = inlineCallBodyContext(callee, args, ctx);
         if (bctx === null) return true;
         return synth(callee.$return!, at(bctx, "$return"));
       }
@@ -1012,17 +1165,10 @@ function checkLambda(
   checkBody(withSig, ctx, undefined, layout);
 }
 
-// Type the body of an *un-annotated inline body callee* — an IIFE, e.g. the
-// zero-arg wrapper the shorthand emits for a standalone `expr where { … }` or a
-// `do { … }` block with leading pure bindings. Such a body has no `$sig`, so
-// `bodyFnTypeSchema` erases it to `any` and `resolveCalleeSig` can't recover a
-// function type; the call would otherwise degrade the whole expression to `any`
-// and drop the body's real return type. Instead bind the params to the
-// synthesized argument types, report any arity mismatch, and recurse into nested
-// function locals (so their bodies are still checked) — then hand back the body
-// context for the caller to synth/check the body's `$return` under. Mirrors
-// `checkBody`, minus the declared-return check (an IIFE declares none).
-function iifeBodyContext(
+// Type an unannotated inline function call by binding parameters to synthesized
+// argument types. The caller then synthesizes or checks the structural
+// `$return` in the completed function environment.
+function inlineCallBodyContext(
   body: Record<string, JSONType>,
   args: JSONType[],
   ctx: CheckContext,
@@ -1052,19 +1198,17 @@ function iifeBodyContext(
     ...body,
     $sig: syntheticSig,
   };
-  const { env, guards, parameterDefaults, parameterBindingsValid } = buildTypeScope(
+  const { env, guards, parameterDefaults, parameterBindingsValid } = buildFunctionTypeScope(
     withSig,
     layout,
     ctx.env,
     ctx,
+    legacyFunctionBindings(body),
+    syntheticSig,
   );
   if (!parameterBindingsValid) return null;
   const bctx: CheckContext = { ...ctx, env, guards };
   checkParameterDefaults(parameterDefaults, bctx);
-  for (const key of bindingKeys(body)) {
-    const val = body[key]!;
-    if (isBody(val)) checkBody(val, at(bctx, key));
-  }
   return bctx;
 }
 
@@ -1080,11 +1224,19 @@ function iifeBodyContext(
 // comparison, but pinpoints the offending arm and avoids literal-union widening
 // (`if … then 10 else 20` no longer widens to `10 | 20` before the check). Arm
 // traversal reuses the `visit*Arms` visitors, so the same narrowing facts the
-// `synth` cases thread reach each arm in checked position too. An IIFE (inline
-// un-annotated body callee — a `do { … }` block or `expr where { … }`) has its
-// body's `$return` checked against the expected type (see `iifeBodyContext`).
+// `synth` cases thread reach each arm in checked position too. An unannotated
+// inline function call has its `$return` checked against the expected type.
 function check(expr: JSONType, expected: Schema, ctx: CheckContext): void {
   const kind = nodeKind(expr);
+
+  if (kind === "let") {
+    const letNode = validateLet(expr as Record<string, JSONType>, ctx);
+    if (letNode === null) return;
+    const letCtx = withoutShadowedNarrowings(ctx, Object.keys(letNode.bindings));
+    const scope = buildExpressionTypeScope(letNode.bindings, ctx.env, letCtx);
+    check(letNode.result, expected, at({ ...letCtx, env: scope.env, guards: scope.guards }, "$in"));
+    return;
+  }
 
   // Un-annotated inline lambda: contextually type it against an expected
   // function type (see `checkLambda`). A non-fn-type expected (`any`, or a
@@ -1098,15 +1250,13 @@ function check(expr: JSONType, expected: Schema, ctx: CheckContext): void {
     return;
   }
 
-  // An IIFE (inline un-annotated body callee, e.g. a standalone
-  // `expr where { … }` or a `do { … }` block) in checked position: push the
-  // expected type into the body's `$return` so a mismatch pinpoints there,
-  // mirroring the synth case rather than synthesizing-then-subsuming the call.
+  // For an unannotated inline function call in checked position, push the
+  // expected type into `$return` so a mismatch is rooted there.
   if (kind === "call") {
     const callee = (expr as { $call: JSONType }).$call;
     if (isBody(callee) && sigOf(callee) === null) {
       const args = (expr as { $args?: JSONType[] }).$args;
-      const bctx = iifeBodyContext(callee, Array.isArray(args) ? args : [], ctx);
+      const bctx = inlineCallBodyContext(callee, Array.isArray(args) ? args : [], ctx);
       if (bctx === null) return;
       check(callee.$return!, expected, at(bctx, "$return"));
       return;
@@ -1171,6 +1321,9 @@ function checkBody(
   injectedSig?: Sig,
   analyzedLayout?: ParameterLayout,
 ): void {
+  if ("$comment" in body && typeof body.$comment !== "string") {
+    report(at(ctx, "$comment"), "function body $comment must be a string.");
+  }
   const layout = analyzedLayout ?? analyzeBodyParameters(body, ctx);
   if (layout === null) return;
   const declaredSig = sigOf(body);
@@ -1182,22 +1335,18 @@ function checkBody(
     return;
   }
   const sig = injectedSig ?? declaredSig;
-  const { env, guards, parameterDefaults, parameterBindingsValid } = buildTypeScope(
+  const { env, guards, parameterDefaults, parameterBindingsValid } = buildFunctionTypeScope(
     body,
     layout,
     ctx.env,
     ctx,
-    true,
+    legacyFunctionBindings(body),
     injectedSig,
   );
   if (!parameterBindingsValid) return;
   const bctx: CheckContext = { ...ctx, env, guards };
   checkParameterDefaults(parameterDefaults, bctx);
   check(body.$return!, sig?.returns ?? true, at(bctx, "$return"));
-  for (const key of bindingKeys(body)) {
-    const val = body[key]!;
-    if (isBody(val)) checkBody(val, at(bctx, key));
-  }
 }
 
 // A body's normalized declaration must agree with both its own signature and
@@ -1224,7 +1373,9 @@ export {
   describeParameterLayout,
   describeSigShape,
   acceptsArgumentCount,
-  buildTypeScope,
+  buildFunctionTypeScope,
+  buildModuleTypeScope,
+  legacyFunctionBindings,
   checkParameterDefaults,
   synth,
   paramAt,

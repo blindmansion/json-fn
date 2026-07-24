@@ -456,7 +456,7 @@ describe("chess fragments — Tier 3: lazy-local & boolean-guard narrowing (§5.
     // Check-mode pushes the tuple return into each arm, so the return mismatch
     // pinpoints the diverging `$else` arm rather than the whole `$return`.
     expect(diags.some((d) => d.path.join(".") === "divergent.$return.$else")).toBe(true);
-    expect(diags.some((d) => d.path[0] === "d")).toBe(true);
+    expect(diags.some((d) => d.path.join(".") === "divergent.d.[0].$args[0]")).toBe(true);
   });
 
   test("fast path: a module with no narrowing is unaffected by the gate/dedupe", () => {
