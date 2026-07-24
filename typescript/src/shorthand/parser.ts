@@ -752,11 +752,16 @@ class Parser extends TokenCursor {
   private parseWhereBindings(): [string, JSONType][] {
     this.expect("lbrace", "'{' after 'where'");
     const locals: [string, JSONType][] = [];
+    const names = new Set<string>();
     if (this.peekType() === "rbrace") {
       throw this.err("empty 'where' block: at least one binding is required");
     }
     for (;;) {
       const name = this.expectIdent("binding name");
+      if (names.has(name)) {
+        throw this.err(`duplicate 'where' binding ${JSON.stringify(name)}`);
+      }
+      names.add(name);
       this.expect("colon", "':' after binding name");
       locals.push([name, this.parseBody()]);
       const type = this.peekType();
@@ -863,8 +868,20 @@ class Parser extends TokenCursor {
       throw this.err("empty 'do' block: it must end with a result expression");
     }
     const entries: DoEntry[] = [];
+    const pureNames = new Set<string>();
     for (;;) {
-      entries.push(this.parseDoEntry());
+      const entry = this.parseDoEntry();
+      if (entry.kind === "pure") {
+        if (pureNames.has(entry.name)) {
+          throw this.err(`duplicate pure 'do' binding ${JSON.stringify(entry.name)}`);
+        }
+        pureNames.add(entry.name);
+      } else {
+        // Each effect/discard starts a nested continuation, so a later pure run
+        // is a new lexical scope and may shadow names from an earlier run.
+        pureNames.clear();
+      }
+      entries.push(entry);
       const type = this.peekType();
       if (type === "comma") {
         this.advance();

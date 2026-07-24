@@ -542,6 +542,8 @@ from `$in` is **never evaluated**. They are memoized, mutually recursive, and
 cycle-checked. The `where` form is declarative, not a
 sequence of steps. (E.g. a binding may hold an unconditionally-recursive call
 that only terminates because it is forced solely in the branch that uses it.)
+Every binding name in one `where` block must be unique; nested `where` blocks
+may shadow names from enclosing scopes.
 Placing the answer first and its supporting locals after mirrors how these
 functions read: headline, then the details that back it up.
 
@@ -951,6 +953,10 @@ The continuation `k` binds the effect result to `name` (effect binding) or takes
 effect/discard wrap the continuation's `$return` in `$let`; pure bindings
 *before* the first effect wrap the whole bind chain in `$let`. No synthetic
 zero-argument call is introduced.
+
+Because each consecutive pure run forms one `$let`, its binding names must be
+unique. A later run after an effect or discard is a nested scope and may shadow
+an earlier name.
 
 ```jfn
 do {

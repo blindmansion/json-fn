@@ -183,6 +183,26 @@
           2
         ]
       }
+    },
+    {
+      "description": "duplicate bindings in one where scope are rejected",
+      "source": "x where { x: 1, x: 2 }",
+      "error": "duplicate 'where' binding \"x\""
+    },
+    {
+      "description": "a nested where scope may shadow an outer binding",
+      "source": "(x where { x: 2 }) where { x: 1 }",
+      "expected": {
+        "$let": {
+          "x": 1
+        },
+        "$in": {
+          "$let": {
+            "x": 2
+          },
+          "$in": { "$var": "x" }
+        }
+      }
     }
   ]
 }

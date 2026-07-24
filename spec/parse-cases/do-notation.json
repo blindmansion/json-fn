@@ -140,6 +140,34 @@
       "description": "a do block must end with a result expression, not a binding",
       "source": "do {\n  x <- e()\n}",
       "error": "must end with a result expression"
+    },
+    {
+      "description": "duplicate pure bindings in one lexical run are rejected",
+      "source": "do {\n  x: 1,\n  x: 2,\n  pure(x)\n}",
+      "error": "duplicate pure 'do' binding \"x\""
+    },
+    {
+      "description": "a pure run after a discard may shadow an earlier pure binding",
+      "source": "do {\n  x: 1,\n  step(),\n  x: 2,\n  pure(x)\n}",
+      "expected": {
+        "$let": {
+          "x": 1
+        },
+        "$in": {
+          "$call": "bind",
+          "$args": [
+            { "$call": "step", "$args": [] },
+            {
+              "$return": {
+                "$let": {
+                  "x": 2
+                },
+                "$in": { "$call": "pure", "$args": [{ "$var": "x" }] }
+              }
+            }
+          ]
+        }
+      }
     }
   ]
 }
