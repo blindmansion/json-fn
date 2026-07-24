@@ -83,6 +83,11 @@ indirect value cycle is an error. In variable lookup, a `$let` binding shadows
 same-named function parameters, captures, enclosing bindings, and module
 entries throughout every binding expression and `$in`.
 
+The checker rejects bindings that are not lexically reachable from `$in`,
+including through transitive `$var`, named `$call`, and `$fn` references. This
+does not change runtime laziness: unchecked canonical expressions still do not
+evaluate unused bindings, and reachable bindings are checked on demand.
+
 A binding whose literal value is a function body is also callable by its
 binding name and shadows a same-named module or host/stdlib function in call
 position. A non-function binding does not hide a callable registry entry. This

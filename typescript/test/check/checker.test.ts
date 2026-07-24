@@ -1651,9 +1651,14 @@ describe("checkModule: dangling $ref → hard error", () => {
 
   test("a nested `$let` function signature is covered too", () => {
     const mod = {
-      main: body([], { required: [], optional: [], returns: I }, 1, {
-        helper: body(["x"], { required: [ref("Qux")], optional: [], returns: I }, { $var: "x" }),
-      }),
+      main: body(
+        [],
+        { required: [], optional: [], returns: I },
+        { $call: "helper", $args: [1] },
+        {
+          helper: body(["x"], { required: [ref("Qux")], optional: [], returns: I }, { $var: "x" }),
+        },
+      ),
     };
     const diags = checkModule(mod);
     expect(

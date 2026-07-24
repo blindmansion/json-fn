@@ -54,7 +54,13 @@ describe("$let checker validation and result typing", () => {
   test("synthesizes the result in a lazy recursive scope", () => {
     const result = checkExpr(letExpr({ x: 1, unused: { $var: "missing" } }, { $var: "x" }));
     expect(result.type).toEqual({ const: 1 });
-    expect(result.diagnostics).toEqual([]);
+    expect(result.diagnostics).toEqual([
+      {
+        path: ["$let", "unused"],
+        message: 'unused local binding "unused"',
+        severity: "error",
+      },
+    ]);
   });
 
   test.each([
@@ -76,10 +82,16 @@ describe("$let checker validation and result typing", () => {
     },
   );
 
-  test("does not classify the inside of an unused binding", () => {
+  test("reports an unused binding without classifying its contents", () => {
     expect(checkExpr(letExpr({ unused: { $let: {} } }, "ok"))).toEqual({
       type: { const: "ok" },
-      diagnostics: [],
+      diagnostics: [
+        {
+          path: ["$let", "unused"],
+          message: 'unused local binding "unused"',
+          severity: "error",
+        },
+      ],
     });
   });
 
@@ -101,6 +113,74 @@ describe("$let checker validation and result typing", () => {
 });
 
 describe("$let recursive scope", () => {
+  test("tracks transitive dependencies through variables, named calls, and function refs", () => {
+    const identity = fn(["value"], [I], I, { $var: "value" });
+    const result = checkExpr(
+      letExpr(
+        {
+          value: 1,
+          callTarget: identity,
+          refTarget: identity,
+          transitive: { $var: "value" },
+        },
+        [{ $var: "transitive" }, { $call: "callTarget", $args: [1] }, { $fn: "refTarget" }],
+      ),
+    );
+    expect(result.diagnostics).toEqual([]);
+  });
+
+  test("nested bindings and function parameters mask outer binding names", () => {
+    const helper = fn(["value"], [I], I, { $var: "value" });
+    const result = checkExpr(
+      letExpr({ value: 1, helper }, [
+        letExpr({ value: 2 }, { $var: "value" }),
+        { $call: "helper", $args: [3] },
+      ]),
+    );
+    expect(result.diagnostics).toEqual([
+      {
+        path: ["$let", "value"],
+        message: 'unused local binding "value"',
+        severity: "error",
+      },
+    ]);
+  });
+
+  test("an unreachable function reports only the unused binding", () => {
+    const result = checkExpr(
+      letExpr(
+        {
+          helper: {
+            $params: [],
+            $return: { $var: "missing" },
+          },
+        },
+        1,
+      ),
+    );
+    expect(result.diagnostics).toEqual([
+      {
+        path: ["$let", "helper"],
+        message: 'unused local binding "helper"',
+        severity: "error",
+      },
+    ]);
+  });
+
+  test("an unused function signature does not produce dangling-ref cascades", () => {
+    const helper = fn([], [], { $ref: "#/$defs/Missing" }, 1);
+    const diagnostics = checkModule({
+      main: fn([], [], I, letExpr({ helper }, 1)),
+    });
+    expect(diagnostics).toEqual([
+      {
+        path: ["main", "$return", "$let", "helper"],
+        message: 'unused local binding "helper"',
+        severity: "error",
+      },
+    ]);
+  });
+
   test("sees parameters and shadows parameters and nested let bindings", () => {
     const resultSchema: Schema = {
       type: "array",
@@ -371,7 +451,18 @@ describe("$let narrowing", () => {
       {
         f: fn(["value"], [numberOrString], I, {
           $if: { $call: "isInteger", $args: [{ $var: "value" }] },
-          $then: letExpr({ helper, worker }, 1),
+          $then: letExpr(
+            { helper, worker },
+            {
+              $call: "length",
+              $args: [
+                [
+                  { $call: "helper", $args: ["text"] },
+                  { $call: "worker", $args: [] },
+                ],
+              ],
+            },
+          ),
           $else: 0,
         }),
       },
@@ -413,7 +504,9 @@ describe("function captures in the checker", () => {
     const missing: Schema = { $ref: "#/$defs/Missing" };
     const nested = fn([], [], missing, 1);
     const diagnostics = checkModule({
-      entry: fn([], [], I, letExpr({ local: nested }, 1), { $captures: { captured: nested } }),
+      entry: fn([], [], I, letExpr({ local: nested }, { $call: "local", $args: [] }), {
+        $captures: { captured: nested },
+      }),
     });
     expect(diagnostics.filter((d) => d.message.includes("undefined type"))).toHaveLength(2);
     expect(diagnostics.map((d) => d.path)).toContainEqual([

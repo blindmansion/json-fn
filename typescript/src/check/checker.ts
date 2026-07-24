@@ -15,6 +15,8 @@ import {
   type FunctionBodyStructureAnalysis,
 } from "../function-body-structure";
 import {
+  boundParameterNames,
+  defaultBindings,
   formatArgumentCountExpectation,
   type ParameterLayout,
   type ParameterPath,
@@ -349,6 +351,120 @@ function collectFreeVars(expr: JSONType, acc: Set<string>, bound: ReadonlySet<st
     if (p !== null && !bound.has(p.split(".", 1)[0]!)) acc.add(p);
   }
   for (const val of Object.values(o)) collectFreeVars(val, acc, bound);
+}
+
+// Collect lexical term references for `$let` reachability. Unlike the
+// narrowing-oriented collector above, named calls and function references are
+// dependencies too. Nested lets, function parameters, and runtime captures
+// mask outer names.
+function collectReferencedNames(
+  expr: JSONType,
+  acc: Set<string>,
+  bound: ReadonlySet<string> = new Set(),
+): void {
+  if (expr === null || typeof expr !== "object") return;
+  if (Array.isArray(expr)) {
+    for (const item of expr) collectReferencedNames(item, acc, bound);
+    return;
+  }
+
+  const object = expr as Record<string, JSONType>;
+  if ("$raw" in object) return;
+  const kind = nodeKind(object);
+
+  if (kind === "var") {
+    const name = object.$var;
+    if (typeof name === "string" && !bound.has(name)) acc.add(name);
+    return;
+  }
+  if (kind === "ref") {
+    const target = object.$fn;
+    if (typeof target === "string") {
+      if (!bound.has(target)) acc.add(target);
+    } else if (target !== undefined) {
+      collectReferencedNames(target, acc, bound);
+    }
+    return;
+  }
+  if (kind === "call") {
+    const target = object.$call;
+    if (typeof target === "string") {
+      if (!bound.has(target)) acc.add(target);
+    } else if (target !== undefined) {
+      collectReferencedNames(target, acc, bound);
+    }
+    if (Array.isArray(object.$args)) {
+      for (const arg of object.$args) collectReferencedNames(arg, acc, bound);
+    }
+    return;
+  }
+  if (kind === "let") {
+    const bindings = isLetBindingMap(object.$let) ? object.$let : {};
+    const nestedBound = new Set([...bound, ...Object.keys(bindings)]);
+    for (const value of Object.values(bindings)) {
+      collectReferencedNames(value, acc, nestedBound);
+    }
+    if ("$in" in object) collectReferencedNames(object.$in!, acc, nestedBound);
+    return;
+  }
+  if (kind === "body") {
+    const analysis = analyzeFunctionBodyStructure(object);
+    const parameterNames = analysis.layout === null ? [] : boundParameterNames(analysis.layout);
+    const bodyBound = new Set([...bound, ...Object.keys(analysis.captures), ...parameterNames]);
+    if (analysis.layout !== null) {
+      for (const binding of defaultBindings(analysis.layout)) {
+        collectReferencedNames(binding.expression, acc, bodyBound);
+      }
+    }
+    for (const capture of Object.values(analysis.captures)) {
+      collectReferencedNames(capture, acc, bodyBound);
+    }
+    if ("$return" in object) collectReferencedNames(object.$return!, acc, bodyBound);
+    return;
+  }
+
+  for (const value of Object.values(object)) collectReferencedNames(value, acc, bound);
+}
+
+function reachableLetBindingNames(
+  bindings: Record<string, JSONType>,
+  result: JSONType,
+): Set<string> {
+  const bindingNames = new Set(Object.keys(bindings));
+  const reachable = new Set<string>();
+  const pending = new Set<string>();
+  collectReferencedNames(result, pending);
+
+  while (pending.size > 0) {
+    const name = pending.values().next().value!;
+    pending.delete(name);
+    if (!bindingNames.has(name) || reachable.has(name)) continue;
+    reachable.add(name);
+
+    const dependencies = new Set<string>();
+    collectReferencedNames(bindings[name]!, dependencies);
+    for (const dependency of dependencies) {
+      if (!reachable.has(dependency)) pending.add(dependency);
+    }
+  }
+  return reachable;
+}
+
+function reachableLetBindings(
+  bindings: Record<string, JSONType>,
+  result: JSONType,
+  ctx: CheckContext,
+): Record<string, JSONType> {
+  const reachable = reachableLetBindingNames(bindings, result);
+  const retained = nullRecord<JSONType>();
+  for (const [name, value] of Object.entries(bindings)) {
+    if (reachable.has(name)) {
+      retained[name] = value;
+    } else {
+      report(at(at(ctx, "$let"), name), `unused local binding "${name}"`);
+    }
+  }
+  return retained;
 }
 
 type TypeScopeResult = {
@@ -806,7 +922,8 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
       const letNode = validateLet(expr as Record<string, JSONType>, ctx);
       if (letNode === null) return true;
       const letCtx = withoutShadowedNarrowings(ctx, Object.keys(letNode.bindings));
-      const scope = buildExpressionTypeScope(letNode.bindings, ctx.env, letCtx);
+      const bindings = reachableLetBindings(letNode.bindings, letNode.result, ctx);
+      const scope = buildExpressionTypeScope(bindings, ctx.env, letCtx);
       return synth(letNode.result, at({ ...letCtx, env: scope.env, guards: scope.guards }, "$in"));
     }
 
@@ -1223,7 +1340,8 @@ function check(expr: JSONType, expected: Schema, ctx: CheckContext): void {
     const letNode = validateLet(expr as Record<string, JSONType>, ctx);
     if (letNode === null) return;
     const letCtx = withoutShadowedNarrowings(ctx, Object.keys(letNode.bindings));
-    const scope = buildExpressionTypeScope(letNode.bindings, ctx.env, letCtx);
+    const bindings = reachableLetBindings(letNode.bindings, letNode.result, ctx);
+    const scope = buildExpressionTypeScope(bindings, ctx.env, letCtx);
     check(letNode.result, expected, at({ ...letCtx, env: scope.env, guards: scope.guards }, "$in"));
     return;
   }
@@ -1360,6 +1478,7 @@ export {
   acceptsArgumentCount,
   buildFunctionTypeScope,
   buildModuleTypeScope,
+  reachableLetBindingNames,
   checkParameterDefaults,
   synth,
   paramAt,

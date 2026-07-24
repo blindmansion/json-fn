@@ -7,7 +7,7 @@ import { linkModule } from "../module-linker";
 import type { CallableTable, CallableTypeRuleRegistry } from "./builtin-types";
 import { synthCallableCall } from "./builtin-rules";
 import { CORE_CALLABLE_TYPE_RULES } from "./callable-rules";
-import { buildModuleTypeScope, checkBody, synth } from "./checker";
+import { buildModuleTypeScope, checkBody, reachableLetBindingNames, synth } from "./checker";
 import { nonContractiveDefinitions } from "./type-defs";
 import {
   EMPTY_ENV,
@@ -188,6 +188,21 @@ function walkSigRefs(node: JSONType, path: string[], defs: Defs, ctx: CheckConte
   }
   if (!isSchemaObject(node)) return;
   if ("$raw" in node) return;
+
+  if (
+    Object.keys(node).length === 2 &&
+    isSchemaObject(node.$let) &&
+    !Array.isArray(node.$let) &&
+    "$in" in node
+  ) {
+    const bindings = node.$let as Record<string, JSONType>;
+    const reachable = reachableLetBindingNames(bindings, node.$in!);
+    for (const [name, value] of Object.entries(bindings)) {
+      if (reachable.has(name)) walkSigRefs(value, [...path, "$let", name], defs, ctx);
+    }
+    walkSigRefs(node.$in!, [...path, "$in"], defs, ctx);
+    return;
+  }
 
   const sig = node.$sig;
   if (isSchemaObject(sig)) {
