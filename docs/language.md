@@ -83,10 +83,18 @@ indirect value cycle is an error. In variable lookup, a `$let` binding shadows
 same-named function parameters, captures, enclosing bindings, and module
 entries throughout every binding expression and `$in`.
 
-The checker rejects bindings that are not lexically reachable from `$in`,
-including through transitive `$var`, named `$call`, and `$fn` references. This
-does not change runtime laziness: unchecked canonical expressions still do not
-evaluate unused bindings, and reachable bindings are checked on demand.
+The checker applies one source-level rule to every binding:
+
+- the binding must be lexically reachable from `$in`, including through
+  transitive `$var`, named `$call`, and `$fn` references;
+- a reachable named function must declare a complete signature, and its body
+  must satisfy that signature;
+- a reachable value binding is checked wherever it is referenced.
+
+An unreachable binding produces one unused-binding error and its contents are
+not checked, avoiding cascades. These checking rules do not change runtime
+laziness: unchecked canonical expressions still do not evaluate unused
+bindings.
 
 A binding whose literal value is a function body is also callable by its
 binding name and shadows a same-named module or host/stdlib function in call
@@ -98,6 +106,11 @@ JSON definitions acyclic:
 {
   "$let": {
     "even": {
+      "$sig": {
+        "required": [{ "type": "integer" }],
+        "optional": [],
+        "returns": { "type": "boolean" }
+      },
       "$params": ["n"],
       "$return": {
         "$if": { "$call": "eq", "$args": [{ "$var": "n" }, 0] },
@@ -106,6 +119,11 @@ JSON definitions acyclic:
       }
     },
     "odd": {
+      "$sig": {
+        "required": [{ "type": "integer" }],
+        "optional": [],
+        "returns": { "type": "boolean" }
+      },
       "$params": ["n"],
       "$return": {
         "$if": { "$call": "eq", "$args": [{ "$var": "n" }, 0] },
@@ -631,6 +649,11 @@ works too.
 {
   "$let": {
     "fact": {
+      "$sig": {
+        "required": [{ "type": "integer" }],
+        "optional": [],
+        "returns": { "type": "integer" }
+      },
       "$params": ["x"],
       "$return": {
         "$if": { "$call": "lte", "$args": [{ "$var": "x" }, 1] },
@@ -671,7 +694,11 @@ a persistent recursive registry:
   "W": 20,
   "H": 12,
   "SIZE": { "$call": "mul", "$args": [{ "$var": "W" }, { "$var": "H" }] },
-  "area": { "$return": { "$var": "SIZE" } }
+  "area": {
+    "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+    "$params": [],
+    "$return": { "$var": "SIZE" }
+  }
 }
 ```
 

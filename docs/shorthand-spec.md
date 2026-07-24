@@ -547,9 +547,11 @@ may shadow names from enclosing scopes.
 The checker rejects a binding that is not lexically reachable from the result,
 directly or through another binding. Its contents are not checked, avoiding
 cascading diagnostics from a declaration that should instead be removed.
-Function-valued bindings are named functions and must include complete parameter
-and return annotations when typechecked. Bare inline lambdas remain available
-where a higher-order call supplies their signature contextually.
+Every reachable value binding is checked where it is referenced. A reachable
+function-valued binding is a named function: it must include complete parameter
+and return annotations, and its body is checked against that declared
+signature. Bare inline lambdas remain available where a higher-order call
+supplies their signature contextually.
 Placing the answer first and its supporting locals after mirrors how these
 functions read: headline, then the details that back it up.
 

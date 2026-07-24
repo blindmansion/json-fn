@@ -282,9 +282,12 @@ Rules:
   (`where`/`$let`) function binding without a signature is a checker error.
   `--allow-untyped-functions` is the migration escape hatch and reports lost
   coverage instead. Inline lambdas may be bare when a higher-order call site
-  supplies their signature contextually.
-- **Unused local bindings are errors.** Reachability starts at `$in` and follows
-  lexical references transitively. Unreachable binding contents are not checked.
+  supplies their signature contextually. A reachable named function's body is
+  checked against its signature.
+- **Every local binding must be reachable.** Reachability starts at `$in` and
+  follows lexical references transitively. Reachable value bindings are checked
+  where referenced. An unreachable binding produces one unused-binding error;
+  its contents are not checked, avoiding cascading diagnostics.
 - **Fixed signature schemas align with normalized `$params` slots.**
   `$sig.required` aligns with the leading required positional slots, including
   object patterns. `$sig.optional` then aligns with the trailing omittable
