@@ -36,13 +36,13 @@ export function makeSuite(mode: Mode): Suite {
 
   // -- 2. Escape cost vs number of captured bindings. --------------------------
   for (const vars of pick([8, 64, 512], [8, 64])) {
-    const locals: Record<string, JSONType> = {};
+    const bindings: Record<string, JSONType> = {};
     let chain: JSONType = 0;
     for (let i = 0; i < vars; i++) {
-      locals[`c${i}`] = i;
+      bindings[`c${i}`] = i;
       chain = call("add", v(`c${i}`), chain);
     }
-    const program = fn([], { $params: ["y"], $return: chain }, locals) as FunctionDeclaration;
+    const program = fn([], { $params: ["y"], $return: chain }, bindings) as FunctionDeclaration;
     benches.push({
       name: "escape-capture-count",
       params: { vars },
@@ -145,12 +145,12 @@ export function makeSuite(mode: Mode): Suite {
   // The escaping lambda calls h0, which calls h1, ... — the whole chain is
   // re-attached into the escaping body.
   function attachChainModule(k: number): Record<string, JSONType> {
-    const locals: Record<string, JSONType> = {};
+    const bindings: Record<string, JSONType> = {};
     for (let i = 0; i < k; i++) {
-      locals[`h${i}`] = fn(["y"], i === k - 1 ? v("y") : call(`h${i + 1}`, v("y")));
+      bindings[`h${i}`] = fn(["y"], i === k - 1 ? v("y") : call(`h${i + 1}`, v("y")));
     }
     return {
-      main: fn([], { $params: ["y"], $return: call("h0", v("y")) }, locals),
+      main: fn([], { $params: ["y"], $return: call("h0", v("y")) }, bindings),
     };
   }
   for (const k of pick([4, 32, 128, 512], [4, 32])) {
@@ -164,9 +164,9 @@ export function makeSuite(mode: Mode): Suite {
 
   // -- 9. Attachment repeated once per escaping element. ------------------------
   function attachPerElementModule(k: number, escapes: number): Record<string, JSONType> {
-    const locals: Record<string, JSONType> = {};
+    const bindings: Record<string, JSONType> = {};
     for (let i = 0; i < k; i++) {
-      locals[`h${i}`] = fn(["y"], i === k - 1 ? v("y") : call(`h${i + 1}`, v("y")));
+      bindings[`h${i}`] = fn(["y"], i === k - 1 ? v("y") : call(`h${i + 1}`, v("y")));
     }
     return {
       main: fn(
@@ -179,7 +179,7 @@ export function makeSuite(mode: Mode): Suite {
             call("range", escapes),
           ),
         ),
-        locals,
+        bindings,
       ),
     };
   }

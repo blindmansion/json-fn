@@ -19,8 +19,12 @@ const body = (
   params: JSONType[],
   sig: { required: Schema[]; optional: Schema[]; returns: Schema; rest?: Schema },
   ret: JSONType,
-  locals: Record<string, JSONType> = {},
-): Record<string, JSONType> => ({ $sig: sig, $params: params, ...locals, $return: ret });
+  bindings: Record<string, JSONType> = {},
+): Record<string, JSONType> => ({
+  $sig: sig,
+  $params: params,
+  $return: Object.keys(bindings).length === 0 ? ret : { $let: bindings, $in: ret },
+});
 
 const I: Schema = { type: "integer" };
 const S: Schema = { type: "string" };
@@ -1092,15 +1096,17 @@ describe("Section F — builtin signatures", () => {
     test("bind diagnoses its owned continuation only once under the precise context", () => {
       const invalid = {
         $params: ["value"],
-        bad: call("add", "x", true),
-        $return: call("pure", { $var: "bad" }),
+        $return: {
+          $let: { bad: call("add", "x", true) },
+          $in: call("pure", { $var: "bad" }),
+        },
       };
       const result = synthB(call("bind", call("pure", 1), invalid));
 
       expect(result.diagnostics).toHaveLength(1);
       expect(result.diagnostics[0]).toEqual(
         expect.objectContaining({
-          path: ["$args[1]", "bad"],
+          path: ["$args[1]", "$return", "$let", "bad"],
           severity: "error",
         }),
       );

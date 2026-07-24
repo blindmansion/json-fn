@@ -28,13 +28,17 @@ describe("prepareProgram", () => {
     const module: Record<string, JSONType> = {
       makeAdder: {
         $params: ["amount"],
-        $return: { $var: "addAmount" },
-        addAmount: {
-          $params: ["value"],
-          $return: {
-            $call: "add",
-            $args: [{ $var: "value" }, { $var: "amount" }],
+        $return: {
+          $let: {
+            addAmount: {
+              $params: ["value"],
+              $return: {
+                $call: "add",
+                $args: [{ $var: "value" }, { $var: "amount" }],
+              },
+            },
           },
+          $in: { $var: "addAmount" },
         },
       },
     };
@@ -66,22 +70,26 @@ describe("prepareProgram", () => {
     const decrement = { $call: "sub", $args: [{ $var: "value" }, 1] };
     const module: Record<string, JSONType> = {
       makeEven: {
-        $return: { $var: "even" },
-        even: {
-          $params: ["value"],
-          $return: {
-            $if: { $call: "eq", $args: [{ $var: "value" }, 0] },
-            $then: true,
-            $else: { $call: "odd", $args: [decrement] },
+        $return: {
+          $let: {
+            even: {
+              $params: ["value"],
+              $return: {
+                $if: { $call: "eq", $args: [{ $var: "value" }, 0] },
+                $then: true,
+                $else: { $call: "odd", $args: [decrement] },
+              },
+            },
+            odd: {
+              $params: ["value"],
+              $return: {
+                $if: { $call: "eq", $args: [{ $var: "value" }, 0] },
+                $then: false,
+                $else: { $call: "even", $args: [decrement] },
+              },
+            },
           },
-        },
-        odd: {
-          $params: ["value"],
-          $return: {
-            $if: { $call: "eq", $args: [{ $var: "value" }, 0] },
-            $then: false,
-            $else: { $call: "even", $args: [decrement] },
-          },
+          $in: { $var: "even" },
         },
       },
     };

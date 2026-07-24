@@ -47,13 +47,16 @@ export function get(key: JSONType, from: JSONType): JSONType {
   return { $get: key, $from: from };
 }
 
-/** `{ $params, ...locals, $return }` function body. */
+/** Structural function body with optional `$let` bindings in its return. */
 export function fn(
   params: string[],
   ret: JSONType,
-  locals: Record<string, JSONType> = {},
+  bindings: Record<string, JSONType> = {},
 ): Record<string, JSONType> {
-  return { $params: params, ...locals, $return: ret };
+  return {
+    $params: params,
+    $return: Object.keys(bindings).length === 0 ? ret : { $let: bindings, $in: ret },
+  };
 }
 
 /** A right-leaning chain `add(x, add(x, ... add(x, 0)))` with `depth` calls. */

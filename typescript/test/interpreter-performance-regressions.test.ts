@@ -41,18 +41,22 @@ describe("flat function-body dispatch", () => {
     const module: Record<string, JSONType> = {
       makeCountdown: {
         $params: ["base"],
-        go: {
-          $params: ["n"],
-          $return: {
-            $if: { $call: "lte", $args: [{ $var: "n" }, 0] },
-            $then: { $var: "base" },
-            $else: {
-              $call: "go",
-              $args: [{ $call: "sub", $args: [{ $var: "n" }, 1] }],
+        $return: {
+          $let: {
+            go: {
+              $params: ["n"],
+              $return: {
+                $if: { $call: "lte", $args: [{ $var: "n" }, 0] },
+                $then: { $var: "base" },
+                $else: {
+                  $call: "go",
+                  $args: [{ $call: "sub", $args: [{ $var: "n" }, 1] }],
+                },
+              },
             },
           },
+          $in: { $var: "go" },
         },
-        $return: { $var: "go" },
       },
       run: {
         $params: ["base", "start"],

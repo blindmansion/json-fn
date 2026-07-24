@@ -225,8 +225,12 @@ const body = (
   params: JSONType[],
   sig: { required: Schema[]; optional: Schema[]; returns: Schema; rest?: Schema },
   ret: JSONType,
-  locals: Record<string, JSONType> = {},
-): Record<string, JSONType> => ({ $sig: sig, $params: params, ...locals, $return: ret });
+  bindings: Record<string, JSONType> = {},
+): Record<string, JSONType> => ({
+  $sig: sig,
+  $params: params,
+  $return: Object.keys(bindings).length === 0 ? ret : { $let: bindings, $in: ret },
+});
 
 const I: Schema = { type: "integer" };
 const S: Schema = { type: "string" };
@@ -298,13 +302,12 @@ describe("checkModule: clean programs", () => {
     expect(checkModule(mod)).toEqual([]);
   });
 
-  test("parameter defaults can reference the complete body scope", () => {
+  test("parameter defaults can reference the complete parameter scope", () => {
     const mod = {
       scopedDefault: body(
-        ["seed", { $param: "fallback", $default: { $var: "later" } }],
+        ["seed", { $param: "fallback", $default: { $var: "seed" } }],
         { required: [I], optional: [I], returns: I },
         { $var: "fallback" },
-        { later: { $var: "seed" } },
       ),
     };
 
@@ -1384,17 +1387,19 @@ describe("check: bidirectional un-annotated lambdas (Part A)", () => {
   });
 });
 
-describe("check: do-block / where IIFE (Part A)", () => {
-  // An inline *un-annotated* body callee invoked immediately — the shape the
-  // shorthand emits for `expr where { … }` and for a `do { … }` block with
-  // leading pure bindings: `{ $call: <body without $sig>, $args: [] }`.
+describe("check: structural IIFEs (Part A)", () => {
+  // An inline unannotated function body invoked immediately. Bindings belong
+  // to a structural `$let` in its return expression.
   const iife = (
     ret: JSONType,
-    locals: Record<string, JSONType> = {},
+    bindings: Record<string, JSONType> = {},
     params: JSONType[] = [],
     args: JSONType[] = [],
   ): JSONType => ({
-    $call: { ...(params.length ? { $params: params } : {}), ...locals, $return: ret },
+    $call: {
+      ...(params.length ? { $params: params } : {}),
+      $return: Object.keys(bindings).length === 0 ? ret : { $let: bindings, $in: ret },
+    },
     $args: args,
   });
 
@@ -1517,7 +1522,7 @@ describe("check: do-block / where IIFE (Part A)", () => {
     const diags = checkModule(mod);
     expect(diags.length).toBe(1);
     expect(diags[0]!.severity).toBe("error");
-    expect(diags[0]!.path).toEqual(["f", "$return", "$return"]);
+    expect(diags[0]!.path).toEqual(["f", "$return", "$return", "$in"]);
     expect(diags[0]!.expected).toEqual(S);
     expect(diags[0]!.actual).toEqual({ const: 1 });
   });
@@ -1713,7 +1718,9 @@ describe("checkModule: dangling $ref → hard error", () => {
     };
     const diags = checkModule(mod);
     expect(
-      diags.some((d) => d.path.join(".") === "main.helper.$sig" && /Qux/.test(d.message)),
+      diags.some(
+        (d) => d.path.join(".") === "main.$return.$let.helper.$sig" && /Qux/.test(d.message),
+      ),
     ).toBe(true);
   });
 });
@@ -1758,13 +1765,13 @@ describe("checkModule: require typed module functions (on by default)", () => {
     expect(diagnostics.some((d) => d.severity === "error")).toBe(false);
     expect(diagnostics).toEqual([
       {
-        path: ["main", "helper"],
+        path: ["main", "$return", "$let", "helper"],
         message:
           'expression degraded to `any` because function binding "helper" has no declared signature.',
         severity: "info",
       },
       {
-        path: ["main", "$return"],
+        path: ["main", "$return", "$in"],
         message: "expression degraded to `any` because the callee has no known function type.",
         severity: "info",
       },

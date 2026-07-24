@@ -81,8 +81,12 @@ describe("callProgram — inner binders shadow module constants", () => {
     const module: Record<string, JSONType> = {
       W: 20,
       outer: {
-        $return: { $call: "inner", $args: [5] },
-        inner: { $params: ["W"], $return: { $var: "W" } },
+        $return: {
+          $let: {
+            inner: { $params: ["W"], $return: { $var: "W" } },
+          },
+          $in: { $call: "inner", $args: [5] },
+        },
       },
     };
     expect(callProgram(module, "outer", [], stdlib)).toBe(5);

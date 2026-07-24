@@ -57,11 +57,13 @@ describe("$let lazy frames", () => {
   test("sees parameters and applies lexical shadowing", () => {
     const fn: FunctionBody = {
       $params: ["outer"],
-      local: "legacy outer",
-      $return: letExpression({ outer: "let parameter", local: "let local" }, [
-        { $var: "outer" },
-        { $var: "local" },
-      ]),
+      $return: letExpression(
+        { local: "outer local" },
+        letExpression({ outer: "let parameter", local: "let local" }, [
+          { $var: "outer" },
+          { $var: "local" },
+        ]),
+      ),
     };
     expect(callFunction(fn, ["parameter"], stdlib)).toEqual(["let parameter", "let local"]);
   });

@@ -32,6 +32,10 @@ function fn(params: JSONType[], returnExpression: JSONType): JSONFunction {
   return { $params: params, $return: returnExpression };
 }
 
+function closeOver(bindings: Record<string, JSONType>, body: JSONFunction): JSONFunction {
+  return callFunction({ $return: { $let: bindings, $in: body } }, [], stdlib) as JSONFunction;
+}
+
 describe("positional parameter defaults", () => {
   test("rejects omitted required parameters and evaluates missing defaults", () => {
     expect(() => callFunction(fn(["required"], { $var: "required" }), [], stdlib)).toThrow(
@@ -89,36 +93,26 @@ describe("positional parameter defaults", () => {
     expect(callFunction(body, [], stdlib)).toBe(2);
   });
 
-  test("defaults can reference body locals and local functions", () => {
-    const fromLocal = {
-      $params: [defaulted("value", { $var: "fallback" })],
-      fallback: { $call: "add", $args: [3, 4] },
-      $return: { $var: "value" },
-    } as FunctionDeclaration;
-    const fromFunction = {
-      $params: [defaulted("value", { $call: "fallback", $args: [] })],
-      fallback: { $return: 9 },
-      $return: { $var: "value" },
-    } as FunctionDeclaration;
+  test("defaults can reference enclosing values and captured local functions", () => {
+    const fromValue = closeOver(
+      { fallback: { $call: "add", $args: [3, 4] } },
+      fn([defaulted("value", { $var: "fallback" })], { $var: "value" }),
+    );
+    const fromFunction = closeOver(
+      { fallback: { $return: 9 } },
+      fn([defaulted("value", { $call: "fallback", $args: [] })], { $var: "value" }),
+    );
 
-    expect(callFunction(fromLocal, [], stdlib)).toBe(7);
+    expect(callFunction(fromValue, [], stdlib)).toBe(7);
     expect(callFunction(fromFunction, [], stdlib)).toBe(9);
   });
 
-  test("reports cycles spanning defaults and locals", () => {
+  test("reports cycles spanning defaults", () => {
     const defaultsCycle = fn([defaulted("a", { $var: "b" }), defaulted("b", { $var: "a" })], {
       $var: "a",
     });
-    const localCycle = {
-      $params: [defaulted("a", { $var: "b" })],
-      b: { $var: "a" },
-      $return: { $var: "a" },
-    } as FunctionDeclaration;
 
     expect(() => callFunction(defaultsCycle, [], stdlib)).toThrow(
-      "Circular variable dependency detected: a -> b -> a",
-    );
-    expect(() => callFunction(localCycle, [], stdlib)).toThrow(
       "Circular variable dependency detected: a -> b -> a",
     );
   });
@@ -249,10 +243,12 @@ describe("destructured field defaults", () => {
 
   test("captures local functions referenced only by a field default", () => {
     const outer = {
-      fallback: { $return: 13 },
-      $return: fn([{ $fields: [defaultedField("value", { $call: "fallback", $args: [] })] }], {
-        $var: "value",
-      }),
+      $return: {
+        $let: { fallback: { $return: 13 } },
+        $in: fn([{ $fields: [defaultedField("value", { $call: "fallback", $args: [] })] }], {
+          $var: "value",
+        }),
+      },
     } as FunctionDeclaration;
     const inner = callFunction(outer, [], stdlib) as FunctionDeclaration;
     expect(callFunction(inner, [{}], stdlib)).toBe(13);
@@ -262,8 +258,10 @@ describe("destructured field defaults", () => {
 describe("defaults in escaping closures", () => {
   test("captures outer values referenced only by a default", () => {
     const outer = {
-      fallback: 7,
-      $return: fn([defaulted("value", { $var: "fallback" })], { $var: "value" }),
+      $return: {
+        $let: { fallback: 7 },
+        $in: fn([defaulted("value", { $var: "fallback" })], { $var: "value" }),
+      },
     } as FunctionDeclaration;
     const inner = callFunction(outer, [], stdlib) as FunctionDeclaration;
     expect(callFunction(inner, [], stdlib)).toBe(7);
@@ -271,8 +269,12 @@ describe("defaults in escaping closures", () => {
 
   test("current parameters mask same-named outer bindings inside defaults", () => {
     const outer = {
-      value: 99,
-      $return: fn([defaulted("value", 1), defaulted("copy", { $var: "value" })], { $var: "copy" }),
+      $return: {
+        $let: { value: 99 },
+        $in: fn([defaulted("value", 1), defaulted("copy", { $var: "value" })], {
+          $var: "copy",
+        }),
+      },
     } as FunctionDeclaration;
     const inner = callFunction(outer, [], stdlib) as FunctionDeclaration;
     expect(callFunction(inner, [], stdlib)).toBe(1);
@@ -280,8 +282,10 @@ describe("defaults in escaping closures", () => {
 
   test("attaches an enclosing local function referenced only by a default", () => {
     const outer = {
-      fallback: { $return: 11 },
-      $return: fn([defaulted("value", { $call: "fallback", $args: [] })], { $var: "value" }),
+      $return: {
+        $let: { fallback: { $return: 11 } },
+        $in: fn([defaulted("value", { $call: "fallback", $args: [] })], { $var: "value" }),
+      },
     } as FunctionDeclaration;
     const inner = callFunction(outer, [], stdlib) as FunctionDeclaration;
     expect(callFunction(inner, [], stdlib)).toBe(11);
@@ -290,37 +294,41 @@ describe("defaults in escaping closures", () => {
 
   test("every parameter kind shadows same-named outer bindings", () => {
     const outer = {
-      required: "outer",
-      fieldRequired: "outer",
-      fieldOptional: "outer",
-      fieldDefaulted: "outer",
-      optional: "outer",
-      defaulted: "outer",
-      rest: "outer",
-      $return: fn(
-        [
-          "required",
-          {
-            $fields: [
-              "fieldRequired",
-              optionalField("fieldOptional"),
-              defaultedField("fieldDefaulted", "field default"),
-            ],
-          },
-          optional("optional"),
-          defaulted("defaulted", "parameter default"),
-          "...rest",
-        ],
-        {
-          required: { $var: "required" },
-          fieldRequired: { $var: "fieldRequired" },
-          fieldOptional: { $var: "fieldOptional" },
-          fieldDefaulted: { $var: "fieldDefaulted" },
-          optional: { $var: "optional" },
-          defaulted: { $var: "defaulted" },
-          rest: { $var: "rest" },
+      $return: {
+        $let: {
+          required: "outer",
+          fieldRequired: "outer",
+          fieldOptional: "outer",
+          fieldDefaulted: "outer",
+          optional: "outer",
+          defaulted: "outer",
+          rest: "outer",
         },
-      ),
+        $in: fn(
+          [
+            "required",
+            {
+              $fields: [
+                "fieldRequired",
+                optionalField("fieldOptional"),
+                defaultedField("fieldDefaulted", "field default"),
+              ],
+            },
+            optional("optional"),
+            defaulted("defaulted", "parameter default"),
+            "...rest",
+          ],
+          {
+            required: { $var: "required" },
+            fieldRequired: { $var: "fieldRequired" },
+            fieldOptional: { $var: "fieldOptional" },
+            fieldDefaulted: { $var: "fieldDefaulted" },
+            optional: { $var: "optional" },
+            defaulted: { $var: "defaulted" },
+            rest: { $var: "rest" },
+          },
+        ),
+      },
     } as FunctionDeclaration;
 
     const inner = callFunction(outer, [], stdlib) as FunctionDeclaration;

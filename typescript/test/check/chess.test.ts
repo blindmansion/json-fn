@@ -9,8 +9,12 @@ const body = (
   params: JSONType[],
   sig: { required: Schema[]; optional: Schema[]; returns: Schema; rest?: Schema },
   ret: JSONType,
-  locals: Record<string, JSONType> = {},
-): Record<string, JSONType> => ({ $sig: sig, $params: params, ...locals, $return: ret });
+  bindings: Record<string, JSONType> = {},
+): Record<string, JSONType> => ({
+  $sig: sig,
+  $params: params,
+  $return: Object.keys(bindings).length === 0 ? ret : { $let: bindings, $in: ret },
+});
 
 const I: Schema = { type: "integer" };
 const S: Schema = { type: "string" };
@@ -455,8 +459,10 @@ describe("chess fragments — Tier 3: lazy-local & boolean-guard narrowing (§5.
     expect(diags.every((d) => d.severity === "error")).toBe(true);
     // Check-mode pushes the tuple return into each arm, so the return mismatch
     // pinpoints the diverging `$else` arm rather than the whole `$return`.
-    expect(diags.some((d) => d.path.join(".") === "divergent.$return.$else")).toBe(true);
-    expect(diags.some((d) => d.path.join(".") === "divergent.d.[0].$args[0]")).toBe(true);
+    expect(diags.some((d) => d.path.join(".") === "divergent.$return.$in.$else")).toBe(true);
+    expect(diags.some((d) => d.path.join(".") === "divergent.$return.$let.d.[0].$args[0]")).toBe(
+      true,
+    );
   });
 
   test("fast path: a module with no narrowing is unaffected by the gate/dedupe", () => {
