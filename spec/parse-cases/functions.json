@@ -14,9 +14,13 @@
       "source": "(x, y) => doubled where {\n  sum:     add(x, y),\n  doubled: mul(sum, 2)\n}",
       "expected": {
         "$params": ["x", "y"],
-        "sum": { "$call": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] },
-        "doubled": { "$call": "mul", "$args": [{ "$var": "sum" }, 2] },
-        "$return": { "$var": "doubled" }
+        "$return": {
+          "$let": {
+            "sum": { "$call": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] },
+            "doubled": { "$call": "mul", "$args": [{ "$var": "sum" }, 2] }
+          },
+          "$in": { "$var": "doubled" }
+        }
       }
     },
     {

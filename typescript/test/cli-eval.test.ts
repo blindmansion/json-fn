@@ -6,9 +6,12 @@ import { join } from "path";
 const CLI = new URL("../src/cli.ts", import.meta.url).pathname;
 const examples = join(import.meta.dir, "../../examples");
 
-function runEval(args: string[]): { exitCode: number; stdout: string; stderr: string } {
+function runCli(
+  command: string,
+  args: string[],
+): { exitCode: number; stdout: string; stderr: string } {
   const result = Bun.spawnSync({
-    cmd: [process.execPath, CLI, "eval", ...args],
+    cmd: [process.execPath, CLI, command, ...args],
     stdout: "pipe",
     stderr: "pipe",
   });
@@ -18,6 +21,33 @@ function runEval(args: string[]): { exitCode: number; stdout: string; stderr: st
     stderr: result.stderr.toString(),
   };
 }
+
+function runEval(args: string[]): { exitCode: number; stdout: string; stderr: string } {
+  return runCli("eval", args);
+}
+
+describe("jfn shorthand $let cutover", () => {
+  test("to-json emits $let and to-shorthand prints it", () => {
+    const lowered = runCli("to-json", ["x + 1 where { x: 2 }", "--compact"]);
+    expect(lowered.exitCode).toBe(0);
+    expect(JSON.parse(lowered.stdout)).toEqual({
+      $let: { x: 2 },
+      $in: { $call: "add", $args: [{ $var: "x" }, 1] },
+    });
+
+    const raised = runCli("to-shorthand", [JSON.stringify({ $let: { x: 2 }, $in: { $var: "x" } })]);
+    expect(raised.exitCode).toBe(0);
+    expect(raised.stdout.trim()).toBe("x where {\n  x: 2\n}");
+  });
+
+  test("to-shorthand reports evaluator captures", () => {
+    const result = runCli("to-shorthand", [
+      JSON.stringify({ $return: 1, $captures: { helper: { $return: 2 } } }),
+    ]);
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("runtime closure state has no shorthand syntax");
+  });
+});
 
 describe("jfn eval bare functions", () => {
   test.each([

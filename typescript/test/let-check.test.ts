@@ -3,6 +3,7 @@ import { loadBuiltinTable } from "../src/builtins";
 import { checkExpr, checkModule } from "../src/check/module";
 import type { JSONType } from "../src/types";
 import type { Schema } from "../src/schema/schema.ts";
+import { parse } from "../src/shorthand";
 
 const I: Schema = { type: "integer" };
 const S: Schema = { type: "string" };
@@ -27,6 +28,29 @@ const fn = (
 });
 
 describe("$let checker validation and result typing", () => {
+  test("keeps shorthand where diagnostics on canonical $let and $in paths", () => {
+    const result = checkModule({
+      f: parse("() -> integer => value where { value: missing }"),
+    });
+    expect(result).toContainEqual(
+      expect.objectContaining({ path: ["f", "$return", "$let", "value"] }),
+    );
+    expect(result).toContainEqual(expect.objectContaining({ path: ["f", "$return", "$in"] }));
+  });
+
+  test("checks function-body where and pure do bindings structurally", () => {
+    const fnBody = parse("(x: integer) -> integer => y where { y: x + 1 }") as Record<
+      string,
+      JSONType
+    >;
+    expect(fnBody.$return).toHaveProperty("$let");
+    expect(checkExpr(fnBody, {}, loadBuiltinTable()).diagnostics).toEqual([]);
+
+    const doExpr = parse("do { x: 1, pure(x) }") as Record<string, JSONType>;
+    expect(doExpr).toHaveProperty("$let");
+    expect(checkExpr(doExpr, {}, loadBuiltinTable()).diagnostics).toEqual([]);
+  });
+
   test("synthesizes the result in a lazy recursive scope", () => {
     const result = checkExpr(letExpr({ x: 1, unused: { $var: "missing" } }, { $var: "x" }));
     expect(result.type).toEqual({ const: 1 });

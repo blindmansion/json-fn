@@ -20,6 +20,13 @@ function runCheck(args: string[]): { exitCode: number; stdout: string; stderr: s
 
 const asJsonArg = (value: unknown): string => JSON.stringify(value);
 
+test("jfn check accepts shorthand function-body where", () => {
+  const result = runCheck(["--expr", "() -> integer => value where { value: 1 }"]);
+  expect(result.exitCode).toBe(0);
+  expect(result.stderr).toBe("");
+  expect(result.stdout).toContain("No type errors.");
+});
+
 describe("jfn check coverage reporting", () => {
   test("a clean typed module reports full coverage", () => {
     const mod = {

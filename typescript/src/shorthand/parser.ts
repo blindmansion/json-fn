@@ -557,9 +557,8 @@ class Parser extends TokenCursor {
     // `parseExpr` stops before it and we consume the clause here.
     const ret = this.parseExpr();
     const locals = this.eatKeyword("where") ? this.parseWhereBindings() : [];
-    // A function body inlines its `where` locals directly (params + locals +
-    // $return); no IIFE needed since this scope already exists.
-    return this.buildScope(parsed.params, locals, ret, sig);
+    const result = locals.length === 0 ? ret : buildLet(locals, ret);
+    return this.buildFunctionBody(parsed.params, result, sig);
   }
 
   /** Enforce all-or-nothing signatures (spec §7) and, when a function is fully
@@ -605,12 +604,10 @@ class Parser extends TokenCursor {
     return sig;
   }
 
-  /** Assemble a scope map (`$sig`? + `$params`? + locals + `$return`) shared by
-   * function literals and expression-level `where` (spec section 8). */
-  private buildScope(
+  /** Assemble a structural function body (`$sig`? + `$params`? + `$return`). */
+  private buildFunctionBody(
     params: Param[],
-    locals: [string, JSONType][],
-    ret: JSONType,
+    result: JSONType,
     sig: Schema | null = null,
   ): Record<string, JSONType> {
     const map: Record<string, JSONType> = {};
@@ -620,26 +617,21 @@ class Parser extends TokenCursor {
     if (params.length > 0) {
       map.$params = params;
     }
-    for (const [k, v] of locals) {
-      map[k] = v;
-    }
-    map.$return = ret;
+    map.$return = result;
     return map;
   }
 
   /** Parse an expression that may carry a trailing `expr where { ... }` clause.
-   * With a `where`, the expression lowers to a zero-arg IIFE over a scope so the
-   * existing `buildScope`/`callJSONFunction` machinery evaluates the locals —
-   * no evaluator changes (spec section 8). Used at the program top level and
-   * wherever a trailing `where` should attach: `where`-binding values,
-   * `cond`/`match` arm results, and `if/then/else` branches. */
+   * A `where` lowers directly to a canonical `$let` expression. Used at the
+   * program top level and wherever a trailing clause should attach:
+   * `where`-binding values, `cond`/`match` arm results, and grouped branches. */
   private parseBody(): JSONType {
     const expr = this.parseExpr();
     if (!this.eatKeyword("where")) {
       return expr;
     }
     const locals = this.parseWhereBindings();
-    return { $call: this.buildScope([], locals, expr), $args: [] };
+    return buildLet(locals, expr);
   }
 
   private parseParams(): ParsedParams {
@@ -761,20 +753,21 @@ class Parser extends TokenCursor {
   private parseWhereBindings(): [string, JSONType][] {
     this.expect("lbrace", "'{' after 'where'");
     const locals: [string, JSONType][] = [];
-    if (this.peekType() !== "rbrace") {
-      for (;;) {
-        const name = this.expectIdent("binding name");
-        this.expect("colon", "':' after binding name");
-        locals.push([name, this.parseBody()]);
-        const type = this.peekType();
-        if (type === "comma") {
-          this.advance();
-          if (this.peekType() === "rbrace") break;
-        } else if (type === "rbrace") {
-          break;
-        } else {
-          throw this.err("expected ',' or '}' in where-bindings");
-        }
+    if (this.peekType() === "rbrace") {
+      throw this.err("empty 'where' block: at least one binding is required");
+    }
+    for (;;) {
+      const name = this.expectIdent("binding name");
+      this.expect("colon", "':' after binding name");
+      locals.push([name, this.parseBody()]);
+      const type = this.peekType();
+      if (type === "comma") {
+        this.advance();
+        if (this.peekType() === "rbrace") break;
+      } else if (type === "rbrace") {
+        break;
+      } else {
+        throw this.err("expected ',' or '}' in where-bindings");
       }
     }
     this.expect("rbrace", "'}'");
@@ -926,9 +919,8 @@ class Parser extends TokenCursor {
   /** Lower do-entries to a `bind` spine. An effect binding `x <- e` becomes
    * `bind(e, (x) => rest)`; a non-final bare expression `e` (a discard) becomes
    * `bind(e, () => rest)` — a zero-param continuation, so the effect runs and
-   * its result is dropped. Pure bindings since the previous effect/discard
-   * attach as that continuation's `where`-locals; pure bindings before the
-   * first one wrap the whole chain in a zero-arg IIFE (like `where`). */
+   * its result is dropped. Each consecutive pure run wraps the remaining
+   * expression in a canonical `$let`. */
   private desugarDo(entries: DoEntry[]): JSONType {
     const last = entries[entries.length - 1]!;
     if (last.kind !== "expr") {
@@ -936,10 +928,7 @@ class Parser extends TokenCursor {
     }
     const [leading, restIdx] = collectDoPures(entries, 0);
     const chain = this.buildDoChain(entries, restIdx);
-    if (leading.length > 0) {
-      return { $call: this.buildScope([], leading, chain), $args: [] };
-    }
-    return chain;
+    return leading.length === 0 ? chain : buildLet(leading, chain);
   }
 
   /** Build the expression for `entries[i..]`, where `entries[i]` is an effect
@@ -951,12 +940,13 @@ class Parser extends TokenCursor {
     if (i === entries.length - 1) return (entry as { value: JSONType }).value;
     // A non-final entry is an effect binding (`x <- e`) or a discard (bare `e`).
     // Both lower to `bind(e, k)`; `k` binds the result to `x` for an effect
-    // binding, or takes no parameter for a discard. Following pures are `k`'s
-    // `where`-locals.
+    // binding, or takes no parameter for a discard. Following pures wrap the
+    // continuation result in `$let`.
     const [pures, nextIdx] = collectDoPures(entries, i + 1);
-    const contBody = this.buildDoChain(entries, nextIdx);
+    const rest = this.buildDoChain(entries, nextIdx);
+    const result = pures.length === 0 ? rest : buildLet(pures, rest);
     const params: Param[] = entry.kind === "effect" ? [entry.name] : [];
-    const k = this.buildScope(params, pures, contBody);
+    const k = this.buildFunctionBody(params, result);
     return { $call: "bind", $args: [entry.value, k] };
   }
 
@@ -1174,6 +1164,14 @@ function collectDoPures(entries: DoEntry[], i: number): [[string, JSONType][], n
     j++;
   }
   return [pures, j];
+}
+
+/** Build the exact canonical representation of one non-empty recursive scope. */
+function buildLet(bindings: [string, JSONType][], result: JSONType): JSONType {
+  if (bindings.length === 0) {
+    throw new Error("internal parser error: cannot build an empty $let");
+  }
+  return { $let: Object.fromEntries(bindings), $in: result };
 }
 
 function fncall(name: string, args: JSONType[]): JSONType {

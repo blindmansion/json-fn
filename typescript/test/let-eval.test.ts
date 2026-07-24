@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { callFunction, createPerfStats, createStdlib } from "../src";
 import type { FunctionDeclaration, FunctionRegistry, JSONType } from "../src";
+import { parse } from "../src/shorthand";
 
 const stdlib = createStdlib();
 type FunctionBody = Exclude<FunctionDeclaration, string>;
@@ -215,6 +216,14 @@ describe("$let local functions", () => {
 });
 
 describe("$let execution accounting and registry ownership", () => {
+  test("shorthand where uses native lazy $let execution", () => {
+    const expression = parse(
+      "go(5) where { unused: missing(), go: (n) => if n <= 0 then 0 else go(n - 1) }",
+    );
+    expect(expression).toHaveProperty("$let");
+    expect(evaluate(expression)).toBe(0);
+  });
+
   test("charges one expression node without adding a call frame", () => {
     const plainUsage = { fuel: 0 };
     const letUsage = { fuel: 0 };

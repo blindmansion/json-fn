@@ -61,8 +61,12 @@
       "source": "({ n }) => doubled where {\n  doubled: n * 2\n}",
       "expected": {
         "$params": [{ "$fields": ["n"] }],
-        "doubled": { "$call": "mul", "$args": [{ "$var": "n" }, 2] },
-        "$return": { "$var": "doubled" }
+        "$return": {
+          "$let": {
+            "doubled": { "$call": "mul", "$args": [{ "$var": "n" }, 2] }
+          },
+          "$in": { "$var": "doubled" }
+        }
       }
     },
     { "description": "empty pattern is rejected", "source": "({}) => 1", "error": true },

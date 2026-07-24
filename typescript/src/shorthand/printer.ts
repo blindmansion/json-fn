@@ -34,6 +34,7 @@ import { printType } from "./type-printer";
 
 /** Pretty-print canonical json-fn JSON as `.jfn` shorthand source. */
 export function print(node: JSONType): string {
+  validatePrintableTree(node, "$");
   // Type declarations are legal only in the top-level module object, so module
   // rendering must happen here rather than in recursive object dispatch.
   if (isPlainObject(node) && "$types" in node) return renderModule(node, "");
@@ -88,6 +89,13 @@ function emit(node: JSONType, minPrec: number, indent: string): string {
   return prec < minPrec ? `(${text})` : text;
 }
 
+/** Emit into a grammar slot parsed with `parseExpr` rather than `parseBody`.
+ * A `$let` surface ends in `where`, so it must be grouped in these slots. */
+function emitExpression(node: JSONType, indent: string): string {
+  const text = emit(node, P_BLOCK, indent);
+  return isPlainObject(node) && "$let" in node ? `(${text})` : text;
+}
+
 /** A rendered node plus its surface precedence (for the caller's wrap decision). */
 type Rendered = { text: string; prec: number };
 
@@ -110,6 +118,10 @@ function render(node: JSONType, indent: string): Rendered {
 }
 
 function renderObject(node: { [k: string]: JSONType }, indent: string): Rendered {
+  if ("$let" in node || "$in" in node) {
+    const asDo = tryRenderDo(node, indent);
+    return asDo ?? renderLet(node, indent);
+  }
   if ("$call" in node) {
     // Effects sugar (shorthand-spec §13): a `bind` spine folds back to a
     // `do { … }` block and a `handle` call to `handle … with { … }`. Both are
@@ -194,7 +206,7 @@ function renderCall(head: JSONType, args: JSONType[], indent: string): Rendered 
 }
 
 function renderArgs(args: JSONType[], indent: string): string {
-  return args.map((a) => emit(a, P_BLOCK, indent)).join(", ");
+  return args.map((a) => emitExpression(a, indent)).join(", ");
 }
 
 /** Render a `strcat` call as a template (if it mixes literal text and holes) or
@@ -248,86 +260,66 @@ type DoEntry =
   | { kind: "pure"; name: string; value: JSONType } // `name: value`
   | { kind: "expr"; value: JSONType }; // bare final expression
 
-/** Fold a `$fn` node back into a `do { … }` block when it is an exact
- * desugar image, else `null`. Two shapes qualify (see `parser.ts` `desugarDo`):
- * a bare `bind` spine, and a zero-arg IIFE `{ $fn: [scope] }` whose body is a
- * `bind` spine — the latter carries the pure bindings that preceded the first
- * effect. */
+/** Fold a canonical node back into a `do { … }` block when it is an exact
+ * parser desugar image: either a bare `bind` spine or a `$let` containing the
+ * leading pure run around a bind spine. */
 function tryRenderDo(node: { [k: string]: JSONType }, indent: string): Rendered | null {
-  const args = node.$args;
-  if (!Array.isArray(args)) return null;
-
-  // Leading-pures IIFE: `{ $call: { …pures, $return: <bind-spine> }, $args: [] }`.
-  if (args.length === 0) {
-    const scope = node.$call;
-    if (isPlainObject(scope!) && !("$params" in scope) && "$return" in scope) {
-      const inner = collectDo(scope.$return!);
-      if (inner === null) return null;
-      const leading = objectLocals(scope);
-      if (leading === null) return null;
-      const pures: DoEntry[] = leading.map(([name, value]) => ({ kind: "pure", name, value }));
-      return renderDo([...pures, ...inner], indent);
-    }
-    return null;
+  if ("$let" in node) {
+    const inner = collectDo(node.$in!);
+    if (inner === null) return null;
+    const pures: DoEntry[] = printableLetBindings(node).map(([name, value]) => ({
+      kind: "pure",
+      name,
+      value,
+    }));
+    return renderDo([...pures, ...inner], indent);
   }
 
   const entries = collectDo(node);
   return entries === null ? null : renderDo(entries, indent);
 }
 
-/** Reconstruct the `do` entries of a `bind` spine, or `null` if `node` is not
- * one. Each `bind(value, k)` yields an effect binding (or, when `k` takes no
- * parameter, a discard entry — a non-final bare expression) plus `k`'s locals
- * as pure bindings, then continues into `k`'s `$return`; a non-`bind` tail is
- * the final result expression. */
+/** Reconstruct the `do` entries of a bind spine. Continuation `$let` wrappers
+ * become consecutive pure entries before reconstruction continues through
+ * `$in`. */
 function collectDo(node: JSONType): DoEntry[] | null {
   if (!isPlainObject(node)) return null;
+  if (!hasExactKeys(node, ["$call", "$args"])) return null;
   const args = node.$args;
   if (node.$call !== "bind" || !Array.isArray(args) || args.length !== 2) return null;
 
   const k = args[1]!;
   if (!isPlainObject(k) || !("$return" in k)) return null;
-  const analysis = analyzeParameters(k.$params);
-  if (!analysis.ok) return null;
-  const slots = analysis.layout.slots;
-  // A zero-param continuation (no `$params`, or an empty list) is a discard:
-  // the effect's result is dropped, so it prints as a bare non-final expression.
-  const isDiscard = slots.length === 0;
+  if (!Object.keys(k).every((key) => key === "$params" || key === "$return")) return null;
+
   let head: DoEntry;
-  if (isDiscard) {
+  if (!("$params" in k)) {
     head = { kind: "expr", value: args[0]! };
   } else {
-    if (slots.length !== 1 || slots[0]!.kind !== "required") return null;
-    const name = slots[0]!.name;
+    if (!Array.isArray(k.$params) || k.$params.length !== 1) return null;
+    const name = k.$params[0];
+    if (typeof name !== "string" || name.startsWith("...")) return null;
     if (!IDENT_RE.test(name)) return null;
     head = { kind: "effect", name, value: args[0]! };
   }
-  const locals = objectLocals(k);
-  if (locals === null) return null;
 
   const entries: DoEntry[] = [head];
-  for (const [pureName, value] of locals) entries.push({ kind: "pure", name: pureName, value });
-  const rest = collectDo(k.$return!);
-  entries.push(...(rest ?? [{ kind: "expr", value: k.$return! }]));
-  return entries;
-}
-
-/** The non-`$` keys of a scope object as `[name, value]` locals in source order,
- * or `null` if any key is not a bare identifier (not spellable as a binding). */
-function objectLocals(node: { [k: string]: JSONType }): [string, JSONType][] | null {
-  const locals: [string, JSONType][] = [];
-  for (const key of Object.keys(node)) {
-    if (key.startsWith("$")) continue;
-    if (!IDENT_RE.test(key)) return null;
-    locals.push([key, node[key]!]);
+  let restNode = k.$return!;
+  if (isPlainObject(restNode) && "$let" in restNode) {
+    for (const [name, value] of printableLetBindings(restNode)) {
+      entries.push({ kind: "pure", name, value });
+    }
+    restNode = restNode.$in!;
   }
-  return locals;
+  const rest = collectDo(restNode);
+  entries.push(...(rest ?? [{ kind: "expr", value: restNode }]));
+  return entries;
 }
 
 function renderDo(entries: DoEntry[], indent: string): Rendered {
   const inner = indent + "  ";
   const lines = entries.map((e) => {
-    if (e.kind === "effect") return `${inner}${e.name} <- ${emit(e.value, P_BLOCK, inner)}`;
+    if (e.kind === "effect") return `${inner}${e.name} <- ${emitExpression(e.value, inner)}`;
     if (e.kind === "pure") return `${inner}${e.name}: ${emit(e.value, P_BLOCK, inner)}`;
     return `${inner}${emit(e.value, P_BLOCK, inner)}`;
   });
@@ -343,7 +335,7 @@ function renderHandle(
   const clauses = renderDataObject(handlers, indent);
   const resultType = annotation === null ? "" : ` -> ${printType(annotation)}`;
   return {
-    text: `handle ${emit(task, P_BLOCK, indent)}${resultType} with ${clauses}`,
+    text: `handle ${emitExpression(task, indent)}${resultType} with ${clauses}`,
     prec: P_BLOCK,
   };
 }
@@ -357,6 +349,44 @@ function isDataObject(value: JSONType): value is { [k: string]: JSONType } {
 
 function isPlainObject(value: unknown): value is { [k: string]: JSONType } {
   return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function hasExactKeys(node: { [k: string]: JSONType }, expected: string[]): boolean {
+  const keys = Object.keys(node);
+  return keys.length === expected.length && expected.every((key) => key in node);
+}
+
+const PRINTABLE_FUNCTION_KEYS = new Set(["$params", "$sig", "$return", "$comment"]);
+
+/** Reject runtime-only or non-canonical structures before any printer sugar can
+ * consume and hide them. Raw payloads are deliberately opaque. */
+function validatePrintableTree(node: JSONType, path: string): void {
+  if (node === null || typeof node !== "object") return;
+  if (Array.isArray(node)) {
+    node.forEach((value, index) => validatePrintableTree(value, `${path}[${index}]`));
+    return;
+  }
+  if ("$raw" in node) return;
+
+  if ("$let" in node || "$in" in node) printableLetBindings(node, path);
+
+  if ("$return" in node) {
+    if ("$captures" in node) {
+      throw new Error(
+        `Cannot print evaluator-produced function with $captures at ${path}; runtime closure state has no shorthand syntax.`,
+      );
+    }
+    const stray = Object.keys(node).find((key) => !PRINTABLE_FUNCTION_KEYS.has(key));
+    if (stray !== undefined) {
+      throw new Error(
+        `Cannot print non-canonical function at ${path}: unsupported key ${JSON.stringify(stray)}.`,
+      );
+    }
+  }
+
+  for (const [key, value] of Object.entries(node)) {
+    validatePrintableTree(value, `${path}.${key}`);
+  }
 }
 
 // ----- variables and property access (spec §5) -----
@@ -375,15 +405,15 @@ function renderGet(get: JSONType, indent: string): string {
 function renderSegment(seg: JSONType, indent: string): string {
   if (typeof seg === "string") return IDENT_RE.test(seg) ? `.${seg}` : `[${JSON.stringify(seg)}]`;
   if (typeof seg === "number") return `[${numberLiteral(seg)}]`;
-  return `[${emit(seg, P_BLOCK, indent)}]`;
+  return `[${emitExpression(seg, indent)}]`;
 }
 
 // ----- control flow (spec §7) -----
 
 function renderIf(node: { [k: string]: JSONType }, indent: string): Rendered {
-  const cond = emit(node.$if!, P_BLOCK, indent);
-  const then = emit(node.$then!, P_BLOCK, indent);
-  const els = emit(node.$else!, P_BLOCK, indent);
+  const cond = emitExpression(node.$if!, indent);
+  const then = emitExpression(node.$then!, indent);
+  const els = emitExpression(node.$else!, indent);
   return { text: `if ${cond} then ${then} else ${els}`, prec: P_BLOCK };
 }
 
@@ -391,18 +421,18 @@ function renderCond(node: { [k: string]: JSONType }, indent: string): Rendered {
   const arms = node.$cond as [JSONType, JSONType][];
   const inner = indent + "  ";
   const lines = arms.map(
-    ([c, r]) => `${inner}${emit(c, P_BLOCK, inner)} -> ${emit(r, P_BLOCK, inner)}`,
+    ([c, r]) => `${inner}${emitExpression(c, inner)} -> ${emit(r, P_BLOCK, inner)}`,
   );
   if ("$else" in node) lines.push(`${inner}else -> ${emit(node.$else!, P_BLOCK, inner)}`);
   return { text: `cond {\n${lines.join(",\n")}\n${indent}}`, prec: P_BLOCK };
 }
 
 function renderMatch(node: { [k: string]: JSONType }, indent: string): Rendered {
-  const subject = emit(node.$match!, P_BLOCK, indent);
+  const subject = emitExpression(node.$match!, indent);
   const cases = node.$cases as [JSONType, JSONType][];
   const inner = indent + "  ";
   const lines = cases.map(
-    ([c, r]) => `${inner}${emit(c, P_BLOCK, inner)} -> ${emit(r, P_BLOCK, inner)}`,
+    ([c, r]) => `${inner}${emitExpression(c, inner)} -> ${emit(r, P_BLOCK, inner)}`,
   );
   lines.push(`${inner}else -> ${emit(node.$else!, P_BLOCK, inner)}`);
   return { text: `match ${subject} {\n${lines.join(",\n")}\n${indent}}`, prec: P_BLOCK };
@@ -429,27 +459,44 @@ function renderComparison(op: string, a: JSONType, b: JSONType, indent: string):
 
 // ----- function bodies & where bindings (spec §8) -----
 
+function printableLetBindings(node: { [k: string]: JSONType }, path = "$"): [string, JSONType][] {
+  if (!hasExactKeys(node, ["$let", "$in"])) {
+    throw new Error(`Cannot print malformed $let at ${path}: expected exactly $let and $in.`);
+  }
+  const bindings = node.$let;
+  if (!isPlainObject(bindings)) {
+    throw new Error(`Cannot print malformed $let at ${path}: $let must be an object.`);
+  }
+  const entries = Object.entries(bindings);
+  if (entries.length === 0) {
+    throw new Error(`Cannot print malformed $let at ${path}: at least one binding is required.`);
+  }
+  const invalid = entries.find(([name]) => !IDENT_RE.test(name));
+  if (invalid !== undefined) {
+    throw new Error(
+      `Cannot print $let binding ${JSON.stringify(invalid[0])} at ${path}: the name is not a shorthand identifier.`,
+    );
+  }
+  return entries;
+}
+
+function renderLet(node: { [k: string]: JSONType }, indent: string): Rendered {
+  const bindings = printableLetBindings(node);
+  const resultText = emit(node.$in!, P_BLOCK, indent);
+  const result = expressionAbsorbsTrailingWhere(node.$in!) ? `(${resultText})` : resultText;
+  const inner = indent + "  ";
+  const lines = bindings.map(([name, value]) => `${inner}${name}: ${emit(value, P_BLOCK, inner)}`);
+  return {
+    text: `${result} where {\n${lines.join(",\n")}\n${indent}}`,
+    prec: P_BLOCK,
+  };
+}
+
 function renderFunctionBody(node: { [k: string]: JSONType }, indent: string): Rendered {
   const analysis = analyzeParameters(node.$params);
   if (!analysis.ok) throw new Error(formatParameterIssue(analysis.issue));
-  // Locals are the non-`$` keys, in source (insertion) order. Other `$` keys
-  // (e.g. `$comment`) have no canonical surface form and are dropped.
-  const locals = Object.keys(node).filter((k) => !k.startsWith("$"));
   const header = renderFunctionHeader(analysis.layout, node.$sig);
-
-  if (locals.length === 0) {
-    return { text: `${header} ${emit(node.$return!, P_BLOCK, indent)}`, prec: P_BLOCK };
-  }
-  const inner = indent + "  ";
-  // A nested function literal starts its own body, so its open `=>` tail would
-  // consume a following `where`. Parenthesize that return to keep this body's
-  // locals outside it. An `if` no longer needs a guard: `where` binds looser
-  // than the complete conditional.
-  const retText = emit(node.$return!, P_BLOCK, indent);
-  const ret = returnAbsorbsTrailingWhere(node.$return!) ? `(${retText})` : retText;
-  const bindings = locals.map((k) => `${inner}${k}: ${emit(node[k]!, P_BLOCK, inner)}`);
-  const body = `${ret} where {\n${bindings.join(",\n")}\n${indent}}`;
-  return { text: `${header} ${body}`, prec: P_BLOCK };
+  return { text: `${header} ${emit(node.$return!, P_BLOCK, indent)}`, prec: P_BLOCK };
 }
 
 function renderFunctionHeader(layout: ParameterLayout, sig: JSONType | undefined): string {
@@ -487,12 +534,12 @@ function renderFunctionHeader(layout: ParameterLayout, sig: JSONType | undefined
   return `(${rendered.join(", ")}) -> ${printType(sig.returns ?? true)} =>`;
 }
 
-/** Whether a function-body `$return`, printed bare, would swallow a following
- * `where` into a nested body. Only a nested function literal does: its `=>`
- * opens a new body and therefore owns the clause. */
-function returnAbsorbsTrailingWhere(node: JSONType): boolean {
+/** Whether an expression printed before `where` would consume that clause as
+ * part of its own open body. Function literals and nested lets do; completed
+ * control forms and brace-terminated forms do not. */
+function expressionAbsorbsTrailingWhere(node: JSONType): boolean {
   if (node === null || typeof node !== "object" || Array.isArray(node)) return false;
-  return "$return" in node;
+  return "$return" in node || "$let" in node;
 }
 
 /** Render one normalized `$params` slot. */
@@ -503,14 +550,14 @@ function renderParam(param: NormalizedParameter): string {
     return `{ ${param.bindings.map(renderField).join(", ")} }`;
   }
   if (param.kind === "optional") return `${param.name}?`;
-  return `${param.name} = ${emit(param.defaultExpression, P_BLOCK, "")}`;
+  return `${param.name} = ${emitExpression(param.defaultExpression, "")}`;
 }
 
 function renderTypedParam(param: NormalizedParameter, schema: JSONType): string {
   const type = printType(schema);
   if (param.kind === "optional") return `${param.name}?: ${type}`;
   if (param.kind === "defaulted") {
-    return `${param.name}: ${type} = ${emit(param.defaultExpression, P_BLOCK, "")}`;
+    return `${param.name}: ${type} = ${emitExpression(param.defaultExpression, "")}`;
   }
   return `${renderParam(param)}: ${type}`;
 }
@@ -518,14 +565,14 @@ function renderTypedParam(param: NormalizedParameter, schema: JSONType): string 
 function renderField(field: NormalizedField): string {
   if (field.kind === "required") return field.name;
   if (field.kind === "optional") return `${field.name}?`;
-  return `${field.name} = ${emit(field.defaultExpression, P_BLOCK, "")}`;
+  return `${field.name} = ${emitExpression(field.defaultExpression, "")}`;
 }
 
 // ----- data (spec §3) -----
 
 function renderArray(arr: JSONType[], indent: string): string {
   if (arr.length === 0) return "[]";
-  return `[${arr.map((el) => emit(el, P_BLOCK, indent)).join(", ")}]`;
+  return `[${arr.map((el) => emitExpression(el, indent)).join(", ")}]`;
 }
 
 function renderModule(node: { [k: string]: JSONType }, indent: string): string {
@@ -579,7 +626,7 @@ function renderDataEntry(node: { [k: string]: JSONType }, key: string, indent: s
   // when the key is a bare identifier (the canonical, narrower spelling).
   if (IDENT_RE.test(key) && isVarPun(node[key]!, key)) return key;
   const renderedKey = IDENT_RE.test(key) ? key : JSON.stringify(key);
-  return `${renderedKey}: ${emit(node[key]!, P_BLOCK, indent)}`;
+  return `${renderedKey}: ${emitExpression(node[key]!, indent)}`;
 }
 
 /** Whether `value` is exactly `{ "$var": name }` (a bare variable read of

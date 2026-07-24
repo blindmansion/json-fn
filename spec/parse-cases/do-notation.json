@@ -21,39 +21,45 @@
           { "$call": "readLine", "$args": [] },
           {
             "$params": ["name"],
-            "upper": { "$call": "upper", "$args": [{ "$var": "name" }] },
             "$return": {
-              "$call": "bind",
-              "$args": [
-                { "$call": "print", "$args": [{ "$var": "upper" }] },
-                { "$params": ["_"], "$return": { "$call": "pure", "$args": [{ "$var": "upper" }] } }
-              ]
+              "$let": {
+                "upper": { "$call": "upper", "$args": [{ "$var": "name" }] }
+              },
+              "$in": {
+                "$call": "bind",
+                "$args": [
+                  { "$call": "print", "$args": [{ "$var": "upper" }] },
+                  {
+                    "$params": ["_"],
+                    "$return": { "$call": "pure", "$args": [{ "$var": "upper" }] }
+                  }
+                ]
+              }
             }
           }
         ]
       }
     },
     {
-      "description": "a pure binding before the first effect wraps the chain in a zero-arg IIFE",
+      "description": "a pure binding before the first effect wraps the chain in $let",
       "source": "do {\n  x: 1,\n  y <- eff(),\n  pure(add(x, y))\n}",
       "expected": {
-        "$call": {
-          "x": 1,
-          "$return": {
-            "$call": "bind",
-            "$args": [
-              { "$call": "eff", "$args": [] },
-              {
-                "$params": ["y"],
-                "$return": {
-                  "$call": "pure",
-                  "$args": [{ "$call": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] }]
-                }
-              }
-            ]
-          }
+        "$let": {
+          "x": 1
         },
-        "$args": []
+        "$in": {
+          "$call": "bind",
+          "$args": [
+            { "$call": "eff", "$args": [] },
+            {
+              "$params": ["y"],
+              "$return": {
+                "$call": "pure",
+                "$args": [{ "$call": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] }]
+              }
+            }
+          ]
+        }
       }
     },
     {
@@ -98,26 +104,35 @@
           { "$call": "readLine", "$args": [] },
           {
             "$params": ["name"],
-            "upper": { "$call": "upper", "$args": [{ "$var": "name" }] },
             "$return": {
-              "$call": "bind",
-              "$args": [
-                { "$call": "print", "$args": [{ "$var": "upper" }] },
-                { "$return": { "$call": "pure", "$args": [{ "$var": "upper" }] } }
-              ]
+              "$let": {
+                "upper": { "$call": "upper", "$args": [{ "$var": "name" }] }
+              },
+              "$in": {
+                "$call": "bind",
+                "$args": [
+                  { "$call": "print", "$args": [{ "$var": "upper" }] },
+                  { "$return": { "$call": "pure", "$args": [{ "$var": "upper" }] } }
+                ]
+              }
             }
           }
         ]
       }
     },
     {
-      "description": "a discard may carry following pure bindings as its continuation's where-locals",
+      "description": "a discard may carry following pure bindings in its continuation's $let",
       "source": "do {\n  step(),\n  n: 1,\n  pure(n)\n}",
       "expected": {
         "$call": "bind",
         "$args": [
           { "$call": "step", "$args": [] },
-          { "n": 1, "$return": { "$call": "pure", "$args": [{ "$var": "n" }] } }
+          {
+            "$return": {
+              "$let": { "n": 1 },
+              "$in": { "$call": "pure", "$args": [{ "$var": "n" }] }
+            }
+          }
         ]
       }
     },

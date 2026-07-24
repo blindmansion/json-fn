@@ -297,28 +297,33 @@ describe("printer output shape", () => {
     ).toThrow("$params[0].$fields[0].$optional: $optional must be true.");
   });
 
-  // A function body with locals prints its `$return` followed by `where { ... }`.
-  // `where` binds looser than a complete `if`, so no defensive parentheses are
-  // needed around a conditional return.
-  test("if-return with where locals binds to the body without parentheses", () => {
+  // A function-body `$let` naturally prints as the body-level `where`.
+  test("if-return with a structural let binds to the body without parentheses", () => {
     const node: JSONType = {
       $params: ["s"],
-      len: { $call: "length", $args: [{ $var: "s" }] },
       $return: {
-        $if: { $call: "eq", $args: [{ $var: "len" }, 2] },
-        $then: { $var: "len" },
-        $else: null,
+        $let: { len: { $call: "length", $args: [{ $var: "s" }] } },
+        $in: {
+          $if: { $call: "eq", $args: [{ $var: "len" }, 2] },
+          $then: { $var: "len" },
+          $else: null,
+        },
       },
     };
     expect(print(node)).toBe("(s) => if len == 2 then len else null where {\n  len: length(s)\n}");
     expect(parse(print(node))).toEqual(node);
   });
 
-  test("nested-lambda return with where locals is parenthesized", () => {
+  test("nested-lambda result before a function-body where is parenthesized", () => {
     const node: JSONType = {
       $params: ["p"],
-      k: 1,
-      $return: { $params: ["y"], $return: { $call: "add", $args: [{ $var: "y" }, { $var: "k" }] } },
+      $return: {
+        $let: { k: 1 },
+        $in: {
+          $params: ["y"],
+          $return: { $call: "add", $args: [{ $var: "y" }, { $var: "k" }] },
+        },
+      },
     };
     expect(parse(print(node))).toEqual(node);
     expect(print(node).startsWith("(p) => ((y) =>")).toBe(true);
@@ -341,17 +346,88 @@ describe("printer output shape", () => {
     );
   });
 
-  test("cond return with where locals needs no parens (brace-terminated)", () => {
+  test("cond result before a function-body where needs no parens", () => {
     const node: JSONType = {
       $params: ["n"],
-      big: { $call: "gt", $args: [{ $var: "n" }, 10] },
       $return: {
-        $cond: [[{ $var: "big" }, "yes"]],
-        $else: "no",
+        $let: { big: { $call: "gt", $args: [{ $var: "n" }, 10] } },
+        $in: {
+          $cond: [[{ $var: "big" }, "yes"]],
+          $else: "no",
+        },
       },
     };
     const out = print(node);
     expect(out.startsWith("(n) => cond {")).toBe(true);
     expect(parse(out)).toEqual(node);
+  });
+
+  test("prints canonical lets and preserves binding order", () => {
+    const node: JSONType = {
+      $let: {
+        sum: { $call: "add", $args: [1, 2] },
+        double: { $call: "mul", $args: [{ $var: "sum" }, 2] },
+      },
+      $in: { $var: "double" },
+    };
+    expect(print(node)).toBe("double where {\n  sum: 1 + 2,\n  double: sum * 2\n}");
+    expect(parse(print(node))).toEqual(node);
+  });
+
+  test("parenthesizes nested lets without flattening them", () => {
+    const node: JSONType = {
+      $let: { outer: 2 },
+      $in: { $let: { inner: 1 }, $in: { $var: "x" } },
+    };
+    expect(print(node)).toBe("(x where {\n  inner: 1\n}) where {\n  outer: 2\n}");
+    expect(parse(print(node))).toEqual(node);
+  });
+
+  test("keeps a genuine zero-argument IIFE as a call", () => {
+    const node: JSONType = { $call: { $return: 1 }, $args: [] };
+    expect(print(node)).toBe("(() => 1)()");
+    expect(parse(print(node))).toEqual(node);
+  });
+
+  test("rejects evaluator captures, including in do continuations", () => {
+    expect(() => print({ $return: 1, $captures: { closed: { $return: 2 } } })).toThrow(
+      "runtime closure state has no shorthand syntax",
+    );
+    expect(() =>
+      print({
+        $call: "bind",
+        $args: [
+          1,
+          {
+            $return: 2,
+            $captures: { closed: { $return: 3 } },
+          },
+        ],
+      }),
+    ).toThrow("$captures");
+  });
+
+  test("keeps capture-shaped raw payloads opaque", () => {
+    const node: JSONType = {
+      $raw: { $return: 1, $captures: { closed: { $return: 2 } } },
+    };
+    expect(print(node)).toBe('raw {"$return":1,"$captures":{"closed":{"$return":2}}}');
+  });
+
+  test("rejects historical and unknown function-body keys", () => {
+    expect(() => print({ local: 1, $return: { $var: "local" } })).toThrow(
+      'unsupported key "local"',
+    );
+    expect(() => print({ $mystery: 1, $return: null })).toThrow('unsupported key "$mystery"');
+  });
+
+  test("rejects malformed and unspellable lets", () => {
+    expect(() => print({ $in: 1 })).toThrow("expected exactly $let and $in");
+    expect(() => print({ $let: {}, $in: 1 })).toThrow("at least one binding");
+    expect(() => print({ $let: [], $in: 1 })).toThrow("$let must be an object");
+    expect(() => print({ $let: { x: 1 }, $in: 1, extra: true })).toThrow(
+      "expected exactly $let and $in",
+    );
+    expect(() => print({ $let: { "not-valid": 1 }, $in: 1 })).toThrow('"not-valid"');
   });
 });
