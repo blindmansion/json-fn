@@ -1,5 +1,11 @@
 import { isFunctionBody, isFunctionDeclaration } from "./function-value";
-import { analyzeParameters, formatParameterIssue, type ParameterIssue } from "./params";
+import {
+  analyzeParameters,
+  formatParameterIssue,
+  type ParameterIssue,
+  type ParameterLayout,
+} from "./params";
+import type { FunctionCaptures, FunctionDeclaration, JSONType } from "./types";
 
 const FUNCTION_BODY_SOURCE_FIELDS: ReadonlySet<string> = new Set([
   "$return",
@@ -25,9 +31,17 @@ type FunctionBodyStructureIssue =
   | { code: "invalid-capture"; path: ["$captures", string]; name: string }
   | { code: "invalid-runtime-contract"; path: ["$runtimeContract"] };
 
-type FunctionBodyStructureAnalysis =
-  | { ok: true; issues: [] }
-  | { ok: false; issues: FunctionBodyStructureIssue[] };
+type FunctionBodyStructureAnalysis = {
+  issues: FunctionBodyStructureIssue[];
+  layout: ParameterLayout | null;
+  captures: FunctionCaptures;
+};
+
+type ReadableRuntimeFunctionContract = Record<string, JSONType> & {
+  schema: JSONType;
+  defs: Record<string, JSONType>;
+  target: FunctionDeclaration;
+};
 
 function formatFunctionBodyStructureIssue(issue: FunctionBodyStructureIssue): string {
   switch (issue.code) {
@@ -59,7 +73,9 @@ function hasOwn(value: Record<string, unknown>, key: string): boolean {
 }
 
 /** Whether evaluator-owned function contract state satisfies its reader. */
-function isReadableRuntimeFunctionContract(value: unknown): boolean {
+function isReadableRuntimeFunctionContract(
+  value: unknown,
+): value is ReadableRuntimeFunctionContract {
   return (
     isObject(value) &&
     hasOwn(value, "schema") &&
@@ -75,7 +91,14 @@ function isReadableRuntimeFunctionContract(value: unknown): boolean {
  * when this analysis reports malformed or unsupported fields.
  */
 function analyzeFunctionBodyStructure(value: unknown): FunctionBodyStructureAnalysis {
-  if (!isObject(value)) return { ok: false, issues: [{ code: "not-object", path: [] }] };
+  const captures = Object.create(null) as FunctionCaptures;
+  if (!isObject(value)) {
+    return {
+      issues: [{ code: "not-object", path: [] }],
+      layout: null,
+      captures,
+    };
+  }
 
   const issues: FunctionBodyStructureIssue[] = [];
   if (!hasOwn(value, "$return")) issues.push({ code: "missing-return", path: [] });
@@ -90,12 +113,12 @@ function analyzeFunctionBodyStructure(value: unknown): FunctionBodyStructureAnal
     issues.push({ code: "invalid-comment", path: ["$comment"] });
   }
 
-  const params = analyzeParameters(value.$params);
-  if (!params.ok) {
+  const parameterAnalysis = analyzeParameters(value.$params);
+  if (!parameterAnalysis.ok) {
     issues.push({
       code: "invalid-params",
-      path: ["$params", ...params.issue.path],
-      issue: params.issue,
+      path: ["$params", ...parameterAnalysis.issue.path],
+      issue: parameterAnalysis.issue,
     });
   }
 
@@ -106,6 +129,8 @@ function analyzeFunctionBodyStructure(value: unknown): FunctionBodyStructureAnal
       for (const [name, capture] of Object.entries(value.$captures)) {
         if (!isFunctionBody(capture)) {
           issues.push({ code: "invalid-capture", path: ["$captures", name], name });
+        } else {
+          captures[name] = capture;
         }
       }
     }
@@ -118,7 +143,8 @@ function analyzeFunctionBodyStructure(value: unknown): FunctionBodyStructureAnal
     issues.push({ code: "invalid-runtime-contract", path: ["$runtimeContract"] });
   }
 
-  return issues.length === 0 ? { ok: true, issues: [] } : { ok: false, issues };
+  const layout = parameterAnalysis.ok ? parameterAnalysis.layout : null;
+  return { issues, layout, captures };
 }
 
 export {

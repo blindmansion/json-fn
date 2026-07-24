@@ -9,7 +9,6 @@ import {
   collectSchemaRefs,
   fixedParamSchemas,
   fnShape,
-  isSchemaObject,
   refName,
   unionArms,
 } from "./schema/schema.ts";
@@ -126,7 +125,7 @@ export function enforceRuntimeContract(
 
 export function readRuntimeFunctionContract(fn: FunctionBody): RuntimeFunctionContract | null {
   const candidate = fn.$runtimeContract;
-  if (!isSchemaObject(candidate) || !isReadableRuntimeFunctionContract(candidate)) return null;
+  if (!isReadableRuntimeFunctionContract(candidate)) return null;
   return {
     schema: candidate.schema!,
     defs: candidate.defs as Defs,

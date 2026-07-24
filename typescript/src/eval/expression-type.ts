@@ -67,7 +67,7 @@ function classifyExpressionType(json: JSONType): ExpressionType {
 
     if (isFunctionBody(json)) {
       const analysis = analyzeFunctionBodyStructure(json);
-      if (!analysis.ok) {
+      if (analysis.issues.length > 0) {
         exprError(json, formatFunctionBodyStructureIssue(analysis.issues[0]!));
       }
       return ExpressionType.FunctionBody;

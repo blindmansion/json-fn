@@ -9,11 +9,13 @@
 // `resolvingVars` cycle guard.
 
 import type { JSONType } from "../types";
-import { analyzeFunctionBodyStructure } from "../function-body-structure";
 import {
-  analyzeParameters,
+  analyzeFunctionBodyStructure,
+  formatFunctionBodyStructureIssue,
+  type FunctionBodyStructureAnalysis,
+} from "../function-body-structure";
+import {
   formatArgumentCountExpectation,
-  formatParameterIssue,
   type ParameterLayout,
   type ParameterPath,
 } from "../params";
@@ -65,9 +67,8 @@ import {
 import { isRuntimeContractSchema } from "../schema/contract.ts";
 import { isSubschema } from "./subsumption";
 
-// Adapt a structured parameter issue to the checker's existing path format.
-function parameterIssueContext(ctx: CheckContext, path: ParameterPath): CheckContext {
-  const segments: string[] = ["$params"];
+function issueContext(ctx: CheckContext, path: readonly (string | number)[]): CheckContext {
+  const segments: string[] = [];
   for (const segment of path) {
     if (typeof segment === "number") {
       segments[segments.length - 1] += `[${segment}]`;
@@ -78,14 +79,21 @@ function parameterIssueContext(ctx: CheckContext, path: ParameterPath): CheckCon
   return { ...ctx, path: [...ctx.path, ...segments] };
 }
 
-function analyzeBodyParameters(
+// Adapt a structured parameter issue to the checker's existing path format.
+function parameterIssueContext(ctx: CheckContext, path: ParameterPath): CheckContext {
+  return issueContext(ctx, ["$params", ...path]);
+}
+
+function analyzeCheckerFunctionBody(
   body: Record<string, JSONType>,
   ctx: CheckContext,
-): ParameterLayout | null {
-  const analysis = analyzeParameters(body.$params);
-  if (analysis.ok) return analysis.layout;
-  report(parameterIssueContext(ctx, analysis.issue.path), formatParameterIssue(analysis.issue));
-  return null;
+): FunctionBodyStructureAnalysis {
+  const analysis = analyzeFunctionBodyStructure(body);
+  for (const issue of analysis.issues) {
+    const message = formatFunctionBodyStructureIssue(issue);
+    report(issueContext(ctx, issue.path), message[0]!.toLowerCase() + message.slice(1));
+  }
+  return analysis;
 }
 
 // Callable declarations and normalized bodies must agree on each part of their
@@ -493,40 +501,6 @@ function buildLetrecTypeScope(
   return { env, guards };
 }
 
-function reportUnsupportedFunctionBodyFields(
-  body: Record<string, JSONType>,
-  ctx: CheckContext,
-): void {
-  const analysis = analyzeFunctionBodyStructure(body);
-  if (analysis.ok) return;
-
-  for (const issue of analysis.issues) {
-    if (issue.code !== "unsupported-field") continue;
-    report(at(ctx, issue.field), `function body field "${issue.field}" is not supported.`);
-  }
-}
-
-function captureBindings(
-  body: Record<string, JSONType>,
-  ctx: CheckContext,
-): Record<string, JSONType> {
-  if (!("$captures" in body)) return {};
-  const captureCtx = at(ctx, "$captures");
-  if (!isLetBindingMap(body.$captures)) {
-    report(captureCtx, "$captures must be a non-null object of function bodies.");
-    return {};
-  }
-  const captures = nullRecord<JSONType>();
-  for (const [name, value] of Object.entries(body.$captures)) {
-    if (nodeKind(value) !== "body" || !isBody(value)) {
-      report(at(captureCtx, name), "capture entry must be a function body.");
-      continue;
-    }
-    captures[name] = value;
-  }
-  return captures;
-}
-
 function buildExpressionTypeScope(
   bindings: Record<string, JSONType>,
   parent: TypeEnv | null,
@@ -557,11 +531,11 @@ function extendEagerTypeScope(
 function buildFunctionTypeScope(
   body: Record<string, JSONType>,
   layout: ParameterLayout,
+  captures: Record<string, JSONType>,
   parent: TypeEnv | null,
   ctx: CheckContext,
   injectedSig?: Sig,
 ): FunctionTypeScopeResult {
-  const captures = captureBindings(body, ctx);
   const captureCtx = withoutShadowedNarrowings(ctx, Object.keys(captures));
   const captureScope = buildLetrecTypeScope(captures, parent, captureCtx, {
     reportUntypedFunctions: true,
@@ -889,7 +863,7 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
       if (sigOf(body) !== null) {
         checkBody(body, ctx);
       } else {
-        reportUnsupportedFunctionBodyFields(body, ctx);
+        analyzeCheckerFunctionBody(body, ctx);
         reportDegradation(ctx, "the function value has no declared signature");
       }
       return bodyFnTypeSchema(body);
@@ -1164,10 +1138,10 @@ function checkArrayLiteral(
 // Contextually type an *un-annotated* lambda against an expected function type
 // (Priority 2 — Part A). An inline lambda usually omits its param/return
 // annotations, so its own type is un-synthesizable (`bodyFnTypeSchema` → `any`);
-// in checked position we stamp the expected signature onto a copy of the body so
-// its params bind to the expected param types, then reuse `checkBody` to verify
+// in checked position we inject the expected signature so its params bind to
+// the expected param types, then reuse `checkBody` to verify
 // its `$return` against the expected return type (recursing structurally) and
-// recurse into its nested locals — exactly as an annotated body is checked. This
+// recurse into its captures — exactly as an annotated body is checked. This
 // is what finally lets a bare capability-record lambda (`() => task`) check
 // against a field's declared `() -> Task` instead of erasing to `any` and then
 // dumping a spurious `any ⊄ (fn)`. Parameter shape is exact; a mismatch is
@@ -1178,20 +1152,11 @@ function checkLambda(
   exp: Record<string, JSONType>,
   ctx: CheckContext,
 ): void {
-  const layout = analyzeBodyParameters(body, ctx);
+  const analysis = analyzeCheckerFunctionBody(body, ctx);
+  const layout = analysis.layout;
   if (layout === null) return;
   const shape = fnShape(exp);
-  if (!checkBodyParameterShape(layout, shape, ctx, "Contextual signature")) return;
-  const withSig: Record<string, JSONType> = {
-    ...body,
-    $sig: {
-      required: shape.required,
-      optional: shape.optional,
-      ...(shape.rest !== undefined ? { rest: shape.rest } : {}),
-      returns: shape.returns,
-    },
-  };
-  checkBody(withSig, ctx, undefined, layout);
+  checkBody(body, ctx, shape, analysis);
 }
 
 // Type an unannotated inline function call by binding parameters to synthesized
@@ -1202,8 +1167,8 @@ function inlineCallBodyContext(
   args: JSONType[],
   ctx: CheckContext,
 ): CheckContext | null {
-  reportUnsupportedFunctionBodyFields(body, ctx);
-  const layout = analyzeBodyParameters(body, ctx);
+  const analysis = analyzeCheckerFunctionBody(body, ctx);
+  const layout = analysis.layout;
   if (layout === null) return null;
   const hasRest = layout.rest !== null;
   const fixed = layout.fixedCount;
@@ -1224,12 +1189,8 @@ function inlineCallBodyContext(
   };
   if (!checkArity(syntheticSig, args.length, ctx)) return null;
 
-  const withSig: Record<string, JSONType> = {
-    ...body,
-    $sig: syntheticSig,
-  };
   const { env, guards, narrowings, parameterDefaults, parameterBindingsValid } =
-    buildFunctionTypeScope(withSig, layout, ctx.env, ctx, syntheticSig);
+    buildFunctionTypeScope(body, layout, analysis.captures, ctx.env, ctx, syntheticSig);
   if (!parameterBindingsValid) return null;
   const bctx: CheckContext = { ...ctx, env, guards, narrowings };
   checkParameterDefaults(parameterDefaults, bctx);
@@ -1272,7 +1233,7 @@ function check(expr: JSONType, expected: Schema, ctx: CheckContext): void {
     if (classifySchema(exp) === SchemaKind.FnType) {
       checkLambda(body, asObject(exp), ctx);
     } else {
-      reportUnsupportedFunctionBodyFields(body, ctx);
+      analyzeCheckerFunctionBody(body, ctx);
     }
     return;
   }
@@ -1346,13 +1307,10 @@ function checkBody(
   body: Record<string, JSONType>,
   ctx: CheckContext,
   injectedSig?: Sig,
-  analyzedLayout?: ParameterLayout,
+  priorAnalysis?: FunctionBodyStructureAnalysis,
 ): void {
-  reportUnsupportedFunctionBodyFields(body, ctx);
-  if ("$comment" in body && typeof body.$comment !== "string") {
-    report(at(ctx, "$comment"), "function body $comment must be a string.");
-  }
-  const layout = analyzedLayout ?? analyzeBodyParameters(body, ctx);
+  const analysis = priorAnalysis ?? analyzeCheckerFunctionBody(body, ctx);
+  const layout = analysis.layout;
   if (layout === null) return;
   const declaredSig = sigOf(body);
   if (
@@ -1364,7 +1322,7 @@ function checkBody(
   }
   const sig = injectedSig ?? declaredSig;
   const { env, guards, narrowings, parameterDefaults, parameterBindingsValid } =
-    buildFunctionTypeScope(body, layout, ctx.env, ctx, injectedSig);
+    buildFunctionTypeScope(body, layout, analysis.captures, ctx.env, ctx, injectedSig);
   if (!parameterBindingsValid) return;
   const bctx: CheckContext = { ...ctx, env, guards, narrowings };
   checkParameterDefaults(parameterDefaults, bctx);
@@ -1389,7 +1347,7 @@ function checkBodyParameterShape(
 }
 
 export {
-  analyzeBodyParameters,
+  analyzeCheckerFunctionBody,
   parameterShapeMatches,
   checkBodyParameterShape,
   describeParameterLayout,
@@ -1397,7 +1355,6 @@ export {
   acceptsArgumentCount,
   buildFunctionTypeScope,
   buildModuleTypeScope,
-  reportUnsupportedFunctionBodyFields,
   checkParameterDefaults,
   synth,
   paramAt,

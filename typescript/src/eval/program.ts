@@ -34,6 +34,8 @@ function createEvaluationSession(
   return {
     context: {
       functions,
+      localFns: EMPTY_LOCAL_FNS,
+      attachFns: EMPTY_LOCAL_FNS,
       limits: execution.limits,
       state: execution.state,
       perf: execution.perf,
@@ -95,14 +97,7 @@ export function callFunction(
 ): JSONType {
   const session = createEvaluationSession(functions, limits, definitions);
   try {
-    return callFunctionInternal(fn, args, {
-      ...session.context,
-      // The supplied registry is persistent, but locals declared by this
-      // function are not. Seed explicit empty sets so escaping closures attach
-      // those locals instead of treating the function body like module scope.
-      localFns: EMPTY_LOCAL_FNS,
-      attachFns: EMPTY_LOCAL_FNS,
-    });
+    return callFunctionInternal(fn, args, session.context);
   } finally {
     session.syncUsage();
   }

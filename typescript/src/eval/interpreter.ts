@@ -4,6 +4,7 @@ import type {
   FunctionReference,
   FunctionDeclaration,
   FunctionBody,
+  FunctionCaptures,
   FunctionRegistry,
   LetExpression,
   VariableReference,
@@ -39,7 +40,7 @@ import {
   prepareRuntimeContractCall,
   readRuntimeFunctionContract,
 } from "../runtime-contract";
-import { requireParameterLayout, validateRuntimeArguments, type ParameterLayout } from "../params";
+import { validateRuntimeArguments, type ParameterLayout } from "../params";
 import { isFunctionBody, isFunctionDeclaration } from "../function-value";
 import { replaceVars } from "./closures";
 import { accountForResult, chargeFuel, checkInterrupt, guardValueSize } from "./execution";
@@ -159,7 +160,7 @@ export function callFunctionInternal(
       // to the registry — local recursion is preserved. A non-function lexical
       // binding (e.g. `add: 5`) does not hijack a call position; resolution falls
       // through to the registry below.
-      const lexical = context.localFns?.has(fn) ? undefined : context.getVar?.(fn);
+      const lexical = context.localFns.has(fn) ? undefined : context.getVar?.(fn);
       if (lexical !== undefined && isFunctionDeclaration(lexical)) {
         result = callFunctionInternal(lexical, args, context);
         markEvaluated(result);
@@ -284,7 +285,7 @@ function createLazyFrame(
     }
   }
 
-  const parentLocalFns = context.localFns ?? EMPTY_LOCAL_FNS;
+  const parentLocalFns = context.localFns;
   let localFns = parentLocalFns;
   if (localFnKeys.length > 0) {
     const merged = new Set(parentLocalFns);
@@ -292,7 +293,7 @@ function createLazyFrame(
     localFns = merged;
   }
 
-  const parentAttachFns = context.attachFns ?? EMPTY_LOCAL_FNS;
+  const parentAttachFns = context.attachFns;
   let attachFns = parentAttachFns;
   if (policy.attachLocalFunctions && localFnKeys.length > 0) {
     const merged = new Set(parentAttachFns);
@@ -339,16 +340,13 @@ function createLazyFrame(
   };
 
   if (localFnKeys.length > 0) {
+    const environment = { functions: scopedFunctions, localFns, attachFns };
     for (const key of localFnKeys) {
       const body = lazyBindings[key]!;
       if (!isFunctionBody(body)) continue;
       const closedBody = replaceVars(body, getVar, localFns, attachFns, undefined, context);
       scopedFunctions[key] = closedBody;
-      registerFunctionEnvironment(closedBody, {
-        functions: scopedFunctions,
-        localFns,
-        attachFns,
-      });
+      registerFunctionEnvironment(closedBody, environment);
     }
   }
 
@@ -421,28 +419,22 @@ export function initializeModuleBindings(
   return createLazyFrame({}, module, context, { attachLocalFunctions: false });
 }
 
-function seedFunctionCaptures(fn: FunctionBody, context: EvaluationContext): EvaluationContext {
-  const captures = fn.$captures;
-  if (captures === undefined) return context;
-  if (captures === null || typeof captures !== "object" || Array.isArray(captures)) {
-    exprError(fn, "Function $captures must be a non-null object of function bodies.");
-  }
-
+function seedFunctionCaptures(
+  captures: FunctionCaptures,
+  context: EvaluationContext,
+): EvaluationContext {
   const names = Object.keys(captures);
   if (names.length === 0) return context;
   const functions = { ...context.functions };
   for (const name of names) {
     const definition = captures[name];
-    if (!isFunctionBody(definition)) {
-      exprError(fn, `Function capture "${name}" must be a function body.`);
-    }
-    if (!context.localFns?.has(name) || !isFunctionBody(functions[name])) {
-      functions[name] = definition;
+    if (!context.localFns.has(name) || !isFunctionBody(functions[name])) {
+      functions[name] = definition!;
     }
   }
 
-  const localFns = new Set(context.localFns ?? EMPTY_LOCAL_FNS);
-  const attachFns = new Set(context.attachFns ?? EMPTY_LOCAL_FNS);
+  const localFns = new Set(context.localFns);
+  const attachFns = new Set(context.attachFns);
   for (const name of names) {
     localFns.add(name);
     attachFns.add(name);
@@ -461,7 +453,7 @@ function callJSONFunction(fn: FunctionBody, args: JSONType[], context: Evaluatio
   const { perf } = context;
   if (perf) perf.callJSONFunction++;
   const analysis = analyzeFunctionBodyStructure(fn);
-  if (!analysis.ok) {
+  if (analysis.issues.length > 0) {
     exprError(fn, formatFunctionBodyStructureIssue(analysis.issues[0]!));
   }
   const { limits, state } = context;
@@ -475,9 +467,9 @@ function callJSONFunction(fn: FunctionBody, args: JSONType[], context: Evaluatio
     return enforceRuntimeContractReturn(result, prepared.returns, contract.defs);
   }
 
-  const layout = requireParameterLayout(fn.$params, fn);
+  const layout = analysis.layout!;
   validateRuntimeArguments(layout, args);
-  const captureContext = seedFunctionCaptures(fn, context);
+  const captureContext = seedFunctionCaptures(analysis.captures, context);
   const { getVar, functions, localFns, attachFns } = bindParameters(layout, args, captureContext);
 
   return evaluateExpression(fn.$return, {
@@ -570,8 +562,8 @@ function evaluateExpression(expression: JSONType, context: EvaluationContext): J
       return replaceVars(
         expression,
         getVar,
-        context.localFns ?? EMPTY_LOCAL_FNS,
-        context.attachFns ?? EMPTY_LOCAL_FNS,
+        context.localFns,
+        context.attachFns,
         context.functions,
         context,
       );

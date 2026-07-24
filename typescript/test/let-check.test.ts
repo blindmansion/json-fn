@@ -340,10 +340,10 @@ describe("function captures in the checker", () => {
   });
 
   test.each([
-    [null, ["$captures"], "$captures must be a non-null object"],
-    [[], ["$captures"], "$captures must be a non-null object"],
-    [1, ["$captures"], "$captures must be a non-null object"],
-    [{ helper: 1 }, ["$captures", "helper"], "capture entry must be a function body"],
+    [null, ["$captures"], "function $captures must be a non-null object"],
+    [[], ["$captures"], "function $captures must be a non-null object"],
+    [1, ["$captures"], "function $captures must be a non-null object"],
+    [{ helper: 1 }, ["$captures", "helper"], 'function capture "helper" must be a function body'],
   ] satisfies [JSONType, string[], string][])(
     "reports malformed captures %#",
     (captures, path, message) => {

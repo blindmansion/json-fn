@@ -27,26 +27,26 @@ describe("function body structure", () => {
   });
 
   test("accepts source bodies and readable evaluator-owned state", () => {
-    expect(
-      analyzeFunctionBodyStructure({
-        $params: ["value"],
-        $sig: { required: [true], optional: [], returns: true },
-        $comment: "identity",
-        $return: { $var: "value" },
-      }),
-    ).toEqual({ ok: true, issues: [] });
+    const sourceAnalysis = analyzeFunctionBodyStructure({
+      $params: ["value"],
+      $sig: { required: [true], optional: [], returns: true },
+      $comment: "identity",
+      $return: { $var: "value" },
+    });
+    expect(sourceAnalysis.issues).toEqual([]);
+    expect(sourceAnalysis.layout?.requiredCount).toBe(1);
 
-    expect(
-      analyzeFunctionBodyStructure({
-        $return: null,
-        $captures: { helper: { $return: 1 } },
-        $runtimeContract: {
-          schema: { $fnType: { required: [], optional: [], returns: true } },
-          defs: {},
-          target: { $return: 1 },
-        },
-      }),
-    ).toEqual({ ok: true, issues: [] });
+    const runtimeAnalysis = analyzeFunctionBodyStructure({
+      $return: null,
+      $captures: { helper: { $return: 1 } },
+      $runtimeContract: {
+        schema: { $fnType: { required: [], optional: [], returns: true } },
+        defs: {},
+        target: { $return: 1 },
+      },
+    });
+    expect(runtimeAnalysis.issues).toEqual([]);
+    expect(runtimeAnalysis.captures).toEqual({ helper: { $return: 1 } });
   });
 
   test("reports every unsupported ordinary or reserved field", () => {
@@ -56,14 +56,11 @@ describe("function body structure", () => {
       $unknown: true,
       $return: null,
     });
-    expect(analysis).toEqual({
-      ok: false,
-      issues: [
-        { code: "unsupported-field", path: ["local"], field: "local" },
-        { code: "unsupported-field", path: ["$types"], field: "$types" },
-        { code: "unsupported-field", path: ["$unknown"], field: "$unknown" },
-      ],
-    });
+    expect(analysis.issues).toEqual([
+      { code: "unsupported-field", path: ["local"], field: "local" },
+      { code: "unsupported-field", path: ["$types"], field: "$types" },
+      { code: "unsupported-field", path: ["$unknown"], field: "$unknown" },
+    ]);
   });
 
   test("reports malformed supported fields at precise relative paths", () => {
@@ -73,8 +70,6 @@ describe("function body structure", () => {
       $captures: { valid: { $return: null }, invalid: 1 },
       $runtimeContract: { schema: true, defs: {}, target: 1 },
     });
-    expect(analysis.ok).toBeFalse();
-    if (analysis.ok) throw new Error("expected malformed body");
     expect(analysis.issues.map(({ code, path }) => ({ code, path }))).toEqual([
       { code: "missing-return", path: [] },
       { code: "invalid-comment", path: ["$comment"] },
@@ -87,11 +82,8 @@ describe("function body structure", () => {
   test("keeps body recognition separate from validity", () => {
     const malformed = { local: 1, $return: null };
     expect(isFunctionBody(malformed)).toBeTrue();
-    expect(analyzeFunctionBodyStructure(malformed).ok).toBeFalse();
-    expect(analyzeFunctionBodyStructure(null)).toEqual({
-      ok: false,
-      issues: [{ code: "not-object", path: [] }],
-    });
+    expect(analyzeFunctionBodyStructure(malformed).issues).not.toEqual([]);
+    expect(analyzeFunctionBodyStructure(null).issues).toEqual([{ code: "not-object", path: [] }]);
   });
 });
 
@@ -151,6 +143,23 @@ describe("function body structural boundaries", () => {
       ["invalid", "$return"],
     ]);
     expect(diagnostics.every(({ path }) => !path.includes("$params"))).toBeTrue();
+  });
+
+  test("checker reports malformed supported fields on unannotated bodies", () => {
+    const errors = checkExpr({
+      $comment: false,
+      $params: 42,
+      $captures: 42,
+      $runtimeContract: {},
+      $return: null,
+    }).diagnostics.filter(({ severity }) => severity === "error");
+
+    expect(errors.map(({ path }) => path)).toEqual([
+      ["$comment"],
+      ["$params"],
+      ["$captures"],
+      ["$runtimeContract"],
+    ]);
   });
 
   test("checker rejects stray fields in unannotated value and inline-call bodies", () => {

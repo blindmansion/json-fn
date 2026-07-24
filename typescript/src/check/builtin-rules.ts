@@ -27,14 +27,13 @@ import type {
 import { CallableTypeRuleContractError, CallableTypeRuleOwnershipError } from "./callable-rules";
 import {
   acceptsArgumentCount,
-  analyzeBodyParameters,
+  analyzeCheckerFunctionBody,
   buildFunctionTypeScope,
   check,
   checkArity,
   checkBodyParameterShape,
   checkParameterDefaults,
   paramAt,
-  reportUnsupportedFunctionBodyFields,
   reportMismatch,
   synth,
 } from "./checker";
@@ -282,22 +281,13 @@ function unifyTemplate(
 // body are checked.
 function inferLambdaReturn(body: JSONType, expectedFn: Schema, ctx: CheckContext): Schema | null {
   const bodyObject = body as Record<string, JSONType>;
-  reportUnsupportedFunctionBodyFields(bodyObject, ctx);
-  const layout = analyzeBodyParameters(bodyObject, ctx);
+  const analysis = analyzeCheckerFunctionBody(bodyObject, ctx);
+  const layout = analysis.layout;
   if (layout === null) return null;
   const shape = fnShape(asObject(expectedFn));
   if (!checkBodyParameterShape(layout, shape, ctx, "Contextual signature")) return null;
-  const withSig: Record<string, JSONType> = {
-    ...bodyObject,
-    $sig: {
-      required: shape.required,
-      optional: shape.optional,
-      ...(shape.rest !== undefined ? { rest: shape.rest } : {}),
-      returns: shape.returns,
-    },
-  };
   const { env, guards, narrowings, parameterDefaults, parameterBindingsValid } =
-    buildFunctionTypeScope(withSig, layout, ctx.env, ctx, shape);
+    buildFunctionTypeScope(bodyObject, layout, analysis.captures, ctx.env, ctx, shape);
   if (!parameterBindingsValid) return null;
   const bctx: CheckContext = { ...ctx, env, guards, narrowings };
   checkParameterDefaults(parameterDefaults, bctx);
@@ -404,8 +394,7 @@ function applyOverload(
     if (classifySchema(param) !== SchemaKind.FnType) {
       const lambda = argExprs[i] as Record<string, JSONType>;
       const actx = at(ctx, `$args[${i}]`);
-      reportUnsupportedFunctionBodyFields(lambda, actx);
-      const layout = analyzeBodyParameters(lambda, actx);
+      const layout = analyzeCheckerFunctionBody(lambda, actx).layout;
       if (layout === null) continue;
       const arity = layout.slots.length;
       const actual: Schema = {
