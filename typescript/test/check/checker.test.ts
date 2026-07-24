@@ -1118,6 +1118,33 @@ describe("check: bidirectional branch arms (Part A)", () => {
       expect(checkModule(mod, BT)).toEqual([]);
     });
 
+    test("short-circuit tails inherit equality null guards", () => {
+      const nullableInteger: Schema = { anyOf: [I, { type: "null" }] };
+      const guardedComparison = (operator: "and" | "or"): JSONType => ({
+        [`$${operator}`]: [
+          {
+            $call: operator === "and" ? "neq" : "eq",
+            $args: [{ $var: "value" }, null],
+          },
+          { $call: "gt", $args: [{ $var: "value" }, 0] },
+        ],
+      });
+      const mod = {
+        viaAnd: body(
+          ["value"],
+          { required: [nullableInteger], optional: [], returns: I },
+          { $if: guardedComparison("and"), $then: { $var: "value" }, $else: 0 },
+        ),
+        viaOr: body(
+          ["value"],
+          { required: [nullableInteger], optional: [], returns: I },
+          { $if: guardedComparison("or"), $then: 1, $else: 0 },
+        ),
+      };
+
+      expect(checkModule(mod, BT)).toEqual([]);
+    });
+
     test("isInteger false leaves a bare number neither string nor integer", () => {
       const mod = {
         asString: body(

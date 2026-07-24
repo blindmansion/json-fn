@@ -173,10 +173,13 @@ function restrictToLiteral(s: Schema, v: JSONType, defs: Defs): Schema {
   return valueSatisfies(v, s, defs) ? { const: v } : false;
 }
 
-// Meet with "value ≠ v": enum/const membership surgery (a no-op for schemas
-// with no finite literal set).
+// Meet with "value ≠ v": enum/const membership surgery. `null` is also exactly
+// removable when it appears as a primitive union arm (`T | null`), because it
+// denotes a complete runtime category rather than one point in a broad
+// primitive such as string or integer.
 function excludeLiteral(s: Schema, v: JSONType, defs: Defs): Schema {
   const t = resolveDeep(s, defs);
+  if (v === null) return removeType(t, "null", defs);
   switch (classifySchema(t)) {
     case SchemaKind.Enum:
       return fromLiterals(literalValues(t).filter((x) => !deepEqual(x, v)));

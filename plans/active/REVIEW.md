@@ -12,7 +12,11 @@ ergonomic papercut with a workaround; **Low** = polish / documented-but-lossy.
 
 ---
 
-## 1. `x != null` / `x == null` does not narrow — High (ergonomics)
+## 1. `x != null` / `x == null` does not narrow — Resolved
+
+Resolved by treating `null` as a category-exact exclusion in equality narrowing:
+excluding it now removes a primitive `null` union arm while all other broad-literal
+exclusions retain the frozen conservative behavior.
 
 The most common null-guard idiom from JS/TS silently fails to discharge nullability:
 

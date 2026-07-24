@@ -123,7 +123,9 @@ with the sense flipped), where `x` is a **bare-variable** subject:
 
 - then: pin to `{const <lit>}` when the literal is admissible, else `never`.
 - else: exclude the literal (enum/const membership surgery; a no-op for a
-  subject with no finite literal set).
+  subject with no finite literal set), with one category-exact exception:
+  excluding `null` removes a primitive `null` arm from a union. Thus
+  `x != null` narrows `T | null` to `T`.
 
 ### 4. Equality — discriminant (field path)
 

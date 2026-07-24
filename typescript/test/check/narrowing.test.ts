@@ -394,6 +394,56 @@ describe("narrowing — equality: literal pin/exclude (form 3)", () => {
       sense: true,
       expected: { color: { const: "b" } },
     },
+    {
+      name: "neq(x, null) then removes a primitive null union arm",
+      env: { x: intOrNull },
+      cond: call("neq", v("x"), null),
+      sense: true,
+      expected: { x: { type: "integer" } },
+    },
+    {
+      name: "eq(x, null) else removes a primitive null union arm",
+      env: { x: intOrNull },
+      cond: call("eq", v("x"), null),
+      sense: false,
+      expected: { x: { type: "integer" } },
+    },
+    {
+      name: "null exclusion is symmetric in argument order",
+      env: { x: intOrNull },
+      cond: call("neq", null, v("x")),
+      sense: true,
+      expected: { x: { type: "integer" } },
+    },
+    {
+      name: "eq(x, null) then still pins null",
+      env: { x: intOrNull },
+      cond: call("eq", v("x"), null),
+      sense: true,
+      expected: { x: { const: null } },
+    },
+    {
+      name: "null exclusion handles type-array unions",
+      env: { x: { type: ["integer", "null"] } },
+      cond: call("neq", v("x"), null),
+      sense: true,
+      expected: { x: { type: "integer" } },
+    },
+    {
+      name: "null exclusion resolves a named nullable type",
+      env: { x: { $ref: "#/$defs/MaybeInt" } },
+      defs: { MaybeInt: intOrNull },
+      cond: call("neq", v("x"), null),
+      sense: true,
+      expected: { x: { type: "integer" } },
+    },
+    {
+      name: "excluding a non-null literal from a broad primitive remains a no-op",
+      env: { x: { type: "string" } },
+      cond: call("neq", v("x"), "special"),
+      sense: true,
+      expected: { x: { type: "string" } },
+    },
   ]);
 });
 
@@ -579,6 +629,12 @@ describe("narrowing — $match subject", () => {
     const ctx = ctxOf({ color: Color });
     expect(matchCaseFact(v("color"), "w", ctx)).toEqual({ color: { const: "w" } });
     expect(matchElseFact(v("color"), ["w"], ctx)).toEqual({ color: { const: "b" } });
+  });
+
+  test("a null case leaves the non-null arm for else", () => {
+    const ctx = ctxOf({ x: intOrNull });
+    expect(matchCaseFact(v("x"), null, ctx)).toEqual({ x: { const: null } });
+    expect(matchElseFact(v("x"), [null], ctx)).toEqual({ x: { type: "integer" } });
   });
 
   test("discriminant-path case narrows the base to the matching arm; else drops it", () => {

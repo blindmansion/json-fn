@@ -797,11 +797,22 @@ function checkArity(sig: Sig, argc: number, ctx: CheckContext): boolean {
 function shortCircuitType(exprs: JSONType[], isAnd: boolean, ctx: CheckContext): Schema {
   const key = isAnd ? "$and" : "$or";
   if (exprs.length === 0) return { const: isAnd };
-  const arms = exprs.map((e, i) => {
-    const t = synth(e, at(ctx, `${key}[${i}]`));
-    if (i === exprs.length - 1) return t;
-    return isAnd ? restrictToFalsy(t, ctx.defs) : restrictToTruthy(t, ctx.defs);
-  });
+  const arms: Schema[] = [];
+  let operandCtx = ctx;
+  for (const [i, e] of exprs.entries()) {
+    const t = synth(e, at(operandCtx, `${key}[${i}]`));
+    if (i === exprs.length - 1) {
+      arms.push(t);
+      continue;
+    }
+    arms.push(isAnd ? restrictToFalsy(t, ctx.defs) : restrictToTruthy(t, ctx.defs));
+
+    // Reaching the next operand proves every prior `$and` operand truthy, or
+    // every prior `$or` operand falsy. Thread those facts while checking the
+    // tail, matching both runtime short-circuiting and condition composition.
+    const facts = factsFromCondition(e, isAnd, operandCtx);
+    operandCtx = withNarrowings(operandCtx, facts);
+  }
   return unionOf(arms);
 }
 

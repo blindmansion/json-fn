@@ -27,6 +27,26 @@ test("jfn check accepts shorthand function-body where", () => {
   expect(result.stdout).toContain("No type errors.");
 });
 
+test("jfn check narrows nullable values through equality with null", () => {
+  const modules = [
+    "{ guard: (x: integer | null) -> integer => if x != null then x else 0 }",
+    "{ guard: (x: integer | null) -> integer => if x == null then 0 else x }",
+    "{ guard: (x: integer | null) -> integer => if null != x then x else 0 }",
+    "{ guard: (x?: integer) -> integer => cond { x == null -> 0, else -> x } }",
+    "{ guard: (x: integer | null) -> integer => match x { null -> 0, else -> x } }",
+    "{ guard: (x: integer | null) -> integer => if x != null && x > 0 then x else 0 }",
+    "{ guard: (x: integer | null) -> integer => if x == null || x > 0 then 1 else 0 }",
+  ];
+
+  for (const module of modules) {
+    const result = runCheck([module]);
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).toContain("No type errors.");
+    expect(result.stdout).toContain("Type coverage: complete");
+  }
+});
+
 describe("jfn check coverage reporting", () => {
   test("a clean typed module reports full coverage", () => {
     const mod = {
