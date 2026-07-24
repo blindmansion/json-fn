@@ -1,5 +1,4 @@
 import type { FunctionRegistry, JSONType } from "../types";
-import { CONTRACT_KEY } from "../runtime-contract";
 import { boundParameterNames, defaultBindings, requireParameterLayout } from "../params";
 import { isRaw, raw } from "../utils";
 import { isFunctionBody, isFunctionDeclaration } from "../function-value";
@@ -87,30 +86,8 @@ export function replaceVars(
     }
 
     if (isFunctionBody(expression)) {
-      const localNames = new Set(
-        Object.keys(expression).filter((key) => {
-          if (
-            key === "$return" ||
-            key === "$params" ||
-            key === "$sig" ||
-            key === "$types" ||
-            key === "$captures" ||
-            key === CONTRACT_KEY
-          ) {
-            return false;
-          }
-          if (
-            key === "$comment" &&
-            typeof (expression as Record<string, JSONType>)[key] === "string"
-          ) {
-            return false;
-          }
-          return true;
-        }),
-      );
-
       const layout = requireParameterLayout(expression.$params, expression);
-      for (const name of boundParameterNames(layout)) localNames.add(name);
+      const localNames = new Set(boundParameterNames(layout));
       const captures =
         expression.$captures !== undefined &&
         expression.$captures !== null &&
@@ -123,26 +100,72 @@ export function replaceVars(
       }
       const scopedLocalFns = new Set(localFns);
       for (const name of Object.keys(captures ?? {})) scopedLocalFns.add(name);
-      for (const [name, value] of Object.entries(expression)) {
-        if (!localNames.has(name) || name in (captures ?? {})) continue;
-        if (isFunctionBody(value)) scopedLocalFns.add(name);
-      }
 
       const maskedGetVar =
         localNames.size > 0
           ? (name: string) => (localNames.has(name) ? undefined : getVar(name))
           : getVar;
 
-      const newObject: Record<string, JSONType> = {};
-      for (const [key, value] of Object.entries(expression)) {
-        newObject[key] = replaceVars(
-          value,
-          maskedGetVar,
-          scopedLocalFns,
-          attachFns,
-          localFnDefs,
-          context,
-        );
+      const newObject: Record<string, JSONType> = { ...expression };
+      if (expression.$params !== undefined) {
+        const params = [...(expression.$params as JSONType[])];
+        for (const slot of layout.slots) {
+          if (slot.kind === "defaulted") {
+            params[slot.index] = {
+              ...(params[slot.index] as Record<string, JSONType>),
+              $default: replaceVars(
+                slot.defaultExpression,
+                maskedGetVar,
+                scopedLocalFns,
+                attachFns,
+                localFnDefs,
+                context,
+              ),
+            };
+            continue;
+          }
+          if (slot.kind !== "fields") continue;
+          const pattern = params[slot.index] as { $fields: JSONType[] };
+          const fields = [...pattern.$fields];
+          for (const binding of slot.bindings) {
+            if (binding.kind !== "defaulted") continue;
+            fields[binding.fieldIndex] = {
+              ...(fields[binding.fieldIndex] as Record<string, JSONType>),
+              $default: replaceVars(
+                binding.defaultExpression,
+                maskedGetVar,
+                scopedLocalFns,
+                attachFns,
+                localFnDefs,
+                context,
+              ),
+            };
+          }
+          params[slot.index] = { $fields: fields };
+        }
+        newObject.$params = params;
+      }
+      newObject.$return = replaceVars(
+        expression.$return,
+        maskedGetVar,
+        scopedLocalFns,
+        attachFns,
+        localFnDefs,
+        context,
+      );
+      if (captures !== undefined) {
+        const newCaptures: Record<string, JSONType> = {};
+        for (const [name, definition] of Object.entries(captures)) {
+          newCaptures[name] = replaceVars(
+            definition,
+            maskedGetVar,
+            scopedLocalFns,
+            attachFns,
+            localFnDefs,
+            context,
+          );
+        }
+        newObject.$captures = newCaptures;
       }
       // Re-attach the enclosing local functions this escaping body still calls
       // by name, so it stays callable once it leaves its defining scope. Off
@@ -167,7 +190,7 @@ export function replaceVars(
     // function declaration *and* it is not a scoped local function name. Local
     // function names stay literal so they keep dispatching through the registry
     // (recursion/mutual-recursion are preserved). The current body's own
-    // params/locals are masked out of `getVar` upstream, so only free lexical
+    // parameters and captures are masked out of `getVar` upstream, so only free lexical
     // bindings of *enclosing* scopes are captured.
     if ("$call" in expression) {
       const callee = (expression as Record<string, JSONType>).$call!;
@@ -256,8 +279,8 @@ function collectFnNameRefs(
   for (const value of Object.values(node)) collectFnNameRefs(value, filter, out, blocked);
 }
 
-// Scan a function body's own level (its `$return`, locals, and parameter
-// defaults — not nested lambdas) for referenced function names.
+// Scan a function body's parameter defaults, `$return`, and serialized capture
+// definitions for referenced function names.
 function scanBodyLevelFnNameRefs(
   body: Record<string, JSONType>,
   filter: ReadonlySet<string> | null,
@@ -267,27 +290,23 @@ function scanBodyLevelFnNameRefs(
   if (visited.has(body)) return;
   visited.add(body);
   const layout = requireParameterLayout(body.$params, body);
+  const captures =
+    body.$captures !== undefined &&
+    body.$captures !== null &&
+    typeof body.$captures === "object" &&
+    !Array.isArray(body.$captures)
+      ? body.$captures
+      : undefined;
+  const blocked = new Set(boundParameterNames(layout));
+  for (const name of Object.keys(captures ?? {})) blocked.add(name);
   for (const binding of defaultBindings(layout)) {
-    collectFnNameRefs(binding.expression, filter, out);
+    collectFnNameRefs(binding.expression, filter, out, blocked);
   }
-  for (const [key, value] of Object.entries(body)) {
-    if (key === "$params") continue;
-    if (key === "$sig" || key === "$types" || key === CONTRACT_KEY) continue;
-    if (key === "$comment" && typeof value === "string") continue;
-    if (
-      key === "$captures" &&
-      value !== null &&
-      typeof value === "object" &&
-      !Array.isArray(value)
-    ) {
-      for (const definition of Object.values(value)) {
-        if (isFunctionBody(definition)) {
-          scanBodyLevelFnNameRefs(definition as Record<string, JSONType>, filter, out, visited);
-        }
-      }
-      continue;
+  collectFnNameRefs(body.$return!, filter, out, blocked);
+  for (const definition of Object.values(captures ?? {})) {
+    if (isFunctionBody(definition)) {
+      scanBodyLevelFnNameRefs(definition as Record<string, JSONType>, filter, out, visited);
     }
-    collectFnNameRefs(value, filter, out);
   }
 }
 
@@ -344,8 +363,8 @@ function cachedCountNodes(node: object): number {
 // closed-over registry) rather than `getVar`, so mutually recursive clusters
 // do not trip the lazy-`$var` cycle detector. The walk is transitive (an
 // attached function pulls in the siblings it calls) and cycle-safe (names
-// already present are skipped). Names bound by this body — its own params and
-// locals — are never attached, preserving shadowing. Each attached definition
+// already present are skipped). Names bound by this body's parameters and
+// captures are never attached, preserving shadowing. Each attached definition
 // is charged to the fuel/value-size budget so runaway capture fails fast.
 function attachFreeLocalFns(
   body: Record<string, JSONType>,

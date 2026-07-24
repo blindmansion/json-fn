@@ -166,6 +166,22 @@ describe("$let local functions", () => {
     expect(callFunction(restored, [7], stdlib)).toBe(false);
   });
 
+  test("does not attach an enclosing function shadowed by a parameter", () => {
+    const escaped = evaluate(
+      letExpression(
+        { selected: { $return: "outer" } },
+        {
+          $params: ["selected"],
+          $return: { $call: "selected", $args: [] },
+        },
+      ),
+    ) as FunctionBody;
+    const selected: FunctionBody = { $return: "argument" };
+
+    expect(escaped.$captures).toBeUndefined();
+    expect(callFunction(escaped, [selected], stdlib)).toBe("argument");
+  });
+
   test("masks an outer same-named function across a nested let", () => {
     const maker = evaluate(
       letExpression(
