@@ -148,6 +148,10 @@ function unifyTemplateInto(
   bindings: Bindings,
   ctx: CheckContext,
 ): boolean {
+  // `any` is absence of evidence. It neither rejects a template nor binds one
+  // of its variables; overload selection handles the resulting uncertainty.
+  if (resolveDeep(concrete, ctx.defs) === true) return true;
+
   if (isTVar(template)) {
     const name = template.$tvar;
     bindings[name] = name in bindings ? unionOf([bindings[name]!, concrete]) : concrete;
@@ -297,13 +301,20 @@ function inferLambdaReturn(body: JSONType, expectedFn: Schema, ctx: CheckContext
 // Trial: can this overload accept the arguments? Synthesizes every concrete
 // argument first, then binds from all of them before validating any one against
 // its instantiated parameter. Lambdas are deferred to `applyOverload`. Returns
-// the bindings on success, null on a concrete mismatch or arity failure. Runs
-// silently — diagnostics are emitted only for the chosen overload.
+// a trial on success, null on a concrete mismatch or arity failure. `uncertain`
+// records that an `any` argument prevented confirmation. Runs silently —
+// diagnostics are emitted only after the possible overload set is known.
+type OverloadTrial = {
+  signature: CallableSignature;
+  bindings: Bindings;
+  uncertain: boolean;
+};
+
 function tryBindOverload(
   sig: CallableSignature,
   argExprs: JSONType[],
   ctx: CheckContext,
-): Bindings | null {
+): OverloadTrial | null {
   if (!acceptsArgumentCount(sig, argExprs.length)) return null;
   const bindings: Bindings = {};
   const silent: CheckContext = { ...ctx, diagnostics: [] };
@@ -319,12 +330,18 @@ function tryBindOverload(
   for (const arg of concrete) {
     if (!unifyTemplate(arg.param, arg.schema, bindings, ctx)) return null;
   }
+  let uncertain = false;
   for (const arg of concrete) {
-    if (arg.schema !== true && !isSubschema(arg.schema, instantiate(arg.param, bindings), ctx.defs))
-      return null;
+    const actual = resolveDeep(arg.schema, ctx.defs);
+    const expected = instantiate(arg.param, bindings);
+    if (actual === true) {
+      if (resolveDeep(expected, ctx.defs) !== true) uncertain = true;
+      continue;
+    }
+    if (!isSubschema(actual, expected, ctx.defs)) return null;
   }
 
-  return bindings;
+  return { signature: sig, bindings, uncertain };
 }
 
 // Real pass over a chosen overload: emit diagnostics, type inline lambdas with
@@ -548,6 +565,87 @@ function reportNoOverload(
   return instantiate(overloads[0]!.returns, {});
 }
 
+function normalizedReturnUnion(schemas: Schema[], ctx: CheckContext): Schema {
+  const combined = unionOf(schemas);
+  const arms = unionArms(combined);
+  if (arms === null) return combined;
+  return unionOf(
+    arms.filter(
+      (arm, index) =>
+        !arms.some(
+          (candidate, candidateIndex) =>
+            index !== candidateIndex &&
+            isSubschema(arm, candidate, ctx.defs) &&
+            !isSubschema(candidate, arm, ctx.defs),
+        ),
+    ),
+  );
+}
+
+// An uncertain overload set represents every arm the runtime value could
+// select. Check each interpretation independently, retain diagnostics common to
+// all of them, and join their possible returns instead of using declaration
+// order as accidental type evidence.
+function applyOverloadTrials(
+  trials: OverloadTrial[],
+  argExprs: JSONType[],
+  ctx: CheckContext,
+  skipContextualArguments: ReadonlySet<number> = new Set(),
+): Schema {
+  if (trials.length === 1) {
+    return applyOverload(trials[0]!.signature, argExprs, ctx, skipContextualArguments);
+  }
+
+  const ambiguousContextualArguments = new Set<number>();
+  for (let i = 0; i < argExprs.length; i++) {
+    if (skipContextualArguments.has(i) || !isContextualLambda(argExprs[i]!)) continue;
+    const expected = new Set(
+      trials.map(({ signature, bindings }) => {
+        const param = paramAt(signature, i);
+        return stableStringify(
+          param === null ? false : resolveDeep(instantiate(param, bindings), ctx.defs),
+        );
+      }),
+    );
+    if (expected.size > 1) {
+      ambiguousContextualArguments.add(i);
+      report(
+        at(ctx, `$args[${i}]`),
+        "Inline lambda cannot be contextually typed because possible overloads provide different function types.",
+      );
+    }
+  }
+  const skipped = new Set([...skipContextualArguments, ...ambiguousContextualArguments]);
+
+  const attempts = trials.map(({ signature }) => {
+    const diagnostics: Diagnostic[] = [];
+    const result = applyOverload(signature, argExprs, { ...ctx, diagnostics }, skipped);
+    return { diagnostics, result };
+  });
+
+  const common = new Map(
+    attempts[0]!.diagnostics.map((diagnostic) => [stableStringify(diagnostic), diagnostic]),
+  );
+  for (const attempt of attempts.slice(1)) {
+    const keys = new Set(attempt.diagnostics.map(stableStringify));
+    for (const key of common.keys()) {
+      if (!keys.has(key)) common.delete(key);
+    }
+  }
+  const existing = new Set(ctx.diagnostics.map(stableStringify));
+  for (const [key, diagnostic] of common) {
+    if (!existing.has(key)) {
+      ctx.diagnostics.push(diagnostic);
+      existing.add(key);
+    }
+  }
+
+  return normalizedReturnUnion(
+    attempts.map(({ result }) => result),
+    ctx,
+  );
+}
+
 function createRuleServices(
   argExprs: JSONType[],
   ctx: CheckContext,
@@ -669,18 +767,42 @@ function synthCallableCall(
   const rule = entry.rule === undefined ? undefined : ctx.typeRules?.[entry.rule];
   const fallbackDiagnostics: Diagnostic[] = [];
   const fallbackContext = rule === undefined ? ctx : { ...ctx, diagnostics: fallbackDiagnostics };
-  const chosen = entry.signatures.find((ov) => tryBindOverload(ov, argExprs, ctx) !== null);
-  const fallbackMatched = chosen !== undefined;
+  const trials: OverloadTrial[] = [];
+  for (const signature of entry.signatures) {
+    const trial = tryBindOverload(signature, argExprs, ctx);
+    if (trial === null) continue;
+    trials.push(trial);
+    // Once known evidence guarantees an ordered arm, later fallbacks are
+    // unreachable. An uncertain arm remains only a possibility.
+    if (!trial.uncertain) break;
+  }
+  const fallbackMatched = trials.length > 0;
   let fallbackResult: Schema;
 
   // No arm fits and there's more than one: report the whole overload set rather
   // than blaming (and pinpointing against) just the first arm. A single-arm
   // builtin still falls through to `applyOverload`, whose per-argument, arity,
   // and return diagnostics are already precise.
-  if (chosen === undefined && entry.signatures.length > 1) {
+  if (trials.length === 0 && entry.signatures.length > 1) {
     fallbackResult = reportNoOverload(name, entry.signatures, argExprs, fallbackContext);
   } else {
-    fallbackResult = applyOverload(chosen ?? entry.signatures[0]!, argExprs, fallbackContext);
+    const appliedTrials =
+      trials.length > 0
+        ? trials
+        : [
+            {
+              signature: entry.signatures[0]!,
+              bindings: {},
+              uncertain: false,
+            },
+          ];
+    fallbackResult = applyOverloadTrials(appliedTrials, argExprs, fallbackContext);
+    if (trials.length > 1 && trials.some(({ uncertain }) => uncertain)) {
+      reportCoverageDegradation(
+        fallbackContext,
+        `an \`any\`-typed argument affected overload selection for "${name}"`,
+      );
+    }
   }
 
   if (entry.rule === undefined) return fallbackResult;
@@ -723,15 +845,30 @@ function synthCallableCall(
   let retainedFallback = fallbackDiagnostics;
   if (ownedArguments.size > 0) {
     retainedFallback = [];
-    applyOverload(
-      chosen ?? entry.signatures[0]!,
+    const retainedContext = {
+      ...ctx,
+      diagnostics: retainedFallback,
+    };
+    applyOverloadTrials(
+      trials.length > 0
+        ? trials
+        : [
+            {
+              signature: entry.signatures[0]!,
+              bindings: {},
+              uncertain: false,
+            },
+          ],
       argExprs,
-      {
-        ...ctx,
-        diagnostics: retainedFallback,
-      },
+      retainedContext,
       ownedArguments,
     );
+    if (trials.length > 1 && trials.some(({ uncertain }) => uncertain)) {
+      reportCoverageDegradation(
+        retainedContext,
+        `an \`any\`-typed argument affected overload selection for "${name}"`,
+      );
+    }
   }
   const existing = new Set(ctx.diagnostics.map(stableStringify));
   for (const diagnostic of [...retainedFallback, ...ruleDiagnostics]) {

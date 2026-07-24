@@ -1404,8 +1404,75 @@ describe("Section F — builtin signatures", () => {
       expect(result.diagnostics.some((d) => d.severity === "error")).toBe(true);
     });
 
-    test("does not make any compatible with monomorphic primitive overloads", () => {
-      const result = synthB(call("add", { $var: "unknown" }, 1));
+    test("treats any as non-evidence and unions every possible overload return", () => {
+      const addResult = synthB(call("add", { $var: "unknown" }, 1));
+      expect(addResult.type).toEqual({ type: "number" });
+      expect(addResult.diagnostics.some((d) => d.message.startsWith("No overload"))).toBe(false);
+      expect(addResult.diagnostics).toContainEqual({
+        path: [],
+        message:
+          'type coverage degraded because an `any`-typed argument affected overload selection for "add".',
+        severity: "info",
+      });
+
+      const lengthResult = synthB(call("length", { $var: "unknown" }));
+      expect(lengthResult.type).toEqual(I);
+      expect(lengthResult.diagnostics).toContainEqual({
+        path: [],
+        message:
+          'type coverage degraded because an `any`-typed argument affected overload selection for "length".',
+        severity: "info",
+      });
+    });
+
+    test("preserves distinct possible returns when any makes overload selection dynamic", () => {
+      const table: CallableTable = {
+        builtins: {
+          chooseDynamic: {
+            signatures: [
+              { required: [I], optional: [], returns: S },
+              { required: [S], optional: [], returns: B },
+            ],
+          },
+        },
+      };
+      const result = checkExpr(call("chooseDynamic", { $var: "unknown" }), {}, table);
+      expect(result.type).toEqual({ anyOf: [S, B] });
+      expect(result.diagnostics).toContainEqual({
+        path: [],
+        message:
+          'type coverage degraded because an `any`-typed argument affected overload selection for "chooseDynamic".',
+        severity: "info",
+      });
+    });
+
+    test("does not contextually type a lambda from ambiguous overload evidence", () => {
+      const fnType = (parameter: Schema): Schema => ({
+        $fnType: { required: [parameter], optional: [], returns: parameter },
+      });
+      const table: CallableTable = {
+        builtins: {
+          chooseCallback: {
+            signatures: [
+              { required: [I, fnType(I)], optional: [], returns: I },
+              { required: [S, fnType(S)], optional: [], returns: S },
+            ],
+          },
+        },
+      };
+      const lambda = { $params: ["value"], $return: { $var: "value" } };
+      const result = checkExpr(call("chooseCallback", { $var: "unknown" }, lambda), {}, table);
+      expect(result.type).toEqual({ anyOf: [I, S] });
+      expect(result.diagnostics).toContainEqual({
+        path: ["$args[1]"],
+        message:
+          "Inline lambda cannot be contextually typed because possible overloads provide different function types.",
+        severity: "error",
+      });
+    });
+
+    test("known mismatches still reject every overload despite an any argument", () => {
+      const result = synthB(call("add", { $var: "unknown" }, "not a number"));
       expect(result.diagnostics.some((d) => d.message.startsWith("No overload"))).toBe(true);
     });
   });

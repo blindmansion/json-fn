@@ -57,6 +57,11 @@ never         →  false
 `integer` is a distinct primitive. `any`/`never` emit as boolean schemas
 `true`/`false`.
 
+For overload resolution, an `any`-typed argument supplies no evidence: it
+neither selects nor rejects an arm and does not bind type variables. If known
+arguments leave multiple arms possible, the checker returns the normalized
+union of their results and reports degraded type coverage.
+
 ---
 
 ## 3. Literals

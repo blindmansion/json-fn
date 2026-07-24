@@ -335,11 +335,19 @@ so the runtime task record is unchanged.
 The JSON is pure data. Reading it back into working checks needs a small,
 per-implementation **instantiation engine** (the algorithm, not the data):
 
-1. Pick the first overload whose concrete arguments fit.
-2. Infer type variables from those argument schemas.
-3. Instantiate the parameter types and push function-typed parameters into
-   inline-lambda arguments; infer any output variables from their returns.
-4. Instantiate and return the result schema.
+1. Filter overloads by arity and statically known argument schemas. An
+   `any`-typed argument is non-evidence: it neither proves nor disproves a
+   match, and it does not bind a type variable.
+2. Preserve declaration order once known evidence guarantees an arm. If
+   `any` leaves multiple arms possible, retain all of them and report degraded
+   type coverage.
+3. Infer type variables from known argument schemas.
+4. Instantiate parameter types and push an unambiguous function-typed
+   parameter into an inline-lambda argument; infer output variables from its
+   return.
+5. Instantiate the possible result schemas and return their normalized union.
+   Thus `length(any)` remains `integer`, while `add(any, 1)` is `number`
+   rather than whichever overload happens to appear first.
 
 In TypeScript the fallback engine lives in
 `typescript/src/check/builtin-rules.ts`; the controlled V1 rule API and core
