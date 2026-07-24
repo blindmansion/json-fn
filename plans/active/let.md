@@ -1,109 +1,319 @@
-# Design: `$let` as the single binding form — for `where` expressions _and_ function-body locals
+# Design: `$let` as the only local-binding form
 
-Companion to the scoping-bug report (`json-fn-scoping-bug-and-let-lowering.md`). File references are to the TypeScript implementation @ `e9f76ef`.
+Companion to the scoping-bug report in `plans/active/bugs.md`.
 
-## Goal
+## Compatibility posture
 
-One canonical binding node:
+There are no external consumers and no compatibility requirement. This is a
+breaking canonical-form change:
+
+- stored programs and fixtures are migrated in place;
+- legacy function bodies with inline local keys are rejected;
+- the old zero-argument-IIFE lowering remains an ordinary valid function call,
+  but is no longer recognized as an encoding of `where`;
+- the printer only needs to preserve the new canonical form;
+- no compatibility evaluator, checker path, migration command, or deprecation
+  window is required.
+
+Internal fixture churn is desirable when it removes transitional machinery.
+The TypeScript implementation remains canonical; the other implementations can
+port `$let` when they next resynchronize rather than constraining this design.
+
+## Goal and canonical form
+
+Introduce one explicit local-binding node:
 
 ```json
-{ "$let": { "name1": <expr>, "name2": <expr> },
-  "$in":  <expr> }
-```
-
-Bindings are lazy, memoized, mutually recursive, and cycle-checked — exactly the letrec semantics `buildScope` implements today. `$let` becomes the lowering target for **both** uses of `where` in the shorthand, and function bodies shrink to structural keys only:
-
-```json
-{ "$params": ["xs", "acc"],
-  "$sig":    { ... },
-  "$return": { "$let": { "cur": ..., "f": ... }, "$in": ... } }
-```
-
-The `.jfn` authoring surface does not change at all. `expr where { ... }` after a function arrow and `expr where { ... }` at expression level keep identical syntax; only what they compile to changes.
-
-## Why: the current design has two lowerings for one construct, and one of them caused a soundness bug
-
-Today the parser lowers the same shorthand construct two different ways:
-
-- **Function-body `where`** inlines locals as extra keys on the body object. `src/shorthand/parser.ts:555-562`:
-  ```ts
-  const ret = this.parseExpr();
-  const locals = this.eatKeyword("where") ? this.parseWhereBindings() : [];
-  // A function body inlines its `where` locals directly (params + locals +
-  // $return); no IIFE needed since this scope already exists.
-  return this.buildScope(parsed.params, locals, ret, sig);
-  ```
-- **Expression-level `where`** wraps in an immediately-invoked zero-arg function (spec §8; `parser.ts:609`):
-  ```json
-  { "$call": { "cur": ..., "f": ..., "$return": <expr> }, "$args": [] }
-  ```
-
-The IIFE lowering routes pure binding through the closure machinery — `replaceVars` copying, escape attachment, registry dispatch context, a call frame against `maxCallDepth`, call-shaped fuel — and that is exactly where the one-frame-stale scoping bug lived (see the companion report). The inline-keys lowering has a different cost: **a function body is detected by the mere presence of `$return`** (`src/function-value.ts:3-5`):
-
-```ts
-export function isFunctionBody(value: unknown): value is FunctionBody {
-  return typeof value === "object" && value !== null && !Array.isArray(value) && "$return" in value;
+{
+  "$let": {
+    "name1": "<expr>",
+    "name2": "<expr>"
+  },
+  "$in": "<expr>"
 }
 ```
 
-so every object with `$return` is an open-schema scope whose arbitrary other keys are bindings. That forces skip-lists of structural keys in at least four places (`buildScope` in `src/eval/interpreter.ts:287-296`, `replaceVars`'s `localNames` computation in `src/eval/closures.ts:52-71`, `scanBodyLevelFnNameRefs` in `closures.ts:191-203`, and the checker), which must stay in sync by hand, and it makes data-vs-code classification depend on `raw`/`markEvaluated` WeakSet tagging (`src/utils.ts:69-90`) rather than structure.
+Bindings are lazy, memoized, mutually recursive, and cycle-checked: the letrec
+semantics currently embedded in `buildScope`.
 
-`$let` gives both constructs one closed, explicit lowering.
+`$let` is the only local-binding form inside expressions. It is the lowering
+target for both uses of shorthand `where` and for pure bindings introduced by
+`do` desugaring. Function bodies contain structural keys only:
 
-## What `buildScope` actually does, and how it splits
+```json
+{
+  "$params": ["xs", "acc"],
+  "$sig": { "...": "..." },
+  "$return": {
+    "$let": {
+      "cur": "<expr>",
+      "f": "<expr>"
+    },
+    "$in": "<expr>"
+  }
+}
+```
 
-`buildScope` (`src/eval/interpreter.ts:270-445`) currently performs three jobs:
+The `.jfn` authoring surface does not change. Only canonical JSON changes.
 
-1. **Param binding** — walks `layout.slots`, fills `evaluatedVars`, registers lazy defaults (`interpreter.ts:334-365`).
-2. **Locals letrec** — the lazy, memoized, cycle-checked `getVar` over the body's extra keys (`interpreter.ts:367-425`).
-3. **Function-name registration** — copies the registry (`scopedFunctions = { ...functions }`), inserts function-valued bindings, tracks `localFns`/`attachFns`, and closes each function binding over the scope with `replaceVars` in non-attach mode (`interpreter.ts:283-330`, `428-440`).
+## Why
 
-Job 1 is param-specific and stays with function calls. Jobs 2 and 3 are binding-specific and become the `$let` evaluator. Concretely:
+The parser currently gives one shorthand construct two unrelated canonical
+forms:
 
-- `callJSONFunction` (`interpreter.ts:447+`): validate args against `$params`, bind params into a fresh environment frame, evaluate `$return` in that frame. No letrec at the function-body level.
-- New `evaluateLet(node, context)`: implement jobs 2 and 3 for `node.$let`, evaluate `node.$in` in the extended context. This is `buildScope` minus the slot-binding loop, so it is mostly code motion.
+- function-body `where` becomes arbitrary extra keys on a function body;
+- expression-level `where` becomes an immediately invoked zero-argument
+  function.
 
-### Params need no special access mechanism
+The IIFE path routes pure binding through closure copying, escape attachment,
+registry-dispatch context, call-depth accounting, and call-shaped fuel. That is
+where the one-frame-stale scoping bug in `plans/active/bugs.md` arose.
 
-With the environment chain, `$let` bindings resolve free `$var`s through the enclosing `getVar` parent (`interpreter.ts:419-421` already falls through to `getVarParent`). A `$let` in `$return` position sees params the same way expression-level `where` sees enclosing locals today. Nothing new is required.
+The inline-key path makes function bodies open-schema scopes. Evaluator,
+closure, printer, and checker code must each infer which keys are bindings by
+maintaining structural-key skip lists. Those lists can drift, and a data object
+containing `$return` is difficult to distinguish structurally from executable
+code.
 
-## Function-valued bindings keep the registry path — by design
+An explicit `$let` makes binding introduction visible to every subsystem:
 
-The closure model is substitution-based: escaping closures are self-contained JSON (`replaceVars` substitutes free `$var`s at capture, `closures.ts:37-48`), which is what keeps closures serializable — a hard requirement for the durable-execution plans (suspend a continuation to JSON, resume elsewhere; `docs/durable-host.md`). Recursive and mutually recursive bindings cannot be eagerly substituted into themselves, which is why sibling function names stay literal and dispatch through `scopedFunctions`, with `attachFreeLocalFns` (`closures.ts:262-303`) re-attaching definitions when a closure escapes.
+- evaluator scope creation occurs at one expression kind;
+- closure masking occurs at one structural boundary;
+- checker letrec construction occurs at one node;
+- function-body schemas become closed;
+- shorthand has one canonical lowering;
+- binding no longer pretends to be a function call.
 
-`$let` therefore keeps **two internal paths**, chosen per binding by `isFunctionBody(value)` exactly as `buildScope` chooses today (`interpreter.ts:297-300`):
+## Target evaluator structure
 
-- **Plain-value bindings**: lazy env-extension only. No registry copy, no attach eligibility, no `replaceVars` involvement.
-- **Function-valued bindings**: registered into a scope-local registry, closed over with `replaceVars` (non-attach), eligible for `attachFreeLocalFns` on escape — the existing machinery, unchanged.
+`buildScope` currently combines three responsibilities:
 
-The rebinding mask that fixed the soundness bug (mask a scope's own names from `attachFns` when copying its interior — see the companion report's diff to `closures.ts:77+`) becomes structural: `$let` is the _only_ node that introduces names, so masking lives in exactly one place instead of being a property every body-shaped object must remember to enforce.
+1. parameter and default binding;
+2. lazy, memoized, cycle-checked local letrec binding;
+3. registration and closing-over of function-valued local bindings.
 
-This also lets the registry-dispatch context leak be fixed properly. `callFunctionInternal`'s registry branch currently forwards the caller's `localFns`/`attachFns` into the callee (`interpreter.ts:181-192`) because a module function's _own_ nested locals ride on the same mechanism; once function-local binding is explicit `$let` inside the callee's `$return`, the callee can start from clean sets derived from its own structure, and the caller's binding metadata never crosses a name-dispatch boundary.
+Split these responsibilities rather than copying `buildScope`:
 
-## The module top level stays as it is
+- `bindParameters(layout, args, context)` creates the parameter/default frame;
+- a binding-scope helper creates lazy value bindings plus the local function
+  registry for an explicit binding map;
+- `evaluateLet(node, context)` uses that helper and evaluates `$in`;
+- `callJSONFunction` validates arguments, binds parameters, and evaluates the
+  structural `$return`;
+- module initialization deliberately reuses the lower-level binding-scope
+  helper for its special top-level registry.
 
-`callProgram` (`src/eval/program.ts:124`) treats the top-level object as a registry of named entry points: module functions are deliberately registry-backed for the program's lifetime, excluded from attachment (`attachFns` is empty at root — `interpreter.ts:314-321` and the comment there about capture blow-up), and addressable by name. Content addressing (`plans/content-addressing/`) also wants stable per-name identity at this level. Lowering the module to one giant `$let` would entangle all of that for no benefit. The module remains the one special scope; `$let` covers everything inside it.
+Parameter defaults remain lazy and can refer through their function frame as
+they do today. A `$let` nested in `$return` sees parameters through the parent
+`getVar` chain; no parameter-specific behavior belongs in `$let`.
+
+Do not retain a generic “extra keys on a function body are locals” path.
+Function bodies are validated against their closed structural key set.
+
+That structural set needs one evaluator-owned closure field in addition to
+source fields. Escaping closures currently serialize attached local functions
+as extra body keys; removing inline locals requires replacing that encoding,
+not merely rejecting it. Use an explicit optional `$captures` registry on
+runtime function values:
+
+```json
+{
+  "$params": ["x"],
+  "$return": "<expr>",
+  "$captures": {
+    "f": "<closed function body>",
+    "g": "<closed function body>"
+  }
+}
+```
+
+`$captures` is serialized closure environment, not an authoring-level binding
+form. The shorthand parser never emits it. A function call seeds name dispatch
+from this map before evaluating defaults or `$return`, so captures are in scope
+for the entire invocation without reopening the function-body schema.
+
+## Function-valued bindings and serializable closures
+
+The closure model remains substitution-based: escaping closures must be
+self-contained JSON for durable execution. Recursive and mutually recursive
+functions cannot be eagerly substituted into themselves, so sibling function
+names continue to dispatch through a scope-local registry and are attached when
+a closure escapes.
+
+The binding-scope helper therefore retains two internal cases:
+
+- plain values use only lazy environment extension;
+- function bodies are registered by name, closed over with `replaceVars` in
+  non-attach mode, and remain eligible for `attachFreeLocalFns` on escape.
+
+`replaceVars` gets an explicit `$let` branch. While copying binding expressions
+and `$in`, it masks `Object.keys($let)` from both variable substitution and
+function attachment. Escaping function bodies store attached definitions in
+their `$captures` map instead of arbitrary sibling keys. Name-reference scans
+include parameter defaults and `$return`, recurse transitively through captured
+definitions, and keep the capture map cycle-safe. This is the structural
+version of the point fix in `plans/active/bugs.md`, not a compatibility patch
+for open function bodies.
+
+Registry dispatch must stop forwarding a caller's `localFns`/`attachFns` into
+the callee. The callee begins with registry context appropriate to its own
+definition, and nested `$let` nodes introduce their own local metadata. Include
+this cleanup in the refactor rather than leaving the deeper source of the
+scoping bug in place.
+
+## The module top level remains the deliberate exception
+
+The top-level module object is a registry of named entry points, not an
+expression-local scope. Module functions remain registry-backed for the
+program's lifetime, excluded from escape attachment, and addressable by stable
+name. Content addressing also needs that per-name identity.
+
+Do not lower a module to one giant `$let`. Reuse the same low-level binding
+mechanics where useful, but keep module validation, lifetime, and attachment
+policy explicit. `$let` is the only binding node inside expressions, not a
+replacement for the module format.
 
 ## Implementation plan
 
-1. **Evaluator** (`src/eval/`): add `ExpressionType.Let` (`expression-type.ts`); implement `evaluateLet` by extracting jobs 2–3 from `buildScope`; slim `callJSONFunction`/`buildScope` to param binding. `replaceVars` gets a `$let` case: mask `Object.keys($let)` from both `getVar` and `attachFns` while copying `$let` values and `$in` (the one structural masking site), and run `attachFreeLocalFns` against the node on escape as the `FunctionBody` branch does today.
-2. **Parser** (`src/shorthand/parser.ts`): both `where` sites lower to `$let`/`$in`. The function-body site (`:555-562`) emits `$params`/`$sig` + `$return: {$let, $in}` when locals exist; the expression site replaces the IIFE construction.
-3. **Printer** (`src/shorthand/printer.ts`): print `$let`/`$in` as `expr where { ... }`; in `$return` position, fold into the function-body `where` form so round-tripping is stable.
-4. **Checker** (`src/check/checker.ts`): a `$let` rule — check bindings in the letrec scope, check `$in` under the extended environment, report paths as `$let.<name>` (replacing today's `body.$args[0].$args[0].$return...` paths through the IIFE).
-5. **Compatibility**: keep evaluating both legacy forms (bodies with extra keys; the IIFE pattern) behind the existing code paths, with the companion report's mask fix applied so legacy programs are also correct. Deprecate in the spec; a `to-json` flag or `jfn migrate` can rewrite stored programs.
-6. **Spec & conformance** (`spec/`): specify `$let`; add conformance cases covering the bug-report repro matrix (nested-lambda name calls under recursion, mutual recursion in `$let`, cycle detection, shadowing) so the other three implementations port the semantics rather than the bug.
-7. **Other implementations** (go/, python/, rust/): implement `$let` when they resync; the legacy-compat window keeps cross-implementation fixtures green meanwhile.
+Implement in evaluator → checker → parser order. Compatibility code may exist
+temporarily between commits to keep work testable, but none remains in the
+finished change.
+
+### Phase 1: evaluator and closure model
+
+1. Add a strict `ExpressionType.Let` classification for exactly `$let` and
+   `$in`. Validate that `$let` is an object of binding expressions and reject
+   malformed or mixed special-form shapes.
+2. Split `buildScope` into parameter binding and reusable explicit-binding
+   mechanics. Keep module-root policy separate from expression-local policy.
+3. Implement `evaluateLet` with lazy memoization, mutual recursion, cycle
+   detection, parent lookup, and function-valued sibling registration.
+4. Replace closure attachment through arbitrary function-body keys with the
+   explicit `$captures` registry. Make invocation expose captures to parameter
+   defaults and `$return`, and preserve transitive recursion without embedding
+   cyclic JSON.
+5. Add structural `$let` handling to `replaceVars`, function-name reference
+   scanning, and attachment. Mask the let-bound names from substitution and
+   attachment while traversing the node's interior.
+6. Reset local-function/attachment metadata at registry dispatch boundaries;
+   let the callee's `$let` nodes establish their own metadata.
+7. Add direct canonical-JSON evaluator tests before changing the shorthand:
+   lazy unused bindings, memoization, parent capture, parameter capture,
+   shadowing, value cycles, recursive and mutually recursive functions,
+   escaping closures, nested lambdas calling rebound functions by name, and the
+   Dijkstra regression from `plans/active/bugs.md`.
+8. Verify that `$let` itself consumes ordinary expression fuel but does not add
+   a call frame or call-shaped fuel. Binding expressions continue to be charged
+   when lazily evaluated.
+
+At this phase boundary the parser can still emit old forms temporarily. The new
+evaluator behavior must already be independently testable with canonical JSON.
+
+### Phase 2: checker
+
+1. Add a `let` node kind before generic object classification.
+2. Extract reusable letrec type-scope construction from `buildTypeScope`.
+   Parameters and `$let` bindings should use separate entry points even if they
+   share environment machinery.
+3. Check every binding in the recursive environment and check `$in` in the
+   extended environment. Preserve lazy-local memoization, cycle reporting,
+   creation-site narrowing facts, forcing-site facts, and function-binding
+   signatures.
+4. Report binding diagnostics at `$let.<name>` and body-result diagnostics
+   under `$in`.
+5. Make function-body checking structural: parameters/signature/defaults,
+   `$return`, and validation of evaluator-produced `$captures`, with no scan for
+   arbitrary local keys.
+6. Remove checker logic whose only purpose was interpreting a zero-argument
+   IIFE as `where`. Generic checking of real user-authored IIFEs remains.
+7. Add checker tests paralleling the evaluator matrix, especially recursive
+   type lookup, narrowing through lazy bindings, cycles, shadowing, and clean
+   diagnostic paths.
+
+### Phase 3: parser, printer, and canonical cutover
+
+1. Change function-body `where` to emit a structural function body whose
+   `$return` is `$let`/`$in`.
+2. Change expression-level `where` to emit `$let`/`$in` directly.
+3. Change all pure bindings produced by `do` desugaring to `$let`, including
+   leading pure bindings and pure bindings inside bind continuations. Function
+   bodies produced for continuations remain structural.
+4. Teach the printer to render `$let` as `expr where { ... }`. In `$return`
+   position, fold it into the normal function-body `where` syntax.
+5. Update do reconstruction to consume `$let`-wrapped pure bindings rather
+   than inspecting non-structural function-body keys or leading-pure IIFEs.
+6. Reject evaluator-produced functions containing `$captures` in the shorthand
+   printer with a clear error. Runtime closure environments have no authoring
+   syntax and remain JSON-serialized durable values.
+7. Remove printer support and inverse-desugaring assumptions for legacy
+   binding shapes.
+8. Tighten function-body validation/classification to the closed set of
+   supported source keys plus evaluator-owned `$captures`. Reject every other
+   stray key instead of treating it as a local.
+
+### Phase 4: fixture migration, cleanup, and documentation
+
+1. Use a one-off script to recursively migrate function bodies in canonical
+   JSON: move each body's non-structural bindings into `$return.$let`, preserving
+   insertion order and leaving module-root bindings at the module root. This is
+   straightforward and should cover most `spec/cases` and function parse
+   fixtures.
+2. Regenerate parser expectations from each shorthand parse-case input after
+   the parser cutover, then review the diffs. This safely handles
+   expression-level `where` and do forms that cannot be distinguished from an
+   intentionally authored IIFE by inspecting old canonical JSON alone.
+3. Do not keep the migration script as a product feature unless it proves
+   independently useful; there is no `jfn migrate` requirement.
+4. Delete the temporary legacy evaluator/checker paths, body-key skip lists,
+   old IIFE-where helpers, and tests asserting old canonical forms.
+5. Update `docs/language.md` and `docs/shorthand-spec.md` to specify `$let` as
+   the sole expression-local binding form. Describe the module root separately,
+   not as legacy `$let`.
+6. Update conformance cases with the full scoping regression matrix. The new
+   canonical fixtures may intentionally fail lagging Go, Python, and Rust
+   implementations until those implementations port `$let`; do not retain old
+   encodings to accommodate them.
+
+### Final verification
+
+- Run TypeScript formatting, typechecking, linting, unit tests, parse/print
+  round trips, conformance tests, and relevant performance suites.
+- Confirm no function body with non-structural local keys remains in TypeScript
+  sources, examples' generated forms, or shared fixtures.
+- Confirm no parser path emits a binding IIFE.
+- Confirm `where` no longer consumes call depth.
+- Confirm escaping closures round-trip through durable JSON with `$captures`,
+  including captures referenced by parameter defaults.
+- Confirm module functions retain stable registry identity and are never
+  attached recursively into escaping closures.
 
 ## What this buys
 
-- **The bug class is removed structurally**: name introduction happens in one node with one masking rule, and binding never rides the call path, so no calling-context leak can contaminate it.
-- **Cheaper `where`**: environment extension instead of a call — no frame against `maxCallDepth: 256` (headroom returns to real recursion), no call-shaped fuel, no `replaceVars` copy of the body per activation on the expression-`where` path.
-- **Closed schemas**: `isFunctionBody` can eventually require exactly `$params`/`$sig`/`$types`/`$return`; stray keys become validation errors instead of silent unused locals — the right property for machine-generated programs.
-- **One lowering per construct**: better for the checker, for diffs, and for content addressing.
-- **Unchanged invariants**: substitution-based serializable closures, registry dispatch for recursion, durable-execution serialization, and the module model are all untouched.
+- **The bug class is removed structurally.** Name introduction occurs at one
+  node with one masking rule, and binding no longer rides the call path.
+- **Evaluator responsibilities become explicit.** Parameter frames, local
+  letrec scopes, and module registries have separate APIs and policies.
+- **Checker behavior mirrors evaluation.** Recursive type environments are
+  created exactly where runtime binding environments are created.
+- **`where` is cheaper.** It consumes no call frame, call-shaped fuel, or
+  per-activation IIFE closure copy.
+- **Function bodies are closed schemas now, not eventually.** Stray keys are
+  validation errors rather than silent locals.
+- **Canonical form is singular.** Parsing, printing, diagnostics, diffs, and
+  content addressing all see one representation of local binding.
+- **Durable invariants remain.** Closures stay serializable, recursive function
+  names remain registry-dispatched, and module identity remains name-based.
 
-## Open questions
+## Decisions and deferred work
 
-- Should `$let` require at least one binding, or is `{"$let": {}, "$in": e}` legal (printer would just drop the `where`)? Suggest: legal but never emitted.
-- Fuel model: charge per binding evaluation (as `getVar` evaluation already does implicitly) or a flat cost per `$let` entry? Suggest: no flat cost; laziness already meters actual work.
-- Does `$sig`-style typing ever want per-binding annotations in `$let` (shorthand `where { m: number = mean(xs) }`)? Deferrable; the checker can infer today.
+- Require at least one `$let` binding. The parser never emits an empty `$let`,
+  and rejecting it avoids a meaningless canonical node and print/parse
+  ambiguity.
+- Charge normal expression fuel for entering `$let` and for each binding
+  expression only when forced. Do not charge call fuel or call depth.
+- Binding annotations are out of scope. The checker infers local binding types;
+  a future syntax such as `where { m: number = mean(xs) }` can be designed
+  independently.
+- Porting Go, Python, and Rust is out of scope for this TypeScript-first change.
+  Their implementations should adopt the new canonical form rather than add
+  compatibility shims.
