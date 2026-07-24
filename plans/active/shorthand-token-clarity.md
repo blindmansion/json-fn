@@ -224,8 +224,7 @@ Canonical shorthand printing must emit only the new spellings.
    task operands.
 5. Update `docs/shorthand-spec.md`, `docs/type-syntax-spec.md`,
    `docs/language.md`, and affected focused documentation.
-6. Update `plans/active/stateful-handler-sugar.md` and remove the stale
-   “`->` triple duty” concern from `plans/type-syntax-deferred.md`.
+6. Update `plans/active/stateful-handler-sugar.md`.
 7. Migrate `.jfn` examples, plan snippets, and shorthand fixtures.
 8. Regenerate canonical `.json` examples only where their source-to-print
    normalization is tested; their semantic representation does not change.

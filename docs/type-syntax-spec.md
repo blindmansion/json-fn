@@ -19,7 +19,7 @@ lowers deterministically to that schema, and the schema pretty-prints back.
 
 Remaining deferred features (local types, bodyless signatures, and annotated
 locals) are tracked in
-[`plans/type-syntax-deferred.md`](../plans/type-syntax-deferred.md).
+[`plans/future-authoring-improvements.md`](../plans/future-authoring-improvements.md#type-syntax).
 
 ---
 

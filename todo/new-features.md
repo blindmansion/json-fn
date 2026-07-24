@@ -14,17 +14,10 @@ schema fragment, internally-polymorphic builtins. Full design sketch (with
 decisions, open questions, and a worked chess example) in
 `plans/type-sketch.md`. Status: **draft / design sketch**, nothing implemented.
 
-## Shorthand syntax sugar (parser-only, TS + Rust)
+## Authoring improvements
 
-Evaluate demand before adding each; all are pure surface sugar:
-
-- object spread `{ ...s, k: v }` and array spread `[...xs, y]`
-- computed object keys `{ [k]: v }`
-- spread into call args `f(...xs)`
-- block comments `/* … */`
-- default parameters `(a, b = 1) =>`  
-  See `plans/shorthand-action-items.md` (Syntax sugar candidates) and the full  
-  LLM-probe findings in `plans/shorthand-llm-probes.md`.
+Possible shorthand, type-syntax, printer, and diagnostic improvements are
+collected in `plans/future-authoring-improvements.md`.
 
 ## Comment attachment (spec gap)
 
@@ -129,11 +122,3 @@ instead of interpreter internals. Design notes:
   `$comment`/position metadata for true source locations.
 - Cross-cutting: mirror in the Go/Python/Rust interpreters for conformance, or
   scope this as a TS-only DX feature and document it as non-normative.
-
-## Housekeeping
-
-- Correct `plans/shorthand-llm-probes.md` §2e: the `Invalid JSON expression: {`
-  output was the probe harness truncating a multi-line `exprError`; the real
-  message is `"No $cond branch matched …"`. `cond`'s runtime error is fine.
-- Optionally stop `typescript/examples/stretch-syntax.ts` from truncating error
-  text at the first newline so multi-line evaluator errors print in full.
