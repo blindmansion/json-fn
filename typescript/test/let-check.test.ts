@@ -254,6 +254,44 @@ describe("$let narrowing", () => {
     expect(checkModule({ creationSite, forcingSite }, loadBuiltinTable())).toEqual([]);
   });
 
+  test("retains creation-site facts across a callback boundary", () => {
+    const nullableString: Schema = { anyOf: [S, { type: "null" }] };
+    const taskString: Schema = { $taskType: S };
+    const diagnostics = checkModule(
+      {
+        acceptsString: fn(["value"], [S], B, true),
+        run: fn(["cmd"], [nullableString], taskString, {
+          $if: { $call: "isNull", $args: [{ $var: "cmd" }] },
+          $then: { $call: "pure", $args: ["none"] },
+          $else: {
+            $call: "bind",
+            $args: [
+              { $call: "pure", $args: [null] },
+              {
+                $params: ["_"],
+                $return: letExpr(
+                  {
+                    accepted: {
+                      $call: "acceptsString",
+                      $args: [{ $var: "cmd" }],
+                    },
+                  },
+                  {
+                    $if: { $var: "accepted" },
+                    $then: { $call: "pure", $args: ["yes"] },
+                    $else: { $call: "pure", $args: ["no"] },
+                  },
+                ),
+              },
+            ],
+          },
+        }),
+      },
+      loadBuiltinTable(),
+    );
+    expect(diagnostics).toEqual([]);
+  });
+
   test("nested let shadowing masks an outer same-named fact", () => {
     const diagnostics = checkModule(
       {

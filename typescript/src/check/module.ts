@@ -161,7 +161,7 @@ function dedupeDiagnostics(diags: Diagnostic[]): Diagnostic[] {
 // Declare-before-use pass: report every `$ref` (reachable from the module)
 // whose target name is absent from the merged defs pool. `$ref`s live only in
 // schema positions — the `$types` pool bodies and the `$sig` nodes on function
-// bodies (top-level, nested `where`-locals, and inline lambdas) — so we collect
+// bodies (top-level, nested under `$let`, and inline lambdas) — so we collect
 // from those two sources rather than blindly scanning term data. A name present
 // in the pool but resolving to `true`/`any` (the intentional `type X = any`
 // alias) is *not* flagged: only undefined names error.

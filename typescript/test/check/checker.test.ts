@@ -1387,33 +1387,24 @@ describe("check: bidirectional un-annotated lambdas (Part A)", () => {
   });
 });
 
-describe("check: structural IIFEs (Part A)", () => {
-  // An inline unannotated function body invoked immediately. Bindings belong
-  // to a structural `$let` in its return expression.
-  const iife = (
-    ret: JSONType,
-    bindings: Record<string, JSONType> = {},
-    params: JSONType[] = [],
-    args: JSONType[] = [],
-  ): JSONType => ({
+describe("check: inline function calls", () => {
+  const iife = (ret: JSONType, params: JSONType[] = [], args: JSONType[] = []): JSONType => ({
     $call: {
       ...(params.length ? { $params: params } : {}),
-      $return: Object.keys(bindings).length === 0 ? ret : { $let: bindings, $in: ret },
+      $return: ret,
     },
     $args: args,
   });
 
   test("synthesizes the body's $return type, not `any`", () => {
-    // `1 where { x: 1 }` → the IIFE result is `x`'s type, previously erased to
-    // `any` (callee had no known function type).
-    const r = checkExpr(iife({ $var: "x" }, { x: 1 }));
+    const r = checkExpr(iife(1));
     expect(r.type).toEqual({ const: 1 });
     expect(r.diagnostics).toEqual([]);
   });
 
   test("params bind to the synthesized argument types", () => {
     // `((n) => n)(5)` inline and un-annotated: `n` binds to the arg's type.
-    const r = checkExpr(iife({ $var: "n" }, {}, ["n"], [5]));
+    const r = checkExpr(iife({ $var: "n" }, ["n"], [5]));
     expect(r.type).toEqual({ const: 5 });
     expect(r.diagnostics).toEqual([]);
   });
@@ -1424,7 +1415,7 @@ describe("check: structural IIFEs (Part A)", () => {
       { $param: "fallback", $default: "fallback" },
       { $param: "optional", $optional: true },
     ];
-    const run = (args: JSONType[]) => checkExpr(iife({ $var: "required" }, {}, params, args));
+    const run = (args: JSONType[]) => checkExpr(iife({ $var: "required" }, params, args));
 
     expect(run([]).diagnostics.map((diagnostic) => diagnostic.message)).toEqual([
       "Expected 1 to 3 arguments, got 0.",
@@ -1437,14 +1428,9 @@ describe("check: structural IIFEs (Part A)", () => {
     ).toEqual(["Expected 1 to 3 arguments, got 4."]);
   });
 
-  test("IIFE optional and rest locals align with supplied argument positions", () => {
+  test("IIFE optional and rest parameters align with supplied argument positions", () => {
     const omitted = checkExpr(
-      iife(
-        { $var: "fallback" },
-        {},
-        ["required", { $param: "fallback", $default: "default" }],
-        [1],
-      ),
+      iife({ $var: "fallback" }, ["required", { $param: "fallback", $default: "default" }], [1]),
     );
     expect(omitted.type).toBe(true);
     expect(omitted.diagnostics).toEqual([]);
@@ -1452,7 +1438,6 @@ describe("check: structural IIFEs (Part A)", () => {
     const supplied = checkExpr(
       iife(
         { fallback: { $var: "fallback" }, rest: { $var: "rest" } },
-        {},
         ["required", { $param: "fallback", $default: "supplied" }, "...rest"],
         [1, "supplied", true, 2],
       ),
@@ -1472,9 +1457,9 @@ describe("check: structural IIFEs (Part A)", () => {
     });
   });
 
-  test("checks IIFE defaults under the synthesized body scope", () => {
+  test("checks IIFE defaults under the synthesized function scope", () => {
     const r = checkExpr(
-      iife({ $var: "value" }, {}, [{ $param: "value", $default: "bad default" }], [1]),
+      iife({ $var: "value" }, [{ $param: "value", $default: "bad default" }], [1]),
     );
 
     expect(r.diagnostics).toContainEqual(
@@ -1494,14 +1479,14 @@ describe("check: structural IIFEs (Part A)", () => {
   });
 
   test("an arity mismatch is reported at the call", () => {
-    const r = checkExpr(iife({ $var: "n" }, {}, ["n"], []));
+    const r = checkExpr(iife({ $var: "n" }, ["n"], []));
     expect(r.diagnostics.some((d) => /Expected exactly 1 argument, got 0\./.test(d.message))).toBe(
       true,
     );
   });
 
   test("a malformed IIFE reports its parameter issue and skips its body", () => {
-    const r = checkExpr(iife({ $var: "missing" }, {}, [{ $param: "value" }], [1]));
+    const r = checkExpr(iife({ $var: "missing" }, [{ $param: "value" }], [1]));
 
     expect(r.type).toBe(true);
     expect(r.diagnostics).toEqual([
@@ -1514,68 +1499,22 @@ describe("check: structural IIFEs (Part A)", () => {
   });
 
   test("the expected type is pushed into the body's $return (checked position)", () => {
-    // `f: () -> string` whose body is `1 where { x: 1 }`: the integer result is
-    // pinpointed at the IIFE body's `$return`, not dumped at the whole call.
     const mod = {
-      f: body([], { required: [], optional: [], returns: S }, iife({ $var: "x" }, { x: 1 })),
+      f: body([], { required: [], optional: [], returns: S }, iife(1)),
     };
     const diags = checkModule(mod);
     expect(diags.length).toBe(1);
     expect(diags[0]!.severity).toBe("error");
-    expect(diags[0]!.path).toEqual(["f", "$return", "$return", "$in"]);
+    expect(diags[0]!.path).toEqual(["f", "$return", "$return"]);
     expect(diags[0]!.expected).toEqual(S);
     expect(diags[0]!.actual).toEqual({ const: 1 });
   });
 
   test("a body matching the expected type checks clean", () => {
     const mod = {
-      f: body([], { required: [], optional: [], returns: I }, iife({ $var: "x" }, { x: 1 })),
+      f: body([], { required: [], optional: [], returns: I }, iife(1)),
     };
     expect(checkModule(mod)).toEqual([]);
-  });
-
-  test("a bind-continuation IIFE retains facts active where its lazy locals are created", () => {
-    const nullableString: Schema = { anyOf: [S, { type: "null" }] };
-    const taskString: Schema = { $taskType: S };
-    const mod = {
-      acceptsString: body(
-        ["value"],
-        { required: [S], optional: [], returns: { type: "boolean" } },
-        true,
-      ),
-      run: body(
-        ["cmd"],
-        { required: [nullableString], optional: [], returns: taskString },
-        {
-          $if: { $call: "isNull", $args: [{ $var: "cmd" }] },
-          $then: { $call: "pure", $args: ["none"] },
-          $else: {
-            $call: "bind",
-            $args: [
-              { $call: "pure", $args: [null] },
-              {
-                $params: ["_"],
-                $return: iife(
-                  {
-                    $if: { $var: "accepted" },
-                    $then: { $call: "pure", $args: ["yes"] },
-                    $else: { $call: "pure", $args: ["no"] },
-                  },
-                  {
-                    accepted: {
-                      $call: "acceptsString",
-                      $args: [{ $var: "cmd" }],
-                    },
-                  },
-                ),
-              },
-            ],
-          },
-        },
-      ),
-    };
-
-    expect(checkModule(mod, loadBuiltinTable())).toEqual([]);
   });
 });
 
@@ -1710,7 +1649,7 @@ describe("checkModule: dangling $ref → hard error", () => {
     expect(names).toEqual(new Set(["Foo", "Bar", "Baz"]));
   });
 
-  test("a nested `where`-local signature is covered too", () => {
+  test("a nested `$let` function signature is covered too", () => {
     const mod = {
       main: body([], { required: [], optional: [], returns: I }, 1, {
         helper: body(["x"], { required: [ref("Qux")], optional: [], returns: I }, { $var: "x" }),
@@ -1750,7 +1689,7 @@ describe("checkModule: require typed module functions (on by default)", () => {
     ]);
   });
 
-  test("nested `where`-locals and inline lambdas stay exempt", () => {
+  test("nested `$let` function bindings and inline lambdas stay exempt", () => {
     const mod = {
       main: body(
         [],
@@ -1776,30 +1715,6 @@ describe("checkModule: require typed module functions (on by default)", () => {
         severity: "info",
       },
     ]);
-  });
-});
-
-describe("buildTypeScope: lazy locals & cycles", () => {
-  test("an un-annotated local is typed lazily from its expression", () => {
-    // `doubled` is a where-local with no signature; its type is synthesized on
-    // demand and must fit the declared return.
-    const mod = {
-      f: body(
-        ["n"],
-        { required: [I], optional: [], returns: I },
-        { $var: "chosen" },
-        {
-          chosen: { $var: "n" },
-        },
-      ),
-    };
-    expect(checkModule(mod)).toEqual([]);
-  });
-
-  test("mutually recursive locals are caught as a cycle", () => {
-    const mod = { a: { $var: "b" }, b: { $var: "a" } };
-    const diags = checkModule(mod);
-    expect(diags.some((d) => /Circular local type dependency/.test(d.message))).toBe(true);
   });
 });
 

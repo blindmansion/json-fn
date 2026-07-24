@@ -305,9 +305,9 @@ describe("chess fragments — Tier 2: nullability & narrowing", () => {
 // ---------------------------------------------------------------------------
 // Tier 3 — lazy-local narrowing at forcing sites (§5.5 M2).
 //
-// The bulk of real chess narrows a value that flows *through* a where-local,
+// The bulk of real chess narrows a value that flows *through* a `$let` binding,
 // not the guarded var directly:
-//   * `pieceMoves`: `type`/`color` are lazy locals bound from `piece`; they are
+//   * `pieceMoves`: `type`/`color` are lazy bindings derived from `piece`; they are
 //     forced only inside the non-null (`else`) arm, so re-synthesizing them
 //     under the guard's fact is sound and clean.
 //   * `slideDir`: the arms of a `$cond` are guarded by *named boolean locals*
@@ -379,7 +379,7 @@ describe("chess fragments — Tier 3: lazy-local & boolean-guard narrowing (§5.
     expect(checkModule(mod, BT)).toEqual([]);
   });
 
-  test("bare where-local condition falls back to truthiness when its initializer is not a guard", () => {
+  test("bare $let condition falls back to truthiness when its initializer is not a guard", () => {
     // (x: string | null) => if h then h else ""
     //   where h = maybe(x), maybe: (string | null) -> string | null
     // The local initializer is a typed call, not a recognized guard, so
@@ -598,7 +598,7 @@ describe("chess fragments — Tier 4: field-path & discriminant narrowing (§5.5
     expect(diags[0]!.path).toEqual(["badField", "$return", "$then", "$args[0]"]);
   });
 
-  test("lazy local through a path: a where-local bound from move.from narrows at forcing", () => {
+  test("lazy local through a path: a $let binding from move.from narrows at forcing", () => {
     // (move: Move) => if isNull(move.from) then null else glyph
     //   where glyph = upper(move.from)
     // `glyph` reaches through the narrowed path `move.from` but is forced only

@@ -508,7 +508,7 @@ describe("narrowing — composition (form: not / $and / $or)", () => {
   ]);
 });
 
-describe("narrowing — named boolean guards (where-locals)", () => {
+describe("narrowing — named boolean guard bindings", () => {
   runTable([
     {
       name: "a boolean guard local adopts its binding's facts",
@@ -536,7 +536,7 @@ describe("narrowing — named boolean guards (where-locals)", () => {
     },
     {
       name: "a guard local whose binding yields no fact falls back to truthiness",
-      // Regression anchor for the `if h then h else 0` where-local fix: the
+      // Regression anchor for `if h then h else 0` with a named guard: the
       // binding (a plain call) isn't a recognized guard, so the bare local `h`
       // narrows by its own truthiness instead of returning {}.
       env: { h: intOrNull },
