@@ -5,7 +5,7 @@ import type { JSONType } from "../types";
 import type { EnvironmentContract } from "../environment/types";
 import { linkModule } from "../module-linker";
 import type { CallableTable, CallableTypeRuleRegistry } from "./builtin-types";
-import { synthCallableCall } from "./builtin-rules";
+import { synthCallableCall, synthCallableReference } from "./builtin-rules";
 import { CORE_CALLABLE_TYPE_RULES } from "./callable-rules";
 import { buildModuleTypeScope, checkBody, reachableLetBindingNames, synth } from "./checker";
 import { nonContractiveDefinitions } from "./type-defs";
@@ -60,6 +60,7 @@ function checkModule(
     path: [],
     callables: linked.callableTable?.builtins,
     synthCallableCall,
+    synthCallableReference,
     typeRules: options.typeRules ?? CORE_CALLABLE_TYPE_RULES,
     effects: contract?.effects,
     allowUntypedNamedFunctions: options.allowUntypedFunctions === true,
@@ -253,6 +254,7 @@ function checkExpr(
     path: [],
     callables: linked.callableTable?.builtins,
     synthCallableCall,
+    synthCallableReference,
     typeRules: options.typeRules ?? CORE_CALLABLE_TYPE_RULES,
     effects: contract?.effects,
     allowUntypedNamedFunctions: options.allowUntypedFunctions === true,

@@ -765,6 +765,28 @@ function resolveCalleeSig(callee: JSONType, ctx: CheckContext): Sig | null {
   return classifySchema(s) === SchemaKind.FnType ? fnShape(asObject(s)) : null;
 }
 
+// A `$fn` reference or bare-name `$var` resolves through the callable registry
+// only when no lexical/module binding shadows that name.
+function callableReferenceName(expr: JSONType, ctx: CheckContext): string | null {
+  if (expr === null || typeof expr !== "object" || Array.isArray(expr)) return null;
+  const object = expr as Record<string, JSONType>;
+  const name =
+    typeof object.$fn === "string"
+      ? object.$fn
+      : typeof object.$var === "string"
+        ? object.$var
+        : null;
+  if (
+    name === null ||
+    ctx.env.lookupType(name, ctx.narrowings) !== undefined ||
+    ctx.callables === undefined ||
+    !(name in ctx.callables)
+  ) {
+    return null;
+  }
+  return name;
+}
+
 // The param schema at position `i` (the rest element once past the fixed
 // params), or null when the callee admits no param there.
 function paramAt(sig: Sig, i: number): Schema | null {
@@ -961,11 +983,11 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
       // lazy local that references a narrowed var — so pass the active facts
       // down for re-synth under them (§5.5 M2).
       const t = ctx.env.lookupType(name, ctx.narrowings);
-      // A miss is not necessarily an error: bare builtin/registry names resolve
-      // as function values (§P4). Until the builtin layer lands, degrade to any,
-      // but report the lost coverage so callers can distinguish it from a
-      // fully-checked expression.
       if (t === undefined) {
+        const entry = ctx.callables?.[name];
+        if (entry !== undefined && ctx.synthCallableReference !== undefined) {
+          return ctx.synthCallableReference(entry, undefined, ctx);
+        }
         reportDegradation(ctx, `variable "${name}" is unresolved`);
         return true;
       }
@@ -977,6 +999,10 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
       if (typeof fn === "string") {
         const t = ctx.env.lookupType(fn);
         if (t === undefined) {
+          const entry = ctx.callables?.[fn];
+          if (entry !== undefined && ctx.synthCallableReference !== undefined) {
+            return ctx.synthCallableReference(entry, undefined, ctx);
+          }
           reportDegradation(ctx, `function reference "${fn}" is unresolved`);
           return true;
         }
@@ -1013,6 +1039,21 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
         const bctx = inlineCallBodyContext(callee, args, ctx);
         if (bctx === null) return true;
         return synth(callee.$return!, at(bctx, "$return"));
+      }
+      // Calling a first-class builtin reference is equivalent to calling its
+      // registry name directly, including overload and type-rule dispatch.
+      const referencedCallable = callableReferenceName(callee, ctx);
+      if (
+        referencedCallable !== null &&
+        ctx.synthCallableCall !== undefined &&
+        ctx.callables !== undefined
+      ) {
+        return ctx.synthCallableCall(
+          referencedCallable,
+          ctx.callables[referencedCallable]!,
+          args,
+          ctx,
+        );
       }
       // A bare builtin name that no local/module binding shadows dispatches to
       // the polymorphic builtin layer (§5.3); user bindings still win. The
@@ -1369,6 +1410,17 @@ function check(expr: JSONType, expected: Schema, ctx: CheckContext): void {
     const bindings = reachableLetBindings(letNode.bindings, letNode.result, ctx);
     const scope = buildExpressionTypeScope(bindings, ctx.env, letCtx);
     check(letNode.result, expected, at({ ...letCtx, env: scope.env, guards: scope.guards }, "$in"));
+    return;
+  }
+
+  const referencedCallable = callableReferenceName(expr, ctx);
+  if (
+    referencedCallable !== null &&
+    ctx.callables !== undefined &&
+    ctx.synthCallableReference !== undefined
+  ) {
+    const actual = ctx.synthCallableReference(ctx.callables[referencedCallable]!, expected, ctx);
+    if (!isSubschema(actual, expected, ctx.defs)) reportMismatch(ctx, actual, expected);
     return;
   }
 

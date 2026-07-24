@@ -62,6 +62,59 @@ describe("Section F — builtin signatures", () => {
     expect(synthB(call("length", "hello")).type).toEqual({ type: "integer" });
   });
 
+  test("builtin references synthesize as function values without degrading", () => {
+    const expected = {
+      $fnType: { required: [S], optional: [], returns: S },
+    };
+    expect(synthB({ $fn: "upper" })).toEqual({ type: expected, diagnostics: [] });
+    expect(synthB({ $var: "upper" })).toEqual({ type: expected, diagnostics: [] });
+  });
+
+  test("builtin references are contextually resolved as higher-order arguments", () => {
+    const references: JSONType[] = [{ $fn: "upper" }, { $var: "upper" }];
+    for (const reference of references) {
+      expect(synthB(call("map", reference, ["a", "b"]))).toEqual({
+        type: { type: "array", items: S },
+        diagnostics: [],
+      });
+    }
+    expect(synthB(call("map", { $fn: "length" }, [["a"], ["b", "c"]]))).toEqual({
+      type: { type: "array", items: I },
+      diagnostics: [],
+    });
+  });
+
+  test("context instantiates type variables in generic builtin references", () => {
+    expect(synthB(call("map", { $fn: "head" }, [[1], [2, 3]]))).toEqual({
+      type: { type: "array", items: { anyOf: [I, { type: "null" }] } },
+      diagnostics: [],
+    });
+  });
+
+  test("an incompatible builtin reference is rejected at its argument", () => {
+    const result = synthB(call("map", { $fn: "length" }, [1, 2]));
+    expect(result.diagnostics).toContainEqual(
+      expect.objectContaining({ path: ["$args[0]"], severity: "error" }),
+    );
+  });
+
+  test("an invoked builtin reference uses normal overload dispatch", () => {
+    expect(synthB(call({ $fn: "upper" }, "a"))).toEqual({ type: S, diagnostics: [] });
+    expect(synthB(call({ $var: "length" }, [1, 2]))).toEqual({ type: I, diagnostics: [] });
+  });
+
+  test("a module function shadows the same-named builtin reference", () => {
+    const mod = {
+      upper: body(["n"], { required: [I], optional: [], returns: I }, { $var: "n" }),
+      use: body(
+        [],
+        { required: [], optional: [], returns: arrOfInt },
+        call("map", { $fn: "upper" }, [1, 2]),
+      ),
+    };
+    expect(checkModule(mod, BT)).toEqual([]);
+  });
+
   test("a single builtin accepts its required-through-optional range", () => {
     const table: CallableTable = {
       builtins: {

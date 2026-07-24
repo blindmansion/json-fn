@@ -68,6 +68,34 @@ describe("jfn check unknown function names", () => {
   });
 });
 
+describe("jfn check builtin function references", () => {
+  test("checks explicit, bare, overloaded, and generic builtin callbacks with full coverage", () => {
+    const modules = [
+      '{ f: () -> string[] => map(&upper, ["a", "b"]) }',
+      '{ f: () -> string[] => map(upper, ["a", "b"]) }',
+      "{ f: (xss: string[][]) -> integer[] => map(&length, xss) }",
+      "{ f: (xss: integer[][]) -> (integer | null)[] => map(&head, xss) }",
+    ];
+
+    for (const module of modules) {
+      const result = runCheck([module]);
+      expect(result.exitCode).toBe(0);
+      expect(result.stderr).toBe("");
+      expect(result.stdout).toContain("No type errors.");
+      expect(result.stdout).toContain("Type coverage: complete (no dynamic degradations).");
+    }
+  });
+
+  test("rejects a builtin callback whose overloads cannot accept the mapped item", () => {
+    const result = runCheck(["{ f: () -> integer[] => map(&length, [1, 2]) }"]);
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).toContain("error: f.$return.$args[0]:");
+    expect(result.stdout).toContain("1 error.");
+    expect(result.stdout).toContain("Type coverage: complete (no dynamic degradations).");
+  });
+});
+
 describe("jfn check coverage reporting", () => {
   test("a clean typed module reports full coverage", () => {
     const mod = {

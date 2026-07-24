@@ -60,6 +60,14 @@ type CheckContext = {
     argExprs: JSONType[],
     ctx: CheckContext,
   ) => Schema;
+  // Resolve a callable registry entry as a first-class function value. The
+  // optional expected type selects compatible overloads and instantiates
+  // callable-local type variables from the callback's parameter types.
+  synthCallableReference?: (
+    entry: CallableEntry,
+    expected: Schema | undefined,
+    ctx: CheckContext,
+  ) => Schema;
   // Optional host-language implementations for namespaced callable rules.
   // Entry points install the core registry by default; an explicitly supplied
   // registry is used as-is so hosts can test fallback-only behavior.

@@ -122,6 +122,68 @@ function instantiate(schema: Schema, bindings: Bindings): Schema {
   return schema;
 }
 
+function callableSignatureSchema(sig: CallableSignature, bindings: Bindings): Schema {
+  return {
+    $fnType: {
+      required: sig.required.map((param) => instantiate(param, bindings)),
+      optional: sig.optional.map((param) => instantiate(param, bindings)),
+      ...(sig.rest !== undefined ? { rest: instantiate(sig.rest, bindings) } : {}),
+      returns: instantiate(sig.returns, bindings),
+    },
+  };
+}
+
+// Turn a registry callable into a first-class function type. In a callback
+// position, infer callable-local type variables from the arguments the caller
+// will supply, then retain only overloads that can implement that callback.
+// Without context, expose the union of all portable signatures, with unbound
+// type variables conservatively instantiated to `any`.
+function synthCallableReference(
+  entry: CallableEntry,
+  expected: Schema | undefined,
+  ctx: CheckContext,
+): Schema {
+  const resolvedExpected = expected === undefined ? undefined : resolveDeep(expected, ctx.defs);
+  const expectedShape =
+    resolvedExpected !== undefined && classifySchema(resolvedExpected) === SchemaKind.FnType
+      ? fnShape(asObject(resolvedExpected))
+      : null;
+  const all = entry.signatures.map((sig) => callableSignatureSchema(sig, {}));
+  if (expectedShape === null) return unionOf(all);
+
+  const compatible: Schema[] = [];
+  for (const sig of entry.signatures) {
+    if (!fnParameterShapeMatches(sig, expectedShape)) continue;
+    const bindings: Bindings = {};
+    const callableParams = [...sig.required, ...sig.optional];
+    const expectedParams = [...expectedShape.required, ...expectedShape.optional];
+    let matched = callableParams.every((param, i) =>
+      unifyTemplate(param, expectedParams[i]!, bindings, ctx),
+    );
+    if (matched && sig.rest !== undefined && expectedShape.rest !== undefined) {
+      matched = unifyTemplate(sig.rest, expectedShape.rest, bindings, ctx);
+    }
+    if (!matched) continue;
+    const candidate = callableSignatureSchema(sig, bindings);
+    if (isSubschema(candidate, resolvedExpected!, ctx.defs)) compatible.push(candidate);
+  }
+  return compatible.length === 0 ? unionOf(all) : unionOf(compatible);
+}
+
+function callableReferenceEntry(expr: JSONType, ctx: CheckContext): CallableEntry | null {
+  if (!isSchemaObject(expr)) return null;
+  const name =
+    typeof expr.$fn === "string" ? expr.$fn : typeof expr.$var === "string" ? expr.$var : undefined;
+  if (
+    name === undefined ||
+    ctx.env.lookupType(name, ctx.narrowings) !== undefined ||
+    ctx.callables === undefined
+  ) {
+    return null;
+  }
+  return ctx.callables[name] ?? null;
+}
+
 // The element schema of a concrete array/tuple, for matching an `array items T`
 // template against an argument. Null when the value isn't array-shaped.
 function elementSchemaOf(concrete: Schema, ctx: CheckContext): Schema | null {
@@ -319,16 +381,31 @@ function tryBindOverload(
   const bindings: Bindings = {};
   const silent: CheckContext = { ...ctx, diagnostics: [] };
   const concrete: { param: Schema; schema: Schema }[] = [];
+  const references: { param: Schema; entry: CallableEntry }[] = [];
 
   for (let i = 0; i < argExprs.length; i++) {
     const param = paramAt(sig, i);
     if (param === null) return null;
     if (isContextualLambda(argExprs[i]!)) continue;
+    const entry = callableReferenceEntry(argExprs[i]!, ctx);
+    if (entry !== null) {
+      references.push({ param, entry });
+      continue;
+    }
     concrete.push({ param, schema: synth(argExprs[i]!, silent) });
   }
 
   for (const arg of concrete) {
     if (!unifyTemplate(arg.param, arg.schema, bindings, ctx)) return null;
+  }
+  for (const reference of references) {
+    const schema = synthCallableReference(
+      reference.entry,
+      instantiate(reference.param, bindings),
+      ctx,
+    );
+    if (!unifyTemplate(reference.param, schema, bindings, ctx)) return null;
+    concrete.push({ param: reference.param, schema });
   }
   let uncertain = false;
   for (const arg of concrete) {
@@ -356,6 +433,11 @@ function applyOverload(
   const bindings: Bindings = {};
   const lambdas: number[] = [];
   const concrete: { param: Schema; schema: Schema; ctx: CheckContext }[] = [];
+  const references: {
+    param: Schema;
+    entry: CallableEntry;
+    ctx: CheckContext;
+  }[] = [];
   const finalLambdaValidations: {
     expr: JSONType;
     param: Schema;
@@ -378,12 +460,26 @@ function applyOverload(
       lambdas.push(i);
       continue;
     }
+    const entry = callableReferenceEntry(argExprs[i]!, ctx);
+    if (entry !== null) {
+      references.push({ param, entry, ctx: actx });
+      continue;
+    }
     concrete.push({ param, schema: synth(argExprs[i]!, actx), ctx: actx });
   }
 
   // Pass 2 — collect one final binding environment from all concrete args.
   for (const arg of concrete) {
     unifyTemplate(arg.param, arg.schema, bindings, ctx);
+  }
+  for (const reference of references) {
+    const schema = synthCallableReference(
+      reference.entry,
+      instantiate(reference.param, bindings),
+      ctx,
+    );
+    unifyTemplate(reference.param, schema, bindings, ctx);
+    concrete.push({ param: reference.param, schema, ctx: reference.ctx });
   }
 
   // Pass 3 — validate every concrete arg against that final environment.
@@ -884,4 +980,4 @@ function synthCallableCall(
   return result;
 }
 
-export { synthCallableCall };
+export { synthCallableCall, synthCallableReference };

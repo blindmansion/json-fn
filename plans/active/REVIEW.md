@@ -95,7 +95,13 @@ Dynamic callees (`(expr)(...)`) can keep the degradation path.
 
 ---
 
-## 3. Builtin function references don't resolve in the checker — High
+## 3. Builtin function references don't resolve in the checker — Resolved
+
+Resolved by typing unshadowed `$fn` and bare-name registry references as
+first-class function values. Callback context now selects compatible overloads
+and instantiates callable type parameters; directly invoked references use the
+normal callable dispatcher. Lexical and module bindings continue to shadow
+registry names.
 
 `&`-references (and bare-name value fallbacks) to **builtins** are "unresolved" for the
 checker, degrade to `any`, and then cause spurious downstream errors — even though the
