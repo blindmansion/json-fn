@@ -60,6 +60,59 @@ Resolves a variable by name. `$var` must be the sole key, and its value is a pla
 { "$var": "x" }
 ```
 
+### Let Binding — `{ $let, $in }`
+
+Introduces an expression-local recursive scope. The outer object has exactly
+the two keys `$let` and `$in`; `$let` is a non-empty object mapping names to
+binding expressions, and `$in` is the result expression evaluated in that
+scope.
+
+```json
+{
+  "$let": {
+    "sum": { "$call": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] },
+    "doubled": { "$call": "mul", "$args": [{ "$var": "sum" }, 2] }
+  },
+  "$in": { "$var": "doubled" }
+}
+```
+
+Bindings are lazy, memoized after their first use, order-independent, and
+mutually recursive. An unused binding is not evaluated. Forcing a direct or
+indirect value cycle is an error. In variable lookup, a `$let` binding shadows
+same-named function parameters, captures, enclosing bindings, and module
+entries throughout every binding expression and `$in`.
+
+A binding whose literal value is a function body is also callable by its
+binding name and shadows a same-named module or host/stdlib function in call
+position. A non-function binding does not hide a callable registry entry. This
+supports recursive and mutually recursive local functions while keeping their
+JSON definitions acyclic:
+
+```json
+{
+  "$let": {
+    "even": {
+      "$params": ["n"],
+      "$return": {
+        "$if": { "$call": "eq", "$args": [{ "$var": "n" }, 0] },
+        "$then": true,
+        "$else": { "$call": "odd", "$args": [{ "$call": "sub", "$args": [{ "$var": "n" }, 1] }] }
+      }
+    },
+    "odd": {
+      "$params": ["n"],
+      "$return": {
+        "$if": { "$call": "eq", "$args": [{ "$var": "n" }, 0] },
+        "$then": false,
+        "$else": { "$call": "even", "$args": [{ "$call": "sub", "$args": [{ "$var": "n" }, 1] }] }
+      }
+    }
+  },
+  "$in": { "$call": "even", "$args": [10] }
+}
+```
+
 ### Non-null assertion — `{ $nonnull }`
 
 Evaluates `$nonnull` and returns its value when non-null. If the value is
@@ -130,13 +183,21 @@ object property.
 
 ### Function Body — `{ $return, ... }`
 
-Defines a function. Required key: `$return` (the expression to evaluate when called). Optional key: `$params` (an ordered array of parameter **slots** — see [Parameters](#parameters--params)). All other keys are **lazy local variables** — evaluated on first access.
+Defines a function. `$return` is required. Author-written bodies may also
+contain `$params` (an ordered array of parameter **slots** — see
+[Parameters](#parameters--params)), `$sig`, and a string-valued `$comment`.
+No other source fields are allowed; expression-local bindings belong in a
+`$let` under `$return`.
 
 ```json
 {
   "$params": ["n"],
-  "remainder": { "$call": "mod", "$args": [{ "$var": "n" }, 2] },
-  "$return": { "$call": "eq", "$args": [{ "$var": "remainder" }, 0] }
+  "$return": {
+    "$let": {
+      "remainder": { "$call": "mod", "$args": [{ "$var": "n" }, 2] }
+    },
+    "$in": { "$call": "eq", "$args": [{ "$var": "remainder" }, 0] }
+  }
 }
 ```
 
@@ -239,7 +300,10 @@ happens to contain `$fn`, `$var`, etc. keys).
 
 ### Comments — `$comment`
 
-A `$comment` key with a string value is ignored everywhere it appears as a sibling key in any expression form, and is stripped from plain-data objects. It survives JSON serialization, so unlike JSONC comments it round-trips through `parse → transform → stringify`.
+A supported `$comment` key with a string value is ignored when it appears as a
+sibling key and is stripped from plain-data objects. It survives JSON
+serialization, so unlike JSONC comments it round-trips through
+`parse → transform → stringify`.
 
 ```json
 {
@@ -258,14 +322,35 @@ A `$comment` key with a string value is ignored everywhere it appears as a sibli
 Rules:
 
 - The value **must be a string** to be recognized as a comment. Non-string values are treated as normal keys (and will typically cause "expression cannot have other properties" errors in expression forms).
-- Allowed as a sibling key in any expression form (`$call`/`$args`, `$fn`, `$var`, `$if`/`$then`/`$else`, `$cond`, `$and`, `$or`, `$raw`, `$get`/`$from`, `$return`/`$params`/locals).
+- Allowed as a sibling key in expression forms that use the common comment
+  rule (`$call`/`$args`, `$fn`, `$var`, `$if`/`$then`/`$else`, `$cond`, `$and`,
+  `$or`, `$raw`, `$get`/`$from`, and function bodies). A `$let` expression is
+  the exception: its outer object has exactly `$let` and `$in`.
 - In plain data objects, `$comment` is stripped from the output. To preserve a literal `$comment` key in data, wrap with `$raw`.
 - Inside `$raw`, the entire value is returned verbatim — `$comment` is preserved.
 - Closures preserve `$comment` when a function body is returned as a value.
 
 ## Function Bodies
 
-A function body has `$return` and optionally `$params`. All other keys are lazy locals.
+A source function body is a closed structural record:
+
+- `$return` — required result expression;
+- `$params` — optional parameter layout;
+- `$sig` — optional static signature;
+- `$comment` — optional string comment.
+
+Evaluator-produced function values may additionally contain `$captures` and
+`$runtimeContract`:
+
+- `$captures` is a non-null object mapping names to function bodies. Captured
+  functions are available by `$var`, `$fn`, and `$call` in parameter defaults
+  and `$return`.
+- `$runtimeContract` is evaluator-owned serializable callable-boundary state.
+
+These are runtime closure/boundary state, not authoring-level local bindings.
+The shorthand printer rejects them rather than silently dropping them.
+`$types` is module-only and is never valid on a function body. Any other
+ordinary or reserved field is invalid.
 
 ### Parameters — `$params`
 
@@ -360,8 +445,9 @@ Binding rules for a pattern slot at position `i`, where `v` is the supplied
 - Extra object keys are ignored.
 
 Supplied field bindings are established at call time; defaulted bindings remain
-lazy. Within the body they are visible via `$var` to `$return` and to lazy
-locals, and they **shadow** same-named outer bindings at any nesting depth.
+lazy. Within the body they are visible via `$var` to `$return`, including any
+nested `$let`, and they **shadow** same-named outer bindings until an inner
+`$let` binds the same name.
 
 Additional rules:
 
@@ -382,22 +468,34 @@ Additional rules:
 
 Rename and nested patterns are not supported.
 
-### Lazy Local Variables
+### Expression-local bindings
 
-Any key other than `$return` and `$params` defines a local variable. Locals are evaluated lazily (on first `$var` access) and can reference each other and `$params`. Key order within a function body does not affect evaluation — locals form a dependency graph resolved on demand, so the body behaves identically regardless of how a JSON parser orders the keys.
+Use [`$let`/`$in`](#let-binding--let-in) wherever an expression needs local
+bindings. Inside a function's `$return`, its bindings can reference the
+function parameters and runtime captures. A nested `$let` shadows parameters,
+captures, and enclosing bindings with the same name.
 
 ```json
 {
   "$params": ["x", "y"],
-  "sum": { "$call": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] },
-  "doubled": { "$call": "mul", "$args": [{ "$var": "sum" }, 2] },
-  "$return": { "$var": "doubled" }
+  "$return": {
+    "$let": {
+      "sum": { "$call": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] },
+      "doubled": { "$call": "mul", "$args": [{ "$var": "sum" }, 2] }
+    },
+    "$in": { "$var": "doubled" }
+  }
 }
 ```
 
 ## Closures
 
-When a function body is returned as a value (not called), outer variables are captured by substitution. The interpreter walks the returned body and replaces `$var` references with their current values, respecting scope boundaries — inner `$params` and locals shadow outer names.
+When a function body is returned as a value (not called), outer variables are
+captured by substitution. The interpreter walks the returned body and replaces
+`$var` references with their current values, respecting scope boundaries.
+Inner `$params`, `$captures`, and `$let` names shadow outer names. A `$let`
+masks its names recursively in both its binding expressions and its `$in`,
+while unrelated outer references inside either part are still substituted.
 
 ```json
 {
@@ -422,53 +520,79 @@ The returned body is a valid function body that can be called subsequently.
 
 ### Escaping closures carry the local functions they call
 
-Capture also keeps an escaping closure **self-contained** when it calls an enclosing [local function](#local-recursive-functions) by name. Names in call position that resolve to a local function stay literal (so recursion and mutual recursion keep dispatching by name), and capture re-attaches those functions' closed-over definitions as locals on the returned body. A closure that recurses — or that calls a sibling local — therefore remains callable after it leaves the scope that defined those functions.
+Capture also keeps an escaping closure **self-contained** when it calls an
+enclosing [local function](#local-recursive-functions) by name. Names in call
+position that resolve to a local function stay literal (so recursion and mutual
+recursion keep dispatching by name), and capture serializes the required
+closed-over definitions under the returned body's `$captures` field. A closure
+that recurses—or calls a sibling local function—therefore remains callable
+after it leaves the `$let` scope that defined those functions.
 
 ```json
 {
   "$params": ["base"],
-  "go": {
-    "$params": ["x"],
-    "$return": {
-      "$if": { "$call": "lte", "$args": [{ "$var": "x" }, 0] },
-      "$then": { "$var": "base" },
-      "$else": { "$call": "go", "$args": [{ "$call": "sub", "$args": [{ "$var": "x" }, 1] }] }
-    }
-  },
-  "$return": { "$var": "go" }
-}
-```
-
-Called with `[42]`, returns a body that carries `go` as an attached local so it still recurses when invoked later:
-
-```json
-{
-  "$params": ["x"],
-  "go": {
-    "$params": ["x"],
-    "$return": {
-      "$if": { "$call": "lte", "$args": [{ "$var": "x" }, 0] },
-      "$then": 42,
-      "$else": { "$call": "go", "$args": [{ "$call": "sub", "$args": [{ "$var": "x" }, 1] }] }
-    }
-  },
   "$return": {
-    "$if": { "$call": "lte", "$args": [{ "$var": "x" }, 0] },
-    "$then": 42,
-    "$else": { "$call": "go", "$args": [{ "$call": "sub", "$args": [{ "$var": "x" }, 1] }] }
+    "$let": {
+      "go": {
+        "$params": ["x"],
+        "$return": {
+          "$if": { "$call": "lte", "$args": [{ "$var": "x" }, 0] },
+          "$then": { "$var": "base" },
+          "$else": { "$call": "go", "$args": [{ "$call": "sub", "$args": [{ "$var": "x" }, 1] }] }
+        }
+      }
+    },
+    "$in": { "$var": "go" }
   }
 }
 ```
 
-Only the local functions actually referenced (transitively) are attached, and a name shadowed by the returned body's own `$params` or locals is never attached — the inner binder wins.
+Called with `[42]`, this returns a body whose `$captures` carries `go` so it
+still recurses when invoked later:
 
-**Module-level (registry) functions are not attached.** Attachment applies only to functions defined by an _enclosing scope that goes away_ when the closure escapes it — `where`-locals and nested locals. A top-level module function lives in the registry for the whole program, so an in-program reference to it never dangles and it resolves by name at call time like a stdlib builtin; attaching it would be redundant and, for a self-referential constructor that returns a record of closures (`makeThing` → `{ … next: () => makeThing(…) }`), would make capture copy the definition into itself on every call and blow up super-exponentially. The consequence is a small, consistent contract: a closure serialized and shipped _out of the program_ keeps its local functions inline, but still relies on the target host providing the registry (module + stdlib) — exactly as it already relies on `add`, `map`, and friends being present.
+```json
+{
+  "$params": ["x"],
+  "$return": {
+    "$if": { "$call": "lte", "$args": [{ "$var": "x" }, 0] },
+    "$then": 42,
+    "$else": { "$call": "go", "$args": [{ "$call": "sub", "$args": [{ "$var": "x" }, 1] }] }
+  },
+  "$captures": {
+    "go": {
+      "$params": ["x"],
+      "$return": {
+        "$if": { "$call": "lte", "$args": [{ "$var": "x" }, 0] },
+        "$then": 42,
+        "$else": { "$call": "go", "$args": [{ "$call": "sub", "$args": [{ "$var": "x" }, 1] }] }
+      }
+    }
+  }
+}
+```
+
+Only the local functions actually referenced (transitively) are captured. A
+name shadowed by the returned body's own `$params`, `$captures`, or nested
+`$let` is not captured from outside—the inner binder wins.
+
+**Module-level (registry) functions are not captured.** `$captures` applies only
+to functions defined by an enclosing expression scope that disappears when the
+closure escapes it. A top-level module function persists in the program
+registry and resolves by name at call time like a stdlib builtin. A closure
+serialized outside the program therefore carries required `$let` functions,
+but still relies on the target host providing the module and stdlib registry.
 
 ## Scoping Rules
 
-- `$params` and local variable keys create a scope within their function body.
-- Inner scopes shadow outer scopes: if an inner function body has a `$param` or local named `x`, outer `x` is not substituted into it.
-- Variables resolve by walking up the scope chain: params first, then locals in the current body, then the parent scope.
+- Function parameters and runtime `$captures` create the function invocation
+  scope.
+- `$let` creates an expression-local recursive scope. Its names shadow function
+  parameters, captures, outer lets, and module bindings in variable lookup.
+  Literal function-body bindings additionally shadow callable registry entries.
+- Variables resolve from the innermost binder outward. Parameter defaults are
+  in the function invocation scope and can see captures, all parameter
+  bindings/defaults, and outer/module scope, but not a `$let` nested later
+  inside `$return`.
 
 ## Recursion
 
@@ -493,38 +617,49 @@ Functions can call themselves by name if registered in the function registry.
 
 ### Local Recursive Functions
 
-Local variables whose values are function bodies (have a `$return` key) can be called by name within their scope. This enables recursion without registering in the global registry. Mutual recursion between sibling locals works too.
+`$let` bindings whose literal values are function bodies can be called by name
+within their scope. This enables recursion without registering them in the
+persistent module/host registry. Mutual recursion between sibling bindings
+works too.
 
 ```json
 {
-  "$params": ["n"],
-  "fact": {
-    "$params": ["x"],
-    "$return": {
-      "$if": { "$call": "lte", "$args": [{ "$var": "x" }, 1] },
-      "$then": 1,
-      "$else": {
-        "$call": "mul",
-        "$args": [
-          { "$var": "x" },
-          { "$call": "fact", "$args": [{ "$call": "sub", "$args": [{ "$var": "x" }, 1] }] }
-        ]
+  "$let": {
+    "fact": {
+      "$params": ["x"],
+      "$return": {
+        "$if": { "$call": "lte", "$args": [{ "$var": "x" }, 1] },
+        "$then": 1,
+        "$else": {
+          "$call": "mul",
+          "$args": [
+            { "$var": "x" },
+            { "$call": "fact", "$args": [{ "$call": "sub", "$args": [{ "$var": "x" }, 1] }] }
+          ]
+        }
       }
     }
   },
-  "$return": { "$call": "fact", "$args": [{ "$var": "n" }] }
+  "$in": { "$call": "fact", "$args": [5] }
 }
 ```
 
-Local function names can shadow global registry functions and do not leak into parent or sibling scopes.
+Local function names can shadow persistent registry functions and do not leak
+outside their `$let`.
 
 ## Module Scope
 
-A whole program is an **object mapping names to expressions** — the same shape as a function body's locals. When a host runs such an object as a program (choosing an entry point to invoke), that object is itself a **recursive, lazy binding scope**, identical in semantics to the locals inside a function body:
+A whole program module is a distinct **object mapping names to expressions**.
+When a host links such an object and chooses an entry point, module entries form
+a persistent recursive registry:
 
 - Top-level **constants** (`SIZE`, `OFFSETS`, …) are visible via `$var` throughout the module.
 - Top-level **functions** are callable via `$call` and, being bindings, are also `$var`-visible as function values (so they can be passed by name to higher-order functions).
-- Bindings are lazy (evaluated on first reference, then memoized), order-independent, mutually recursive, and cycle-checked — exactly like locals.
+- Constants are lazy, memoized, order-independent, mutually recursive, and
+  cycle-checked.
+- Literal function entries are persistent named definitions. They are callable
+  by name and visible as function values, but are not copied into escaping
+  closures' `$captures`.
 
 ```json
 {
@@ -543,10 +678,13 @@ The module scope composes with the host-supplied registry (stdlib + native built
 
 > The module object is the **outermost lexical frame**; the host/stdlib registry is its **parent frame**. Callee (`$call`) and `$var` resolution are unchanged except that they now walk one additional frame.
 
-Consequences:
+The module registry is not a function body and is not a `$let` encoding.
+Function bodies have a closed structural schema; module roots instead own named
+entries and may additionally own `$types`. Consequences:
 
 - **Shadowing.** A module binding shadows a same-named registry entry (stdlib is the parent frame).
-- **Inner binders still win.** A function's `$params` or locals shadow a module constant of the same name, at any nesting depth — module scope is just the outermost link in the same chain described under [Scoping Rules](#scoping-rules).
+- **Inner binders still win.** A function's `$params`, runtime `$captures`, or
+  an expression `$let` shadows a module constant of the same name.
 - **Lisp-2 asymmetry (by syntax, not runtime type).** Only a binding whose value is _literally_ a function body (has a `$return` key) becomes callable in `$call` position. So a module _constant_ named `map` shadows `$var map` but **not** a `$call` to `map` (which still resolves the stdlib `map`), even if that constant happens to evaluate to a function; a module _function_ named `map` shadows **both**.
 
 This is a single outermost frame, not a module _system_: there is no `import` / `export`, no multiple modules, and no re-exports.
@@ -584,7 +722,10 @@ A task is a tagged plain object. The tag key is `@task` — deliberately **not**
 - **`pure`** is a completed task whose result is `value`.
 - **`bind`** sequences: run `task`, then apply the continuation `then` to obtain the next task. A one-parameter continuation receives the completed value; a zero-parameter continuation discards it (the shape emitted by a non-final bare expression in `do` notation).
 
-Because tasks are inert data, laziness composes with them cleanly: a task held in an [unreferenced lazy local](#lazy-local-variables) is never built, and building a task never performs its effect. Nothing happens until something _runs_ the task.
+Because tasks are inert data, laziness composes with them cleanly: a task held
+in an [unreferenced `$let` binding](#let-binding--let-in) is never built, and
+building a task never performs its effect. Nothing happens until something
+_runs_ the task.
 
 ### Constructors
 
@@ -911,7 +1052,10 @@ the host-configured logger, then returns the value unchanged:
 
 By default, `tap` is inert and produces no output. Host integrations may pass a logger when constructing the standard library to capture or emit logs. The output destination and format are host-defined.
 
-> **Note: lazy locals.** Because non-`$return` keys in a function body are [lazy](#lazy-local-variables), a `tap` call placed in an unreferenced local is never evaluated. To log inside a function body, either put the `tap` call in the path of `$return`, or reference the debug local from `$return` so it actually runs.
+> **Note: lazy bindings.** A `tap` call placed in an unreferenced
+> [`$let`](#let-binding--let-in) binding is never evaluated. To log inside a
+> function body, either put the `tap` call in the path of `$return`, or
+> reference the debug binding from `$in` so it is forced.
 
 ## HOF Argument Order
 
@@ -943,14 +1087,16 @@ Use a function body directly as the `$call` callee:
 
 ### Pipeline (filter -> map -> reduce)
 
-Use local variables to chain steps:
+Use `$let` bindings to name intermediate steps:
 
 ```json
 {
-  "nums": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-  "evens": { "$call": "filter", "$args": [{ "$fn": "isEven" }, { "$var": "nums" }] },
-  "doubled": { "$call": "map", "$args": [{ "$fn": "double" }, { "$var": "evens" }] },
-  "$return": { "$call": "reduce", "$args": [{ "$fn": "add" }, 0, { "$var": "doubled" }] }
+  "$let": {
+    "nums": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+    "evens": { "$call": "filter", "$args": [{ "$fn": "isEven" }, { "$var": "nums" }] },
+    "doubled": { "$call": "map", "$args": [{ "$fn": "double" }, { "$var": "evens" }] }
+  },
+  "$in": { "$call": "reduce", "$args": [{ "$fn": "add" }, 0, { "$var": "doubled" }] }
 }
 ```
 
@@ -988,18 +1134,20 @@ Use `entries` -> HOF -> `fromEntries` to transform objects:
 
 ```json
 {
-  "pairs": { "$call": "entries", "$args": [{ "$var": "obj" }] },
-  "filtered": {
-    "$call": "filter",
-    "$args": [
-      {
-        "$params": ["pair"],
-        "$return": { "$call": "gt", "$args": [{ "$get": 1, "$from": { "$var": "pair" } }, 3] }
-      },
-      { "$var": "pairs" }
-    ]
+  "$let": {
+    "pairs": { "$call": "entries", "$args": [{ "$var": "obj" }] },
+    "filtered": {
+      "$call": "filter",
+      "$args": [
+        {
+          "$params": ["pair"],
+          "$return": { "$call": "gt", "$args": [{ "$get": 1, "$from": { "$var": "pair" } }, 3] }
+        },
+        { "$var": "pairs" }
+      ]
+    }
   },
-  "$return": { "$call": "fromEntries", "$args": [{ "$var": "filtered" }] }
+  "$in": { "$call": "fromEntries", "$args": [{ "$var": "filtered" }] }
 }
 ```
 
@@ -1007,13 +1155,22 @@ Use `entries` -> HOF -> `fromEntries` to transform objects:
 
 ### Circular Variable Dependencies
 
-Lazy locals form a dependency graph resolved on demand. If resolving a local requires resolving itself — directly (`{ "x": { "$var": "x" } }`) or through a cycle (`a → b → a`) — evaluation errors instead of looping. The cycle is reported in the message, e.g.:
+Lazy `$let` and module bindings form dependency graphs resolved on demand. If
+resolving a binding requires resolving itself—directly
+(`{ "$let": { "x": { "$var": "x" } }, "$in": { "$var": "x" } }`) or through a
+cycle (`a → b → a`)—evaluation errors instead of looping. The cycle is
+reported in the message, e.g.:
 
 ```
 Circular variable dependency detected: a -> b -> a
 ```
 
 This detection is part of the language: it is always on, needs no configuration, and is enforced by every implementation. It reports the first cycle reached, even when the cycle does not start at the first variable.
+
+Evaluating a `$let` consumes the ordinary one unit of expression fuel, as does
+each binding expression when it is first forced. Entering a `$let` does not
+invoke a function, consume function-invocation fuel, or increase call depth.
+Calling a function-valued binding later has the ordinary function-call costs.
 
 ### Host-configured resource limits
 
@@ -1037,6 +1194,8 @@ TypeScript CLI's `eval` command accepts `--max-call-depth`, `--max-fuel`, and
 ## Constraints
 
 - `$var` must be the sole key; its value is a plain variable name (no path notation, no `$get` sibling).
+- `$let`/`$in` must be the only two keys; both are required, and `$let` must be
+  a non-empty object of bindings.
 - `$get`/`$from` must be the only two keys; both are required. This is the only property-access form.
 - `$if`/`$then`/`$else` must all be present, exactly three keys.
 - `$cond` may have only `$cond` and optional `$else`; each entry must be a two-element array.
@@ -1047,5 +1206,8 @@ TypeScript CLI's `eval` command accepts `--max-call-depth`, `--max-fuel`, and
 - A function call has exactly `$call` (the callee) and `$args` (an array of arguments) and no other keys.
 - A function reference has `$fn` as its sole key; `$fn` is never an array.
 - `$return` cannot coexist with `$call` or `$fn`.
+- A source function body has `$return` and only optional `$params`, `$sig`, and
+  string-valued `$comment`; `$captures` and `$runtimeContract` are reserved
+  runtime fields, and `$types` is module-only.
 - `$comment` (with a string value) is allowed as a sibling key in any expression form and does not count toward "sole key" / "exactly N keys" constraints. In plain data objects it is stripped from the output.
 - Truthiness: `0`, `""`, `null`, `false` are falsy; everything else is truthy.

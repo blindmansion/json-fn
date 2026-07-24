@@ -513,8 +513,8 @@ distinguished from `match` purely by the absence of a subject after the keyword.
 ### `body-expr where { name: value, … }`
 
 The result expression comes first; the trailing `where { … }` clause supplies
-the locals. Bindings use `:` (mirroring the JSON, where function locals are
-literally key–value entries on the function-body object).
+expression-local bindings. Bindings use `:` and lower to the canonical
+`$let`/`$in` form.
 
 ```jfn
 (x, y) => doubled where {
@@ -526,15 +526,20 @@ literally key–value entries on the function-body object).
 ```json
 {
   "$params": ["x", "y"],
-  "sum": { "$call": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] },
-  "doubled": { "$call": "mul", "$args": [{ "$var": "sum" }, 2] },
-  "$return": { "$var": "doubled" }
+  "$return": {
+    "$let": {
+      "sum": { "$call": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] },
+      "doubled": { "$call": "mul", "$args": [{ "$var": "sum" }, 2] }
+    },
+    "$in": { "$var": "doubled" }
+  }
 }
 ```
 
 **Semantics (important).** Bindings are **lazy** and **order-independent**: they
 form a dependency graph resolved on demand, and a binding that is never reached
-from `$return` is **never evaluated**. The `where` form is declarative, not a
+from `$in` is **never evaluated**. They are memoized, mutually recursive, and
+cycle-checked. The `where` form is declarative, not a
 sequence of steps. (E.g. a binding may hold an unconditionally-recursive call
 that only terminates because it is forced solely in the branch that uses it.)
 Placing the answer first and its supporting locals after mirrors how these
@@ -543,8 +548,9 @@ functions read: headline, then the details that back it up.
 `where` is a lowest-precedence postfix clause on a **body**. Bodies occur at the
 program top level, after `=>`, inside a parenthesized group, in a `where` binding
 value, in a `cond`/`match` result arm, and in the body positions of `do`.
-In a function body, the bindings lower directly into that function's scope.
-In any other body, they lower to an immediately invoked zero-argument function:
+Every occurrence lowers the same way: to a `$let` whose `$in` is the preceding
+body expression. For a function literal, that `$let` becomes the function's
+`$return`.
 
 ```jfn
 answer where { answer: 40 + 2 }
@@ -552,11 +558,40 @@ answer where { answer: 40 + 2 }
 
 ```json
 {
-  "$call": {
-    "answer": { "$call": "add", "$args": [40, 2] },
-    "$return": { "$var": "answer" }
+  "$let": {
+    "answer": { "$call": "add", "$args": [40, 2] }
   },
-  "$args": []
+  "$in": { "$var": "answer" }
+}
+```
+
+The canonical `$let` object has exactly `$let` and `$in`, and its binding map
+must be non-empty. A `$let` is an expression scope, not a function call:
+entering it consumes no call frame or function-invocation fuel.
+
+The printer reconstructs a valid shorthand-compatible `$let` as
+`<in> where { ...bindings }`. A `$let` nested directly under a function's
+`$return` therefore prints as function-body `where`; the same canonical form
+elsewhere prints as expression-level `where`.
+
+Bindings can see the surrounding scope. In a function's `$return`, that
+includes its parameters; the `$let` names then shadow same-named parameters,
+captures, and outer bindings. A binding whose value is a function literal is
+callable by its local name, including recursively or mutually recursively.
+
+For example, the function-body form above always nests the let under
+`$return`:
+
+```json
+{
+  "$params": ["x", "y"],
+  "$return": {
+    "$let": {
+      "sum": { "$call": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] },
+      "doubled": { "$call": "mul", "$args": [{ "$var": "sum" }, 2] }
+    },
+    "$in": { "$var": "doubled" }
+  }
 }
 ```
 
@@ -634,13 +669,13 @@ lazy value, evaluated only if first read. Explicit `null` is supplied data and
 suppresses either omission behavior. json-fn has no `undefined` value.
 
 Default expressions are ordinary json-fn expressions. They are resolved in the
-complete recursive function-body scope, so they may reference earlier or later
-parameters, other defaults, object-pattern fields, body locals, local
-functions, and recursive definitions already visible to the body. This is
-deliberately not JavaScript's left-to-right, call-entry default evaluation
-despite the TypeScript-style surface spelling. A self-reference or dependency
-cycle is permitted syntactically and fails at runtime only if evaluation forces
-the cycle.
+function invocation scope, so they may reference earlier or later parameters,
+other defaults, object-pattern fields, runtime captures, and outer/module
+bindings. They cannot reference a `where` `$let` nested inside `$return`, which
+is entered only after parameter binding. This is deliberately not JavaScript's
+left-to-right default evaluation despite the TypeScript-style surface spelling.
+A self-reference or dependency cycle is permitted syntactically and fails at
+runtime only if evaluation forces the cycle.
 
 Canonical parameter layouts place every required positional or object-pattern
 slot before all optional/defaulted positional slots, with a rest parameter last
@@ -726,6 +761,10 @@ captured by substitution when it is returned as a value). Functions call
 themselves by registered name, or a local binding whose value is a function
 literal can recurse by its local name.
 
+Escaping closures may acquire the runtime-only canonical `$captures` field.
+It is serialized closure state, not a `where` binding, has no authoring
+shorthand, and is rejected by the shorthand printer rather than discarded.
+
 ```jfn
 (x) => (y) => x + y
 ```
@@ -746,11 +785,14 @@ There is no file-level construct beyond "an expression."
 
 A typical multi-function file is an **object mapping names to expressions** —
 constants and function literals — as in `examples/pipeline.jfn` and
-`examples/dungeon.jfn`. This object is the **outermost `letrec` scope**: top-level
-names (constants _and_ functions) are visible via `$var` throughout the file,
-and functions are callable via `$call`, with the same lazy, order-independent,
-mutually-recursive semantics a function body gives its locals. The host supplies
-the parent frame (stdlib + native builtins) and picks an entry point to invoke.
+`examples/dungeon.jfn`. This object is a distinct persistent module registry,
+not a function body or a `$let` encoding. Top-level names (constants _and_
+functions) are visible via `$var` throughout the file, and literal functions
+are callable via `$call`. Constants are lazy, memoized, order-independent,
+mutually recursive, and cycle-checked. Module functions remain registry-backed
+for the whole program and are not copied into escaping closures. The host
+supplies the parent registry (stdlib + native builtins) and picks an entry point
+to invoke.
 
 ```jfn
 {
@@ -878,8 +920,9 @@ Everything else in this document is resolved and implementable.
 
 Two surface forms lower to the effects kernel (`perform` / `pure` / `bind` /
 `handle`; see the [Tasks & Effects](./language.md#tasks--effects) section of the
-language reference for the runtime semantics). Both are **parser-only sugar** —
-they lower to ordinary `$call` calls, and the printer folds those exact shapes
+language reference for the runtime semantics). Both are **parser-only sugar**.
+`handle` lowers to a call, while `do` lowers to a `bind` call spine plus
+canonical `$let` nodes for pure bindings. The printer folds those exact shapes
 back.
 
 `do` and `handle` are **contextual keywords**: in primary position they
@@ -905,9 +948,9 @@ Desugar: each effect binding and each discard starts a nested `bind(expr, k)`.
 The continuation `k` binds the effect result to `name` (effect binding) or takes
 **no parameter** (discard — a distinct JSON shape from `_ <- expr`, which binds
 `_`, so both surface forms round-trip). Pure bindings since the previous
-effect/discard attach as `k`'s `where`-locals; pure bindings *before* the first
-effect wrap the whole chain in a zero-arg IIFE, exactly like expression-level
-`where`.
+effect/discard wrap the continuation's `$return` in `$let`; pure bindings
+*before* the first effect wrap the whole bind chain in `$let`. No synthetic
+zero-argument call is introduced.
 
 ```jfn
 do {
@@ -925,16 +968,54 @@ do {
     { "$call": "readLine", "$args": [] },
     {
       "$params": ["name"],
-      "upper": { "$call": "upper", "$args": [{ "$var": "name" }] },
       "$return": {
-        "$call": "bind",
-        "$args": [
-          { "$call": "print", "$args": [{ "$var": "upper" }] },
-          { "$return": { "$call": "pure", "$args": [{ "$var": "upper" }] } }
-        ]
+        "$let": {
+          "upper": { "$call": "upper", "$args": [{ "$var": "name" }] }
+        },
+        "$in": {
+          "$call": "bind",
+          "$args": [
+            { "$call": "print", "$args": [{ "$var": "upper" }] },
+            { "$return": { "$call": "pure", "$args": [{ "$var": "upper" }] } }
+          ]
+        }
       }
     }
   ]
+}
+```
+
+Leading pure bindings use the same canonical form around the complete bind
+spine:
+
+```jfn
+do {
+  prefix: "hello ",
+  name <- readLine(),
+  pure(prefix ++ name)
+}
+```
+
+```json
+{
+  "$let": {
+    "prefix": "hello "
+  },
+  "$in": {
+    "$call": "bind",
+    "$args": [
+      { "$call": "readLine", "$args": [] },
+      {
+        "$params": ["name"],
+        "$return": {
+          "$call": "pure",
+          "$args": [
+            { "$call": "strcat", "$args": [{ "$var": "prefix" }, { "$var": "name" }] }
+          ]
+        }
+      }
+    ]
+  }
 }
 ```
 
@@ -985,9 +1066,11 @@ handle greet(io) with {
 
 The printer folds **only exact desugar images**, preserving the
 bijective-by-normal-form guarantee (`parse(print(x)) === x`): a `bind` call whose
-continuation is a function literal prints as `do { … }` (folding nested binds and
-their where-locals back into `<-` / `:` / discard entries), and a `handle` call
-with a literal clause object prints as `handle … with { … }`; a third
-`raw(schema)` argument prints as `handle … -> Type with { … }`. Any other
-shape — e.g. a `bind` with a `&`-referenced continuation, or a `handle` whose
-clauses are a computed expression — prints as a plain call.
+continuation is a structural function literal prints as `do { … }`. A leading
+`$let` around the bind spine reconstructs leading pure entries; a `$let` in a
+continuation's `$return` reconstructs the consecutive pure entries after that
+effect/discard. A `handle` call with a literal clause object prints as
+`handle … with { … }`; a third `raw(schema)` argument prints as
+`handle … -> Type with { … }`. Any other shape—e.g. a `bind` with an
+`&`-referenced continuation, or a `handle` whose clauses are a computed
+expression—prints as a plain call.
