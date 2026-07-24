@@ -139,7 +139,7 @@ function bindParams(
   sig: Sig | null,
   ctx: CheckContext,
 ): TypedParameterBindings {
-  const eager: Record<string, Schema> = {};
+  const eager = nullRecord<Schema>();
   const defaults: TypedDefault[] = [];
   let valid = true;
   const sigParams = sig === null ? [] : fixedParamSchemas(sig);
@@ -351,7 +351,16 @@ type TypeScopeResult = {
 type FunctionTypeScopeResult = TypeScopeResult & {
   parameterDefaults: TypedDefault[];
   parameterBindingsValid: boolean;
+  narrowings: Record<string, Schema> | undefined;
 };
+
+function nullRecord<T>(): Record<string, T> {
+  return Object.create(null) as Record<string, T>;
+}
+
+function hasOwn(record: object, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(record, key);
+}
 
 function buildLetrecTypeScope(
   bindings: Record<string, JSONType>,
@@ -364,12 +373,12 @@ function buildLetrecTypeScope(
     checkFunctionBodies: boolean;
   },
 ): TypeScopeResult {
-  const exprLocals: Record<string, JSONType> = {};
-  const functionLocals: Record<string, Record<string, JSONType>> = {};
-  const eager = { ...initialEager };
+  const exprLocals = nullRecord<JSONType>();
+  const functionLocals = nullRecord<Record<string, JSONType>>();
+  const eager = Object.assign(nullRecord<Schema>(), initialEager);
 
   for (const [key, val] of Object.entries(bindings)) {
-    if (isBody(val)) {
+    if (nodeKind(val) === "body" && isBody(val)) {
       functionLocals[key] = val;
       if (options.reportUntypedFunctions && sigOf(val) === null) {
         reportDegradation(
@@ -385,7 +394,9 @@ function buildLetrecTypeScope(
 
   // Lazy locals double as named boolean guards (§2.3); outer guards remain in
   // scope, with siblings shadowing them.
-  const guards: Record<string, JSONType> = { ...ctx.guards, ...exprLocals };
+  const guards = Object.assign(nullRecord<JSONType>(), ctx.guards);
+  for (const name of [...Object.keys(eager), ...Object.keys(bindings)]) delete guards[name];
+  Object.assign(guards, exprLocals);
   // Facts that dominate creation of this lexical scope also dominate every
   // evaluation of its lazy locals. A forcing site can add facts, but crossing
   // an inline-function or callback boundary must not erase the facts under
@@ -395,9 +406,9 @@ function buildLetrecTypeScope(
   // Two-tier cache: `memo` is the type when no creation/forcing facts relevant
   // to the local are active; `narrowedMemo[name][key]` holds a re-synth under a
   // specific set of *relevant* merged facts (§2.2c).
-  const memo: Record<string, Schema> = {};
-  const narrowedMemo: Record<string, Record<string, Schema>> = {};
-  const freeVarsMemo: Record<string, Set<string>> = {};
+  const memo = nullRecord<Schema>();
+  const narrowedMemo = nullRecord<Record<string, Schema>>();
+  const freeVarsMemo = nullRecord<Set<string>>();
   const resolving: string[] = [];
 
   // The `$var` names a lazy local transitively references, expanding names that
@@ -412,7 +423,7 @@ function buildLetrecTypeScope(
     collectVars(exprLocals[name]!, direct);
     for (const dv of direct) {
       result.add(dv);
-      if (dv !== name && dv in exprLocals) for (const fv of freeVarsOf(dv)) result.add(fv);
+      if (dv !== name && hasOwn(exprLocals, dv)) for (const fv of freeVarsOf(dv)) result.add(fv);
     }
     return result;
   }
@@ -420,7 +431,7 @@ function buildLetrecTypeScope(
   // The subset of `narrowings` that could actually change this local's type.
   function relevantFacts(name: string, narrowings: Record<string, Schema>): Record<string, Schema> {
     const fv = freeVarsOf(name);
-    const out: Record<string, Schema> = {};
+    const out = nullRecord<Schema>();
     for (const k of Object.keys(narrowings)) if (fv.has(k)) out[k] = narrowings[k]!;
     return out;
   }
@@ -448,8 +459,8 @@ function buildLetrecTypeScope(
 
   const env: TypeEnv = {
     lookupType(name: string, narrowings?: Record<string, Schema>): Schema | undefined {
-      if (name in eager) return eager[name];
-      if (!(name in exprLocals)) return parent?.lookupType(name, narrowings);
+      if (hasOwn(eager, name)) return eager[name];
+      if (!hasOwn(exprLocals, name)) return parent?.lookupType(name, narrowings);
 
       // Lexical creation facts always apply; forcing-site facts augment them.
       // This matters when guard analysis asks for a local's current type through
@@ -462,13 +473,13 @@ function buildLetrecTypeScope(
       // memo answers — the genuinely no-narrowing path stays exactly as before.
       const relevant = Object.keys(active).length > 0 ? relevantFacts(name, active) : {};
       if (Object.keys(relevant).length === 0) {
-        if (name in memo) return memo[name];
+        if (hasOwn(memo, name)) return memo[name];
         return (memo[name] = resolveLocal(name, undefined));
       }
 
-      const bucket = (narrowedMemo[name] ??= {});
+      const bucket = (narrowedMemo[name] ??= nullRecord<Schema>());
       const key = stableStringify(relevant);
-      if (key in bucket) return bucket[key]!;
+      if (hasOwn(bucket, key)) return bucket[key]!;
       return (bucket[key] = resolveLocal(name, relevant));
     },
   };
@@ -498,9 +509,9 @@ function captureBindings(
     report(captureCtx, "$captures must be a non-null object of function bodies.");
     return {};
   }
-  const captures: Record<string, JSONType> = {};
+  const captures = nullRecord<JSONType>();
   for (const [name, value] of Object.entries(body.$captures)) {
-    if (!isBody(value)) {
+    if (nodeKind(value) !== "body" || !isBody(value)) {
       report(at(captureCtx, name), "capture entry must be a function body.");
       continue;
     }
@@ -530,18 +541,23 @@ function buildFunctionTypeScope(
   injectedSig?: Sig,
 ): FunctionTypeScopeResult {
   const captures = captureBindings(body, ctx);
-  const captureScope = buildLetrecTypeScope(captures, {}, parent, ctx, {
+  const captureCtx = withoutShadowedNarrowings(ctx, Object.keys(captures));
+  const captureScope = buildLetrecTypeScope(captures, {}, parent, captureCtx, {
     reportUntypedFunctions: true,
     bindingPath: at(ctx, "$captures"),
     checkFunctionBodies: true,
   });
   const sig = injectedSig ?? sigOf(body);
   const parameterBindings = bindParams(layout, sig, ctx);
+  const functionCtx = withoutShadowedNarrowings(
+    { ...captureCtx, env: captureScope.env, guards: captureScope.guards },
+    [...Object.keys(parameterBindings.eager), ...Object.keys(legacyBindings)],
+  );
   const scope = buildLetrecTypeScope(
     legacyBindings,
     parameterBindings.eager,
     captureScope.env,
-    { ...ctx, env: captureScope.env, guards: captureScope.guards },
+    functionCtx,
     {
       reportUntypedFunctions: true,
       bindingPath: ctx,
@@ -552,6 +568,7 @@ function buildFunctionTypeScope(
     ...scope,
     parameterDefaults: parameterBindings.defaults,
     parameterBindingsValid: parameterBindings.valid,
+    narrowings: functionCtx.narrowings,
   };
 }
 
@@ -1198,16 +1215,17 @@ function inlineCallBodyContext(
     ...body,
     $sig: syntheticSig,
   };
-  const { env, guards, parameterDefaults, parameterBindingsValid } = buildFunctionTypeScope(
-    withSig,
-    layout,
-    ctx.env,
-    ctx,
-    legacyFunctionBindings(body),
-    syntheticSig,
-  );
+  const { env, guards, narrowings, parameterDefaults, parameterBindingsValid } =
+    buildFunctionTypeScope(
+      withSig,
+      layout,
+      ctx.env,
+      ctx,
+      legacyFunctionBindings(body),
+      syntheticSig,
+    );
   if (!parameterBindingsValid) return null;
-  const bctx: CheckContext = { ...ctx, env, guards };
+  const bctx: CheckContext = { ...ctx, env, guards, narrowings };
   checkParameterDefaults(parameterDefaults, bctx);
   return bctx;
 }
@@ -1335,16 +1353,10 @@ function checkBody(
     return;
   }
   const sig = injectedSig ?? declaredSig;
-  const { env, guards, parameterDefaults, parameterBindingsValid } = buildFunctionTypeScope(
-    body,
-    layout,
-    ctx.env,
-    ctx,
-    legacyFunctionBindings(body),
-    injectedSig,
-  );
+  const { env, guards, narrowings, parameterDefaults, parameterBindingsValid } =
+    buildFunctionTypeScope(body, layout, ctx.env, ctx, legacyFunctionBindings(body), injectedSig);
   if (!parameterBindingsValid) return;
-  const bctx: CheckContext = { ...ctx, env, guards };
+  const bctx: CheckContext = { ...ctx, env, guards, narrowings };
   checkParameterDefaults(parameterDefaults, bctx);
   check(body.$return!, sig?.returns ?? true, at(bctx, "$return"));
 }

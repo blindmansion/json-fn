@@ -150,6 +150,37 @@ describe("$let recursive scope", () => {
       expect.objectContaining({ path: ["$let", "helper"], severity: "info" }),
     );
   });
+
+  test("supports bindings whose names collide with object prototypes", () => {
+    for (const name of ["toString", "constructor", "__proto__"]) {
+      const expression = JSON.parse(
+        JSON.stringify({ $let: { placeholder: 1 }, $in: { $var: name } }).replace(
+          "placeholder",
+          name,
+        ),
+      ) as JSONType;
+      const result = checkExpr(expression);
+      expect(result.type).toEqual({ const: 1 });
+      expect(result.diagnostics).toEqual([]);
+    }
+  });
+
+  test("classifies a mixed $let binding as malformed when forced", () => {
+    const result = checkExpr(
+      letExpr(
+        {
+          bad: { $let: { x: 1 }, $in: 1, $return: 1 },
+        },
+        { $var: "bad" },
+      ),
+    );
+    expect(result.diagnostics).toEqual([
+      expect.objectContaining({
+        path: ["$let", "bad"],
+        message: "$let expressions cannot have other properties.",
+      }),
+    ]);
+  });
 });
 
 describe("$let narrowing", () => {
@@ -209,6 +240,60 @@ describe("$let narrowing", () => {
             { $var: "result" },
           ),
           $else: "fallback",
+        }),
+      },
+      loadBuiltinTable(),
+    );
+    expect(diagnostics).toEqual([]);
+  });
+
+  test("function bindings shadow outer named guards", () => {
+    const inner = fn([], [], B, true);
+    const diagnostics = checkModule(
+      {
+        f: fn(
+          ["value"],
+          [numberOrString],
+          I,
+          letExpr(
+            { same: { $call: "isInteger", $args: [{ $var: "value" }] } },
+            letExpr(
+              { same: inner },
+              {
+                $if: { $var: "same" },
+                $then: { $call: "add", $args: [{ $var: "value" }, 1] },
+                $else: 0,
+              },
+            ),
+          ),
+        ),
+      },
+      loadBuiltinTable(),
+    );
+    expect(diagnostics.some((d) => d.severity === "error")).toBe(true);
+  });
+
+  test("function parameters and captures mask outer narrowing facts", () => {
+    const captured = fn([], [], I, 1);
+    const capturedType: Schema = {
+      $fnType: { required: [], optional: [], returns: I },
+    };
+    const helper = fn(["value"], [S], S, { $var: "value" });
+    const worker = fn(
+      [],
+      [],
+      capturedType,
+      { $var: "value" },
+      {
+        $captures: { value: captured },
+      },
+    );
+    const diagnostics = checkModule(
+      {
+        f: fn(["value"], [numberOrString], I, {
+          $if: { $call: "isInteger", $args: [{ $var: "value" }] },
+          $then: letExpr({ helper, worker }, 1),
+          $else: 0,
         }),
       },
       loadBuiltinTable(),

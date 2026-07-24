@@ -295,16 +295,17 @@ function inferLambdaReturn(body: JSONType, expectedFn: Schema, ctx: CheckContext
       returns: shape.returns,
     },
   };
-  const { env, guards, parameterDefaults, parameterBindingsValid } = buildFunctionTypeScope(
-    withSig,
-    layout,
-    ctx.env,
-    ctx,
-    legacyFunctionBindings(bodyObject),
-    shape,
-  );
+  const { env, guards, narrowings, parameterDefaults, parameterBindingsValid } =
+    buildFunctionTypeScope(
+      withSig,
+      layout,
+      ctx.env,
+      ctx,
+      legacyFunctionBindings(bodyObject),
+      shape,
+    );
   if (!parameterBindingsValid) return null;
-  const bctx: CheckContext = { ...ctx, env, guards };
+  const bctx: CheckContext = { ...ctx, env, guards, narrowings };
   checkParameterDefaults(parameterDefaults, bctx);
   return synth(bodyObject.$return!, at(bctx, "$return"));
 }
