@@ -1,8 +1,11 @@
 import type { JSONType, PerfStats } from "../types";
 import { ExpressionType } from "../types";
 import { exprError } from "../expression-error";
+import {
+  analyzeFunctionBodyStructure,
+  formatFunctionBodyStructureIssue,
+} from "../function-body-structure";
 import { isFunctionBody } from "../function-value";
-import { requireParameterLayout } from "../params";
 import { expressionKeyCount } from "../utils";
 
 export function getExpressionType(json: JSONType, perf?: PerfStats): ExpressionType {
@@ -63,11 +66,9 @@ function classifyExpressionType(json: JSONType): ExpressionType {
     }
 
     if (isFunctionBody(json)) {
-      if ("$fn" in json || "$call" in json || "$args" in json) {
-        exprError(json, "Function bodies cannot have other keyword properties.");
-      }
-      if ("$params" in json) {
-        requireParameterLayout(json.$params, json);
+      const analysis = analyzeFunctionBodyStructure(json);
+      if (!analysis.ok) {
+        exprError(json, formatFunctionBodyStructureIssue(analysis.issues[0]!));
       }
       return ExpressionType.FunctionBody;
     }

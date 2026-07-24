@@ -20,6 +20,10 @@ import type {
 import { ExpressionType } from "../types";
 import { exprError } from "../expression-error";
 import {
+  analyzeFunctionBodyStructure,
+  formatFunctionBodyStructureIssue,
+} from "../function-body-structure";
+import {
   isCommentKey,
   isPure,
   isMeteredPure,
@@ -497,6 +501,10 @@ function seedFunctionCaptures(fn: FunctionBody, context: EvaluationContext): Eva
 function callJSONFunction(fn: FunctionBody, args: JSONType[], context: EvaluationContext) {
   const { perf } = context;
   if (perf) perf.callJSONFunction++;
+  const analysis = analyzeFunctionBodyStructure(fn);
+  if (!analysis.ok) {
+    exprError(fn, formatFunctionBodyStructureIssue(analysis.issues[0]!));
+  }
   const { limits, state } = context;
   const contract = readRuntimeFunctionContract(fn);
   if (contract !== null) {

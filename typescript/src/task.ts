@@ -202,14 +202,21 @@ export function stepTask(
 function bubbleContinuation(stepResume: JSONType, handlers: JSONType): JSONType {
   return raw({
     $params: [RESUME_PARAM],
-    __r: {
-      $call: "handle",
-      $args: [{ $call: { $raw: stepResume }, $args: [{ $var: RESUME_PARAM }] }, { $raw: handlers }],
-    },
     $return: {
-      $if: { $call: "isTask", $args: [{ $var: "__r" }] },
-      $then: { $var: "__r" },
-      $else: { $call: "pure", $args: [{ $var: "__r" }] },
+      $let: {
+        __r: {
+          $call: "handle",
+          $args: [
+            { $call: { $raw: stepResume }, $args: [{ $var: RESUME_PARAM }] },
+            { $raw: handlers },
+          ],
+        },
+      },
+      $in: {
+        $if: { $call: "isTask", $args: [{ $var: "__r" }] },
+        $then: { $var: "__r" },
+        $else: { $call: "pure", $args: [{ $var: "__r" }] },
+      },
     },
   });
 }

@@ -9,6 +9,7 @@
 // `getVar`'s `resolvingVars` cycle guard.
 
 import type { JSONType } from "../types";
+import { analyzeFunctionBodyStructure } from "../function-body-structure";
 import {
   analyzeParameters,
   formatArgumentCountExpectation,
@@ -499,6 +500,22 @@ function legacyFunctionBindings(body: Record<string, JSONType>): Record<string, 
   return Object.fromEntries(bindingKeys(body).map((key) => [key, body[key]!]));
 }
 
+function rejectUnsupportedFunctionBodyFields(
+  body: Record<string, JSONType>,
+  ctx: CheckContext,
+): boolean {
+  const analysis = analyzeFunctionBodyStructure(body);
+  if (analysis.ok) return false;
+
+  let rejected = false;
+  for (const issue of analysis.issues) {
+    if (issue.code !== "unsupported-field") continue;
+    report(at(ctx, issue.field), `function body field "${issue.field}" is not supported.`);
+    rejected = true;
+  }
+  return rejected;
+}
+
 function captureBindings(
   body: Record<string, JSONType>,
   ctx: CheckContext,
@@ -878,6 +895,7 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
       if (sigOf(body) !== null) {
         checkBody(body, ctx);
       } else {
+        rejectUnsupportedFunctionBodyFields(body, ctx);
         reportDegradation(ctx, "the function value has no declared signature");
       }
       return bodyFnTypeSchema(body);
@@ -1190,6 +1208,7 @@ function inlineCallBodyContext(
   args: JSONType[],
   ctx: CheckContext,
 ): CheckContext | null {
+  if (rejectUnsupportedFunctionBodyFields(body, ctx)) return null;
   const layout = analyzeBodyParameters(body, ctx);
   if (layout === null) return null;
   const hasRest = layout.rest !== null;
@@ -1261,9 +1280,12 @@ function check(expr: JSONType, expected: Schema, ctx: CheckContext): void {
   // non-function) can't supply param types, so defer silently rather than emit
   // a spurious `any ⊄ …` for a value whose own type is un-synthesizable.
   if (kind === "body" && sigOf(expr as Record<string, JSONType>) === null) {
+    const body = expr as Record<string, JSONType>;
     const exp = resolveDeep(expected, ctx.defs);
     if (classifySchema(exp) === SchemaKind.FnType) {
-      checkLambda(expr as Record<string, JSONType>, asObject(exp), ctx);
+      checkLambda(body, asObject(exp), ctx);
+    } else {
+      rejectUnsupportedFunctionBodyFields(body, ctx);
     }
     return;
   }
@@ -1339,6 +1361,7 @@ function checkBody(
   injectedSig?: Sig,
   analyzedLayout?: ParameterLayout,
 ): void {
+  if (rejectUnsupportedFunctionBodyFields(body, ctx)) return;
   if ("$comment" in body && typeof body.$comment !== "string") {
     report(at(ctx, "$comment"), "function body $comment must be a string.");
   }

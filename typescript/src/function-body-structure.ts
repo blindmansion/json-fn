@@ -1,5 +1,5 @@
 import { isFunctionBody, isFunctionDeclaration } from "./function-value";
-import { analyzeParameters, type ParameterIssue } from "./params";
+import { analyzeParameters, formatParameterIssue, type ParameterIssue } from "./params";
 
 const FUNCTION_BODY_SOURCE_FIELDS: ReadonlySet<string> = new Set([
   "$return",
@@ -30,6 +30,27 @@ type FunctionBodyStructureIssue =
 type FunctionBodyStructureAnalysis =
   | { ok: true; issues: [] }
   | { ok: false; issues: FunctionBodyStructureIssue[] };
+
+function formatFunctionBodyStructureIssue(issue: FunctionBodyStructureIssue): string {
+  switch (issue.code) {
+    case "not-object":
+      return "Function body must be a non-null object.";
+    case "missing-return":
+      return "Function body must have a $return property.";
+    case "unsupported-field":
+      return `Function body field "${issue.field}" is not supported.`;
+    case "invalid-comment":
+      return "Function body $comment must be a string.";
+    case "invalid-params":
+      return formatParameterIssue(issue.issue);
+    case "invalid-captures":
+      return "Function $captures must be a non-null object of function bodies.";
+    case "invalid-capture":
+      return `Function capture "${issue.name}" must be a function body.`;
+    case "invalid-runtime-contract":
+      return "Function $runtimeContract is malformed.";
+  }
+}
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -108,6 +129,7 @@ export {
   FUNCTION_BODY_SOURCE_FIELDS,
   RUNTIME_CONTRACT_FIELD,
   analyzeFunctionBodyStructure,
+  formatFunctionBodyStructureIssue,
   isReadableRuntimeFunctionContract,
 };
 export type { FunctionBodyStructureAnalysis, FunctionBodyStructureIssue };
