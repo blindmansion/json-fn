@@ -440,29 +440,6 @@ describe("jfn eval contract modes", () => {
     }
   });
 
-  test.each([
-    {
-      name: "dungeon",
-      module: join(examples, "dungeon.jfn"),
-      contract: join(examples, "dungeon.contract.json"),
-      expectedKeys: ["escape", "silence"],
-    },
-  ])("development-evaluates the $name demo with its contract", (fixture) => {
-    const result = runEval([
-      "--file",
-      fixture.module,
-      "--contract",
-      fixture.contract,
-      "--function",
-      "demo",
-      "--compact",
-    ]);
-
-    expect(result.exitCode).toBe(0);
-    expect(result.stderr).toBe("");
-    expect(Object.keys(JSON.parse(result.stdout))).toEqual([...fixture.expectedKeys]);
-  });
-
   test("development-evaluates a named function without a contract", () => {
     const result = runEval([
       "--function",

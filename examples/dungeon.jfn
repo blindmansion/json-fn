@@ -1,8 +1,6 @@
 {
   // RoomId, Room, and PlayerState come from dungeon.contract.json.
   type Turn = { state: PlayerState, message: string, done: boolean },
-  type ScriptState = { pending: string[], transcript: string[] },
-  type ScriptReport = { ending: string, transcript: string[] },
 
   // ---- The map: plain JSON all the way down ------------------------------
   // Rooms are inert data. Nothing here knows how to *do* anything; behavior
@@ -95,51 +93,5 @@
           then pure(turn.message)
           else play(turn.state)
       }
-  },
-
-  // ---- A bidirectional scripted handler -------------------------------------
-  // One handler, two effects, one threaded state record: `input` consumes the
-  // pending script, `print` appends to the transcript. Same function-awaiting-
-  // state trick as `withState`, just with a record instead of a bare value.
-  runScript: (cmds: string[], task: Task<string>) -> ScriptReport =>
-    (handle task -> (ScriptState) -> ScriptReport with {
-    input: (resume) => (s) => resume(cmd)(rest) where {
-      empty: length(s.pending) == 0,
-      cmd:   if empty then null else head(s.pending),
-      rest:  { pending: if empty then [] else tail(s.pending), transcript: s.transcript }
-    },
-    print: (msg, resume) => (s) =>
-      resume(null)({ pending: s.pending, transcript: concat(s.transcript, [msg]) }),
-    return: (v) => (s) => { ending: v, transcript: s.transcript }
-  })({ pending: cmds, transcript: [] }),
-
-  // ---- Demos -----------------------------------------------------------------
-
-  // A full playthrough, including one wrong turn and one pointless verb.
-  demoEscape: () -> ScriptReport => runScript(script, play(start)) where {
-    start: { at: "cell", held: [] },
-    script: [
-      "take",          // rusty key
-      "go up",         // no such exit
-      "go north",      // hall
-      "sing",          // the dungeon is unimpressed
-      "take",          // old boot, why not
-      "go east",       // gate
-      "unlock"         // freedom
-    ]
-  },
-
-  // The same game, starved of input: the loop ends gracefully via the
-  // handler's `null` sentinel instead of crashing.
-  demoSilence: () -> ScriptReport => runScript([], play({ at: "cell", held: [] })),
-
-  // Dry-run flavor: count how chatty a playthrough is without caring what it
-  // says — a wildcard handler that only tallies `print`s and feeds `input`
-  // from a closed-over script would go here; left as an exercise for the
-  // hypothetical reader of this hypothetical language.
-
-  demo: () -> { escape: ScriptReport, silence: ScriptReport } => {
-    escape:  demoEscape(),
-    silence: demoSilence()
   }
 }

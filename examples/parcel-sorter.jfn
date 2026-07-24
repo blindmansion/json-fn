@@ -2,7 +2,7 @@
 //
 // The operator-owned contract supplies Region, Lane, Parcel, State, the
 // three effect contracts, and the loop entry contract. The guest owns routing
-// policy, fault handling, and its in-language test rig.
+// policy and fault handling.
 //
 // Run it through the host:
 //   bun run typescript/examples/parcel-sorter.ts
@@ -73,43 +73,5 @@
             next <- routeOne(st, parcel),
             loop(next, fuel - 1)
           }
-      },
-
-  // ----- in-language scripted rig ------------------------------------------
-
-  type Report = { ending: State | string, out: string[] },
-  type ScriptState = { pending: Parcel[], out: string[] },
-
-  runScript: (parcels: Parcel[], task: Task<State>) -> Report =>
-    (handle task -> (ScriptState) -> Report with {
-      "scanner.read": (resume) => (s) => resume(next)(rest) where {
-        empty: length(s.pending) == 0,
-        next: if empty then null else head(s.pending),
-        rest: { pending: if empty then [] else tail(s.pending), out: s.out }
-      },
-      "conveyor.route": (id, lane, resume) => (s) =>
-        resume(null)({
-          pending: s.pending,
-          out: concat(s.out, [`belt ${id} -> ${lane}`])
-        }),
-      "log": (msg, resume) => (s) =>
-        resume(null)({ pending: s.pending, out: concat(s.out, [msg]) }),
-      raise: (fault, resume) => (s) => { ending: fault.tag, out: s.out },
-      return: (v) => (s) => { ending: v, out: s.out }
-    })({ pending: parcels, out: [] }),
-
-  demoShift: () -> Report => runScript([
-    { id: "N-104", region: "north", weightKg: 4.2, express: false },
-    { id: "X-205", region: "south", weightKg: 1.1, express: true },
-    { id: "I-306", region: "international", weightKg: 8.5, express: false }
-  ], loop({ routed: 0 }, 20)),
-
-  demoFault: () -> Report => runScript([
-    { id: "N-900", region: "north", weightKg: 42, express: false }
-  ], loop({ routed: 0 }, 20)),
-
-  demo: () -> { shift: Report, fault: Report } => {
-    shift: demoShift(),
-    fault: demoFault()
-  }
+      }
 }

@@ -2,9 +2,8 @@
 //
 // The game's `play` loop performs exactly two effects — `input` (read a
 // command) and `print` (show a line) — declared by the operator-owned
-// contract. The dungeon's own `runScript` handler interprets them *in-language*
-// for its demos; this host instead answers them from a real terminal via
-// `runTask`, so the same pure game logic becomes a playable game.
+// contract. This host answers them from a real terminal via `runTask`, turning
+// the guest's pure game logic into a playable game.
 //
 // `input` is an async capability (it awaits a line of stdin), which the
 // trampoline handles transparently: each suspended `{ pending: "input" }` is

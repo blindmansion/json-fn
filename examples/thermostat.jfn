@@ -2,8 +2,8 @@
 //
 // The operator-owned contract supplies Celsius, Percent, Mode, Config,
 // Reading, State, the three effect contracts, and the loop entry contract.
-// This guest module owns only its internal control and demo types. The injected
-// `effects` namespace carries each manifest result through ordinary calls.
+// This guest module owns only its internal control types. The injected `effects`
+// namespace carries each manifest result through ordinary calls.
 //
 // Run it through the validated host contract:
 //   bun run typescript/examples/thermostat.ts
@@ -80,52 +80,5 @@
             next <- onReading(st, reading),
             loop(next, fuel - 1)
           }
-      },
-
-  // ----- a scripted, in-language handler ------------------------------------
-  // One handler, three effects, one threaded record: `sensor.read` consumes the
-  // pending readings, `hvac.set`/`log` append to the transcript, `raise` ends
-  // the run with the fault tag. Same function-awaiting-state trick as the
-  // dungeon's `runScript`.
-  type Report = { ending: State | string, out: string[] },
-  type ScriptState = { pending: Reading[], out: string[] },
-
-  runScript: (readings: Reading[], task: Task<State>) -> Report => (handle task -> (ScriptState) -> Report with {
-    "sensor.read": (resume) => (s) => resume(next)(rest) where {
-      empty: length(s.pending) == 0,
-      next:  if empty then null else head(s.pending),
-      rest:  { pending: if empty then [] else tail(s.pending), out: s.out }
-    },
-    "hvac.set": (mode, resume) => (s) =>
-      resume(null)({ pending: s.pending, out: concat(s.out, [`hvac := ${mode}`]) }),
-    "log": (msg, resume) => (s) =>
-      resume(null)({ pending: s.pending, out: concat(s.out, [msg]) }),
-    raise: (fault, resume) => (s) => { ending: fault.tag, out: s.out },
-    return: (v) => (s) => { ending: v, out: s.out }
-  })({ pending: readings, out: [] }),
-
-  // ----- demos --------------------------------------------------------------
-
-  // A full run: cold -> heat, settle -> off, hot -> cool, settle -> off.
-  demoRun: () -> Report => runScript(script, loop(start, 10)) where {
-    start: { config: { target: 21, tolerance: 1.5 }, mode: "off" },
-    script: [
-      { temp: 18, battery: 90 },
-      { temp: 20, battery: 88 },
-      { temp: 24, battery: 85 },
-      { temp: 21, battery: 84 }
-    ]
-  },
-
-  // A run that trips a fault: an implausible reading `raise`s OutOfRange, which
-  // the handler turns into a fault-tagged ending instead of a state.
-  demoFault: () -> Report => runScript(
-    [{ temp: 99, battery: 50 }],
-    loop({ config: { target: 21, tolerance: 1.5 }, mode: "off" }, 10)
-  ),
-
-  demo: () -> { run: Report, fault: Report } => {
-    run:   demoRun(),
-    fault: demoFault()
-  }
+      }
 }

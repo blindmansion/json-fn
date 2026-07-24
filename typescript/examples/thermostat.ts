@@ -3,14 +3,8 @@
 // The controller's `loop` performs exactly three effects — `sensor.read` (get
 // the next reading), `hvac.set` (actuate), and `log` (narrate) — declared by
 // the operator-owned contract — and escalates a bad reading as an
-// in-language `raise`. The example's own `runScript` handler interprets them
-// *in-language* for its demos; this host instead answers them from a mock
-// sensor rig via `runTask`, so the same pure control logic drives "real" gear.
-//
-// The fully typed reference example is loaded directly. Its in-language
-// `runScript` uses an annotated total handler with a callable
-// `(ScriptState) -> Report` contract; this host path drives the same typed
-// `loop` task through the outer `runTask` trampoline instead.
+// in-language `raise`. This host answers them from a mock sensor rig via
+// `runTask`, so the same pure control logic drives "real" gear.
 //
 // A `null` reading (the sensor rig is out of data) ends the run gracefully via
 // the loop's own `isNull` guard. A dead battery or implausible temperature is

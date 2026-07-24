@@ -1,17 +1,19 @@
 # Durable orchestration example
 
-This directory is a runnable example of one typed json-fn workflow interpreted
-by two different hosts:
+This directory is a runnable example of a typed json-fn workflow driven by a
+durable host:
 
-- `orchestration.jfn` contains the guest workflow and a deterministic
-  in-language state-transformer handler.
+- `orchestration.jfn` contains only the guest workflow and its domain logic.
 - `orchestration.contract.json` defines the shared named types and effect
   contracts.
 - `orchestration.profile.json` selects durable hosting, classifies inline and
   suspending effects, and pins the deployment ID.
-- `run.ts` runs the in-language handler, then runs the same workflow with
-  `prepareDeployment` plus `createDurableDriver` and verifies that both reports
-  match.
+- `run.ts` runs the workflow with `prepareDeployment` plus
+  `createDurableDriver`.
+
+The automated test suite keeps a deterministic in-language handler under
+`typescript/test/examples/` and compares its report with this durable run. That
+oracle is test support rather than part of the public guest module.
 
 See [`docs/environment-contract.md`](../../../docs/environment-contract.md),
 [`docs/deployment-profile.md`](../../../docs/deployment-profile.md), and
