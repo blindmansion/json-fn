@@ -34,7 +34,6 @@ import {
   raw,
 } from "../utils";
 import {
-  CONTRACT_KEY,
   enforceRuntimeContract,
   enforceRuntimeContractReturn,
   prepareRuntimeContractCall,
@@ -256,7 +255,7 @@ function callExternalFunction(
   return result;
 }
 
-export type ScopeResult = {
+type ScopeResult = {
   getVar: (name: string) => JSONType | undefined;
   functions: FunctionRegistry;
   localFns: ReadonlySet<string>;
@@ -425,41 +424,6 @@ export function initializeModuleBindings(
   return createLazyFrame({}, module, context, { attachLocalFunctions: false });
 }
 
-function legacyFunctionBindings(fn: FunctionBody): Record<string, JSONType> {
-  const bindings: Record<string, JSONType> = {};
-  for (const [key, value] of Object.entries(fn)) {
-    if (
-      key === "$return" ||
-      key === "$params" ||
-      key === "$sig" ||
-      key === "$types" ||
-      key === "$captures" ||
-      key === CONTRACT_KEY ||
-      (key === "$comment" && typeof value === "string")
-    ) {
-      continue;
-    }
-    bindings[key] = value;
-  }
-  return bindings;
-}
-
-// TODO(let-phase4): delete once function bodies no longer contain inline locals.
-function bindLegacyFunctionFrame(
-  fn: FunctionBody,
-  layout: ParameterLayout,
-  args: JSONType[],
-  context: EvaluationContext,
-): ScopeResult {
-  const parameters = materializeParameterBindings(args, layout);
-  return createLazyFrame(
-    parameters.evaluated,
-    { ...legacyFunctionBindings(fn), ...parameters.lazy },
-    context,
-    { attachLocalFunctions: true },
-  );
-}
-
 function seedFunctionCaptures(fn: FunctionBody, context: EvaluationContext): EvaluationContext {
   const captures = fn.$captures;
   if (captures === undefined) return context;
@@ -519,11 +483,7 @@ function callJSONFunction(fn: FunctionBody, args: JSONType[], context: Evaluatio
   const layout = requireParameterLayout((fn as any).$params, fn);
   validateRuntimeArguments(layout, args);
   const captureContext = seedFunctionCaptures(fn, context);
-  const legacyBindings = legacyFunctionBindings(fn);
-  const { getVar, functions, localFns, attachFns } =
-    Object.keys(legacyBindings).length > 0
-      ? bindLegacyFunctionFrame(fn, layout, args, captureContext)
-      : bindParameters(layout, args, captureContext);
+  const { getVar, functions, localFns, attachFns } = bindParameters(layout, args, captureContext);
 
   return evaluateExpression(fn.$return, {
     functions,

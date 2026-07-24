@@ -7,7 +7,6 @@
 import type { CallableEntry, CallableTypeRuleRegistry } from "./builtin-types";
 import type { JSONType } from "../types";
 import type { EffectManifest } from "../environment/effect-types";
-import { FUNCTION_BODY_FIELDS } from "../function-body-structure";
 import { type Schema, type Defs, type FnTypeShape, isSchemaObject } from "../schema/schema.ts";
 
 // The tier of a diagnostic. An `error` is a definite type failure; an `info`
@@ -42,7 +41,7 @@ type TypeEnv = {
 type CheckContext = {
   // The module `$types` pool ($defs), resolving `$ref`. The type-NAME scope.
   defs: Defs;
-  // The term scope (Γ) — mirrors the evaluator's `buildScope`/`getVar`.
+  // The term scope (Γ) — mirrors the evaluator's lexical `getVar` frames.
   env: TypeEnv;
   // Accumulate; never throw.
   diagnostics: Diagnostic[];
@@ -148,12 +147,6 @@ function bodyFnTypeSchema(body: Record<string, JSONType>): Schema {
   return isSchemaObject(sig) ? { $fnType: sig } : true;
 }
 
-// TODO(let-phase4): delete this compatibility scan after shorthand and shared
-// fixtures stop emitting inline function-body locals.
-function bindingKeys(body: Record<string, JSONType>): string[] {
-  return Object.keys(body).filter((key) => !FUNCTION_BODY_FIELDS.has(key));
-}
-
 export type { CheckContext, TypeEnv, Diagnostic, Severity, Sig };
 export {
   EMPTY_ENV,
@@ -164,6 +157,5 @@ export {
   isBody,
   sigOf,
   bodyFnTypeSchema,
-  bindingKeys,
   stableStringify,
 };

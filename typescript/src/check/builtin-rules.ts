@@ -33,8 +33,8 @@ import {
   checkArity,
   checkBodyParameterShape,
   checkParameterDefaults,
-  legacyFunctionBindings,
   paramAt,
+  reportUnsupportedFunctionBodyFields,
   reportMismatch,
   synth,
 } from "./checker";
@@ -282,6 +282,7 @@ function unifyTemplate(
 // body are checked.
 function inferLambdaReturn(body: JSONType, expectedFn: Schema, ctx: CheckContext): Schema | null {
   const bodyObject = body as Record<string, JSONType>;
+  reportUnsupportedFunctionBodyFields(bodyObject, ctx);
   const layout = analyzeBodyParameters(bodyObject, ctx);
   if (layout === null) return null;
   const shape = fnShape(asObject(expectedFn));
@@ -296,14 +297,7 @@ function inferLambdaReturn(body: JSONType, expectedFn: Schema, ctx: CheckContext
     },
   };
   const { env, guards, narrowings, parameterDefaults, parameterBindingsValid } =
-    buildFunctionTypeScope(
-      withSig,
-      layout,
-      ctx.env,
-      ctx,
-      legacyFunctionBindings(bodyObject),
-      shape,
-    );
+    buildFunctionTypeScope(withSig, layout, ctx.env, ctx, shape);
   if (!parameterBindingsValid) return null;
   const bctx: CheckContext = { ...ctx, env, guards, narrowings };
   checkParameterDefaults(parameterDefaults, bctx);
@@ -410,6 +404,7 @@ function applyOverload(
     if (classifySchema(param) !== SchemaKind.FnType) {
       const lambda = argExprs[i] as Record<string, JSONType>;
       const actx = at(ctx, `$args[${i}]`);
+      reportUnsupportedFunctionBodyFields(lambda, actx);
       const layout = analyzeBodyParameters(lambda, actx);
       if (layout === null) continue;
       const arity = layout.slots.length;

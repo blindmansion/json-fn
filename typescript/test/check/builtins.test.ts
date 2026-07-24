@@ -1784,6 +1784,23 @@ describe("Section F — builtin signatures", () => {
   });
 
   describe("contextual lambda typing", () => {
+    test("rejects stray callback fields without checking them as local bindings", () => {
+      const callback = {
+        $params: ["value"],
+        stray: { $params: 42, $return: null },
+        $return: { $var: "value" },
+      };
+      const r = synthB(call("map", callback, [1, 2, 3]));
+
+      expect(r.diagnostics).toEqual([
+        {
+          path: ["$args[0]", "stray"],
+          message: 'function body field "stray" is not supported.',
+          severity: "error",
+        },
+      ]);
+    });
+
     test("a malformed callback reports its parameter issue and skips its body", () => {
       const callback = {
         $params: [{ $param: "value" }],

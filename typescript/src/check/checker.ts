@@ -1,12 +1,12 @@
 // Two scopes, as in the design (§D of the plan):
 //   * Type-name scope: `resolveRef` over `ctx.defs` (flat; recursion guard
 //     lives in `subsumes`).
-//   * Term scope (Γ): this function, the structural mirror of `buildScope`.
+//   * Term scope (Γ): lexical environments mirroring the evaluator's frames.
 //
-// Params bind eagerly from the declared `$sig`. Sibling function declarations
-// bind eagerly to their `$fnType`. Other locals (un-annotated expression
-// bindings) are typed *lazily* at their first lookup — reusing the shape of
-// `getVar`'s `resolvingVars` cycle guard.
+// Params bind eagerly from the declared `$sig`. Function-valued `$let` and
+// module bindings bind eagerly to their `$fnType`. Other `$let`/module bindings
+// are typed *lazily* at their first lookup — reusing the shape of `getVar`'s
+// `resolvingVars` cycle guard.
 
 import type { JSONType } from "../types";
 import { analyzeFunctionBodyStructure } from "../function-body-structure";
@@ -20,7 +20,6 @@ import {
 import { asPath, litOf, nodeKind } from "./ast";
 import {
   at,
-  bindingKeys,
   bodyFnTypeSchema,
   isBody,
   report,
@@ -365,7 +364,6 @@ function hasOwn(record: object, key: string): boolean {
 
 function buildLetrecTypeScope(
   bindings: Record<string, JSONType>,
-  initialEager: Record<string, Schema>,
   parent: TypeEnv | null,
   ctx: CheckContext,
   options: {
@@ -376,7 +374,7 @@ function buildLetrecTypeScope(
 ): TypeScopeResult {
   const exprLocals = nullRecord<JSONType>();
   const functionLocals = nullRecord<Record<string, JSONType>>();
-  const eager = Object.assign(nullRecord<Schema>(), initialEager);
+  const eager = nullRecord<Schema>();
 
   for (const [key, val] of Object.entries(bindings)) {
     if (nodeKind(val) === "body" && isBody(val)) {
@@ -495,25 +493,17 @@ function buildLetrecTypeScope(
   return { env, guards };
 }
 
-function legacyFunctionBindings(body: Record<string, JSONType>): Record<string, JSONType> {
-  // TODO(let-phase4): delete after the parser and fixtures emit only `$let`.
-  return Object.fromEntries(bindingKeys(body).map((key) => [key, body[key]!]));
-}
-
-function rejectUnsupportedFunctionBodyFields(
+function reportUnsupportedFunctionBodyFields(
   body: Record<string, JSONType>,
   ctx: CheckContext,
-): boolean {
+): void {
   const analysis = analyzeFunctionBodyStructure(body);
-  if (analysis.ok) return false;
+  if (analysis.ok) return;
 
-  let rejected = false;
   for (const issue of analysis.issues) {
     if (issue.code !== "unsupported-field") continue;
     report(at(ctx, issue.field), `function body field "${issue.field}" is not supported.`);
-    rejected = true;
   }
-  return rejected;
 }
 
 function captureBindings(
@@ -542,11 +532,26 @@ function buildExpressionTypeScope(
   parent: TypeEnv | null,
   ctx: CheckContext,
 ): TypeScopeResult {
-  return buildLetrecTypeScope(bindings, {}, parent, ctx, {
+  return buildLetrecTypeScope(bindings, parent, ctx, {
     reportUntypedFunctions: true,
     bindingPath: at(ctx, "$let"),
     checkFunctionBodies: true,
   });
+}
+
+function extendEagerTypeScope(
+  bindings: Record<string, Schema>,
+  parent: TypeEnv | null,
+  ctx: CheckContext,
+): TypeScopeResult {
+  const guards = Object.assign(nullRecord<JSONType>(), ctx.guards);
+  for (const name of Object.keys(bindings)) delete guards[name];
+  const env: TypeEnv = {
+    lookupType(name, narrowings) {
+      return hasOwn(bindings, name) ? bindings[name] : parent?.lookupType(name, narrowings);
+    },
+  };
+  return { env, guards };
 }
 
 function buildFunctionTypeScope(
@@ -554,12 +559,11 @@ function buildFunctionTypeScope(
   layout: ParameterLayout,
   parent: TypeEnv | null,
   ctx: CheckContext,
-  legacyBindings: Record<string, JSONType>,
   injectedSig?: Sig,
 ): FunctionTypeScopeResult {
   const captures = captureBindings(body, ctx);
   const captureCtx = withoutShadowedNarrowings(ctx, Object.keys(captures));
-  const captureScope = buildLetrecTypeScope(captures, {}, parent, captureCtx, {
+  const captureScope = buildLetrecTypeScope(captures, parent, captureCtx, {
     reportUntypedFunctions: true,
     bindingPath: at(ctx, "$captures"),
     checkFunctionBodies: true,
@@ -568,19 +572,9 @@ function buildFunctionTypeScope(
   const parameterBindings = bindParams(layout, sig, ctx);
   const functionCtx = withoutShadowedNarrowings(
     { ...captureCtx, env: captureScope.env, guards: captureScope.guards },
-    [...Object.keys(parameterBindings.eager), ...Object.keys(legacyBindings)],
+    Object.keys(parameterBindings.eager),
   );
-  const scope = buildLetrecTypeScope(
-    legacyBindings,
-    parameterBindings.eager,
-    captureScope.env,
-    functionCtx,
-    {
-      reportUntypedFunctions: true,
-      bindingPath: ctx,
-      checkFunctionBodies: true,
-    },
-  );
+  const scope = extendEagerTypeScope(parameterBindings.eager, captureScope.env, functionCtx);
   return {
     ...scope,
     parameterDefaults: parameterBindings.defaults,
@@ -593,7 +587,7 @@ function buildModuleTypeScope(
   bindings: Record<string, JSONType>,
   ctx: CheckContext,
 ): TypeScopeResult {
-  return buildLetrecTypeScope(bindings, {}, null, ctx, {
+  return buildLetrecTypeScope(bindings, null, ctx, {
     reportUntypedFunctions: false,
     bindingPath: ctx,
     checkFunctionBodies: false,
@@ -895,7 +889,7 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
       if (sigOf(body) !== null) {
         checkBody(body, ctx);
       } else {
-        rejectUnsupportedFunctionBodyFields(body, ctx);
+        reportUnsupportedFunctionBodyFields(body, ctx);
         reportDegradation(ctx, "the function value has no declared signature");
       }
       return bodyFnTypeSchema(body);
@@ -1208,7 +1202,7 @@ function inlineCallBodyContext(
   args: JSONType[],
   ctx: CheckContext,
 ): CheckContext | null {
-  if (rejectUnsupportedFunctionBodyFields(body, ctx)) return null;
+  reportUnsupportedFunctionBodyFields(body, ctx);
   const layout = analyzeBodyParameters(body, ctx);
   if (layout === null) return null;
   const hasRest = layout.rest !== null;
@@ -1235,14 +1229,7 @@ function inlineCallBodyContext(
     $sig: syntheticSig,
   };
   const { env, guards, narrowings, parameterDefaults, parameterBindingsValid } =
-    buildFunctionTypeScope(
-      withSig,
-      layout,
-      ctx.env,
-      ctx,
-      legacyFunctionBindings(body),
-      syntheticSig,
-    );
+    buildFunctionTypeScope(withSig, layout, ctx.env, ctx, syntheticSig);
   if (!parameterBindingsValid) return null;
   const bctx: CheckContext = { ...ctx, env, guards, narrowings };
   checkParameterDefaults(parameterDefaults, bctx);
@@ -1285,7 +1272,7 @@ function check(expr: JSONType, expected: Schema, ctx: CheckContext): void {
     if (classifySchema(exp) === SchemaKind.FnType) {
       checkLambda(body, asObject(exp), ctx);
     } else {
-      rejectUnsupportedFunctionBodyFields(body, ctx);
+      reportUnsupportedFunctionBodyFields(body, ctx);
     }
     return;
   }
@@ -1349,19 +1336,19 @@ function describe(schema: Schema): string {
   return JSON.stringify(schema);
 }
 
-// Check a function body against its declared signature: build its scope, verify
-// `$return` against the declared return type, then recurse into nested function
-// locals. Shared by the module entry (`checkModule`) and by `synth`'s body case,
-// so a declared `-> type` is enforced wherever a typed function literal appears
-// — a module binding, a value in `$return`/argument position, or a standalone
-// expression checked via `checkExpr` (`--expr`).
+// Check a function body against its declared signature: build its capture and
+// parameter scope, check defaults, then verify `$return` against the declared
+// return type. Shared by the module entry (`checkModule`) and by `synth`'s body
+// case, so a declared `-> type` is enforced wherever a typed function literal
+// appears — a module binding, a value in `$return`/argument position, or a
+// standalone expression checked via `checkExpr` (`--expr`).
 function checkBody(
   body: Record<string, JSONType>,
   ctx: CheckContext,
   injectedSig?: Sig,
   analyzedLayout?: ParameterLayout,
 ): void {
-  if (rejectUnsupportedFunctionBodyFields(body, ctx)) return;
+  reportUnsupportedFunctionBodyFields(body, ctx);
   if ("$comment" in body && typeof body.$comment !== "string") {
     report(at(ctx, "$comment"), "function body $comment must be a string.");
   }
@@ -1377,7 +1364,7 @@ function checkBody(
   }
   const sig = injectedSig ?? declaredSig;
   const { env, guards, narrowings, parameterDefaults, parameterBindingsValid } =
-    buildFunctionTypeScope(body, layout, ctx.env, ctx, legacyFunctionBindings(body), injectedSig);
+    buildFunctionTypeScope(body, layout, ctx.env, ctx, injectedSig);
   if (!parameterBindingsValid) return;
   const bctx: CheckContext = { ...ctx, env, guards, narrowings };
   checkParameterDefaults(parameterDefaults, bctx);
@@ -1410,7 +1397,7 @@ export {
   acceptsArgumentCount,
   buildFunctionTypeScope,
   buildModuleTypeScope,
-  legacyFunctionBindings,
+  reportUnsupportedFunctionBodyFields,
   checkParameterDefaults,
   synth,
   paramAt,

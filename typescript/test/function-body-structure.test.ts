@@ -117,7 +117,7 @@ describe("function body structural boundaries", () => {
   test("checker reports each stray field once at its exact path", () => {
     const invalid: Record<string, JSONType> = {
       $sig: { required: [], optional: [], returns: true },
-      local: 1,
+      local: { $params: 42, $return: null },
       $unknown: true,
       $return: null,
     };
@@ -134,6 +134,23 @@ describe("function body structural boundaries", () => {
         severity: "error",
       },
     ]);
+  });
+
+  test("checker continues through supported fields without treating stray fields as bindings", () => {
+    const diagnostics = checkModule({
+      invalid: {
+        $sig: { required: [], optional: [], returns: { type: "integer" } },
+        stray: { $params: 42, $return: null },
+        $return: "oops",
+      },
+    });
+
+    expect(diagnostics).toHaveLength(2);
+    expect(diagnostics.map(({ path }) => path)).toEqual([
+      ["invalid", "stray"],
+      ["invalid", "$return"],
+    ]);
+    expect(diagnostics.every(({ path }) => !path.includes("$params"))).toBeTrue();
   });
 
   test("checker rejects stray fields in unannotated value and inline-call bodies", () => {
