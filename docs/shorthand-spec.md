@@ -544,6 +544,9 @@ sequence of steps. (E.g. a binding may hold an unconditionally-recursive call
 that only terminates because it is forced solely in the branch that uses it.)
 Every binding name in one `where` block must be unique; nested `where` blocks
 may shadow names from enclosing scopes.
+Function-valued bindings are named functions and must include complete parameter
+and return annotations when typechecked. Bare inline lambdas remain available
+where a higher-order call supplies their signature contextually.
 Placing the answer first and its supporting locals after mirrors how these
 functions read: headline, then the details that back it up.
 

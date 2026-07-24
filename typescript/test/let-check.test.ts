@@ -168,11 +168,28 @@ describe("$let recursive scope", () => {
     expect(result.diagnostics).toEqual([]);
   });
 
-  test("makes unannotated function degradation visible at its binding", () => {
+  test("rejects an unannotated named local function at its binding", () => {
     const result = checkExpr(letExpr({ helper: { $params: [], $return: 1 } }, { $var: "helper" }));
-    expect(result.diagnostics).toContainEqual(
-      expect.objectContaining({ path: ["$let", "helper"], severity: "info" }),
+    expect(result.diagnostics).toContainEqual({
+      path: ["$let", "helper"],
+      message: 'function binding "helper" must declare a signature (typed parameters and return)',
+      severity: "error",
+    });
+  });
+
+  test("can allow an unannotated named local function for migration", () => {
+    const result = checkExpr(
+      letExpr({ helper: { $params: [], $return: 1 } }, { $var: "helper" }),
+      {},
+      undefined,
+      { allowUntypedFunctions: true },
     );
+    expect(result.diagnostics).toContainEqual({
+      path: ["$let", "helper"],
+      message:
+        'expression degraded to `any` because function binding "helper" has no declared signature.',
+      severity: "info",
+    });
   });
 
   test("supports bindings whose names collide with object prototypes", () => {

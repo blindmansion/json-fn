@@ -33,7 +33,7 @@ export type { EntryContract, EntryReturn, EnvironmentContract } from "./environm
 export { linkModule, ModuleLinkError } from "./module-linker";
 export type { LinkedEntrySignature, LinkedModule, LinkModuleOptions } from "./module-linker";
 export { checkExpr, checkModule } from "./check/module";
-export type { CheckExprOptions, CheckModuleOptions } from "./check/module";
+export type { CheckOptions } from "./check/module";
 export {
   CallableTypeRuleContractError,
   CallableTypeRuleOwnershipError,

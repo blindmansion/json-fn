@@ -1664,7 +1664,7 @@ describe("checkModule: dangling $ref → hard error", () => {
   });
 });
 
-describe("checkModule: require typed module functions (on by default)", () => {
+describe("checkModule: require typed named functions (on by default)", () => {
   test("an unannotated top-level function errors by default", () => {
     const mod = { f: { $params: ["n"], $return: { $var: "n" } } };
     const diags = checkModule(mod);
@@ -1677,9 +1677,9 @@ describe("checkModule: require typed module functions (on by default)", () => {
     expect(checkModule(mod)).toEqual([]);
   });
 
-  test("`requireTypedModuleFunctions: false` stays permissive but reports lost coverage", () => {
+  test("allowUntypedFunctions stays permissive but reports lost coverage", () => {
     const mod = { f: { $params: ["n"], $return: { $var: "n" } } };
-    expect(checkModule(mod, undefined, { requireTypedModuleFunctions: false })).toEqual([
+    expect(checkModule(mod, undefined, { allowUntypedFunctions: true })).toEqual([
       {
         path: ["f"],
         message:
@@ -1689,7 +1689,7 @@ describe("checkModule: require typed module functions (on by default)", () => {
     ]);
   });
 
-  test("nested `$let` function bindings and inline lambdas stay exempt", () => {
+  test("nested `$let` function bindings also require signatures", () => {
     const mod = {
       main: body(
         [],
@@ -1701,20 +1701,34 @@ describe("checkModule: require typed module functions (on by default)", () => {
       ),
     };
     const diagnostics = checkModule(mod);
-    expect(diagnostics.some((d) => d.severity === "error")).toBe(false);
-    expect(diagnostics).toEqual([
-      {
+    expect(diagnostics).toContainEqual({
+      path: ["main", "$return", "$let", "helper"],
+      message: 'function binding "helper" must declare a signature (typed parameters and return)',
+      severity: "error",
+    });
+  });
+
+  test("allowUntypedFunctions applies to module and nested named functions", () => {
+    const mod = {
+      main: {
+        $params: [],
+        $return: {
+          $let: { helper: { $params: [], $return: 1 } },
+          $in: { $call: "helper", $args: [] },
+        },
+      },
+    };
+    const diagnostics = checkModule(mod, undefined, { allowUntypedFunctions: true });
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({ path: ["main"], severity: "info" }),
+    );
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({
         path: ["main", "$return", "$let", "helper"],
-        message:
-          'expression degraded to `any` because function binding "helper" has no declared signature.',
         severity: "info",
-      },
-      {
-        path: ["main", "$return", "$in"],
-        message: "expression degraded to `any` because the callee has no known function type.",
-        severity: "info",
-      },
-    ]);
+      }),
+    );
+    expect(diagnostics.some((d) => d.severity === "error")).toBe(false);
   });
 });
 

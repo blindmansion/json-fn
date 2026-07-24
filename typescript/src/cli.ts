@@ -89,7 +89,7 @@ check options:
       --contract <path>
                       Load an operator-owned portable contract JSON file
       --allow-untyped-functions
-                      Don't require top-level functions to declare a $sig
+                      Allow named functions without a declared $sig
       --require-full-coverage
                       Exit non-zero when any expression degrades to any
   -c, --compact       Emit JSON output (inferred type, --json-diagnostics) minified
@@ -423,7 +423,10 @@ async function cmdCheck(argv: string[]): Promise<void> {
   const jsonDiagnostics = parsed.flags.has("json-diagnostics");
 
   if (parsed.flags.has("expr")) {
-    const { type, diagnostics } = checkExpr(json, {}, builtins, { contract });
+    const { type, diagnostics } = checkExpr(json, {}, builtins, {
+      contract,
+      allowUntypedFunctions: parsed.flags.has("allow-untyped-functions"),
+    });
     if (jsonDiagnostics) {
       reportDiagnosticsJson(diagnostics, compact);
     } else {
@@ -439,7 +442,7 @@ async function cmdCheck(argv: string[]): Promise<void> {
   }
 
   const diagnostics = checkModule(json as Record<string, JSONType>, builtins, {
-    requireTypedModuleFunctions: !parsed.flags.has("allow-untyped-functions"),
+    allowUntypedFunctions: parsed.flags.has("allow-untyped-functions"),
     contract,
   });
   if (jsonDiagnostics) {

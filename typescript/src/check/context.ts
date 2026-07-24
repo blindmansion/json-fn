@@ -66,6 +66,9 @@ type CheckContext = {
   typeRules?: CallableTypeRuleRegistry;
   // Operator-owned effect contracts used by `core.perform`.
   effects?: EffectManifest;
+  // Migration escape hatch for named function declarations without `$sig`.
+  // Inline lambdas are governed by contextual typing instead.
+  allowUntypedNamedFunctions?: boolean;
   // Flow-narrowing facts in scope (§5.5): var name → the type it has been
   // refined to by a dominating guard, already intersected with its declared
   // type. Present only inside a guarded control-flow arm; `synth`'s `"var"`

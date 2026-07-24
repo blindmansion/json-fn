@@ -273,10 +273,11 @@ Rules:
   annotated _and_ a `-> Ret` return type) or **bare** (no annotations, no `$sig`).
   A partial signature (some params typed, or params typed without a return type)
   is a **parse error**.
-- **Module-level functions must be fully typed.** A top-level function binding
-  without a signature is an error (enforced by the checker; §9 of the plan).
-  Nested helpers (`where`-local functions) and inline lambdas passed to builtins
-  **may be bare** — bare lambdas at higher-order call sites are contextually typed.
+- **Named functions must be fully typed.** A module binding or local
+  (`where`/`$let`) function binding without a signature is a checker error.
+  `--allow-untyped-functions` is the migration escape hatch and reports lost
+  coverage instead. Inline lambdas may be bare when a higher-order call site
+  supplies their signature contextually.
 - **Fixed signature schemas align with normalized `$params` slots.**
   `$sig.required` aligns with the leading required positional slots, including
   object patterns. `$sig.optional` then aligns with the trailing omittable

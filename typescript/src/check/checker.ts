@@ -388,10 +388,15 @@ function buildLetrecTypeScope(
     if (nodeKind(val) === "body" && isBody(val)) {
       functionLocals[key] = val;
       if (options.reportUntypedFunctions && sigOf(val) === null) {
-        reportDegradation(
-          at(options.bindingPath, key),
-          `function binding "${key}" has no declared signature`,
-        );
+        const bindingCtx = at(options.bindingPath, key);
+        if (ctx.allowUntypedNamedFunctions === true) {
+          reportDegradation(bindingCtx, `function binding "${key}" has no declared signature`);
+        } else {
+          report(
+            bindingCtx,
+            `function binding "${key}" must declare a signature (typed parameters and return)`,
+          );
+        }
       }
       eager[key] = bodyFnTypeSchema(val); // sibling function: eager `$fnType`
     } else {

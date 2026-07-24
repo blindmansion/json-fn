@@ -88,6 +88,21 @@ describe("jfn check coverage reporting", () => {
     expect(result.stdout).toContain("Type coverage: incomplete (1 dynamic degradation site).");
   });
 
+  test("named local functions require signatures unless explicitly allowed", () => {
+    const expression = "helper() where { helper: () => 1 }";
+    const strict = runCheck(["--expr", expression]);
+    expect(strict.exitCode).toBe(1);
+    expect(strict.stdout).toContain(
+      'error: $let.helper: function binding "helper" must declare a signature',
+    );
+
+    const allowed = runCheck(["--expr", "--allow-untyped-functions", expression]);
+    expect(allowed.exitCode).toBe(0);
+    expect(allowed.stdout).toContain(
+      'info: $let.helper: expression degraded to `any` because function binding "helper" has no declared signature.',
+    );
+  });
+
   test("hard errors still exit non-zero independently of coverage", () => {
     const mod = { f: { $params: [], $return: 1 } };
     const result = runCheck(["--json", asJsonArg(mod)]);
