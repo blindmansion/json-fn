@@ -61,7 +61,13 @@ printf '{ h: (x: integer | null) -> integer => if x != null then x else 0 }' | b
 
 ---
 
-## 2. Unknown callee names are not check errors — High
+## 2. Unknown callee names are not check errors — Resolved
+
+Resolved by making a literal callee name that is absent from both the lexical
+scope and merged callable registry a hard `Unknown function` error. Arguments
+are still checked for independent diagnostics, and the failed call recovers as
+`never` to avoid a misleading downstream assignability error. Dynamic callees
+retain the existing visible-`any` degradation path.
 
 An unresolved name in call position degrades to `any` with an `info` diagnostic instead
 of erroring. A typo'd builtin passes `check` with exit 0 whenever the result does not

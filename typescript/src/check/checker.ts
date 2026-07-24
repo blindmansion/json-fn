@@ -751,13 +751,13 @@ function reportClosedMissing(target: Schema, key: string, ctx: CheckContext): vo
 }
 
 // The signature of a callee, or null when it can't be resolved statically
-// (an unknown name — e.g. a builtin, deferred to the polymorphic layer — or a
-// non-function value).
+// (a dynamic/non-function value). Named registry calls are dispatched before
+// this helper; an absent literal name is diagnosed separately by `synth`.
 function resolveCalleeSig(callee: JSONType, ctx: CheckContext): Sig | null {
   let s: Schema;
   if (typeof callee === "string") {
     const looked = ctx.env.lookupType(callee);
-    if (looked === undefined) return null; // unknown: defer (builtin layer)
+    if (looked === undefined) return null;
     s = looked;
   } else {
     s = synth(callee, ctx);
@@ -1028,9 +1028,24 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
           return ctx.synthCallableCall(call.$call, ctx.callables[call.$call]!, args, ctx);
         }
       }
+      // A literal name has no runtime fallback beyond the lexical function
+      // scope and merged callable registry. Treat a miss as a definite error,
+      // while still walking every argument for independent diagnostics. `never`
+      // is the recovery type so checked positions do not add a misleading
+      // downstream `any is not assignable` error.
+      if (
+        typeof call.$call === "string" &&
+        ctx.env.lookupType(call.$call) === undefined &&
+        !(ctx.callables && call.$call in ctx.callables)
+      ) {
+        args.forEach((a, i) => synth(a, at(ctx, `$args[${i}]`)));
+        report(ctx, `Unknown function "${call.$call}".`);
+        return false;
+      }
       const sig = resolveCalleeSig(call.$call, ctx);
       if (sig === null) {
-        // Unknown callee: still walk args to surface nested errors.
+        // Dynamic or known non-function callee: keep the permissive fallback,
+        // and still walk args to surface nested errors.
         args.forEach((a, i) => synth(a, at(ctx, `$args[${i}]`)));
         reportDegradation(ctx, "the callee has no known function type");
         return true;

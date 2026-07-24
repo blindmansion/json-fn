@@ -162,14 +162,14 @@ describe("synth: visible `any` degradation", () => {
     ]);
   });
 
-  test("an unknown callee degrades to any with an info diagnostic", () => {
+  test("an unknown literal callee is a hard error with never recovery", () => {
     const result = checkExpr({ $call: "missing", $args: [] });
-    expect(result.type).toBe(true);
+    expect(result.type).toBe(false);
     expect(result.diagnostics).toEqual([
       {
         path: [],
-        message: "expression degraded to `any` because the callee has no known function type.",
-        severity: "info",
+        message: 'Unknown function "missing".',
+        severity: "error",
       },
     ]);
   });
@@ -181,7 +181,22 @@ describe("synth: visible `any` degradation", () => {
     });
     expect(diagnostics.map((d) => [d.path, d.severity])).toEqual([
       [["$args[0]"], "info"],
-      [[], "info"],
+      [[], "error"],
+    ]);
+  });
+
+  test("a dynamic callee with no known function type still degrades", () => {
+    const result = checkExpr({
+      $call: { $if: true, $then: "left", $else: "right" },
+      $args: [],
+    });
+    expect(result.type).toBe(true);
+    expect(result.diagnostics).toEqual([
+      {
+        path: [],
+        message: "expression degraded to `any` because the callee has no known function type.",
+        severity: "info",
+      },
     ]);
   });
 

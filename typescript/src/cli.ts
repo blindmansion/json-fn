@@ -400,7 +400,7 @@ async function cmdCheck(argv: string[]): Promise<void> {
 
   // Builtins are on by default — most real code (the chess example, anything
   // using map/filter/arithmetic) is untypeable without them. `--no-builtins`
-  // mirrors the pre-Section-F behavior where builtin calls degrade to `any`.
+  // removes those names from the checker registry.
   let builtins: CallableTable | undefined;
   if (!parsed.flags.has("no-builtins")) {
     try {

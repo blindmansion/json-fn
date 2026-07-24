@@ -40,14 +40,14 @@ describe("Section F — builtin signatures", () => {
   const arrOfInt: Schema = { type: "array", items: { type: "integer" } };
   const synthB = (expr: JSONType) => checkExpr(expr, {}, BT);
 
-  test("builtins are opt-in: no table means degrade to any", () => {
+  test("builtins are opt-in: without a table their names are unknown", () => {
     const result = checkExpr(call("add", 1, 2));
-    expect(result.type).toBe(true);
+    expect(result.type).toBe(false);
     expect(result.diagnostics).toEqual([
       {
         path: [],
-        message: "expression degraded to `any` because the callee has no known function type.",
-        severity: "info",
+        message: 'Unknown function "add".',
+        severity: "error",
       },
     ]);
   });

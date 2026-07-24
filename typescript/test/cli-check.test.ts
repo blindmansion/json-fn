@@ -47,6 +47,27 @@ test("jfn check narrows nullable values through equality with null", () => {
   }
 });
 
+describe("jfn check unknown function names", () => {
+  test("rejects unknown and typo-like builtin names in expression position", () => {
+    for (const name of ["nonexistent", "len", "first"]) {
+      const result = runCheck(["--expr", `${name}(1)`]);
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toBe("");
+      expect(result.stdout).toContain(`error: <root>: Unknown function "${name}".`);
+      expect(result.stdout).toContain("1 error.");
+      expect(result.stdout).toContain("Type coverage: complete (no dynamic degradations).");
+    }
+  });
+
+  test("reports the unknown function without a downstream return mismatch", () => {
+    const result = runCheck(["{ f: () -> integer => nonexistent(1) }"]);
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toContain('error: f.$return: Unknown function "nonexistent".');
+    expect(result.stdout).toContain("1 error.");
+    expect(result.stdout).not.toContain("is not assignable");
+  });
+});
+
 describe("jfn check coverage reporting", () => {
   test("a clean typed module reports full coverage", () => {
     const mod = {
@@ -73,7 +94,7 @@ describe("jfn check coverage reporting", () => {
     expect(result.stdout).toContain("Type coverage: incomplete (1 dynamic degradation site).");
   });
 
-  test("--require-full-coverage exits non-zero on degradation", () => {
+  test("unknown names are errors independently of --require-full-coverage", () => {
     const result = runCheck([
       "--expr",
       "--json",
@@ -81,7 +102,8 @@ describe("jfn check coverage reporting", () => {
       asJsonArg({ $call: "missing", $args: [] }),
     ]);
     expect(result.exitCode).toBe(1);
-    expect(result.stdout).toContain("Type coverage: incomplete (1 dynamic degradation site).");
+    expect(result.stdout).toContain('error: <root>: Unknown function "missing".');
+    expect(result.stdout).toContain("Type coverage: complete (no dynamic degradations).");
   });
 
   test("--no-builtins explicitly removes engine callable contracts", () => {
@@ -95,7 +117,8 @@ describe("jfn check coverage reporting", () => {
       expression,
     ]);
     expect(withoutBuiltins.exitCode).toBe(1);
-    expect(withoutBuiltins.stdout).toContain("Type coverage: incomplete");
+    expect(withoutBuiltins.stdout).toContain('error: <root>: Unknown function "add".');
+    expect(withoutBuiltins.stdout).toContain("Type coverage: complete");
   });
 
   test("--allow-untyped-functions remains permissive but reports partial coverage", () => {
