@@ -172,7 +172,13 @@ runtime), and fix the AGENTS.md example to something evaluable, e.g.
 
 ---
 
-## 5. Contract-boundary errors have no failure path — Medium
+## 5. Contract-boundary errors have no failure path — Resolved
+
+Resolved by retaining the first concrete runtime-schema mismatch and reporting
+its instance path and reason. `RuntimeContractError` now also exposes stable
+`code`, `path`, and `reason` fields. Entry, effect, function, result, and checked
+ascription boundaries supply meaningful path roots such as `args`, `result`,
+and `value`.
 
 Boundary validation failures print the entire top-level schema with no pointer to the
 failing argument, field, or index:

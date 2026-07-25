@@ -15,6 +15,19 @@ function module(source: string): Record<string, JSONType> {
   return parseShorthand(source) as Record<string, JSONType>;
 }
 
+function expectContractFailure(
+  action: () => unknown,
+  expected: Pick<RuntimeContractError, "path" | "reason">,
+): void {
+  try {
+    action();
+    throw new Error("Expected runtime contract to fail");
+  } catch (error) {
+    expect(error).toBeInstanceOf(RuntimeContractError);
+    expect(error).toMatchObject(expected);
+  }
+}
+
 describe("TaskSession", () => {
   test("prepared deployments own fresh task sessions and are frozen", () => {
     const contract: EnvironmentContract = {
@@ -62,7 +75,10 @@ describe("TaskSession", () => {
       { usage },
     );
 
-    expect(() => runtime.validateArgs(["bad"])).toThrow(RuntimeContractError);
+    expectContractFailure(() => runtime.validateArgs(["bad"]), {
+      path: "args[0]",
+      reason: '"bad" is not of type integer',
+    });
     const task = runtime.invokeEntry(runtime.validateArgs([2]));
     const firstFuel = runtime.fuelUsed();
     expect(firstFuel).toBeGreaterThan(0);
@@ -76,14 +92,27 @@ describe("TaskSession", () => {
     });
     expect(runtime.fuelUsed()).toBeGreaterThan(firstFuel);
 
-    expect(() => runtime.applyResume(stepped.pending.resume, "echo", "bad")).toThrow(
-      RuntimeContractError,
-    );
+    expectContractFailure(() => runtime.applyResume(stepped.pending.resume, "echo", "bad"), {
+      path: "result",
+      reason: '"bad" is not of type integer',
+    });
     const resumed = runtime.applyResume(stepped.pending.resume, "echo", 3);
     const completed = runtime.step(resumed);
     if ("pending" in completed) throw new Error("Expected resumed task to complete");
     expect(runtime.validateCompletion(completed.done)).toBe(4);
-    expect(() => runtime.validateCompletion("bad")).toThrow(RuntimeContractError);
+    expectContractFailure(() => runtime.validateCompletion("bad"), {
+      path: "result",
+      reason: '"bad" is not of type integer',
+    });
+
+    const badEffectArgs = session(module(`{ main: (_start) => effects.echo("bad") }`), contract);
+    expectContractFailure(
+      () => badEffectArgs.step(badEffectArgs.invokeEntry(badEffectArgs.validateArgs([2]))),
+      {
+        path: "args[0]",
+        reason: '"bad" is not of type integer',
+      },
+    );
   });
 
   test("resumes through a do-block discard continuation", () => {

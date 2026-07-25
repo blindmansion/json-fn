@@ -641,6 +641,7 @@ function evaluateExpression(expression: JSONType, context: EvaluationContext): J
         ascription.$type,
         context.runtimeDefs ?? {},
         "checked ascription",
+        "value",
       );
 
     case ExpressionType.PropertyAccess:

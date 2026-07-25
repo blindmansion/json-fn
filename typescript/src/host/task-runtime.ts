@@ -94,6 +94,7 @@ export function createTaskSession(
         },
         defs,
         `entry "${contract.entry.name}" arguments`,
+        "args",
       ) as JSONType[];
     },
 
@@ -119,6 +120,7 @@ export function createTaskSession(
         },
         defs,
         `effect "${name}" arguments`,
+        "args",
       );
       return stepped;
     },
@@ -129,6 +131,7 @@ export function createTaskSession(
         effectContract(name).returns,
         defs,
         `effect "${name}" result`,
+        "result",
       );
       return prepared.call(resume, [checked]);
     },
@@ -139,6 +142,7 @@ export function createTaskSession(
         entryCompletionType(contract.entry.returns),
         defs,
         `entry "${contract.entry.name}" result`,
+        "result",
       );
     },
 

@@ -12,7 +12,7 @@ import {
   refName,
   unionArms,
 } from "./schema/schema.ts";
-import { valueSatisfies } from "./schema/values.ts";
+import { valueMismatch, valueSatisfies } from "./schema/values.ts";
 import { raw } from "./utils";
 
 const CONTRACT_ARGS = "__contractArgs";
@@ -24,7 +24,13 @@ type RuntimeFunctionContract = {
 };
 
 export class RuntimeContractError extends Error {
-  constructor(message: string) {
+  readonly code = "RUNTIME_CONTRACT_FAILED";
+
+  constructor(
+    message: string,
+    readonly path?: string,
+    readonly reason?: string,
+  ) {
     super(message);
     this.name = "RuntimeContractError";
   }
@@ -79,10 +85,24 @@ function functionShapes(schema: Schema, defs: Defs, seen = new Set<Schema>()): F
   }
 }
 
-function contractFailure(label: string, schema: Schema): RuntimeContractError {
-  return new RuntimeContractError(
-    `${label} contract failed: value does not satisfy ${JSON.stringify(schema)}`,
-  );
+function pathSegment(segment: string | number): string {
+  if (typeof segment === "number") return `[${segment}]`;
+  return /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(segment)
+    ? `.${segment}`
+    : `[${JSON.stringify(segment)}]`;
+}
+
+function contractFailure(
+  label: string,
+  value: JSONType,
+  schema: Schema,
+  defs: Defs,
+  rootPath: string,
+): RuntimeContractError {
+  const failure = valueMismatch(value, schema, defs);
+  const path = `${rootPath}${failure?.path.map(pathSegment).join("") ?? ""}`;
+  const reason = failure?.reason ?? "value does not satisfy the contract";
+  return new RuntimeContractError(`${label} contract failed at ${path}: ${reason}`, path, reason);
 }
 
 function wrapFunction(value: JSONType, schema: Schema, defs: Defs): JSONType {
@@ -107,6 +127,7 @@ export function enforceRuntimeContract(
   schema: Schema,
   defs: Defs = {},
   label = "runtime",
+  rootPath = "value",
 ): JSONType {
   if (!isRuntimeContractSchema(schema)) {
     throw new RuntimeContractError(
@@ -120,7 +141,7 @@ export function enforceRuntimeContract(
   if (isCallable(value) && functionShapes(resolved, defs).length > 0) {
     return wrapFunction(value, resolved, defs);
   }
-  throw contractFailure(label, schema);
+  throw contractFailure(label, value, schema, defs, rootPath);
 }
 
 export function readRuntimeFunctionContract(fn: FunctionBody): RuntimeFunctionContract | null {
@@ -143,6 +164,7 @@ export function prepareRuntimeContractCall(
   args: JSONType[],
 ): { args: JSONType[]; returns: Schema } {
   const shapes = functionShapes(contract.schema, contract.defs);
+  let firstFailure: RuntimeContractError | undefined;
   for (const shape of shapes) {
     const fixed = fixedParamSchemas(shape);
     if (shape.rest === undefined && args.length !== fixed.length) continue;
@@ -151,14 +173,32 @@ export function prepareRuntimeContractCall(
     try {
       const checked = args.map((arg, index) => {
         const schema = fixed[index] ?? shape.rest!;
-        return enforceRuntimeContract(arg, schema, contract.defs, `function argument ${index + 1}`);
+        return enforceRuntimeContract(
+          arg,
+          schema,
+          contract.defs,
+          `function argument ${index + 1}`,
+          `args[${index}]`,
+        );
       });
       return { args: checked, returns: shape.returns };
     } catch (error) {
       if (!(error instanceof RuntimeContractError)) throw error;
+      firstFailure ??= error;
     }
   }
-  throw contractFailure("function arguments", contract.schema);
+  if (firstFailure !== undefined) {
+    throw new RuntimeContractError(
+      `function arguments contract failed at ${firstFailure.path}: ${firstFailure.reason}`,
+      firstFailure.path,
+      firstFailure.reason,
+    );
+  }
+  throw new RuntimeContractError(
+    `function arguments contract failed at args: received ${args.length} arguments, but no function contract arm accepts that arity`,
+    "args",
+    `received ${args.length} arguments, but no function contract arm accepts that arity`,
+  );
 }
 
 export function enforceRuntimeContractReturn(
@@ -166,5 +206,5 @@ export function enforceRuntimeContractReturn(
   schema: Schema,
   defs: Defs,
 ): JSONType {
-  return enforceRuntimeContract(value, schema, defs, "function return");
+  return enforceRuntimeContract(value, schema, defs, "function return", "return");
 }

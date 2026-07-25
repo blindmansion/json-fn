@@ -278,6 +278,24 @@ describe("jfn eval contract modes", () => {
     }
   });
 
+  test("reports the nested instance path for invalid contract entry arguments", () => {
+    const result = runEval([
+      "--file",
+      join(examples, "dungeon.jfn"),
+      "--contract",
+      join(examples, "dungeon.contract.json"),
+      "--args",
+      '[{"at":"attic","held":[]}]',
+    ]);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain(
+      'entry "play" arguments contract failed at args[0].at: "attic" is not one of ["cell","hall","gate"]',
+    );
+    expect(result.stderr).not.toContain('"prefixItems"');
+  });
+
   test("distinguishes the authoritative entry from a development function", () => {
     const directory = mkdtempSync(join(tmpdir(), "json-fn-eval-contract-"));
     const contractPath = join(directory, "contract.json");
