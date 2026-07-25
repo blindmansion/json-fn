@@ -233,7 +233,11 @@ registry-second behavior of an ordinary named call. Evaluated callees use their
 ordinary expression value instead. Spread operands must evaluate to arrays.
 The current `core.apply` checker rule is intentionally imprecise, so a spread
 call's result type degrades to `any` even when the callee has a known signature;
-this is a checker limitation, not a new canonical JSON form.
+this is a checker limitation, not a new canonical JSON form. Because `any`
+does not prove assignability to a concrete return type, use a checked
+ascription (`f(...args) as T`) when the runtime boundary is intentional. Use
+`--require-full-coverage` when the remaining spread-call imprecision must also
+be rejected.
 
 ### Method calls and chained application
 

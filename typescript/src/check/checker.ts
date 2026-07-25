@@ -1200,11 +1200,43 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
 // former runtime-checkable "warning" downgrade for overlapping (narrowable)
 // mismatches: an agent must prove the value with a recognized guard, or
 // discharge it with an explicit checked boundary such as `x!` or `x as T`.
-function reportMismatch(ctx: CheckContext, actual: Schema, expected: Schema): void {
-  report(ctx, `${describe(actual)} is not assignable to ${describe(expected)}.`, {
+function reportMismatch(
+  ctx: CheckContext,
+  actual: Schema,
+  expected: Schema,
+  degraded = false,
+): void {
+  const hint = degraded
+    ? " Type coverage degraded here; use `as T` for an intentional runtime-checked boundary or fix the degradation above."
+    : "";
+  report(ctx, `${describe(actual)} is not assignable to ${describe(expected)}.${hint}`, {
     expected,
     actual,
   });
+}
+
+function containsAny(schema: Schema): boolean {
+  if (schema === true) return true;
+  if (schema === false || schema === null || typeof schema !== "object") return false;
+  if (Array.isArray(schema)) return schema.some((part) => containsAny(part as Schema));
+  return Object.values(schema).some((part) => containsAny(part as Schema));
+}
+
+// Keep sound schema subsumption for constrained positions, but connect a
+// resulting mismatch to the visible coverage loss that caused an `any`
+// recovery. Explicit/static `any` has no new info diagnostic and remains a
+// plain assignability error.
+function reportCheckMismatch(
+  ctx: CheckContext,
+  diagnosticsBefore: number,
+  actual: Schema,
+  expected: Schema,
+): void {
+  if (isSubschema(actual, expected, ctx.defs)) return;
+  const degraded = ctx.diagnostics
+    .slice(diagnosticsBefore)
+    .some((diagnostic) => diagnostic.severity === "info");
+  reportMismatch(ctx, actual, expected, degraded && containsAny(actual));
 }
 
 // The schema an expected *object* type assigns to key `k` (its own property,
@@ -1419,8 +1451,9 @@ function check(expr: JSONType, expected: Schema, ctx: CheckContext): void {
     ctx.callables !== undefined &&
     ctx.synthCallableReference !== undefined
   ) {
+    const diagnosticsBefore = ctx.diagnostics.length;
     const actual = ctx.synthCallableReference(ctx.callables[referencedCallable]!, expected, ctx);
-    if (!isSubschema(actual, expected, ctx.defs)) reportMismatch(ctx, actual, expected);
+    reportCheckMismatch(ctx, diagnosticsBefore, actual, expected);
     return;
   }
 
@@ -1490,11 +1523,14 @@ function check(expr: JSONType, expected: Schema, ctx: CheckContext): void {
     }
   }
 
+  const diagnosticsBefore = ctx.diagnostics.length;
   const actual = synth(expr, ctx);
-  if (!isSubschema(actual, expected, ctx.defs)) reportMismatch(ctx, actual, expected);
+  reportCheckMismatch(ctx, diagnosticsBefore, actual, expected);
 }
 
 function describe(schema: Schema): string {
+  if (schema === true) return "any";
+  if (schema === false) return "never";
   return JSON.stringify(schema);
 }
 

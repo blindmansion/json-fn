@@ -218,7 +218,16 @@ on `to-json`, per the same TODO.)
 
 ---
 
-## 7. Degraded `any` is inconsistently gradual — Low (design observation)
+## 7. Degraded `any` is inconsistently gradual — Resolved
+
+Resolved by keeping ordinary schema subsumption strict while treating type
+coverage and assignability as separate checks. A constrained degraded value
+still fails sound assignability, but the diagnostic now says `any` rather than
+exposing its JSON Schema encoding as `true`, links the failure to the coverage
+loss, and points to `as T` for an intentional runtime-checked boundary.
+`--require-full-coverage` remains the strict control even when such a boundary
+discharges the assignability error. Fixes 2 and 3 removed the main accidental
+sources of degradation from unknown calls and builtin references.
 
 The two halves of the degradation story pull in opposite directions:
 

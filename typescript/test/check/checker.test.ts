@@ -200,6 +200,56 @@ describe("synth: visible `any` degradation", () => {
     ]);
   });
 
+  test("a reported dynamic result keeps strict assignability with an actionable hint", () => {
+    const mod = {
+      f: {
+        $params: ["dynamic"],
+        $sig: {
+          required: [true],
+          optional: [],
+          returns: { type: "integer" },
+        },
+        $return: { $call: { $var: "dynamic" }, $args: [] },
+      },
+    };
+    expect(checkModule(mod)).toEqual([
+      {
+        path: ["f", "$return"],
+        message: "expression degraded to `any` because the callee has no known function type.",
+        severity: "info",
+      },
+      {
+        path: ["f", "$return"],
+        message:
+          'any is not assignable to {"type":"integer"}. Type coverage degraded here; use `as T` for an intentional runtime-checked boundary or fix the degradation above.',
+        severity: "error",
+        expected: { type: "integer" },
+        actual: true,
+      },
+    ]);
+  });
+
+  test("a static any remains strictly non-assignable without a reported degradation", () => {
+    const mod = {
+      f: {
+        $params: ["value"],
+        $sig: {
+          required: [true],
+          optional: [],
+          returns: { type: "integer" },
+        },
+        $return: { $var: "value" },
+      },
+    };
+    expect(checkModule(mod)).toContainEqual(
+      expect.objectContaining({
+        path: ["f", "$return"],
+        message: 'any is not assignable to {"type":"integer"}.',
+        severity: "error",
+      }),
+    );
+  });
+
   test("an unresolved string function reference reports its own degradation", () => {
     const result = checkExpr({ $fn: "missing" });
     expect(result.type).toBe(true);

@@ -301,6 +301,89 @@ describe("Section F — builtin signatures", () => {
     ]);
   });
 
+  test("a degraded any-array fallback retains strict typed-return checking", () => {
+    const table: CallableTable = {
+      builtins: {
+        dynamicItems: {
+          signatures: [
+            {
+              required: [],
+              optional: [],
+              returns: { type: "array", items: true },
+            },
+          ],
+          rule: "example.dynamicItems",
+        },
+      },
+    };
+    const diagnostics = checkModule(
+      {
+        f: body(
+          [],
+          {
+            required: [],
+            optional: [],
+            returns: { type: "array", items: { type: "integer" } },
+          },
+          call("dynamicItems"),
+        ),
+      },
+      table,
+      { typeRules: {} },
+    );
+    expect(diagnostics).toEqual([
+      {
+        path: ["f", "$return"],
+        message:
+          'type coverage degraded because callable rule "example.dynamicItems" is unavailable.',
+        severity: "info",
+      },
+      {
+        path: ["f", "$return"],
+        message:
+          '{"type":"array","items":true} is not assignable to {"type":"array","items":{"type":"integer"}}. Type coverage degraded here; use `as T` for an intentional runtime-checked boundary or fix the degradation above.',
+        severity: "error",
+        expected: { type: "array", items: { type: "integer" } },
+        actual: { type: "array", items: true },
+      },
+    ]);
+  });
+
+  test("a coverage gap does not hide a known return mismatch", () => {
+    const table: CallableTable = {
+      builtins: {
+        dynamicString: {
+          signatures: [
+            {
+              required: [],
+              optional: [],
+              returns: { type: "string" },
+            },
+          ],
+          rule: "example.dynamicString",
+        },
+      },
+    };
+    const diagnostics = checkModule(
+      {
+        f: body(
+          [],
+          { required: [], optional: [], returns: { type: "integer" } },
+          call("dynamicString"),
+        ),
+      },
+      table,
+      { typeRules: {} },
+    );
+    expect(diagnostics).toContainEqual(
+      expect.objectContaining({
+        path: ["f", "$return"],
+        message: '{"type":"string"} is not assignable to {"type":"integer"}.',
+        severity: "error",
+      }),
+    );
+  });
+
   test("an injected namespaced rule refines its portable fallback", () => {
     const table: CallableTable = {
       builtins: {

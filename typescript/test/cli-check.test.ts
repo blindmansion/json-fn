@@ -122,6 +122,32 @@ describe("jfn check coverage reporting", () => {
     expect(result.stdout).toContain("Type coverage: incomplete (1 dynamic degradation site).");
   });
 
+  test("spread-call degradation explains strict returns and supports an explicit boundary", () => {
+    const module =
+      "{ sum: (a: integer, b: integer) -> integer => a + b, " +
+      "run: (xs: integer[]) -> integer => sum(...xs) }";
+
+    const strictReturn = runCheck([module]);
+    expect(strictReturn.exitCode).toBe(1);
+    expect(strictReturn.stdout).toContain(
+      'info: run.$return: expression degraded to `any` because callable rule "apply" has no precise return type.',
+    );
+    expect(strictReturn.stdout).toContain(
+      'error: run.$return: any is not assignable to {"type":"integer"}.',
+    );
+    expect(strictReturn.stdout).toContain("use `as T` for an intentional runtime-checked boundary");
+
+    const ascribedModule = module.replace("sum(...xs) }", "sum(...xs) as integer }");
+    const ascribed = runCheck([ascribedModule]);
+    expect(ascribed.exitCode).toBe(0);
+    expect(ascribed.stdout).toContain("0 errors.");
+    expect(ascribed.stdout).toContain("Type coverage: incomplete (1 dynamic degradation site).");
+
+    const fullCoverage = runCheck(["--require-full-coverage", ascribedModule]);
+    expect(fullCoverage.exitCode).toBe(1);
+    expect(fullCoverage.stdout).toContain("0 errors.");
+  });
+
   test("unknown names are errors independently of --require-full-coverage", () => {
     const result = runCheck([
       "--expr",

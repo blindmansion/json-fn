@@ -243,6 +243,14 @@ that every expression stayed on a statically represented path; type errors are
 reported independently. `--require-full-coverage` exits nonzero when an
 information-level dynamic degradation is present.
 
+Coverage and assignability are independent. A degraded `any` does not prove
+that a value satisfies a concrete expected type, so a constrained position
+also reports a hard assignability error. The diagnostic identifies the type as
+`any` and points to `as T` when an intentional runtime-checked boundary is
+appropriate. The degradation remains visible, and `--require-full-coverage`
+also rejects programs that use such a boundary or otherwise have incomplete
+coverage but no type errors.
+
 ### Variadic `rest`
 
 ```json
