@@ -319,12 +319,51 @@ class Parser extends TokenCursor {
     // `&` already consumed.
     if (this.peekType() === "lparen") {
       this.advance();
+      const operandStart = this.pos;
       const e = this.parseExpr();
+      const operandEnd = this.pos;
       this.expect("rparen", "')'");
+      if (Array.isArray(e) || this.isGroupedArrayLiteral(operandStart, operandEnd)) {
+        throw this.err(
+          "function references cannot contain array literals; use a call expression instead",
+        );
+      }
       return { $fn: e };
     }
     const name = this.expectIdent("function name after '&'");
     return { $fn: name };
+  }
+
+  /** Whether a parsed `&(...)` operand is syntactically an array literal,
+   * allowing redundant grouping. Spread arrays lower to `concat` and therefore
+   * cannot be recognized from the resulting canonical node alone. */
+  private isGroupedArrayLiteral(start: number, end: number): boolean {
+    while (
+      this.tokens[start]?.tok.type === "lparen" &&
+      this.matchingDelimiter(start, end, "lparen", "rparen") === end - 1
+    ) {
+      start++;
+      end--;
+    }
+    return (
+      this.tokens[start]?.tok.type === "lbracket" &&
+      this.matchingDelimiter(start, end, "lbracket", "rbracket") === end - 1
+    );
+  }
+
+  private matchingDelimiter(
+    start: number,
+    end: number,
+    open: "lparen" | "lbracket",
+    close: "rparen" | "rbracket",
+  ): number | null {
+    let depth = 0;
+    for (let i = start; i < end; i++) {
+      const type = this.tokens[i]!.tok.type;
+      if (type === open) depth++;
+      else if (type === close && --depth === 0) return i;
+    }
+    return null;
   }
 
   private parseArray(): JSONType {

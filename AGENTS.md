@@ -80,7 +80,7 @@ cd typescript
 bun run src/cli.ts to-json '1 + 2 * 3'
 
 # Print canonical JSON as shorthand
-echo '{ "$fn": ["add", 1, 2] }' | bun run src/cli.ts to-shorthand
+echo '{ "$call": "add", "$args": [1, 2] }' | bun run src/cli.ts to-shorthand
 
 # Evaluate a function applied to args
 bun run src/cli.ts eval '(x) => x * x' --args '[9]'

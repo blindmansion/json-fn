@@ -132,7 +132,12 @@ spec's own guidance.
 
 ---
 
-## 4. The surface syntax can express programs the evaluator rejects (`&(array)`) — Medium
+## 4. The surface syntax can express programs the evaluator rejects (`&(array)`) — Resolved
+
+Resolved by rejecting literal-array operands while parsing `&(...)` and rejecting
+array-valued `$fn` nodes before the shorthand printer renders any part of the tree.
+Dynamic function-reference operands remain supported, and raw JSON islands remain
+opaque. The invalid `AGENTS.md` example now demonstrates a canonical `$call` instead.
 
 `docs/language.md`: "`$fn` is never an array — an array `$fn` is a pre-split artifact
 and is rejected." The evaluator enforces this. But:

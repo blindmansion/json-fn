@@ -47,6 +47,18 @@ describe("jfn shorthand $let cutover", () => {
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain("runtime closure state has no shorthand syntax");
   });
+
+  test("surface conversion rejects array-valued function references in both directions", () => {
+    const lowered = runCli("to-json", ['&(["add", 1, 2])', "--compact"]);
+    expect(lowered.exitCode).toBe(1);
+    expect(lowered.stdout).toBe("");
+    expect(lowered.stderr).toContain("function references cannot contain array literals");
+
+    const raised = runCli("to-shorthand", [JSON.stringify({ $fn: ["add", 1, 2] })]);
+    expect(raised.exitCode).toBe(1);
+    expect(raised.stdout).toBe("");
+    expect(raised.stderr).toContain("$fn cannot be an array; use $call/$args for calls");
+  });
 });
 
 describe("jfn eval bare functions", () => {

@@ -179,6 +179,28 @@ describe("printer output shape", () => {
     expect(print({ $call: { $var: "fnName" }, $args: [3, 4] })).toBe("(fnName)(3, 4)");
   });
 
+  test("rejects array-valued function references at any expression depth", () => {
+    expect(() => print({ $fn: ["add", 1, 2] })).toThrow(
+      "Cannot print function reference at $: $fn cannot be an array; use $call/$args for calls.",
+    );
+    expect(() => print({ $call: "map", $args: [{ $fn: ["upper"] }, ["a", "b"]] })).toThrow(
+      "function reference at $.$args[0]",
+    );
+  });
+
+  test("retains dynamic function references and opaque raw arrays", () => {
+    const dynamic: JSONType = {
+      $fn: {
+        $if: { $var: "enabled" },
+        $then: { $var: "primary" },
+        $else: { $var: "fallback" },
+      },
+    };
+    expect(print(dynamic)).toBe("&(if enabled then primary else fallback)");
+    expect(parse(print(dynamic))).toEqual(dynamic);
+    expect(print({ $raw: { $fn: ["add", 1, 2] } })).toBe('raw {"$fn":["add",1,2]}');
+  });
+
   test("$-keyed object falls back to raw", () => {
     expect(print({ $raw: { $fn: ["not", "x"] } })).toBe('raw {"$fn":["not","x"]}');
   });

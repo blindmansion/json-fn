@@ -96,3 +96,36 @@ describe("checked ascription errors", () => {
     );
   });
 });
+
+describe("function reference errors", () => {
+  test.each([
+    "&([])",
+    "&([1, 2])",
+    "&([&upper, value + 1])",
+    "&([...candidates])",
+    "&(([...left, ...right]))",
+  ])("rejects an array-literal operand: %s", (source) => {
+    expect(() => parse(source)).toThrow(
+      "function references cannot contain array literals; use a call expression instead",
+    );
+  });
+
+  test("retains dynamic function-reference operands", () => {
+    expect(parse("&(if enabled then primary else fallback)")).toEqual({
+      $fn: {
+        $if: { $var: "enabled" },
+        $then: { $var: "primary" },
+        $else: { $var: "fallback" },
+      },
+    });
+  });
+
+  test("allows an expression that selects a value from an array", () => {
+    expect(parse("&([primary, fallback][index])")).toEqual({
+      $fn: {
+        $get: { $var: "index" },
+        $from: [{ $var: "primary" }, { $var: "fallback" }],
+      },
+    });
+  });
+});

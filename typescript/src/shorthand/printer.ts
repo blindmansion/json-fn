@@ -369,6 +369,12 @@ function validatePrintableTree(node: JSONType, path: string): void {
 
   if ("$let" in node || "$in" in node) printableLetBindings(node, path);
 
+  if ("$fn" in node && Array.isArray(node.$fn)) {
+    throw new Error(
+      `Cannot print function reference at ${path}: $fn cannot be an array; use $call/$args for calls.`,
+    );
+  }
+
   if ("$return" in node) {
     if ("$captures" in node) {
       throw new Error(
