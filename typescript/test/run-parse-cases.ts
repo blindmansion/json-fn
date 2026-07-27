@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { parse } from "../src/shorthand";
+import { parseExpression, parseModule } from "../src/shorthand";
 import type { JSONType } from "../src/types";
 import { readdirSync, readFileSync } from "fs";
 import { join } from "path";
@@ -7,6 +7,7 @@ import { join } from "path";
 interface ParseCase {
   description: string;
   source: string;
+  mode?: "expression" | "module";
   expected?: JSONType;
   // Present when parsing must fail. A string asserts the thrown message
   // contains it; any other truthy value only requires that parsing failed.
@@ -15,10 +16,12 @@ interface ParseCase {
 
 interface ParseSuite {
   description: string;
+  mode?: "expression" | "module";
   cases: ParseCase[];
 }
 
-function runCase(tc: ParseCase): void {
+function runCase(tc: ParseCase, suiteMode: "expression" | "module" = "expression"): void {
+  const parse = (tc.mode ?? suiteMode) === "module" ? parseModule : parseExpression;
   if (tc.error !== undefined) {
     if (typeof tc.error === "string") {
       expect(() => parse(tc.source)).toThrow(tc.error);
@@ -33,7 +36,7 @@ function runCase(tc: ParseCase): void {
 export function runSuite(suite: ParseSuite): void {
   describe(suite.description, () => {
     for (const tc of suite.cases) {
-      test(tc.description, () => runCase(tc));
+      test(tc.description, () => runCase(tc, suite.mode));
     }
   });
 }

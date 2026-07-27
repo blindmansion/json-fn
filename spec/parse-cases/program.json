@@ -1,9 +1,10 @@
 {
   "description": "program shape (shorthand spec section 9)",
+  "mode": "module",
   "cases": [
     {
       "description": "registry object of named functions",
-      "source": "{\n  otherColor: (color) => if color == \"w\" then \"b\" else \"w\",\n  pieceType:  (piece) => upper(piece)\n}",
+      "source": "otherColor: (color) => if color == \"w\" then \"b\" else \"w\",\npieceType:  (piece) => upper(piece)",
       "expected": {
         "otherColor": {
           "$params": ["color"],

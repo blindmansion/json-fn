@@ -3,7 +3,7 @@ import { loadBuiltinTable } from "../src/builtins";
 import { checkExpr, checkModule } from "../src/check/module";
 import type { JSONType } from "../src/types";
 import type { Schema } from "../src/schema/schema.ts";
-import { parse } from "../src/shorthand";
+import { parseExpression as parse } from "../src/shorthand";
 
 const I: Schema = { type: "integer" };
 const S: Schema = { type: "string" };

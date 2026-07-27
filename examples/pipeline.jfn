@@ -3,7 +3,6 @@
 // union, refinements, array + function types, and curried / rest / object-
 // pattern signatures — next to the language's lambdas, `if`/`cond`/`match`,
 // `where`, and template strings.
-{
   type Nat = integer & min(0),
 
   // Discriminated union: closed objects sharing a `tag`.
@@ -72,4 +71,3 @@
       { tag: "take",  n: 3 }
     ]
   }
-}

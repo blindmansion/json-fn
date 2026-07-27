@@ -1,4 +1,3 @@
-{
   // These domain types come from orchestration.contract.json. Keeping
   // them in the operator-owned contract lets both hosts enforce exactly the
   // same boundary contracts.
@@ -53,4 +52,3 @@
     effects.log("workflow complete"),
     pure({ pipeline, fanout, empty, race })
   }
-}

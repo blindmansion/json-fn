@@ -40,7 +40,7 @@ describe("TaskSession", () => {
       },
     };
     const deployment = prepareDeployment({
-      module: module(`{ main: () => 1 }`),
+      module: module(`main: () => 1`),
       contract,
       profile: { version: 1, mode: "live", effects: [] },
       adapter: { functions: {}, effects: {} },
@@ -65,12 +65,12 @@ describe("TaskSession", () => {
     };
     const usage = { fuel: 0 };
     const runtime = session(
-      module(`{
+      module(`
         main: (start) => do {
           value <- effects.echo(start),
           pure(value + 1)
         }
-      }`),
+      `),
       contract,
       { usage },
     );
@@ -105,7 +105,7 @@ describe("TaskSession", () => {
       reason: '"bad" is not of type integer',
     });
 
-    const badEffectArgs = session(module(`{ main: (_start) => effects.echo("bad") }`), contract);
+    const badEffectArgs = session(module(`main: (_start) => effects.echo("bad")`), contract);
     expectContractFailure(
       () => badEffectArgs.step(badEffectArgs.invokeEntry(badEffectArgs.validateArgs([2]))),
       {
@@ -129,12 +129,12 @@ describe("TaskSession", () => {
       },
     };
     const runtime = session(
-      module(`{
+      module(`
         main: (start) => do {
           effects.echo(start),
           pure(start + 1)
         }
-      }`),
+      `),
       contract,
     );
 
@@ -157,7 +157,7 @@ describe("TaskSession", () => {
       },
     };
 
-    const raising = session(module(`{ main: () => raise("boom") }`), contract);
+    const raising = session(module(`main: () => raise("boom")`), contract);
     try {
       raising.step(raising.invokeEntry([]));
       throw new Error("Expected raise to escape");
@@ -166,7 +166,7 @@ describe("TaskSession", () => {
       expect((error as TaskRaiseError).payload).toBe("boom");
     }
 
-    const unknown = session(module(`{ main: () => perform("missing", []) }`), contract);
+    const unknown = session(module(`main: () => perform("missing", [])`), contract);
     expect(() => unknown.step(unknown.invokeEntry([]))).toThrow('unknown effect "missing"');
   });
 

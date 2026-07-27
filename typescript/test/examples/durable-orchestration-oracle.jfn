@@ -2,7 +2,6 @@
 //
 // The test passes the real example's Task<Report> into `interpret`, so this
 // fixture models an alternate host without duplicating the guest workflow.
-{
   type OracleState = { transcript: string[] },
   type OracleRun = { report: Report, transcript: string[] },
 
@@ -44,4 +43,3 @@
         transcript: state.transcript
       }
     })({ transcript: [] })
-}

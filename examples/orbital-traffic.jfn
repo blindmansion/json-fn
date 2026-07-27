@@ -4,7 +4,6 @@
 // Check and run it through the CLI:
 //   bun run src/cli.ts check --contract ../examples/orbital-traffic.contract.json --file ../examples/orbital-traffic.jfn
 //   bun run src/cli.ts eval --contract ../examples/orbital-traffic.contract.json --file ../examples/orbital-traffic.jfn --function demo
-{
   type TrackPair = [Track, Track],
 
   dot: (a: Vector, b: Vector) -> number => a.x * b.x + a.y * b.y,
@@ -104,4 +103,3 @@
     { id: "COMET-3", position: { x: 10, y: 12 }, velocity: { x: 0, y: -0.5 }, radiusKm: 1 },
     { id: "DEEP-SPACE", position: { x: 100, y: 100 }, velocity: { x: 0.1, y: 0.1 }, radiusKm: 1 }
   ], 60)
-}

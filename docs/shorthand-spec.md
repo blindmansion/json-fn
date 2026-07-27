@@ -794,32 +794,21 @@ shorthand, and is rejected by the shorthand printer rather than discarded.
 
 ## 9. Files and program shape
 
-A `.jfn` file is **one json-fn expression**, and lowers to a single JSON value.
-There is no file-level construct beyond "an expression."
+A `.jfn` file is an **implicit module**: a comma-separated sequence of named
+bindings and type declarations without surrounding braces. It lowers to one
+canonical JSON object mapping names to expressions.
 
-A typical multi-function file is an **object mapping names to expressions** —
-constants and function literals — as in `examples/pipeline.jfn` and
-`examples/dungeon.jfn`. This object is a distinct persistent module registry,
-not a function body or a `$let` encoding. Top-level names (constants _and_
-functions) are visible via `$var` throughout the file, and literal functions
-are callable via `$call`. Constants are lazy, memoized, order-independent,
-mutually recursive, and cycle-checked. Module functions remain registry-backed
-for the whole program and are not copied into escaping closures. The host
-supplies the parent registry (stdlib + native builtins) and picks an entry point
-to invoke.
+This object is a distinct persistent module registry, not a function body or a
+`$let` encoding. Top-level names (constants _and_ functions) are visible via
+`$var` throughout the file, and literal functions are callable via `$call`.
+Constants are lazy, memoized, order-independent, mutually recursive, and
+cycle-checked. Module functions remain registry-backed for the whole program
+and are not copied into escaping closures. The host supplies the parent
+registry (stdlib + native builtins) and picks an entry point to invoke.
 
 ```jfn
-{
-  otherColor: (color) => if color == "w" then "b" else "w",
-  pieceType:  (piece) => upper(piece)
-}
-```
-
-```jfn
-{
-  otherColor: (color) => if color == "w" then "b" else "w",
-  pieceType:  (piece) => upper(piece)
-}
+otherColor: (color) => if color == "w" then "b" else "w",
+pieceType:  (piece) => upper(piece)
 ```
 
 ```json
@@ -832,26 +821,29 @@ to invoke.
 }
 ```
 
-**How a file is consumed is a host concern**, unchanged from raw JSON: the host
-may run the resulting object as a program — treating it as the outermost scope
-over the stdlib registry and invoking a named entry point (as with
-`pipeline.jfn` and `dungeon.jfn`) — or evaluate a file that is a bare expression
-down to a value.
+**How a module is consumed is a host concern**, unchanged from raw JSON: the
+host treats the resulting object as the outermost scope over the stdlib
+registry and chooses a named entry point (as with `pipeline.jfn` and
+`dungeon.jfn`). Standalone expressions are a separate parser/CLI mode and are
+not `.jfn` file syntax.
 See [Environment contract](environment-contract.md) for portable entry linking
 and [Durable task hosting](durable-host.md) for the TypeScript persistent host.
 The shorthand only guarantees the JSON it produces.
 
-> **Future direction (not specified):** module-level `import` / `export` and a
-> brace-less top-level declaration form (so a file reads as a list of
-> definitions rather than one braced object) are possible supersets. They are
-> intentionally out of scope here.
+> **Future direction (not specified):** module-level `import` / `export` may
+> extend this file-level module syntax.
 
 ---
 
 ## 10. Grammar (informal EBNF)
 
 ```
-program     := body
+program     := (moduleEntry ("," moduleEntry)* ","?)?
+moduleEntry := "type" ident "=" type
+             | dataEntry
+
+// Used only by an explicit standalone-expression parser mode.
+expressionInput := body
 
 expr        := ascription
 ascription  := orExpr ( "as" type )?                             // non-assoc

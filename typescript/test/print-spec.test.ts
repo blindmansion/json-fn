@@ -1,5 +1,10 @@
 import { describe, test, expect } from "bun:test";
-import { parse, print } from "../src/shorthand";
+import {
+  parseExpression as parse,
+  parseModule,
+  printExpression as print,
+  printModule,
+} from "../src/shorthand";
 import { printType } from "../src/shorthand/type-printer";
 import type { JSONType } from "../src/types";
 import { analyzeParameters } from "../src/params";
@@ -14,12 +19,14 @@ import { join } from "path";
 interface ParseCase {
   description: string;
   source: string;
+  mode?: "expression" | "module";
   expected?: JSONType;
   error?: JSONType;
 }
 
 interface ParseSuite {
   description: string;
+  mode?: "expression" | "module";
   cases: ParseCase[];
 }
 
@@ -55,7 +62,14 @@ describe("printer round-trips canonical JSON (parse ∘ print = id)", () => {
       for (const tc of suite.cases) {
         // Skip cases that assert a parse *failure* — there is no canonical JSON.
         if (tc.error !== undefined) continue;
-        test(tc.description, () => roundTrips(tc.expected ?? null));
+        test(tc.description, () => {
+          if ((tc.mode ?? suite.mode) === "module") {
+            const json = tc.expected ?? {};
+            expect(parseModule(printModule(json))).toEqual(json);
+          } else {
+            roundTrips(tc.expected ?? null);
+          }
+        });
       }
     });
   }
@@ -63,14 +77,15 @@ describe("printer round-trips canonical JSON (parse ∘ print = id)", () => {
 
 describe("printer output shape", () => {
   test("prints typed modules as declarations and typed bindings", () => {
-    const node = parse("{ type N = integer, id: (x: N) -> N => x }");
-    expect(print(node)).toBe("{\n  type N = integer,\n  id: (x: N) -> N => x\n}");
-    expect(parse(print(node))).toEqual(node);
+    const node = parseModule("type N = integer, id: (x: N) -> N => x");
+    expect(printModule(node)).toBe("type N = integer,\nid: (x: N) -> N => x");
+    expect(parseModule(printModule(node))).toEqual(node);
   });
 
   test("round-trips the type syntax showcase module", () => {
     const source = readFileSync(join(EXAMPLES_DIR, "types.jfn"), "utf-8");
-    roundTrips(parse(source));
+    const node = parseModule(source);
+    expect(parseModule(printModule(node))).toEqual(node);
   });
 
   test("prints optional callable slots", () => {

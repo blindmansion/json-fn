@@ -1,4 +1,3 @@
-{
   // RoomId, Room, and PlayerState come from dungeon.contract.json.
   type Turn = { state: PlayerState, message: string, done: boolean },
 
@@ -94,4 +93,3 @@
           else play(turn.state)
       }
   }
-}

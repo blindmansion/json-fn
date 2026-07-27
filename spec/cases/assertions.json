@@ -47,6 +47,16 @@
       "error": "checked ascription contract failed"
     },
     {
+      "description": "checked ascription measures string lengths in Unicode code points",
+      "body": {
+        "$return": {
+          "$as": "😀",
+          "$type": { "type": "string", "minLength": 1, "maxLength": 1 }
+        }
+      },
+      "expected": "😀"
+    },
+    {
       "description": "checked ascription validates arrays",
       "body": {
         "$return": {

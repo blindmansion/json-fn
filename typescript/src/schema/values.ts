@@ -1,4 +1,5 @@
 import type { JSONType } from "../types.ts";
+import { codePointLength } from "../unicode.ts";
 import type { Schema, Defs } from "./schema.ts";
 import {
   SchemaKind,
@@ -104,10 +105,11 @@ function primitiveValueMismatch(
     }
   }
   if (typeof value === "string") {
-    if ("minLength" in o && value.length < (o.minLength as number)) {
+    const length = codePointLength(value);
+    if ("minLength" in o && length < (o.minLength as number)) {
       return mismatch(`${shown(value)} must contain at least ${o.minLength} characters`);
     }
-    if ("maxLength" in o && value.length > (o.maxLength as number)) {
+    if ("maxLength" in o && length > (o.maxLength as number)) {
       return mismatch(`${shown(value)} must contain at most ${o.maxLength} characters`);
     }
     if ("pattern" in o && !new RegExp(o.pattern as string).test(value)) {

@@ -1,4 +1,5 @@
 import type { JSONType } from "../types";
+import { codePointAt, codePointLength } from "../unicode";
 
 /**
  * A short, human-readable description of a `$get` target, used only to make
@@ -15,7 +16,7 @@ function describeTarget(value: JSONType): string {
     const suffix = keys.length > shown.length ? `, … (${keys.length} keys)` : "";
     return `an object with keys ${shown.join(", ")}${suffix}`;
   }
-  if (typeof value === "string") return `a string of length ${value.length}`;
+  if (typeof value === "string") return `a string of length ${codePointLength(value)}`;
   return `a ${typeof value} (${JSON.stringify(value)})`;
 }
 
@@ -56,7 +57,7 @@ function accessOne(target: JSONType, key: JSONType): JSONType | typeof missing {
           `must be integers.${keyHint(key)}`,
       );
     }
-    const value = target[key];
+    const value = codePointAt(target, key);
     return value === undefined ? missing : value;
   }
 

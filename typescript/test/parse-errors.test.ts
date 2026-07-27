@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parse } from "../src/shorthand";
+import { parseExpression as parse, parseModule } from "../src/shorthand";
 import { ParseError } from "../src/shorthand/error";
 
 // Regression coverage for the typed-lambda header lookahead. A malformed return
@@ -83,7 +83,7 @@ describe("Task completion annotations", () => {
   });
 
   test("reserves Task as a type declaration name", () => {
-    expect(() => parse("{ type Task = any, main: () => null }")).toThrow(
+    expect(() => parseModule("type Task = any, main: () => null")).toThrow(
       "'Task' is reserved for the built-in Task<A> type constructor",
     );
   });

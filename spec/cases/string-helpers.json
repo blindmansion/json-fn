@@ -255,6 +255,16 @@
       "expected": "hello-world-foo"
     },
     {
+      "description": "split: empty separator splits Unicode code points",
+      "body": {
+        "$return": {
+          "$call": "split",
+          "$args": ["a😀b", ""]
+        }
+      },
+      "expected": ["a", "😀", "b"]
+    },
+    {
       "description": "trim then split pipeline",
       "body": {
         "$return": {

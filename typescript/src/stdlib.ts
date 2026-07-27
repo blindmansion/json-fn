@@ -2,6 +2,7 @@ import { builtin, pure, meteredPure, getArity } from "./utils";
 import type { BuiltinFunction, FunctionRegistry, JSONType, Meter } from "./types";
 import { effectTask, pureTask, bindTask, runHandle } from "./task";
 import { isFunctionDeclaration } from "./function-value";
+import { codePointIndexOf, codePointLength, codePointSlice, codePoints } from "./unicode";
 
 export type LoggerFn = (value: JSONType, label?: string) => void;
 
@@ -548,7 +549,7 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
     length: pure((value: any[] | string) => {
       if (!Array.isArray(value) && typeof value !== "string")
         throw new Error("length: argument must be an array or string");
-      return value.length;
+      return typeof value === "string" ? codePointLength(value) : value.length;
     }),
     head: pure((arr: any[]) => {
       if (!Array.isArray(arr)) throw new Error("head: argument must be an array");
@@ -590,6 +591,7 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
       if (!Number.isInteger(start)) throw new Error("slice: second argument must be an integer");
       if (end !== undefined && !Number.isInteger(end))
         throw new Error("slice: third argument must be an integer");
+      if (typeof value === "string") return codePointSlice(value, start, end);
       return end === undefined ? value.slice(start) : value.slice(start, end);
     }),
     reverse: pure((arr: any[]) => {
@@ -634,7 +636,7 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
         throw new Error("repeat: count must be a non-negative integer");
       const repetitions = count;
       if (typeof value === "string") {
-        const size = value.length * repetitions;
+        const size = codePointLength(value) * repetitions;
         meter.guardSize(size);
         return value.repeat(repetitions);
       }
@@ -685,8 +687,8 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
     // on strings these stay substring/char-index checks.
     includes: meteredPure((meter, arr: any[] | string, value: any) => {
       if (typeof arr === "string") {
-        meter.charge(arr.length);
-        return arr.includes(value);
+        meter.charge(codePointLength(arr));
+        return codePointIndexOf(arr, String(value)) !== -1;
       }
       for (const element of arr) {
         if (jsonEqual(element, value, meter)) return true;
@@ -695,8 +697,8 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
     }),
     indexOf: meteredPure((meter, arr: any[] | string, value: any) => {
       if (typeof arr === "string") {
-        meter.charge(arr.length);
-        const index = arr.indexOf(value);
+        meter.charge(codePointLength(arr));
+        const index = codePointIndexOf(arr, String(value));
         return index === -1 ? null : index;
       }
       for (let index = 0; index < arr.length; index++) {
@@ -739,8 +741,8 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
       return parts.join("");
     }),
     split: meteredPure((meter, s: string, sep: string) => {
-      meter.charge(s.length);
-      return s.split(sep);
+      meter.charge(codePointLength(s));
+      return sep === "" ? codePoints(s) : s.split(sep);
     }),
     join: meteredPure((meter, arr: any[], sep: string) => {
       meter.charge(arr.length);

@@ -243,9 +243,9 @@ describe("contract checker integration", () => {
       entry: { name: "main", required: [], optional: [], returns: I },
     });
 
-    expect(checkModule(module("{ main: () => 42 }"), builtins, { contract: direct })).toEqual([]);
+    expect(checkModule(module("main: () => 42"), builtins, { contract: direct })).toEqual([]);
     expect(
-      checkModule(module("{ main: () => pure(42) }"), builtins, {
+      checkModule(module("main: () => pure(42)"), builtins, {
         contract: direct,
       }).some(
         (diagnostic) =>
@@ -253,7 +253,7 @@ describe("contract checker integration", () => {
       ),
     ).toBe(true);
     expect(
-      checkModule(module("{ main: () => 42 }"), builtins, {
+      checkModule(module("main: () => 42"), builtins, {
         contract: contract(),
       }).some(
         (diagnostic) =>
@@ -270,7 +270,7 @@ describe("contract checker integration", () => {
     });
 
     expect(
-      checkModule(module("{ main: () => effects.sensor.read() }"), builtins, {
+      checkModule(module("main: () => effects.sensor.read()"), builtins, {
         contract: env,
       }),
     ).toEqual([]);
@@ -282,29 +282,29 @@ describe("contract checker integration", () => {
         "sensor.read": { params: [], returns: I },
       },
     });
-    const mod = module(`{
+    const mod = module(`
       read: () -> Task<integer> => effects.sensor.read(),
       main: () => read()
-    }`);
+    `);
 
     expect(checkModule(mod, builtins, { contract: env })).toEqual([]);
   });
 
   test("checks recursive helper completion types through their eager signatures", () => {
-    const mod = module(`{
+    const mod = module(`
       loop: (fuel: integer) -> Task<integer> =>
         if fuel <= 0 then pure(0) else loop(fuel - 1),
       main: () => loop(2)
-    }`);
+    `);
 
     expect(checkModule(mod, builtins, { contract: contract() })).toEqual([]);
   });
 
   test("rejects a helper body with the wrong declared completion type", () => {
-    const mod = module(`{
+    const mod = module(`
       wrong: () -> Task<integer> => pure("wrong"),
       main: () => wrong()
-    }`);
+    `);
 
     expect(
       checkModule(mod, builtins, { contract: contract() }).some(
@@ -323,7 +323,7 @@ describe("contract checker integration", () => {
     });
 
     expect(
-      checkModule(module('{ main: () => effects.log("wrong") }'), builtins, {
+      checkModule(module('main: () => effects.log("wrong")'), builtins, {
         contract: env,
       }).some((diagnostic) => diagnostic.severity === "error"),
     ).toBe(true);
@@ -335,13 +335,13 @@ describe("contract checker integration", () => {
         log: { params: [S], returns: { type: "null" } },
       },
     });
-    const mod = module(`{
+    const mod = module(`
       interpret: (task: Task<integer>) -> integer => handle task -> integer with {
         log: (message, resume) => resume(null) + length(message),
         return: (value) => value + 1
       },
       main: () => pure(1)
-    }`);
+    `);
 
     expect(checkModule(mod, builtins, { contract: env })).toEqual([]);
   });
@@ -352,13 +352,13 @@ describe("contract checker integration", () => {
         log: { params: [S], returns: { type: "null" } },
       },
     });
-    const mod = module(`{
+    const mod = module(`
       interpret: (task: Task<integer>) -> integer => handle task -> integer with {
         log: (message, resume) => resume("wrong") + message,
         return: (value) => "wrong"
       },
       main: () => pure(1)
-    }`);
+    `);
     const diagnostics = checkModule(mod, builtins, { contract: env });
 
     expect(diagnostics).toContainEqual(
@@ -378,7 +378,7 @@ describe("contract checker integration", () => {
 
   test("rejects a guest binding that shadows the injected effects namespace", () => {
     expect(() =>
-      checkModule(module("{ effects: {}, main: () => pure(1) }"), builtins, {
+      checkModule(module("effects: {}, main: () => pure(1)"), builtins, {
         contract: contract(),
       }),
     ).toThrow(ModuleLinkError);
@@ -392,11 +392,11 @@ describe("contract runtime integration", () => {
     });
     const host = { registry: createStdlib(), capabilities: {} };
 
-    expect(
-      checkModule(module("{ main: () => 42 }"), loadBuiltinTable(), { contract: env }),
-    ).toEqual([]);
-    expect(await runTask(module("{ main: () => 42 }"), env, [], host)).toBe(42);
-    expect(runTask(module('{ main: () => "wrong" }'), env, [], host)).rejects.toThrow(
+    expect(checkModule(module("main: () => 42"), loadBuiltinTable(), { contract: env })).toEqual(
+      [],
+    );
+    expect(await runTask(module("main: () => 42"), env, [], host)).toBe(42);
+    expect(runTask(module('main: () => "wrong"'), env, [], host)).rejects.toThrow(
       RuntimeContractError,
     );
   });
@@ -407,7 +407,7 @@ describe("contract runtime integration", () => {
     });
 
     expect(
-      await runTask(module("{ main: () => pure(42) }"), env, [], {
+      await runTask(module("main: () => pure(42)"), env, [], {
         registry: createStdlib(),
         capabilities: {},
       }),
@@ -423,7 +423,7 @@ describe("contract runtime integration", () => {
         returns: { type: "array" },
       },
     });
-    const mod = module("{ main: (required, optional?) => [required, optional] }");
+    const mod = module("main: (required, optional?) => [required, optional]");
     const host = { registry: createStdlib(), capabilities: {} };
 
     expect(checkModule(mod, loadBuiltinTable(), { contract: env })).toEqual([]);
@@ -441,7 +441,7 @@ describe("contract runtime integration", () => {
     const env = contract({
       entry: { name: "main", required: [], optional: [], returns: resultSchema },
     });
-    const mod = module("{ main: () => { answer: 42 } }");
+    const mod = module("main: () => { answer: 42 }");
 
     expect(checkModule(mod, loadBuiltinTable(), { contract: env })).toEqual([]);
     expect(await runTask(mod, env, [], { registry: createStdlib(), capabilities: {} })).toEqual({
@@ -477,10 +477,10 @@ describe("contract runtime integration", () => {
         returns: { task: true },
       },
     });
-    const mod = module(`{
+    const mod = module(`
       main: (required, optional?, defaulted = 7) =>
         pure([required, optional, defaulted])
-    }`);
+    `);
     const host = { registry: createStdlib(), capabilities: {} };
 
     expect(checkModule(mod, loadBuiltinTable(), { contract: env })).toEqual([]);
@@ -503,7 +503,7 @@ describe("contract runtime integration", () => {
         returns: { task: nullableInteger },
       },
     });
-    const mod = module("{ main: (value?) => pure(value) }");
+    const mod = module("main: (value?) => pure(value)");
     const host = { registry: createStdlib(), capabilities: {} };
 
     expect(checkModule(mod, loadBuiltinTable(), { contract: env })).toEqual([]);
@@ -554,7 +554,7 @@ describe("contract runtime integration", () => {
       },
       entry: { name: "main", required: [], optional: [], returns: { task: true } },
     });
-    const mod = module("{ main: () => pure(identity({ ok: true })) }");
+    const mod = module("main: () => pure(identity({ ok: true }))");
     const value = await runTask(mod, generic, [], {
       registry: { ...createStdlib(), identity: (input: JSONType) => input },
       capabilities: {},
@@ -599,9 +599,9 @@ describe("contract runtime integration", () => {
       capabilities: {},
     };
 
-    expect(await runTask(module("{ main: (_name) => pure(inc(1)) }"), env, ["inc"], host)).toBe(2);
+    expect(await runTask(module("main: (_name) => pure(inc(1))"), env, ["inc"], host)).toBe(2);
     await expect(
-      runTask(module("{ main: (name) => pure(name(1)) }"), env, ["@adapter:inc"], host),
+      runTask(module("main: (name) => pure(name(1))"), env, ["@adapter:inc"], host),
     ).rejects.toBeInstanceOf(ReservedAdapterAliasError);
   });
 
@@ -612,7 +612,7 @@ describe("contract runtime integration", () => {
       },
     });
     await expect(
-      runTask(module("{ main: () => pure(explode()) }"), env, [], {
+      runTask(module("main: () => pure(explode())"), env, [], {
         registry: {
           ...createStdlib(),
           explode: () => {
@@ -642,11 +642,11 @@ describe("contract runtime integration", () => {
     const env = contract({
       effects: { read: { params: [], returns: I } },
     });
-    const mod = module(`{
+    const mod = module(`
       main: () => pure(handle effects.read() with {
         read: (resume) => resume(7)
       })
-    }`);
+    `);
     expect(await runTask(mod, env, [], { registry: createStdlib(), capabilities: {} })).toBe(7);
   });
 
@@ -655,7 +655,7 @@ describe("contract runtime integration", () => {
       effects: { read: { params: [], returns: I } },
     });
     await expect(
-      runTask(module("{ main: () => effects.read() }"), env, [], {
+      runTask(module("main: () => effects.read()"), env, [], {
         registry: createStdlib(),
         capabilities: {},
       }),
@@ -664,7 +664,7 @@ describe("contract runtime integration", () => {
 
   test("does not allow run options to override portable profile limits", () => {
     const deployment = prepareDeployment({
-      module: module("{ main: () => pure(1) }"),
+      module: module("main: () => pure(1)"),
       contract: contract(),
       profile: { version: 1, mode: "live", effects: [], limits: { maxFuel: 100 } },
       adapter: { functions: {}, effects: {} },
@@ -703,7 +703,7 @@ describe("contract runtime integration", () => {
       },
     });
 
-    const result = await runTask(module("{ main: () => effects.ping() }"), env, [], {
+    const result = await runTask(module("main: () => effects.ping()"), env, [], {
       registry: {
         ...createStdlib(),
         ping: () => {
@@ -720,7 +720,7 @@ describe("contract runtime integration", () => {
 
   test("rejects a runtime module that shadows the effects namespace", () => {
     expect(() =>
-      runTask(module("{ effects: {}, main: () => pure(1) }"), contract(), [], {
+      runTask(module("effects: {}, main: () => pure(1)"), contract(), [], {
         registry: createStdlib(),
         capabilities: {},
       }),
@@ -737,7 +737,7 @@ describe("contract capability admission", () => {
   });
 
   test("collects only statically referenced qualified effects", () => {
-    const mod = module('{ main: () => effects.sensor.read(), helper: () => pure("unused") }');
+    const mod = module('main: () => effects.sensor.read(), helper: () => pure("unused")');
     expect(
       analyzeDeploymentCapabilities({
         module: mod,
@@ -753,7 +753,7 @@ describe("contract capability admission", () => {
   });
 
   test("marks computed effects access as dynamic", () => {
-    const mod = module("{ main: (name) => effects[name]() }");
+    const mod = module("main: (name) => effects[name]()");
     expect(
       analyzeDeploymentCapabilities({
         module: mod,

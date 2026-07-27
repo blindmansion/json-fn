@@ -48,10 +48,10 @@ Evaluation fails as soon as accumulated fuel exceeds `maxFuel`.
 
 ### 3.1 Produced value size
 
-`maxValueSize` bounds the top-level length of each array or string produced by a
-host function or builtin. Size-growing builtins may check the bound before
-allocating, and all builtin return values pass through the shared result
-accounting chokepoint.
+`maxValueSize` bounds the top-level item count of each array and the Unicode
+code-point count of each string produced by a host function or builtin.
+Size-growing builtins may check the bound before allocation, and all builtin
+return values pass through the shared result accounting chokepoint.
 
 The limit is per produced value, not a recursive byte-size total for an entire
 object graph.

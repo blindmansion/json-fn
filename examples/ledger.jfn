@@ -4,7 +4,6 @@
 // map types indexed by key, `merge`-based record updates, discriminated-union
 // dispatch via `match`, strict contextual callback shapes, and an explicit
 // runtime contract boundary for arithmetic that must re-establish a refinement.
-{
   type Cents     = integer & min(0),
   type AccountId = string & pattern("^acc_"),
   type Account   = { id: AccountId, name: string, balance: Cents },
@@ -97,4 +96,3 @@
       { tag: "open",     id: "acc_ada", name: "Ada again" }
     ]
   }
-}

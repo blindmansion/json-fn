@@ -74,7 +74,7 @@ function resumeInFreshRuntime(
 
 describe("durable continuation round trips", () => {
   test("preserves recursive locals through nested tasks and a multi-effect do chain", () => {
-    const module = parseModule(`{
+    const module = parseModule(`
       main: () => do {
         first <- perform("first", [2]),
         second <- nested(first),
@@ -87,7 +87,7 @@ describe("durable continuation round trips", () => {
         countdown: (value) =>
           if value <= 0 then 0 else 1 + countdown(value - 1)
       }
-    }`);
+    `);
 
     const first = expectPending(startInFreshRuntime(module));
     expect({ name: first.name, args: first.args }).toEqual({ name: "first", args: [2] });
@@ -99,7 +99,7 @@ describe("durable continuation round trips", () => {
   });
 
   test("re-enters an in-language handler wrapped around the suspension point", () => {
-    const module = parseModule(`{
+    const module = parseModule(`
       main: () => handle do {
         external <- perform("external", ["request"]),
         local <- perform("local", [external]),
@@ -107,7 +107,7 @@ describe("durable continuation round trips", () => {
       } with {
         local: (value, resume) => resume(value * 2)
       }
-    }`);
+    `);
 
     const pending = expectPending(startInFreshRuntime(module));
     expect({ name: pending.name, args: pending.args }).toEqual({
@@ -119,7 +119,7 @@ describe("durable continuation round trips", () => {
   });
 
   test("preserves accumulated manual state-transformer state across suspension", () => {
-    const module = parseModule(`{
+    const module = parseModule(`
       main: () => (handle perform("record", ["before"]) with {
         record: (message, resume) => (state) =>
           bind(
@@ -128,7 +128,7 @@ describe("durable continuation round trips", () => {
           ),
         "return": (value) => (state) => pure({ value: value, state: state })
       })(["seed"])
-    }`);
+    `);
 
     const pending = expectPending(startInFreshRuntime(module));
     expect({ name: pending.name, args: pending.args }).toEqual({

@@ -796,6 +796,26 @@
       "expected": "o"
     },
     {
+      "description": "$get on string: indexes Unicode code points",
+      "body": {
+        "$return": {
+          "$get": 1,
+          "$from": "a😀b"
+        }
+      },
+      "expected": "😀"
+    },
+    {
+      "description": "$get on string: code-point index after astral character",
+      "body": {
+        "$return": {
+          "$get": 2,
+          "$from": "a😀b"
+        }
+      },
+      "expected": "b"
+    },
+    {
       "description": "$get on string: out of bounds returns null",
       "body": {
         "$return": {

@@ -28,20 +28,24 @@ function runEval(args: string[]): { exitCode: number; stdout: string; stderr: st
 
 describe("jfn shorthand $let cutover", () => {
   test("to-json emits $let and to-shorthand prints it", () => {
-    const lowered = runCli("to-json", ["x + 1 where { x: 2 }", "--compact"]);
+    const lowered = runCli("to-json", ["--expr", "x + 1 where { x: 2 }", "--compact"]);
     expect(lowered.exitCode).toBe(0);
     expect(JSON.parse(lowered.stdout)).toEqual({
       $let: { x: 2 },
       $in: { $call: "add", $args: [{ $var: "x" }, 1] },
     });
 
-    const raised = runCli("to-shorthand", [JSON.stringify({ $let: { x: 2 }, $in: { $var: "x" } })]);
+    const raised = runCli("to-shorthand", [
+      "--expr",
+      JSON.stringify({ $let: { x: 2 }, $in: { $var: "x" } }),
+    ]);
     expect(raised.exitCode).toBe(0);
     expect(raised.stdout.trim()).toBe("x where {\n  x: 2\n}");
   });
 
   test("to-shorthand reports evaluator captures", () => {
     const result = runCli("to-shorthand", [
+      "--expr",
       JSON.stringify({ $return: 1, $captures: { helper: { $return: 2 } } }),
     ]);
     expect(result.exitCode).toBe(1);
@@ -49,12 +53,12 @@ describe("jfn shorthand $let cutover", () => {
   });
 
   test("surface conversion rejects array-valued function references in both directions", () => {
-    const lowered = runCli("to-json", ['&(["add", 1, 2])', "--compact"]);
+    const lowered = runCli("to-json", ["--expr", '&(["add", 1, 2])', "--compact"]);
     expect(lowered.exitCode).toBe(1);
     expect(lowered.stdout).toBe("");
     expect(lowered.stderr).toContain("function references cannot contain array literals");
 
-    const raised = runCli("to-shorthand", [JSON.stringify({ $fn: ["add", 1, 2] })]);
+    const raised = runCli("to-shorthand", ["--expr", JSON.stringify({ $fn: ["add", 1, 2] })]);
     expect(raised.exitCode).toBe(1);
     expect(raised.stdout).toBe("");
     expect(raised.stderr).toContain("$fn cannot be an array; use $call/$args for calls");
@@ -67,7 +71,7 @@ describe("jfn eval bare functions", () => {
     { name: "optional", source: "(value?) => value", expected: null },
     { name: "defaulted", source: "(value = 9) => value", expected: 9 },
   ])("invokes the $name function with the default empty argument array", (fixture) => {
-    const result = runEval([fixture.source, "--compact"]);
+    const result = runEval(["--expr", fixture.source, "--compact"]);
 
     expect(result.exitCode).toBe(0);
     expect(result.stderr).toBe("");
@@ -79,7 +83,7 @@ describe("jfn eval bare functions", () => {
     { name: "optional", source: "(value?) => value", expected: null },
     { name: "defaulted", source: "(value = 9) => value", expected: 9 },
   ])("invokes the $name function with an explicit empty argument array", (fixture) => {
-    const result = runEval([fixture.source, "--args", "[]", "--compact"]);
+    const result = runEval(["--expr", fixture.source, "--args", "[]", "--compact"]);
 
     expect(result.exitCode).toBe(0);
     expect(result.stderr).toBe("");
@@ -90,7 +94,7 @@ describe("jfn eval bare functions", () => {
     { name: "default", args: [] },
     { name: "explicit", args: ["--args", "[]"] },
   ])("rejects missing required arguments with the $name empty array", (fixture) => {
-    const result = runEval(["(value) => value", ...fixture.args]);
+    const result = runEval(["--expr", "(value) => value", ...fixture.args]);
 
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain("evaluation error:");
@@ -98,7 +102,7 @@ describe("jfn eval bare functions", () => {
   });
 
   test("retains non-empty bare function invocation", () => {
-    const result = runEval(["(value) => value * value", "--args", "[9]", "--compact"]);
+    const result = runEval(["--expr", "(value) => value * value", "--args", "[9]", "--compact"]);
 
     expect(result.exitCode).toBe(0);
     expect(result.stderr).toBe("");
@@ -109,7 +113,7 @@ describe("jfn eval bare functions", () => {
 describe("jfn eval canonical JSON input", () => {
   test("evaluates a canonical expression", () => {
     const source = JSON.stringify({ $call: "add", $args: [1, 2] });
-    const result = runEval(["--json-input", source, "--compact"]);
+    const result = runEval(["--expr", "--json-input", source, "--compact"]);
 
     expect(result.exitCode).toBe(0);
     expect(result.stderr).toBe("");
@@ -121,7 +125,7 @@ describe("jfn eval canonical JSON input", () => {
       $params: ["value"],
       $return: { $call: "mul", $args: [{ $var: "value" }, { $var: "value" }] },
     });
-    const result = runEval(["--json-input", source, "--args", "[9]", "--compact"]);
+    const result = runEval(["--expr", "--json-input", source, "--args", "[9]", "--compact"]);
 
     expect(result.exitCode).toBe(0);
     expect(result.stderr).toBe("");
@@ -129,7 +133,7 @@ describe("jfn eval canonical JSON input", () => {
   });
 
   test("reports malformed canonical JSON as JSON input", () => {
-    const result = runEval(["--json-input", '{"$call":']);
+    const result = runEval(["--expr", "--json-input", '{"$call":']);
 
     expect(result.exitCode).toBe(1);
     expect(result.stdout).toBe("");
@@ -177,7 +181,7 @@ describe("jfn eval arity diagnostics", () => {
         "Missing required argument at parameter position 1. Expected at least 1 argument, received 0.",
     },
   ])("reports the accepted range at the $name", ({ source, expected }) => {
-    const result = runEval([source]);
+    const result = runEval(["--expr", source]);
 
     expect(result.exitCode).toBe(1);
     expect(result.stdout).toBe("");
@@ -189,8 +193,8 @@ describe("jfn eval execution limits", () => {
   const recursive = "(() => go(300) where { go: (n) => if n <= 0 then 0 else go(n - 1) })()";
 
   test("allows the call-depth limit to be raised", () => {
-    const defaultResult = runEval([recursive]);
-    const raisedResult = runEval([recursive, "--max-call-depth", "1024", "--compact"]);
+    const defaultResult = runEval(["--expr", recursive]);
+    const raisedResult = runEval(["--expr", recursive, "--max-call-depth", "1024", "--compact"]);
 
     expect(defaultResult.exitCode).toBe(1);
     expect(defaultResult.stderr).toContain("Maximum call depth of 256 exceeded");
@@ -219,7 +223,7 @@ describe("jfn eval execution limits", () => {
       error: "Maximum value size of 2 exceeded",
     },
   ])("enforces $option", ({ option, value, source, error }) => {
-    const result = runEval([source, option, value]);
+    const result = runEval(["--expr", source, option, value]);
 
     expect(result.exitCode).toBe(1);
     expect(result.stdout).toBe("");
@@ -229,7 +233,7 @@ describe("jfn eval execution limits", () => {
   test.each(["-1", "1.5", "nope", "9007199254740992"])(
     "rejects invalid execution limit %s",
     (value) => {
-      const result = runEval(["1", "--max-fuel", value]);
+      const result = runEval(["--expr", "1", "--max-fuel", value]);
 
       expect(result.exitCode).toBe(1);
       expect(result.stdout).toBe("");
@@ -258,7 +262,7 @@ describe("jfn eval contract modes", () => {
     );
 
     try {
-      const result = runEval(["--contract", contractPath, "{ main: () => 42 }", "--compact"]);
+      const result = runEval(["--contract", contractPath, "main: () => 42", "--compact"]);
       const canonicalResult = runEval([
         "--contract",
         contractPath,
@@ -313,7 +317,7 @@ describe("jfn eval contract modes", () => {
         },
       }),
     );
-    const module = "{ main: () => pure(7), demo: () => 9 }";
+    const module = "main: () => pure(7), demo: () => 9";
 
     try {
       const production = runEval(["--contract", contractPath, module, "--compact"]);
@@ -366,7 +370,7 @@ describe("jfn eval contract modes", () => {
         },
       }),
     );
-    const module = '{ main: () => "invalid", demo: () => 9 }';
+    const module = 'main: () => "invalid", demo: () => 9';
 
     try {
       const production = runEval(["--contract", contractPath, module, "--compact"]);
@@ -393,7 +397,7 @@ describe("jfn eval contract modes", () => {
     const directory = mkdtempSync(join(tmpdir(), "json-fn-eval-entry-optionals-"));
     const contractPath = join(directory, "contract.json");
     const module =
-      "{ main: (required, optional?, defaulted = 7) => pure([required, optional, defaulted]) }";
+      "main: (required, optional?, defaulted = 7) => pure([required, optional, defaulted])";
 
     try {
       writeFileSync(
@@ -464,7 +468,7 @@ describe("jfn eval contract modes", () => {
           },
         }),
       );
-      const nullableModule = "{ main: (value?) => pure(value) }";
+      const nullableModule = "main: (value?) => pure(value)";
 
       for (const [args, expected] of [
         [[], null],
@@ -506,7 +510,7 @@ describe("jfn eval contract modes", () => {
       "square",
       "--args",
       "[9]",
-      "{ square: (value) => value * value }",
+      "square: (value) => value * value",
       "--compact",
     ]);
 
@@ -529,10 +533,10 @@ describe("jfn eval contract modes", () => {
     expect(Object.keys(JSON.parse(result.stdout))).toEqual(["result", "sum", "report"]);
   });
 
-  test("--function requires module input", () => {
-    const result = runEval(["--function", "demo", "1"]);
+  test("--function cannot be combined with expression mode", () => {
+    const result = runEval(["--expr", "--function", "demo", "1"]);
 
     expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain("--function requires module input");
+    expect(result.stderr).toContain("--expr cannot be combined with --contract or --function");
   });
 });

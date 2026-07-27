@@ -9,7 +9,6 @@
 //   bun run typescript/examples/thermostat.ts
 // Check it against the same contract:
 //   bun run typescript/src/cli.ts check --contract examples/thermostat.contract.json --file examples/thermostat.jfn
-{
   // A fault the controller reports rather than silently swallowing.
   type Fault =
       { tag: "OutOfRange", temp: Celsius }
@@ -81,4 +80,3 @@
             loop(next, fuel - 1)
           }
       }
-}

@@ -1,9 +1,10 @@
 {
   "description": "typed modules (type syntax spec section 8)",
+  "mode": "module",
   "cases": [
     {
       "description": "named types and typed function bindings",
-      "source": "{\n  type N = integer,\n  type Box = { value: N },\n  id: (x: N) -> N => x,\n  unbox: ({ value }: Box) -> N => value\n}",
+      "source": "type N = integer,\ntype Box = { value: N },\nid: (x: N) -> N => x,\nunbox: ({ value }: Box) -> N => value",
       "expected": {
         "$types": {
           "N": { "type": "integer" },

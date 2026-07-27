@@ -367,7 +367,7 @@
       "category": "strings",
       "signatures": [{ "required": [], "optional": [], "rest": { "type": "string" }, "returns": { "type": "string" } }] },
     "split": {
-      "description": "Split a string on a separator.",
+      "description": "Split a string on a separator; an empty separator splits it into Unicode code points.",
       "category": "strings",
       "signatures": [
       {
@@ -438,7 +438,7 @@
       }
     ] },
     "length": {
-      "description": "Return the length of an array or string.",
+      "description": "Return an array's item count or a string's Unicode code-point count.",
       "category": "arrays",
       "signatures": [
       { "required": [{ "type": "array" }], "optional": [], "returns": { "type": "integer" } },
@@ -659,7 +659,7 @@
       }
     ] },
     "slice": {
-      "description": "Return a slice of an array or string.",
+      "description": "Return a slice of an array or string; string offsets count Unicode code points.",
       "category": "arrays",
       "signatures": [
       {
@@ -701,7 +701,7 @@
       }
     ] },
     "indexOf": {
-      "description": "Find a structurally equal array value or string substring, returning null when absent.",
+      "description": "Find a structurally equal array value or string substring, returning its item or Unicode code-point index, or null when absent.",
       "category": "arrays",
       "signatures": [
       {

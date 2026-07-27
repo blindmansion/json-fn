@@ -29,13 +29,13 @@ test("jfn check accepts shorthand function-body where", () => {
 
 test("jfn check narrows nullable values through equality with null", () => {
   const modules = [
-    "{ guard: (x: integer | null) -> integer => if x != null then x else 0 }",
-    "{ guard: (x: integer | null) -> integer => if x == null then 0 else x }",
-    "{ guard: (x: integer | null) -> integer => if null != x then x else 0 }",
-    "{ guard: (x?: integer) -> integer => cond { x == null -> 0, else -> x } }",
-    "{ guard: (x: integer | null) -> integer => match x { null -> 0, else -> x } }",
-    "{ guard: (x: integer | null) -> integer => if x != null && x > 0 then x else 0 }",
-    "{ guard: (x: integer | null) -> integer => if x == null || x > 0 then 1 else 0 }",
+    "guard: (x: integer | null) -> integer => if x != null then x else 0",
+    "guard: (x: integer | null) -> integer => if x == null then 0 else x",
+    "guard: (x: integer | null) -> integer => if null != x then x else 0",
+    "guard: (x?: integer) -> integer => cond { x == null -> 0, else -> x }",
+    "guard: (x: integer | null) -> integer => match x { null -> 0, else -> x }",
+    "guard: (x: integer | null) -> integer => if x != null && x > 0 then x else 0",
+    "guard: (x: integer | null) -> integer => if x == null || x > 0 then 1 else 0",
   ];
 
   for (const module of modules) {
@@ -60,7 +60,7 @@ describe("jfn check unknown function names", () => {
   });
 
   test("reports the unknown function without a downstream return mismatch", () => {
-    const result = runCheck(["{ f: () -> integer => nonexistent(1) }"]);
+    const result = runCheck(["f: () -> integer => nonexistent(1)"]);
     expect(result.exitCode).toBe(1);
     expect(result.stdout).toContain('error: f.$return: Unknown function "nonexistent".');
     expect(result.stdout).toContain("1 error.");
@@ -71,10 +71,10 @@ describe("jfn check unknown function names", () => {
 describe("jfn check builtin function references", () => {
   test("checks explicit, bare, overloaded, and generic builtin callbacks with full coverage", () => {
     const modules = [
-      '{ f: () -> string[] => map(&upper, ["a", "b"]) }',
-      '{ f: () -> string[] => map(upper, ["a", "b"]) }',
-      "{ f: (xss: string[][]) -> integer[] => map(&length, xss) }",
-      "{ f: (xss: integer[][]) -> (integer | null)[] => map(&head, xss) }",
+      'f: () -> string[] => map(&upper, ["a", "b"])',
+      'f: () -> string[] => map(upper, ["a", "b"])',
+      "f: (xss: string[][]) -> integer[] => map(&length, xss)",
+      "f: (xss: integer[][]) -> (integer | null)[] => map(&head, xss)",
     ];
 
     for (const module of modules) {
@@ -87,7 +87,7 @@ describe("jfn check builtin function references", () => {
   });
 
   test("rejects a builtin callback whose overloads cannot accept the mapped item", () => {
-    const result = runCheck(["{ f: () -> integer[] => map(&length, [1, 2]) }"]);
+    const result = runCheck(["f: () -> integer[] => map(&length, [1, 2])"]);
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toBe("");
     expect(result.stdout).toContain("error: f.$return.$args[0]:");
@@ -124,8 +124,8 @@ describe("jfn check coverage reporting", () => {
 
   test("spread-call degradation explains strict returns and supports an explicit boundary", () => {
     const module =
-      "{ sum: (a: integer, b: integer) -> integer => a + b, " +
-      "run: (xs: integer[]) -> integer => sum(...xs) }";
+      "sum: (a: integer, b: integer) -> integer => a + b, " +
+      "run: (xs: integer[]) -> integer => sum(...xs)";
 
     const strictReturn = runCheck([module]);
     expect(strictReturn.exitCode).toBe(1);
@@ -137,7 +137,7 @@ describe("jfn check coverage reporting", () => {
     );
     expect(strictReturn.stdout).toContain("use `as T` for an intentional runtime-checked boundary");
 
-    const ascribedModule = module.replace("sum(...xs) }", "sum(...xs) as integer }");
+    const ascribedModule = module.replace("sum(...xs)", "sum(...xs) as integer");
     const ascribed = runCheck([ascribedModule]);
     expect(ascribed.exitCode).toBe(0);
     expect(ascribed.stdout).toContain("0 errors.");
@@ -310,7 +310,7 @@ describe("jfn check coverage reporting", () => {
       const result = runCheck([
         "--contract",
         path,
-        "{ main: (required, optional?, defaulted = 7) => pure([required, optional, defaulted]) }",
+        "main: (required, optional?, defaulted = 7) => pure([required, optional, defaulted])",
       ]);
 
       expect(result.exitCode).toBe(0);

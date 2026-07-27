@@ -1,10 +1,19 @@
 import { expect, test } from "bun:test";
 import { runAllParseCases } from "./run-parse-cases";
 import { join } from "path";
-import { parse } from "../src/shorthand";
+import { parseExpression as parse, parseModule } from "../src/shorthand";
 import type { JSONType } from "../src/types";
 
 runAllParseCases(join(import.meta.dir, "../../spec/parse-cases"));
+
+test("module source is implicit and rejects an outer object wrapper", () => {
+  expect(parseModule("main: () => 42")).toEqual({
+    main: { $return: 42 },
+  });
+  expect(() => parseModule("{ main: () => 42 }")).toThrow(
+    "expected data-object key, found 'lbrace'",
+  );
+});
 
 test("empty where blocks are rejected", () => {
   expect(() => parse("value where {}")).toThrow(

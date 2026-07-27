@@ -1,16 +1,15 @@
 /**
  * `.jfn` shorthand: a bidirectional surface over canonical json-fn JSON.
  *
- * This module is a pure surface layer. `parse` lowers shorthand source text to
- * the same JSON value the interpreter consumes, so a host can feed the result
- * straight into `callFunction`. The interpreter itself never sees shorthand.
- * `print` is the inverse: it raises canonical JSON back to shorthand source.
+ * This module is a pure surface layer. A `.jfn` source is an implicit module;
+ * standalone expressions use the explicit `parseExpression` entry point. Both
+ * lower directly to the canonical JSON consumed by the interpreter.
  *
- * The two directions are bijective by normal form: `parse(print(json))`
- * deep-equals any canonical `json`, though `print` normalizes rather than
- * byte-exactly recovering arbitrary hand-written source.
+ * Each matching pair is bijective by normal form:
+ * `parseModule(printModule(module))` and
+ * `parseExpression(printExpression(expression))`.
  */
 
-export { parse } from "./parser";
-export { print } from "./printer";
+export { parse, parseExpression, parseModule } from "./parser";
+export { print, printExpression, printModule } from "./printer";
 export { ParseError } from "./error";

@@ -12,9 +12,8 @@
  *      associativity, so a child is wrapped in `(...)` exactly when re-parsing
  *      would otherwise re-associate it.
  *
- * The guarantee is "bijective by normal form": `parse(print(json))` deep-equals
- * `json` for any canonical JSON. `print` does not attempt byte-exact recovery of
- * arbitrary hand-written source — that is normalized away.
+ * Module and expression source have explicit entry points because canonical
+ * objects do not retain whether they originated as a module or a data value.
  *
  * Not yet handled (tracked as open in `docs/shorthand-spec.md` §12): `$comment`
  * attachment. Comments have no canonical surface form, so any `$comment` sibling
@@ -33,12 +32,23 @@ import {
 } from "../params";
 import { printType } from "./type-printer";
 
-/** Pretty-print canonical json-fn JSON as `.jfn` shorthand source. */
+/** Pretty-print a canonical module as a brace-less `.jfn` source file. */
 export function print(node: JSONType): string {
+  return printModule(node);
+}
+
+export function printModule(node: JSONType): string {
   validatePrintableTree(node, "$");
-  // Type declarations are legal only in the top-level module object, so module
-  // rendering must happen here rather than in recursive object dispatch.
-  if (isPlainObject(node) && "$types" in node) return renderModule(node, "");
+  if (!isPlainObject(node)) throw new Error("Cannot print module from a non-object value");
+  return renderModule(node, "");
+}
+
+/** Pretty-print one standalone canonical expression. */
+export function printExpression(node: JSONType): string {
+  validatePrintableTree(node, "$");
+  if (isPlainObject(node) && "$types" in node) {
+    throw new Error("Cannot print module type declarations as an expression");
+  }
   return emit(node, 0, "");
 }
 
@@ -582,9 +592,11 @@ function renderArray(arr: JSONType[], indent: string): string {
 
 function renderModule(node: { [k: string]: JSONType }, indent: string): string {
   const types = node.$types;
-  if (!isPlainObject(types)) throw new Error("Cannot print module with malformed $types pool");
+  if (types !== undefined && !isPlainObject(types)) {
+    throw new Error("Cannot print module with malformed $types pool");
+  }
 
-  const typeEntries = Object.entries(types).map(([name, schema]) => {
+  const typeEntries = Object.entries(types ?? {}).map(([name, schema]) => {
     if (!IDENT_RE.test(name)) {
       throw new Error(`Cannot print type declaration with invalid name ${JSON.stringify(name)}`);
     }
@@ -593,7 +605,7 @@ function renderModule(node: { [k: string]: JSONType }, indent: string): string {
     }
     return `type ${name} = ${printType(schema)}`;
   });
-  if (typeEntries.length === 0) {
+  if (types !== undefined && typeEntries.length === 0) {
     throw new Error("Cannot print module with an empty $types pool");
   }
 
@@ -605,10 +617,8 @@ function renderModule(node: { [k: string]: JSONType }, indent: string): string {
     );
   }
 
-  const inner = indent + "  ";
-  const entries = [...typeEntries, ...bindingKeys.map((key) => renderDataEntry(node, key, inner))];
-  if (entries.length === 1) return `{ ${entries[0]} }`;
-  return `{\n${entries.map((entry) => inner + entry).join(",\n")}\n${indent}}`;
+  const entries = [...typeEntries, ...bindingKeys.map((key) => renderDataEntry(node, key, indent))];
+  return entries.join(",\n");
 }
 
 function renderDataObject(node: { [k: string]: JSONType }, indent: string): string {

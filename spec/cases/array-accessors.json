@@ -172,6 +172,16 @@
       "expected": "hello"
     },
     {
+      "description": "slice: string offsets count Unicode code points",
+      "body": {
+        "$return": {
+          "$call": "slice",
+          "$args": ["a😀bc", 1, 3]
+        }
+      },
+      "expected": "😀b"
+    },
+    {
       "description": "reverse: reverses array order",
       "body": {
         "$return": {
@@ -291,6 +301,16 @@
       "expected": null
     },
     {
+      "description": "indexOf: string result is a Unicode code-point index",
+      "body": {
+        "$return": {
+          "$call": "indexOf",
+          "$args": ["a😀bc", "b"]
+        }
+      },
+      "expected": 2
+    },
+    {
       "description": "includes: true when element exists in array",
       "body": {
         "$return": {
@@ -358,6 +378,16 @@
         }
       },
       "expected": false
+    },
+    {
+      "description": "length: strings count Unicode code points",
+      "body": {
+        "$return": {
+          "$call": "length",
+          "$args": ["a😀b"]
+        }
+      },
+      "expected": 3
     },
     {
       "description": "length: rejects values other than arrays and strings",

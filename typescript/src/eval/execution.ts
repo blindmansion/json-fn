@@ -1,4 +1,5 @@
 import type { ExecutionLimits, JSONType, PerfStats } from "../types";
+import { codePointLength } from "../unicode";
 import type { CallState, EvaluationContext, ResolvedLimits } from "./internal-types";
 
 const DEFAULT_MAX_CALL_DEPTH = 256;
@@ -93,7 +94,8 @@ export function guardValueSize(context: EvaluationContext, size: number): void {
 // output can be smaller than the work it performs.
 export function accountForResult(context: EvaluationContext, result: JSONType): void {
   if (typeof result === "string" || Array.isArray(result)) {
-    guardValueSize(context, result.length);
-    chargeFuel(context, result.length);
+    const size = typeof result === "string" ? codePointLength(result) : result.length;
+    guardValueSize(context, size);
+    chargeFuel(context, size);
   }
 }

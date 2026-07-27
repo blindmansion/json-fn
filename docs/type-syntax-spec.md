@@ -28,7 +28,7 @@ locals) are tracked in
 Exactly four positions:
 
 1. **Module-level type declarations** — `type Name = <type>` entries in the
-   file's top-level object, lowering to the reserved `$types` sibling (§8).
+   file's implicit module body, lowering to the reserved `$types` sibling (§8).
 2. **Function signatures** — inline param annotations `name: <type>` and a return
    type `-> <type>` on a function literal header (§7).
 3. **Total effect handlers** — `handle task -> <type> with { … }` declares the
@@ -421,16 +421,14 @@ makeAdder: (x: number) -> (number) -> number => (y) => x + y
 
 ## 8. Named types & the module `$types` pool
 
-`type Name = <type>` entries in the top-level object populate the reserved
+`type Name = <type>` entries in the implicit module body populate the reserved
 `$types` sibling. Named references resolve to `$ref`:
 
 ```jfn
-{
-  type UserId = string & pattern("^u_"),
-  type User   = { id: UserId, name: string },
+type UserId = string & pattern("^u_"),
+type User   = { id: UserId, name: string },
 
-  makeUser: (id: UserId, name: string) -> User => { id, name }
-}
+makeUser: (id: UserId, name: string) -> User => { id, name }
 ```
 
 ```json
@@ -459,7 +457,7 @@ makeAdder: (x: number) -> (number) -> number => (y) => x + y
 - Any non-keyword identifier in a type position is a named reference (`$ref`);
   the parser does not resolve it (that is the checker's job), so forward and
   mutually recursive references parse fine.
-- **Disambiguation from data keys.** In the module object, `type` is a
+- **Disambiguation from data keys.** In the module body, `type` is a
   contextual keyword only when followed by an identifier (`type Color = …`).
   `type: expr` (a data entry) and `{ type }` (punning) are unaffected.
 
@@ -578,7 +576,7 @@ excluded keywords are treated as opaque by the checker.
 Extends [`docs/shorthand-spec.md`](./shorthand-spec.md) §10. New/changed rules:
 
 ```
-module      := "{" ( moduleEntry ("," moduleEntry)* )? "}"     // top-level object
+module      := ( moduleEntry ("," moduleEntry)* ","? )?        // whole .jfn file
 moduleEntry := "type" ident "=" type                           // type declaration
              | dataEntry                                        // binding / constant / pun
 

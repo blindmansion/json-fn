@@ -13,11 +13,25 @@ import type { TemplatePart, TokPunct } from "./lexer";
 import { TypeParser, arrayElement } from "./type-parser";
 import type { Schema } from "./type-parser";
 
-/** Parse a full `.jfn` expression, returning canonical json-fn JSON. */
+/** Parse a full `.jfn` module, returning its canonical json-fn object. */
 export function parse(src: string): JSONType {
+  return parseModule(src);
+}
+
+/** Parse an implicit `.jfn` module body. Module braces are not part of the syntax. */
+export function parseModule(src: string): JSONType {
   const tokens = lex(src);
   const p = new Parser(tokens);
-  const v = p.parseProgram();
+  const v = p.parseModule();
+  p.expect("eof", "end of input");
+  return v;
+}
+
+/** Parse one standalone shorthand expression. */
+export function parseExpression(src: string): JSONType {
+  const tokens = lex(src);
+  const p = new Parser(tokens);
+  const v = p.parseExpression();
   p.expect("eof", "end of input");
   return v;
 }
@@ -53,17 +67,9 @@ const COMPARISON_OPS: Partial<Record<TokPunct, string>> = {
 };
 
 class Parser extends TokenCursor {
-  // ----- program entry (module object or bare expression) -----
+  // ----- source entry points -----
 
-  /** Parse a whole program: a top-level `{ … }` is a **module** (a data object
-   * that may also carry `type Name = …` declarations, lowered to `$types`);
-   * anything else is a bare top-level expression (which admits no `type`
-   * declarations). */
-  parseProgram(): JSONType {
-    if (this.peekType() === "lbrace") {
-      this.advance();
-      return this.parseModule();
-    }
+  parseExpression(): JSONType {
     return this.parseBody();
   }
 
@@ -459,18 +465,13 @@ class Parser extends TokenCursor {
     throw this.err(`expected ',' or '}' in ${what}`);
   }
 
-  /** Parse the top-level module object (`{` already consumed): a superset of
-   * `parseDataObject` that also recognizes `type Name = <type>` declarations
-   * and lowers them into a reserved `$types` sibling (spec §8). */
-  private parseModule(): JSONType {
-    let map: Record<string, JSONType> = {};
+  /** Parse an implicit top-level module body. This is a superset of data-object
+   * entries that also recognizes `type Name = <type>` declarations and lowers
+   * them into a reserved `$types` sibling (spec §8). */
+  parseModule(): JSONType {
+    const map: Record<string, JSONType> = {};
     const types: Record<string, Schema> = {};
-    const chunks: ObjectChunk[] = [];
-    let hasDynamicEntry = false;
-    if (this.peekType() === "rbrace") {
-      this.advance();
-      return map;
-    }
+    if (this.peekType() === "eof") return map;
     for (;;) {
       // `type` is a contextual keyword only when followed by an identifier (the
       // type name); `type: expr` and the `{ type }` pun stay data entries.
@@ -485,31 +486,28 @@ class Parser extends TokenCursor {
         }
         this.expect("equals", "'=' in type declaration");
         types[name] = this.parseTypeExpr();
-      } else if (this.peekType() === "dotdotdot") {
-        hasDynamicEntry = true;
-        map = flushObjectMap(map, chunks);
-        this.advance();
-        chunks.push({ kind: "spread", value: this.parseExpr() });
-      } else if (this.peekType() === "lbracket") {
-        hasDynamicEntry = true;
-        map = flushObjectMap(map, chunks);
-        chunks.push({ kind: "computed", value: this.parseComputedDataEntry() });
+      } else if (this.peekType() === "dotdotdot" || this.peekType() === "lbracket") {
+        throw this.err("module entries must be named bindings or type declarations");
       } else {
         this.parseDataEntry(map);
       }
-      if (this.consumeObjectSep("module")) break;
-    }
-    if (hasDynamicEntry) {
-      if (Object.keys(types).length > 0) {
-        throw this.err("type declarations cannot be combined with object spread or computed keys");
-      }
-      flushObjectMap(map, chunks);
-      return lowerObjectChunks(chunks);
+      if (this.consumeModuleSep()) break;
     }
     if (Object.keys(types).length > 0) {
       return { $types: types, ...map };
     }
     return map;
+  }
+
+  /** Consume the `,`/EOF after a module entry. */
+  private consumeModuleSep(): boolean {
+    const type = this.peekType();
+    if (type === "comma") {
+      this.advance();
+      return this.peekType() === "eof";
+    }
+    if (type === "eof") return true;
+    throw this.err(`expected ',' or end of input in module`);
   }
 
   /** Spin up the type-expression sub-parser at the current cursor, parse one
@@ -1134,7 +1132,7 @@ class Parser extends TokenCursor {
         // nothing.
         if (part.value !== "") segs.push(part.value);
       } else {
-        segs.push(parse(part.value));
+        segs.push(parseExpression(part.value));
       }
     }
     // Degenerate forms normalize: no segments -> "", single -> itself.

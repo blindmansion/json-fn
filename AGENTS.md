@@ -77,16 +77,16 @@ Examples:
 cd typescript
 
 # Parse shorthand to canonical JSON
-bun run src/cli.ts to-json '1 + 2 * 3'
+bun run src/cli.ts to-json --expr '1 + 2 * 3'
 
 # Print canonical JSON as shorthand
-echo '{ "$call": "add", "$args": [1, 2] }' | bun run src/cli.ts to-shorthand
+echo '{ "$call": "add", "$args": [1, 2] }' | bun run src/cli.ts to-shorthand --expr
 
 # Evaluate a function applied to args
-bun run src/cli.ts eval '(x) => x * x' --args '[9]'
+bun run src/cli.ts eval --expr '(x) => x * x' --args '[9]'
 
 # Evaluate and print as shorthand
-bun run src/cli.ts eval 'map((n) => n + 1, [1, 2, 3])' --shorthand
+bun run src/cli.ts eval --expr 'map((n) => n + 1, [1, 2, 3])' --shorthand
 
 # Run a module entry that needs no host function/effect implementations
 bun run src/cli.ts eval --file module.jfn --contract module.contract.json

@@ -70,7 +70,15 @@ export type {
 } from "./types";
 export { createStdlib } from "./stdlib";
 export type { StdlibOptions, LoggerFn } from "./stdlib";
-export { parse as parseShorthand, print as printShorthand, ParseError } from "./shorthand";
+export {
+  parse as parseShorthand,
+  parseExpression as parseShorthandExpression,
+  parseModule as parseShorthandModule,
+  print as printShorthand,
+  printExpression as printShorthandExpression,
+  printModule as printShorthandModule,
+  ParseError,
+} from "./shorthand";
 export { isTask, stepTask, runHandle, TASK_TAG } from "./task";
 export type { TaskNode, EffectTask, PureTask, BindTask, Suspended } from "./task";
 export { RuntimeContractError } from "./runtime-contract";

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { callFunction, createPerfStats, createStdlib } from "../src";
 import type { FunctionDeclaration, FunctionRegistry, JSONType } from "../src";
-import { parse } from "../src/shorthand";
+import { parseExpression as parse } from "../src/shorthand";
 
 const stdlib = createStdlib();
 type FunctionBody = Exclude<FunctionDeclaration, string>;

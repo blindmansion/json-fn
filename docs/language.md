@@ -192,7 +192,8 @@ All property access uses `$get`/`$from`. `$from` evaluates to the target and `$g
 `$get` evaluates to one of:
 
 - a **string** key — reads an object property (`null` if the key is missing);
-- an **integer** index — reads an array element, or a character from a string (`null` if out of bounds);
+- an **integer** index — reads an array element, or a Unicode code point from
+  a string (`null` if out of bounds);
 - an **array** — a static path walked segment by segment, applying the per-segment rules above at each step.
 
 The accepted key depends on the target at each step. Objects reject non-string
@@ -201,6 +202,11 @@ not coerce keys: use an explicit conversion such as
 `{ "$get": { "$call": "str", "$args": [1] }, "$from": { "1": "one" } }`
 (`object[str(number)]` in shorthand) when a numeric value is intended to name an
 object property.
+
+String indices count Unicode code points, not UTF-16 code units or
+user-perceived grapheme clusters. For example, `"a😀b"[1]` is `"😀"` and
+`length("a😀b")` is `3`. String `slice` offsets and string `indexOf` results use
+the same unit; `split(string, "")` returns one element per code point.
 
 `$from` may be any expression: a variable, a function result, a literal, or another `$get`/`$from` chain (nest them to walk deeper). A missing path segment returns `null`; traversal into a present `null` value errors, as does a `$get` whose target is not an object, array, or string. `$get`/`$from` must be the only two keys.
 

@@ -16,8 +16,10 @@ import {
   callProgram,
   createStdlib,
   parseShorthand,
+  parseShorthandExpression,
   prepareDeployment,
   printShorthand,
+  printShorthandExpression,
   runTask,
   validateEnvironmentContract,
   validateDeploymentProfile,
@@ -41,7 +43,7 @@ Usage:
 Commands:
   to-shorthand   Read canonical json-fn JSON, print .jfn shorthand   (alias: j2s, print)
   to-json        Read .jfn shorthand, print canonical json-fn JSON   (alias: s2j, parse)
-  eval           Evaluate a .jfn expression and print the result     (alias: e)
+  eval           Invoke a .jfn module function and print the result  (alias: e)
   check          Typecheck a canonical json-fn module or expression  (alias: c)
   validate-contract
                   Validate a portable contract JSON artifact
@@ -56,8 +58,12 @@ Common options:
   -f, --file <path>   Read input from a file instead of arg/stdin
   -h, --help          Show help
 
+to-shorthand options:
+  -e, --expr          Print one standalone expression instead of a module
+
 to-json options:
   -c, --compact       Emit minified JSON (default: pretty, 2-space indent)
+  -e, --expr          Parse one standalone expression instead of a module
 
 eval options:
       --contract <path>
@@ -73,6 +79,7 @@ eval options:
       --max-value-size <n>
                       Maximum produced array/string length (default: unlimited)
       --json-input    Read canonical json-fn JSON instead of .jfn shorthand
+  -e, --expr          Evaluate one standalone expression instead of a module
   -j, --json          Print the result as JSON (default)
   -s, --shorthand     Print the result as .jfn shorthand (best effort)
   -c, --compact       With --json, emit minified JSON
@@ -99,10 +106,10 @@ validate-profile options:
                       EnvironmentContract used to validate selected profile effects
 
 Examples:
-  jfn to-json '1 + 2 * 3'
-  echo '{ "$call": "add", "$args": [1, 2] }' | jfn to-shorthand
-  jfn eval '(x) => x * x' --args '[9]'
-  jfn eval 'map((n) => n + 1, [1, 2, 3])' --shorthand
+  jfn to-json --expr '1 + 2 * 3'
+  echo '{ "$call": "add", "$args": [1, 2] }' | jfn to-shorthand --expr
+  jfn eval --expr '(x) => x * x' --args '[9]'
+  jfn eval 'demo: () => map((n) => n + 1, [1, 2, 3])' --function demo
   jfn eval --file module.jfn --function demo
   jfn eval --file module.jfn --contract module.contract.json
   jfn eval --file module.jfn --contract module.contract.json --function demo
@@ -177,7 +184,11 @@ function fail(message: string): never {
 }
 
 async function cmdToShorthand(argv: string[]): Promise<void> {
-  const parsed = parseArgs(argv, { "-f": "file", "--file": "file" }, {});
+  const parsed = parseArgs(
+    argv,
+    { "-f": "file", "--file": "file" },
+    { "-e": "expr", "--expr": "expr" },
+  );
   let json: JSONType;
   const raw = await readInput(parsed);
   try {
@@ -186,7 +197,7 @@ async function cmdToShorthand(argv: string[]): Promise<void> {
     fail(`invalid JSON input: ${errMessage(e)}`);
   }
   try {
-    console.log(printShorthand(json));
+    console.log(parsed.flags.has("expr") ? printShorthandExpression(json) : printShorthand(json));
   } catch (e) {
     fail(`could not print shorthand: ${errMessage(e)}`);
   }
@@ -196,12 +207,12 @@ async function cmdToJson(argv: string[]): Promise<void> {
   const parsed = parseArgs(
     argv,
     { "-f": "file", "--file": "file" },
-    { "-c": "compact", "--compact": "compact" },
+    { "-c": "compact", "--compact": "compact", "-e": "expr", "--expr": "expr" },
   );
   const src = await readInput(parsed);
   let json: JSONType;
   try {
-    json = parseShorthand(src);
+    json = parsed.flags.has("expr") ? parseShorthandExpression(src) : parseShorthand(src);
   } catch (e) {
     fail(`could not parse shorthand: ${errMessage(e)}`);
   }
@@ -223,6 +234,8 @@ async function cmdEval(argv: string[]): Promise<void> {
     },
     {
       "--json-input": "json-input",
+      "-e": "expr",
+      "--expr": "expr",
       "-j": "json",
       "--json": "json",
       "-s": "shorthand",
@@ -243,7 +256,7 @@ async function cmdEval(argv: string[]): Promise<void> {
     }
   } else {
     try {
-      parsedSource = parseShorthand(src);
+      parsedSource = parsed.flags.has("expr") ? parseShorthandExpression(src) : parseShorthand(src);
     } catch (e) {
       fail(`could not parse shorthand: ${errMessage(e)}`);
     }
@@ -285,6 +298,10 @@ async function cmdEval(argv: string[]): Promise<void> {
   try {
     const contractPath = parsed.options.contract;
     const functionName = parsed.options.function;
+    const expressionMode = parsed.flags.has("expr");
+    if (expressionMode && (contractPath !== undefined || functionName !== undefined)) {
+      fail("--expr cannot be combined with --contract or --function");
+    }
     if (contractPath !== undefined) {
       if (
         typeof parsedSource !== "object" ||
@@ -336,6 +353,8 @@ async function cmdEval(argv: string[]): Promise<void> {
         limits,
         linked.definitionSources,
       );
+    } else if (!expressionMode) {
+      fail("module evaluation requires --function or --contract; pass --expr for an expression");
     } else if (isFunctionBody(parsedSource)) {
       // A bare function literal applied to the supplied --args.
       result = callFunction(parsedSource, args, stdlib, limits, definitions);
@@ -350,7 +369,7 @@ async function cmdEval(argv: string[]): Promise<void> {
 
   if (parsed.flags.has("shorthand")) {
     try {
-      console.log(printShorthand(result));
+      console.log(printShorthandExpression(result));
     } catch (e) {
       fail(`could not print result as shorthand: ${errMessage(e)}`);
     }
@@ -392,7 +411,7 @@ async function cmdCheck(argv: string[]): Promise<void> {
     }
   } else {
     try {
-      json = parseShorthand(src);
+      json = parsed.flags.has("expr") ? parseShorthandExpression(src) : parseShorthand(src);
     } catch (e) {
       fail(`could not parse shorthand: ${errMessage(e)}`);
     }

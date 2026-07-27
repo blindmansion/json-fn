@@ -79,7 +79,7 @@ describe("durable driver", () => {
     const env = contract();
     env.entry.required = [integer];
     const driver = createDurableDriver({
-      module: module("{ main: (value) => pure(value) }"),
+      module: module("main: (value) => pure(value)"),
       contract: env,
       host: host({}),
       store,
@@ -99,7 +99,7 @@ describe("durable driver", () => {
         },
       },
     };
-    const source = module("{ main: () => pure(inc(1)) }");
+    const source = module("main: () => pure(inc(1))");
     const makeDriver = (implementation: (value: JSONType) => JSONType) =>
       createPreparedDriver({
         deployment: prepareDeployment({
@@ -137,12 +137,12 @@ describe("durable driver", () => {
   test("completes an inline-only workflow in start", async () => {
     const store = new InMemoryWorkflowStore();
     const driver = createDurableDriver({
-      module: module(`{
+      module: module(`
         main: () => do {
           value <- effects.double(20),
           pure(value + 2)
         }
-      }`),
+      `),
       contract: contract({
         double: { params: [integer], returns: integer },
       }),
@@ -189,17 +189,17 @@ describe("durable driver", () => {
       });
 
     const handled = createPreparedDriver({
-      deployment: deployment(`{
+      deployment: deployment(`
         main: () => pure(handle effects.wait() with {
           wait: (resume) => resume(7)
         })
-      }`),
+      `),
       store: new InMemoryWorkflowStore(),
     });
     expect(await handled.start("handled", [])).toEqual({ status: "completed", result: 7 });
 
     const escaped = createPreparedDriver({
-      deployment: deployment("{ main: () => effects.wait() }"),
+      deployment: deployment("main: () => effects.wait()"),
       store: new InMemoryWorkflowStore(),
     });
     expect(await escaped.start("escaped", [])).toMatchObject({
@@ -210,12 +210,12 @@ describe("durable driver", () => {
 
   test("resumes from serialized state in a new driver and rejects stale deliveries", async () => {
     const store = new InMemoryWorkflowStore();
-    const source = `{
+    const source = `
       main: () => do {
         value <- effects.wait(40),
         pure(value + 2)
       }
-    }`;
+    `;
     const env = contract({ wait: { params: [integer], returns: integer } });
     const first = createDurableDriver({
       module: module(source),
@@ -272,12 +272,12 @@ describe("durable driver", () => {
     };
     const effectIds: string[] = [];
     const driver = createDurableDriver({
-      module: module(`{
+      module: module(`
         main: () => do {
           value <- effects.inline(1),
           effects.wait(value)
         }
-      }`),
+      `),
       contract: contract({
         inline: { params: [integer], returns: integer },
         wait: { params: [integer], returns: integer },
@@ -317,28 +317,28 @@ describe("durable driver", () => {
     }[] = [
       {
         name: "raise",
-        source: `{ main: () => raise("boom") }`,
+        source: `main: () => raise("boom")`,
         contract: contract(),
         host: host({}),
         code: "raise",
       },
       {
         name: "unknown",
-        source: `{ main: () => perform("missing", []) }`,
+        source: `main: () => perform("missing", [])`,
         contract: contract(),
         host: host({}),
         code: "unknown-effect",
       },
       {
         name: "malformed",
-        source: `{ main: () => 1 }`,
+        source: `main: () => 1`,
         contract: contract(),
         host: host({}),
         code: "malformed-task",
       },
       {
         name: "contract",
-        source: `{ main: () => perform("inline", ["bad"]) }`,
+        source: `main: () => perform("inline", ["bad"])`,
         contract: contract({
           inline: { params: [integer], returns: integer },
         }),
@@ -347,14 +347,14 @@ describe("durable driver", () => {
       },
       {
         name: "limit",
-        source: `{ main: () => pure(1) }`,
+        source: `main: () => pure(1)`,
         contract: contract(),
         host: host({}, {}, { limits: { maxFuel: 0 } }),
         code: "limit",
       },
       {
         name: "host",
-        source: `{ main: () => effects.inline(1) }`,
+        source: `main: () => effects.inline(1)`,
         contract: contract({
           inline: { params: [integer], returns: integer },
         }),
@@ -385,7 +385,7 @@ describe("durable driver", () => {
 
     const store = new InMemoryWorkflowStore();
     const external = createDurableDriver({
-      module: module(`{ main: () => effects.wait(1) }`),
+      module: module(`main: () => effects.wait(1)`),
       contract: contract({
         wait: { params: [integer], returns: integer },
       }),
@@ -413,7 +413,7 @@ describe("durable driver", () => {
 
   test("claims invalid completion results into a terminal contract failure", async () => {
     const driver = createDurableDriver({
-      module: module(`{ main: () => effects.wait(1) }`),
+      module: module(`main: () => effects.wait(1)`),
       contract: contract({
         wait: { params: [integer], returns: integer },
       }),
@@ -433,7 +433,7 @@ describe("durable driver", () => {
 
   test("checks deployment pins before modifying stored state", async () => {
     const store = new InMemoryWorkflowStore();
-    const source = `{ main: () => effects.wait(1) }`;
+    const source = `main: () => effects.wait(1)`;
     const env = contract({
       wait: { params: [integer], returns: integer },
     });
@@ -465,13 +465,13 @@ describe("durable driver", () => {
   test("accumulates fuel across suspension hops", async () => {
     const store = new InMemoryWorkflowStore();
     const driver = createDurableDriver({
-      module: module(`{
+      module: module(`
         main: () => do {
           first <- effects.wait(1),
           second <- effects.wait(first + 1),
           pure(second + 1)
         }
-      }`),
+      `),
       contract: contract({
         wait: { params: [integer], returns: integer },
       }),
@@ -499,7 +499,7 @@ describe("durable driver", () => {
   test("applies portable limits freshly on every durable hop", async () => {
     const store = new InMemoryWorkflowStore();
     const driver = createDurableDriver({
-      module: module(`{
+      module: module(`
         go: (remaining) =>
           if remaining <= 0 then pure(0)
           else do {
@@ -507,7 +507,7 @@ describe("durable driver", () => {
             go(remaining - 1)
           },
         main: () => go(8)
-      }`),
+      `),
       contract: contract({
         wait: { params: [integer], returns: integer },
       }),

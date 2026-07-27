@@ -125,9 +125,10 @@
       "error": "':' after computed data-object key"
     },
     {
-      "description": "module type declarations cannot mix with dynamic object entries",
-      "source": "{ type Id = string, ...fields }",
-      "error": "type declarations cannot be combined with object spread or computed keys"
+      "description": "module entries cannot use object spread",
+      "mode": "module",
+      "source": "type Id = string, ...fields",
+      "error": "module entries must be named bindings or type declarations"
     }
   ]
 }

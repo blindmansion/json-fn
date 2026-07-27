@@ -172,6 +172,17 @@
       },
       "limits": { "maxValueSize": 10 },
       "error": "Maximum value size"
+    },
+    {
+      "description": "string value size counts Unicode code points",
+      "body": {
+        "$return": {
+          "$call": "repeat",
+          "$args": ["😀", 2]
+        }
+      },
+      "limits": { "maxValueSize": 2 },
+      "expected": "😀😀"
     }
   ]
 }
