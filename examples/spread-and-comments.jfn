@@ -6,45 +6,45 @@
 // Typecheck it (spread calls currently report incomplete type coverage):
 //   bun run typescript/src/cli.ts check --allow-untyped-functions --file examples/spread-and-comments.jfn
 main: () => ({
-  // Ordinary array elements and multiple spreads retain source order.
-  numbers: [0, ...middle, 4, ...tail],
+// Ordinary array elements and multiple spreads retain source order.
+numbers: [0, ...middle, 4, ...tail],
 
-  // Later object chunks win when keys overlap.
-  config: {
-    ...defaults,
-    retries: 5,
-    /* A block comment can span
-       several lines between entries. */
-    ...production,
-    label: "final"
-  },
+// Later object chunks win when keys overlap.
+config: {
+  ...defaults,
+  retries: 5,
+  /* A block comment can span
+     several lines between entries. */
+  ...production,
+  label: "final"
+},
 
-  // Bracketed keys are evaluated; spreads and regular entries can be mixed in.
-  statuses: {
-    fixed: "always",
-    [primaryKey]: "ready",
-    ...extraStatuses
-  },
+// Bracketed keys are evaluated; spreads and regular entries can be mixed in.
+statuses: {
+  fixed: "always",
+  [primaryKey]: "ready",
+  ...extraStatuses
+},
 
-  // A whole argument list can come from an array.
-  total: add(...pair),
+// A whole argument list can come from an array.
+total: add(...pair),
 
-  // Plain and spread arguments can coexist. Here `groups` supplies two of
-  // concat's array arguments between the explicit first and last arguments.
-  words: concat(["first"], ...groups, ["last"]),
+// Plain and spread arguments can coexist. Here `groups` supplies two of
+// concat's array arguments between the explicit first and last arguments.
+words: concat(["first"], ...groups, ["last"]),
 
-  // Comment contents are trivia, even when they resemble template delimiters.
-  message: `status: ${"ok" /* } still inside the interpolation */}`
+// Comment contents are trivia, even when they resemble template delimiters.
+message: `status: ${"ok" /* } still inside the interpolation */}`
 }) where {
-  middle: [1, 2, 3],
-  tail: [5, ...[6, 7]],
+middle: [1, 2, 3],
+tail: [5, ...[6, 7]],
 
-  defaults: { theme: "light", retries: 2, label: "default" },
-  production: { theme: "dark", audit: true },
+defaults: { theme: "light", retries: 2, label: "default" },
+production: { theme: "dark", audit: true },
 
-  primaryKey: "primary",
-  extraStatuses: { secondary: "queued", tertiary: "idle" },
+primaryKey: "primary",
+extraStatuses: { secondary: "queued", tertiary: "idle" },
 
-  pair: [20, 22],
-  groups: [["middle-a"], ["middle-b"]]
+pair: [20, 22],
+groups: [["middle-a"], ["middle-b"]]
 }

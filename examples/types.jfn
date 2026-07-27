@@ -1,43 +1,43 @@
 // Showcase of the .jfn type syntax (docs/type-syntax-spec.md). Exercises every
 // type-position construct so editor highlighting has something to chew on.
-  // Named types populate the module `$types` pool.
-  type UserId = string & pattern("^u_"),
-  type Score  = integer & min(0) & max(100),
-  type Status = "active" | "inactive" | "banned",
+// Named types populate the module `$types` pool.
+type UserId = string & pattern("^u_"),
+type Score  = integer & min(0) & max(100),
+type Status = "active" | "inactive" | "banned",
 
-  // Object type: required + optional (`?`) fields, closed by default.
-  type User = {
-    id: UserId,
-    name: string,
-    score?: Score,
-    status: Status
-  },
+// Object type: required + optional (`?`) fields, closed by default.
+type User = {
+  id: UserId,
+  name: string,
+  score?: Score,
+  status: Status
+},
 
-  // Tuple, array suffix, union with null, and a map type.
-  type Point  = [number, number],
-  type Path   = Point[],
-  type Labels = { [string]: string },
-  type Maybe  = string | null,
+// Tuple, array suffix, union with null, and a map type.
+type Point  = [number, number],
+type Path   = Point[],
+type Labels = { [string]: string },
+type Maybe  = string | null,
 
-  // Recursive (contractive) type.
-  type Tree = { value: number, children: Tree[] },
+// Recursive (contractive) type.
+type Tree = { value: number, children: Tree[] },
 
-  // Discriminated union: closed objects sharing a `const` tag.
-  type Event =
-      { tag: "move", from: integer, to: integer }
-    | { tag: "reset" }
-    | { tag: "quit", code: integer },
+// Discriminated union: closed objects sharing a `const` tag.
+type Event =
+    { tag: "move", from: integer, to: integer }
+  | { tag: "reset" }
+  | { tag: "quit", code: integer },
 
-  // Fully-typed signature: annotated params + `-> Ret`.
-  makeUser: (id: UserId, name: string) -> User =>
-    { id, name, status: "active" },
+// Fully-typed signature: annotated params + `-> Ret`.
+makeUser: (id: UserId, name: string) -> User =>
+  { id, name, status: "active" },
 
-  // Function-type return (curried) and a rest parameter.
-  makeAdder: (x: number) -> (number) -> number => (y) => x + y,
+// Function-type return (curried) and a rest parameter.
+makeAdder: (x: number) -> (number) -> number => (y) => x + y,
 
-  concatAll: (first: string, ...rest: string[]) -> string =>
-    reduce((acc, s) => acc ++ s, first, rest),
+concatAll: (first: string, ...rest: string[]) -> string =>
+  reduce((acc, s) => acc ++ s, first, rest),
 
-  // Object-pattern parameter annotated with an inline object type.
-  distance: ({ from, to }: { from: number, to: number }) -> number =>
-    abs(to - from)
+// Object-pattern parameter annotated with an inline object type.
+distance: ({ from, to }: { from: number, to: number }) -> number =>
+  abs(to - from)

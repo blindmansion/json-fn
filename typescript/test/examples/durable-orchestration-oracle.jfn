@@ -2,44 +2,44 @@
 //
 // The test passes the real example's Task<Report> into `interpret`, so this
 // fixture models an alternate host without duplicating the guest workflow.
-  type OracleState = { transcript: string[] },
-  type OracleRun = { report: Report, transcript: string[] },
+type OracleState = { transcript: string[] },
+type OracleRun = { report: Report, transcript: string[] },
 
-  resultFor: (agentHandle: Handle) -> AgentResult => match agentHandle {
-    "research"  -> { ok: true, output: "release facts" },
-    "summarize" -> { ok: true, output: "summary: release facts" },
-    "alpha"     -> { ok: true, output: "alpha report" },
-    "broken"    -> { ok: false, error: "agent failed safely" },
-    "bravo"     -> { ok: true, output: "bravo report" },
-    "fast"      -> { ok: true, output: "fast result" },
-    "slow"      -> { ok: true, output: "slow result" },
-    else        -> { ok: false, error: `unknown handle: ${agentHandle}` }
-  },
+resultFor: (agentHandle: Handle) -> AgentResult => match agentHandle {
+  "research"  -> { ok: true, output: "release facts" },
+  "summarize" -> { ok: true, output: "summary: release facts" },
+  "alpha"     -> { ok: true, output: "alpha report" },
+  "broken"    -> { ok: false, error: "agent failed safely" },
+  "bravo"     -> { ok: true, output: "bravo report" },
+  "fast"      -> { ok: true, output: "fast result" },
+  "slow"      -> { ok: true, output: "slow result" },
+  else        -> { ok: false, error: `unknown handle: ${agentHandle}` }
+},
 
-  interpret: (task: Task<Report>) -> OracleRun =>
-    (handle task -> (OracleState) -> OracleRun with {
-      "agent.spawn": (spec, resume) => (state) =>
-        resume(spec.name)({
-          transcript: concat(state.transcript, [`spawn ${spec.name}`])
-        }),
-      "agent.await": (agentHandle, resume) => (state) =>
-        resume(resultFor(agentHandle))({
-          transcript: concat(state.transcript, [`await ${agentHandle}`])
-        }),
-      "agent.awaitAll": (handles, resume) => (state) =>
-        resume(map((agentHandle) => resultFor(agentHandle), handles))({
-          transcript: concat(state.transcript, ["awaitAll"])
-        }),
-      "agent.awaitAny": (handles, resume) => (state) =>
-        resume({ handle: head(handles), result: resultFor(head(handles)) })({
-          transcript: concat(state.transcript, ["awaitAny"])
-        }),
-      log: (message, resume) => (state) =>
-        resume(null)({
-          transcript: concat(state.transcript, [`log ${message}`])
-        }),
-      return: (report) => (state) => {
-        report,
-        transcript: state.transcript
-      }
-    })({ transcript: [] })
+interpret: (task: Task<Report>) -> OracleRun =>
+  (handle task -> (OracleState) -> OracleRun with {
+    "agent.spawn": (spec, resume) => (state) =>
+      resume(spec.name)({
+        transcript: concat(state.transcript, [`spawn ${spec.name}`])
+      }),
+    "agent.await": (agentHandle, resume) => (state) =>
+      resume(resultFor(agentHandle))({
+        transcript: concat(state.transcript, [`await ${agentHandle}`])
+      }),
+    "agent.awaitAll": (handles, resume) => (state) =>
+      resume(map((agentHandle) => resultFor(agentHandle), handles))({
+        transcript: concat(state.transcript, ["awaitAll"])
+      }),
+    "agent.awaitAny": (handles, resume) => (state) =>
+      resume({ handle: head(handles), result: resultFor(head(handles)) })({
+        transcript: concat(state.transcript, ["awaitAny"])
+      }),
+    log: (message, resume) => (state) =>
+      resume(null)({
+        transcript: concat(state.transcript, [`log ${message}`])
+      }),
+    return: (report) => (state) => {
+      report,
+      transcript: state.transcript
+    }
+  })({ transcript: [] })

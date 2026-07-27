@@ -1,95 +1,95 @@
-  // RoomId, Room, and PlayerState come from dungeon.contract.json.
-  type Turn = { state: PlayerState, message: string, done: boolean },
+// RoomId, Room, and PlayerState come from dungeon.contract.json.
+type Turn = { state: PlayerState, message: string, done: boolean },
 
-  // ---- The map: plain JSON all the way down ------------------------------
-  // Rooms are inert data. Nothing here knows how to *do* anything; behavior
-  // lives entirely in the functions below, so the world could be loaded,
-  // diffed, or generated like any other JSON value.
+// ---- The map: plain JSON all the way down ------------------------------
+// Rooms are inert data. Nothing here knows how to *do* anything; behavior
+// lives entirely in the functions below, so the world could be loaded,
+// diffed, or generated like any other JSON value.
 
-  world: raw {
-    "cell": {
-      "name": "Damp Cell",
-      "blurb": "Moss, straw, and a door someone forgot to lock properly.",
-      "exits": { "north": "hall" },
-      "item": "rusty key"
-    },
-    "hall": {
-      "name": "Torchlit Hall",
-      "blurb": "Portraits of jailers past glare down at you.",
-      "exits": { "south": "cell", "east": "gate" },
-      "item": "old boot"
-    },
-    "gate": {
-      "name": "Iron Gate",
-      "blurb": "Beyond the bars: weather. Freedom smells like rain.",
-      "exits": { "west": "hall" },
-      "item": null
-    }
+world: raw {
+  "cell": {
+    "name": "Damp Cell",
+    "blurb": "Moss, straw, and a door someone forgot to lock properly.",
+    "exits": { "north": "hall" },
+    "item": "rusty key"
   },
-
-  // ---- Pure game logic ----------------------------------------------------
-  // Player state is a record { at, held }; every turn returns a fresh
-  // { state, message, done } — no mutation anywhere.
-
-  roomOf: (st: PlayerState) -> Room => world[st.at]!,
-
-  look: (st: PlayerState) -> string => `${room.name} — ${room.blurb}${note}` where {
-    room: roomOf(st),
-    seen: !isNull(room.item) && !includes(st.held, room.item),
-    note: if seen then ` You see a ${room.item}.` else ""
+  "hall": {
+    "name": "Torchlit Hall",
+    "blurb": "Portraits of jailers past glare down at you.",
+    "exits": { "south": "cell", "east": "gate" },
+    "item": "old boot"
   },
-
-  stay: (st: PlayerState, msg: string) -> Turn =>
-    { state: st, message: msg, done: false },
-
-  move: (st: PlayerState, dir: string | null) -> Turn => cond {
-    isNull(dir)  -> stay(st, "Go where? Try \"go north\"."),
-    isNull(dest) -> stay(st, `There is no exit "${dir}".`),
-    else         -> stay(next, look(next))
-  } where {
-    dest: roomOf(st).exits[dir!],
-    next: { at: dest, held: st.held }
-  },
-
-  take: (st: PlayerState) -> Turn => (if isNull(item) || includes(st.held, item)
-    then stay(st, "There is nothing here worth taking.")
-    else stay(richer, `You pocket the ${item}.`)) where {
-    item: roomOf(st).item,
-    richer: { at: st.at, held: concat(st.held, [item]) }
-  },
-
-  unlock: (st: PlayerState) -> Turn => cond {
-    st.at != "gate" -> stay(st, "Nothing here is locked."),
-    includes(st.held, "rusty key") ->
-      { state: st, message: "The key grinds, the gate swings wide. You are free!", done: true },
-    else -> stay(st, "The gate is locked. A key would help.")
-  },
-
-  // One command -> one turn. The verb is data, dispatched by `match`;
-  // tokenizing mirrors the calculator's whitespace-splitting trick.
-  step: (st: PlayerState, cmd: string) -> Turn => match verb {
-    "look"   -> stay(st, look(st)),
-    "go"     -> move(st, parts[1]),
-    "take"   -> take(st),
-    "unlock" -> unlock(st),
-    else     -> stay(st, `You try to "${verb}", but the dungeon is unimpressed.`)
-  } where {
-    parts: filter((w) => w != "", reSplit("\\s+", cmd)),
-    verb: parts[0]
-  },
-
-  // ---- The game loop: straight-line do-notation ----------------------------
-
-  play: (st) => do {
-    effects.print(look(st)),
-    cmd <- effects.input(),
-    if isNull(cmd)
-      then pure("The narrator ran out of script mid-dungeon.")
-      else do {
-        turn: step(st, cmd),
-        effects.print(turn.message),
-        if turn.done
-          then pure(turn.message)
-          else play(turn.state)
-      }
+  "gate": {
+    "name": "Iron Gate",
+    "blurb": "Beyond the bars: weather. Freedom smells like rain.",
+    "exits": { "west": "hall" },
+    "item": null
   }
+},
+
+// ---- Pure game logic ----------------------------------------------------
+// Player state is a record { at, held }; every turn returns a fresh
+// { state, message, done } — no mutation anywhere.
+
+roomOf: (st: PlayerState) -> Room => world[st.at]!,
+
+look: (st: PlayerState) -> string => `${room.name} — ${room.blurb}${note}` where {
+  room: roomOf(st),
+  seen: !isNull(room.item) && !includes(st.held, room.item),
+  note: if seen then ` You see a ${room.item}.` else ""
+},
+
+stay: (st: PlayerState, msg: string) -> Turn =>
+  { state: st, message: msg, done: false },
+
+move: (st: PlayerState, dir: string | null) -> Turn => cond {
+  isNull(dir)  -> stay(st, "Go where? Try \"go north\"."),
+  isNull(dest) -> stay(st, `There is no exit "${dir}".`),
+  else         -> stay(next, look(next))
+} where {
+  dest: roomOf(st).exits[dir!],
+  next: { at: dest, held: st.held }
+},
+
+take: (st: PlayerState) -> Turn => (if isNull(item) || includes(st.held, item)
+  then stay(st, "There is nothing here worth taking.")
+  else stay(richer, `You pocket the ${item}.`)) where {
+  item: roomOf(st).item,
+  richer: { at: st.at, held: concat(st.held, [item]) }
+},
+
+unlock: (st: PlayerState) -> Turn => cond {
+  st.at != "gate" -> stay(st, "Nothing here is locked."),
+  includes(st.held, "rusty key") ->
+    { state: st, message: "The key grinds, the gate swings wide. You are free!", done: true },
+  else -> stay(st, "The gate is locked. A key would help.")
+},
+
+// One command -> one turn. The verb is data, dispatched by `match`;
+// tokenizing mirrors the calculator's whitespace-splitting trick.
+step: (st: PlayerState, cmd: string) -> Turn => match verb {
+  "look"   -> stay(st, look(st)),
+  "go"     -> move(st, parts[1]),
+  "take"   -> take(st),
+  "unlock" -> unlock(st),
+  else     -> stay(st, `You try to "${verb}", but the dungeon is unimpressed.`)
+} where {
+  parts: filter((w) => w != "", reSplit("\\s+", cmd)),
+  verb: parts[0]
+},
+
+// ---- The game loop: straight-line do-notation ----------------------------
+
+play: (st) => do {
+  effects.print(look(st)),
+  cmd <- effects.input(),
+  if isNull(cmd)
+    then pure("The narrator ran out of script mid-dungeon.")
+    else do {
+      turn: step(st, cmd),
+      effects.print(turn.message),
+      if turn.done
+        then pure(turn.message)
+        else play(turn.state)
+    }
+}
