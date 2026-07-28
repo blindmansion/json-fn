@@ -3,8 +3,10 @@
 How to author json-fn programs in `.jfn` shorthand. This covers the complete
 language surface — syntax and semantics only. The available builtins, and any
 named types or `effects` vocabulary injected into your environment, are
-described by separate context; look builtins up there rather than guessing
-signatures.
+described by separate context (in this repository, `docs/builtins.md`); this
+doc is incomplete without it. Look builtins up there rather than guessing —
+even familiar names can differ from their JS/Python counterparts in arity or
+argument order.
 
 ## 1. Mental model
 
@@ -36,14 +38,14 @@ semantics.
 
 ```jfn
 // A small ledger: fold transactions over a map of accounts.
-type Cents   = integer & min(0)                        // refinement, not intersection
-type Id      = string & pattern("^acc_")
+type Cents = integer & min(0) // refinement, not intersection
+type Id = string & pattern("^acc_")
 type Account = { id: Id, name: string, balance: Cents } // closed: extra keys invalid
-type Ledger  = { [string]: Account }                   // map type
+type Ledger = { [string]: Account } // map type
 
-type Tx =                                              // discriminated union
-    { tag: "open",     id: Id, name: string }
-  | { tag: "deposit",  to: Id, amount: Cents }
+type Tx = // discriminated union
+    { tag: "open", id: Id, name: string }
+  | { tag: "deposit", to: Id, amount: Cents }
   | { tag: "withdraw", from: Id, amount: Cents }
 
 type Books = { ledger: Ledger, log: string[] }
@@ -62,7 +64,7 @@ note: (books: Books, msg: string) -> Books =>
 // The body is a data object — `{…}` after `=>` is always data, never a block.
 put: (books: Books, acct: Account, msg: string) -> Books => {
   ledger: merge(books.ledger, fromEntries([[acct.id, acct]])),
-  log:    concat(books.log, [msg])
+  log: concat(books.log, [msg])
 }
 
 // `where` locals come after the result, and are lazy — not a statement list.
@@ -90,12 +92,12 @@ run: (txns: Tx[]) -> Books =>
   reduce((books, tx) => apply(books, tx), { ledger: {}, log: [] }, txns)
 
 demo: () -> { names: string[], log: string } => {
-  names,                                  // punning: { names } == { names: names }
+  names, // punning: { names } == { names: names }
   log: join(final.log, "\n")
 } where {
   final: run([
-    { tag: "open",     id: "acc_ada", name: "Ada" },
-    { tag: "deposit",  to: "acc_ada", amount: 100 },
+    { tag: "open", id: "acc_ada", name: "Ada" },
+    { tag: "deposit", to: "acc_ada", amount: 100 },
     { tag: "withdraw", from: "acc_ada", amount: 250 }
   ]),
   names: map((a) => a.name, sortBy((a) => a.name, values(final.ledger)))
@@ -188,8 +190,8 @@ Semantics to internalize:
 ## 6. Functions
 
 ```jfn
-(a, b) => a + b                          // bare lambda (contextually typed at HOF call sites)
-(a: number, b: number) -> number => a + b  // fully typed
+(a, b) => a + b // bare lambda (contextually typed at HOF call sites)
+(a: number, b: number) -> number => a + b // fully typed
 ```
 
 Signatures are **all-or-nothing**: annotate every parameter and the return
@@ -237,9 +239,9 @@ Ordinary array HOFs supply only the item (`reduce` supplies accumulator and
 item); their `*Indexed` variants additionally supply the integer index.
 
 ```jfn
-map((x) => x * 2, xs)                 // item only
-mapIndexed((x, i) => x * i, xs)       // need the index? use the *Indexed HOF
-mapIndexed((x, _index) => f(x), xs)   // ignored params still must be declared
+map((x) => x * 2, xs) // item only
+mapIndexed((x, i) => x * i, xs) // need the index? use the *Indexed HOF
+mapIndexed((x, _index) => f(x), xs) // ignored params still must be declared
 ```
 
 Higher-order builtins take the **callback first and the data last**:
@@ -267,7 +269,7 @@ when one fits.
 ```jfn
 summary: (xs: number[]) -> string =>
   `${str(n)} item(s), sum ${str(total)}` where {
-    n:     length(xs),
+    n: length(xs),
     total: reduce((a, x) => a + x, 0, xs)
   }
 ```
@@ -295,18 +297,18 @@ All control flow is expression-valued and lazy (only the taken branch
 evaluates):
 
 ```jfn
-if x > 0 then "pos" else "non-pos"      // else is mandatory
+if x > 0 then "pos" else "non-pos" // else is mandatory
 
-cond {                                   // first truthy arm wins
-  n < 0:  "negative",
+cond { // first truthy arm wins
+  n < 0: "negative",
   n == 0: "zero",
-  else:   "positive"                     // optional, but falling off the end errors
+  else: "positive" // optional, but falling off the end errors
 }
 
-match cmd {                              // subject compared by equality
-  "show":  render(state),
+match cmd { // subject compared by equality
+  "show": render(state),
   "reset": initial(),
-  else:    help()                        // else is REQUIRED
+  else: help() // else is REQUIRED
 }
 ```
 
@@ -343,15 +345,15 @@ signatures, `handle … returns T with` (§12), and `expr checked as T`. There
 are **no local variable annotations** — locals infer.
 
 ```jfn
-type Status = "active" | "inactive" | "banned"   // literal unions
-type Point  = [number, number]                   // tuple
-type Path   = Point[]                            // array
-type Labels = { [string]: string }               // map: string keys, uniform values
-type Maybe  = string | null                      // nullability is explicit
-type User   = { id: string, score?: integer }    // ? = optional field
-type Loose  = { id: string, ... }                // ... opens the object
-type Tree   = { value: number, children: Tree[] } // recursion ok through arrays/objects
-type Guard  = (Account) -> boolean               // function type
+type Status = "active" | "inactive" | "banned" // literal unions
+type Point = [number, number] // tuple
+type Path = Point[] // array
+type Labels = { [string]: string } // map: string keys, uniform values
+type Maybe = string | null // nullability is explicit
+type User = { id: string, score?: integer } // ? = optional field
+type Loose = { id: string, ... } // ... opens the object
+type Tree = { value: number, children: Tree[] } // recursion ok through arrays/objects
+type Guard = (Account) -> boolean // function type
 ```
 
 - Primitives: `null boolean number integer string`, plus `any` and `never`.
@@ -436,10 +438,10 @@ Constructors (all pure):
 
 ```jfn
 tick: (st: State) -> Task<State> => do {
-  reading <- effects.sensor.read(),   // run the task, bind its result
-  action: decide(st, reading),        // ':' is a lazy pure local — it does NOT run anything
-  effects.log(describe(action)),      // bare non-final entry: run, discard result
-  pure(apply(st, action))             // final entry is the block's result
+  reading <- effects.sensor.read(), // run the task, bind its result
+  action: decide(st, reading), // ':' is a lazy pure local — it does NOT run anything
+  effects.log(describe(action)), // bare non-final entry: run, discard result
+  pure(apply(st, action)) // final entry is the block's result
 }
 ```
 
@@ -462,8 +464,8 @@ a pure interpreter, which is how effectful code gets tested with mocks:
 ```jfn
 testGreeting: () -> string =>
   handle greet() returns string with {
-    "io.readLine": (resume) => resume("world"),      // effect args…, then resume
-    "io.print":    (msg, resume) => resume(null)
+    "io.readLine": (resume) => resume("world"), // effect args…, then resume
+    "io.print": (msg, resume) => resume(null)
   }
 ```
 
