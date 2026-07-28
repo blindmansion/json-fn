@@ -53,7 +53,7 @@ Uses **Bun** (not node/npm). Common commands, run inside `typescript/`:
 
 The CLI lives at `typescript/src/cli.ts` and is exposed as the `jfn` bin. From inside `typescript/`, run it with `bun run src/cli.ts <command>` (or `bun run cli <command>`).
 
-Input is read from a positional argument, `--file <path>`, or stdin (in that order). Use `-` to force stdin. This composes well with pipes and heredocs.
+Input is read from a positional argument, `--file <path>`, or stdin (in that order). The positional argument is the source text itself, not a path — use `--file` for files. Use `-` to force stdin. This composes well with pipes and heredocs.
 
 Commands:
 
@@ -69,6 +69,7 @@ Commands:
   - `-j/--json` (default) or `-s/--shorthand` — output format; `-c/--compact` minifies JSON.
 - `check` (alias `c`) — typecheck a module or expression; `--contract <path>`
   links the operator-owned environment contract and checks its entry boundary.
+  `--json` reads canonical json-fn JSON instead of `.jfn` shorthand.
 - `validate-contract` — validate portable environment-contract JSON.
 - `validate-profile --contract <path>` — validate portable deployment profile JSON.
 

@@ -26,6 +26,8 @@ durable profiles.
 `effects` is a required array of unique, non-empty effect names. When validated
 with a contract, every name must be declared by `contract.effects`. The array is
 a selected **subset**, not a coverage claim: declared effects may be omitted.
+A pure module uses an empty array (and an empty adapter) — see
+`examples/spreadsheet.profile.json`.
 
 `prepareDeployment` requires the live runtime adapter's `effects` object to contain
 exactly the selected names—no missing or extra implementations. `runTask` owns

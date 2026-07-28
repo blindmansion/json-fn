@@ -90,6 +90,59 @@ effect crosses a particular host boundary.
 Qualification is intentional: a direct function named `log` and an effect
 named `log` have distinct guest syntax and execution semantics.
 
+## Schema dialect
+
+Contract schemas (in `$defs`, `functions`, `effects`, and `entry`) use a
+restricted JSON-Schema-like dialect. Every field set is closed — unsupported
+JSON Schema keywords are structural errors, not ignored extensions.
+
+A schema fragment is `true` (any), `false` (never), or an object with
+**exactly one** head keyword:
+
+- `{"$ref": "#/$defs/Name"}` — reference a named definition. Only the
+  `#/$defs/Name` form is accepted, and the definition must exist.
+- `{"const": v}` — exactly one JSON value.
+- `{"enum": [v, …]}` — one of a non-empty list of JSON values.
+- `{"anyOf": [schema, …]}` — a non-empty union.
+- `{"$fnType": {"required": […], "optional": […], "rest"?, "returns": …}}` —
+  a function-typed value.
+- `{"$tvar": "T"}` — a type variable; allowed only inside polymorphic
+  contract-`functions` signatures that declare it in `typeParams`, never in
+  `$defs`, effects, or the entry.
+- `{"type": …}` — see below.
+
+`type` forms:
+
+- A primitive name — `"null"`, `"boolean"`, `"number"`, `"integer"`,
+  `"string"` — optionally refined: numbers take `minimum` / `maximum` /
+  `exclusiveMinimum` / `exclusiveMaximum` / `multipleOf`; strings take
+  `minLength` / `maxLength` / `pattern` / `format`.
+- An array of distinct primitive names (`{"type": ["string", "null"]}`) — a
+  bare primitive union; no refinement keywords may accompany it.
+- `"array"` — with `items` (uniform element schema), `prefixItems` (tuple
+  positions), `minItems` / `maxItems`, and `uniqueItems: true`.
+- `"object"` — with `properties`, `required` (each listed name must appear in
+  `properties`), and `additionalProperties`: `false` closes the object, a
+  schema makes the non-listed keys a map (so a shorthand map type
+  `{ [string]: string }` is
+  `{"type": "object", "additionalProperties": {"type": "string"}}`), and
+  omitted or `true` leaves it open.
+
+Note the default: an object schema without `additionalProperties` is **open**,
+the opposite of shorthand object types, which are closed by default. To match
+a closed shorthand object, write `"additionalProperties": false` explicitly
+(as the shorthand printer does).
+
+## Pure modules
+
+A module that performs no effects deploys through the same artifacts. Declare
+`"functions": {}` and `"effects": {}`, give the entry a direct (non-task)
+`returns`, select a live profile with an empty `effects` array, and pass an
+empty runtime adapter (`{ functions: {}, effects: {} }`). `runTask` returns
+the direct entry result. Durable mode is unavailable to direct entries — it
+requires `returns: {"task": …}`. See `examples/spreadsheet.contract.json` /
+`examples/spreadsheet.profile.json` for a complete pure deployment.
+
 ## Reserved and collision rules
 
 - `Task` is the built-in task type constructor. Neither contract `$defs` nor
