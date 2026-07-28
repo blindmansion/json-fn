@@ -73,12 +73,16 @@ export type { StdlibOptions, LoggerFn } from "./stdlib";
 export {
   parse as parseShorthand,
   parseExpression as parseShorthandExpression,
+  parseExpressionWithPositions as parseShorthandExpressionWithPositions,
   parseModule as parseShorthandModule,
+  parseModuleWithPositions as parseShorthandModuleWithPositions,
+  resolvePathPosition,
   print as printShorthand,
   printExpression as printShorthandExpression,
   printModule as printShorthandModule,
   ParseError,
 } from "./shorthand";
+export type { ParsedWithPositions, SourcePos } from "./shorthand";
 export { isTask, stepTask, runHandle, TASK_TAG } from "./task";
 export type { TaskNode, EffectTask, PureTask, BindTask, Suspended } from "./task";
 export { RuntimeContractError } from "./runtime-contract";

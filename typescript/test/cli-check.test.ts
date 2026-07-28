@@ -47,6 +47,71 @@ test("jfn check narrows nullable values through equality with null", () => {
   }
 });
 
+describe("jfn check source positions", () => {
+  test("shorthand module diagnostics carry (at line:col) source positions", () => {
+    const module = 'a: 1\nf: () -> string => "x" ++ str(a) ++ missing(a)';
+    const result = runCheck([module]);
+    expect(result.exitCode).toBe(1);
+    // `missing(a)` starts at line 2, column 37.
+    expect(result.stdout).toContain(
+      'error: f.$return.$args[2]: Unknown function "missing". (at 2:37)',
+    );
+  });
+
+  test("--file prefixes positions with the file path", () => {
+    const dir = mkdtempSync(join(tmpdir(), "json-fn-check-positions-"));
+    const path = join(dir, "module.jfn");
+    try {
+      writeFileSync(path, "f: () -> integer => nope(1)\n");
+      const result = runCheck(["--file", path]);
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout).toContain(`(at ${path}:1:21)`);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("--json-diagnostics includes line/col fields for shorthand input", () => {
+    const result = runCheck(["--json-diagnostics", "-c", "f: () -> integer => nope(1)"]);
+    expect(result.exitCode).toBe(1);
+    const diags = JSON.parse(result.stdout) as { line?: number; col?: number }[];
+    expect(diags[0]!.line).toBe(1);
+    expect(diags[0]!.col).toBe(21);
+  });
+
+  test("canonical JSON input reports paths without source positions", () => {
+    const result = runCheck(["--expr", "--json", asJsonArg({ $call: "missing", $args: [] })]);
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toContain('error: <root>: Unknown function "missing".');
+    expect(result.stdout).not.toContain("(at ");
+  });
+
+  test("--json-input is accepted as an alias for --json", () => {
+    const result = runCheck(["--expr", "--json-input", asJsonArg({ $call: "add", $args: [1, 2] })]);
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("No type errors.");
+  });
+});
+
+describe("jfn positional file-path hint", () => {
+  test("a positional argument naming an existing file suggests --file", () => {
+    const dir = mkdtempSync(join(tmpdir(), "json-fn-path-hint-"));
+    const path = join(dir, "module.jfn");
+    try {
+      writeFileSync(path, "f: () -> integer => 1\n");
+      const positional = runCheck([path]);
+      expect(positional.exitCode).toBe(1);
+      expect(positional.stderr).toContain(`did you mean --file ${path}?`);
+
+      const viaFile = runCheck(["--file", path]);
+      expect(viaFile.exitCode).toBe(0);
+      expect(viaFile.stdout).toContain("No type errors.");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("jfn check unknown function names", () => {
   test("rejects unknown and typo-like builtin names in expression position", () => {
     for (const name of ["nonexistent", "len", "first"]) {

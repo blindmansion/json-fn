@@ -36,6 +36,38 @@ export function parseExpression(src: string): JSONType {
   return v;
 }
 
+/** 1-based source position of a parsed node. */
+export type SourcePos = { line: number; col: number };
+
+/** A parse result plus a side table mapping canonical nodes (by object
+ * identity) to the source position of the shorthand they were lowered from.
+ * Scalar leaves are not tracked — consumers fall back to the position of the
+ * nearest enclosing recorded node. */
+export type ParsedWithPositions = { value: JSONType; positions: WeakMap<object, SourcePos> };
+
+/** `parseModule`, additionally recording node source positions (for mapping
+ * checker diagnostic paths back to `.jfn` source locations). */
+export function parseModuleWithPositions(src: string): ParsedWithPositions {
+  const tokens = lex(src);
+  const p = new Parser(tokens);
+  const positions = new WeakMap<object, SourcePos>();
+  p.positions = positions;
+  const v = p.parseModule();
+  p.expect("eof", "end of input");
+  return { value: v, positions };
+}
+
+/** `parseExpression`, additionally recording node source positions. */
+export function parseExpressionWithPositions(src: string): ParsedWithPositions {
+  const tokens = lex(src);
+  const p = new Parser(tokens);
+  const positions = new WeakMap<object, SourcePos>();
+  p.positions = positions;
+  const v = p.parseExpression();
+  p.expect("eof", "end of input");
+  return { value: v, positions };
+}
+
 /** One property-access step gathered during postfix parsing. */
 type Seg =
   | { kind: "static"; value: JSONType } // literal key/index that folds into a `$get` path
@@ -70,6 +102,28 @@ const ORDERED_COMPARISON_NAMES = new Set(["lt", "lte", "gt", "gte"]);
 const COMPARISON_TEMP_PREFIX = "__jfn_cmp_";
 
 class Parser extends TokenCursor {
+  /** When set, canonical object/array nodes are recorded here with the source
+   * position of the token that begins them. Recording is first-write-wins, so
+   * the innermost (most specific) producer of a node determines its position. */
+  positions: WeakMap<object, SourcePos> | undefined;
+
+  /** The position of the token at the cursor (the start of whatever parses next). */
+  private startPos(): SourcePos {
+    const t = this.tokens[this.pos]!;
+    return { line: t.line, col: t.col };
+  }
+
+  /** Record `node`'s start position when position tracking is on. Scalars are
+   * skipped (they cannot key a WeakMap); consumers fall back to the nearest
+   * recorded ancestor. */
+  private record<T>(node: T, pos: SourcePos): T {
+    if (this.positions !== undefined && node !== null && typeof node === "object") {
+      const obj = node as object;
+      if (!this.positions.has(obj)) this.positions.set(obj, pos);
+    }
+    return node;
+  }
+
   // ----- source entry points -----
 
   parseExpression(): JSONType {
@@ -79,7 +133,9 @@ class Parser extends TokenCursor {
   // ----- expression precedence ladder (spec section 6) -----
 
   parseExpr(): JSONType {
-    return this.parseAscription();
+    if (this.positions === undefined) return this.parseAscription();
+    const pos = this.startPos();
+    return this.record(this.parseAscription(), pos);
   }
 
   private parseAscription(): JSONType {
@@ -199,6 +255,12 @@ class Parser extends TokenCursor {
   }
 
   private parseUnary(): JSONType {
+    if (this.positions === undefined) return this.parseUnaryInner();
+    const pos = this.startPos();
+    return this.record(this.parseUnaryInner(), pos);
+  }
+
+  private parseUnaryInner(): JSONType {
     const type = this.peekType();
     if (type === "bang") {
       this.advance();
@@ -214,6 +276,12 @@ class Parser extends TokenCursor {
   }
 
   private parsePostfix(): JSONType {
+    if (this.positions === undefined) return this.parsePostfixInner();
+    const pos = this.startPos();
+    return this.record(this.parsePostfixInner(), pos);
+  }
+
+  private parsePostfixInner(): JSONType {
     let { value: val, name } = this.parsePrimary();
     for (;;) {
       const type = this.peekType();
@@ -281,6 +349,14 @@ class Parser extends TokenCursor {
   /** Returns the primary's value plus, for a bare identifier, its name (so the
    * postfix loop can decide named-call vs variable-reference). */
   private parsePrimary(): { value: JSONType; name: string | null } {
+    if (this.positions === undefined) return this.parsePrimaryInner();
+    const pos = this.startPos();
+    const out = this.parsePrimaryInner();
+    this.record(out.value, pos);
+    return out;
+  }
+
+  private parsePrimaryInner(): { value: JSONType; name: string | null } {
     const t = this.peek();
     switch (t.type) {
       case "num":
@@ -517,7 +593,10 @@ class Parser extends TokenCursor {
           throw this.err(`duplicate type declaration '${name}'`);
         }
         this.expect("equals", "'=' in type declaration");
-        types[name] = this.parseTypeExpr();
+        const typePos = this.positions !== undefined ? this.startPos() : undefined;
+        const schema = this.parseTypeExpr();
+        if (typePos !== undefined) this.record(schema, typePos);
+        types[name] = schema;
       } else if (this.peekType() === "dotdotdot" || this.peekType() === "lbracket") {
         throw this.err("module entries must be named bindings or type declarations");
       } else {
@@ -692,6 +771,12 @@ class Parser extends TokenCursor {
    * program top level and wherever a trailing clause should attach:
    * `where`-binding values, `cond`/`match` arm results, and grouped branches. */
   private parseBody(): JSONType {
+    if (this.positions === undefined) return this.parseBodyInner();
+    const pos = this.startPos();
+    return this.record(this.parseBodyInner(), pos);
+  }
+
+  private parseBodyInner(): JSONType {
     const expr = this.parseExpr();
     if (!this.eatKeyword("where")) {
       return expr;

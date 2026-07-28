@@ -69,7 +69,9 @@ Commands:
   - `-j/--json` (default) or `-s/--shorthand` — output format; `-c/--compact` minifies JSON.
 - `check` (alias `c`) — typecheck a module or expression; `--contract <path>`
   links the operator-owned environment contract and checks its entry boundary.
-  `--json` reads canonical json-fn JSON instead of `.jfn` shorthand.
+  `--json` (alias `--json-input`) reads canonical json-fn JSON instead of `.jfn`
+  shorthand. Diagnostics on shorthand input carry source positions
+  (`(at [file:]line:col)`; `line`/`col` fields with `--json-diagnostics`).
 - `validate-contract` — validate portable environment-contract JSON.
 - `validate-profile --contract <path>` — validate portable deployment profile JSON.
 

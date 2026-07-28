@@ -10,6 +10,14 @@
  * `parseExpression(printExpression(expression))`.
  */
 
-export { parse, parseExpression, parseModule } from "./parser";
+export {
+  parse,
+  parseExpression,
+  parseExpressionWithPositions,
+  parseModule,
+  parseModuleWithPositions,
+} from "./parser";
+export type { ParsedWithPositions, SourcePos } from "./parser";
+export { resolvePathPosition } from "./positions";
 export { print, printExpression, printModule } from "./printer";
 export { ParseError } from "./error";

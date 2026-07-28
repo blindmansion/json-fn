@@ -17,15 +17,20 @@ import {
   createStdlib,
   parseShorthand,
   parseShorthandExpression,
+  parseShorthandExpressionWithPositions,
+  parseShorthandModuleWithPositions,
   prepareDeployment,
   printShorthand,
   printShorthandExpression,
+  resolvePathPosition,
   runTask,
   validateEnvironmentContract,
   validateDeploymentProfile,
   type ExecutionLimits,
   type JSONType,
+  type SourcePos,
 } from "./index";
+import { existsSync } from "fs";
 import { checkExpr, checkModule } from "./check/module";
 import type { Diagnostic } from "./check/context";
 import type { CallableTable } from "./check/builtin-types";
@@ -52,7 +57,8 @@ Commands:
 
 Input:
   Pass the source as a positional argument, with --file <path>, or on stdin.
-  Use "-" as the input argument to force reading from stdin.
+  Use "-" as the input argument to force reading from stdin. A positional
+  argument is inline source text, never a file path — use --file for files.
 
 Common options:
   -f, --file <path>   Read input from a file instead of arg/stdin
@@ -87,8 +93,10 @@ eval options:
 check options:
       Parses .jfn shorthand (including type annotations) and typechecks it. By
       default the input is treated as a module; use --expr for one expression.
+      Diagnostics on shorthand input include source positions (line:col).
   -e, --expr          Check a single expression and print its inferred type
-      --json          Read canonical json-fn JSON instead of .jfn shorthand
+      --json, --json-input
+                      Read canonical json-fn JSON instead of .jfn shorthand
       --json-diagnostics
                       Emit diagnostics as a JSON array (path/message/severity/
                       expected/actual) instead of prose
@@ -174,7 +182,16 @@ async function readInput(parsed: ParsedArgs): Promise<string> {
   }
   // A positional arg (that isn't the stdin sentinel) is treated as inline source.
   const inline = parsed.positional.find((p) => p !== "-");
-  if (inline !== undefined) return inline;
+  if (inline !== undefined) {
+    // Guard the classic mistake of passing a file path positionally: inline
+    // source that names an existing file is almost certainly a missing --file.
+    if ((/[\\/]/.test(inline) || /\.(jfn|json)$/i.test(inline)) && existsSync(inline)) {
+      fail(
+        `positional input is treated as inline source, but "${inline}" is an existing file — did you mean --file ${inline}?`,
+      );
+    }
+    return inline;
+  }
   return await Bun.stdin.text();
 }
 
@@ -390,6 +407,7 @@ async function cmdCheck(argv: string[]): Promise<void> {
       "-e": "expr",
       "--expr": "expr",
       "--json": "json-input",
+      "--json-input": "json-input",
       "--json-diagnostics": "json-diagnostics",
       "--no-builtins": "no-builtins",
       "--allow-untyped-functions": "allow-untyped-functions",
@@ -401,6 +419,9 @@ async function cmdCheck(argv: string[]): Promise<void> {
 
   const src = await readInput(parsed);
   let json: JSONType;
+  // For shorthand input, resolve each diagnostic's canonical-JSON path back to
+  // a `.jfn` source position so messages point at the line the author wrote.
+  let locate: ((d: Diagnostic) => SourcePos | undefined) | undefined;
   if (parsed.flags.has("json-input")) {
     // Escape hatch: read canonical json-fn JSON directly, skipping the parser.
     // Useful for `to-json | check` pipelines and other machine-produced input.
@@ -411,7 +432,13 @@ async function cmdCheck(argv: string[]): Promise<void> {
     }
   } else {
     try {
-      json = parsed.flags.has("expr") ? parseShorthandExpression(src) : parseShorthand(src);
+      const withPositions = parsed.flags.has("expr")
+        ? parseShorthandExpressionWithPositions(src)
+        : parseShorthandModuleWithPositions(src);
+      json = withPositions.value;
+      const root = withPositions.value;
+      const positions = withPositions.positions;
+      locate = (d) => resolvePathPosition(root, positions, d.path);
     } catch (e) {
       fail(`could not parse shorthand: ${errMessage(e)}`);
     }
@@ -440,6 +467,7 @@ async function cmdCheck(argv: string[]): Promise<void> {
   const compact = parsed.flags.has("compact");
   const requireFullCoverage = parsed.flags.has("require-full-coverage");
   const jsonDiagnostics = parsed.flags.has("json-diagnostics");
+  const sourceLabel = parsed.options.file;
 
   if (parsed.flags.has("expr")) {
     const { type, diagnostics } = checkExpr(json, {}, builtins, {
@@ -447,10 +475,10 @@ async function cmdCheck(argv: string[]): Promise<void> {
       allowUntypedFunctions: parsed.flags.has("allow-untyped-functions"),
     });
     if (jsonDiagnostics) {
-      reportDiagnosticsJson(diagnostics, compact);
+      reportDiagnosticsJson(diagnostics, compact, locate);
     } else {
       console.log(`type: ${stringify(type, compact)}`);
-      reportDiagnostics(diagnostics);
+      reportDiagnostics(diagnostics, locate, sourceLabel);
     }
     exitFromDiagnostics(diagnostics, requireFullCoverage);
     return;
@@ -465,9 +493,9 @@ async function cmdCheck(argv: string[]): Promise<void> {
     contract,
   });
   if (jsonDiagnostics) {
-    reportDiagnosticsJson(diagnostics, compact);
+    reportDiagnosticsJson(diagnostics, compact, locate);
   } else {
-    reportDiagnostics(diagnostics);
+    reportDiagnostics(diagnostics, locate, sourceLabel);
   }
   exitFromDiagnostics(diagnostics, requireFullCoverage);
 }
@@ -508,19 +536,43 @@ async function readJsonArtifact(parsed: ParsedArgs): Promise<unknown> {
 
 // Emit the raw `Diagnostic[]` as JSON (pretty by default, minified with
 // --compact). Every field is stable: `path`, `message`, `severity`, and the
-// optional `expected` / `actual` schemas. This is the machine-readable
-// counterpart to `reportDiagnostics`; consumers can jump straight to a
-// diagnostic's `path` and inspect the schemas rather than parsing prose.
-function reportDiagnosticsJson(diags: Diagnostic[], compact: boolean): void {
-  console.log(compact ? JSON.stringify(diags) : JSON.stringify(diags, null, 2));
+// optional `expected` / `actual` schemas — plus, for shorthand input, the
+// 1-based `line`/`col` of the source the diagnostic maps back to. This is the
+// machine-readable counterpart to `reportDiagnostics`; consumers can jump
+// straight to a diagnostic's `path` and inspect the schemas rather than
+// parsing prose.
+function reportDiagnosticsJson(
+  diags: Diagnostic[],
+  compact: boolean,
+  locate?: (d: Diagnostic) => SourcePos | undefined,
+): void {
+  const out =
+    locate === undefined
+      ? diags
+      : diags.map((d) => {
+          const pos = locate(d);
+          return pos === undefined ? d : { ...d, line: pos.line, col: pos.col };
+        });
+  console.log(compact ? JSON.stringify(out) : JSON.stringify(out, null, 2));
 }
 
 // Print each diagnostic as `severity: location: message` (the message already
-// embeds the compact schemas), then the error and coverage summaries.
-function reportDiagnostics(diags: Diagnostic[]): void {
+// embeds the compact schemas), then the error and coverage summaries. For
+// shorthand input, `locate` maps the canonical-JSON path back to the `.jfn`
+// source and the line is suffixed with ` (at [file:]line:col)`.
+function reportDiagnostics(
+  diags: Diagnostic[],
+  locate?: (d: Diagnostic) => SourcePos | undefined,
+  file?: string,
+): void {
   for (const d of diags) {
     const loc = d.path.length > 0 ? d.path.join(".") : "<root>";
-    console.log(`${d.severity}: ${loc}: ${d.message}`);
+    const pos = locate?.(d);
+    const where =
+      pos === undefined
+        ? ""
+        : ` (at ${file === undefined ? "" : `${file}:`}${pos.line}:${pos.col})`;
+    console.log(`${d.severity}: ${loc}: ${d.message}${where}`);
   }
   const errors = diags.filter((d) => d.severity === "error").length;
   const degradations = diags.filter((d) => d.severity === "info").length;
