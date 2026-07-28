@@ -71,7 +71,7 @@ evalCell: (sheet: Sheet, id: string, trail: string[]) -> Result =>
     isNull(f): err(`missing cell ${id}`),
     else:      evalFormula(sheet, f, concat(trail, [id]))
   } where {
-    cycles: length(filter((seen) => seen == id, trail)) > 0,
+    cycles: includes(trail, id),
     f:      sheet[id]
   }
 

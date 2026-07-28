@@ -36,28 +36,19 @@ indexTasks: (tasks: WorkItem[]) -> WorkMap =>
     tasks
   )
 
-containsId: (ids: TaskId[], target: TaskId) -> boolean =>
-  length(filter((x) => x == target, ids)) > 0
-
 depsSatisfied: (deps: TaskId[], done: TaskId[]) -> boolean =>
-  reduce((ok, d) => ok && containsId(done, d), true, deps)
+  every((d) => includes(done, d), deps)
 
 pickReady: (tasks: WorkItem[], done: TaskId[]) -> TaskId =>
-  filter((t) => !containsId(done, t.id) && depsSatisfied(t.deps, done), tasks)[0]!.id
+  filter((t) => !includes(done, t.id) && depsSatisfied(t.deps, done), tasks)[0]!.id
 
 topoOrder: (tasks: WorkItem[], done: TaskId[]) -> TaskId[] =>
   if length(done) == length(tasks) then done
   else topoOrder(tasks, concat(done, [pickReady(tasks, done)]))
 
-maxInt: (xs: integer[]) -> integer =>
-  reduce((a, x) => if x > a then x else a, xs[0]!, xs)
-
-minInt: (xs: integer[]) -> integer =>
-  reduce((a, x) => if x < a then x else a, xs[0]!, xs)
-
 earliestStart: (times: TimingMap, deps: TaskId[]) -> integer =>
   if length(deps) == 0 then 0
-  else maxInt(map((d) => times[d].ef, deps))
+  else max(map((d) => times[d].ef, deps))
 
 forwardTimes: (byId: WorkMap, order: TaskId[]) -> TimingMap =>
   reduce(
@@ -74,23 +65,20 @@ forwardTimes: (byId: WorkMap, order: TaskId[]) -> TimingMap =>
 dependents: (tasks: WorkItem[], id: TaskId) -> TaskId[] =>
   map(
     (t) => t.id,
-    filter((t) => containsId(t.deps, id), tasks)
+    filter((t) => includes(t.deps, id), tasks)
   )
-
-reverseIds: (xs: TaskId[]) -> TaskId[] =>
-  reduce((acc, x) => concat([x], acc), [], xs)
 
 backwardTimes: (tasks: WorkItem[], byId: WorkMap, fwd: TimingMap, order: TaskId[], horizon: integer) -> TimingMap =>
   reduce(
     (times, id) => merge(times, fromEntries([[id, backSlot(times, byId[id], horizon, tasks)]])),
     fwd,
-    reverseIds(order)
+    reverse(order)
   ) where {
     backSlot: (times: TimingMap, w: WorkItem, projectEnd: integer, ts: WorkItem[]) -> Timing =>
       merge(times[w.id], { ls, lf, slack: ls - times[w.id].es }) where {
         succs: dependents(ts, w.id),
         lf: if length(succs) == 0 then projectEnd
-            else minInt(map((s) => times[s].ls, succs)),
+            else min(map((s) => times[s].ls, succs)),
         ls: lf - w.duration
       }
   }
@@ -119,7 +107,7 @@ plan: (tasks: WorkItem[]) -> Plan =>
     byId: indexTasks(tasks),
     order: topoOrder(tasks, []),
     fwd: forwardTimes(byId, order),
-    makespan: maxInt(map((id) => fwd[id].ef, order)),
+    makespan: max(map((id) => fwd[id].ef, order)),
     full: backwardTimes(tasks, byId, fwd, order, makespan),
     rows: map((id) => toRow(byId[id], full[id]), order)
   }
