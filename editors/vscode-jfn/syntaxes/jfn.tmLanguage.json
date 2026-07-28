@@ -64,7 +64,7 @@
 
     "keyword": {
       "name": "keyword.control.jfn",
-      "match": "\\b(if|then|else|cond|match|where)\\b"
+      "match": "\\b(if|then|else|cond|match|where|do|handle)\\b"
     },
 
     "raw": {
