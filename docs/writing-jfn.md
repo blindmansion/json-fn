@@ -1,9 +1,9 @@
 # Writing json-fn
 
 How to author json-fn programs in `.jfn` shorthand. This covers the complete
-language surface — syntax and semantics only. The available builtins, and any
-named types or `effects` vocabulary injected into your environment, are
-described by separate context.
+language surface — syntax and semantics only. Builtin signatures, and any named
+types or `effects` vocabulary injected into your environment, are described by
+separate context.
 
 ## 1. Mental model
 
@@ -521,3 +521,20 @@ And json-fn specifics with no analogue elsewhere:
   top-level binding.
 - `$`-prefixed keys are forbidden in object literals; wrap such data in
   `raw { … }` (strict JSON inside).
+
+## 14. Builtin names
+
+add, sub, mul, mod, div, neg, abs, floor, ceil, round, trunc, sign, clamp, max,
+min, sum, mean, product, argmin, argmax, sqrt, pow, exp, log, log10, sin, cos,
+tan, atan2, eq, neq, lt, lte, gt, gte, not, and, or, isNull, isBool, isNumber,
+isInteger, isString, isArray, isObject, isTask, str, num, upper, lower, trim,
+strcat, split, join, startsWith, endsWith, replace, padStart, padEnd, length,
+head, last, tail, reverse, take, drop, zip, unique, repeat, flatten,
+flattenDepth, chunk, frequencies, concat, range, rangeFrom, rangeBy, slice,
+includes, indexOf, setAt, keys, values, entries, fromEntries, merge, hasKey,
+pick, omit, map, mapIndexed, filter, filterIndexed, reduce, reduceIndexed,
+partition, scan, find, findIndexed, findIndex, findIndexIndexed, some,
+someIndexed, every, everyIndexed, count, countIndexed, countBy, sort, sortBy,
+sortByIndexed, groupBy, groupByIndexed, flatMap, flatMapIndexed, mapValues,
+apply, pipe, reTest, reMatch, reMatchAll, reReplace, reSplit, reReplaceWith,
+perform, pure, bind, raise, handle, arity, tap
