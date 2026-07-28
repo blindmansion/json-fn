@@ -3,15 +3,41 @@
   "cases": [
     {
       "description": "named type",
-      "source": "value as Count",
+      "source": "value checked as Count",
       "expected": {
         "$as": { "$var": "value" },
         "$type": { "$ref": "#/$defs/Count" }
       }
     },
     {
+      "description": "checked ascription binds less tightly than logical or",
+      "source": "cached || fallback checked as Count",
+      "expected": {
+        "$as": {
+          "$or": [{ "$var": "cached" }, { "$var": "fallback" }]
+        },
+        "$type": { "$ref": "#/$defs/Count" }
+      }
+    },
+    {
+      "description": "a variable named checked can be explicitly ascribed",
+      "source": "(checked) checked as Count",
+      "expected": {
+        "$as": { "$var": "checked" },
+        "$type": { "$ref": "#/$defs/Count" }
+      }
+    },
+    {
+      "description": "checked remains an ordinary call name",
+      "source": "checked(value)",
+      "expected": {
+        "$call": "checked",
+        "$args": [{ "$var": "value" }]
+      }
+    },
+    {
       "description": "ascription binds less tightly than arithmetic",
-      "source": "a + b as Cents",
+      "source": "a + b checked as Cents",
       "expected": {
         "$as": {
           "$call": "add",
@@ -22,7 +48,7 @@
     },
     {
       "description": "parentheses restrict the ascribed operand",
-      "source": "a + (b as Cents)",
+      "source": "a + (b checked as Cents)",
       "expected": {
         "$call": "add",
         "$args": [
@@ -36,7 +62,7 @@
     },
     {
       "description": "non-null assertion binds before ascription",
-      "source": "value! as Count",
+      "source": "value! checked as Count",
       "expected": {
         "$as": { "$nonnull": { "$var": "value" } },
         "$type": { "$ref": "#/$defs/Count" }
@@ -44,7 +70,7 @@
     },
     {
       "description": "parenthesized ascription can be asserted non-null",
-      "source": "(value as Count)!",
+      "source": "(value checked as Count)!",
       "expected": {
         "$nonnull": {
           "$as": { "$var": "value" },
@@ -54,7 +80,7 @@
     },
     {
       "description": "parenthesized ascriptions can be repeated",
-      "source": "(value as Count) as number",
+      "source": "(value checked as Count) checked as number",
       "expected": {
         "$as": {
           "$as": { "$var": "value" },
@@ -65,12 +91,17 @@
     },
     {
       "description": "unparenthesized repeated ascription is rejected",
-      "source": "value as Count as number",
+      "source": "value checked as Count checked as number",
       "error": "checked ascription is non-associative"
     },
     {
+      "description": "old bare ascription spelling is rejected",
+      "source": "value as Count",
+      "error": true
+    },
+    {
       "description": "inline closed object type",
-      "source": "value as { id: integer, name: string }",
+      "source": "value checked as { id: integer, name: string }",
       "expected": {
         "$as": { "$var": "value" },
         "$type": {
@@ -86,7 +117,7 @@
     },
     {
       "description": "inline primitive union",
-      "source": "value as integer | string",
+      "source": "value checked as integer | string",
       "expected": {
         "$as": { "$var": "value" },
         "$type": { "type": ["integer", "string"] }
@@ -94,7 +125,7 @@
     },
     {
       "description": "inline array type",
-      "source": "value as string[]",
+      "source": "value checked as string[]",
       "expected": {
         "$as": { "$var": "value" },
         "$type": { "type": "array", "items": { "type": "string" } }
@@ -102,7 +133,7 @@
     },
     {
       "description": "inline tuple type",
-      "source": "value as [integer, string]",
+      "source": "value checked as [integer, string]",
       "expected": {
         "$as": { "$var": "value" },
         "$type": {
@@ -115,7 +146,7 @@
     },
     {
       "description": "inline refined type",
-      "source": "value as integer & min(0)",
+      "source": "value checked as integer & min(0)",
       "expected": {
         "$as": { "$var": "value" },
         "$type": { "type": "integer", "minimum": 0 }
@@ -123,7 +154,7 @@
     },
     {
       "description": "inline function type",
-      "source": "value as (integer) -> string",
+      "source": "value checked as (integer) -> string",
       "expected": {
         "$as": { "$var": "value" },
         "$type": {

@@ -152,8 +152,11 @@ function renderObject(node: { [k: string]: JSONType }, indent: string): Rendered
   if ("$or" in node) return renderVariadicLogic(node.$or!, "||", P_OR, indent);
   if ("$nonnull" in node) return atom(`${emit(node.$nonnull!, P_ATOM, indent)}!`);
   if ("$as" in node && "$type" in node) {
+    const operand = isBareVarNamed(node.$as!, "checked")
+      ? `(checked)`
+      : emit(node.$as!, P_ASCRIPTION + 1, indent);
     return {
-      text: `${emit(node.$as!, P_ASCRIPTION + 1, indent)} as ${printType(node.$type!)}`,
+      text: `${operand} checked as ${printType(node.$type!)}`,
       prec: P_ASCRIPTION,
     };
   }
@@ -344,9 +347,12 @@ function renderHandle(
   indent: string,
 ): Rendered {
   const clauses = renderDataObject(handlers, indent);
-  const resultType = annotation === null ? "" : ` -> ${printType(annotation)}`;
+  const resultType = annotation === null ? "" : ` returns ${printType(annotation)}`;
+  const renderedTask = emitExpression(task, indent);
+  const taskOperand =
+    isPlainObject(task) && "$as" in task && "$type" in task ? `(${renderedTask})` : renderedTask;
   return {
-    text: `handle ${emitExpression(task, indent)}${resultType} with ${clauses}`,
+    text: `handle ${taskOperand}${resultType} with ${clauses}`,
     prec: P_BLOCK,
   };
 }
@@ -436,9 +442,9 @@ function renderCond(node: { [k: string]: JSONType }, indent: string): Rendered {
   const arms = node.$cond as [JSONType, JSONType][];
   const inner = indent + "  ";
   const lines = arms.map(
-    ([c, r]) => `${inner}${emitExpression(c, inner)} -> ${emit(r, P_BLOCK, inner)}`,
+    ([c, r]) => `${inner}${emitExpression(c, inner)}: ${emit(r, P_BLOCK, inner)}`,
   );
-  if ("$else" in node) lines.push(`${inner}else -> ${emit(node.$else!, P_BLOCK, inner)}`);
+  if ("$else" in node) lines.push(`${inner}else: ${emit(node.$else!, P_BLOCK, inner)}`);
   return { text: `cond {\n${lines.join(",\n")}\n${indent}}`, prec: P_BLOCK };
 }
 
@@ -447,9 +453,9 @@ function renderMatch(node: { [k: string]: JSONType }, indent: string): Rendered 
   const cases = node.$cases as [JSONType, JSONType][];
   const inner = indent + "  ";
   const lines = cases.map(
-    ([c, r]) => `${inner}${emitExpression(c, inner)} -> ${emit(r, P_BLOCK, inner)}`,
+    ([c, r]) => `${inner}${emitExpression(c, inner)}: ${emit(r, P_BLOCK, inner)}`,
   );
-  lines.push(`${inner}else -> ${emit(node.$else!, P_BLOCK, inner)}`);
+  lines.push(`${inner}else: ${emit(node.$else!, P_BLOCK, inner)}`);
   return { text: `match ${subject} {\n${lines.join(",\n")}\n${indent}}`, prec: P_BLOCK };
 }
 
@@ -650,6 +656,11 @@ function isVarPun(value: JSONType, name: string): boolean {
   if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
   const keys = Object.keys(value);
   return keys.length === 1 && keys[0] === "$var" && value.$var === name;
+}
+
+function isBareVarNamed(value: JSONType, name: string): boolean {
+  if (!isPlainObject(value)) return false;
+  return hasExactKeys(value, ["$var"]) && value.$var === name;
 }
 
 /** Serialize a number the way the lexer expects to read it back. */

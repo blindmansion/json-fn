@@ -12,7 +12,7 @@
     },
     {
       "description": "cond form",
-      "source": "cond {\n  n < 0  -> \"negative\",\n  n == 0 -> \"zero\",\n  else   -> \"positive\"\n}",
+      "source": "cond {\n  n < 0:  \"negative\",\n  n == 0: \"zero\",\n  else:   \"positive\"\n}",
       "expected": {
         "$cond": [
           [{ "$call": "lt", "$args": [{ "$var": "n" }, 0] }, "negative"],
@@ -22,8 +22,16 @@
       }
     },
     {
+      "description": "nested object expressions remain distinct from colon arm separators",
+      "source": "cond {\n  { ready: true }: { result: { ok: true } },\n  else: { result: { ok: false } }\n}",
+      "expected": {
+        "$cond": [[{ "ready": true }, { "result": { "ok": true } }]],
+        "$else": { "result": { "ok": false } }
+      }
+    },
+    {
       "description": "match form",
-      "source": "match cmd {\n  \"show\"  -> showResult(state),\n  \"reset\" -> resetResult(),\n  else    -> moveResult(state, argv)\n}",
+      "source": "match cmd {\n  \"show\":  showResult(state),\n  \"reset\": resetResult(),\n  else:     moveResult(state, argv)\n}",
       "expected": {
         "$match": { "$var": "cmd" },
         "$cases": [
@@ -32,6 +40,16 @@
         ],
         "$else": { "$call": "moveResult", "$args": [{ "$var": "state" }, { "$var": "argv" }] }
       }
+    },
+    {
+      "description": "old cond arrow arms are rejected",
+      "source": "cond { true -> 1 }",
+      "error": true
+    },
+    {
+      "description": "old match arrow arms are rejected",
+      "source": "match value { 1 -> \"one\", else -> \"other\" }",
+      "error": true
     }
   ]
 }

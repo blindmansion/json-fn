@@ -16,7 +16,7 @@
     },
     {
       "description": "trailing where on a cond arm result lowers to $let",
-      "source": "cond {\n  n > 0 -> big(n) where { big: (x) => x * 100 },\n  else   -> 0\n}",
+      "source": "cond {\n  n > 0: big(n) where { big: (x) => x * 100 },\n  else: 0\n}",
       "expected": {
         "$cond": [
           [
@@ -37,7 +37,7 @@
     },
     {
       "description": "trailing where on a match arm result lowers to $let",
-      "source": "match cmd {\n  \"go\" -> step(n) where { step: (x) => x + 1 },\n  else -> 0\n}",
+      "source": "match cmd {\n  \"go\": step(n) where { step: (x) => x + 1 },\n  else: 0\n}",
       "expected": {
         "$match": { "$var": "cmd" },
         "$cases": [

@@ -57,7 +57,7 @@
     },
     {
       "description": "a total handle with a function result annotation",
-      "source": "handle task -> (State) -> Report with {\n  return: (value) => (state) => value\n}",
+      "source": "handle task returns (State) -> Report with {\n  return: (value) => (state) => value\n}",
       "expected": {
         "$call": "handle",
         "$args": [
@@ -84,8 +84,33 @@
       }
     },
     {
+      "description": "a parenthesized checked task operand precedes the result contract",
+      "source": "handle (task checked as Task<Report>) returns Report with {}",
+      "expected": {
+        "$call": "handle",
+        "$args": [
+          {
+            "$as": { "$var": "task" },
+            "$type": { "$taskType": { "$ref": "#/$defs/Report" } }
+          },
+          {},
+          {
+            "$raw": { "$ref": "#/$defs/Report" }
+          }
+        ]
+      }
+    },
+    {
+      "description": "returns remains an ordinary handler task name",
+      "source": "handle returns with {}",
+      "expected": {
+        "$call": "handle",
+        "$args": [{ "$var": "returns" }, {}]
+      }
+    },
+    {
       "description": "an unannotated handle remains usable as a cond guard",
-      "source": "cond {\n  handle task with {} -> true,\n  else -> false\n}",
+      "source": "cond {\n  handle task with {}: true,\n  else: false\n}",
       "expected": {
         "$cond": [
           [
@@ -98,6 +123,11 @@
         ],
         "$else": false
       }
+    },
+    {
+      "description": "old annotated handle arrow spelling is rejected",
+      "source": "handle task -> Report with {}",
+      "error": true
     }
   ]
 }

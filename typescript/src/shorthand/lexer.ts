@@ -28,7 +28,7 @@ export type TokPunct =
   | "colon"
   | "dot"
   | "dotdotdot" // ...  (rest parameter or spread)
-  | "arrow" //     ->   (cond/match arm)
+  | "arrow" //     ->   (function result annotation or function type)
   | "fatarrow" //  =>   (function literal)
   | "amp" //       &    (function reference)
   | "bang" //      !

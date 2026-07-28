@@ -81,11 +81,12 @@ class Parser extends TokenCursor {
 
   private parseAscription(): JSONType {
     const value = this.parseOr();
-    if (!this.eatKeyword("as")) return value;
+    if (!this.eatKeyword("checked")) return value;
+    this.expectKeyword("as");
     const type = this.parseTypeExpr();
     // Ascription is deliberately non-associative. Parentheses make repeated
-    // checks explicit: `(value as A) as B`.
-    if (this.isKeyword("as")) {
+    // checks explicit: `(value checked as A) checked as B`.
+    if (this.isKeyword("checked")) {
       throw this.err("checked ascription is non-associative");
     }
     return { $as: value, $type: type };
@@ -522,7 +523,7 @@ class Parser extends TokenCursor {
   /** Peek whether the `(` at the cursor begins a function literal: either
    * `( params ) =>` (bare) or `( params ) -> <type> =>` (typed). The latter is
    * confirmed by parsing the return type and checking for the `=>`, which
-   * distinguishes a typed lambda from a `cond`/`match` arm `(expr) -> result`. */
+   * distinguishes a typed lambda from a parenthesized expression. */
   private looksLikeFuncLit(): boolean {
     let depth = 0;
     let i = this.pos;
@@ -552,8 +553,8 @@ class Parser extends TokenCursor {
    * return type. The type never contains a top-level `=>` (function types use
    * `->`) or a top-level `,`/closer (unions/intersections have none; tuples,
    * objects, and function params are bracketed), so the first depth-0 `=>` is
-   * this lambda's arrow, while a depth-0 `,`/closer/EOF means we're in a
-   * `cond`/`match` arm `(guard) -> result` and never reach one.
+   * this lambda's arrow, while a depth-0 `,`/closer/EOF means this is a
+   * parenthesized expression and never reaches one.
    *
    * Scanning (not parsing) is deliberate: a *malformed* return annotation still
    * looks like a typed-lambda header, so it routes into `parseFuncLit` and its
@@ -568,7 +569,7 @@ class Parser extends TokenCursor {
       if (t.type === "lparen" || t.type === "lbracket" || t.type === "lbrace") {
         depth++;
       } else if (t.type === "rparen" || t.type === "rbracket" || t.type === "rbrace") {
-        if (depth === 0) return false; // the enclosing group closed: an arm, not a lambda
+        if (depth === 0) return false; // the enclosing group closed: not a lambda
         depth--;
       } else if (depth === 0) {
         if (t.type === "fatarrow") return true;
@@ -847,15 +848,15 @@ class Parser extends TokenCursor {
       $cases: arms.map(([c, r]) => [c, r]),
     };
     if (elseVal === undefined) {
-      throw this.err("match requires an 'else ->' arm");
+      throw this.err("match requires an 'else:' arm");
     }
     map.$else = elseVal;
     return map;
   }
 
   /** Parse the shared `cond`/`match` arm block up to and including the closing
-   * `}`. `else -> expr` becomes the optional else value; every other
-   * `expr -> expr` arm is returned in order. */
+   * `}`. `else: expr` becomes the optional else value; every other
+   * `expr: expr` arm is returned in order. */
   private parseArms(): [[JSONType, JSONType][], JSONType | undefined] {
     const arms: [JSONType, JSONType][] = [];
     let elseVal: JSONType | undefined;
@@ -865,11 +866,11 @@ class Parser extends TokenCursor {
     }
     for (;;) {
       if (this.eatKeyword("else")) {
-        this.expect("arrow", "'->' after 'else'");
+        this.expect("colon", "':' after 'else'");
         elseVal = this.parseBody();
       } else {
         const c = this.parseExpr();
-        this.expect("arrow", "'->' in arm");
+        this.expect("colon", "':' in arm");
         arms.push([c, this.parseBody()]);
       }
       const type = this.peekType();
@@ -1001,7 +1002,7 @@ class Parser extends TokenCursor {
     return { $call: "bind", $args: [entry.value, k] };
   }
 
-  /** `handle <task> (-> <type>)? with { "name": clause, ... }` lowers to the
+  /** `handle <task> (returns <type>)? with { "name": clause, ... }` lowers to the
    * partial two-argument or total annotated three-argument `handle` call.
    * Clause keys follow data-object key rules (dotted names like `io.readLine`
    * and the `*` wildcard need quotes). */
@@ -1009,8 +1010,7 @@ class Parser extends TokenCursor {
     // `handle` already consumed.
     const task = this.parseExpr();
     let annotation: Schema | null = null;
-    if (this.peekType() === "arrow") {
-      this.advance();
+    if (this.eatKeyword("returns")) {
       annotation = this.parseTypeExpr();
     }
     this.expectKeyword("with");
