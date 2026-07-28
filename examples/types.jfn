@@ -41,3 +41,24 @@ concatAll: (first: string, ...rest: string[]) -> string =>
 // Object-pattern parameter annotated with an inline object type.
 distance: ({ from, to }: { from: number, to: number }) -> number =>
   abs(to - from)
+
+// Contextual checked ascription and colon-delimited control-flow arms.
+checkedScore: (value: any) -> Score =>
+  value checked as Score
+
+scoreLabel: (score: Score) -> string =>
+  cond {
+    score == 100: "perfect",
+    else: "in progress"
+  }
+
+statusLabel: (status: Status) -> string =>
+  match status {
+    "active": "active",
+    "inactive": "inactive",
+    else: "banned"
+  }
+
+// A total handler uses `returns`; `->` remains the function-type arrow.
+runHandled: (task: Task<string>) -> string =>
+  handle task returns string with {}

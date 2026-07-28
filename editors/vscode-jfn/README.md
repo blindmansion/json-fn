@@ -6,11 +6,14 @@ no build step, no runtime — so it works with any color theme.
 
 ## What it highlights
 
-- Keywords: `if` / `then` / `else`, `cond`, `match`, `where`, and the `raw` marker
+- Keywords: `if` / `then` / `else`, `cond`, `match`, `where`, `do`, `handle`,
+  and the `raw` marker
 - Literals: numbers, `true` / `false` / `null`, `"strings"` (with escapes)
 - Template strings (`` `…${expr}…` ``) with embedded expression coloring in the holes
 - Operators (`+ - * / %`, `++`, `== != < <= > >=`, `&& ||`, `!`) and the
-  `=>` (function) / `->` (case) arrows
+  `=>` (function body) / `->` (function result/type) arrows
+- Control-flow arm colons, the contextual `checked as` operator, and total
+  handler `returns` contracts
 - Function calls (`name(...)`) and function references (`&name`)
 - Object keys / `where` bindings and `.property` accessors
 - `// line comments` and `/* block comments */`
@@ -37,7 +40,8 @@ lookahead the real parser does:
    apart from ordinary identifiers there, so they get the plain variable color —
    this is expected and degrades gracefully.
 
-See `examples/typed/types.jfn` for a program that exercises the full type syntax.
+See [`examples/types.jfn`](../../examples/types.jfn) for a program that
+exercises the type syntax and contextual shorthand tokens.
 
 ## Install (local, unpublished)
 
