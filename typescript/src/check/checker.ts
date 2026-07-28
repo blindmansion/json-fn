@@ -1096,7 +1096,23 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
         const param = paramAt(sig, i);
         if (param === null) synth(a, at(ctx, `$args[${i}]`));
         else if (!arityOk && isBody(a) && sigOf(a) === null) return;
-        else check(a, param, at(ctx, `$args[${i}]`));
+        else if (
+          // A literal null supplied to an omittable fixed slot whose schema
+          // does not admit null is almost always an attempt to "skip" the
+          // slot JS-style. Explain the omission model instead of emitting the
+          // bare assignability error (docs/language.md: explicit null is
+          // supplied data and suppresses omission/default behavior).
+          a === null &&
+          i >= sig.required.length &&
+          i < fixedParamSchemas(sig).length &&
+          !isSubschema(NULL_SCHEMA, param, ctx.defs)
+        ) {
+          report(
+            at(ctx, `$args[${i}]`),
+            `null is not assignable to ${describe(param)}. An explicit null argument supplies a value: it does not omit this optional parameter or activate its default. Omit the argument instead (a non-final slot cannot be skipped; use an object-pattern parameter for independently optional inputs), or annotate the parameter as nullable.`,
+            { expected: param, actual: NULL_SCHEMA },
+          );
+        } else check(a, param, at(ctx, `$args[${i}]`));
       });
       return sig.returns;
     }

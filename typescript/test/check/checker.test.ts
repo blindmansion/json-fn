@@ -507,6 +507,54 @@ describe("checkModule: clean programs", () => {
 });
 
 describe("checkModule: diagnostics", () => {
+  test("explicit null for an omittable slot explains the omission model", () => {
+    const f = body(
+      ["a", { $param: "b", $optional: true }],
+      { required: [I], optional: [S], returns: I },
+      { $var: "a" },
+    );
+    const g = body(
+      [],
+      { required: [], optional: [], returns: I },
+      {
+        $call: "f",
+        $args: [1, null],
+      },
+    );
+
+    const diagnostics = checkModule({ f, g });
+    expect(diagnostics).toHaveLength(1);
+    expect(diagnostics[0]).toMatchObject({
+      path: ["g", "$return", "$args[1]"],
+      severity: "error",
+      expected: S,
+      actual: { type: "null" },
+    });
+    expect(diagnostics[0]!.message).toContain("does not omit this optional parameter");
+
+    // Control: a nullable annotation admits explicit null without the hint.
+    const nullable = body(
+      ["a", { $param: "b", $optional: true }],
+      { required: [I], optional: [{ type: ["string", "null"] }], returns: I },
+      { $var: "a" },
+    );
+    expect(checkModule({ f: nullable, g })).toEqual([]);
+
+    // A required slot keeps the plain assignability error.
+    const strict = body(["a"], { required: [S], optional: [], returns: I }, 1);
+    const h = body(
+      [],
+      { required: [], optional: [], returns: I },
+      {
+        $call: "strict",
+        $args: [null],
+      },
+    );
+    const required = checkModule({ strict, h });
+    expect(required).toHaveLength(1);
+    expect(required[0]!.message).not.toContain("omit");
+  });
+
   test("malformed parameters produce one path-specific diagnostic without body cascades", () => {
     const malformed = body(
       [{ $param: "value" }],
