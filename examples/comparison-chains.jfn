@@ -1,0 +1,78 @@
+// Chained ordered comparisons across bounds, directions, computed operands,
+// collection predicates, operator precedence, and short-circuiting.
+//
+// Evaluate it:
+//   bun run typescript/src/cli.ts eval --file examples/comparison-chains.jfn --function demo
+//
+// Typecheck it:
+//   bun run typescript/src/cli.ts check --file examples/comparison-chains.jfn
+type Range = { lo: number, hi: number }
+type Results = {
+  inclusive: boolean,
+  exclusive: boolean,
+  descending: boolean,
+  mixed: boolean,
+  long: boolean,
+  computed: boolean,
+  precedence: boolean,
+  shortCircuited: boolean,
+  selected: number[],
+  boundaryMatrix: boolean[]
+}
+
+// The familiar range forms read without repeating the middle operand.
+inClosed: (x: number, range: Range) -> boolean =>
+  range.lo <= x <= range.hi
+
+inOpen: (x: number, range: Range) -> boolean =>
+  range.lo < x < range.hi
+
+// Chains may descend and may mix any of <, <=, >, and >=.
+descending: (high: number, value: number, low: number) -> boolean =>
+  high >= value > low
+
+mixedDirections: (a: number, b: number, c: number, d: number) -> boolean =>
+  a < b > c >= d
+
+// Longer chains become one short-circuiting conjunction.
+strictlyIncreasing: (a: number, b: number, c: number, d: number, e: number) -> boolean =>
+  a < b < c < d < e
+
+// Nontrivial interior operands are evaluated at most once. Both abs(value) and
+// value * value + padding are memoized, then shared by adjacent comparisons.
+computedInteriors: (value: number, padding: number) -> boolean =>
+  0 < abs(value) <= value * value + padding < 100
+
+// Arithmetic binds more tightly than comparisons; comparison chains bind more
+// tightly than && and ||.
+precedence: (x: number) -> boolean =>
+  0 <= x + 1 < 10 && x != 4 || x == 99
+
+// The checked ascription would fail if reached. A false first comparison keeps
+// the final operand lazy, proving that a chain stops at its first false link.
+shortCircuitSentinel: () -> boolean =>
+  2 < 1 < (null checked as number)
+
+// Chains are ordinary boolean expressions, so they compose inside callbacks.
+selectInterior: (values: number[], range: Range) -> number[] =>
+  filter((x) => range.lo < x < range.hi, values)
+
+demo: () -> Results => {
+  inclusive:       inClosed(10, bounds),
+  exclusive:       !inOpen(10, bounds),
+  descending:      descending(10, 5, 0),
+  mixed:           mixedDirections(1, 8, 3, 3),
+  long:            strictlyIncreasing(1, 2, 3, 4, 5),
+  computed:        computedInteriors(-8, 12),
+  precedence:      precedence(99),
+  shortCircuited:  !shortCircuitSentinel(),
+  selected:        selectInterior([-1, 0, 1, 5, 9, 10, 11], bounds),
+  boundaryMatrix: [
+    inClosed(0, bounds),
+    inClosed(10, bounds),
+    inOpen(0, bounds),
+    inOpen(10, bounds)
+  ]
+} where {
+  bounds: { lo: 0, hi: 10 }
+}
