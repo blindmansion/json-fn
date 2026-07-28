@@ -31,9 +31,9 @@ Exactly four positions:
    file's implicit module body, lowering to the reserved `$types` sibling (§8).
 2. **Function signatures** — inline param annotations `name: <type>` and a return
    type `-> <type>` on a function literal header (§7).
-3. **Total effect handlers** — `handle task -> <type> with { … }` declares the
+3. **Total effect handlers** — `handle task returns <type> with { … }` declares the
    immediate result contract of the handler.
-4. **Checked value ascriptions** — `expression as <type>` validates the
+4. **Checked value ascriptions** — `expression checked as <type>` validates the
    expression at runtime and gives the successful result that type.
 
 Type _declarations_ are module-top-level only. Type _expressions_ (the `<type>`
@@ -532,13 +532,13 @@ the assertion remains sound at runtime.
 
 ### 9.2 Checked value ascription
 
-`expression as Type` validates a value against an explicit type and gives the
+`expression checked as Type` validates a value against an explicit type and gives the
 successful expression exactly that type:
 
 ```jfn
-balance + delta as Cents
-parse(input) as { id: integer, name: string }
-callback as (integer) -> string
+balance + delta checked as Cents
+parse(input) checked as { id: integer, name: string }
+callback checked as (integer) -> string
 ```
 
 It lowers to a canonical expression containing the value and the type's schema:
@@ -555,8 +555,11 @@ contract is the evidence for the result type. Evaluation performs no
 conversion, and a failed contract raises `RuntimeContractError`. Function types
 install a wrapper that checks eventual arguments and return values.
 
-`as` has lower precedence than all logical and arithmetic operators and is
-non-associative. Write `(x as A) as B` for repeated checks.
+`checked as` has lower precedence than all logical and arithmetic operators and
+is non-associative. Write `(x checked as A) checked as B` for repeated checks.
+It is a contextual two-token operator: `checked(value)` remains an ordinary
+call, and a variable named `checked` is ascribed as
+`(checked) checked as Type`.
 
 ---
 
@@ -582,6 +585,9 @@ moduleEntry := "type" ident "=" type                           // type declarati
              | dataEntry                                        // binding / constant / pun
 
 funcLit     := "(" params ")" ( "->" type )? "=>" body         // return type optional*
+ascription  := orExpr ( "checked" "as" type )?                 // non-assoc
+handleExpr  := "handle" expr ( "returns" type )? "with"
+               "{" (dataEntry ("," dataEntry)*)? "}"
 param       := ident                                            // untyped required
              | ident ":" type                                   // typed required
              | ident "?" (":" type)?                            // optional
@@ -634,8 +640,4 @@ Optional tuple elements remain unresolved below.
   leave to the checker?
 - 🔴 **Named-type inlining** — does `Piece | null` (named enum `Piece`) normalize
   to one enum-with-null (loses the name) or stay `anyOf[$ref, null]`?
-- 🟡 **Assertion operator** spelling + runtime node (deferred doc §7).
-- 🟡 **`->` triple duty** — return type / function-type / arm; distinct token?
-  (deferred doc §6).
-
 Everything else here is resolved and implementable.

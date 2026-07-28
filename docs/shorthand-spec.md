@@ -237,7 +237,7 @@ The current `core.apply` checker rule is intentionally imprecise, so a spread
 call's result type degrades to `any` even when the callee has a known signature;
 this is a checker limitation, not a new canonical JSON form. Because `any`
 does not prove assignability to a concrete return type, use a checked
-ascription (`f(...args) as T`) when the runtime boundary is intentional. Use
+ascription (`f(...args) checked as T`) when the runtime boundary is intentional. Use
 `--require-full-coverage` when the remaining spread-call imprecision must also
 be rejected.
 
@@ -361,14 +361,14 @@ A closed set of operators. Precedence from highest to lowest:
 | 4    | `== != < <= > >=`     | none    | `eq neq lt lte gt gte` (stdlib calls)            |
 | 5    | `&&`                  | flatten | `$and` (short-circuit, variadic)                  |
 | 6    | `\|\|`                | flatten | `$or` (short-circuit, variadic)                   |
-| 7    | `expression as Type`  | none    | `{ "$as": expression, "$type": schema }`          |
+| 7    | `expression checked as Type` | none | `{ "$as": expression, "$type": schema }`       |
 
 ```jfn
 row * 8 + col
 !done
 x > 0 && x < 100
 cached || compute(x)
-balance + delta as Cents
+balance + delta checked as Cents
 ```
 
 ```json
@@ -383,7 +383,7 @@ Rules and rationale:
 
 - **Arithmetic, `++`, comparisons, prefix `!`, and unary `-`** lower to
   **stdlib `$call` calls** (`add`, `strcat`, `eq`, `not`, `neg`, …).
-  `&&`, `||`, postfix `!`, and checked `as` lower to dedicated language
+  `&&`, `||`, postfix `!`, and `checked as` lower to dedicated language
   `$`-forms.
 - `&&`/`||` **flatten**: `a && b && c` → one variadic `$and`. They map to the
   short-circuit language forms, **never** the eager stdlib `and`/`or` (call those
@@ -394,12 +394,16 @@ Rules and rationale:
 - Postfix `x!` is a runtime-checked non-null assertion. It removes `null` from
   the checker's inferred type, returns every non-null value unchanged, and
   raises an evaluation error on `null`.
-- Checked `expression as Type` evaluates the expression once, validates the
+- `expression checked as Type` evaluates the expression once, validates the
   result against the type's runtime contract, and gives the expression that
-  declared type. It binds less tightly than `||`, so `a + b as Cents` means
-  `(a + b) as Cents`. It is non-associative; repeat checks as
-  `(x as A) as B`. Postfix assertion still binds tightly (`x! as T`), while
-  asserting an ascribed result requires parentheses (`(x as T)!`).
+  declared type. It binds less tightly than `||`, so
+  `a + b checked as Cents` means `(a + b) checked as Cents`. It is
+  non-associative; repeat checks as `(x checked as A) checked as B`. Postfix
+  assertion still binds tightly (`x! checked as T`), while asserting an
+  ascribed result requires parentheses (`(x checked as T)!`). `checked` remains
+  an ordinary identifier outside this two-token operator position:
+  `checked(value)` is a call, while ascribing a variable with that name is
+  written `(checked) checked as T`.
 - Only operators with a single unambiguous meaning and universal precedence are
   elevated. Everything else stays a named call.
 - The call form (`add(a, b)`) remains legal and parses identically, but the
@@ -452,15 +456,15 @@ if x > 0 then "positive" else "non-positive"
 
 ### `cond { … }` → `$cond`
 
-Ordered `condition -> result` arms. `else -> …` supplies the optional `$else`;
-`true -> …` is an explicit catch-all arm inside the array. Only the matched
+Ordered `condition: result` arms. `else: …` supplies the optional `$else`;
+`true: …` is an explicit catch-all arm inside the array. Only the matched
 result (or `$else`) is evaluated.
 
 ```jfn
 cond {
-  n < 0  -> "negative",
-  n == 0 -> "zero",
-  else   -> "positive"
+  n < 0:  "negative",
+  n == 0: "zero",
+  else:   "positive"
 }
 ```
 
@@ -477,13 +481,13 @@ cond {
 ### `match subject { … }` → `$match`
 
 Like `cond`, but with a leading subject expression; case values must be scalars
-compared by strict equality. `else -> …` is **required**.
+compared by strict equality. `else: …` is **required**.
 
 ```jfn
 match cmd {
-  "show"  -> showResult(state),
-  "reset" -> resetResult(),
-  else    -> moveResult(state, argv)
+  "show":  showResult(state),
+  "reset": resetResult(),
+  else:    moveResult(state, argv)
 }
 ```
 
@@ -498,8 +502,9 @@ match cmd {
 }
 ```
 
-Arms use `->` (never `=>`, which is reserved for function literals). `cond` is
-distinguished from `match` purely by the absence of a subject after the keyword.
+The surrounding control-flow form distinguishes arm colons from colons in
+nested object expressions. `cond` is distinguished from `match` purely by the
+absence of a subject after the keyword.
 
 ---
 
@@ -852,7 +857,7 @@ moduleEntry := "type" ident "=" type
 expressionInput := body
 
 expr        := ascription
-ascription  := orExpr ( "as" type )?                             // non-assoc
+ascription  := orExpr ( "checked" "as" type )?                   // non-assoc
 orExpr      := andExpr ( "||" andExpr )*
 andExpr     := cmpExpr ( "&&" cmpExpr )*
 cmpExpr     := addExpr ( ("=="|"!="|"<"|"<="|">"|">=") addExpr )?   // non-assoc
@@ -875,7 +880,8 @@ primary     := number | string | template | "true" | "false" | "null"
              | "cond" "{" arm ("," arm)* "}"
              | "match" expr "{" arm ("," arm)* "}"
              | "do" "{" doEntry ("," doEntry)* "}"   // effects (§13)
-             | "handle" expr "with" "{" (dataEntry ("," dataEntry)*)? "}"  // §13
+             | "handle" expr ( "returns" type )? "with"
+                        "{" (dataEntry ("," dataEntry)*)? "}"     // §13
              | "raw" jsonValue
 
 funcLit     := "(" params ")" "=>" body
@@ -892,7 +898,7 @@ dataEntry   := (ident | string) ":" expr
 doEntry     := ident "<-" expr                       // effect binding (§13)
              | ident ":" body                        // pure (lazy-local) binding
              | body                                  // discard (non-final) / result (final)
-arm         := (expr | "else") "->" body
+arm         := (expr | "else") ":" body
 template    := "`" ( char | "${" expr "}" )* "`"     // strict; no coercion
 ident       := [A-Za-z_][A-Za-z0-9_]*
 ```
@@ -1051,7 +1057,7 @@ immediately followed by an **adjacent** `-` token (same line, next column).
 Everywhere else `< -` is an ordinary comparison against a negated operand, so a
 `do` result like `r < -1` is unaffected.
 
-### `handle … (-> Type)? with { … }` — in-language effect interpreter
+### `handle … (returns Type)? with { … }` — in-language effect interpreter
 
 `handle <task> with { "name": clause, … }` lowers to
 `handle(task, { …clauses… })`. The clause record follows **data-object key
@@ -1060,11 +1066,14 @@ rules** (§3), so dotted effect names (`io.readLine`), the `"*"` wildcard, and t
 `"return"`, bubbling, and multi-shot `resume` — are specified in the language
 reference.
 
-The total annotated form `handle <task> -> <type> with { … }` lowers the type
+The total annotated form `handle <task> returns <type> with { … }` lowers the type
 schema as a raw third argument:
 `handle(task, { …clauses… }, raw(<result-schema>))`. The annotation precedes
-`with` so the grammar remains distinct from a `cond` arm whose guard happens to
-be an unannotated `handle` expression.
+`with` and names the handler's immediate result contract explicitly. `returns`
+is contextual: `handle returns with { … }` still handles a task variable named
+`returns`. An ascribed task operand must be parenthesized so `returns` can
+terminate the header operand:
+`handle (task checked as Task<Result>) returns Report with { … }`.
 
 ```jfn
 handle greet(io) with {
@@ -1095,6 +1104,6 @@ continuation is a structural function literal prints as `do { … }`. A leading
 continuation's `$return` reconstructs the consecutive pure entries after that
 effect/discard. A `handle` call with a literal clause object prints as
 `handle … with { … }`; a third `raw(schema)` argument prints as
-`handle … -> Type with { … }`. Any other shape—e.g. a `bind` with an
+`handle … returns Type with { … }`. Any other shape—e.g. a `bind` with an
 `&`-referenced continuation, or a `handle` whose clauses are a computed
 expression—prints as a plain call.

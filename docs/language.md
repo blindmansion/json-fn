@@ -164,13 +164,13 @@ allowed.
 
 The checker gives the expression exactly the declared type without requiring
 the operand's inferred type to be a subtype. In shorthand this is written
-`value as Score`. This is a checked assertion, not a conversion: for example,
-`"1" as integer` fails rather than producing `1`.
+`value checked as Score`. This is a checked assertion, not a conversion: for
+example, `"1" checked as integer` fails rather than producing `1`.
 
 Refinements are intentionally opaque to arithmetic. For example, if
 `Score = integer & min(0)`, arithmetic involving a `Score` produces `integer`;
 the checker does not infer that the result still satisfies `min(0)`. Postfix
-`!` only removes `null`; use `expression as Score` to validate a computed
+`!` only removes `null`; use `expression checked as Score` to validate a computed
 result and establish the refinement explicitly.
 
 Data values pass through a successful ascription unchanged. Ascribing a
@@ -819,7 +819,7 @@ Running a task normalizes it — walking the `bind` spine — to exactly one of 
 
 `handle(task, clauses)` runs a task, dispatching each effect it performs to a matching clause in the `clauses` record. This is a pure, in-language interpreter for effects — no host involved — which is what makes effectful code testable. This two-argument form is **partial**: unmatched effects bubble.
 
-`handle(task, clauses, raw(resultSchema))` is the **total annotated** form, written in shorthand as `handle task -> ResultType with { … }`. Its immediate result is checked against `resultSchema` at runtime, and the checker gives the expression that declared type. An unmatched effect is a `RuntimeContractError` instead of a residual task. The annotation is retained by every generated `resume`, and named types resolve through the active module's `$types`.
+`handle(task, clauses, raw(resultSchema))` is the **total annotated** form, written in shorthand as `handle task returns ResultType with { … }`. Its immediate result is checked against `resultSchema` at runtime, and the checker gives the expression that declared type. An unmatched effect is a `RuntimeContractError` instead of a residual task. The annotation is retained by every generated `resume`, and named types resolve through the active module's `$types`.
 
 Clause lookup is by effect name:
 
@@ -841,7 +841,7 @@ partial form has no declared `R`, so it retains its imprecise static result.
 For a function result annotation such as `(State) -> Report`, validation installs a serializable callable boundary. The function value is checked when produced; each eventual argument and return value is checked when it is called. This is what lets a state handler declare its actual immediate result:
 
 ```jfn
-(handle task -> (ScriptState) -> Report with {
+(handle task returns (ScriptState) -> Report with {
   // clauses return functions awaiting ScriptState
 })(initialState)
 ```
