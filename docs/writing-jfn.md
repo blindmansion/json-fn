@@ -259,7 +259,8 @@ makeAdder: (x: number) -> (number) -> number => (y) => x + y
 Functions recurse by name — a module function by its module name, a
 `where`-local function by its local name; mutual recursion works in both.
 Recursion is the loop; environments may meter total work, so prefer builtins
-(`map`, `reduce`, `range`, …) over manual recursion when one fits.
+(`map`, `reduce`, `range(n)`/`rangeFrom(lo, hi)`, …) over manual recursion
+when one fits.
 
 ## 7. `where` — local bindings
 
@@ -281,9 +282,10 @@ summary: (xs: number[]) -> string =>
   bindings) — unused bindings are checker errors, not dead code.
 - Function-valued `where` bindings are named functions: they need full
   signatures and are callable (and recursive) by their local name.
-- An unparenthesized `where` attaches to the largest enclosing expression —
-  it scopes over a whole `if`/`cond`/`match`. Parenthesize a branch to scope
-  locals to just that branch:
+- An unparenthesized `where` attaches to the largest enclosing expression
+  within the current binding or arm — after an `if`/`cond`/`match` it scopes
+  over the whole conditional, while inside a `cond`/`match` arm it stops at
+  that arm. Parenthesize a branch to scope locals to just that branch:
   `if p then x else (fix(x) where { fix: … })`.
 - Inner `where` names shadow parameters and outer bindings.
 
@@ -330,7 +332,9 @@ user.name        cells[0]        row[i]        config["retry-count"]
   UTF-16 units (`"a😀b"[1]` is `"😀"`, length `3`).
 - There is no assignment. Build updated data with expressions — typically
   `merge(obj, { field: newValue })`, `concat(xs, [x])`, spread literals
-  (`{ ...obj, field: v }`), or `entries`/`fromEntries` pipelines.
+  (`{ ...obj, field: v }`), or `entries`/`fromEntries` pipelines. Adding a
+  *new* field this way yields a wider shape than the original closed object
+  type — declare that wider shape as its own type.
 
 ## 10. Types
 
@@ -372,7 +376,8 @@ type Guard  = (Account) -> boolean               // function type
 - Discriminated unions are just unions of closed objects sharing a literal
   `tag` field — no special syntax; `match`/`==` on the tag narrows (§11).
 - **No user-defined generics.** The single built-in type constructor is
-  `Task<A>` (§12); builtins are internally polymorphic.
+  `Task<A>` (§12); builtins are internally polymorphic. The name `Task` is
+  reserved — a module `type` cannot redeclare it.
 - Non-contractive recursion (`type A = A | null`) is an error; recursion must
   pass through an array or object constructor.
 
@@ -403,6 +408,8 @@ other):
 These compose through `!`, `&&` (facts flow into the true branch), `||`
 (negated facts into the false branch), and named boolean `where`-locals used
 as conditions (`cond { empty: …, … } where { empty: isNull(target) }`).
+`cond` arms narrow like a chain of `if`s: each arm sees its condition's
+facts, and later arms (and `else`) see their inverses.
 
 ## 12. Tasks and effects
 
@@ -416,7 +423,9 @@ Constructors (all pure):
 
 - `effects.some.name(args…)` — the typed effect namespace injected by your
   environment (its vocabulary is part of your task context). Calling a leaf
-  builds an effect task; it does not perform anything.
+  builds an effect task; it does not perform anything. Because the
+  environment injects `effects`, a module may not bind that name at top
+  level.
 - `pure(v)` — a completed task carrying `v`.
 - `raise(err)` — the error channel: a distinguished effect an enclosing
   handler (or the environment) can intercept. There is no throw/catch.
@@ -514,5 +523,7 @@ And json-fn specifics with no analogue elsewhere:
 - Refinements are opaque to arithmetic — revalidate computed values with
   `checked as`.
 - Comparison chaining (`0 <= x < 100`) works and evaluates operands once.
+- Two names are reserved: `Task` as a `type` name and `effects` as a
+  top-level binding.
 - `$`-prefixed keys are forbidden in object literals; wrap such data in
   `raw { … }` (strict JSON inside).
