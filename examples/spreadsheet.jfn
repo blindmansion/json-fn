@@ -1,0 +1,151 @@
+// spreadsheet.jfn — a tiny spreadsheet formula engine.
+//
+// A sheet maps cell ids ("B2") to formulas: numeric literals, references to
+// other cells, binary arithmetic, sums over cell lists, and a conditional.
+// Evaluation resolves references recursively, tracking the trail of cells
+// visited so reference cycles are caught rather than looping forever.
+// Failures (cycles, missing cells, division by zero) are carried in-band as
+// an "err" result so one broken cell renders as #ERR instead of halting the
+// whole sheet.
+
+type CellId = string & pattern("^[A-Z][0-9]+$")
+type Op     = "+" | "-" | "*" | "/"
+
+type Formula =
+    { tag: "num", value: number }
+  | { tag: "ref", cell: CellId }
+  | { tag: "op",  op: Op, left: Formula, right: Formula }
+  | { tag: "sum", cells: CellId[] }
+  | { tag: "if",  test: Formula, whenTrue: Formula, whenFalse: Formula }
+
+type Sheet  = { [string]: Formula }
+type Result = { tag: "ok", value: number } | { tag: "err", reason: string }
+
+// --- formula constructors (object punning keeps these terse) ---
+
+num: (value: number) -> Formula => { tag: "num", value }
+
+ref: (cell: CellId) -> Formula => { tag: "ref", cell }
+
+bin: (op: Op, left: Formula, right: Formula) -> Formula =>
+  { tag: "op", op, left, right }
+
+sumOf: (cells: CellId[]) -> Formula => { tag: "sum", cells }
+
+iff: (test: Formula, whenTrue: Formula, whenFalse: Formula) -> Formula =>
+  { tag: "if", test, whenTrue, whenFalse }
+
+// Build a cell id from column + row; `checked as` re-establishes the
+// refinement that plain string concatenation loses.
+colCell: (col: string, row: integer) -> CellId =>
+  (col ++ str(row)) checked as CellId
+
+// --- result helpers ---
+
+ok: (value: number) -> Result => { tag: "ok", value }
+
+err: (reason: string) -> Result => { tag: "err", reason }
+
+// Combine two results, short-circuiting on the first error.
+both: (a: Result, b: Result, combine: (number, number) -> Result) -> Result =>
+  cond {
+    a.tag == "err": a,
+    b.tag == "err": b,
+    else:           combine(a.value, b.value)
+  }
+
+apply: (op: Op, l: number, r: number) -> Result => match op {
+  "+": ok(l + r),
+  "-": ok(l - r),
+  "*": ok(l * r),
+  else: if r == 0 then err("division by zero") else ok(l / r)
+}
+
+// --- the evaluator ---
+
+// `trail` is the chain of cells currently being resolved; seeing the same id
+// twice means the sheet has a reference cycle.
+evalCell: (sheet: Sheet, id: string, trail: string[]) -> Result =>
+  cond {
+    cycles:    err(`cycle: ${join(concat(trail, [id]), " -> ")}`),
+    isNull(f): err(`missing cell ${id}`),
+    else:      evalFormula(sheet, f, concat(trail, [id]))
+  } where {
+    cycles: length(filter((seen) => seen == id, trail)) > 0,
+    f:      sheet[id]
+  }
+
+evalFormula: (sheet: Sheet, f: Formula, trail: string[]) -> Result => match f.tag {
+  "num": ok(f.value),
+  "ref": evalCell(sheet, f.cell, trail),
+  "op":  both(evalFormula(sheet, f.left, trail),
+              evalFormula(sheet, f.right, trail),
+              (l, r) => apply(f.op, l, r)),
+  "sum": reduce(
+           (acc, cell) => both(acc, evalCell(sheet, cell, trail), (l, r) => ok(l + r)),
+           ok(0),
+           f.cells),
+  else: cond {                        // remaining arm: the "if" formula
+    t.tag == "err": t,
+    t.value != 0:   evalFormula(sheet, f.whenTrue, trail),
+    else:           evalFormula(sheet, f.whenFalse, trail)
+  } where {
+    t: evalFormula(sheet, f.test, trail)
+  }
+}
+
+// --- rendering ---
+
+render: (r: Result) -> string =>
+  if r.tag == "ok" then str(r.value) else `#ERR ${r.reason}`
+
+evalSheet: (sheet: Sheet) -> { [string]: string } =>
+  fromEntries(map((id) => [id, render(evalCell(sheet, id, []))], keys(sheet)))
+
+health: (margin: number) -> string => cond {
+  margin >= 20:     "healthy",
+  5 <= margin < 20: "steady",
+  0 <= margin < 5:  "thin",
+  else:             "losing money"
+}
+
+// --- demo data: a café's monthly numbers ---
+
+coreSheet: {
+  "B2": num(1200),                            // cups of coffee sold
+  "B3": num(4.5),                             // price per cup
+  "B1": bin("*", ref("B2"), ref("B3")),       // coffee revenue
+  "C2": num(250),                             // pastries sold
+  "C3": num(4),                               // price per pastry
+  "C1": bin("*", ref("C2"), ref("C3")),       // pastry revenue
+  "D1": sumOf(["B1", "C1"]),                  // total revenue
+  "E1": num(2400),                            // rent
+  "E2": num(2870),                            // wages
+  "E3": num(650),                             // beans & flour
+  "D2": sumOf(map((row) => colCell("E", row), rangeFrom(1, 4))),  // total costs
+  "D3": bin("-", ref("D1"), ref("D2")),       // profit
+  // margin % — guarded so an empty month reads 0 instead of dividing by zero
+  "D4": iff(ref("D1"),
+            bin("/", bin("*", ref("D3"), num(100)), ref("D1")),
+            num(0))
+}
+
+// Deliberately broken cells, to show each failure mode rendering as #ERR.
+brokenCells: {
+  "F1": ref("F2"),                            // F1 -> F2 -> F1: cycle
+  "F2": ref("F1"),
+  "G1": bin("/", num(1), num(0)),             // division by zero
+  "H1": ref("Z9")                             // Z9 is not on the sheet
+}
+
+cafeSheet: { ...coreSheet, ...brokenCells }
+
+demo: () -> { cells: { [string]: string }, summary: string } => {
+  cells,
+  summary: if marginR.tag == "ok"
+    then `profit ${cells["D3"]!} on revenue ${cells["D1"]!} — margin ${str(marginR.value)}% (${health(marginR.value)})`
+    else `margin unavailable: ${marginR.reason}`
+} where {
+  cells:   evalSheet(cafeSheet),
+  marginR: evalCell(cafeSheet, "D4", [])
+}

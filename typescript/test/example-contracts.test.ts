@@ -35,10 +35,48 @@ function dungeonFixture(): {
 
 describe("typed host-contract examples", () => {
   test("loads every bundled deployment profile from disk", () => {
-    for (const name of ["dungeon", "orbital-traffic", "parcel-sorter", "thermostat"]) {
+    for (const name of [
+      "critical-path",
+      "dungeon",
+      "orbital-traffic",
+      "parcel-sorter",
+      "spreadsheet",
+      "thermostat",
+    ]) {
       const contract = loadEnvironmentContract(join(examples, `${name}.contract.json`));
       expect(loadDeploymentProfile(join(examples, `${name}.profile.json`), contract)).toBeDefined();
     }
+  });
+
+  test("critical-path satisfies its operator-owned contract", () => {
+    const contract = loadEnvironmentContract(join(examples, "critical-path.contract.json"));
+    const module = loadModule(join(examples, "critical-path.jfn"));
+    expect(checkModule(module, loadBuiltinTable(), { contract })).toEqual([]);
+  });
+
+  test("critical-path demo entry matches CPM oracle", async () => {
+    const contract = loadEnvironmentContract(join(examples, "critical-path.contract.json"));
+    const module = loadModule(join(examples, "critical-path.jfn"));
+    const profile = loadDeploymentProfile(join(examples, "critical-path.profile.json"), contract);
+    const report = (await runTask(
+      prepareDeployment({
+        module,
+        contract,
+        profile: profile as Extract<DeploymentProfile, { mode: "live" }>,
+        adapter: { functions: {}, effects: {} },
+      }),
+      [],
+    )) as { makespan: number; criticalNames: string[]; slacky: string[] };
+
+    expect(report.makespan).toBe(16);
+    expect(report.criticalNames).toEqual([
+      "Write spec",
+      "UI prototype",
+      "Integration",
+      "QA pass",
+      "Release",
+    ]);
+    expect(report.slacky).toEqual(["API skeleton", "Schema migrate", "Docs polish"]);
   });
 
   test("dungeon satisfies its operator-owned contract", () => {

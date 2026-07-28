@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "$defs": {
+    "DemoReport": {
+      "type": "object",
+      "required": ["makespan", "criticalNames", "slacky"],
+      "properties": {
+        "makespan": { "type": "integer" },
+        "criticalNames": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "slacky": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "functions": {},
+  "effects": {},
+  "entry": {
+    "name": "demo",
+    "required": [],
+    "optional": [],
+    "returns": { "$ref": "#/$defs/DemoReport" }
+  }
+}

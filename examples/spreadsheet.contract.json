@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "$defs": {
+    "Report": {
+      "type": "object",
+      "required": ["cells", "summary"],
+      "properties": {
+        "cells": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "summary": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "functions": {},
+  "effects": {},
+  "entry": {
+    "name": "demo",
+    "required": [],
+    "optional": [],
+    "returns": { "$ref": "#/$defs/Report" }
+  }
+}

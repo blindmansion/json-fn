@@ -1,0 +1,144 @@
+// Critical-path method (CPM): schedule a DAG of tasks with durations and
+// dependencies; compute earliest/latest times, slack, and the critical path.
+
+type TaskId   = string & pattern("^t_")
+type Duration = integer & min(1)
+
+type WorkItem = {
+  id: TaskId,
+  name: string,
+  duration: Duration,
+  deps: TaskId[]
+}
+
+type WorkMap = { [string]: WorkItem }
+type TimingMap = { [string]: Timing }
+
+type Timing = { es: integer, ef: integer, ls: integer, lf: integer, slack: integer }
+
+type Row = {
+  id: TaskId,
+  name: string,
+  es: integer,
+  ef: integer,
+  ls: integer,
+  lf: integer,
+  slack: integer,
+  critical: boolean
+}
+
+type Plan = { makespan: integer, criticalPath: TaskId[], rows: Row[] }
+
+indexTasks: (tasks: WorkItem[]) -> WorkMap =>
+  reduce(
+    (m, t) => merge(m, fromEntries([[t.id, t]])),
+    {},
+    tasks
+  )
+
+containsId: (ids: TaskId[], target: TaskId) -> boolean =>
+  length(filter((x) => x == target, ids)) > 0
+
+depsSatisfied: (deps: TaskId[], done: TaskId[]) -> boolean =>
+  reduce((ok, d) => ok && containsId(done, d), true, deps)
+
+pickReady: (tasks: WorkItem[], done: TaskId[]) -> TaskId =>
+  filter((t) => !containsId(done, t.id) && depsSatisfied(t.deps, done), tasks)[0]!.id
+
+topoOrder: (tasks: WorkItem[], done: TaskId[]) -> TaskId[] =>
+  if length(done) == length(tasks) then done
+  else topoOrder(tasks, concat(done, [pickReady(tasks, done)]))
+
+maxInt: (xs: integer[]) -> integer =>
+  reduce((a, x) => if x > a then x else a, xs[0]!, xs)
+
+minInt: (xs: integer[]) -> integer =>
+  reduce((a, x) => if x < a then x else a, xs[0]!, xs)
+
+earliestStart: (times: TimingMap, deps: TaskId[]) -> integer =>
+  if length(deps) == 0 then 0
+  else maxInt(map((d) => times[d].ef, deps))
+
+forwardTimes: (byId: WorkMap, order: TaskId[]) -> TimingMap =>
+  reduce(
+    (times, id) => merge(times, fromEntries([[id, fwdSlot(times, byId[id])]])),
+    {},
+    order
+  ) where {
+    fwdSlot: (times: TimingMap, w: WorkItem) -> Timing =>
+      { es, ef: es + w.duration, ls: 0, lf: 0, slack: 0 } where {
+        es: earliestStart(times, w.deps)
+      }
+  }
+
+dependents: (tasks: WorkItem[], id: TaskId) -> TaskId[] =>
+  map(
+    (t) => t.id,
+    filter((t) => containsId(t.deps, id), tasks)
+  )
+
+reverseIds: (xs: TaskId[]) -> TaskId[] =>
+  reduce((acc, x) => concat([x], acc), [], xs)
+
+backwardTimes: (tasks: WorkItem[], byId: WorkMap, fwd: TimingMap, order: TaskId[], horizon: integer) -> TimingMap =>
+  reduce(
+    (times, id) => merge(times, fromEntries([[id, backSlot(times, byId[id], horizon, tasks)]])),
+    fwd,
+    reverseIds(order)
+  ) where {
+    backSlot: (times: TimingMap, w: WorkItem, projectEnd: integer, ts: WorkItem[]) -> Timing =>
+      merge(times[w.id], { ls, lf, slack: ls - times[w.id].es }) where {
+        succs: dependents(ts, w.id),
+        lf: if length(succs) == 0 then projectEnd
+            else minInt(map((s) => times[s].ls, succs)),
+        ls: lf - w.duration
+      }
+  }
+
+toRow: (w: WorkItem, t: Timing) -> Row =>
+  {
+    id: w.id,
+    name: w.name,
+    es: t.es,
+    ef: t.ef,
+    ls: t.ls,
+    lf: t.lf,
+    slack: t.slack,
+    critical: t.slack == 0
+  }
+
+criticalIds: (rows: Row[]) -> TaskId[] =>
+  map((r) => r.id, filter((r) => r.critical, rows))
+
+plan: (tasks: WorkItem[]) -> Plan =>
+  {
+    makespan,
+    criticalPath: criticalIds(rows),
+    rows
+  } where {
+    byId: indexTasks(tasks),
+    order: topoOrder(tasks, []),
+    fwd: forwardTimes(byId, order),
+    makespan: maxInt(map((id) => fwd[id].ef, order)),
+    full: backwardTimes(tasks, byId, fwd, order, makespan),
+    rows: map((id) => toRow(byId[id], full[id]), order)
+  }
+
+// Sample product launch: design → parallel build tracks → integration → ship.
+demo: () -> { makespan: integer, criticalNames: string[], slacky: string[] } =>
+  {
+    makespan: p.makespan,
+    criticalNames: map((r) => r.name, filter((r) => r.critical, p.rows)),
+    slacky: map((r) => r.name, filter((r) => r.slack > 0, p.rows))
+  } where {
+    p: plan([
+      { id: "t_spec",   name: "Write spec",     duration: 3, deps: [] },
+      { id: "t_ui",     name: "UI prototype",   duration: 5, deps: ["t_spec"] },
+      { id: "t_api",    name: "API skeleton",   duration: 4, deps: ["t_spec"] },
+      { id: "t_db",     name: "Schema migrate", duration: 2, deps: ["t_spec"] },
+      { id: "t_int",    name: "Integration",    duration: 3, deps: ["t_ui", "t_api", "t_db"] },
+      { id: "t_qa",     name: "QA pass",        duration: 4, deps: ["t_int"] },
+      { id: "t_docs",   name: "Docs polish",    duration: 2, deps: ["t_int"] },
+      { id: "t_ship",   name: "Release",        duration: 1, deps: ["t_qa", "t_docs"] }
+    ])
+  }
