@@ -3,22 +3,17 @@
 How to author json-fn programs in `.jfn` shorthand. This covers the complete
 language surface — syntax and semantics only. The available builtins, and any
 named types or `effects` vocabulary injected into your environment, are
-described by separate context (in this repository, `docs/builtins.md`); this
-doc is incomplete without it. Look builtins up there rather than guessing —
-even familiar names can differ from their JS/Python counterparts in arity or
-argument order.
+described by separate context.
 
 ## 1. Mental model
 
 json-fn is a **pure functional expression language over immutable JSON
 values**. The surface reads like TypeScript expressions with Haskell-flavored
-`where` and `do`; this doc spends most of its words on where behavior diverges
-from what those languages would suggest.
+`where` and `do`.
 
 - The value universe is exactly JSON: `null`, booleans, finite float64
   numbers, strings, arrays, objects. There is **no `undefined`, no
-  `NaN`/`Infinity`, no reference identity, and no mutation** — "updating" data
-  means building new data.
+  `NaN`/`Infinity`, no reference identity, and no mutation**.
 - A `.jfn` file is one **module**: newline-separated `name: expression`
   bindings and `type Name = …` declarations. No imports or exports; one module
   per program. Some named function serves as the entry point (chosen by the
@@ -32,9 +27,6 @@ from what those languages would suggest.
 - Comments: `// line` and `/* block */`.
 
 ## 2. A complete module
-
-Most syntax below should be recognizable; the rest of the doc pins down the
-semantics.
 
 ```jfn
 // A small ledger: fold transactions over a map of accounts.
@@ -114,13 +106,13 @@ demo: () -> { names: string[], log: string } => {
   memoized, order-independent, mutually recursive, and cycle-checked. There is
   no definition-order concern and no forward-declaration problem.
 - A module binding shadows a same-named builtin. One nuance: only a binding
-  whose value is *literally* a function (`f: (x) => …`) is callable as `f(x)`.
-  A constant that merely *evaluates* to a function shadows the name as a
+  whose value is _literally_ a function (`f: (x) => …`) is callable as `f(x)`.
+  A constant that merely _evaluates_ to a function shadows the name as a
   value but not in call position — call it through an expression instead:
   `(theFn)(x)`.
 - **Named functions must be fully typed** — this applies to module bindings
   and `where`-locals whose value is a function literal. Inline lambdas passed
-  to higher-order functions must stay *bare*; the call site types them
+  to higher-order functions must stay _bare_; the call site types them
   contextually.
 - Functions are values: pass a function by its bare name (`map(double, xs)`)
   or explicitly with `&double`. `&(expr)` forces an evaluated reference.
@@ -150,16 +142,16 @@ demo: () -> { names: string[], log: string } => {
 Closed operator set, highest to lowest precedence. Everything else is a named
 builtin call.
 
-| Prec | Operators            | Meaning                                        |
-| ---- | -------------------- | ---------------------------------------------- |
-| 0    | `x!` (postfix)       | non-null assertion (error if `null`)           |
-| 1    | `!x` `-x`            | logical not, numeric negation                  |
-| 2    | `*` `/` `%`          | float64 arithmetic                             |
-| 3    | `+` `-` `++`         | numeric add/sub; `++` is string concatenation  |
-| 4    | `==` `!=` `<` `<=` `>` `>=` | comparisons; ordered ones chain         |
-| 5    | `&&`                 | short-circuit and, returns the deciding value  |
-| 6    | `\|\|`               | short-circuit or, returns the deciding value   |
-| 7    | `expr checked as T`  | runtime-validated type ascription              |
+| Prec | Operators                   | Meaning                                       |
+| ---- | --------------------------- | --------------------------------------------- |
+| 0    | `x!` (postfix)              | non-null assertion (error if `null`)          |
+| 1    | `!x` `-x`                   | logical not, numeric negation                 |
+| 2    | `*` `/` `%`                 | float64 arithmetic                            |
+| 3    | `+` `-` `++`                | numeric add/sub; `++` is string concatenation |
+| 4    | `==` `!=` `<` `<=` `>` `>=` | comparisons; ordered ones chain               |
+| 5    | `&&`                        | short-circuit and, returns the deciding value |
+| 6    | `\|\|`                      | short-circuit or, returns the deciding value  |
+| 7    | `expr checked as T`         | runtime-validated type ascription             |
 
 Semantics to internalize:
 
@@ -173,7 +165,7 @@ Semantics to internalize:
 - **Truthiness:** exactly `false`, `null`, `0`, and `""` are falsy.
   **Empty arrays and objects are truthy** (JS-like, not Python-like).
 - `&&`/`||` return the first falsy / first truthy operand's value, like JS.
-  They are the *only* lazy boolean forms; the builtins `and`/`or` are eager
+  They are the _only_ lazy boolean forms; the builtins `and`/`or` are eager
   functions.
 - Arithmetic that would produce `NaN` or `±Infinity` **errors** instead
   (`1 / 0` is an error). `/` is float division: `7 / 2` is `3.5`.
@@ -213,7 +205,7 @@ greet: (name: string, title?: string, punct: string = "!") -> string =>
   reference other parameters regardless of order — not JS's left-to-right
   rule). **An explicit `null` argument is supplied data: it binds `null` and
   suppresses the default.** Note the annotation on an omittable parameter
-  types the *supplied* value, so the checker rejects an explicit `null` for
+  types the _supplied_ value, so the checker rejects an explicit `null` for
   `title?: string` — omit the argument instead (or annotate `string | null`
   if callers should pass `null` deliberately).
 - Because calls are positional and cannot skip a slot, an omittable parameter
@@ -323,7 +315,7 @@ user.name        cells[0]        row[i]        config["retry-count"]
 ```
 
 - A **missing** object key or out-of-range index reads as `null`. But reading
-  *through* a present `null` errors (`a.b.c` when `a.b` is `null`), as does
+  _through_ a present `null` errors (`a.b.c` when `a.b` is `null`), as does
   accessing a non-container. There is no `?.` — guard with `if`/`isNull`, or
   assert with `!` when you know better than the type
   (`first: (xs: integer[]) -> integer => xs[0]!`).
@@ -335,7 +327,7 @@ user.name        cells[0]        row[i]        config["retry-count"]
 - There is no assignment. Build updated data with expressions — typically
   `merge(obj, { field: newValue })`, `concat(xs, [x])`, spread literals
   (`{ ...obj, field: v }`), or `entries`/`fromEntries` pipelines. Adding a
-  *new* field this way yields a wider shape than the original closed object
+  _new_ field this way yields a wider shape than the original closed object
   type — declare that wider shape as its own type.
 
 ## 10. Types
@@ -385,7 +377,7 @@ type Guard = (Account) -> boolean // function type
 
 ## 11. Narrowing
 
-Narrowing is a deliberately **small, frozen set** — do not expect TypeScript
+Narrowing is a small set — do not expect TypeScript
 flow analysis. When a union won't discharge with the forms below, the
 sanctioned escape hatches are `x!` (nullability) and `expr checked as T`
 (explicit runtime contract) — not cleverer conditions.
@@ -416,7 +408,7 @@ facts, and later arms (and `else`) see their inverses.
 ## 12. Tasks and effects
 
 json-fn is pure: evaluating an expression never performs I/O. Effects are
-**inert data** — values called **tasks** that *describe* an effectful step.
+**inert data** — values called **tasks** that _describe_ an effectful step.
 Building a task does nothing; the surrounding environment (or an in-language
 handler) runs it. `Task<A>` types a task whose eventual completion value is
 `A`.
@@ -446,7 +438,7 @@ tick: (st: State) -> Task<State> => do {
 ```
 
 - **`name <- taskExpr` is the only entry that runs a task and binds its
-  result.** `name: taskExpr` merely binds the task *value* (lazily, with
+  result.** `name: taskExpr` merely binds the task _value_ (lazily, with
   `where`-binding semantics) — a classic mistake is writing `:` and wondering
   why the effect never happens.
 - A `do` block must end with an expression (usually `pure(result)` or a final
