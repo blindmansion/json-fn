@@ -40,7 +40,7 @@ parse(input) checked as { id: integer, name: string }
 ```
 
 This is a shorthand-only change. Canonical JSON forms and runtime semantics do
-not change.
+not change. This is intentionally a clean breaking change, no backwards compat handling is necessary.
 
 ## Decision
 
