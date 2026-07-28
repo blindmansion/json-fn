@@ -358,7 +358,7 @@ A closed set of operators. Precedence from highest to lowest:
 | 1    | `!x` `-x` (unary)     | prefix  | `not(x)` · `neg(x)` (stdlib calls)               |
 | 2    | `*` `/` `%`           | left    | `mul` · `div` · `mod` (stdlib calls)             |
 | 3    | `+` `-` `++`          | left    | `add` · `sub` · `strcat` (stdlib calls)          |
-| 4    | `== != < <= > >=`     | none    | `eq neq lt lte gt gte` (stdlib calls)            |
+| 4    | `== != < <= > >=`     | ordered chain | `eq neq lt lte gt gte` (stdlib calls)       |
 | 5    | `&&`                  | flatten | `$and` (short-circuit, variadic)                  |
 | 6    | `\|\|`                | flatten | `$or` (short-circuit, variadic)                   |
 | 7    | `expression checked as Type` | none | `{ "$as": expression, "$type": schema }`       |
@@ -367,6 +367,7 @@ A closed set of operators. Precedence from highest to lowest:
 row * 8 + col
 !done
 x > 0 && x < 100
+0 <= x < 100
 cached || compute(x)
 balance + delta checked as Cents
 ```
@@ -375,6 +376,7 @@ balance + delta checked as Cents
 { "$call": "add", "$args": [{ "$call": "mul", "$args": [{ "$var": "row" }, 8] }, { "$var": "col" }] }
 { "$call": "not", "$args": [{ "$var": "done" }] }
 { "$and": [{ "$call": "gt", "$args": [{ "$var": "x" }, 0] }, { "$call": "lt", "$args": [{ "$var": "x" }, 100] }] }
+{ "$and": [{ "$call": "lte", "$args": [0, { "$var": "x" }] }, { "$call": "lt", "$args": [{ "$var": "x" }, 100] }] }
 { "$or": [{ "$var": "cached" }, { "$call": "compute", "$args": [{ "$var": "x" }] }] }
 { "$as": { "$call": "add", "$args": [{ "$var": "balance" }, { "$var": "delta" }] }, "$type": { "$ref": "#/$defs/Cents" } }
 ```
@@ -388,9 +390,19 @@ Rules and rationale:
 - `&&`/`||` **flatten**: `a && b && c` → one variadic `$and`. They map to the
   short-circuit language forms, **never** the eager stdlib `and`/`or` (call those
   by name: `and(a, b)`).
-- Comparisons are **non-associative** (exactly two operands; no `a < b < c`).
+- Ordered comparisons may be chained: `a < b <= c` means
+  `a < b && b <= c`. Mixed ordered operators are allowed. Equality operators
+  cannot participate in a chain: `a == b < c` and `a < b != c` are errors.
   `==` is `eq`, which is **structural** (deep) equality — the only equality
   json-fn has; on scalars it is ordinary strict equality.
+- Chained operands evaluate from left to right, at most once, and stop after
+  the first false comparison. Primitive literals and plain variable reads can
+  be repeated in the canonical `$and`. Every nontrivial interior operand is
+  instead stored in a hygienic, lazy `$let` binding, whose memoized value is
+  used by both adjacent comparisons. For example, `0 < value() < 10` lowers to
+  the equivalent of `tmp > 0 && tmp < 10 where { tmp: value() }`; the synthetic
+  binding name is an implementation detail, and the printer reconstructs the
+  chained surface form.
 - Postfix `x!` is a runtime-checked non-null assertion. It removes `null` from
   the checker's inferred type, returns every non-null value unchanged, and
   raises an evaluation error on `null`.
@@ -860,7 +872,8 @@ expr        := ascription
 ascription  := orExpr ( "checked" "as" type )?                   // non-assoc
 orExpr      := andExpr ( "||" andExpr )*
 andExpr     := cmpExpr ( "&&" cmpExpr )*
-cmpExpr     := addExpr ( ("=="|"!="|"<"|"<="|">"|">=") addExpr )?   // non-assoc
+cmpExpr     := addExpr ( ("=="|"!="|"<"|"<="|">"|">=") addExpr )*
+               // Multiple operators must all be ordered: < <= > >=
 addExpr     := mulExpr ( ("+"|"-"|"++") mulExpr )*
 mulExpr     := unary ( ("*"|"/"|"%") unary )*
 unary       := ("!"|"-") unary | postfix

@@ -37,18 +37,6 @@ would introduce additional syntax.
 Lowering stages to ordinary nested calls could preserve more precise
 typechecking than the existing `pipe([functions], value)` builtin.
 
-### Chained comparisons
-
-Allow bounds to read naturally:
-
-```jfn
-0 <= x <= 7
-```
-
-Each operand must be evaluated once. The planned canonical `$let` node could
-lower a nontrivial middle expression without duplicating it. Limit chaining to
-ordered comparisons; equality chains are ambiguous and unnecessary.
-
 ## Type syntax
 
 The current type syntax is specified in

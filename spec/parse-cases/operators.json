@@ -46,7 +46,70 @@
         "$or": [{ "$var": "cached" }, { "$call": "compute", "$args": [{ "$var": "x" }] }]
       }
     },
-    { "description": "comparisons are non-associative", "source": "a < b < c", "error": true },
+    {
+      "description": "ordered comparisons chain through a variable",
+      "source": "0 <= x < 100",
+      "expected": {
+        "$and": [
+          { "$call": "lte", "$args": [0, { "$var": "x" }] },
+          { "$call": "lt", "$args": [{ "$var": "x" }, 100] }
+        ]
+      }
+    },
+    {
+      "description": "a nontrivial middle comparison operand is evaluated through a lazy memo",
+      "source": "0 <= value() < 100",
+      "expected": {
+        "$let": {
+          "__jfn_cmp_0": { "$call": "value", "$args": [] }
+        },
+        "$in": {
+          "$and": [
+            { "$call": "lte", "$args": [0, { "$var": "__jfn_cmp_0" }] },
+            { "$call": "lt", "$args": [{ "$var": "__jfn_cmp_0" }, 100] }
+          ]
+        }
+      }
+    },
+    {
+      "description": "mixed ordered comparisons form one chain",
+      "source": "a < b >= c > d",
+      "expected": {
+        "$and": [
+          { "$call": "lt", "$args": [{ "$var": "a" }, { "$var": "b" }] },
+          { "$call": "gte", "$args": [{ "$var": "b" }, { "$var": "c" }] },
+          { "$call": "gt", "$args": [{ "$var": "c" }, { "$var": "d" }] }
+        ]
+      }
+    },
+    {
+      "description": "synthetic comparison bindings avoid operand names",
+      "source": "0 < choose(__jfn_cmp_0) < 10",
+      "expected": {
+        "$let": {
+          "__jfn_cmp_1": {
+            "$call": "choose",
+            "$args": [{ "$var": "__jfn_cmp_0" }]
+          }
+        },
+        "$in": {
+          "$and": [
+            { "$call": "lt", "$args": [0, { "$var": "__jfn_cmp_1" }] },
+            { "$call": "lt", "$args": [{ "$var": "__jfn_cmp_1" }, 10] }
+          ]
+        }
+      }
+    },
+    {
+      "description": "equality cannot begin a comparison chain",
+      "source": "a == b < c",
+      "error": "only ordered comparison operators can be chained"
+    },
+    {
+      "description": "equality cannot end a comparison chain",
+      "source": "a < b != c",
+      "error": "only ordered comparison operators can be chained"
+    },
     {
       "description": "concat operator flattens",
       "source": "a ++ b ++ c",

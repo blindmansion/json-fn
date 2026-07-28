@@ -413,6 +413,22 @@ describe("printer output shape", () => {
     expect(parse(print(node))).toEqual(node);
   });
 
+  test("does not fold noncanonical synthetic comparison names", () => {
+    const node: JSONType = {
+      $let: {
+        __jfn_cmp_7: { $call: "value", $args: [] },
+      },
+      $in: {
+        $and: [
+          { $call: "lt", $args: [0, { $var: "__jfn_cmp_7" }] },
+          { $call: "lt", $args: [{ $var: "__jfn_cmp_7" }, 10] },
+        ],
+      },
+    };
+    expect(print(node)).toContain("where");
+    expect(parse(print(node))).toEqual(node);
+  });
+
   test("parenthesizes nested lets without flattening them", () => {
     const node: JSONType = {
       $let: { outer: 2 },

@@ -66,6 +66,9 @@ const COMPARISON_OPS: Partial<Record<TokPunct, string>> = {
   gteq: "gte",
 };
 
+const ORDERED_COMPARISON_NAMES = new Set(["lt", "lte", "gt", "gte"]);
+const COMPARISON_TEMP_PREFIX = "__jfn_cmp_";
+
 class Parser extends TokenCursor {
   // ----- source entry points -----
 
@@ -102,25 +105,53 @@ class Parser extends TokenCursor {
   }
 
   private parseAnd(): JSONType {
-    const parts = [this.parseCmp()];
+    const first = this.parseCmp();
+    const parts = first.chainParts ?? [first.value];
     while (this.peekType() === "andand") {
       this.advance();
-      parts.push(this.parseCmp());
+      const next = this.parseCmp();
+      parts.push(...(next.chainParts ?? [next.value]));
     }
     return parts.length === 1 ? parts[0]! : { $and: parts };
   }
 
-  private parseCmp(): JSONType {
-    const left = this.parseAdd();
-    const name = COMPARISON_OPS[this.peekType() as TokPunct];
-    if (name === undefined) return left;
-    this.advance();
-    const right = this.parseAdd();
-    // Non-associative: reject `a < b < c`.
-    if (COMPARISON_OPS[this.peekType() as TokPunct] !== undefined) {
-      throw this.err("comparison operators are non-associative");
+  private parseCmp(): { value: JSONType; chainParts?: JSONType[] } {
+    const operands = [this.parseAdd()];
+    const names: string[] = [];
+    for (;;) {
+      const name = COMPARISON_OPS[this.peekType() as TokPunct];
+      if (name === undefined) break;
+      this.advance();
+      names.push(name);
+      operands.push(this.parseAdd());
     }
-    return fncall(name, [left, right]);
+
+    if (names.length === 0) return { value: operands[0]! };
+    if (names.length === 1) {
+      return { value: fncall(names[0]!, [operands[0]!, operands[1]!]) };
+    }
+    if (names.some((name) => !ORDERED_COMPARISON_NAMES.has(name))) {
+      throw this.err("only ordered comparison operators can be chained");
+    }
+
+    const usedNames = collectStrings(operands);
+    const bindings: [string, JSONType][] = [];
+    const loweredOperands = [...operands];
+    for (let i = 1; i < operands.length - 1; i++) {
+      const operand = operands[i]!;
+      if (isRepeatSafeComparisonOperand(operand)) continue;
+      const temp = freshComparisonTemp(usedNames);
+      bindings.push([temp, operand]);
+      loweredOperands[i] = { $var: temp };
+    }
+
+    const comparisons = names.map((name, i) =>
+      fncall(name, [loweredOperands[i]!, loweredOperands[i + 1]!]),
+    );
+    const conjunction: JSONType = { $and: comparisons };
+    return bindings.length === 0
+      ? { value: conjunction, chainParts: comparisons }
+      : { value: buildLet(bindings, conjunction) };
   }
 
   private parseAdd(): JSONType {
@@ -1227,6 +1258,46 @@ function buildLet(bindings: [string, JSONType][], result: JSONType): JSONType {
 
 function fncall(name: string, args: JSONType[]): JSONType {
   return { $call: name, $args: args };
+}
+
+/** Primitive values and plain variable reads are safe to repeat in the
+ * canonical lowering. All other interior chain operands are memoized in a
+ * synthetic `$let` binding. */
+function isRepeatSafeComparisonOperand(value: JSONType): boolean {
+  if (value === null || typeof value !== "object") return true;
+  return !Array.isArray(value) && Object.keys(value).length === 1 && typeof value.$var === "string";
+}
+
+/** Conservatively reserve every string in the operands. This includes variable
+ * and binding names even when they occur inside templates, nested functions,
+ * or raw data, making the synthetic `$let` hygienic without a separate
+ * shorthand AST or free-variable analysis. */
+function collectStrings(values: JSONType[]): Set<string> {
+  const strings = new Set<string>();
+  const visit = (value: JSONType): void => {
+    if (typeof value === "string") {
+      strings.add(value);
+    } else if (Array.isArray(value)) {
+      for (const item of value) visit(item);
+    } else if (value !== null && typeof value === "object") {
+      for (const [key, item] of Object.entries(value)) {
+        strings.add(key);
+        visit(item);
+      }
+    }
+  };
+  for (const value of values) visit(value);
+  return strings;
+}
+
+function freshComparisonTemp(used: Set<string>): string {
+  for (let index = 0; ; index++) {
+    const candidate = `${COMPARISON_TEMP_PREFIX}${index}`;
+    if (!used.has(candidate)) {
+      used.add(candidate);
+      return candidate;
+    }
+  }
 }
 
 function plainValues(parts: SpreadPart[]): JSONType[] {

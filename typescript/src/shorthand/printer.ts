@@ -90,6 +90,13 @@ const COMPARISON_OPS: Record<string, string> = {
   gt: ">",
   gte: ">=",
 };
+const ORDERED_COMPARISON_OPS: Record<string, string> = {
+  lt: "<",
+  lte: "<=",
+  gt: ">",
+  gte: ">=",
+};
+const COMPARISON_TEMP_RE = /^__jfn_cmp_\d+$/;
 
 const IDENT_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
@@ -130,6 +137,8 @@ function render(node: JSONType, indent: string): Rendered {
 
 function renderObject(node: { [k: string]: JSONType }, indent: string): Rendered {
   if ("$let" in node || "$in" in node) {
+    const asComparisonChain = tryRenderComparisonChain(node, indent);
+    if (asComparisonChain !== null) return asComparisonChain;
     const asDo = tryRenderDo(node, indent);
     return asDo ?? renderLet(node, indent);
   }
@@ -148,7 +157,10 @@ function renderObject(node: { [k: string]: JSONType }, indent: string): Rendered
   if ("$if" in node) return renderIf(node, indent);
   if ("$cond" in node) return renderCond(node, indent);
   if ("$match" in node) return renderMatch(node, indent);
-  if ("$and" in node) return renderVariadicLogic(node.$and!, "&&", P_AND, indent);
+  if ("$and" in node) {
+    const asComparisonChain = tryRenderComparisonChain(node, indent);
+    return asComparisonChain ?? renderVariadicLogic(node.$and!, "&&", P_AND, indent);
+  }
   if ("$or" in node) return renderVariadicLogic(node.$or!, "||", P_OR, indent);
   if ("$nonnull" in node) return atom(`${emit(node.$nonnull!, P_ATOM, indent)}!`);
   if ("$as" in node && "$type" in node) {
@@ -476,6 +488,152 @@ function renderComparison(op: string, a: JSONType, b: JSONType, indent: string):
   const left = emit(a, P_CMP + 1, indent);
   const right = emit(b, P_CMP + 1, indent);
   return { text: `${left} ${op} ${right}`, prec: P_CMP };
+}
+
+/** Reconstruct parser-generated ordered comparison chains. A chain with only
+ * repeat-safe middle operands is a bare `$and`; nontrivial middles are restored
+ * from hygienic synthetic `$let` bindings. */
+function tryRenderComparisonChain(
+  node: { [k: string]: JSONType },
+  indent: string,
+): Rendered | null {
+  let conjunction: JSONType = node;
+  let bindings: Record<string, JSONType> | null = null;
+
+  if ("$let" in node || "$in" in node) {
+    if (!hasExactKeys(node, ["$let", "$in"]) || !isPlainObject(node.$let)) return null;
+    const entries = Object.entries(node.$let);
+    if (entries.length === 0 || entries.some(([name]) => !COMPARISON_TEMP_RE.test(name))) {
+      return null;
+    }
+    bindings = node.$let;
+    conjunction = node.$in!;
+  }
+
+  if (
+    !isPlainObject(conjunction) ||
+    !hasExactKeys(conjunction, ["$and"]) ||
+    !Array.isArray(conjunction.$and) ||
+    conjunction.$and.length < 2
+  ) {
+    return null;
+  }
+
+  const comparisons = conjunction.$and.map(readOrderedComparison);
+  if (comparisons.some((comparison) => comparison === null)) return null;
+  const ordered = comparisons as { op: string; left: JSONType; right: JSONType }[];
+  for (let i = 1; i < ordered.length; i++) {
+    if (!sameComparisonLink(ordered[i - 1]!.right, ordered[i]!.left)) return null;
+  }
+
+  const operands = [ordered[0]!.left, ...ordered.map((comparison) => comparison.right)];
+  if (bindings !== null) {
+    const used = new Set<string>();
+    const actualTemps: string[] = [];
+    for (let i = 1; i < operands.length - 1; i++) {
+      const operand = operands[i]!;
+      if (
+        isPlainObject(operand) &&
+        hasExactKeys(operand, ["$var"]) &&
+        typeof operand.$var === "string" &&
+        COMPARISON_TEMP_RE.test(operand.$var) &&
+        Object.hasOwn(bindings, operand.$var)
+      ) {
+        used.add(operand.$var);
+        actualTemps.push(operand.$var);
+        operands[i] = bindings[operand.$var]!;
+      }
+    }
+    if (used.size !== Object.keys(bindings).length) return null;
+
+    // Only fold the exact hygienic names the parser would regenerate. This
+    // preserves parse(print(json)) for manually authored, chain-shaped `$let`
+    // nodes that happen to use the synthetic prefix with different suffixes
+    // or binding order.
+    const reserved = collectStrings(operands);
+    const expectedTemps: string[] = [];
+    for (let i = 1; i < operands.length - 1; i++) {
+      if (!isRepeatSafeComparisonOperand(operands[i]!)) {
+        expectedTemps.push(freshComparisonTemp(reserved));
+      }
+    }
+    if (
+      actualTemps.length !== expectedTemps.length ||
+      actualTemps.some((name, i) => name !== expectedTemps[i]) ||
+      Object.keys(bindings).some((name, i) => name !== expectedTemps[i])
+    ) {
+      return null;
+    }
+  }
+
+  const text = operands
+    .map((operand, i) => {
+      const rendered = emit(operand, P_CMP + 1, indent);
+      return i === 0 ? rendered : `${ordered[i - 1]!.op} ${rendered}`;
+    })
+    .join(" ");
+  return { text, prec: P_CMP };
+}
+
+function readOrderedComparison(
+  value: JSONType,
+): { op: string; left: JSONType; right: JSONType } | null {
+  if (
+    !isPlainObject(value) ||
+    !hasExactKeys(value, ["$call", "$args"]) ||
+    typeof value.$call !== "string" ||
+    !Array.isArray(value.$args) ||
+    value.$args.length !== 2
+  ) {
+    return null;
+  }
+  const op = ORDERED_COMPARISON_OPS[value.$call];
+  return op === undefined ? null : { op, left: value.$args[0]!, right: value.$args[1]! };
+}
+
+function sameComparisonLink(left: JSONType, right: JSONType): boolean {
+  if (left === null || typeof left !== "object") return Object.is(left, right);
+  return (
+    isPlainObject(left) &&
+    isPlainObject(right) &&
+    hasExactKeys(left, ["$var"]) &&
+    hasExactKeys(right, ["$var"]) &&
+    typeof left.$var === "string" &&
+    left.$var === right.$var
+  );
+}
+
+function isRepeatSafeComparisonOperand(value: JSONType): boolean {
+  if (value === null || typeof value !== "object") return true;
+  return !Array.isArray(value) && hasExactKeys(value, ["$var"]) && typeof value.$var === "string";
+}
+
+function collectStrings(values: JSONType[]): Set<string> {
+  const strings = new Set<string>();
+  const visit = (value: JSONType): void => {
+    if (typeof value === "string") {
+      strings.add(value);
+    } else if (Array.isArray(value)) {
+      for (const item of value) visit(item);
+    } else if (value !== null && typeof value === "object") {
+      for (const [key, item] of Object.entries(value)) {
+        strings.add(key);
+        visit(item);
+      }
+    }
+  };
+  for (const value of values) visit(value);
+  return strings;
+}
+
+function freshComparisonTemp(used: Set<string>): string {
+  for (let index = 0; ; index++) {
+    const candidate = `__jfn_cmp_${index}`;
+    if (!used.has(candidate)) {
+      used.add(candidate);
+      return candidate;
+    }
+  }
 }
 
 // ----- function bodies & where bindings (spec §8) -----
