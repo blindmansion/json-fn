@@ -25,33 +25,33 @@ type Action =
 // One reading -> one action. `cond` arms guard the sensor first (dead battery,
 // implausible temperature), then steer toward `target` within `tolerance`.
 decide: (cfg: Config, mode: Mode, reading: Reading) -> Action => cond {
-  reading.battery == 0                        -> { tag: "alarm", fault: { tag: "LowBattery" } },
-  reading.temp < -40 || reading.temp > 60     -> { tag: "alarm", fault: { tag: "OutOfRange", temp: reading.temp } },
-  reading.temp < cfg.target - cfg.tolerance   -> if mode == "heat" then { tag: "hold" } else { tag: "switch", to: "heat" },
-  reading.temp > cfg.target + cfg.tolerance   -> if mode == "cool" then { tag: "hold" } else { tag: "switch", to: "cool" },
-  mode != "off"                               -> { tag: "switch", to: "off" },
-  else                                        -> { tag: "hold" }
+  reading.battery == 0:                      { tag: "alarm", fault: { tag: "LowBattery" } },
+  reading.temp < -40 || reading.temp > 60:   { tag: "alarm", fault: { tag: "OutOfRange", temp: reading.temp } },
+  reading.temp < cfg.target - cfg.tolerance: if mode == "heat" then { tag: "hold" } else { tag: "switch", to: "heat" },
+  reading.temp > cfg.target + cfg.tolerance: if mode == "cool" then { tag: "hold" } else { tag: "switch", to: "cool" },
+  mode != "off":                             { tag: "switch", to: "off" },
+  else:                                      { tag: "hold" }
 }
 
 // Fold an action into the state. Only `switch` changes the running mode.
 apply: (st: State, act: Action) -> State => match act.tag {
-  "switch" -> { config: st.config, mode: act.to },
-  else     -> st
+  "switch": { config: st.config, mode: act.to },
+  else:     st
 }
 
 // A human-readable transcript line for one action + the reading behind it.
 describe: (act: Action, reading: Reading) -> string => match act.tag {
-  "switch" -> `${str(reading.temp)}C bat${str(reading.battery)}% -> ${act.to}`,
-  "alarm"  -> `${str(reading.temp)}C bat${str(reading.battery)}% -> ALARM ${act.fault.tag}`,
-  else     -> `${str(reading.temp)}C bat${str(reading.battery)}% -> hold`
+  "switch": `${str(reading.temp)}C bat${str(reading.battery)}% -> ${act.to}`,
+  "alarm":  `${str(reading.temp)}C bat${str(reading.battery)}% -> ALARM ${act.fault.tag}`,
+  else:     `${str(reading.temp)}C bat${str(reading.battery)}% -> hold`
 }
 
 // Turn an action into its effect. `alarm` escalates as a typed `raise`, so an
 // outer handler decides recovery; everything else pokes the HVAC (or nothing).
 actuate: (action: Action) -> Task<null> => match action.tag {
-  "switch" -> effects.hvac.set(action.to),
-  "alarm"  -> raise(action.fault),
-  else     -> pure(null)
+  "switch": effects.hvac.set(action.to),
+  "alarm":  raise(action.fault),
+  else:     pure(null)
 }
 
 // ----- the control loop: straight-line do-notation ------------------------

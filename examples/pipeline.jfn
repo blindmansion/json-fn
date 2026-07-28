@@ -20,12 +20,12 @@ clampTo: ({ lo, hi }: { lo: number, hi: number }) -> (number) -> number =>
 
 // `match` arms narrow the union, so `op.value` / `op.by` / … resolve per case.
 step: (xs: number[], op: Op) -> number[] => match op.tag {
-  "push"  -> concat(xs, [op.value]),
-  "scale" -> map((x) => x * op.by, xs),
-  "keep"  -> filter((x) => x > op.above, xs),
-  "clamp" -> map((x) => clampTo({ lo: op.lo, hi: op.hi })(x), xs),
-  "take"  -> slice(xs, 0, op.n),
-  else    -> sort((a, b) => a - b, xs)
+  "push":  concat(xs, [op.value]),
+  "scale": map((x) => x * op.by, xs),
+  "keep":  filter((x) => x > op.above, xs),
+  "clamp": map((x) => clampTo({ lo: op.lo, hi: op.hi })(x), xs),
+  "take":  slice(xs, 0, op.n),
+  else:    sort((a, b) => a - b, xs)
 }
 
 run:   (ops: Op[]) -> number[] => reduce((xs, op) => step(xs, op), [], ops)
@@ -33,12 +33,12 @@ total: (xs: number[]) -> number => reduce((a, x) => a + x, 0, xs)
 
 // `match` on the discriminant: the arms need no variant-specific fields.
 label: (op: Op) -> string => match op.tag {
-  "push"  -> "push",
-  "scale" -> "scale",
-  "keep"  -> "keep",
-  "clamp" -> "clamp",
-  "take"  -> "take",
-  else    -> "sort"
+  "push":  "push",
+  "scale": "scale",
+  "keep":  "keep",
+  "clamp": "clamp",
+  "take":  "take",
+  else:    "sort"
 }
 
 // Rest parameter: fold any number of trailing lines into one block.

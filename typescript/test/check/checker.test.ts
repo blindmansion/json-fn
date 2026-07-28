@@ -221,7 +221,7 @@ describe("synth: visible `any` degradation", () => {
       {
         path: ["f", "$return"],
         message:
-          'any is not assignable to {"type":"integer"}. Type coverage degraded here; use `as T` for an intentional runtime-checked boundary or fix the degradation above.',
+          'any is not assignable to {"type":"integer"}. Type coverage degraded here; use `checked as T` for an intentional runtime-checked boundary or fix the degradation above.',
         severity: "error",
         expected: { type: "integer" },
         actual: true,

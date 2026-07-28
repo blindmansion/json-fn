@@ -53,7 +53,7 @@ describe("typed-lambda return annotation errors", () => {
   });
 
   test("a cond arm with a parenthesized guard is not mistaken for a typed lambda", () => {
-    expect(parse("cond { (a > b) -> a, else -> b }")).toEqual({
+    expect(parse("cond { (a > b): a, else: b }")).toEqual({
       $cond: [[{ $call: "gt", $args: [{ $var: "a" }, { $var: "b" }] }, { $var: "a" }]],
       $else: { $var: "b" },
     });
@@ -91,7 +91,7 @@ describe("Task completion annotations", () => {
 
 describe("checked ascription errors", () => {
   test("requires parentheses around repeated ascriptions", () => {
-    expect(() => parse("value as integer as number")).toThrow(
+    expect(() => parse("value checked as integer checked as number")).toThrow(
       "checked ascription is non-associative",
     );
   });

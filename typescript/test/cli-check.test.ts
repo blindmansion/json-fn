@@ -32,8 +32,8 @@ test("jfn check narrows nullable values through equality with null", () => {
     "guard: (x: integer | null) -> integer => if x != null then x else 0",
     "guard: (x: integer | null) -> integer => if x == null then 0 else x",
     "guard: (x: integer | null) -> integer => if null != x then x else 0",
-    "guard: (x?: integer) -> integer => cond { x == null -> 0, else -> x }",
-    "guard: (x: integer | null) -> integer => match x { null -> 0, else -> x }",
+    "guard: (x?: integer) -> integer => cond { x == null: 0, else: x }",
+    "guard: (x: integer | null) -> integer => match x { null: 0, else: x }",
     "guard: (x: integer | null) -> integer => if x != null && x > 0 then x else 0",
     "guard: (x: integer | null) -> integer => if x == null || x > 0 then 1 else 0",
   ];
@@ -135,9 +135,11 @@ describe("jfn check coverage reporting", () => {
     expect(strictReturn.stdout).toContain(
       'error: run.$return: any is not assignable to {"type":"integer"}.',
     );
-    expect(strictReturn.stdout).toContain("use `as T` for an intentional runtime-checked boundary");
+    expect(strictReturn.stdout).toContain(
+      "use `checked as T` for an intentional runtime-checked boundary",
+    );
 
-    const ascribedModule = module.replace("sum(...xs)", "sum(...xs) as integer");
+    const ascribedModule = module.replace("sum(...xs)", "sum(...xs) checked as integer");
     const ascribed = runCheck([ascribedModule]);
     expect(ascribed.exitCode).toBe(0);
     expect(ascribed.stdout).toContain("0 errors.");

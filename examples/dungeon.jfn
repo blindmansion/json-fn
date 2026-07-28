@@ -43,9 +43,9 @@ stay: (st: PlayerState, msg: string) -> Turn =>
   { state: st, message: msg, done: false }
 
 move: (st: PlayerState, dir: string | null) -> Turn => cond {
-  isNull(dir)  -> stay(st, "Go where? Try \"go north\"."),
-  isNull(dest) -> stay(st, `There is no exit "${dir}".`),
-  else         -> stay(next, look(next))
+  isNull(dir):  stay(st, "Go where? Try \"go north\"."),
+  isNull(dest): stay(st, `There is no exit "${dir}".`),
+  else:         stay(next, look(next))
 } where {
   dest: roomOf(st).exits[dir!],
   next: { at: dest, held: st.held }
@@ -59,20 +59,20 @@ take: (st: PlayerState) -> Turn => (if isNull(item) || includes(st.held, item)
 }
 
 unlock: (st: PlayerState) -> Turn => cond {
-  st.at != "gate" -> stay(st, "Nothing here is locked."),
-  includes(st.held, "rusty key") ->
+  st.at != "gate": stay(st, "Nothing here is locked."),
+  includes(st.held, "rusty key"):
     { state: st, message: "The key grinds, the gate swings wide. You are free!", done: true },
-  else -> stay(st, "The gate is locked. A key would help.")
+  else: stay(st, "The gate is locked. A key would help.")
 }
 
 // One command -> one turn. The verb is data, dispatched by `match`;
 // tokenizing mirrors the calculator's whitespace-splitting trick.
 step: (st: PlayerState, cmd: string) -> Turn => match verb {
-  "look"   -> stay(st, look(st)),
-  "go"     -> move(st, parts[1]),
-  "take"   -> take(st),
-  "unlock" -> unlock(st),
-  else     -> stay(st, `You try to "${verb}", but the dungeon is unimpressed.`)
+  "look":   stay(st, look(st)),
+  "go":     move(st, parts[1]),
+  "take":   take(st),
+  "unlock": unlock(st),
+  else:     stay(st, `You try to "${verb}", but the dungeon is unimpressed.`)
 } where {
   parts: filter((w) => w != "", reSplit("\\s+", cmd)),
   verb: parts[0]

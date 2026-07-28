@@ -355,7 +355,7 @@ describe("chess fragments — Tier 3: lazy-local & boolean-guard narrowing (§5.
   });
 
   test("slideDir: a $cond guarded by named boolean locals narrows the else-arm (§2.3)", () => {
-    // (target: Cell) => cond { !ok -> null, empty -> null, else -> upper(target) }
+    // (target: Cell) => cond { !ok: null, empty: null, else: upper(target) }
     //   where empty = isNull(target), ok = not(empty)   // alias depth 2
     // The else-arm is reached only when every guard is false, which the boolean
     // aliases prove implies `target : Piece`. `factsFromCondition` recurses
@@ -430,7 +430,7 @@ describe("chess fragments — Tier 3: lazy-local & boolean-guard narrowing (§5.
   });
 
   test("per-arm divergence: a local re-synthesizes per fact set, with dedup'd diagnostics", () => {
-    // (p: Color, q: Cell) => match p { "w" -> d } else d
+    // (p: Color, q: Cell) => match p { "w": d } else d
     //   where d = [upper(q), p]
     // `d` is forced under two distinct facts — p : "w" (case) and p : "b"
     // (else). The memo split gives `d` two element types ("w" vs "b"), whose
@@ -676,7 +676,7 @@ describe("chess fragments — Tier 5: $match exhaustiveness & dead cases (§5.6)
   const Shape: Schema = { $ref: "#/$defs/Shape" };
 
   test("enum match missing an arm errors (no $else, unhandled 'b')", () => {
-    // (color: Color) => match color { "w" -> 1 }   // no "b", no $else
+    // (color: Color) => match color { "w": 1 }   // no "b", no $else
     const mod = {
       $types: types,
       f: body(["color"], { required: [Color], optional: [], returns: I }, {
@@ -692,7 +692,7 @@ describe("chess fragments — Tier 5: $match exhaustiveness & dead cases (§5.6)
   });
 
   test("a full enum match is clean even without an $else", () => {
-    // (color: Color) => match color { "w" -> 1, "b" -> 2 }   // covers all
+    // (color: Color) => match color { "w": 1, "b": 2 }   // covers all
     const mod = {
       $types: types,
       f: body(["color"], { required: [Color], optional: [], returns: I }, {
@@ -707,7 +707,7 @@ describe("chess fragments — Tier 5: $match exhaustiveness & dead cases (§5.6)
   });
 
   test("a present $else suppresses the exhaustiveness error", () => {
-    // (color: Color) => match color { "w" -> 1 } else 2
+    // (color: Color) => match color { "w": 1 } else 2
     const mod = {
       $types: types,
       f: body(["color"], { required: [Color], optional: [], returns: I }, {
@@ -720,7 +720,7 @@ describe("chess fragments — Tier 5: $match exhaustiveness & dead cases (§5.6)
   });
 
   test("discriminated-union match missing an arm errors (unhandled 'square')", () => {
-    // (s: Shape) => match s.tag { "circle" -> 1 }   // missing "square", no $else
+    // (s: Shape) => match s.tag { "circle": 1 }   // missing "square", no $else
     const mod = {
       $types: shapeTypes,
       f: body(["s"], { required: [Shape], optional: [], returns: I }, {
@@ -735,7 +735,7 @@ describe("chess fragments — Tier 5: $match exhaustiveness & dead cases (§5.6)
   });
 
   test("a full discriminated-union match is clean without an $else", () => {
-    // (s: Shape) => match s.tag { "circle" -> 1, "square" -> 2 }
+    // (s: Shape) => match s.tag { "circle": 1, "square": 2 }
     const mod = {
       $types: shapeTypes,
       f: body(["s"], { required: [Shape], optional: [], returns: I }, {
@@ -750,7 +750,7 @@ describe("chess fragments — Tier 5: $match exhaustiveness & dead cases (§5.6)
   });
 
   test("discriminated-union match narrows the base in each case arm", () => {
-    // (s: Shape) => match s.tag { "circle" -> s.r, "square" -> s.side }
+    // (s: Shape) => match s.tag { "circle": s.r, "square": s.side }
     // Each arm can project the field unique to the matched object variant.
     const mod = {
       $types: shapeTypes,
@@ -766,7 +766,7 @@ describe("chess fragments — Tier 5: $match exhaustiveness & dead cases (§5.6)
   });
 
   test("a dead/impossible case errors (literal not in the enum)", () => {
-    // (color: Color) => match color { "w" -> 1, "x" -> 2 } else 3
+    // (color: Color) => match color { "w": 1, "x": 2 } else 3
     // "x" is not a Color, so that case can never match.
     const mod = {
       $types: types,
@@ -787,7 +787,7 @@ describe("chess fragments — Tier 5: $match exhaustiveness & dead cases (§5.6)
   });
 
   test("a match over an infinite subject is not linted (undecidable universe)", () => {
-    // (s: string) => match s { "hi" -> 1 }   // string is not finite → no lint
+    // (s: string) => match s { "hi": 1 }   // string is not finite → no lint
     const mod = {
       f: body(["s"], { required: [S], optional: [], returns: I }, {
         $match: v("s"),

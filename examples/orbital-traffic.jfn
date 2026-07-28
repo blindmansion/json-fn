@@ -29,17 +29,17 @@ closestTime: (r: Vector, v: Vector, horizonMinutes: number) -> number =>
     else clamp(-dot(r, v) / dot(v, v), 0, horizonMinutes)
 
 severity: (missKm: number, protectedKm: number, timeMinutes: number) -> Severity => cond {
-  missKm <= protectedKm && timeMinutes <= 15 -> "critical",
-  missKm <= protectedKm                      -> "danger",
-  missKm <= protectedKm * 3                  -> "watch",
-  else                                       -> "clear"
+  missKm <= protectedKm && timeMinutes <= 15: "critical",
+  missKm <= protectedKm:                      "danger",
+  missKm <= protectedKm * 3:                  "watch",
+  else:                                       "clear"
 }
 
 recommendation: (level: Severity, a: Track, b: Track) -> string => match level {
-  "critical" -> `MANEUVER ${b.id}; coordinate immediately with ${a.id}`,
-  "danger"   -> `prepare avoidance plan for ${b.id}`,
-  "watch"    -> `increase tracking cadence for ${a.id}/${b.id}`,
-  else       -> "no action"
+  "critical": `MANEUVER ${b.id}; coordinate immediately with ${a.id}`,
+  "danger":   `prepare avoidance plan for ${b.id}`,
+  "watch":    `increase tracking cadence for ${a.id}/${b.id}`,
+  else:       "no action"
 }
 
 assess: (pair: TrackPair, horizonMinutes: number) -> Encounter => {
@@ -62,15 +62,15 @@ assess: (pair: TrackPair, horizonMinutes: number) -> Encounter => {
 // Each unordered pair appears exactly once.
 pairs: (tracks: Track[]) -> TrackPair[] =>
   flatMapIndexed(
-    (a, index) => map((b) => [a, b] as TrackPair, drop(tracks, index + 1)),
+    (a, index) => map((b) => [a, b] checked as TrackPair, drop(tracks, index + 1)),
     tracks
   )
 
 rank: (level: Severity) -> integer => match level {
-  "critical" -> 0,
-  "danger"   -> 1,
-  "watch"    -> 2,
-  else       -> 3
+  "critical": 0,
+  "danger":   1,
+  "watch":    2,
+  else:       3
 }
 
 line: (e: Encounter) -> string =>

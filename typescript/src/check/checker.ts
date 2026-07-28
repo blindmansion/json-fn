@@ -1199,7 +1199,7 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
 // Report an `actual ⊄ expected` mismatch as a hard error. §4.5 removed the
 // former runtime-checkable "warning" downgrade for overlapping (narrowable)
 // mismatches: an agent must prove the value with a recognized guard, or
-// discharge it with an explicit checked boundary such as `x!` or `x as T`.
+// discharge it with an explicit checked boundary such as `x!` or `x checked as T`.
 function reportMismatch(
   ctx: CheckContext,
   actual: Schema,
@@ -1207,7 +1207,7 @@ function reportMismatch(
   degraded = false,
 ): void {
   const hint = degraded
-    ? " Type coverage degraded here; use `as T` for an intentional runtime-checked boundary or fix the degradation above."
+    ? " Type coverage degraded here; use `checked as T` for an intentional runtime-checked boundary or fix the degradation above."
     : "";
   report(ctx, `${describe(actual)} is not assignable to ${describe(expected)}.${hint}`, {
     expected,

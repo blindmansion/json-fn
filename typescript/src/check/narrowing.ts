@@ -306,7 +306,7 @@ function factsFromCondition(
   if (!isSchemaObject(cond)) return {};
 
   // A bare-var condition may be a *named boolean guard* — a lazy local like
-  // `empty: isNull(target)` used as `cond { empty -> … }` (§2.3). Recurse into
+  // `empty: isNull(target)` used as `cond { empty: … }` (§2.3). Recurse into
   // its binding expression; `seen` breaks alias cycles (`ok: not(empty)`,
   // `empty: not(ok)`), which fall back to the plain truthiness fact below.
   const guardVar = asVarName(cond);

@@ -141,7 +141,7 @@ describe("printer output shape", () => {
         },
         $type: { $ref: "#/$defs/Cents" },
       }),
-    ).toBe("balance + delta as Cents");
+    ).toBe("balance + delta checked as Cents");
   });
 
   test("parenthesizes assertion forms to preserve precedence and association", () => {
@@ -149,17 +149,19 @@ describe("printer output shape", () => {
       $as: { $var: "value" },
       $type: { $ref: "#/$defs/Count" },
     };
-    expect(print({ $call: "add", $args: [1, ascribed] })).toBe("1 + (value as Count)");
-    expect(print({ $nonnull: ascribed })).toBe("(value as Count)!");
-    expect(print({ $as: ascribed, $type: { type: "number" } })).toBe("(value as Count) as number");
+    expect(print({ $call: "add", $args: [1, ascribed] })).toBe("1 + (value checked as Count)");
+    expect(print({ $nonnull: ascribed })).toBe("(value checked as Count)!");
+    expect(print({ $as: ascribed, $type: { type: "number" } })).toBe(
+      "(value checked as Count) checked as number",
+    );
   });
 
   test("parses assertion precedence and canonical forms", () => {
-    expect(parse("value! as Count")).toEqual({
+    expect(parse("value! checked as Count")).toEqual({
       $as: { $nonnull: { $var: "value" } },
       $type: { $ref: "#/$defs/Count" },
     });
-    expect(parse("balance + (delta as Cents)")).toEqual({
+    expect(parse("balance + (delta checked as Cents)")).toEqual({
       $call: "add",
       $args: [
         { $var: "balance" },

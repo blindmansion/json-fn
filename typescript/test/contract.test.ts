@@ -336,7 +336,7 @@ describe("contract checker integration", () => {
       },
     });
     const mod = module(`
-      interpret: (task: Task<integer>) -> integer => handle task -> integer with {
+      interpret: (task: Task<integer>) -> integer => handle task returns integer with {
         log: (message, resume) => resume(null) + length(message),
         return: (value) => value + 1
       }
@@ -353,7 +353,7 @@ describe("contract checker integration", () => {
       },
     });
     const mod = module(`
-      interpret: (task: Task<integer>) -> integer => handle task -> integer with {
+      interpret: (task: Task<integer>) -> integer => handle task returns integer with {
         log: (message, resume) => resume("wrong") + message,
         return: (value) => "wrong"
       }

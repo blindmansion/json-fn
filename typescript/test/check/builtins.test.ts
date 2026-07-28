@@ -341,7 +341,7 @@ describe("Section F — builtin signatures", () => {
       {
         path: ["f", "$return"],
         message:
-          '{"type":"array","items":true} is not assignable to {"type":"array","items":{"type":"integer"}}. Type coverage degraded here; use `as T` for an intentional runtime-checked boundary or fix the degradation above.',
+          '{"type":"array","items":true} is not assignable to {"type":"array","items":{"type":"integer"}}. Type coverage degraded here; use `checked as T` for an intentional runtime-checked boundary or fix the degradation above.',
         severity: "error",
         expected: { type: "array", items: { type: "integer" } },
         actual: { type: "array", items: true },

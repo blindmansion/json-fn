@@ -6,18 +6,18 @@ type OracleState = { transcript: string[] }
 type OracleRun = { report: Report, transcript: string[] }
 
 resultFor: (agentHandle: Handle) -> AgentResult => match agentHandle {
-  "research"  -> { ok: true, output: "release facts" },
-  "summarize" -> { ok: true, output: "summary: release facts" },
-  "alpha"     -> { ok: true, output: "alpha report" },
-  "broken"    -> { ok: false, error: "agent failed safely" },
-  "bravo"     -> { ok: true, output: "bravo report" },
-  "fast"      -> { ok: true, output: "fast result" },
-  "slow"      -> { ok: true, output: "slow result" },
-  else        -> { ok: false, error: `unknown handle: ${agentHandle}` }
+  "research":  { ok: true, output: "release facts" },
+  "summarize": { ok: true, output: "summary: release facts" },
+  "alpha":     { ok: true, output: "alpha report" },
+  "broken":    { ok: false, error: "agent failed safely" },
+  "bravo":     { ok: true, output: "bravo report" },
+  "fast":      { ok: true, output: "fast result" },
+  "slow":      { ok: true, output: "slow result" },
+  else:        { ok: false, error: `unknown handle: ${agentHandle}` }
 }
 
 interpret: (task: Task<Report>) -> OracleRun =>
-  (handle task -> (OracleState) -> OracleRun with {
+  (handle task returns (OracleState) -> OracleRun with {
     "agent.spawn": (spec, resume) => (state) =>
       resume(spec.name)({
         transcript: concat(state.transcript, [`spawn ${spec.name}`])

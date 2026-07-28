@@ -21,39 +21,39 @@ type Decision =
 // Express parcels bypass regional lanes. Bad labels and parcels above the
 // belt's safe limit are rejected before any conveyor command is emitted.
 decide: (parcel: Parcel) -> Decision => cond {
-  parcel.weightKg > 30 -> {
+  parcel.weightKg > 30: {
     tag: "reject",
     fault: { tag: "Overweight", id: parcel.id, kilograms: parcel.weightKg }
   },
-  parcel.id == "" -> {
+  parcel.id == "": {
     tag: "reject",
     fault: { tag: "BadLabel", id: parcel.id }
   },
-  parcel.express -> { tag: "route", lane: "express" },
-  parcel.region == "north" -> { tag: "route", lane: "north" },
-  parcel.region == "south" -> { tag: "route", lane: "south" },
-  else -> { tag: "route", lane: "international" }
+  parcel.express: { tag: "route", lane: "express" },
+  parcel.region == "north": { tag: "route", lane: "north" },
+  parcel.region == "south": { tag: "route", lane: "south" },
+  else: { tag: "route", lane: "international" }
 }
 
 describe: (parcel: Parcel, decision: Decision) -> string => match decision.tag {
-  "route" -> `${parcel.id}: ${parcel.region} ${str(parcel.weightKg)}kg -> ${decision.lane}`,
-  else -> `${parcel.id}: REJECT ${decision.fault.tag}`
+  "route": `${parcel.id}: ${parcel.region} ${str(parcel.weightKg)}kg -> ${decision.lane}`,
+  else: `${parcel.id}: REJECT ${decision.fault.tag}`
 }
 
 apply: (st: State, decision: Decision) -> State => match decision.tag {
-  "route" -> { routed: st.routed + 1 },
-  else -> st
+  "route": { routed: st.routed + 1 },
+  else: st
 }
 
 routeOne: (st: State, parcel: Parcel) -> Task<State> => do {
   decision: decide(parcel),
   effects.log(describe(parcel, decision)),
   match decision.tag {
-    "route" -> do {
+    "route": do {
       effects.conveyor.route(parcel.id, decision.lane),
       pure(apply(st, decision))
     },
-    else -> raise(decision.fault)
+    else: raise(decision.fault)
   }
 }
 
