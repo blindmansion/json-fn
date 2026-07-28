@@ -6,6 +6,7 @@
 //   to-json       .jfn shorthand          ->  canonical json-fn JSON
 //   eval          evaluate a .jfn expression (or module entry) and print it
 //   check         parse a .jfn expression/module and typecheck it
+//   builtin       show a builtin's signatures and description
 //   validate-*    validate portable deployment artifacts
 //
 // Input is read from a positional argument, a --file, or stdin (in that order),
@@ -35,6 +36,7 @@ import { checkExpr, checkModule } from "./check/module";
 import type { Diagnostic } from "./check/context";
 import type { CallableTable } from "./check/builtin-types";
 import { loadBuiltinTable } from "./builtins";
+import { renderBuiltinSignature } from "./builtin-signature-format";
 import { loadEnvironmentContract } from "./environment/environment";
 import type { EnvironmentContract } from "./environment/types";
 import { isFunctionBody } from "./function-value";
@@ -50,6 +52,7 @@ Commands:
   to-json        Read .jfn shorthand, print canonical json-fn JSON   (alias: s2j, parse)
   eval           Invoke a .jfn module function and print the result  (alias: e)
   check          Typecheck a canonical json-fn module or expression  (alias: c)
+  builtin        Show a builtin's signatures and description
   validate-contract
                   Validate a portable contract JSON artifact
   validate-profile
@@ -109,6 +112,9 @@ check options:
                       Exit non-zero when any expression degrades to any
   -c, --compact       Emit JSON output (inferred type, --json-diagnostics) minified
 
+builtin:
+  jfn builtin <name>
+
 validate-profile options:
       --contract <path>
                       EnvironmentContract used to validate selected profile effects
@@ -122,6 +128,7 @@ Examples:
   jfn eval --file module.jfn --contract module.contract.json
   jfn eval --file module.jfn --contract module.contract.json --function demo
   jfn check --expr 'add(1, 2)'
+  jfn builtin map
   jfn check --file ../examples/typed/types.jfn
 `;
 
@@ -500,6 +507,33 @@ async function cmdCheck(argv: string[]): Promise<void> {
   exitFromDiagnostics(diagnostics, requireFullCoverage);
 }
 
+async function cmdBuiltin(argv: string[]): Promise<void> {
+  const parsed = parseArgs(argv, {}, { "-h": "help", "--help": "help" });
+  if (parsed.flags.has("help")) {
+    console.log("Usage: jfn builtin <name>");
+    return;
+  }
+  if (parsed.positional.length !== 1) {
+    fail("builtin requires exactly one name");
+  }
+
+  let builtins: CallableTable;
+  try {
+    builtins = loadBuiltinTable();
+  } catch (e) {
+    fail(`could not load builtin table: ${errMessage(e)}`);
+  }
+
+  const name = parsed.positional[0]!;
+  const entry = builtins.builtins[name];
+  if (entry === undefined) fail(`unknown builtin "${name}"`);
+
+  const signatures = entry.signatures.map((signature) => `  ${renderBuiltinSignature(signature)}`);
+  console.log(
+    `${name}\n${signatures.join("\n")}\n\n${entry.description ?? "No description available."}`,
+  );
+}
+
 async function cmdValidateContract(argv: string[]): Promise<void> {
   const parsed = parseArgs(argv, { "-f": "file", "--file": "file" }, {});
   const value = await readJsonArtifact(parsed);
@@ -641,6 +675,9 @@ async function main(): Promise<void> {
     case "check":
     case "c":
       await cmdCheck(rest);
+      break;
+    case "builtin":
+      await cmdBuiltin(rest);
       break;
     case "validate-contract":
       await cmdValidateContract(rest);

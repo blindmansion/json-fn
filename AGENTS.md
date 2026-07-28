@@ -72,6 +72,7 @@ Commands:
   `--json` (alias `--json-input`) reads canonical json-fn JSON instead of `.jfn`
   shorthand. Diagnostics on shorthand input carry source positions
   (`(at [file:]line:col)`; `line`/`col` fields with `--json-diagnostics`).
+- `builtin <name>` — print a builtin's signatures and description.
 - `validate-contract` — validate portable environment-contract JSON.
 - `validate-profile --contract <path>` — validate portable deployment profile JSON.
 
