@@ -618,7 +618,7 @@ function renderModule(node: { [k: string]: JSONType }, indent: string): string {
   }
 
   const entries = [...typeEntries, ...bindingKeys.map((key) => renderDataEntry(node, key, indent))];
-  return entries.join(",\n");
+  return entries.join("\n");
 }
 
 function renderDataObject(node: { [k: string]: JSONType }, indent: string): string {

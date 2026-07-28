@@ -283,7 +283,7 @@ describe("contract checker integration", () => {
       },
     });
     const mod = module(`
-      read: () -> Task<integer> => effects.sensor.read(),
+      read: () -> Task<integer> => effects.sensor.read()
       main: () => read()
     `);
 
@@ -293,7 +293,7 @@ describe("contract checker integration", () => {
   test("checks recursive helper completion types through their eager signatures", () => {
     const mod = module(`
       loop: (fuel: integer) -> Task<integer> =>
-        if fuel <= 0 then pure(0) else loop(fuel - 1),
+        if fuel <= 0 then pure(0) else loop(fuel - 1)
       main: () => loop(2)
     `);
 
@@ -302,7 +302,7 @@ describe("contract checker integration", () => {
 
   test("rejects a helper body with the wrong declared completion type", () => {
     const mod = module(`
-      wrong: () -> Task<integer> => pure("wrong"),
+      wrong: () -> Task<integer> => pure("wrong")
       main: () => wrong()
     `);
 
@@ -339,7 +339,7 @@ describe("contract checker integration", () => {
       interpret: (task: Task<integer>) -> integer => handle task -> integer with {
         log: (message, resume) => resume(null) + length(message),
         return: (value) => value + 1
-      },
+      }
       main: () => pure(1)
     `);
 
@@ -356,7 +356,7 @@ describe("contract checker integration", () => {
       interpret: (task: Task<integer>) -> integer => handle task -> integer with {
         log: (message, resume) => resume("wrong") + message,
         return: (value) => "wrong"
-      },
+      }
       main: () => pure(1)
     `);
     const diagnostics = checkModule(mod, builtins, { contract: env });
@@ -378,7 +378,7 @@ describe("contract checker integration", () => {
 
   test("rejects a guest binding that shadows the injected effects namespace", () => {
     expect(() =>
-      checkModule(module("effects: {}, main: () => pure(1)"), builtins, {
+      checkModule(module("effects: {}\nmain: () => pure(1)"), builtins, {
         contract: contract(),
       }),
     ).toThrow(ModuleLinkError);
@@ -720,7 +720,7 @@ describe("contract runtime integration", () => {
 
   test("rejects a runtime module that shadows the effects namespace", () => {
     expect(() =>
-      runTask(module("effects: {}, main: () => pure(1)"), contract(), [], {
+      runTask(module("effects: {}\nmain: () => pure(1)"), contract(), [], {
         registry: createStdlib(),
         capabilities: {},
       }),
@@ -737,7 +737,7 @@ describe("contract capability admission", () => {
   });
 
   test("collects only statically referenced qualified effects", () => {
-    const mod = module('main: () => effects.sensor.read(), helper: () => pure("unused")');
+    const mod = module('main: () => effects.sensor.read()\nhelper: () => pure("unused")');
     expect(
       analyzeDeploymentCapabilities({
         module: mod,

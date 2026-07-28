@@ -127,7 +127,7 @@
     {
       "description": "module entries cannot use object spread",
       "mode": "module",
-      "source": "type Id = string, ...fields",
+      "source": "type Id = string\n...fields",
       "error": "module entries must be named bindings or type declarations"
     }
   ]

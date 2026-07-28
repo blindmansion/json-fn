@@ -77,8 +77,8 @@ describe("printer round-trips canonical JSON (parse ∘ print = id)", () => {
 
 describe("printer output shape", () => {
   test("prints typed modules as declarations and typed bindings", () => {
-    const node = parseModule("type N = integer, id: (x: N) -> N => x");
-    expect(printModule(node)).toBe("type N = integer,\nid: (x: N) -> N => x");
+    const node = parseModule("type N = integer\nid: (x: N) -> N => x");
+    expect(printModule(node)).toBe("type N = integer\nid: (x: N) -> N => x");
     expect(parseModule(printModule(node))).toEqual(node);
   });
 

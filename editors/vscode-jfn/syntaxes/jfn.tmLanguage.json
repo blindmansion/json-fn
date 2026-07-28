@@ -207,7 +207,7 @@
         "2": { "name": "entity.name.type.jfn" },
         "3": { "name": "keyword.operator.assignment.jfn" }
       },
-      "end": "(?=[,}])",
+      "end": "(?=^[ \\t]*(?:type\\s+[A-Za-z_][A-Za-z0-9_]*\\s*=|(?:[A-Za-z_][A-Za-z0-9_]*|\"(?:\\\\.|[^\"\\\\])*\")\\s*:))",
       "patterns": [
         { "include": "#type" }
       ]

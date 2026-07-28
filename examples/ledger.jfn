@@ -4,43 +4,43 @@
 // map types indexed by key, `merge`-based record updates, discriminated-union
 // dispatch via `match`, strict contextual callback shapes, and an explicit
 // runtime contract boundary for arithmetic that must re-establish a refinement.
-type Cents     = integer & min(0),
-type AccountId = string & pattern("^acc_"),
-type Account   = { id: AccountId, name: string, balance: Cents },
-type Ledger    = { [string]: Account },
+type Cents     = integer & min(0)
+type AccountId = string & pattern("^acc_")
+type Account   = { id: AccountId, name: string, balance: Cents }
+type Ledger    = { [string]: Account }
 
 // Discriminated union: closed objects sharing a `tag`.
 type Tx =
     { tag: "open",     id: AccountId, name: string }
   | { tag: "deposit",  to: AccountId, amount: Cents }
   | { tag: "withdraw", from: AccountId, amount: Cents }
-  | { tag: "transfer", from: AccountId, to: AccountId, amount: Cents },
+  | { tag: "transfer", from: AccountId, to: AccountId, amount: Cents }
 
 // The fold's accumulator: the world plus an audit trail.
-type Books = { ledger: Ledger, log: string[] },
+type Books = { ledger: Ledger, log: string[] }
 
-dollars: (c: Cents) -> string => `$${str(c / 100)}`,
+dollars: (c: Cents) -> string => `$${str(c / 100)}`
 
 balanceOf: (led: Ledger, id: AccountId) -> Cents =>
-  if hasKey(led, id) then led[id].balance else 0,
+  if hasKey(led, id) then led[id].balance else 0
 
 // Object-pattern parameter, annotated with an inline object type.
 canDebit: ({ led, id, amount }: { led: Ledger, id: AccountId, amount: Cents }) -> boolean =>
-  hasKey(led, id) && balanceOf(led, id) >= amount,
+  hasKey(led, id) && balanceOf(led, id) >= amount
 
 // Pure updates. No computed keys in data objects, so `fromEntries` sets one.
 put: (books: Books, id: AccountId, acct: Account, msg: string) -> Books => {
   ledger: merge(books.ledger, fromEntries([[id, acct]])),
   log:    concat(books.log, [msg])
-},
+}
 
 note: (books: Books, msg: string) -> Books =>
-  { ledger: books.ledger, log: concat(books.log, [msg]) },
+  { ledger: books.ledger, log: concat(books.log, [msg]) }
 
 adjust: (books: Books, id: AccountId, delta: integer, msg: string) -> Books =>
   put(books, id, merge(acct, { balance: acct.balance + delta }) as Account, msg) where {
     acct: books.ledger[id]
-  },
+  }
 
 // `match` on the tag dispatches; `cond` guards debits; `if`/`then`/`else`
 // covers the rest. A transfer is just a withdraw followed by a deposit.
@@ -59,27 +59,27 @@ apply: (books: Books, tx: Tx) -> Books => match tx.tag {
                             { tag: "deposit", to: tx.to, amount: tx.amount })
     else note(books, `decline: transfer of ${dollars(tx.amount)} from ${tx.from}`),
   else -> books
-},
+}
 
 run: (txns: Tx[]) -> Books =>
-  reduce((books, tx) => apply(books, tx), { ledger: {}, log: [] }, txns),
+  reduce((books, tx) => apply(books, tx), { ledger: {}, log: [] }, txns)
 
 // Curried return type: a reusable floor check, partially applied at call sites.
-overdraftGuard: (floor: Cents) -> (Account) -> boolean => (a) => a.balance >= floor,
+overdraftGuard: (floor: Cents) -> (Account) -> boolean => (a) => a.balance >= floor
 
 allAbove: (books: Books, floor: Cents) -> boolean =>
-  every((account) => overdraftGuard(floor)(account), values(books.ledger)),
+  every((account) => overdraftGuard(floor)(account), values(books.ledger))
 
 // Rest parameter folds any number of trailing lines into one report.
 report: (title: string, ...lines: string[]) -> string =>
-  join(concat([title], lines), "\n"),
+  join(concat([title], lines), "\n")
 
 summary: (books: Books) -> string =>
   report(header, join(rows, "\n"), "log:", join(books.log, "\n")) where {
     accts:  sortBy((a) => a.name, values(books.ledger)),
     rows:   map((a) => `  ${a.name}: ${dollars(a.balance)}`, accts),
     header: `ledger — ${str(length(accts))} account(s):`
-  },
+  }
 
 demo: () -> { report: string, solvent: boolean, balances: { ... } } => {
   report:   summary(final),

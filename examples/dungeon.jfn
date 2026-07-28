@@ -1,5 +1,5 @@
 // RoomId, Room, and PlayerState come from dungeon.contract.json.
-type Turn = { state: PlayerState, message: string, done: boolean },
+type Turn = { state: PlayerState, message: string, done: boolean }
 
 // ---- The map: plain JSON all the way down ------------------------------
 // Rooms are inert data. Nothing here knows how to *do* anything; behavior
@@ -25,22 +25,22 @@ world: raw {
     "exits": { "west": "hall" },
     "item": null
   }
-},
+}
 
 // ---- Pure game logic ----------------------------------------------------
 // Player state is a record { at, held }; every turn returns a fresh
 // { state, message, done } — no mutation anywhere.
 
-roomOf: (st: PlayerState) -> Room => world[st.at]!,
+roomOf: (st: PlayerState) -> Room => world[st.at]!
 
 look: (st: PlayerState) -> string => `${room.name} — ${room.blurb}${note}` where {
   room: roomOf(st),
   seen: !isNull(room.item) && !includes(st.held, room.item),
   note: if seen then ` You see a ${room.item}.` else ""
-},
+}
 
 stay: (st: PlayerState, msg: string) -> Turn =>
-  { state: st, message: msg, done: false },
+  { state: st, message: msg, done: false }
 
 move: (st: PlayerState, dir: string | null) -> Turn => cond {
   isNull(dir)  -> stay(st, "Go where? Try \"go north\"."),
@@ -49,21 +49,21 @@ move: (st: PlayerState, dir: string | null) -> Turn => cond {
 } where {
   dest: roomOf(st).exits[dir!],
   next: { at: dest, held: st.held }
-},
+}
 
 take: (st: PlayerState) -> Turn => (if isNull(item) || includes(st.held, item)
   then stay(st, "There is nothing here worth taking.")
   else stay(richer, `You pocket the ${item}.`)) where {
   item: roomOf(st).item,
   richer: { at: st.at, held: concat(st.held, [item]) }
-},
+}
 
 unlock: (st: PlayerState) -> Turn => cond {
   st.at != "gate" -> stay(st, "Nothing here is locked."),
   includes(st.held, "rusty key") ->
     { state: st, message: "The key grinds, the gate swings wide. You are free!", done: true },
   else -> stay(st, "The gate is locked. A key would help.")
-},
+}
 
 // One command -> one turn. The verb is data, dispatched by `match`;
 // tokenizing mirrors the calculator's whitespace-splitting trick.
@@ -76,7 +76,7 @@ step: (st: PlayerState, cmd: string) -> Turn => match verb {
 } where {
   parts: filter((w) => w != "", reSplit("\\s+", cmd)),
   verb: parts[0]
-},
+}
 
 // ---- The game loop: straight-line do-notation ----------------------------
 

@@ -29,7 +29,8 @@ lookahead the real parser does:
 
 1. **`type Name = …` declarations** get a dedicated, self-terminating type
    sub-grammar, so everything inside is colored precisely — including nested
-   objects, tuples, function types, and multi-line unions.
+   objects, tuples, function types, and multi-line unions. The scope ends when
+   the next newline-separated module declaration begins.
 2. **Signatures** (`(x: T) -> R =>`) are colored at the token level: primitives,
    `[]`, `->`, `?`, and refinements light up, and param names read as
    properties. Named type refs in a signature (e.g. `UserId`) can't be told

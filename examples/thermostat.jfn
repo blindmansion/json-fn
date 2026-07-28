@@ -12,13 +12,13 @@
 // A fault the controller reports rather than silently swallowing.
 type Fault =
     { tag: "OutOfRange", temp: Celsius }
-  | { tag: "LowBattery" },
+  | { tag: "LowBattery" }
 
 // What one tick decides to do. `hold` = leave the HVAC as-is.
 type Action =
     { tag: "hold" }
   | { tag: "switch", to: Mode }
-  | { tag: "alarm",  fault: Fault },
+  | { tag: "alarm",  fault: Fault }
 
 // ----- pure control logic -------------------------------------------------
 
@@ -31,20 +31,20 @@ decide: (cfg: Config, mode: Mode, reading: Reading) -> Action => cond {
   reading.temp > cfg.target + cfg.tolerance   -> if mode == "cool" then { tag: "hold" } else { tag: "switch", to: "cool" },
   mode != "off"                               -> { tag: "switch", to: "off" },
   else                                        -> { tag: "hold" }
-},
+}
 
 // Fold an action into the state. Only `switch` changes the running mode.
 apply: (st: State, act: Action) -> State => match act.tag {
   "switch" -> { config: st.config, mode: act.to },
   else     -> st
-},
+}
 
 // A human-readable transcript line for one action + the reading behind it.
 describe: (act: Action, reading: Reading) -> string => match act.tag {
   "switch" -> `${str(reading.temp)}C bat${str(reading.battery)}% -> ${act.to}`,
   "alarm"  -> `${str(reading.temp)}C bat${str(reading.battery)}% -> ALARM ${act.fault.tag}`,
   else     -> `${str(reading.temp)}C bat${str(reading.battery)}% -> hold`
-},
+}
 
 // Turn an action into its effect. `alarm` escalates as a typed `raise`, so an
 // outer handler decides recovery; everything else pokes the HVAC (or nothing).
@@ -52,7 +52,7 @@ actuate: (action: Action) -> Task<null> => match action.tag {
   "switch" -> effects.hvac.set(action.to),
   "alarm"  -> raise(action.fault),
   else     -> pure(null)
-},
+}
 
 // ----- the control loop: straight-line do-notation ------------------------
 
@@ -63,7 +63,7 @@ onReading: (st: State, reading: Reading) -> Task<State> => do {
   effects.log(describe(action, reading)),
   actuate(action),
   pure(apply(st, action))
-},
+}
 
 // Read the sensor up to `fuel` times. A `null` reading (the sensor is out of
 // data) ends the run gracefully with the final state. The contract owns

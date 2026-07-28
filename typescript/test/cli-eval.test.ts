@@ -317,7 +317,7 @@ describe("jfn eval contract modes", () => {
         },
       }),
     );
-    const module = "main: () => pure(7), demo: () => 9";
+    const module = "main: () => pure(7)\ndemo: () => 9";
 
     try {
       const production = runEval(["--contract", contractPath, module, "--compact"]);
@@ -370,7 +370,7 @@ describe("jfn eval contract modes", () => {
         },
       }),
     );
-    const module = 'main: () => "invalid", demo: () => 9';
+    const module = 'main: () => "invalid"\ndemo: () => 9';
 
     try {
       const production = runEval(["--contract", contractPath, module, "--compact"]);

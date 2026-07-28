@@ -425,8 +425,8 @@ makeAdder: (x: number) -> (number) -> number => (y) => x + y
 `$types` sibling. Named references resolve to `$ref`:
 
 ```jfn
-type UserId = string & pattern("^u_"),
-type User   = { id: UserId, name: string },
+type UserId = string & pattern("^u_")
+type User   = { id: UserId, name: string }
 
 makeUser: (id: UserId, name: string) -> User => { id, name }
 ```
@@ -492,7 +492,7 @@ Legal when **contractive** (recursion passes through an array or object
 constructor):
 
 ```jfn
-type Json = null | boolean | number | string | Json[] | { [string]: Json },
+type Json = null | boolean | number | string | Json[] | { [string]: Json }
 type Tree = { value: number, children: Tree[] }
 ```
 
@@ -576,7 +576,8 @@ excluded keywords are treated as opaque by the checker.
 Extends [`docs/shorthand-spec.md`](./shorthand-spec.md) §10. New/changed rules:
 
 ```
-module      := ( moduleEntry ("," moduleEntry)* ","? )?        // whole .jfn file
+module      := ( moduleEntry (moduleSep moduleEntry)* )?         // whole .jfn file
+moduleSep   := physical line break after a complete moduleEntry
 moduleEntry := "type" ident "=" type                           // type declaration
              | dataEntry                                        // binding / constant / pun
 

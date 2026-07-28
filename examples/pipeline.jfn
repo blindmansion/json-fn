@@ -3,7 +3,7 @@
 // union, refinements, array + function types, and curried / rest / object-
 // pattern signatures — next to the language's lambdas, `if`/`cond`/`match`,
 // `where`, and template strings.
-type Nat = integer & min(0),
+type Nat = integer & min(0)
 
 // Discriminated union: closed objects sharing a `tag`.
 type Op =
@@ -12,11 +12,11 @@ type Op =
   | { tag: "keep",  above: number }
   | { tag: "clamp", lo: number, hi: number }
   | { tag: "take",  n: Nat }
-  | { tag: "sort" },
+  | { tag: "sort" }
 
 // Curried return type + object-pattern parameter: a reusable clamp closure.
 clampTo: ({ lo, hi }: { lo: number, hi: number }) -> (number) -> number =>
-  (x) => if x < lo then lo else if x > hi then hi else x,
+  (x) => if x < lo then lo else if x > hi then hi else x
 
 // `match` arms narrow the union, so `op.value` / `op.by` / … resolve per case.
 step: (xs: number[], op: Op) -> number[] => match op.tag {
@@ -26,10 +26,10 @@ step: (xs: number[], op: Op) -> number[] => match op.tag {
   "clamp" -> map((x) => clampTo({ lo: op.lo, hi: op.hi })(x), xs),
   "take"  -> slice(xs, 0, op.n),
   else    -> sort((a, b) => a - b, xs)
-},
+}
 
-run:   (ops: Op[]) -> number[] => reduce((xs, op) => step(xs, op), [], ops),
-total: (xs: number[]) -> number => reduce((a, x) => a + x, 0, xs),
+run:   (ops: Op[]) -> number[] => reduce((xs, op) => step(xs, op), [], ops)
+total: (xs: number[]) -> number => reduce((a, x) => a + x, 0, xs)
 
 // `match` on the discriminant: the arms need no variant-specific fields.
 label: (op: Op) -> string => match op.tag {
@@ -39,11 +39,11 @@ label: (op: Op) -> string => match op.tag {
   "clamp" -> "clamp",
   "take"  -> "take",
   else    -> "sort"
-},
+}
 
 // Rest parameter: fold any number of trailing lines into one block.
 report: (title: string, ...lines: string[]) -> string =>
-  join(concat([title], lines), "\n"),
+  join(concat([title], lines), "\n")
 
 summary: (ops: Op[]) -> string =>
   report(header,
@@ -52,7 +52,7 @@ summary: (ops: Op[]) -> string =>
          `sum:   ${str(total(out))}`) where {
     out:    run(ops),
     header: `pipeline of ${str(length(ops))} op(s):`
-  },
+  }
 
 demo: () -> { result: number[], sum: number, report: string } => {
   result: run(ops),

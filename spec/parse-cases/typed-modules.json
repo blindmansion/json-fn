@@ -4,7 +4,7 @@
   "cases": [
     {
       "description": "named types and typed function bindings",
-      "source": "type N = integer,\ntype Box = { value: N },\nid: (x: N) -> N => x,\nunbox: ({ value }: Box) -> N => value",
+      "source": "type N = integer\ntype Box = { value: N }\nid: (x: N) -> N => x\nunbox: ({ value }: Box) -> N => value",
       "expected": {
         "$types": {
           "N": { "type": "integer" },

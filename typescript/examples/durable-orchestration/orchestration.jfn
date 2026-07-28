@@ -11,7 +11,7 @@ spawnAll: (specs: AgentSpec[]) -> Task<Handle[]> =>
       agentHandle <- effects.agent.spawn(head(specs)!),
       rest <- spawnAll(tail(specs)),
       pure(concat([agentHandle], rest))
-    },
+    }
 
 // The durable entry demonstrates:
 //   1. a sequential pipeline whose second prompt consumes the first output;

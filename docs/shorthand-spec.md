@@ -26,8 +26,10 @@ File extension: `.jfn`.
   `null`). A leading `-` on a numeric token is part of the literal.
 - **Strings:** double-quoted, with JSON escape rules (`"\n"`, `"\u2654"`,
   `"\""`). Quoting is the **sole** signal for a literal string.
-- **Whitespace** is insignificant except as a token separator. Elements in
-  arrays, objects, argument lists, and blocks are comma-separated.
+- **Whitespace** is insignificant inside expressions except as a token
+  separator. A physical line break separates complete top-level module
+  declarations. Elements in arrays, objects, argument lists, and blocks are
+  comma-separated.
 - **Comments:** `// …` to end of line and non-nested `/* … */` block comments.
   Both are currently discarded as trivia. 🔴 **TODO(comments):** attachment
   rules (which node a comment lowers to as `$comment`, group/section comments,
@@ -794,9 +796,12 @@ shorthand, and is rejected by the shorthand printer rather than discarded.
 
 ## 9. Files and program shape
 
-A `.jfn` file is an **implicit module**: a comma-separated sequence of named
+A `.jfn` file is an **implicit module**: a newline-separated sequence of named
 bindings and type declarations without surrounding braces. It lowers to one
-canonical JSON object mapping names to expressions.
+canonical JSON object mapping names to expressions. A declaration may span
+multiple lines; a line break is a module separator only after its expression or
+type is complete. Top-level commas are not accepted, and two declarations
+cannot share a line. Commas remain required in nested comma-separated syntax.
 
 This object is a distinct persistent module registry, not a function body or a
 `$let` encoding. Top-level names (constants _and_ functions) are visible via
@@ -807,7 +812,7 @@ and are not copied into escaping closures. The host supplies the parent
 registry (stdlib + native builtins) and picks an entry point to invoke.
 
 ```jfn
-otherColor: (color) => if color == "w" then "b" else "w",
+otherColor: (color) => if color == "w" then "b" else "w"
 pieceType:  (piece) => upper(piece)
 ```
 
@@ -838,7 +843,8 @@ The shorthand only guarantees the JSON it produces.
 ## 10. Grammar (informal EBNF)
 
 ```
-program     := (moduleEntry ("," moduleEntry)* ","?)?
+program     := (moduleEntry (moduleSep moduleEntry)*)?
+moduleSep   := physical line break after a complete moduleEntry
 moduleEntry := "type" ident "=" type
              | dataEntry
 

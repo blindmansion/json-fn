@@ -499,15 +499,13 @@ class Parser extends TokenCursor {
     return map;
   }
 
-  /** Consume the `,`/EOF after a module entry. */
+  /** Require a physical newline or EOF after a module entry. */
   private consumeModuleSep(): boolean {
-    const type = this.peekType();
-    if (type === "comma") {
-      this.advance();
-      return this.peekType() === "eof";
-    }
-    if (type === "eof") return true;
-    throw this.err(`expected ',' or end of input in module`);
+    if (this.peekType() === "eof") return true;
+    const previous = this.tokens[this.pos - 1]!;
+    const next = this.tokens[this.pos]!;
+    if (next.tok.type !== "comma" && next.line > previous.endLine) return false;
+    throw this.err(`expected newline or end of input in module`);
   }
 
   /** Spin up the type-expression sub-parser at the current cursor, parse one

@@ -124,7 +124,7 @@ describe("jfn check coverage reporting", () => {
 
   test("spread-call degradation explains strict returns and supports an explicit boundary", () => {
     const module =
-      "sum: (a: integer, b: integer) -> integer => a + b, " +
+      "sum: (a: integer, b: integer) -> integer => a + b\n" +
       "run: (xs: integer[]) -> integer => sum(...xs)";
 
     const strictReturn = runCheck([module]);

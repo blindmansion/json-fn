@@ -505,7 +505,7 @@ describe("durable driver", () => {
           else do {
             effects.wait(remaining),
             go(remaining - 1)
-          },
+          }
         main: () => go(8)
       `),
       contract: contract({

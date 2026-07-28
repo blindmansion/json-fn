@@ -10,11 +10,11 @@
 //   bun run typescript/src/cli.ts check --contract examples/parcel-sorter.contract.json --file examples/parcel-sorter.jfn
 type Fault =
     { tag: "Overweight", id: string, kilograms: number }
-  | { tag: "BadLabel", id: string },
+  | { tag: "BadLabel", id: string }
 
 type Decision =
     { tag: "route", lane: Lane }
-  | { tag: "reject", fault: Fault },
+  | { tag: "reject", fault: Fault }
 
 // ----- pure routing policy ------------------------------------------------
 
@@ -33,17 +33,17 @@ decide: (parcel: Parcel) -> Decision => cond {
   parcel.region == "north" -> { tag: "route", lane: "north" },
   parcel.region == "south" -> { tag: "route", lane: "south" },
   else -> { tag: "route", lane: "international" }
-},
+}
 
 describe: (parcel: Parcel, decision: Decision) -> string => match decision.tag {
   "route" -> `${parcel.id}: ${parcel.region} ${str(parcel.weightKg)}kg -> ${decision.lane}`,
   else -> `${parcel.id}: REJECT ${decision.fault.tag}`
-},
+}
 
 apply: (st: State, decision: Decision) -> State => match decision.tag {
   "route" -> { routed: st.routed + 1 },
   else -> st
-},
+}
 
 routeOne: (st: State, parcel: Parcel) -> Task<State> => do {
   decision: decide(parcel),
@@ -55,7 +55,7 @@ routeOne: (st: State, parcel: Parcel) -> Task<State> => do {
     },
     else -> raise(decision.fault)
   }
-},
+}
 
 // ----- sorting loop -------------------------------------------------------
 

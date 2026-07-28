@@ -51,11 +51,12 @@ export type TokPunct =
   | "question" //  ?    (optional key, parameter, or function-type slot)
   | "eof";
 
-/** A token plus its 1-based source position (start of the token). */
+/** A token plus its 1-based source position and ending line. */
 export type Token = {
   tok: Tok;
   line: number;
   col: number;
+  endLine: number;
 };
 
 /** Tokenize `src`, returning tokens terminated by a single `eof` token. */
@@ -107,11 +108,11 @@ class Lexer {
       const col = this.col;
       const c = this.peek();
       if (c === undefined) {
-        out.push({ tok: { type: "eof" }, line, col });
+        out.push({ tok: { type: "eof" }, line, col, endLine: line });
         return out;
       }
       const tok = this.nextToken(c);
-      out.push({ tok, line, col });
+      out.push({ tok, line, col, endLine: this.line });
     }
   }
 
