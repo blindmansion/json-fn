@@ -7,8 +7,9 @@ json-fn is a pure-JSON functional expression language evaluated by a tree-walkin
 ## Reference docs & working notes
 
 - `docs/` — language reference documentation.
-  - `docs/language.md` — full language reference.
-  - `docs/shorthand-spec.md` — the `.jfn` shorthand syntax spec.
+ - `docs/language.md` — full language reference.
+ - `docs/writing-jfn.md` — concise agent-facing guide to authoring `.jfn` modules (shorthand only, no host/tooling).
+ - `docs/shorthand-spec.md` — the `.jfn` shorthand syntax spec.
   - `docs/environment-contract.md` — portable operator-owned boundary contract.
   - `docs/deployment-profile.md` — portable live/durable deployment selection.
   - `docs/durable-host.md` — TypeScript durable task-host configuration, persistence, recovery, and failure semantics.
