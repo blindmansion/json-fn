@@ -968,6 +968,14 @@ Because each consecutive pure run forms one `$let`, its binding names must be
 unique. A later run after an effect or discard is a nested scope and may shadow
 an earlier name.
 
+Within one consecutive run, pure bindings have exactly the same semantics as a
+`where` binding group: they are lazy, memoized, order-independent, and mutually
+recursive. A run after an effect may refer to results bound by that effect or
+any preceding effect. By contrast, a `where` attached to the complete `do`
+expression is outside the generated continuations and cannot refer to their
+effect-bound names. Finally, `name: taskExpr` only binds the task value; it does
+not run the task. Use `name <- taskExpr` to sequence it and bind its result.
+
 ```jfn
 do {
   name <- readLine(),

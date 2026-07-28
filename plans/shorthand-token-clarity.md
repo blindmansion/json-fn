@@ -150,33 +150,17 @@ checks remain explicitly parenthesized:
 Treat `checked as` as one contextual two-token operator. `checked` need not
 become unavailable as an identifier outside that operator position.
 
-## Stateful handler shorthand
-
-Update `plans/active/stateful-handler-sugar.md` to use:
-
-```jfn
-handle task returns Report
-  with state (state: ScriptState = initialState) {
-  ...
-}
-```
-
-Its expansion becomes:
+Because the operator starts only after a complete left operand, checking a
+variable literally named `checked` requires an explicit left operand followed
+by the operator:
 
 ```jfn
-(handle task returns (ScriptState) -> Report with {
-  effect: (argument, resume) => (state) =>
-    resume(answer)(nextState),
-  return: (value) => (state) =>
-    finish(value, state)
-})(initialState)
+(checked) checked as T
 ```
 
-The author-facing `Report` is the result of the complete stateful expression.
-Lowering changes the ordinary handler's immediate contract to
-`(ScriptState) -> Report` and then applies that transformer to the initial
-state. The stateful proposal's semantics, typing, durability, and canonical
-lowering are otherwise unchanged.
+The shorter `checked as T` is rejected rather than retaining bare `as` for this
+one identifier. Calls and other ordinary uses of the name remain unaffected:
+`checked(value)` is still an ordinary call.
 
 ## Informal grammar changes
 
@@ -184,10 +168,8 @@ lowering are otherwise unchanged.
 arm          := (expr | "else") ":" expr
 funcLit      := "(" params ")" ("->" type)? "=>" body
 fnType       := "(" fnTypeParams? ")" "->" type
-checkedAs    := expr "checked" "as" type
+checkedAs    := orExpr ("checked" "as" type)?
 handleExpr   := "handle" expr ("returns" type)? "with" handlerClauses
-statefulExpr := "handle" expr "returns" type
-                "with" "state" stateInitializer handlerClauses
 ```
 
 `returns` terminates the handler's task operand at the handler-header level.
@@ -215,17 +197,21 @@ Canonical shorthand printing must emit only the new spellings.
 
 ## Migration and implementation
 
-1. Update the shorthand lexer/parser and informal grammar.
+1. Update the shorthand parser and lexer token documentation. No new token kind
+   is required: `checked` and `returns` remain contextual identifier tokens,
+   while `:` already exists.
 2. Update canonical printing for arms, checked ascriptions, and annotated
    handlers.
 3. Replace parse cases and add rejection cases for the old spellings.
 4. Add precedence cases for nested object expressions in colon arms,
    `checked as`, function types following `returns`, and parenthesized checked
-   task operands.
+   task operands. Cover the identifier edge cases `(checked) checked as T`,
+   `checked(value)`, and a handler task named `returns`.
 5. Update `docs/shorthand-spec.md`, `docs/type-syntax-spec.md`,
    `docs/language.md`, and affected focused documentation.
-6. Update `plans/active/stateful-handler-sugar.md`.
-7. Migrate `.jfn` examples, plan snippets, and shorthand fixtures.
+6. Update the VS Code TextMate grammar and its syntax examples.
+7. Migrate `.jfn` examples, plan snippets, shorthand fixtures, and embedded
+   shorthand in TypeScript tests.
 8. Regenerate canonical `.json` examples only where their source-to-print
    normalization is tested; their semantic representation does not change.
 
