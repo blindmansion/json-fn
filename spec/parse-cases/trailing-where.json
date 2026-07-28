@@ -109,6 +109,21 @@
       }
     },
     {
+      "description": "trailing where after a cond used as a match arm attaches to the arm, not the match",
+      "source": "match cmd {\n  \"go\": 1,\n  else: cond { p: 2, else: n } where { n: 0 }\n}",
+      "expected": {
+        "$match": { "$var": "cmd" },
+        "$cases": [["go", 1]],
+        "$else": {
+          "$let": { "n": 0 },
+          "$in": {
+            "$cond": [[{ "$var": "p" }, 2]],
+            "$else": { "$var": "n" }
+          }
+        }
+      }
+    },
+    {
       "description": "trailing where nested inside a where-binding value",
       "source": "(n) => total where {\n  total: sq(n) where { sq: (x) => x * x }\n}",
       "expected": {

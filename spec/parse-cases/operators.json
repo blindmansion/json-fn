@@ -142,6 +142,16 @@
       "expected": "hello"
     },
     {
+      "description": "a lone dollar sign not followed by a brace is literal template text",
+      "source": "`cost $5 for ${item}`",
+      "expected": { "$call": "strcat", "$args": ["cost $5 for ", { "$var": "item" }] }
+    },
+    {
+      "description": "escaped \\${ produces literal ${ instead of interpolating",
+      "source": "`a \\${literal} b`",
+      "expected": "a ${literal} b"
+    },
+    {
       "description": "postfix non-null assertion",
       "source": "value!",
       "expected": { "$nonnull": { "$var": "value" } }

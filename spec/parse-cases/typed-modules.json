@@ -34,6 +34,11 @@
           "$return": { "$var": "value" }
         }
       }
+    },
+    {
+      "description": "Task is reserved and cannot be declared as a module type name",
+      "source": "type Task = integer\nmain: (x: Task) -> Task => x",
+      "error": "'Task' is reserved for the built-in Task<A> type constructor"
     }
   ]
 }

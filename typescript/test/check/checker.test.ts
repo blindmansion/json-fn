@@ -2146,6 +2146,58 @@ describe("synth: control-flow unions", () => {
       anyOf: [{ type: "string" }, { type: "null" }],
     });
   });
+
+  test("$cond: an arm's negated condition narrows the else arm", () => {
+    // `cond { isNull(x): "d", else: x }` with `x: string | null`: the else arm
+    // inherits the negation of the isNull guard, so `x` is plain string there
+    // and the whole cond joins to string (docs/narrowing.md, control-flow
+    // wiring for $cond).
+    const nctx: CheckContext = {
+      defs: {},
+      env: { lookupType: (n) => (n === "x" ? { type: ["string", "null"] } : undefined) },
+      diagnostics: [],
+      path: [],
+    };
+    expect(
+      synth(
+        {
+          $cond: [[{ $call: "isNull", $args: [{ $var: "x" }] }, "d"]],
+          $else: { $var: "x" },
+        },
+        nctx,
+      ),
+    ).toEqual({ type: "string" });
+  });
+
+  test("$cond: dominating guards accumulate into later arms", () => {
+    // `cond { isNull(x): "d", p: x, else: "z" }` with `x: string | null`: the
+    // second arm is reached only when the first condition was false, so `x`
+    // is already narrowed to string before `p` is even consulted.
+    const nctx: CheckContext = {
+      defs: {},
+      env: {
+        lookupType: (n) => {
+          if (n === "x") return { type: ["string", "null"] };
+          if (n === "p") return { type: "boolean" };
+          return undefined;
+        },
+      },
+      diagnostics: [],
+      path: [],
+    };
+    expect(
+      synth(
+        {
+          $cond: [
+            [{ $call: "isNull", $args: [{ $var: "x" }] }, "d"],
+            [{ $var: "p" }, { $var: "x" }],
+          ],
+          $else: "z",
+        },
+        nctx,
+      ),
+    ).toEqual({ type: "string" });
+  });
 });
 
 describe("synth: short-circuit $and / $or are value-returning", () => {
