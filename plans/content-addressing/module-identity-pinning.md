@@ -34,7 +34,7 @@ resuming world differs.
 At `prepareDeployment` time, compute one **deployment identity hash** over the
 canonical encoding of:
 
-- the linked module (post-linking canonical JSON, including `$types`);
+- the linked module (post-linking normalized program JSON, including `$types`);
 - the environment contract;
 - the builtin table version (a version string is enough; hashing the full
   builtin signature table is better and cheap since it is already JSON);
@@ -44,6 +44,18 @@ These are all plain JSON already, so this is the canonical-bytes + hash
 function from the base plan applied to values that exist today. Expose it as
 `deployment.identityHash` and include the component hashes individually
 (`moduleHash`, `contractHash`, ...) for diagnostics.
+
+Program normalization and JSON byte canonicalization are separate steps. The
+linked module first passes through the program normalizer from
+`../raw-semantics-cleanup.md`, so redundant `$raw` spellings cannot create
+different deployment identities for semantically equivalent modules. The
+environment contract and profile are data documents and do not pass through
+that AST normalizer.
+
+Version and domain-separate each component hash and the aggregate deployment
+hash (for example `jfn:module:v1`, `jfn:contract:v1`, and
+`jfn:deployment:v1`). The shared JSON encoder remains content-only; the domain
+prefix is part of the hash input.
 
 ### What gets stored
 

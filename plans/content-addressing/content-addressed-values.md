@@ -55,8 +55,17 @@ is where this belongs.
 - Hash: BLAKE3 or SHA-256 over the canonical bytes. Ref strings carry the
   algorithm prefix (`"b3:..."` / `"sha256:..."`) so the algorithm can be
   rotated later.
+- Domain-separate and version hash inputs (for example `jfn:value:v1`) so a
+  stored value hash cannot be confused with a deployment/module identity hash
+  over identical JSON bytes.
 - Number edge cases inherit JCS behavior (`1.0` encodes as `1`, `-0` as `0`).
   This matches scalar `===` equality closely enough; note it in the spec text.
+
+This encoder operates on arbitrary JSON **values**. It must never apply the
+program-AST normalization described in `../raw-semantics-cleanup.md`: guest
+data may legitimately contain `$raw`-shaped or otherwise expression-shaped
+objects. Module hashing may normalize a linked program before calling the byte
+encoder; value hashing preserves the exact structural value it receives.
 
 ### Ref representation
 
@@ -118,6 +127,18 @@ Every place a stored record re-enters a runtime hydrates fully before use:
 - `createDurableDriver` record load (resume, deliverCompletion, recovery scan);
 - any host-level `serializeTask` / deserialize pairing that opts into the codec;
 - (nothing else — `runTask` live mode never touches the codec).
+
+Hydration reconstructs fresh object identities, so runtime-value marks are
+necessarily absent. The required order is:
+
+1. resolve refs and reconstruct the complete plain JSON record;
+2. validate that record;
+3. restore runtime-value marks on task nodes and known continuation fields via
+   the centralized hydration pass from `../raw-semantics-cleanup.md`; and
+4. enter evaluation.
+
+The blob codec serializes content only. It does not encode or restore runtime
+identity marks or constant-expression cache metadata.
 
 Hydration failure (missing blob) is a terminal workflow failure with a new
 failure code (`"blob-missing"`), distinct from `"contract"`/`"host"` — it means

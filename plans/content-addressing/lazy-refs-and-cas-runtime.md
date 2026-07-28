@@ -45,6 +45,13 @@ type Ref = { hash: string; forced?: JSONType };
   `forced`). Forcing is recursive only one level: a forced blob may itself
   contain child refs.
 
+This representation is separate from all categories established by
+`../raw-semantics-cleanup.md`: canonical `$raw` is serialized syntax, a
+runtime-value mark says plain JSON has already been produced as a value, and
+static-cost metadata is an AST optimization. A lazy `Ref` is none of those; it
+is a storage-backed runtime representation that yields a runtime value when
+forced.
+
 ### Forcing chokepoints
 
 The evaluator already funnels value access through a small set of paths:
@@ -131,6 +138,10 @@ memo: { get(fnHash, argsHash): JSONType | undefined; put(...): void }
    the audit is the real work item and its size should be known before
    committing.
 3. Decision recorded on fuel option (a) vs (b) above.
+4. The raw-semantics cleanup has landed, including its deterministic static
+   cost model and centralized runtime-value hydration. Lazy forcing must build
+   on those chokepoints rather than adding another `isRaw`-style union
+   predicate.
 
 ## Open questions
 
