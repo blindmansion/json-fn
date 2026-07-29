@@ -2,6 +2,10 @@
 
 Status: **proposed.**
 
+This is an independent shorthand type-parser, type-documentation, printer
+round-trip, and focused-test change. It does not change canonical schemas, the
+checker, or evaluation.
+
 Accept an optional `|` before the first member of any shorthand union type.
 Both forms would mean the same thing:
 
@@ -85,6 +89,12 @@ Add parser coverage proving:
    parse errors.
 6. Printing a parsed leading-pipe union emits the canonical no-leading-pipe
    form and reparses identically.
+7. A malformed function type with no type before `=>` remains a positioned
+   parse error.
+
+Legalizing the leading token may legitimately change which token or message is
+reported for some currently malformed `|` placements. Negative tests should
+assert rejection and useful positions without freezing stale wording.
 
 Relevant suites are
 [`typescript/test/parse-errors.test.ts`](../typescript/test/parse-errors.test.ts)
@@ -104,5 +114,7 @@ and the shorthand parser/printer tests under
 - Both union styles parse to identical canonical JSON.
 - Leading-pipe syntax behaves uniformly in every type-expression context.
 - Canonical printing remains stable and omits the leading pipe.
-- Existing malformed-union diagnostics remain positioned and clear.
+- Existing malformed-union diagnostics remain positioned and clear; exact
+  wording may change where the newly legal leading token shifts the first
+  failure.
 - `bun run check` and `bun test` pass.

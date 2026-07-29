@@ -1,5 +1,8 @@
 # Module bindings and trailing `where`
 
+Status: proposed independent shorthand parser/printer improvement. No
+evaluator, checker, or linker changes.
+
 ## Summary
 
 Trailing `where` attachment works as designed in expression-body positions,
@@ -118,8 +121,11 @@ bindings separately, or parameterize the value parser so modules use
    - duplicate and unused local diagnostics after module lowering.
 4. Keep the existing expression parse cases for whole-conditional and
    branch-local attachment.
-5. Add a print/parse round trip for a module constant whose canonical value is
-   a `$let`.
+5. Update module printing so a binding whose canonical value is a `$let` emits
+   `name: expr where { ... }` without parentheses. Ordinary data-object entry
+   expressions retain the parentheses required by their `parseExpr()` grammar.
+6. Add print/parse round trips for the module form and for a control
+   data-object entry that still requires parentheses.
 
 Call arguments and object entries are separate questions. A lambda body can
 end in `where` before the call-argument comma because the lambda itself owns a

@@ -69,8 +69,8 @@ data/syntax boundary when it contains keys such as `$var`, `$call`, or
 - Simplify closure capture, task construction, and hydration invariants.
 - Preserve the canonical TypeScript implementation's checker and evaluator
   behavior for genuinely quoted data.
-- Preserve safe own properties such as `__proto__` through every relevant
-  object-construction path.
+- Consume the safe own-property construction mechanism owned by
+  [`runtime-representation-gaps.md`](runtime-representation-gaps.md).
 
 ## Non-goals
 
@@ -291,6 +291,12 @@ Conceptually:
 rawCost(payload) = staticLiteralCost(payload)
 ```
 
+`staticLiteralCost` includes the payload root in the same way as evaluation of
+the equivalent ordinary constant literal. Because `evaluateExpression` already
+charges its universal expression-entry unit, the `$raw` branch charges the
+remaining `staticLiteralCost(payload) - 1`; the entry unit must not be counted
+twice.
+
 The runtime may use cached/precomputed cost metadata to charge that amount
 without traversing the payload during evaluation. If metadata was lost through
 serialization, the first evaluation may walk the payload to compute its cost,
@@ -327,9 +333,11 @@ returned as a value rather than classified from its keys.
 Mark runtime values at the existing semantic boundaries:
 
 - evaluating canonical `$raw`;
-- returning from a json-fn, builtin, or host function;
-- binding/substituting a non-function argument or local value;
+- accepting public entry arguments;
+- binding/substituting a non-function parameter or local value;
+- returning from a json-fn, builtin, host function, or host callback;
 - constructing task nodes and generated closed continuations;
+- resuming task continuations with produced values;
 - wrapping runtime-contract function values; and
 - hydrating serialized task/workflow records.
 
@@ -406,6 +414,8 @@ type StaticLiteralInfo = {
 
 The implementation may return this alongside parsed values or store it in a
 parser-local `WeakMap` for arrays and objects. Scalars can be handled directly.
+This is parse-time provenance only: it must never be reconstructed by walking
+lowered canonical `$let`, `$args`, module, or function-body JSON.
 
 Rules:
 
@@ -442,20 +452,11 @@ handler record rather than becoming a raw value.
 
 ### Safe object construction
 
-The parser currently uses assignment into ordinary objects, which loses an own
-`__proto__` property. Automatic external-JSON handling must not preserve
-expression-shaped keys while silently dropping a valid JSON key.
-
-Introduce or reuse a shared safe property-definition helper based on
-`Object.defineProperty`, and use it in:
-
-- shorthand data-object construction;
-- evaluator object rebuilding;
-- closure/transformation paths that rebuild arbitrary data objects; and
-- any retained strict-JSON parsing helper.
-
-Add this work as part of the cleanup rather than carrying the known
-representation inconsistency into the new syntax.
+Safe arbitrary-key construction is a prerequisite owned by
+[`runtime-representation-gaps.md`](runtime-representation-gaps.md). Its shared
+own-property helper and repository-wide audit must land before shorthand raw
+inference. This plan consumes that helper in parser paths; it does not own a
+second `__proto__` fix.
 
 ## Checker and task behavior
 
@@ -479,11 +480,28 @@ optimization.
 Live task records and closed continuation objects use runtime-value marking.
 Their JSON serialization loses the mark. Hydration must restore runtime marks
 from stable structural tags and known workflow fields in one centralized
-rehydration pass.
+rehydration pass. The pass first validates the complete record and each known
+task, continuation, and handler shape; only validated fields receive restored
+runtime-value marks.
 
 ## Implementation steps
 
-### Phase 1: Characterize and separate runtime identity
+The normative implementation order is:
+
+1. characterize runtime boundaries and exact current fuel;
+2. introduce precise runtime-value APIs;
+3. extract static-cost metadata;
+4. centralize and validate task/workflow rehydration;
+5. implement ingestion-independent `$raw` fuel;
+6. atomically enable shorthand inference, remove the `raw` keyword, and change
+   shorthand printing/normalization; and
+7. migrate checker wording, tasks, examples, docs, tests, and performance
+   instrumentation.
+
+The workstreams below inventory the detailed edits; their lettering is not a
+license to violate that ordering.
+
+### Workstream A: Characterize and separate runtime identity
 
 1. Add focused characterization tests around:
    - expression-shaped host arguments and results;
@@ -500,8 +518,9 @@ rehydration pass.
    tests confirm the expected model.
 5. Remove the public `raw` export and mark host arguments/results at their
    actual boundaries.
-6. Update task constructors, runtime-contract wrappers, closure substitution,
-   and hydration to use runtime-value terminology.
+6. Update task constructors, runtime-contract wrappers, and closure
+   substitution to use runtime-value terminology. Centralized hydration lands
+   as its own ordered step after static-cost extraction.
 
 Primary files:
 
@@ -514,7 +533,7 @@ Primary files:
 - `typescript/src/host/task-serialization.ts`
 - `typescript/src/host/durable/workflow-record.ts`
 
-### Phase 2: Extract constant-expression metadata
+### Workstream B: Extract constant-expression metadata
 
 1. Move `constantEvaluationCosts` and its access rules into a neutral internal
    module.
@@ -536,7 +555,24 @@ Primary files:
 - `typescript/perf/suites/boundary.ts`
 - `typescript/test/interpreter-performance-regressions.test.ts`
 
-### Phase 3: Implement shorthand inference
+### Workstream D: Centralize rehydration
+
+1. Define one durable/task hydration entry point.
+2. Decode to plain JSON and validate the complete workflow record.
+3. Validate known task, continuation, closure, handler, and resume-value shapes.
+4. Restore runtime-value marks only to validated fields.
+5. Reject malformed or unknown tagged shapes before evaluation.
+6. Test direct, serialized, and durable round trips for every restored runtime
+   category.
+
+Primary files:
+
+- `typescript/src/host/task-serialization.ts`
+- `typescript/src/host/durable/workflow-record.ts`
+- `typescript/src/task.ts`
+- `typescript/src/eval/closures.ts`
+
+### Workstream F1: Implement shorthand inference
 
 1. Add parser-local static-literal provenance and cost tracking.
 2. Allow quoted `$`-prefixed keys provisionally in data-object literals.
@@ -546,7 +582,8 @@ Primary files:
 5. Preseed constant metadata for ordinary static composite literals.
 6. Remove the `raw` primary-expression branch, `parseRaw`, and `parseRawJson`.
 7. Remove `raw` from shorthand grammar and contextual-keyword documentation.
-8. Make object construction safe for `__proto__` and related own keys.
+8. Use the prerequisite shared own-property helper from
+   `runtime-representation-gaps.md`.
 9. Preserve explicit no-inference contexts such as handler-clause records.
 
 Primary files:
@@ -572,7 +609,11 @@ Required parser cases:
 - empty handler record remains a handler record; and
 - `raw` becomes an ordinary identifier rather than a keyword.
 
-### Phase 4: Normalize shorthand printing
+### Workstream F2: Normalize shorthand printing
+
+Workstreams F1 and F2 are one atomic compatibility change. The parser must not
+stop accepting a spelling that the printer still emits, and the printer must
+not emit inferred raw syntax until that syntax reparses correctly.
 
 1. Print generic `$raw` payloads as strict JSON without a keyword.
 2. Add or formalize a canonical normalizer used by printer round-trip tests.
@@ -590,7 +631,7 @@ Primary files:
 - `typescript/test/print-spec.test.ts`
 - `typescript/test/parse-spec.test.ts`
 
-### Phase 5: Decouple raw from fuel
+### Workstream E: Decouple raw from fuel
 
 1. Define one static-literal node-count function shared by cold discovery,
    parser-preseeded constants, and `$raw` payloads.
@@ -607,6 +648,9 @@ Primary files:
    canonical evaluation, and independently parsed canonical JSON under tight
    fuel limits.
 
+This workstream must pass before Workstreams F1/F2 may remove redundant `$raw`
+wrappers during normalization.
+
 Primary files:
 
 - `typescript/src/eval/interpreter.ts`
@@ -615,7 +659,7 @@ Primary files:
 - `typescript/src/types.ts`
 - `docs/execution-limits.md`
 
-### Phase 6: Migrate task, checker, specs, and examples
+### Workstream G: Migrate task, checker, specs, and examples
 
 1. Update checker diagnostics and comments to reserve “raw” for canonical
    quotation.
@@ -641,7 +685,7 @@ Primary files:
 - `spec/cases/`
 - `spec/parse-cases/`
 
-### Phase 7: Verification and cleanup
+### Workstream H: Verification and cleanup
 
 From `typescript/`:
 
@@ -670,11 +714,13 @@ This cleanup should land before the plans under `plans/content-addressing/`.
 The features are otherwise mostly orthogonal, but they share representation
 boundaries that must use the cleaned-up terminology and normalization rules.
 
-### Program normalization is not value normalization
+### Program normalization is context-sensitive and is not value normalization
 
-Module identity pinning hashes linked program JSON. It should hash the
-post-link **normalized program AST**, so redundant `$raw` spellings do not give
-semantically equivalent deployments different identities.
+Module identity pinning hashes the normalized authored program component
+defined by `content-addressing/module-identity-pinning.md`, so redundant
+`$raw` spellings do not give semantically equivalent deployments different
+identities. The program normalizer is context-sensitive: it distinguishes
+expression syntax, syntax-owned metadata, and quoted guest data.
 
 Content-addressed value storage hashes arbitrary guest values. It must not run
 the program normalizer over those values: guest data may legitimately contain
@@ -698,10 +744,11 @@ value cannot be confused merely because their encoded JSON bytes match.
 Content-addressed storage recreates object identities and therefore loses all
 runtime `WeakSet` metadata. A durable load must perform these stages in order:
 
-1. decode blob references and reconstruct the complete plain JSON record;
-2. validate the reconstructed record;
-3. restore runtime-value marks on task nodes and known continuation fields; and
-4. enter evaluation.
+1. fetch and verify referenced blobs;
+2. decode blob references and reconstruct the complete plain JSON record;
+3. validate the reconstructed record;
+4. restore runtime-value marks on task nodes and known continuation fields; and
+5. enter evaluation.
 
 The blob codec must not attempt to serialize runtime-value or constant-cost
 metadata. Restoring marks belongs to the centralized runtime hydration pass,
@@ -770,8 +817,11 @@ together. Test equivalent ingestion paths with exact limits.
 
 Parser analysis, raw-cost calculation, checker synthesis, and normalization are
 recursive walks and may encounter the existing host-stack depth gap. Do not
-claim that this cleanup solves arbitrary nesting. Reuse memoized analysis and
-avoid repeated subtree walks; address iterative traversal separately if needed.
+claim that this cleanup solves arbitrary nesting. Every new static-cost,
+normalization, or hydration traversal must be iterative or comply with the
+depth contract owned by
+[`runtime-representation-gaps.md`](runtime-representation-gaps.md). Reuse
+memoized analysis and avoid repeated subtree walks.
 
 ### Object-key integrity
 

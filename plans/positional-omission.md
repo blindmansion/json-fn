@@ -1,9 +1,10 @@
-# Plan sketch: omitting non-final positional arguments
+# Decision record: omitting non-final positional arguments
 
-Status: **problem documented, no change planned yet.** This note records a
-known expressiveness gap in positional calls, the design principles any fix
-must respect, the candidate designs, and a recommendation. Revisit if agent
-authoring keeps hitting the wall despite the shipped mitigations.
+Status: **decision record, not active implementation work.** Literal `null`
+remains supplied data, optional suffix parameters remain the positional
+omission mechanism, object-pattern parameters remain the named-options
+mechanism, and call-site holes remain deferred. Revisit only if authoring keeps
+hitting the wall despite the shipped mitigations.
 
 ## The gap
 
@@ -127,6 +128,8 @@ designed to avoid.
 Stay on **A**. Collect evidence: when agent-authored modules hit the targeted
 diagnostic, note whether the fix was trivial (drop the argument / options
 object) or a genuine restructuring burden. If the burden shows up repeatedly,
-implement **B** with the decisions above; it is the only candidate that
-extends omission without touching the value universe or the callable
-contract.
+open a new plan for **B**; do not implement from this sketch alone. That plan
+must settle builtin calls, canonical marker validation, trailing-hole
+normalization, arity and `$fnType`, `apply`/spread behavior, and environment
+entry boundary arrays. Call-site holes remain the only candidate here that
+extends omission without touching the value universe or callable contract.

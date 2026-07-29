@@ -45,15 +45,18 @@ global parser rule like the reservation of `Task`, which it is not.
    > `Task` is reserved as a type name. In a contract-linked module, `effects`
    > is injected by the linker and may not be declared as a top-level binding.
 
-3. Search the remaining documentation for unconditional descriptions of
-   `effects` as a reserved module binding and add the contract-linked
-   qualification where needed. Do not weaken rules concerning contract entry
-   names or contract-owned definitions.
+3. Audit every occurrence in `docs/writing-jfn.md` that groups `effects` with
+   unconditional injected or reserved names, including the introduction, §3,
+   §12, §13, and their cross-references. Qualify the top-level binding rule
+   with “in a contract-linked module,” while distinguishing the injected
+   effect-namespace vocabulary from reservation of the binding name. Record
+   the audited locations in the resulting documentation change. Do not weaken
+   rules concerning contract entry names or contract-owned definitions.
 
 4. Keep the implementation unchanged. Existing linker tests should continue
    to cover rejection of a contract-linked collision. Add a focused unlinked
    module check only if that allowed behavior is not already protected by a
-   test.
+   test; otherwise cite the existing coverage.
 
 ## Non-goals
 

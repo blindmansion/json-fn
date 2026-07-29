@@ -14,12 +14,12 @@ which unlocks three capabilities v1 cannot reach:
 1. **Partial hydration.** Resume a workflow without loading state the
    continuation never touches. A continuation that reads `state.cursor` and
    ignores a 50 MB `state.history` fetches one small blob, not the DAG.
-2. **`eq` hash fast-path.** Structural equality between two refs with equal
-   hashes is `true` in O(1) with zero hydration; unequal hashes are `false`
-   in O(1) (canonical hashing makes hash equality iff content equality,
-   modulo collisions). Deep-equality on large shared state — currently a
-   metered O(n) walk — collapses.
-3. **Sound memoization.** The language is pure, so a cache keyed by
+2. **`eq` hash fast-path.** Structural equality between two refs with
+   compatible semantic `ValueHash` values can use an O(1) comparison with zero
+   hydration. Physical `BlobHash` values are never equality evidence.
+   Deep-equality on large shared state — currently a metered O(n) walk — may
+   collapse once fuel behavior is specified.
+3. **Sound memoization.** For transitively pure calls, a cache keyed by
    `(callee hash, args hash) → result` is semantically invisible. This
    extends to durable memoization in the store (Unison-style incremental
    recomputation; Temporal-style side-effect caching falls out of the same
@@ -30,14 +30,41 @@ observe whether a value is a ref or inline.** All three features are pure
 optimizations over v1 semantics, and any place where that equivalence would
 break is a place this plan does not go.
 
+This is a separate evaluator architecture project, not a direct extension of
+the at-rest codec.
+
+## Unresolved architecture requirements
+
+All of these are blockers:
+
+- Blob reads are asynchronous while evaluation and task sessions are
+  synchronous. Select async evaluation, complete prefetch, a synchronous local
+  cache, or a new suspension mechanism before specifying forcing.
+- Runtime refs must use an unforgeable host-only representation, not an object
+  shape guest data can imitate.
+- Equality shortcuts use compatible semantic `ValueHash` values, never
+  physical `BlobHash` addresses.
+- Portable fuel cannot depend silently on chunk thresholds, cache warmth, or
+  store state. Specify virtual inline-equivalent charges or explicitly version
+  a non-portable execution profile.
+- Audit actual `maxValueSize` enforcement at production, hydration, forcing,
+  host, and serialization boundaries before claiming refs do not interact with
+  it.
+- Memoization purity is transitive: a guest function that can reach a host
+  function is not automatically pure. Cache hits/misses also need specified
+  fuel and failure behavior.
+- Complete a builtin/validator forcing-depth audit and a host-boundary forcing
+  contract.
+
 ## Design sketch
 
 ### Runtime representation
 
-A runtime-only wrapper (never a JSON shape the guest can construct or see):
+A runtime-only unforgeable branded/tagged host value, never a JSON shape the
+guest can construct or see. The following is only conceptual:
 
 ```ts
-type Ref = { hash: string; forced?: JSONType };
+type Ref = InternalRef<ValueHash>;
 ```
 
 - Created only when hydrating a stored record with lazy mode enabled.
@@ -80,8 +107,9 @@ chunked. Rule:
 > hash fast-path for `eq` is the one deliberate divergence and must be
 > specified: `eq(ref, ref)` with equal/unequal hashes charges O(1), not O(n).
 
-That makes fuel depend on *chunking boundaries* (whether two values are refs)
-— which is host-visible state. Two acceptable resolutions, to be decided:
+Naively, that makes fuel depend on *chunking boundaries* (whether two values
+are refs) — which is host-visible state. Two acceptable resolutions, to be
+decided:
 
 - **(a)** Keep lazy mode outside conformance entirely: it is a host
   optimization, and hosts running lazy mode accept that fuel accounting may
@@ -92,14 +120,23 @@ That makes fuel depend on *chunking boundaries* (whether two values are refs)
   Deterministic given the same chunking config, but drags chunking into the
   conformance spec.
 
-Leaning (a). Fuel portability matters most for metered multi-tenant guests,
-which can simply not enable lazy mode.
+No option may silently change portable fuel. Option (a) requires an explicitly
+versioned non-portable execution profile; option (b) requires
+inline-equivalent virtual charges or a portable semantic rule independent of
+physical chunking.
 
 ### `maxValueSize`
 
-Unchanged: it bounds values a program *produces*. Refs are never produced by
-guest code; forcing a stored value re-checks nothing (it was checked when
-produced). No interaction.
+Today `maxValueSize` is not a recursive serialized-byte bound. The canonical
+TypeScript evaluator checks produced string code-point lengths and array
+lengths at result/selected builtin construction points, and separately checks
+closure-substitution expansion by attached node count. It does not establish
+that every arbitrary hydrated object tree was previously checked.
+
+Lazy-ref interaction is therefore unresolved. Audit enforcement for produced
+values, hydrated records, forced subtrees, host boundaries, and serialization
+before deciding whether forcing must add checks or preserve an earlier
+validated size certificate.
 
 ### Memoization table
 
@@ -109,10 +146,12 @@ Optional, separate flag, built on the same hashes:
 memo: { get(fnHash, argsHash): JSONType | undefined; put(...): void }
 ```
 
-- Sound only for pure calls — which is *all* guest calls; effects are inert
-  data, so even task-building functions memoize safely (the task is a value).
-  Host direct functions are the exception: never memoized (they may be
-  impure by contract).
+- Sound only for transitively pure calls. Guest functions that directly or
+  transitively reach host functions are not memoizable merely because their
+  outer call is guest code. Task-building may be memoizable only after the
+  same transitive analysis.
+- Cache hits, misses, cached failures, and successful results must have defined
+  deterministic fuel and failure behavior.
 - In-process LRU first; the durable store variant (cross-run memoization) is
   a later extension with its own GC/invalidations keyed by the module
   identity hash from
@@ -131,17 +170,16 @@ memo: { get(fnHash, argsHash): JSONType | undefined; put(...): void }
 
 ## Preconditions before starting
 
-1. v1 shipped, with instrumentation showing (a) hydration latency or (b)
-   memory duplication at resume as a measured bottleneck on a real workload.
-2. The builtin audit list (which builtins force to what depth) written
-   against the actual builtin table — this doc's rules are stated abstractly;
-   the audit is the real work item and its size should be known before
-   committing.
-3. Decision recorded on fuel option (a) vs (b) above.
-4. The raw-semantics cleanup has landed, including its deterministic static
-   cost model and centralized runtime-value hydration. Lazy forcing must build
-   on those chokepoints rather than adding another `isRaw`-style union
-   predicate.
+1. Eager at-rest CAS is shipped and measured.
+2. Hydration latency or memory duplication is a demonstrated bottleneck on a
+   representative workload.
+3. Raw syntax, runtime-value identity, static-cost metadata, deterministic
+   `$raw` fuel, and centralized hydration are stable.
+4. Semantic `ValueHash` support is available and distinct from physical
+   `BlobHash`.
+5. The asynchronous forcing architecture, unforgeable representation, builtin
+   and host forcing contracts, and portable fuel policy are decided.
+6. Module identity is available before durable memoization.
 
 ## Open questions
 

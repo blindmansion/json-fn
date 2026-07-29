@@ -1,6 +1,6 @@
 # Implementation roadmap
 
-Status: proposed
+Status: active; reconciliation pre-step completed
 
 ## Summary
 
@@ -27,7 +27,8 @@ documentation fixes are an unordered side track.
 
 ## Pre-step: reconcile the plans
 
-Complete [`plan-reconciliation.md`](plan-reconciliation.md) first.
+**Completed.** [`plan-reconciliation.md`](plan-reconciliation.md) and the
+individual owning plans now describe one compatible architecture.
 
 That pass updates the individual plan documents to:
 

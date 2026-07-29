@@ -1,7 +1,9 @@
 # Runtime representation gaps
 
-Status: investigation; the Unicode indexing issue is addressed in the canonical
-TypeScript implementation. The object-key and host-stack issues remain open.
+Status: investigation; Unicode code-point semantics are implemented in the
+canonical TypeScript implementation. The object-key and host-stack issues, the
+Unicode performance/metering work, and the ill-formed-surrogate policy remain
+open.
 
 ## Summary
 
@@ -124,16 +126,27 @@ failure.
 ### Direction
 
 This should be treated as an implementation bug rather than a language choice.
-Object construction should define own enumerable data properties for every
-JSON key.
+
+**Guest-object invariant:** every JSON key is represented as an own,
+enumerable, writable data property. Object construction must preserve that
+invariant regardless of the key spelling or construction route.
 
 A small shared helper can use `Object.defineProperty`, either for every key or
 at least for `__proto__`. It must be used consistently in:
 
 - shorthand data-object and raw-JSON parsing;
 - evaluator object-literal rebuilding;
-- closure or transformation passes that rebuild arbitrary data objects; and
-- future object-construction code.
+- closure or transformation passes that rebuild arbitrary data objects;
+- checker-generated property and definition maps;
+- standard-library transforms, grouping, and entry reconstruction;
+- environment and module namespace construction;
+- task/workflow serialization and hydration; and
+- future codecs and other generic object-construction code.
+
+This is a repository-wide arbitrary-key write audit, not only a parser and
+evaluator patch. The shared helper and audit are owned by this plan.
+[`raw-semantics-cleanup.md`](raw-semantics-cleanup.md) consumes the helper but
+does not reimplement or own the fix.
 
 Null-prototype records would also make assignment safe, but introducing them
 as guest values has a wider host-interop impact than defining properties on
@@ -273,9 +286,10 @@ would need to preserve:
 - closure creation and variable substitution; and
 - task suspension and continuation behavior.
 
-Parser, checker, closure, and printer walks may need similar treatment if the
-language intends to accept deeply nested source and canonical values across
-the full toolchain.
+Parser, checker, closure, printer, program-normalization, hashing, and hydration
+walks may need similar treatment if the language intends to accept deeply
+nested source and canonical values across the full toolchain. `maxCallDepth`
+does not bound any of those traversals.
 
 A smaller alternative is a deterministic `maxExpressionDepth` checked below a
 conservative host-safe threshold. That produces portable failures but adds a
@@ -293,7 +307,9 @@ Before implementation, decide whether json-fn promises:
 2. a specified expression-depth limit, enforced consistently before the host
    stack is at risk.
 
-## 3. String indexing can produce lone surrogates
+## 3. Unicode string representation
+
+### 3a. Code-point semantics (implemented)
 
 ### Original reproduction
 
@@ -388,18 +404,21 @@ user-visible string positions:
 code points. Conformance cases now cover non-BMP characters across the changed
 operations.
 
-The current implementation is a semantic prototype, not yet suitable to merge
-without performance work. Code-point `length` and indexing replace constant-time
-UTF-16 operations with linear scans; `slice` materializes the whole string; and
-`indexOf`/`includes` replace the host's optimized search with allocated arrays
-and a JavaScript loop (quadratic in the worst case). The added work also needs
-explicit fuel treatment. A production implementation should retain native
-search and slicing where possible, converting only between UTF-16 offsets and
-code-point positions and checking match boundaries.
-
 This means `"a😀b"[1]` is `"😀"` and `length("a😀b")` is `3`. The chosen unit is
 not a user-perceived grapheme cluster: combining sequences and multi-code-point
 emoji still occupy more than one index.
+
+### 3b. Performance and fuel metering (open)
+
+Code-point `length` and indexing replace constant-time UTF-16 operations with
+linear scans; `slice` materializes the whole string; and `indexOf`/`includes`
+replace the host's optimized search with allocated arrays and a JavaScript loop
+(quadratic in the worst case). The added work needs explicit fuel treatment. A
+production implementation should retain native search and slicing where
+possible, converting only between UTF-16 offsets and code-point positions and
+checking match boundaries.
+
+### 3c. Ill-formed surrogate strings (policy unresolved)
 
 The change guarantees that indexing, slicing, and empty-separator splitting do
 not manufacture a lone surrogate from a well-formed input. It does not yet
@@ -412,7 +431,11 @@ boundaries remains a separate value-validation decision.
 ## Suggested sequencing
 
 1. Fix `__proto__` handling independently. It is a narrow correctness defect
-   with no credible compatibility reason to retain.
+   with no credible compatibility reason to retain. Land the shared helper and
+   repository-wide audit before program normalization in
+   [`raw-semantics-cleanup.md`](raw-semantics-cleanup.md) or generic codec
+   reconstruction in
+   [`content-addressed-values.md`](content-addressing/content-addressed-values.md).
 2. Decide the expression-depth contract, then implement either iterative core
    walks or a portable depth limit. Do not present caught host `RangeError`s as
    deterministic limits on their own.

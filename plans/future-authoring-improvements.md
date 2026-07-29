@@ -58,6 +58,11 @@ would require a scoped `Defs` chain plus a resolution strategy for unqualified
 `#/$defs/Name` references. Hoisting would be simpler but would expose local
 names globally and create cross-function collisions.
 
+This is substantially larger than adding a scoped definitions map. Escaping
+schemas, runtime validator artifacts, and unqualified references all need
+stable lexical type identity across closure creation, serialization, and
+hydration.
+
 ### Annotated `where` locals
 
 Allow an optional checked annotation on a local:
@@ -84,18 +89,11 @@ describe capability surfaces separately from their implementations.
 
 ## Authoring and diagnostics
 
-### Recursive callbacks require explicit references
+### Recursive callback references (shipped)
 
-A bare self-reference used as a callback can force its module binding while
-that binding is already being evaluated:
-
-```jfn
-evaluate: (node) => map(evaluate, node.children)
-```
-
-Using `&evaluate` avoids the circular value read. Either bare self-references
-should resolve as function references, or the diagnostic and shorthand
-documentation should direct authors to `&name`.
+Bare recursive callback references already work where function references are
+allowed. This is not a pending language feature. Add a future item only if a
+specific remaining diagnostic or concise-guide gap is demonstrated.
 
 ### Width-aware printing
 
@@ -104,9 +102,9 @@ object across multiple lines. A width-aware layout should wrap long arrays and
 inline short objects when they fit, especially for object-pattern call sites
 and lists of small records.
 
-### Document `groupBy` key conversion
+### `groupBy` key conversion (documented)
 
-`groupBy` stores groups in a JSON object, so numeric callback results become
-string keys. For example, grouping by rank `13` and then calling `entries`
-produces `["13", values]`. Document this clearly; callers that need the original
-number must convert the key with `num`.
+The main language reference already documents that numeric `groupBy` and
+`countBy` callback results become JSON object string keys. The only possible
+follow-up is a concise reminder in `docs/writing-jfn.md`; this is not a
+language change.

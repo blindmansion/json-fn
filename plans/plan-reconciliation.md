@@ -1,6 +1,6 @@
 # Reconcile the existing plans
 
-Status: proposed documentation pre-step
+Status: completed documentation pre-step (2026-07-29)
 
 ## Summary
 
@@ -338,7 +338,7 @@ The resulting ownership should be:
 
 ## Completion criteria
 
-This pre-step is complete when:
+Completed. The reconciled individual plans satisfy these criteria:
 
 - every individual plan has an accurate status;
 - shipped, deferred, and open work are visibly separated;
