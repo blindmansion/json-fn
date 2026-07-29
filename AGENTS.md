@@ -1,8 +1,8 @@
 # AGENTS.md
 
-json-fn is a pure-JSON functional expression language evaluated by a tree-walking interpreter. See `README.md` for the language pitch and `docs/language.md` for the full reference.
+json-fn is built for agents that write programs rather than issuing one tool call at a time — but instead of sandboxing a general-purpose language after the fact, it makes agent-written code safe by construction: pure JSON programs with no I/O and no capability beyond what an operator-owned contract explicitly declares. Because the program is inert data, it's an auditable artifact — typecheckable against its contract, hashable, diffable, and human-readable — so operators can review exactly what an agent's automation can do before embedding it in their application. And because continuations are JSON too, agent-written workflows suspend, persist, and resume across process restarts natively, giving durable orchestration without replay machinery.
 
-> Note: `README.md` is currently out of date. We're not updating it yet, so treat `docs/` as the source of truth for language details.
+json-fn is a pure-JSON functional expression language evaluated by a tree-walking interpreter. See `docs/language.md` for the full reference; `docs/` is the source of truth for language details. (There is no root `README.md` right now — it will be rewritten once the project stabilizes.)
 
 ## Reference docs & working notes
 
