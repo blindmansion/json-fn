@@ -1,0 +1,65 @@
+// A small ledger: fold transactions over a map of accounts.
+type Cents = integer & min(0) // refinement, not intersection
+type Id = string & pattern("^acc_")
+type Account = { id: Id, name: string, balance: Cents } // closed: extra keys invalid
+type Ledger = { [string]: Account } // map type
+
+type Tx = // discriminated union
+    { tag: "open", id: Id, name: string }
+  | { tag: "deposit", to: Id, amount: Cents }
+  | { tag: "withdraw", from: Id, amount: Cents }
+
+type Books = { ledger: Ledger, log: string[] }
+
+// Named functions carry full signatures: every param annotated + return type.
+balanceOf: (led: Ledger, id: Id) -> Cents =>
+  if hasKey(led, id) then led[id].balance else 0
+
+// Object-pattern parameter destructuring one positional object argument.
+canDebit: ({ led, id, amount }: { led: Ledger, id: Id, amount: Cents }) -> boolean =>
+  hasKey(led, id) && balanceOf(led, id) >= amount
+
+note: (books: Books, msg: string) -> Books =>
+  { ledger: books.ledger, log: concat(books.log, [msg]) }
+
+// The body is a data object — `{…}` after `=>` is always data, never a block.
+put: (books: Books, acct: Account, msg: string) -> Books => {
+  ledger: merge(books.ledger, fromEntries([[acct.id, acct]])),
+  log: concat(books.log, [msg])
+}
+
+// `where` locals come after the result, and are lazy — not a statement list.
+// Arithmetic on a refined type yields plain integer; `checked as` re-validates.
+adjust: (books: Books, id: Id, delta: integer, msg: string) -> Books =>
+  put(books, merge(acct, { balance: acct.balance + delta }) checked as Account, msg) where {
+    acct: books.ledger[id]
+  }
+
+// `match` on the tag narrows `tx` per arm; `else` is required.
+apply: (books: Books, tx: Tx) -> Books => match tx.tag {
+  "open": if hasKey(books.ledger, tx.id)
+    then note(books, `skip: ${tx.id} already open`)
+    else put(books, { id: tx.id, name: tx.name, balance: 0 }, `open ${tx.name}`),
+  "deposit": adjust(books, tx.to, tx.amount, `+${str(tx.amount)} -> ${tx.to}`),
+  else: cond {
+    canDebit({ led: books.ledger, id: tx.from, amount: tx.amount }):
+      adjust(books, tx.from, -tx.amount, `-${str(tx.amount)} <- ${tx.from}`),
+    else: note(books, `decline: ${tx.from} lacks ${str(tx.amount)}`)
+  }
+}
+
+// HOFs take the callback first, data last. Inline lambdas stay unannotated.
+run: (txns: Tx[]) -> Books =>
+  reduce((books, tx) => apply(books, tx), { ledger: {}, log: [] }, txns)
+
+demo: () -> { names: string[], log: string } => {
+  names, // punning: { names } == { names: names }
+  log: join(final.log, "\n")
+} where {
+  final: run([
+    { tag: "open", id: "acc_ada", name: "Ada" },
+    { tag: "deposit", to: "acc_ada", amount: 100 },
+    { tag: "withdraw", from: "acc_ada", amount: 250 }
+  ]),
+  names: map((a) => a.name, sortBy((a) => a.name, values(final.ledger)))
+}

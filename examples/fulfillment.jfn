@@ -1,0 +1,170 @@
+// ─────────────────────────────────────────────────────────────────────────
+// Warehouse order fulfillment
+//
+// Task: allocate finite stock across a batch of prioritized orders, price
+// each shipment with tiered volume discounts, emit shipments + backorders
+// and a human-readable log, then (effectfully) snapshot inventory, charge
+// payments, and audit — with a pure mocked test at the bottom via `handle`.
+//
+// Assumed environment effect vocabulary:
+//   effects.inventory.snapshot() -> Task<Inventory>
+//   effects.payments.charge(orderId: string, amount: Cents) -> Task<null>
+//   effects.audit.log(msg: string) -> Task<null>
+// ─────────────────────────────────────────────────────────────────────────
+
+// Boundary types (Sku, Qty, Cents, StockLevel, Inventory, Line, Priority,
+// Order, Allocation, Shipment, BatchResult) are owned by the contract and
+// injected by the linker — the module must not re-declare them.
+
+// ── pure core ────────────────────────────────────────────────────────────
+
+// Free-to-promise units for a sku; arithmetic drops the refinement, so the
+// clamped result is re-validated with `checked as`.
+available: (inv: Inventory, sku: Sku) -> Qty =>
+  (if free > 0 then free else 0) checked as Qty where {
+    free: if hasKey(inv, sku) then inv[sku]!.onHand - inv[sku]!.reserved else 0
+  }
+
+// Reserve units against a stock level (immutably, via merge + computed key).
+reserve: (inv: Inventory, sku: Sku, qty: Qty) -> Inventory =>
+  merge(inv, { [sku]: (merge(lvl, { reserved: lvl.reserved + qty }) checked as StockLevel) }) where {
+    lvl: inv[sku]!
+  }
+
+// Allocate one line against inventory: filled / partial / none.
+allocate: (inv: Inventory, line: Line) -> { inv: Inventory, alloc: Allocation } => cond {
+  avail >= line.qty: {
+    inv: reserve(inv, line.sku, line.qty),
+    alloc: { tag: "filled", sku: line.sku, qty: line.qty }
+  },
+  avail > 0: {
+    inv: reserve(inv, line.sku, avail),
+    alloc: {
+      tag: "partial",
+      sku: line.sku,
+      shipped: avail,
+      backordered: (line.qty - avail) checked as Qty
+    }
+  },
+  else: { inv, alloc: { tag: "none", sku: line.sku, backordered: line.qty } } // punning: { inv }
+} where {
+  avail: available(inv, line.sku)
+}
+
+// How many units an allocation actually ships; `match` on the tag narrows.
+shippedQty: (alloc: Allocation) -> Qty => match alloc.tag {
+  "filled": alloc.qty,
+  "partial": alloc.shipped,
+  else: 0
+}
+
+// Subtotal = shipped units × unit price, summed across zipped line/alloc pairs.
+subtotalOf: (lines: Line[], allocs: Allocation[]) -> Cents =>
+  sum(map((pair) => shippedQty(pair[1]!) * pair[0]!.unitPrice, zip(lines, allocs))) checked as Cents
+
+// Tiered volume discount: 10% at $1000+, 5% at $250+, else none.
+discountFor: (subtotal: Cents) -> Cents => cond {
+  subtotal >= 100000: floor(subtotal * 0.10),
+  subtotal >= 25000: floor(subtotal * 0.05),
+  else: 0
+} checked as Cents
+
+// Walk one order's lines, threading inventory through the fold.
+fulfillOrder: (inv: Inventory, order: Order) -> { inv: Inventory, shipment: Shipment } => {
+  inv: walked.inv,
+  shipment: {
+    orderId: order.id,
+    allocations: walked.allocs,
+    subtotal,
+    discount,
+    total: (subtotal - discount) checked as Cents
+  }
+} where {
+  walked: reduce(
+    (acc, line) => ({
+      inv: step.inv,
+      allocs: concat(acc.allocs, [step.alloc])
+    } where { step: allocate(acc.inv, line) }),
+    { inv, allocs: [] },
+    order.lines
+  ),
+  subtotal: subtotalOf(order.lines, walked.allocs),
+  discount: discountFor(subtotal)
+}
+
+describeAlloc: (orderId: string, alloc: Allocation) -> string => match alloc.tag {
+  "filled": `${orderId}: ${alloc.sku} x${str(alloc.qty)} filled`,
+  "partial": `${orderId}: ${alloc.sku} shipped ${str(alloc.shipped)}, backordered ${str(alloc.backordered)}`,
+  else: `${orderId}: ${alloc.sku} fully backordered (${str(alloc.backordered)} units)`
+}
+
+priorityRank: (p: Priority) -> integer => match p {
+  "overnight": 0,
+  "express": 1,
+  else: 2
+}
+
+// Fulfill a whole batch: highest priority first, one shared inventory.
+runBatch: (inv: Inventory, orders: Order[]) -> BatchResult =>
+  reduce(
+    (acc, order) => ({
+      inventory: r.inv,
+      shipments: concat(acc.shipments, [r.shipment]),
+      log: concat(acc.log, map((a) => describeAlloc(order.id, a), r.shipment.allocations))
+    } where { r: fulfillOrder(acc.inventory, order) }),
+    { inventory: inv, shipments: [], log: [] },
+    sortBy((o) => priorityRank(o.priority), orders)
+  )
+
+// ── effectful shell ──────────────────────────────────────────────────────
+
+// Sequence a dynamic list of charge tasks by recursion; the bare non-final
+// `do` entry runs the charge and discards its result.
+chargeAll: (shipments: Shipment[]) -> Task<null> =>
+  if length(shipments) == 0 then pure(null) else (do {
+    effects.payments.charge(first.orderId, first.total),
+    chargeAll(tail(shipments))
+  } where { first: shipments[0]! })
+
+// Snapshot -> pure batch computation -> audit -> charge -> return result.
+processBatch: (orders: Order[]) -> Task<BatchResult> => do {
+  inv <- effects.inventory.snapshot(),          // `<-` actually runs the task
+  result: runBatch(inv, orders),                // `:` is a lazy pure local
+  effects.audit.log(`batch: ${str(length(orders))} orders -> ${str(length(result.shipments))} shipments`),
+  chargeAll(result.shipments),
+  pure(result)
+}
+
+// ── fixtures + mocked test ───────────────────────────────────────────────
+
+demoInventory: {
+  sku_widget: { sku: "sku_widget", onHand: 10, reserved: 0 },
+  sku_gizmo:  { sku: "sku_gizmo",  onHand: 3,  reserved: 1 }
+} checked as Inventory
+
+demoOrders: [
+  { id: "ord_1001", customer: "Ada",   priority: "standard",  lines: [
+    { sku: "sku_widget", qty: 4, unitPrice: 1999 }
+  ] },
+  { id: "ord_1002", customer: "Grace", priority: "overnight", lines: [
+    { sku: "sku_widget", qty: 8, unitPrice: 1999 },
+    { sku: "sku_gizmo",  qty: 5, unitPrice: 34999 }
+  ] }
+] checked as Order[]
+
+// Pure entry point: no tasks needed for purely computational use.
+demoRun: () -> BatchResult => runBatch(demoInventory, demoOrders)
+
+// Effectful entry point, interpreted with pure mocks: the total `handle`
+// form validates the result as BatchResult and errors on unmatched effects.
+testProcess: () -> { totals: Cents[], logLines: string, backorders: integer } => {
+  totals: map((s) => s.total, result.shipments),
+  logLines: join(result.log, "\n"),
+  backorders: count((a) => a.tag != "filled", flatMap((s) => s.allocations, result.shipments))
+} where {
+  result: handle processBatch(demoOrders) returns BatchResult with {
+    "inventory.snapshot": (resume) => resume(demoInventory),
+    "payments.charge": (orderId, amount, resume) => resume(null),
+    "audit.log": (msg, resume) => resume(null)
+  }
+}
