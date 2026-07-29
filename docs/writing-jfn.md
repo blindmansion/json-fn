@@ -32,7 +32,12 @@ values**. The surface reads like TypeScript expressions with Haskell-flavored
 // A small ledger: fold transactions over a map of accounts.
 type Cents = integer & min(0) // refinement, not intersection
 type Id = string & pattern("^acc_")
-type Account = { id: Id, name: string, balance: Cents } // closed: extra keys invalid
+// Refine boundary/input values freely, but default recomputed fields to plain
+// types: refinements are opaque to arithmetic, so a refined balance would
+// require `checked as` at every write. Refine a derived field only when its
+// invariant must fail at the construction site, before any later boundary;
+// `checked as` failures are hard errors, so valid-input failures use cond/raise.
+type Account = { id: Id, name: string, balance: integer } // closed: extra keys invalid
 type Ledger = { [string]: Account } // map type
 
 type Tx = // discriminated union
@@ -43,7 +48,7 @@ type Tx = // discriminated union
 type Books = { ledger: Ledger, log: string[] }
 
 // Named functions carry full signatures: every param annotated + return type.
-balanceOf: (led: Ledger, id: Id) -> Cents =>
+balanceOf: (led: Ledger, id: Id) -> integer =>
   if hasKey(led, id) then led[id].balance else 0
 
 // Object-pattern parameter destructuring one positional object argument.
@@ -60,9 +65,8 @@ put: (books: Books, acct: Account, msg: string) -> Books => {
 }
 
 // `where` locals come after the result, and are lazy — not a statement list.
-// Arithmetic on a refined type yields plain integer; `checked as` re-validates.
 adjust: (books: Books, id: Id, delta: integer, msg: string) -> Books =>
-  put(books, merge(acct, { balance: acct.balance + delta }) checked as Account, msg) where {
+  put(books, merge(acct, { balance: acct.balance + delta }), msg) where {
     acct: books.ledger[id]
   }
 
@@ -116,6 +120,9 @@ demo: () -> { names: string[], log: string } => {
   contextually.
 - Functions are values: pass a function by its bare name (`map(double, xs)`)
   or explicitly with `&double`. `&(expr)` forces an evaluated reference.
+- If the module is linked against an environment contract, the contract's
+  `$defs` are injected as type names (as is `effects`); do not re-declare
+  them — declare only module-internal types.
 
 ## 4. Values and data literals
 
@@ -153,31 +160,29 @@ builtin call.
 | 6    | `\|\|`                      | short-circuit or, returns the deciding value  |
 | 7    | `expr checked as T`         | runtime-validated type ascription             |
 
-Semantics to internalize:
+The semantics fit in a few live expressions:
 
-- **No coercion anywhere.** `+` is numeric only; concatenate strings with `++`
-  or templates. `==`/`!=` is **deep structural equality** — the only equality
-  the language has — and does not coerce (`1 == "1"` is `false`,
-  `[1, {a: 2}] == [1, {a: 2}]` is `true`). There is no `===`.
-- **Comparison chaining is real:** `0 <= x < 100` means what it looks like,
-  evaluating each operand once, left to right, stopping at the first failure.
-  Equality operators cannot participate in chains.
-- **Truthiness:** exactly `false`, `null`, `0`, and `""` are falsy.
-  **Empty arrays and objects are truthy** (JS-like, not Python-like).
-- `&&`/`||` return the first falsy / first truthy operand's value, like JS.
-  They are the _only_ lazy boolean forms; the builtins `and`/`or` are eager
-  functions.
-- Arithmetic that would produce `NaN` or `±Infinity` **errors** instead
-  (`1 / 0` is an error). `/` is float division: `7 / 2` is `3.5`.
-- `x!` asserts non-null: returns any non-`null` value unchanged, errors on
-  `null`, and strips `null` from the static type.
-- `expr checked as T` evaluates once, validates the result against `T` at
-  runtime, and gives the expression exactly type `T`. It is an **assertion,
-  not a conversion** (`"1" checked as integer` fails). Lowest precedence
-  (`a + b checked as Cents` checks the sum) and non-associative.
-- **Template strings** `` `total: ${str(n)}` ``: interpolation is **strict** —
-  each `${…}` must produce a string; wrap numbers and anything else
-  explicitly (`str(n)`). Escapes: `` \` ``, `\${`, plus normal JSON escapes.
+```jfn
+{
+  noCoercion: 1 == "1",                    // false; there is no `===`
+  deepEquality: [1, { a: 2 }] == [1, { a: 2 }], // true: equality is structural
+  inRange: 0 <= x < 100,                   // real chain; each operand runs once
+  emptyIsTruthy: [] && "yes",              // "yes"; only false/null/0/"" are falsy
+  fallback: value || "default",            // &&/|| are lazy and return operand values
+  quotient: 7 / 2,                         // 3.5; 1 / 0 errors (no NaN/Infinity)
+  required: maybe!,                        // errors on null; statically strips null
+  cents: total + fee checked as Cents,     // validates the whole sum once
+  label: `total: ${str(total)}`             // interpolation requires a string
+} where {
+  x: 42, value: "", maybe: 3, total: 10, fee: 2
+}
+```
+
+`+` is numeric only; concatenate strings with `++` or a template. `&&`/`||`
+are the only lazy boolean operators (`and`/`or` are eager builtins). A
+`checked as` is an assertion, not a conversion (`"1" checked as integer`
+fails), and is non-associative. Template escapes are `` \` ``, `\${`, plus
+normal JSON escapes.
 
 ## 6. Functions
 
@@ -194,35 +199,30 @@ type, or nothing.
 ```jfn
 greet: (name: string, title?: string, punct: string = "!") -> string =>
   if isNull(title) then `hi ${name}${punct}` else `hi ${title} ${name}${punct}`
+
+// greet("Ada")                   => "hi Ada!": omitted title binds null
+// greet("Ada", "Dr.")            => "hi Dr. Ada!"
+// greet("Ada", "Dr.", "?")       => "hi Dr. Ada?"
+// greet("Ada", null)             => static error: supplied title must be string
+// greet("Ada", "Dr.", "?", 1)    => static error: arity is exact
+
+choose: (value: string | null = "default") -> string | null => value
+// choose()                       => "default": omission evaluates the lazy default
+// choose(null)                   => null: explicit null is data and suppresses it
+
+configure: ({ label = "", retries?, tags = [] }:
+  { label?: string, retries?: integer, tags?: string[] }) -> string => label
+// configure({ retries: 3 })      => object fields omit independently
 ```
 
-- Required parameters come first, then any mix of optional (`x?`) and
-  defaulted (`x = expr`), then at most one rest parameter (`...rest`), which
-  arrives as an array (possibly empty). `?` and `=` cannot combine.
-- **Omitting an optional parameter binds `null`** — there is no `undefined`.
-  Its local type is `T | null`.
-- Defaults are **lazy** and resolve in the whole invocation scope (they may
-  reference other parameters regardless of order — not JS's left-to-right
-  rule). **An explicit `null` argument is supplied data: it binds `null` and
-  suppresses the default.** Note the annotation on an omittable parameter
-  types the _supplied_ value, so the checker rejects an explicit `null` for
-  `title?: string` — omit the argument instead (or annotate `string | null`
-  if callers should pass `null` deliberately).
-- Because calls are positional and cannot skip a slot, an omittable parameter
-  followed by another parameter can no longer be omitted when the later one is
-  supplied. Rule of thumb: **at most one trailing omittable positional
-  parameter**; a function with several independent optional knobs should take
-  one object-pattern argument instead (`({ b = "B", c? }) => …`), whose fields
-  omit independently.
-- **Arity is exact.** Calls must supply every required slot and may not exceed
-  the fixed slots unless there is a rest parameter — extra arguments are
-  errors, not ignored.
-- **Object patterns** destructure one positional object argument:
-  `({ from, to, label = "" }) => …`. The calling convention is unchanged —
-  the caller passes one plain object (`move({ from: 1, to: 3 })`); required
-  fields must be present, extra keys are ignored, absent optional/defaulted
-  fields behave like optional/defaulted parameters. The pattern slot itself is
-  always required. No renames or nested patterns.
+Required parameters come first, followed by optional (`x?`) and defaulted
+(`x = expr`) parameters, then at most one rest parameter (`...rest`), which
+arrives as an array. Defaults are lazy and may reference any parameter in the
+invocation; `?` and `=` cannot combine. Calls are positional, so a later
+argument cannot be supplied while skipping an earlier slot—prefer one
+object-pattern argument for independent options. Object patterns take one
+plain object, have no renames or nesting, require their non-optional fields,
+and ignore extra keys.
 
 ### Callback shape discipline
 
@@ -260,28 +260,48 @@ when one fits.
 
 ```jfn
 summary: (xs: number[]) -> string =>
-  `${str(n)} item(s), sum ${str(total)}` where {
-    n: length(xs),
-    total: reduce((a, x) => a + x, 0, xs)
+  if n == 0 then "empty"
+  else `${str(n)} item(s), mean ${str(mean)}` where {
+    mean: total / n, // never forced on the empty branch
+    total: reduce((a, x) => a + x, 0, xs), // may refer to `n` above/below
+    n: length(xs) // order does not matter
   }
 ```
 
-- The **result expression comes first**; locals follow in the `where` block.
-- Bindings are a **lazy, memoized dependency graph — not a statement
-  sequence**. Order is irrelevant, bindings may reference each other and
-  recurse mutually, cycles are runtime errors when actually forced, and a
-  binding never demanded from the result **never evaluates** (so a `tap(…)`
-  logging call parked in an unused binding does nothing).
-- Every binding must be reachable from the result (directly or through other
-  bindings) — unused bindings are checker errors, not dead code.
-- Function-valued `where` bindings are named functions: they need full
-  signatures and are callable (and recursive) by their local name.
-- An unparenthesized `where` attaches to the largest enclosing expression
-  within the current binding or arm — after an `if`/`cond`/`match` it scopes
-  over the whole conditional, while inside a `cond`/`match` arm it stops at
-  that arm. Parenthesize a branch to scope locals to just that branch:
-  `if p then x else (fix(x) where { fix: … })`.
-- Inner `where` names shadow parameters and outer bindings.
+The result comes first. Its locals form a lazy, memoized dependency graph,
+not a statement sequence: order is irrelevant, mutual recursion works, and
+cycles fail only if forced. Every binding must nevertheless be reachable from
+the result or the checker reports it as unused. A function-valued local is a
+named function and needs a full signature. Inner locals shadow parameters and
+outer bindings.
+
+```jfn
+// `where` and `checked as` stop at commas and object-entry braces, so neither
+// position needs defensive parentheses.
+type StockLevel = { reserved: integer }
+type Inventory = { [string]: StockLevel }
+type Walk = { inv: Inventory, out: integer[] }
+
+allocate: (inv: Inventory, line: integer) -> { inv: Inventory, alloc: integer } =>
+  { inv, alloc: line }
+walk: (inv: Inventory, lines: integer[]) -> Walk => reduce(
+  (acc, line) => { inv: step.inv, out: concat(acc.out, [step.alloc]) }
+    where { step: allocate(acc.inv, line) }, // comma ends this lambda body
+  { inv, out: [] },
+  lines
+)
+reserve: (sku: string, lvl: StockLevel, q: integer) -> Inventory =>
+  { [sku]: merge(lvl, { reserved: lvl.reserved + q }) checked as StockLevel }
+
+// A `where` otherwise covers the largest expression in its binding or arm.
+ready: (input: integer) -> boolean => input > 0
+repair: (input: integer) -> integer => input + 1
+whole: (input: integer) -> integer =>
+  if p then input else repair(input) where { p: ready(input) }
+branch: (p: boolean, input: integer) -> integer =>
+  if p then input
+  else (fix(input) where { fix: (x: integer) -> integer => repair(x) })
+```
 
 ## 8. Control flow
 
@@ -312,13 +332,22 @@ arbitrary conditions. There are no loops; see §6 on recursion and HOFs.
 
 ```jfn
 user.name        cells[0]        row[i]        config["retry-count"]
+
+type StockLevel = { onHand: integer }
+type Inventory = { [string]: StockLevel }
+
+// Statically, map and array reads have their element type, NOT `T | null`;
+// no `!` or guard is needed merely to satisfy the checker. At runtime an
+// absent key/index still returns null, so guard when absence is a real case.
+onHand: (inv: Inventory, sku: string) -> integer =>
+  if hasKey(inv, sku) then inv[sku].onHand else 0
 ```
 
 - A **missing** object key or out-of-range index reads as `null`. But reading
   _through_ a present `null` errors (`a.b.c` when `a.b` is `null`), as does
-  accessing a non-container. There is no `?.` — guard with `if`/`isNull`, or
-  assert with `!` when you know better than the type
-  (`first: (xs: integer[]) -> integer => xs[0]!`).
+  accessing a non-container. There is no `?.`. Use `!` to assert a value whose
+  static type actually includes `null`, or to make an expected-presence check
+  fail immediately at runtime.
 - Keys are never coerced: arrays and strings require integer indices, objects
   require string keys. Index an object by a number's string form explicitly:
   `obj[str(n)]`.
@@ -346,6 +375,19 @@ type User = { id: string, score?: integer } // ? = optional field
 type Loose = { id: string, ... } // ... opens the object
 type Tree = { value: number, children: Tree[] } // recursion ok through arrays/objects
 type Guard = (Account) -> boolean // function type
+```
+
+Literal values are checked deeply against refinements at check time; only a
+computed value whose inferred type has lost the refinement needs `checked as`:
+
+```jfn
+type Sku = string & pattern("^sku_")
+type Percent = integer & min(0) & max(100)
+type Offer = { sku: Sku, discount: Percent }
+
+acceptOffer: (offer: Offer) -> Offer => offer
+demoOffer: acceptOffer({ sku: "sku_widget", discount: 20 }) // statically valid
+// badOffer: acceptOffer({ sku: "widget", discount: 120 })  // static errors
 ```
 
 - Primitives: `null boolean number integer string`, plus `any` and `never`.
@@ -429,18 +471,24 @@ Constructors (all pure):
 ### `do` notation
 
 ```jfn
+describeReading: (reading: Reading | null) -> string =>
+  if isNull(reading) then "missing" else `read ${str(reading.temp)}C`
+
 tick: (st: State) -> Task<State> => do {
   reading <- effects.sensor.read(), // run the task, bind its result
-  action: decide(st, reading), // ':' is a lazy pure local — it does NOT run anything
-  effects.log(describe(action)), // bare non-final entry: run, discard result
-  pure(apply(st, action)) // final entry is the block's result
+  // `reading: effects.sensor.read()` would bind the Task value instead;
+  // passing that value to `describeReading` is a static type error.
+  message: describeReading(reading), // ':' is a lazy pure local
+  effects.log(message), // bare non-final entry: run, discard result
+  pure(st) // final entry is the block's result
 }
 ```
 
 - **`name <- taskExpr` is the only entry that runs a task and binds its
   result.** `name: taskExpr` merely binds the task _value_ (lazily, with
-  `where`-binding semantics) — a classic mistake is writing `:` and wondering
-  why the effect never happens.
+  `where`-binding semantics). When the mistaken value is used as result data,
+  full typing on the named function makes the `Task<T>`/`T` mismatch a static
+  error with a source position.
 - A `do` block must end with an expression (usually `pure(result)` or a final
   task call), never a binding.
 - Write `<-` with the two characters adjacent (`< -` is a comparison against
@@ -454,6 +502,13 @@ tick: (st: State) -> Task<State> => do {
 a pure interpreter, which is how effectful code gets tested with mocks:
 
 ```jfn
+greet: () -> Task<string> => do {
+  rawName <- perform("io.readLine", []),
+  name: rawName checked as string,
+  perform("io.print", [`hello ${name}`]),
+  pure(name)
+}
+
 testGreeting: () -> string =>
   handle greet() returns string with {
     "io.readLine": (resume) => resume("world"), // effect args…, then resume
@@ -494,7 +549,8 @@ Coming from JS/TS:
   annotation — you cannot pass `null` to "skip" a middle optional slot. Give a
   function with several optional knobs one object-pattern argument instead.
 - Missing keys read as `null`, but reading **through** `null` errors; there is
-  no `?.` — guard, or assert with `!`.
+  no `?.`. Map/array reads nevertheless have static type `T`, not `T | null`;
+  guard when absence is real, and do not add `!` merely for the checker.
 - Object **types** are closed by default; add `...` to tolerate extra keys.
   `&` in types is refinement, not intersection.
 - Narrowing is a fixed small set (§11); escape with `x!` or `checked as`.
@@ -507,6 +563,7 @@ Coming from Python/Haskell:
 
 - Empty `[]` / `{}` are **truthy**; only `false`, `null`, `0`, `""` are falsy.
 - In `do`, only `<-` runs a task; `:` entries are lazy pure locals.
+  Using an accidentally `:`-bound `Task<T>` as `T` is a static type error.
 - No pattern matching beyond scalar `match` subjects and object-pattern
   parameters; no list comprehensions — use HOFs.
 
@@ -514,11 +571,15 @@ And json-fn specifics with no analogue elsewhere:
 
 - Named functions (module and `where`-local) **must be fully typed**; inline
   HOF lambdas must stay bare.
-- Refinements are opaque to arithmetic — revalidate computed values with
-  `checked as`.
+- Refine inputs and boundaries freely; default computed fields to plain types.
+  If a derived field deliberately stays refined, arithmetic writes must
+  revalidate it with `checked as`, whose failures are hard errors rather than
+  `raise`.
 - Comparison chaining (`0 <= x < 100`) works and evaluates operands once.
 - Two names are reserved: `Task` as a `type` name and `effects` as a
   top-level binding.
+- Contract `$defs` and `effects` are injected into linked modules; do not
+  re-declare names owned by the contract.
 - `$`-prefixed keys are forbidden in object literals; wrap such data in
   `raw { … }` (strict JSON inside).
 
