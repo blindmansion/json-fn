@@ -30,15 +30,10 @@ values**. The surface reads like TypeScript expressions with Haskell-flavored
 
 ```jfn
 // A small ledger: fold transactions over a map of accounts.
-type Cents = integer & min(0) // refinement, not intersection
+type Cents = integer & min(0)
 type Id = string & pattern("^acc_")
-// Refine boundary/input values freely, but default recomputed fields to plain
-// types: refinements are opaque to arithmetic, so a refined balance would
-// require `checked as` at every write. Refine a derived field only when its
-// invariant must fail at the construction site, before any later boundary;
-// `checked as` failures are hard errors, so valid-input failures use cond/raise.
-type Account = { id: Id, name: string, balance: integer } // closed: extra keys invalid
-type Ledger = { [string]: Account } // map type
+type Account = { id: Id, name: string, balance: integer } // balance stays plain: see §10
+type Ledger = { [string]: Account }
 
 type Tx = // discriminated union
     { tag: "open", id: Id, name: string }
@@ -47,7 +42,6 @@ type Tx = // discriminated union
 
 type Books = { ledger: Ledger, log: string[] }
 
-// Named functions carry full signatures: every param annotated + return type.
 balanceOf: (led: Ledger, id: Id) -> integer =>
   if hasKey(led, id) then led[id].balance else 0
 
@@ -64,7 +58,6 @@ put: (books: Books, acct: Account, msg: string) -> Books => {
   log: concat(books.log, [msg])
 }
 
-// `where` locals come after the result, and are lazy — not a statement list.
 adjust: (books: Books, id: Id, delta: integer, msg: string) -> Books =>
   put(books, merge(acct, { balance: acct.balance + delta }), msg) where {
     acct: books.ledger[id]
@@ -83,7 +76,6 @@ apply: (books: Books, tx: Tx) -> Books => match tx.tag {
   }
 }
 
-// HOFs take the callback first, data last. Inline lambdas stay unannotated.
 run: (txns: Tx[]) -> Books =>
   reduce((books, tx) => apply(books, tx), { ledger: {}, log: [] }, txns)
 
@@ -120,9 +112,10 @@ demo: () -> { names: string[], log: string } => {
   contextually.
 - Functions are values: pass a function by its bare name (`map(double, xs)`)
   or explicitly with `&double`. `&(expr)` forces an evaluated reference.
-- If the module is linked against an environment contract, the contract's
-  `$defs` are injected as type names (as is `effects`); do not re-declare
-  them — declare only module-internal types.
+- Two names are reserved: `Task` as a `type` name (§10) and, in a module
+  linked against an environment contract, `effects` as a top-level binding.
+  A linked contract's `$defs` are injected as type names (as is `effects`);
+  do not re-declare them — declare only module-internal types.
 
 ## 4. Values and data literals
 
@@ -275,29 +268,21 @@ the result or the checker reports it as unused. A function-valued local is a
 named function and needs a full signature. Inner locals shadow parameters and
 outer bindings.
 
-```jfn
-// `where` and `checked as` stop at commas and object-entry braces, so neither
-// position needs defensive parentheses.
-type StockLevel = { reserved: integer }
-type Inventory = { [string]: StockLevel }
-type Walk = { inv: Inventory, out: integer[] }
+Attachment: `where` (like `checked as`) stops at commas and object-entry
+braces, so neither position needs defensive parentheses; otherwise a `where`
+covers the largest expression in its binding or arm, and parentheses scope it
+narrower.
 
-allocate: (inv: Inventory, line: integer) -> { inv: Inventory, alloc: integer } =>
-  { inv, alloc: line }
+```jfn
 walk: (inv: Inventory, lines: integer[]) -> Walk => reduce(
   (acc, line) => { inv: step.inv, out: concat(acc.out, [step.alloc]) }
     where { step: allocate(acc.inv, line) }, // comma ends this lambda body
   { inv, out: [] },
   lines
 )
-reserve: (sku: string, lvl: StockLevel, q: integer) -> Inventory =>
-  { [sku]: merge(lvl, { reserved: lvl.reserved + q }) checked as StockLevel }
 
-// A `where` otherwise covers the largest expression in its binding or arm.
-ready: (input: integer) -> boolean => input > 0
-repair: (input: integer) -> integer => input + 1
 whole: (input: integer) -> integer =>
-  if p then input else repair(input) where { p: ready(input) }
+  if p then input else repair(input) where { p: ready(input) } // covers the whole if
 branch: (p: boolean, input: integer) -> integer =>
   if p then input
   else (fix(input) where { fix: (x: integer) -> integer => repair(x) })
@@ -332,22 +317,16 @@ arbitrary conditions. There are no loops; see §6 on recursion and HOFs.
 
 ```jfn
 user.name        cells[0]        row[i]        config["retry-count"]
-
-type StockLevel = { onHand: integer }
-type Inventory = { [string]: StockLevel }
-
-// Statically, map and array reads have their element type, NOT `T | null`;
-// no `!` or guard is needed merely to satisfy the checker. At runtime an
-// absent key/index still returns null, so guard when absence is a real case.
-onHand: (inv: Inventory, sku: string) -> integer =>
-  if hasKey(inv, sku) then inv[sku].onHand else 0
 ```
 
-- A **missing** object key or out-of-range index reads as `null`. But reading
-  _through_ a present `null` errors (`a.b.c` when `a.b` is `null`), as does
-  accessing a non-container. There is no `?.`. Use `!` to assert a value whose
-  static type actually includes `null`, or to make an expected-presence check
-  fail immediately at runtime.
+- Statically, map and array reads have their element type, **not** `T | null`
+  — no `!` or guard is needed merely to satisfy the checker. At runtime a
+  **missing** object key or out-of-range index still reads as `null`, so guard
+  when absence is a real case (see `balanceOf` in §2 for the `hasKey` pattern).
+- Reading _through_ a present `null` errors (`a.b.c` when `a.b` is `null`),
+  as does accessing a non-container. There is no `?.`. Use `!` to assert a
+  value whose static type actually includes `null`, or to make an
+  expected-presence check fail immediately at runtime.
 - Keys are never coerced: arrays and strings require integer indices, objects
   require string keys. Index an object by a number's string form explicitly:
   `obj[str(n)]`.
@@ -404,6 +383,11 @@ demoOffer: acceptOffer({ sku: "sku_widget", discount: 20 }) // statically valid
   `integer`. Re-establish the refinement explicitly with
   `expr checked as Cents`. Types are runtime validators too — that is what
   `checked as` runs.
+- **Refinement discipline**: refine boundary/input values freely, but default
+  recomputed fields to plain types — a refined balance would require
+  `checked as` at every write. Refine a derived field only when its invariant
+  must fail at the construction site, before any later boundary; `checked as`
+  failures are hard errors, so valid-input failures belong to `cond`/`raise`.
 - Function types: `(A, B?) -> R`, rest as `(A, ...B[]) -> R`. **Optionality is
   argument-count, not nullability**: `(A?) -> R` takes zero or one argument;
   `(A | null) -> R` takes exactly one, possibly-null argument. The return type
@@ -458,10 +442,9 @@ handler) runs it. `Task<A>` types a task whose eventual completion value is
 Constructors (all pure):
 
 - `effects.some.name(args…)` — the typed effect namespace injected by your
-  environment (its vocabulary is part of your task context). Calling a leaf
-  builds an effect task; it does not perform anything. Because the
-  environment injects `effects`, a module may not bind that name at top
-  level.
+  environment (its vocabulary is part of your task context; see §3 on the
+  reserved name). Calling a leaf builds an effect task; it does not perform
+  anything.
 - `pure(v)` — a completed task carrying `v`.
 - `raise(err)` — the error channel: a distinguished effect an enclosing
   handler (or the environment) can intercept. There is no throw/catch.
@@ -476,8 +459,6 @@ describeReading: (reading: Reading | null) -> string =>
 
 tick: (st: State) -> Task<State> => do {
   reading <- effects.sensor.read(), // run the task, bind its result
-  // `reading: effects.sensor.read()` would bind the Task value instead;
-  // passing that value to `describeReading` is a static type error.
   message: describeReading(reading), // ':' is a lazy pure local
   effects.log(message), // bare non-final entry: run, discard result
   pure(st) // final entry is the block's result
@@ -532,56 +513,34 @@ testGreeting: () -> string =>
 
 ## 13. Trip-up checklist
 
+Terse reminders only — each rule is owned by the cited section.
+
 Coming from JS/TS:
 
-- `{…}` after `=>` is a **data object, never a block**; there are no
-  statements, loops, `return`, or `try`/`catch` anywhere.
-- `where` is a **lazy dependency graph**, not sequential `const`s; unused
-  bindings are checker errors and never evaluate.
-- **Exact arity**: extra call arguments are errors. `map`/`filter` callbacks
-  take the item only — use `mapIndexed((x, _index) => …)` etc. when you need
-  (or must declare) the index. Callback first, data last: `map(f, xs)`.
-- `==` is deep **structural** equality, no coercion, no `===`.
-- `+` never concatenates. Strings use `++` or templates, and `${…}` requires
-  strings — write `${str(n)}`.
-- Omitted optional params/fields bind **`null`** (no `undefined`); an explicit
-  `null` argument **suppresses the default** and must be permitted by the
-  annotation — you cannot pass `null` to "skip" a middle optional slot. Give a
-  function with several optional knobs one object-pattern argument instead.
-- Missing keys read as `null`, but reading **through** `null` errors; there is
-  no `?.`. Map/array reads nevertheless have static type `T`, not `T | null`;
-  guard when absence is real, and do not add `!` merely for the checker.
-- Object **types** are closed by default; add `...` to tolerate extra keys.
-  `&` in types is refinement, not intersection.
-- Narrowing is a fixed small set (§11); escape with `x!` or `checked as`.
-- Errors: evaluation errors halt; recoverable failure is `raise` + `handle`.
-- String positions count **code points**, not UTF-16 units.
-- `/` is float division; arithmetic that would produce `NaN`/`Infinity`
-  errors instead (including `1 / 0`).
+- `{…}` after `=>` is data, never a block; no statements, loops, `return`, or `try`/`catch` (§1, §4).
+- `where` is a lazy graph, not sequential `const`s; unused bindings error (§7).
+- Exact arity; callback first, data last; `*Indexed` variants for the index (§6).
+- `==` is deep structural, no `===`; `+` never concatenates — `++`/templates, `${str(n)}` (§5).
+- Omitted optionals bind `null` (no `undefined`); explicit `null` suppresses defaults and must be admitted by the annotation — no skipping middle slots (§6).
+- Missing keys read `null`; reading through `null` errors; no `?.`; reads type as `T` — guard real absence, don't `!` for the checker (§9).
+- Object types are closed by default (`...` opens); `&` is refinement, not intersection (§10).
+- Narrowing is a fixed small set; escape with `x!` or `checked as` (§11).
+- Evaluation errors halt; recoverable failure is `raise` + `handle` (§12).
+- Strings count code points (§9); arithmetic errors instead of `NaN`/`Infinity`, including `1 / 0` (§5).
 
 Coming from Python/Haskell:
 
-- Empty `[]` / `{}` are **truthy**; only `false`, `null`, `0`, `""` are falsy.
-- In `do`, only `<-` runs a task; `:` entries are lazy pure locals.
-  Using an accidentally `:`-bound `Task<T>` as `T` is a static type error.
-- No pattern matching beyond scalar `match` subjects and object-pattern
-  parameters; no list comprehensions — use HOFs.
+- Empty `[]` / `{}` are truthy; only `false`, `null`, `0`, `""` are falsy (§5).
+- In `do`, only `<-` runs a task; `:` binds the task value — misuse is a static error (§12).
+- No pattern matching beyond scalar `match` and object-pattern parameters; no comprehensions — use HOFs (§6, §8).
 
-And json-fn specifics with no analogue elsewhere:
+json-fn specifics:
 
-- Named functions (module and `where`-local) **must be fully typed**; inline
-  HOF lambdas must stay bare.
-- Refine inputs and boundaries freely; default computed fields to plain types.
-  If a derived field deliberately stays refined, arithmetic writes must
-  revalidate it with `checked as`, whose failures are hard errors rather than
-  `raise`.
-- Comparison chaining (`0 <= x < 100`) works and evaluates operands once.
-- Two names are reserved: `Task` as a `type` name and `effects` as a
-  top-level binding.
-- Contract `$defs` and `effects` are injected into linked modules; do not
-  re-declare names owned by the contract.
-- `$`-prefixed keys are forbidden in object literals; wrap such data in
-  `raw { … }` (strict JSON inside).
+- Named functions must be fully typed; inline HOF lambdas stay bare (§3, §6).
+- Refine inputs and boundaries; keep recomputed fields plain (§10).
+- Comparison chaining works and evaluates operands once (§5).
+- Reserved names: `Task`, and `effects` in contract-linked modules; don't re-declare injected names (§3).
+- No `$`-keys in object literals; wrap such data in `raw { … }` (§4).
 
 ## 14. Builtin names
 
