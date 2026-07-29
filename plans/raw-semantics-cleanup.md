@@ -282,10 +282,16 @@ Today a `$raw` wrapper costs one unit regardless of payload size, while an
 ordinary constant tree costs its full expression-node count. That makes `$raw`
 a semantic performance/fuel control.
 
-Change the rule so quoting a static value does not reduce deterministic fuel.
+Phase 0 must first confirm whether fuel measures actual interpreter work or a
+stable virtual cost independent of parser metadata, caches, serialization, and
+ingestion route. This plan recommends the stable virtual model: it preserves
+deterministic limits across durable suspension and hydration even when actual
+preparation work differs.
+
+Under that model, quoting a static value does not reduce deterministic fuel.
 The `$raw` wrapper replaces evaluation of the payload root, but the complete
 literal carries the same deterministic cost as the equivalent static literal.
-Conceptually:
+The normative node-count table remains to be specified. Conceptually:
 
 ```text
 rawCost(payload) = staticLiteralCost(payload)

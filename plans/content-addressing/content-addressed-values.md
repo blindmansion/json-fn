@@ -38,8 +38,8 @@ equality, but host and persistence boundaries must validate rather than assume
 that domain.
 
 The persistence/hash boundary rejects cycles, non-finite numbers, `undefined`,
-functions, symbols, non-JSON host objects, and strings disallowed by the
-surrogate policy owned by
+functions, symbols, non-JSON host objects, and strings containing unpaired
+surrogates under the policy owned by
 [`runtime-representation-gaps.md`](../runtime-representation-gaps.md). The
 guest cannot observe whether two accepted equal subtrees are one blob or two
 copies, so the representation choice is invisible. (Prior art: Unison for
@@ -70,9 +70,9 @@ to justify the store and recovery complexity.
 ### Canonical encoding and hashing
 
 - Define **one canonical byte encoding** of an accepted JSON value, RFC 8785
-  (JCS) style: object keys sorted, ES number-to-string formatting, UTF-8. Do
-  not finalize the encoder until the ill-formed-surrogate policy in
-  `runtime-representation-gaps.md` is settled.
+  (JCS) style: object keys sorted, ES number-to-string formatting, UTF-8.
+  Reject unpaired surrogates before encoding; do not rely on a host UTF-8
+  encoder's replacement behavior.
 - Key-order canonicalization is mandatory, not optional: structural `eq`
   ignores object key order, so structurally equal values MUST hash equal.
 - **`ValueHash`** is the semantic identity of the complete canonical guest

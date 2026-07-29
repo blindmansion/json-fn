@@ -110,19 +110,42 @@ Owners:
 - [`content-addressing/content-addressed-values.md`](content-addressing/content-addressed-values.md)
 - [`content-addressing/module-identity-pinning.md`](content-addressing/module-identity-pinning.md)
 
-Record the decisions that every later traversal, encoder, and durable record
-depends on:
+The following shared invariants are settled:
 
-- the accepted runtime/persistence JSON domain, including cycles, finite
-  numbers, object shape, and ill-formed surrogate strings;
-- the guest-object own-property invariant;
-- the structural-depth contract;
-- exact static-node and `$raw` fuel accounting;
-- the boundary between program normalization and canonical value encoding;
-- semantic value hash, physical blob hash, and deployment-identity domains;
-- the relationship between operator `deploymentId` and automatic identity;
-  and
-- non-mutating default behavior for deployment drift.
+- portable guest values are finite, acyclic JSON trees; validation rejects
+  unsupported host values and ill-formed surrogate strings before persistence
+  or hashing, and language operations must not produce malformed strings;
+- every guest-object key is an own enumerable writable data property;
+- program normalization is context-sensitive and separate from canonical
+  encoding of arbitrary guest values;
+- semantic value hashes, physical blob hashes, and executable-world identities
+  occupy distinct versioned domains; any exact authored-artifact hash selected
+  below must occupy a fourth domain;
+- operator `deploymentId` remains a broader namespace and compatibility
+  boundary rather than being replaced by automatic identity; and
+- deployment drift is rejected without claiming or mutating the workflow by
+  default.
+
+The remaining Phase 0 decisions are:
+
+1. **Fuel meaning and exact literal accounting.** Decide whether fuel measures
+   actual interpreter work or a stable virtual cost independent of caches,
+   serialization, and ingestion route. If the proposed virtual model is
+   selected, specify the exact static-node table and `$raw` equation.
+2. **Permanent structural-depth contract.** Decide whether a portable
+   structural-depth limit is the language contract or only an implementation
+   step toward accepting arbitrary depth subject to fuel and value-size
+   limits. The selected contract covers parser, checker, evaluator, closure,
+   printer, normalization, hashing, validation, and hydration traversals.
+3. **Authored-artifact versus normalized program identity.** Decide whether
+   durable records retain both an exact hash of the reviewed authored artifact
+   and a normalized semantic module hash, or only one of them. Do not use
+   program normalization for arbitrary guest values.
+4. **Executable-world projection.** Decide the exact automatic identity
+   inputs: full builtin table versus a proven referenced subset, which portable
+   limits and policies count as semantic, and how operator `deploymentId`
+   attests compatibility of executable adapters that cannot be hashed
+   automatically.
 
 In parallel, add non-sensitive instrumentation for:
 
@@ -132,9 +155,9 @@ In parallel, add non-sensitive instrumentation for:
 - hydration time and peak memory; and
 - expected blob read/write amplification under candidate thresholds.
 
-The encoder/hash library may be prototyped during this phase, but normalized
-module identity must not be finalized until raw fuel and normalization are
-stable.
+The encoder/hash library may be prototyped during this phase, but module
+identity must not be finalized until the fuel, artifact/semantic identity, and
+executable-world projection decisions are settled and normalization is stable.
 
 ### Gate
 

@@ -2,8 +2,8 @@
 
 Status: investigation; Unicode code-point semantics are implemented in the
 canonical TypeScript implementation. The object-key and host-stack issues, the
-Unicode performance/metering work, and the ill-formed-surrogate policy remain
-open.
+Unicode performance/metering work, and enforcement of the selected
+ill-formed-surrogate policy remain open.
 
 ## Summary
 
@@ -418,15 +418,23 @@ production implementation should retain native search and slicing where
 possible, converting only between UTF-16 offsets and code-point positions and
 checking match boundaries.
 
-### 3c. Ill-formed surrogate strings (policy unresolved)
+### 3c. Ill-formed surrogate strings (policy selected)
 
-The change guarantees that indexing, slicing, and empty-separator splitting do
-not manufacture a lone surrogate from a well-formed input. It does not yet
-declare ill-formed surrogate-containing strings invalid at every host boundary.
-Canonical JSON parsed by the JavaScript host can still contain an explicitly
-escaped lone surrogate, and non-Unicode regex behavior intentionally exposes
-UTF-16 matching semantics. Whether json-fn should reject ill-formed strings at
-boundaries remains a separate value-validation decision.
+An accepted json-fn string is a well-formed UTF-16 encoding of Unicode code
+points. Unpaired high or low surrogates are invalid guest values.
+
+Validation must reject them at every boundary that accepts external or
+reconstructed guest values, including shorthand and canonical JSON input,
+public host arguments and results, task/workflow validation and hydration, and
+canonical encoding or hashing. A language operation that would produce an
+ill-formed string must fail deterministically rather than introduce a value
+that cannot later be persisted or hashed. This includes auditing non-Unicode
+regex result and replacement paths, which can expose UTF-16 code units even
+when their input is well formed.
+
+This policy deliberately defines a portable subset of strings accepted by
+JavaScript's `JSON.parse`. It does not reject valid multi-code-point grapheme
+clusters, noncharacters, or other well-formed code-point sequences.
 
 ## Suggested sequencing
 
@@ -439,8 +447,9 @@ boundaries remains a separate value-validation decision.
 2. Decide the expression-depth contract, then implement either iterative core
    walks or a portable depth limit. Do not present caught host `RangeError`s as
    deterministic limits on their own.
-3. Decide separately whether ill-formed strings should be rejected at JSON and
-   host boundaries.
+3. Enforce the selected rejection policy for ill-formed strings at every input,
+   production, persistence, hydration, and hashing boundary.
 
-The first item is implementation-defined accidental behavior. The latter two
-require explicit language and portability decisions.
+The first item is implementation-defined accidental behavior. The second
+requires an explicit language and portability decision. The third now has a
+selected policy but still requires implementation and conformance coverage.

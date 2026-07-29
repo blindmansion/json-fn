@@ -31,8 +31,9 @@ resuming world differs.
 
 ### What gets hashed
 
-At `prepareDeployment` time, compute one **deployment identity hash** over the
-canonical encoding of:
+The current proposal, pending the Phase 0 artifact/semantic identity and
+executable-world projection decisions, computes one **deployment identity
+hash** at `prepareDeployment` time over the canonical encoding of:
 
 - the authored module after program normalization, including `$types`, but
   before contract-derived effect bindings are injected;
@@ -59,6 +60,12 @@ authored module first passes through the program normalizer from
 different deployment identities for semantically equivalent modules. The
 environment contract and profile are data documents and do not pass through
 that AST normalizer.
+
+Phase 0 must decide whether the manifest also retains a distinct
+authored-artifact hash over the exact reviewed canonical module. That hash
+would answer whether the artifact itself changed, while the normalized module
+hash would answer whether the executable program changed under the selected
+normalization. If both exist, they use separate domain/version prefixes.
 
 Normalized module identity must not ship until `$raw` fuel equivalence and the
 program normalizer are complete. A normalization that changes fuel, errors, or
@@ -133,15 +140,19 @@ makes the situation **visible and controllable**; today it is neither.
 
 ## Open questions
 
-1. Should `identityHash` cover the **adapter**? It can't (executable code),
-   which is worth stating in docs: pinning covers the portable world; host
-   capability behavior remains the operator's responsibility — consistent
-   with the structural-vs-behavioral parity split in
+1. **Artifact identity.** Retain both an exact authored-artifact hash and the
+   normalized semantic module hash, or only the latter?
+2. **Portable-profile projection.** Exactly which limits and policies can
+   alter durable outcomes and therefore participate in automatic identity?
+3. **Adapter compatibility signaling.** Executable adapter code cannot be
+   covered automatically. Specify how operator `deploymentId` communicates
+   compatibility when adapter implementations change, consistent with the
+   structural-vs-behavioral parity split in
    `docs/environment-contract.md`.
-2. Stdlib evolution: adding a new builtin changes the builtin-table hash but
+4. **Stdlib evolution.** Adding a new builtin changes the builtin-table hash but
    cannot change the meaning of an existing continuation (existing names win
    lookups; new names were unresolvable before). Hash the full table initially.
    A referenced-builtin subset is valid only after an audit proves capability
    analysis finds every direct and transitive builtin reference.
-3. Rollout UX for old records. This may influence operator guidance, but does
+5. **Rollout UX for old records.** This may influence operator guidance, but does
    not change the non-mutating default or make `"warn"` underspecified.

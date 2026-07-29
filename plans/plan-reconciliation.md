@@ -113,8 +113,8 @@ Update it as follows:
 - Split the Unicode section into:
   - code-point semantics already implemented in TypeScript;
   - remaining performance/metering work; and
-  - the separate unresolved policy for ill-formed surrogate strings at host
-    and canonical-encoding boundaries.
+  - the selected policy rejecting ill-formed surrogate strings at language,
+    host, persistence, and canonical-encoding boundaries.
 
 The `__proto__` fix may land independently and should precede new generic
 normalization or codec reconstruction.
@@ -158,8 +158,9 @@ Update it as follows:
 - Replace the assertion that finite acyclic JSON is guaranteed “by
   construction” with a defined persistence/hash boundary that rejects cycles,
   non-finite numbers, non-JSON values, and unsupported string encodings.
-- Resolve the lone-surrogate policy with `runtime-representation-gaps.md`
-  before selecting an RFC 8785-style encoder.
+- Apply the lone-surrogate rejection policy from
+  `runtime-representation-gaps.md` before an RFC 8785-style encoder receives a
+  value; do not permit host replacement encoding.
 - Define separate identities:
   - a semantic `ValueHash` over the complete canonical guest value; and
   - a physical `BlobHash` over a versioned chunk encoding.
@@ -325,7 +326,7 @@ lexical type identity.
 
 The resulting ownership should be:
 
-- Host object integrity, depth, and unresolved string representation:
+- Host object integrity, depth, string validation, and Unicode metering:
   `runtime-representation-gaps.md`.
 - `$raw`, runtime-value identity, static-cost metadata, hydration, fuel, and
   program normalization: `raw-semantics-cleanup.md`.
