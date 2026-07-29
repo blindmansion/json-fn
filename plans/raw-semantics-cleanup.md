@@ -1,6 +1,7 @@
 # Raw semantics cleanup
 
-Status: proposed
+Status: proposed; the Phase 0 fuel-model decision is settled (stable virtual
+cost — see section 5)
 
 ## Summary
 
@@ -282,16 +283,36 @@ Today a `$raw` wrapper costs one unit regardless of payload size, while an
 ordinary constant tree costs its full expression-node count. That makes `$raw`
 a semantic performance/fuel control.
 
-Phase 0 must first confirm whether fuel measures actual interpreter work or a
-stable virtual cost independent of parser metadata, caches, serialization, and
-ingestion route. This plan recommends the stable virtual model: it preserves
-deterministic limits across durable suspension and hydration even when actual
-preparation work differs.
+**Phase 0 decision (settled): fuel is a stable virtual cost**, independent of
+parser metadata, caches, serialization, and ingestion route. Fuel is a pure
+function of the program, its inputs, and recorded effect results. This
+preserves deterministic limits across durable suspension and hydration even
+when actual preparation work differs: caches, skipped traversals, and lost
+metadata may change host preparation time only, never fuel, results, or
+errors. Wall-clock timeout and cancellation remain the host's protection
+against actual-work divergence, as `docs/execution-limits.md` already
+documents.
 
-Under that model, quoting a static value does not reduce deterministic fuel.
+Under this model, quoting a static value does not reduce deterministic fuel.
 The `$raw` wrapper replaces evaluation of the payload root, but the complete
 literal carries the same deterministic cost as the equivalent static literal.
-The normative node-count table remains to be specified. Conceptually:
+
+The normative static-literal cost function is:
+
+```text
+staticLiteralCost(null | boolean | number | string) = 1
+staticLiteralCost(array)  = 1 + sum(staticLiteralCost(element)) over elements
+staticLiteralCost(object) = 1 + sum(staticLiteralCost(value)) over entry values
+```
+
+That is, one unit per JSON value node of the produced value; object keys are
+not separately charged. This matches what first evaluation of an equivalent
+plain constant literal charges today (one `evaluateExpression` entry unit per
+node). Where plain-literal syntax and quotation produce different values — for
+example `$comment` entries, which literal syntax strips and `$raw` preserves —
+each form charges the node count of the value it actually produces.
+
+The `$raw` equation is:
 
 ```text
 rawCost(payload) = staticLiteralCost(payload)

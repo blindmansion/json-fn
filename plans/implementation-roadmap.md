@@ -126,22 +126,31 @@ The following shared invariants are settled:
 - deployment drift is rejected without claiming or mutating the workflow by
   default.
 
+The following Phase 0 decisions are settled:
+
+- **Fuel meaning and exact literal accounting (decided: stable virtual
+  cost).** Fuel measures a stable virtual cost — a pure function of the
+  program, its inputs, and recorded effect results — independent of caches,
+  serialization, and ingestion route. Caches, skipped traversals, and lost
+  metadata may change host preparation time only, never fuel, results, or
+  errors. The normative static-literal cost function and `$raw` equation are
+  specified in [`raw-semantics-cleanup.md`](raw-semantics-cleanup.md):
+  evaluating a constant literal charges one unit per JSON value node of the
+  produced value, and `$raw` charges `staticLiteralCost(payload)` in total, so
+  quotation cannot reduce deterministic fuel.
+
 The remaining Phase 0 decisions are:
 
-1. **Fuel meaning and exact literal accounting.** Decide whether fuel measures
-   actual interpreter work or a stable virtual cost independent of caches,
-   serialization, and ingestion route. If the proposed virtual model is
-   selected, specify the exact static-node table and `$raw` equation.
-2. **Permanent structural-depth contract.** Decide whether a portable
+1. **Permanent structural-depth contract.** Decide whether a portable
    structural-depth limit is the language contract or only an implementation
    step toward accepting arbitrary depth subject to fuel and value-size
    limits. The selected contract covers parser, checker, evaluator, closure,
    printer, normalization, hashing, validation, and hydration traversals.
-3. **Authored-artifact versus normalized program identity.** Decide whether
+2. **Authored-artifact versus normalized program identity.** Decide whether
    durable records retain both an exact hash of the reviewed authored artifact
    and a normalized semantic module hash, or only one of them. Do not use
    program normalization for arbitrary guest values.
-4. **Executable-world projection.** Decide the exact automatic identity
+3. **Executable-world projection.** Decide the exact automatic identity
    inputs: full builtin table versus a proven referenced subset, which portable
    limits and policies count as semantic, and how operator `deploymentId`
    attests compatibility of executable adapters that cannot be hashed
@@ -156,8 +165,9 @@ In parallel, add non-sensitive instrumentation for:
 - expected blob read/write amplification under candidate thresholds.
 
 The encoder/hash library may be prototyped during this phase, but module
-identity must not be finalized until the fuel, artifact/semantic identity, and
-executable-world projection decisions are settled and normalization is stable.
+identity must not be finalized until the remaining artifact/semantic identity
+and executable-world projection decisions are settled and normalization is
+stable. The fuel decision above is settled and no longer blocks this.
 
 ### Gate
 
