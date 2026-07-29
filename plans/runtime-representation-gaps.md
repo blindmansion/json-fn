@@ -1,9 +1,10 @@
 # Runtime representation gaps
 
 Status: investigation; Unicode code-point semantics are implemented in the
-canonical TypeScript implementation. The object-key and host-stack issues, the
-Unicode performance/metering work, and enforcement of the selected
-ill-formed-surrogate policy remain open.
+canonical TypeScript implementation, and the structural-depth contract is
+decided (portable depth limit — see section 2). The object-key fix, the
+depth-limit implementation, the Unicode performance/metering work, and
+enforcement of the selected ill-formed-surrogate policy remain open.
 
 ## Summary
 
@@ -272,7 +273,7 @@ host stack overflow falls through to a different failure category.
 Catching and renaming `RangeError` would improve presentation but would not
 make the failure threshold deterministic.
 
-### Possible directions
+### Considered directions
 
 The complete solution is to evaluate expression trees with an explicit work
 stack or trampoline. This would remove ordinary expression nesting from the
@@ -300,12 +301,47 @@ Shape-specific changes, such as flattening associative shorthand operators or
 iteratively parsing nested arrays, help individual examples but do not close
 the general hole.
 
-Before implementation, decide whether json-fn promises:
+### Decision (settled): portable structural-depth limit
 
-1. arbitrary expression depth subject only to fuel, requiring iterative walks;
-   or
-2. a specified expression-depth limit, enforced consistently before the host
-   stack is at risk.
+**The language contract is a specified, portable structural-depth limit**, not
+arbitrary depth subject only to fuel and value size. Exceeding it fails with a
+deterministic json-fn limit error, fired consistently before any host stack is
+at risk, and the durable host classifies it as a limit failure like fuel,
+value-size, and call-depth exhaustion.
+
+The decision is driven by an asymmetry: a documented limit can later be raised
+— or removed entirely by implementing iterative walks — without breaking any
+accepted program, whereas promising arbitrary depth is irreversible and
+immediately obligates every traversal, in every implementation, present and
+future, to be written iteratively while exactly preserving fuel, evaluation
+order, cancellation, and continuation behavior. Fuel and `maxValueSize`
+already bound realistic inputs; nesting beyond a conservative limit is almost
+exclusively adversarial or degenerate. A hard cap is also the right defensive
+posture at ingestion boundaries such as hashing and hydration, where fuel
+offers no protection.
+
+The contract's requirements:
+
+- **One counting rule shared by every traversal.** Depth is the structural
+  depth of the JSON tree itself: each nested array element, object entry
+  value, or expression subterm adds one level. Parser, checker, evaluator,
+  closure substitution, printer, program normalization, hashing, validation,
+  and hydration must all reject the same inputs at the same depth, so an
+  artifact cannot pass one phase and fail a later one on depth alone.
+- **One conservative portable number.** The limit must sit safely below the
+  weakest covered traversal on the weakest supported host (measurements above
+  show shorthand parsing failing near depth 2,900 while evaluation survived
+  past 10,000). A value in the low hundreds (for example 256 or 512) covers
+  realistic programs and data with large margin; the exact value is chosen at
+  implementation time and documented in `docs/execution-limits.md` and the
+  conformance suite.
+- **Conformance coverage at the boundary.** Cases must pin acceptance at the
+  limit and the exact error just past it, across the covered traversals.
+
+The escape hatch remains open: if legitimate workloads ever pinch against the
+limit — most plausibly deep external data reaching validation, hashing, or
+hydration — the response is to make those specific value-side walks iterative
+and raise the limit, which is backwards compatible.
 
 ## 3. Unicode string representation
 
@@ -444,12 +480,13 @@ clusters, noncharacters, or other well-formed code-point sequences.
    [`raw-semantics-cleanup.md`](raw-semantics-cleanup.md) or generic codec
    reconstruction in
    [`content-addressed-values.md`](content-addressing/content-addressed-values.md).
-2. Decide the expression-depth contract, then implement either iterative core
-   walks or a portable depth limit. Do not present caught host `RangeError`s as
-   deterministic limits on their own.
+2. Implement the settled structural-depth contract: a portable depth limit
+   with one shared counting rule, enforced across the covered traversals (see
+   section 2). Do not present caught host `RangeError`s as deterministic
+   limits on their own.
 3. Enforce the selected rejection policy for ill-formed strings at every input,
    production, persistence, hydration, and hashing boundary.
 
-The first item is implementation-defined accidental behavior. The second
-requires an explicit language and portability decision. The third now has a
-selected policy but still requires implementation and conformance coverage.
+The first item is implementation-defined accidental behavior. The second and
+third now have settled contracts but still require implementation and
+conformance coverage.

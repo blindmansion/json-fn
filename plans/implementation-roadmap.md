@@ -138,19 +138,25 @@ The following Phase 0 decisions are settled:
   evaluating a constant literal charges one unit per JSON value node of the
   produced value, and `$raw` charges `staticLiteralCost(payload)` in total, so
   quotation cannot reduce deterministic fuel.
+- **Permanent structural-depth contract (decided: portable depth limit).** A
+  specified, portable structural-depth limit is the language contract, not an
+  implementation step toward arbitrary depth. One counting rule — structural
+  depth of the JSON tree — is shared by the parser, checker, evaluator,
+  closure, printer, normalization, hashing, validation, and hydration
+  traversals, with a conservative limit enforced below any host stack and a
+  deterministic json-fn limit error. The contract, rationale, and
+  requirements are specified in
+  [`runtime-representation-gaps.md`](runtime-representation-gaps.md). Raising
+  the limit later — or lifting it via iterative walks — remains backwards
+  compatible.
 
 The remaining Phase 0 decisions are:
 
-1. **Permanent structural-depth contract.** Decide whether a portable
-   structural-depth limit is the language contract or only an implementation
-   step toward accepting arbitrary depth subject to fuel and value-size
-   limits. The selected contract covers parser, checker, evaluator, closure,
-   printer, normalization, hashing, validation, and hydration traversals.
-2. **Authored-artifact versus normalized program identity.** Decide whether
+1. **Authored-artifact versus normalized program identity.** Decide whether
    durable records retain both an exact hash of the reviewed authored artifact
    and a normalized semantic module hash, or only one of them. Do not use
    program normalization for arbitrary guest values.
-3. **Executable-world projection.** Decide the exact automatic identity
+2. **Executable-world projection.** Decide the exact automatic identity
    inputs: full builtin table versus a proven referenced subset, which portable
    limits and policies count as semantic, and how operator `deploymentId`
    attests compatibility of executable adapters that cannot be hashed
@@ -167,7 +173,8 @@ In parallel, add non-sensitive instrumentation for:
 The encoder/hash library may be prototyped during this phase, but module
 identity must not be finalized until the remaining artifact/semantic identity
 and executable-world projection decisions are settled and normalization is
-stable. The fuel decision above is settled and no longer blocks this.
+stable. The fuel and structural-depth decisions above are settled and no
+longer block this.
 
 ### Gate
 
@@ -191,10 +198,10 @@ from guest-controlled keys. Cover the parser, evaluator, closure transforms,
 checker property maps, standard-library transforms and grouping, task/workflow
 serialization, environment construction, and future codecs.
 
-Implement enough of the selected structural-depth policy that later raw,
+Implement the settled structural-depth contract — a portable conservative
+limit with one shared counting rule — far enough that later raw,
 normalization, hashing, and hydration work cannot introduce undocumented host
-stack failures. This may be a portable conservative limit first or iterative
-walks in the affected paths.
+stack failures.
 
 Complete or explicitly defer the remaining Unicode performance/metering work.
 The canonical-encoding string policy from Phase 0 must be settled before the
