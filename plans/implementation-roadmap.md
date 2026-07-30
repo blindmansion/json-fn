@@ -119,8 +119,8 @@ The following shared invariants are settled:
 - program normalization is context-sensitive and separate from canonical
   encoding of arbitrary guest values;
 - semantic value hashes, physical blob hashes, and executable-world identities
-  occupy distinct versioned domains; any exact authored-artifact hash selected
-  below must occupy a fourth domain;
+  occupy distinct versioned domains; the exact authored-artifact hash selected
+  below occupies a fourth domain;
 - operator `deploymentId` remains a broader namespace and compatibility
   boundary rather than being replaced by automatic identity; and
 - deployment drift is rejected without claiming or mutating the workflow by
@@ -149,14 +149,18 @@ The following Phase 0 decisions are settled:
   [`runtime-representation-gaps.md`](runtime-representation-gaps.md). Raising
   the limit later — or lifting it via iterative walks — remains backwards
   compatible.
+- **Authored-artifact versus normalized program identity (decided: retain
+  both).** Durable identity manifests retain both an exact hash of the
+  reviewed authored artifact and the normalized semantic module hash, in
+  separate versioned domains. Enforcement keys on the normalized hash only;
+  the artifact hash is provenance/diagnostic metadata, never an enforcement
+  input. The pinned roles, hash inputs, and rationale are specified in
+  [`content-addressing/module-identity-pinning.md`](content-addressing/module-identity-pinning.md).
+  Program normalization is still never used for arbitrary guest values.
 
-The remaining Phase 0 decisions are:
+The remaining Phase 0 decision is:
 
-1. **Authored-artifact versus normalized program identity.** Decide whether
-   durable records retain both an exact hash of the reviewed authored artifact
-   and a normalized semantic module hash, or only one of them. Do not use
-   program normalization for arbitrary guest values.
-2. **Executable-world projection.** Decide the exact automatic identity
+1. **Executable-world projection.** Decide the exact automatic identity
    inputs: full builtin table versus a proven referenced subset, which portable
    limits and policies count as semantic, and how operator `deploymentId`
    attests compatibility of executable adapters that cannot be hashed
@@ -171,10 +175,10 @@ In parallel, add non-sensitive instrumentation for:
 - expected blob read/write amplification under candidate thresholds.
 
 The encoder/hash library may be prototyped during this phase, but module
-identity must not be finalized until the remaining artifact/semantic identity
-and executable-world projection decisions are settled and normalization is
-stable. The fuel and structural-depth decisions above are settled and no
-longer block this.
+identity must not be finalized until the remaining executable-world projection
+decision is settled and normalization is stable. The fuel, structural-depth,
+and artifact/semantic identity decisions above are settled and no longer block
+this.
 
 ### Gate
 

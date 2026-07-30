@@ -1,6 +1,8 @@
 # Module identity pinning for durable resume (follow-up A)
 
-Status: proposed. Depends only on the canonical-encoding + hashing layer from
+Status: proposed; the Phase 0 artifact/semantic identity decision is settled
+(retain both hashes — see "What gets hashed"). Depends only on the
+canonical-encoding + hashing layer from
 [`content-addressed-values.md`](content-addressed-values.md) — not on the blob
 store. Can land with v1 or independently before it.
 
@@ -31,9 +33,9 @@ resuming world differs.
 
 ### What gets hashed
 
-The current proposal, pending the Phase 0 artifact/semantic identity and
-executable-world projection decisions, computes one **deployment identity
-hash** at `prepareDeployment` time over the canonical encoding of:
+The current proposal, pending the Phase 0 executable-world projection
+decision, computes one **deployment identity hash** at `prepareDeployment`
+time over the canonical encoding of:
 
 - the authored module after program normalization, including `$types`, but
   before contract-derived effect bindings are injected;
@@ -61,28 +63,55 @@ different deployment identities for semantically equivalent modules. The
 environment contract and profile are data documents and do not pass through
 that AST normalizer.
 
-Phase 0 must decide whether the manifest also retains a distinct
-authored-artifact hash over the exact reviewed canonical module. That hash
-would answer whether the artifact itself changed, while the normalized module
-hash would answer whether the executable program changed under the selected
-normalization. If both exist, they use separate domain/version prefixes.
+**Phase 0 decision (settled): the manifest retains both hashes.** The
+normalized semantic module hash answers whether the executable program changed
+under the selected normalization; a distinct authored-artifact hash answers
+whether the reviewed artifact itself changed. Retaining both costs one
+manifest field and one hash pass, and buys a normalizer-independent ground
+truth: forensics if the normalizer ever mis-normalizes, mechanical
+re-attestation across normalizer version bumps (artifact hash unchanged →
+safe to re-hash under the new normalization version), and a direct answer to
+"is production running byte-for-byte what was approved?" — the review story
+the language is built around.
+
+The settled roles are:
+
+- **Enforcement keys on the normalized module hash only.** The aggregate
+  `identityHash` compared by `moduleDrift` policies includes the normalized
+  module component. The authored-artifact hash is provenance and diagnostic
+  metadata; it must never be an enforcement input, so semantically neutral
+  respellings (reformatting, redundant-`$raw` removal) cannot reject
+  in-flight workflows.
+- **The artifact hash input is the canonical-JSON module exactly as
+  reviewed** — after shorthand parsing, before program normalization,
+  canonically encoded. The `.jfn` source text is not the artifact; the
+  canonical JSON is.
+- **Separate versioned domains**: the artifact hash occupies its own domain
+  (for example `jfn:module-artifact:v1`) alongside `jfn:module:v1`, per the
+  roadmap's settled domain invariants.
+- **Component diffs report both hashes**, so drift diagnostics distinguish
+  "artifact changed, program unchanged" from "program changed."
+
+The artifact hash has no dependency on the program normalizer, so it can be
+implemented and tested as soon as the canonical-encoding/hashing layer exists,
+before normalized module identity is ready to ship.
 
 Normalized module identity must not ship until `$raw` fuel equivalence and the
 program normalizer are complete. A normalization that changes fuel, errors, or
 quoted expression-shaped data is not identity-preserving.
 
 Version and domain-separate each component hash and the aggregate deployment
-hash (for example `jfn:module:v1`, `jfn:contract:v1`, and
-`jfn:deployment:v1`). The shared JSON encoder remains content-only; the domain
-prefix is part of the hash input.
+hash (for example `jfn:module:v1`, `jfn:module-artifact:v1`,
+`jfn:contract:v1`, and `jfn:deployment:v1`). The shared JSON encoder remains
+content-only; the domain prefix is part of the hash input.
 
 ### What gets stored
 
 Every durable workflow record gains:
 
-- `identityManifest` — a versioned manifest containing the module, contract,
-  builtin table, engine/stdlib, and portable-profile component versions and
-  hashes;
+- `identityManifest` — a versioned manifest containing the module,
+  authored-artifact, contract, builtin table, engine/stdlib, and
+  portable-profile component versions and hashes;
 - `identityHash` — the aggregate hash of that manifest at `start()`;
 - `resumedUnder` — appended history of identity hashes it was advanced under
   (bounded to the original plus the eight most recent distinct identities).
@@ -140,19 +169,20 @@ makes the situation **visible and controllable**; today it is neither.
 
 ## Open questions
 
-1. **Artifact identity.** Retain both an exact authored-artifact hash and the
-   normalized semantic module hash, or only the latter?
-2. **Portable-profile projection.** Exactly which limits and policies can
+Artifact identity is settled (retain both hashes — see "What gets hashed").
+The remaining open questions are:
+
+1. **Portable-profile projection.** Exactly which limits and policies can
    alter durable outcomes and therefore participate in automatic identity?
-3. **Adapter compatibility signaling.** Executable adapter code cannot be
+2. **Adapter compatibility signaling.** Executable adapter code cannot be
    covered automatically. Specify how operator `deploymentId` communicates
    compatibility when adapter implementations change, consistent with the
    structural-vs-behavioral parity split in
    `docs/environment-contract.md`.
-4. **Stdlib evolution.** Adding a new builtin changes the builtin-table hash but
+3. **Stdlib evolution.** Adding a new builtin changes the builtin-table hash but
    cannot change the meaning of an existing continuation (existing names win
    lookups; new names were unresolvable before). Hash the full table initially.
    A referenced-builtin subset is valid only after an audit proves capability
    analysis finds every direct and transitive builtin reference.
-5. **Rollout UX for old records.** This may influence operator guidance, but does
+4. **Rollout UX for old records.** This may influence operator guidance, but does
    not change the non-mutating default or make `"warn"` underspecified.
