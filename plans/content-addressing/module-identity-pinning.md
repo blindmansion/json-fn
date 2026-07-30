@@ -1,7 +1,7 @@
 # Module identity pinning for durable resume (follow-up A)
 
-Status: proposed; the Phase 0 artifact/semantic identity decision is settled
-(retain both hashes — see "What gets hashed"). Depends only on the
+Status: proposed; the Phase 0 artifact/semantic identity and executable-world
+projection decisions are settled (see "What gets hashed"). Depends only on the
 canonical-encoding + hashing layer from
 [`content-addressed-values.md`](content-addressed-values.md) — not on the blob
 store. Can land with v1 or independently before it.
@@ -33,16 +33,17 @@ resuming world differs.
 
 ### What gets hashed
 
-The current proposal, pending the Phase 0 executable-world projection
-decision, computes one **deployment identity hash** at `prepareDeployment`
-time over the canonical encoding of:
+The settled projection computes one **deployment identity hash** at
+`prepareDeployment` time over the canonical encoding of:
 
 - the authored module after program normalization, including `$types`, but
   before contract-derived effect bindings are injected;
 - the environment contract;
-- the builtin signature table plus an explicit engine/stdlib semantic version;
-- the portable profile projection: effect selection/classification and every
-  limit or policy field that can alter durable outcomes.
+- the full builtin signature table plus an explicit engine/stdlib semantic
+  version;
+- the portable profile projection: mode, effect selection and
+  inline/suspending classification, and the closed portable limits
+  (`maxCallDepth`, `maxFuel`, `maxValueSize`).
 
 Contract-derived injection is covered by the contract component and must not
 also change the module component. Host-local chunking, storage, logging, and
@@ -55,6 +56,44 @@ the base plan. Hashing `spec/builtins.json` alone is insufficient because an
 implementation can change behavior without changing signatures; hashing prose
 would create irrelevant drift. The explicit engine/stdlib semantic version is
 the reviewed signal for those behavior changes.
+
+**Phase 0 decision (settled): executable-world projection.** The guiding
+principle is that automatic identity covers exactly what is deterministic and
+portable, errs toward visible rejection over silent acceptance, and hands the
+genuinely unhashable residue to the operator as a named obligation:
+
+- **Builtin table: hash the full table for v1.** The failure asymmetry
+  decides this: the full table errs toward spurious but visible drift when a
+  new builtin is added (a new name cannot change the meaning of an existing
+  continuation — existing names win lookups and new names were unresolvable
+  before), while an unsound referenced subset errs toward silently resuming
+  under a changed builtin, the exact corruption this plan exists to prevent.
+  A referenced-builtin subset may replace the full table only under a new
+  identity domain version, and only after an audit proves capability analysis
+  finds every direct and transitive builtin reference, including higher-order
+  and dynamically resolved ones. The engine/stdlib semantic version remains
+  an identity input under either table, because a behavior change to an
+  existing builtin is invisible to signature hashing.
+- **Profile projection rule: deterministic guest-observable outcomes.** A
+  profile field participates in automatic identity if and only if changing it
+  can alter a deterministic guest-observable outcome — values, errors,
+  suspension structure, or deterministic-limit failures. For profile v1 that
+  is: mode, effect selection and inline/suspending classification, and the
+  closed portable limits (`maxCallDepth`, `maxFuel`, `maxValueSize`;
+  `maxFuel` is unambiguously semantic because fuel is a settled stable
+  virtual cost). Excluded by the same rule: `deploymentId` (operator
+  namespace, per the settled invariants), host-local run options (`signal`,
+  `timeoutMs`, `perf`, `usage`), and storage, logging, and chunking
+  configuration. Future profile fields apply this rule at introduction.
+- **Adapter compatibility: `deploymentId` is the attestation.** Executable
+  adapter code stays outside automatic identity. Keeping a `deploymentId` is
+  an operator assertion that the current `adapter.functions` and inline
+  `adapter.effects` are behaviorally compatible — in the behavioral-parity
+  sense of `docs/environment-contract.md` — with every in-flight workflow
+  under that id. A behaviorally incompatible adapter change requires a new
+  `deploymentId`, which the existing non-mutating deployment-mismatch path
+  already enforces. `deploymentId` is not an input to `identityHash`; it is
+  the human-attested channel beside the machine-checked one.
 
 Program normalization and JSON byte canonicalization are separate steps. The
 authored module first passes through the program normalizer from
@@ -169,20 +208,9 @@ makes the situation **visible and controllable**; today it is neither.
 
 ## Open questions
 
-Artifact identity is settled (retain both hashes — see "What gets hashed").
-The remaining open questions are:
+Artifact identity and the executable-world projection — portable-profile
+projection, adapter compatibility signaling, and stdlib evolution — are
+settled; see "What gets hashed". The remaining open question is:
 
-1. **Portable-profile projection.** Exactly which limits and policies can
-   alter durable outcomes and therefore participate in automatic identity?
-2. **Adapter compatibility signaling.** Executable adapter code cannot be
-   covered automatically. Specify how operator `deploymentId` communicates
-   compatibility when adapter implementations change, consistent with the
-   structural-vs-behavioral parity split in
-   `docs/environment-contract.md`.
-3. **Stdlib evolution.** Adding a new builtin changes the builtin-table hash but
-   cannot change the meaning of an existing continuation (existing names win
-   lookups; new names were unresolvable before). Hash the full table initially.
-   A referenced-builtin subset is valid only after an audit proves capability
-   analysis finds every direct and transitive builtin reference.
-4. **Rollout UX for old records.** This may influence operator guidance, but does
+1. **Rollout UX for old records.** This may influence operator guidance, but does
    not change the non-mutating default or make `"warn"` underspecified.

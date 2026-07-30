@@ -157,16 +157,21 @@ The following Phase 0 decisions are settled:
   input. The pinned roles, hash inputs, and rationale are specified in
   [`content-addressing/module-identity-pinning.md`](content-addressing/module-identity-pinning.md).
   Program normalization is still never used for arbitrary guest values.
+- **Executable-world projection (decided: full builtin table,
+  deterministic-outcome profile projection, `deploymentId` attests
+  adapters).** Automatic identity hashes the full builtin signature table
+  plus the explicit engine/stdlib semantic version; a proven referenced
+  subset is admissible only later, under a new identity domain version, after
+  a reference-completeness audit. A profile field is semantic if and only if
+  changing it can alter a deterministic guest-observable outcome — for
+  profile v1: mode, effect selection and classification, and the closed
+  portable limits. Executable adapter behavior stays outside automatic
+  identity; retaining a `deploymentId` is the operator's attestation that
+  adapter behavior remains compatible with in-flight workflows. Details in
+  [`content-addressing/module-identity-pinning.md`](content-addressing/module-identity-pinning.md).
 
-The remaining Phase 0 decision is:
-
-1. **Executable-world projection.** Decide the exact automatic identity
-   inputs: full builtin table versus a proven referenced subset, which portable
-   limits and policies count as semantic, and how operator `deploymentId`
-   attests compatibility of executable adapters that cannot be hashed
-   automatically.
-
-In parallel, add non-sensitive instrumentation for:
+All Phase 0 decisions are settled. Phase 0 also adds non-sensitive
+instrumentation for:
 
 - serialized logical record sizes by state;
 - repeated subtrees and closure-substitution expansion;
@@ -175,10 +180,9 @@ In parallel, add non-sensitive instrumentation for:
 - expected blob read/write amplification under candidate thresholds.
 
 The encoder/hash library may be prototyped during this phase, but module
-identity must not be finalized until the remaining executable-world projection
-decision is settled and normalization is stable. The fuel, structural-depth,
-and artifact/semantic identity decisions above are settled and no longer block
-this.
+identity must not be finalized until program normalization is stable. With
+every Phase 0 decision settled, normalization stability is the only remaining
+blocker.
 
 ### Gate
 
