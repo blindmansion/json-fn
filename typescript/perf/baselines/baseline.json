@@ -1,30 +1,90 @@
 {
   "version": 1,
   "meta": {
-    "createdAt": "2026-08-03T20:20:32.025Z",
+    "createdAt": "2026-08-03T21:00:41.035Z",
     "mode": "full",
     "bunVersion": "1.4.0",
     "platform": "darwin",
     "arch": "arm64",
-    "gitCommit": "1a756b13ae394f1ce58700e5f05a4171a95c2d74"
+    "gitCommit": "1372d36d4d76fdc231aa301d76dbfc4870bc83ee"
   },
   "results": [
     {
-      "id": "raw-internal/body-literal?raw=false&records=100",
+      "id": "raw-internal/body-literal?ast=raw-syntax&records=100",
       "suite": "raw-internal",
       "name": "body-literal",
       "params": {
         "records": 100,
-        "raw": false
+        "ast": "raw-syntax"
       },
       "stats": {
         "samples": 120,
-        "batch": 243,
-        "meanUs": 1.365413477366271,
-        "medianUs": 1.1100823045266985,
-        "p95Us": 3.895921810699582,
-        "minUs": 0.7993827160494276,
-        "totalMs": 39.872708000000046
+        "batch": 103,
+        "meanUs": 2.2474479773462552,
+        "medianUs": 1.4741067961160554,
+        "p95Us": 4.876621359223411,
+        "minUs": 1.075242718446562,
+        "totalMs": 27.856832999999995
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 4,
+        "callFunctionInternal": 2,
+        "replaceVars": 0,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 2,
+        "fuel": 6
+      }
+    },
+    {
+      "id": "raw-internal/body-literal?ast=runtime-value&records=100",
+      "suite": "raw-internal",
+      "name": "body-literal",
+      "params": {
+        "records": 100,
+        "ast": "runtime-value"
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 559,
+        "meanUs": 1.1239210644007127,
+        "medianUs": 0.886032200357793,
+        "p95Us": 2.2786976744186305,
+        "minUs": 0.7640876565294983,
+        "totalMs": 75.4205
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 4,
+        "callFunctionInternal": 2,
+        "replaceVars": 0,
+        "rawSkips": 1,
+        "structuredClones": 0,
+        "maxCallDepth": 2,
+        "fuel": 6
+      }
+    },
+    {
+      "id": "raw-internal/body-literal?ast=preseeded&records=100",
+      "suite": "raw-internal",
+      "name": "body-literal",
+      "params": {
+        "records": 100,
+        "ast": "preseeded"
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 316,
+        "meanUs": 0.9383503691983175,
+        "medianUs": 0.8631329113923216,
+        "p95Us": 1.4491012658230011,
+        "minUs": 0.7059588607594119,
+        "totalMs": 35.642625000000066
       },
       "error": null,
       "native": null,
@@ -40,21 +100,89 @@
       }
     },
     {
-      "id": "raw-internal/body-literal?raw=true&records=100",
+      "id": "raw-internal/body-literal?ast=discovered&records=100",
       "suite": "raw-internal",
       "name": "body-literal",
       "params": {
         "records": 100,
-        "raw": true
+        "ast": "discovered"
       },
       "stats": {
         "samples": 120,
-        "batch": 387,
-        "meanUs": 0.9649232558139514,
-        "medianUs": 0.9060077519380786,
-        "p95Us": 1.138348837209292,
-        "minUs": 0.7592583979328332,
-        "totalMs": 44.83004200000005
+        "batch": 774,
+        "meanUs": 0.8659049633936217,
+        "medianUs": 0.8335490956072543,
+        "p95Us": 1.4460064599484095,
+        "minUs": 0.6645671834624971,
+        "totalMs": 80.44887499999993
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 4,
+        "callFunctionInternal": 2,
+        "replaceVars": 0,
+        "rawSkips": 1,
+        "structuredClones": 0,
+        "maxCallDepth": 2,
+        "fuel": 1306
+      }
+    },
+    {
+      "id": "raw-internal/body-literal?ast=cold&records=100",
+      "suite": "raw-internal",
+      "name": "body-literal",
+      "params": {
+        "records": 100,
+        "ast": "cold"
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 5,
+        "meanUs": 230.73722000000154,
+        "medianUs": 202.9831999999942,
+        "p95Us": 410.8666000000085,
+        "minUs": 176.58340000000408,
+        "totalMs": 138.46862499999997
+      },
+      "error": null,
+      "native": {
+        "samples": 120,
+        "batch": 14,
+        "meanUs": 79.31880059523738,
+        "medianUs": 75.86014285714425,
+        "p95Us": 109.98514285714529,
+        "minUs": 73.76785714286272,
+        "totalMs": 133.27191700000003
+      },
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 1304,
+        "callFunctionInternal": 2,
+        "replaceVars": 0,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 2,
+        "fuel": 1306
+      }
+    },
+    {
+      "id": "raw-internal/body-literal?ast=raw-syntax&records=1000",
+      "suite": "raw-internal",
+      "name": "body-literal",
+      "params": {
+        "records": 1000,
+        "ast": "raw-syntax"
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 889,
+        "meanUs": 0.8854545275590563,
+        "medianUs": 0.8199291338581669,
+        "p95Us": 1.3857334083240347,
+        "minUs": 0.6643228346458397,
+        "totalMs": 94.48350000000005
       },
       "error": null,
       "native": null,
@@ -70,21 +198,51 @@
       }
     },
     {
-      "id": "raw-internal/body-literal?raw=false&records=1000",
+      "id": "raw-internal/body-literal?ast=runtime-value&records=1000",
       "suite": "raw-internal",
       "name": "body-literal",
       "params": {
         "records": 1000,
-        "raw": false
+        "ast": "runtime-value"
       },
       "stats": {
         "samples": 120,
-        "batch": 500,
-        "meanUs": 0.7585611833333341,
-        "medianUs": 0.7191660000000866,
-        "p95Us": 0.9133319999998548,
-        "minUs": 0.6533339999998589,
-        "totalMs": 45.53612499999997
+        "batch": 353,
+        "meanUs": 1.8322956326723743,
+        "medianUs": 1.2517705382435746,
+        "p95Us": 4.937558073654516,
+        "minUs": 0.6430594900852383,
+        "totalMs": 77.67779199999995
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 4,
+        "callFunctionInternal": 2,
+        "replaceVars": 0,
+        "rawSkips": 1,
+        "structuredClones": 0,
+        "maxCallDepth": 2,
+        "fuel": 6
+      }
+    },
+    {
+      "id": "raw-internal/body-literal?ast=preseeded&records=1000",
+      "suite": "raw-internal",
+      "name": "body-literal",
+      "params": {
+        "records": 1000,
+        "ast": "preseeded"
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 304,
+        "meanUs": 1.5951012609649369,
+        "medianUs": 1.1680361842110187,
+        "p95Us": 3.7376644736842706,
+        "minUs": 0.6455592105269441,
+        "totalMs": 58.23441700000012
       },
       "error": null,
       "native": null,
@@ -100,21 +258,89 @@
       }
     },
     {
-      "id": "raw-internal/body-literal?raw=true&records=1000",
+      "id": "raw-internal/body-literal?ast=discovered&records=1000",
       "suite": "raw-internal",
       "name": "body-literal",
       "params": {
         "records": 1000,
-        "raw": true
+        "ast": "discovered"
       },
       "stats": {
         "samples": 120,
-        "batch": 857,
-        "meanUs": 0.7472756709451562,
-        "medianUs": 0.6715764294049519,
-        "p95Us": 0.9468588098015196,
-        "minUs": 0.6300571761959783,
-        "totalMs": 76.86799999999994
+        "batch": 140,
+        "meanUs": 1.8283507738094802,
+        "medianUs": 1.1601214285714638,
+        "p95Us": 6.819042857141865,
+        "minUs": 0.6657714285714584,
+        "totalMs": 30.738708000000088
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 4,
+        "callFunctionInternal": 2,
+        "replaceVars": 0,
+        "rawSkips": 1,
+        "structuredClones": 0,
+        "maxCallDepth": 2,
+        "fuel": 13006
+      }
+    },
+    {
+      "id": "raw-internal/body-literal?ast=cold&records=1000",
+      "suite": "raw-internal",
+      "name": "body-literal",
+      "params": {
+        "records": 1000,
+        "ast": "cold"
+      },
+      "stats": {
+        "samples": 96,
+        "batch": 1,
+        "meanUs": 2618.0394270833226,
+        "medianUs": 2251.125000000229,
+        "p95Us": 4839.332999999897,
+        "minUs": 1588.8749999999163,
+        "totalMs": 251.63087499999983
+      },
+      "error": null,
+      "native": {
+        "samples": 120,
+        "batch": 2,
+        "meanUs": 812.5623125000116,
+        "medianUs": 752.5000000000546,
+        "p95Us": 1270.2500000000327,
+        "minUs": 737.1459999999388,
+        "totalMs": 195.03816700000016
+      },
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 13004,
+        "callFunctionInternal": 2,
+        "replaceVars": 0,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 2,
+        "fuel": 13006
+      }
+    },
+    {
+      "id": "raw-internal/body-literal?ast=raw-syntax&records=10000",
+      "suite": "raw-internal",
+      "name": "body-literal",
+      "params": {
+        "records": 10000,
+        "ast": "raw-syntax"
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 774,
+        "meanUs": 0.9499103466839066,
+        "medianUs": 0.8703165374675734,
+        "p95Us": 1.7175930232557122,
+        "minUs": 0.6239237726101686,
+        "totalMs": 88.25154199999997
       },
       "error": null,
       "native": null,
@@ -130,21 +356,51 @@
       }
     },
     {
-      "id": "raw-internal/body-literal?raw=false&records=10000",
+      "id": "raw-internal/body-literal?ast=runtime-value&records=10000",
       "suite": "raw-internal",
       "name": "body-literal",
       "params": {
         "records": 10000,
-        "raw": false
+        "ast": "runtime-value"
       },
       "stats": {
         "samples": 120,
-        "batch": 801,
-        "meanUs": 0.7443343216812361,
-        "medianUs": 0.7430299625468919,
-        "p95Us": 0.9889200998752254,
-        "minUs": 0.6086666666667614,
-        "totalMs": 71.56366700000001
+        "batch": 828,
+        "meanUs": 0.8296066022544112,
+        "medianUs": 0.770531400966087,
+        "p95Us": 1.3377620772944019,
+        "minUs": 0.6142306763288304,
+        "totalMs": 82.45112500000005
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 4,
+        "callFunctionInternal": 2,
+        "replaceVars": 0,
+        "rawSkips": 1,
+        "structuredClones": 0,
+        "maxCallDepth": 2,
+        "fuel": 6
+      }
+    },
+    {
+      "id": "raw-internal/body-literal?ast=preseeded&records=10000",
+      "suite": "raw-internal",
+      "name": "body-literal",
+      "params": {
+        "records": 10000,
+        "ast": "preseeded"
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 889,
+        "meanUs": 0.7480655136857592,
+        "medianUs": 0.6484814398201616,
+        "p95Us": 1.3436445444320155,
+        "minUs": 0.6200314960628351,
+        "totalMs": 79.82450000000017
       },
       "error": null,
       "native": null,
@@ -160,21 +416,21 @@
       }
     },
     {
-      "id": "raw-internal/body-literal?raw=true&records=10000",
+      "id": "raw-internal/body-literal?ast=discovered&records=10000",
       "suite": "raw-internal",
       "name": "body-literal",
       "params": {
         "records": 10000,
-        "raw": true
+        "ast": "discovered"
       },
       "stats": {
         "samples": 120,
-        "batch": 1263,
-        "meanUs": 0.8077079242544215,
-        "medianUs": 0.6403072050673193,
-        "p95Us": 1.125923198733203,
-        "minUs": 0.6145091053049032,
-        "totalMs": 122.43925000000002
+        "batch": 857,
+        "meanUs": 0.7516890412291233,
+        "medianUs": 0.6643815635939748,
+        "p95Us": 1.2561738623102758,
+        "minUs": 0.6316616102683853,
+        "totalMs": 77.34183400000029
       },
       "error": null,
       "native": null,
@@ -183,39 +439,114 @@
         "evaluateExpression": 4,
         "callFunctionInternal": 2,
         "replaceVars": 0,
+        "rawSkips": 1,
+        "structuredClones": 0,
+        "maxCallDepth": 2,
+        "fuel": 130006
+      }
+    },
+    {
+      "id": "raw-internal/body-literal?ast=cold&records=10000",
+      "suite": "raw-internal",
+      "name": "body-literal",
+      "params": {
+        "records": 10000,
+        "ast": "cold"
+      },
+      "stats": {
+        "samples": 9,
+        "batch": 1,
+        "meanUs": 27995.824222222232,
+        "medianUs": 26986.707999999908,
+        "p95Us": 33630.12500000013,
+        "minUs": 22228.583999999955,
+        "totalMs": 251.96879100000024
+      },
+      "error": null,
+      "native": {
+        "samples": 25,
+        "batch": 1,
+        "meanUs": 10183.860040000036,
+        "medianUs": 9915.417000000161,
+        "p95Us": 13119.834000000083,
+        "minUs": 8243.375000000015,
+        "totalMs": 254.6088749999999
+      },
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 130004,
+        "callFunctionInternal": 2,
+        "replaceVars": 0,
         "rawSkips": 0,
         "structuredClones": 0,
         "maxCallDepth": 2,
-        "fuel": 6
+        "fuel": 130006
       }
     },
     {
-      "id": "raw-internal/pass-through-calls?calls=100&raw=false&records=100",
+      "id": "raw-internal/pass-through-calls?calls=100&records=100",
       "suite": "raw-internal",
       "name": "pass-through-calls",
       "params": {
         "records": 100,
-        "raw": false,
+        "calls": 100
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 8,
+        "meanUs": 148.08168750000266,
+        "medianUs": 117.71874999999454,
+        "p95Us": 301.82287499997074,
+        "minUs": 98.59900000003563,
+        "totalMs": 142.1939999999995
+      },
+      "error": null,
+      "native": {
+        "samples": 120,
+        "batch": 1846,
+        "meanUs": 0.08222563199714153,
+        "medianUs": 0.048144637052796084,
+        "p95Us": 0.1312973997832128,
+        "minUs": 0.03719772481064987,
+        "totalMs": 18.239332999999533
+      },
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 909,
+        "callFunctionInternal": 304,
+        "replaceVars": 16,
+        "rawSkips": 0,
+        "structuredClones": 0,
+        "maxCallDepth": 103,
+        "fuel": 1213
+      }
+    },
+    {
+      "id": "raw-internal/pass-through-calls?calls=100&records=1000",
+      "suite": "raw-internal",
+      "name": "pass-through-calls",
+      "params": {
+        "records": 1000,
         "calls": 100
       },
       "stats": {
         "samples": 120,
         "batch": 11,
-        "meanUs": 115.37280075757634,
-        "medianUs": 94.06063636364789,
-        "p95Us": 253.09472727272725,
-        "minUs": 83.55681818182927,
-        "totalMs": 152.31974999999989
+        "meanUs": 106.64737424242293,
+        "medianUs": 96.7651818181449,
+        "p95Us": 190.51900000001547,
+        "minUs": 84.30681818183737,
+        "totalMs": 140.80258400000002
       },
       "error": null,
       "native": {
         "samples": 120,
-        "batch": 1713,
-        "meanUs": 0.045240815333723775,
-        "medianUs": 0.04470694687684053,
-        "p95Us": 0.04993636894346084,
-        "minUs": 0.034175131348504695,
-        "totalMs": 9.310874999999896
+        "batch": 1716,
+        "meanUs": 0.20465955710958667,
+        "medianUs": 0.05317599067569387,
+        "p95Us": 0.6519522144525325,
+        "minUs": 0.04428904428905701,
+        "totalMs": 42.21937500000058
       },
       "nativeError": null,
       "metrics": {
@@ -229,149 +560,31 @@
       }
     },
     {
-      "id": "raw-internal/pass-through-calls?calls=100&raw=true&records=100",
-      "suite": "raw-internal",
-      "name": "pass-through-calls",
-      "params": {
-        "records": 100,
-        "raw": true,
-        "calls": 100
-      },
-      "stats": {
-        "samples": 120,
-        "batch": 12,
-        "meanUs": 87.93795972222189,
-        "medianUs": 84.19791666667227,
-        "p95Us": 103.99299999998372,
-        "minUs": 79.36108333332943,
-        "totalMs": 126.65525000000002
-      },
-      "error": null,
-      "native": {
-        "samples": 120,
-        "batch": 3425,
-        "meanUs": 0.04547200486618359,
-        "medianUs": 0.04508496350360746,
-        "p95Us": 0.048102189781062794,
-        "minUs": 0.043844087591277836,
-        "totalMs": 18.701999999999998
-      },
-      "nativeError": null,
-      "metrics": {
-        "evaluateExpression": 909,
-        "callFunctionInternal": 304,
-        "replaceVars": 16,
-        "rawSkips": 0,
-        "structuredClones": 0,
-        "maxCallDepth": 103,
-        "fuel": 1213
-      }
-    },
-    {
-      "id": "raw-internal/pass-through-calls?calls=100&raw=false&records=1000",
-      "suite": "raw-internal",
-      "name": "pass-through-calls",
-      "params": {
-        "records": 1000,
-        "raw": false,
-        "calls": 100
-      },
-      "stats": {
-        "samples": 120,
-        "batch": 13,
-        "meanUs": 86.664264102565,
-        "medianUs": 83.34615384615063,
-        "p95Us": 116.24038461538404,
-        "minUs": 79.9359230769159,
-        "totalMs": 135.22120899999982
-      },
-      "error": null,
-      "native": {
-        "samples": 120,
-        "batch": 1600,
-        "meanUs": 0.04591736979167512,
-        "medianUs": 0.04473937499994918,
-        "p95Us": 0.04955750000007697,
-        "minUs": 0.044505624999970905,
-        "totalMs": 8.831000000000131
-      },
-      "nativeError": null,
-      "metrics": {
-        "evaluateExpression": 909,
-        "callFunctionInternal": 304,
-        "replaceVars": 16,
-        "rawSkips": 0,
-        "structuredClones": 0,
-        "maxCallDepth": 103,
-        "fuel": 1213
-      }
-    },
-    {
-      "id": "raw-internal/pass-through-calls?calls=100&raw=true&records=1000",
-      "suite": "raw-internal",
-      "name": "pass-through-calls",
-      "params": {
-        "records": 1000,
-        "raw": true,
-        "calls": 100
-      },
-      "stats": {
-        "samples": 120,
-        "batch": 7,
-        "meanUs": 168.12500238095467,
-        "medianUs": 120.27971428571098,
-        "p95Us": 414.62500000001717,
-        "minUs": 84.90471428571514,
-        "totalMs": 141.28929199999993
-      },
-      "error": null,
-      "native": {
-        "samples": 120,
-        "batch": 4808,
-        "meanUs": 0.05287722199112894,
-        "medianUs": 0.04562707986682042,
-        "p95Us": 0.0793383943427989,
-        "minUs": 0.04450062396000504,
-        "totalMs": 30.53354199999967
-      },
-      "nativeError": null,
-      "metrics": {
-        "evaluateExpression": 909,
-        "callFunctionInternal": 304,
-        "replaceVars": 16,
-        "rawSkips": 0,
-        "structuredClones": 0,
-        "maxCallDepth": 103,
-        "fuel": 1213
-      }
-    },
-    {
-      "id": "raw-internal/pass-through-calls?calls=100&raw=false&records=10000",
+      "id": "raw-internal/pass-through-calls?calls=100&records=10000",
       "suite": "raw-internal",
       "name": "pass-through-calls",
       "params": {
         "records": 10000,
-        "raw": false,
         "calls": 100
       },
       "stats": {
         "samples": 120,
         "batch": 11,
-        "meanUs": 92.85082727272889,
-        "medianUs": 92.33336363637466,
-        "p95Us": 109.503727272733,
-        "minUs": 81.50754545456286,
-        "totalMs": 122.58820800000012
+        "meanUs": 113.60596515151178,
+        "medianUs": 98.89018181812307,
+        "p95Us": 217.0227272727061,
+        "minUs": 81.41672727271559,
+        "totalMs": 149.99341699999968
       },
       "error": null,
       "native": {
         "samples": 120,
-        "batch": 2399,
-        "meanUs": 0.044693542448235396,
-        "medianUs": 0.04366402667776876,
-        "p95Us": 0.04793664026687639,
-        "minUs": 0.043525218841188915,
-        "totalMs": 12.878834000000097
+        "batch": 1500,
+        "meanUs": 0.0755674333333243,
+        "medianUs": 0.05324999999963135,
+        "p95Us": 0.16397200000028533,
+        "minUs": 0.03463933333356787,
+        "totalMs": 13.623416000000361
       },
       "nativeError": null,
       "metrics": {
@@ -385,110 +598,31 @@
       }
     },
     {
-      "id": "raw-internal/pass-through-calls?calls=100&raw=true&records=10000",
+      "id": "raw-internal/pass-through-calls?calls=100&records=100000",
       "suite": "raw-internal",
       "name": "pass-through-calls",
       "params": {
-        "records": 10000,
-        "raw": true,
+        "records": 100000,
         "calls": 100
       },
       "stats": {
         "samples": 120,
-        "batch": 13,
-        "meanUs": 89.41567307692418,
-        "medianUs": 84.4390769230953,
-        "p95Us": 110.1923076922993,
-        "minUs": 81.20192307692028,
-        "totalMs": 139.51287500000035
+        "batch": 8,
+        "meanUs": 181.41878749999793,
+        "medianUs": 123.56775000000653,
+        "p95Us": 369.21362500004307,
+        "minUs": 88.58324999994238,
+        "totalMs": 174.40954199999942
       },
       "error": null,
       "native": {
         "samples": 120,
         "batch": 3425,
-        "meanUs": 0.045592566909981605,
-        "medianUs": 0.044343065693303194,
-        "p95Us": 0.04821167883211361,
-        "minUs": 0.04423357664231877,
-        "totalMs": 18.754875000000084
-      },
-      "nativeError": null,
-      "metrics": {
-        "evaluateExpression": 909,
-        "callFunctionInternal": 304,
-        "replaceVars": 16,
-        "rawSkips": 0,
-        "structuredClones": 0,
-        "maxCallDepth": 103,
-        "fuel": 1213
-      }
-    },
-    {
-      "id": "raw-internal/pass-through-calls?calls=100&raw=false&records=100000",
-      "suite": "raw-internal",
-      "name": "pass-through-calls",
-      "params": {
-        "records": 100000,
-        "raw": false,
-        "calls": 100
-      },
-      "stats": {
-        "samples": 120,
-        "batch": 9,
-        "meanUs": 160.36720370370222,
-        "medianUs": 127.10655555555503,
-        "p95Us": 280.29622222220496,
-        "minUs": 92.02311111110045,
-        "totalMs": 173.22649999999976
-      },
-      "error": null,
-      "native": {
-        "samples": 120,
-        "batch": 3425,
-        "meanUs": 0.045180639902679495,
-        "medianUs": 0.04364963503649317,
-        "p95Us": 0.049306569343020024,
-        "minUs": 0.04350364963500357,
-        "totalMs": 18.583082999999988
-      },
-      "nativeError": null,
-      "metrics": {
-        "evaluateExpression": 909,
-        "callFunctionInternal": 304,
-        "replaceVars": 16,
-        "rawSkips": 0,
-        "structuredClones": 0,
-        "maxCallDepth": 103,
-        "fuel": 1213
-      }
-    },
-    {
-      "id": "raw-internal/pass-through-calls?calls=100&raw=true&records=100000",
-      "suite": "raw-internal",
-      "name": "pass-through-calls",
-      "params": {
-        "records": 100000,
-        "raw": true,
-        "calls": 100
-      },
-      "stats": {
-        "samples": 120,
-        "batch": 12,
-        "meanUs": 93.29846180555954,
-        "medianUs": 86.42366666667083,
-        "p95Us": 117.7464999999908,
-        "minUs": 81.18749999997969,
-        "totalMs": 134.37408300000016
-      },
-      "error": null,
-      "native": {
-        "samples": 120,
-        "batch": 2399,
-        "meanUs": 0.044677174517143786,
-        "medianUs": 0.04362942892874661,
-        "p95Us": 0.049117965818955875,
-        "minUs": 0.04350771154662176,
-        "totalMs": 12.87387499999977
+        "meanUs": 0.03718915328465342,
+        "medianUs": 0.03446452554736378,
+        "p95Us": 0.04454978102191231,
+        "minUs": 0.033686131386952665,
+        "totalMs": 15.326041999999688
       },
       "nativeError": null,
       "metrics": {
@@ -510,23 +644,23 @@
         "steps": 500
       },
       "stats": {
-        "samples": 108,
-        "batch": 6,
-        "meanUs": 385.8002762345682,
-        "medianUs": 267.8609999999632,
-        "p95Us": 617.1458333333248,
-        "minUs": 189.54166666662786,
-        "totalMs": 250.06354200000033
+        "samples": 120,
+        "batch": 4,
+        "meanUs": 481.4058999999947,
+        "medianUs": 286.56249999994543,
+        "p95Us": 1307.9272499999206,
+        "minUs": 197.34375000007276,
+        "totalMs": 231.12733300000036
       },
       "error": null,
       "native": {
         "samples": 120,
-        "batch": 572,
-        "meanUs": 0.16087135780889195,
-        "medianUs": 0.15311713286632925,
-        "p95Us": 0.19383741258794684,
-        "minUs": 0.15158916083943244,
-        "totalMs": 11.062417000000096
+        "batch": 1500,
+        "meanUs": 0.17186147777785352,
+        "medianUs": 0.15591666666659876,
+        "p95Us": 0.26061133333375136,
+        "minUs": 0.15288933333370852,
+        "totalMs": 30.96070899999995
       },
       "nativeError": null,
       "metrics": {
@@ -550,21 +684,21 @@
       "stats": {
         "samples": 120,
         "batch": 6,
-        "meanUs": 284.5344333333338,
-        "medianUs": 202.30549999996583,
-        "p95Us": 513.1388333334144,
-        "minUs": 173.07633333333192,
-        "totalMs": 204.88724999999977
+        "meanUs": 333.07569999999583,
+        "medianUs": 198.77083333343157,
+        "p95Us": 765.7083333333503,
+        "minUs": 182.5971666667101,
+        "totalMs": 239.86895899999945
       },
       "error": null,
       "native": {
         "samples": 120,
-        "batch": 2399,
-        "meanUs": 0.15177071001809372,
-        "medianUs": 0.1499062109212384,
-        "p95Us": 0.15964985410579857,
-        "minUs": 0.14839516465184127,
-        "totalMs": 43.70379200000025
+        "batch": 2667,
+        "meanUs": 0.19147174103236975,
+        "medianUs": 0.1591361079864407,
+        "p95Us": 0.35725196850382696,
+        "minUs": 0.15365279340096724,
+        "totalMs": 61.31420799999978
       },
       "nativeError": null,
       "metrics": {
@@ -587,22 +721,22 @@
       },
       "stats": {
         "samples": 120,
-        "batch": 5,
-        "meanUs": 345.66451166666565,
-        "medianUs": 263.3831999999529,
-        "p95Us": 852.4332000000868,
-        "minUs": 191.9499999999971,
-        "totalMs": 207.42999999999938
+        "batch": 1,
+        "meanUs": 640.5148750000003,
+        "medianUs": 350.8750000000873,
+        "p95Us": 2050.2080000005662,
+        "minUs": 254.4580000003407,
+        "totalMs": 76.92258300000049
       },
       "error": null,
       "native": {
         "samples": 120,
-        "batch": 1716,
-        "meanUs": 0.15909318667441813,
-        "medianUs": 0.15510897435936943,
-        "p95Us": 0.17288228438239314,
-        "minUs": 0.15083508158500453,
-        "totalMs": 32.79529100000036
+        "batch": 3425,
+        "meanUs": 0.1652727931873514,
+        "medianUs": 0.15461051094913592,
+        "p95Us": 0.23334540145995986,
+        "minUs": 0.1487468613137344,
+        "totalMs": 67.94954099999995
       },
       "nativeError": null,
       "metrics": {
@@ -625,22 +759,22 @@
       },
       "stats": {
         "samples": 120,
-        "batch": 11,
-        "meanUs": 140.1837780302995,
-        "medianUs": 126.07954545455868,
-        "p95Us": 247.6667272727685,
-        "minUs": 89.24245454545598,
-        "totalMs": 185.07175000000007
+        "batch": 9,
+        "meanUs": 150.61589166666633,
+        "medianUs": 126.74533333332269,
+        "p95Us": 269.1250000000057,
+        "minUs": 109.81944444443394,
+        "totalMs": 162.70258299999932
       },
       "error": null,
       "native": {
         "samples": 120,
-        "batch": 1263,
-        "meanUs": 0.20678361045132634,
-        "medianUs": 0.20295566112451932,
-        "p95Us": 0.21710926365808025,
-        "minUs": 0.2009105304828618,
-        "totalMs": 31.403000000000247
+        "batch": 1716,
+        "meanUs": 0.21491094599844546,
+        "medianUs": 0.20490967365981358,
+        "p95Us": 0.2880489510486041,
+        "minUs": 0.20386538461551107,
+        "totalMs": 44.27595800000017
       },
       "nativeError": null,
       "metrics": {
@@ -663,22 +797,22 @@
       },
       "stats": {
         "samples": 120,
-        "batch": 10,
-        "meanUs": 90.57878166667327,
-        "medianUs": 84.69169999998485,
-        "p95Us": 115.98749999993743,
-        "minUs": 78.64159999999174,
-        "totalMs": 108.71037500000057
+        "batch": 7,
+        "meanUs": 265.72748571429224,
+        "medianUs": 150.52385714287604,
+        "p95Us": 693.4939999999707,
+        "minUs": 134.07742857141005,
+        "totalMs": 223.25066700000025
       },
       "error": null,
       "native": {
         "samples": 120,
-        "batch": 1091,
-        "meanUs": 0.21226864497408898,
-        "medianUs": 0.2048579285060112,
-        "p95Us": 0.24171219065031777,
-        "minUs": 0.20405591200680587,
-        "totalMs": 27.811791999999514
+        "batch": 2001,
+        "meanUs": 0.21275251124438435,
+        "medianUs": 0.20379410294851183,
+        "p95Us": 0.2548515742131693,
+        "minUs": 0.20067016491763087,
+        "totalMs": 51.10662500000035
       },
       "nativeError": null,
       "metrics": {
@@ -701,22 +835,22 @@
       },
       "stats": {
         "samples": 120,
-        "batch": 12,
-        "meanUs": 108.67954027777137,
-        "medianUs": 97.19791666664908,
-        "p95Us": 200.29166666662,
-        "minUs": 79.31599999998677,
-        "totalMs": 156.52479200000016
+        "batch": 3,
+        "meanUs": 208.46435277781995,
+        "medianUs": 151.38899999995678,
+        "p95Us": 501.01399999948626,
+        "minUs": 90.93066666658463,
+        "totalMs": 75.07066699999996
       },
       "error": null,
       "native": {
         "samples": 120,
-        "batch": 2184,
-        "meanUs": 0.205001965048813,
-        "medianUs": 0.20272435897401583,
-        "p95Us": 0.21333195970674707,
-        "minUs": 0.20003434065949058,
-        "totalMs": 53.74295799999982
+        "batch": 2667,
+        "meanUs": 0.23075371203597844,
+        "medianUs": 0.209614548181767,
+        "p95Us": 0.3615796775402688,
+        "minUs": 0.20456842894619717,
+        "totalMs": 73.87662500000079
       },
       "nativeError": null,
       "metrics": {
@@ -739,22 +873,22 @@
       },
       "stats": {
         "samples": 120,
-        "batch": 16,
-        "meanUs": 123.5629145833339,
-        "medianUs": 75.5442500000072,
-        "p95Us": 141.78124999995134,
-        "minUs": 61.69787499999302,
-        "totalMs": 237.2661250000001
+        "batch": 10,
+        "meanUs": 204.3866008333316,
+        "medianUs": 98.99590000004537,
+        "p95Us": 328.4541999999419,
+        "minUs": 72.02499999984866,
+        "totalMs": 245.52533399999993
       },
       "error": null,
       "native": {
-        "samples": 101,
-        "batch": 32,
-        "meanUs": 78.52742017326756,
-        "medianUs": 36.434906250008225,
-        "p95Us": 115.15496875000508,
-        "minUs": 20.091156250003905,
-        "totalMs": 253.91470800000025
+        "samples": 85,
+        "batch": 7,
+        "meanUs": 422.27156806721956,
+        "medianUs": 181.35714285719067,
+        "p95Us": 1964.1308571426634,
+        "minUs": 30.523857142855245,
+        "totalMs": 251.45770900000025
       },
       "nativeError": null,
       "metrics": {
@@ -776,23 +910,23 @@
         "updates": 50
       },
       "stats": {
-        "samples": 81,
-        "batch": 2,
-        "meanUs": 1570.6167592592872,
-        "medianUs": 693.6045000002196,
-        "p95Us": 1927.603999999974,
-        "minUs": 434.1875000000073,
-        "totalMs": 254.57504100000006
+        "samples": 120,
+        "batch": 1,
+        "meanUs": 1393.8250333332987,
+        "medianUs": 1003.7080000001879,
+        "p95Us": 3614.0419999992446,
+        "minUs": 480.3750000010041,
+        "totalMs": 167.29345899999862
       },
       "error": null,
       "native": {
         "samples": 120,
         "batch": 1,
-        "meanUs": 1337.0040583333316,
-        "medianUs": 827.2919999999431,
-        "p95Us": 3512.749999999869,
-        "minUs": 434.2080000005808,
-        "totalMs": 160.52091699999983
+        "meanUs": 1544.6636333333727,
+        "medianUs": 650.8329999996931,
+        "p95Us": 2435.2079999989655,
+        "minUs": 179.6249999988504,
+        "totalMs": 185.39279199999874
       },
       "nativeError": null,
       "metrics": {
@@ -814,23 +948,23 @@
         "updates": 50
       },
       "stats": {
-        "samples": 46,
+        "samples": 29,
         "batch": 1,
-        "meanUs": 5495.901239130351,
-        "medianUs": 3209.791999999652,
-        "p95Us": 7539.708000000246,
-        "minUs": 2189.041999999972,
-        "totalMs": 252.83741700000064
+        "meanUs": 8612.39365517244,
+        "medianUs": 4867.7910000005795,
+        "p95Us": 16201.83299999917,
+        "minUs": 2961.875000000873,
+        "totalMs": 250.058583
       },
       "error": null,
       "native": {
-        "samples": 58,
+        "samples": 8,
         "batch": 1,
-        "meanUs": 4315.820362068956,
-        "medianUs": 2147.2079999985,
-        "p95Us": 11206.958000000668,
-        "minUs": 883.9170000010199,
-        "totalMs": 250.34933400000045
+        "meanUs": 31742.796750000027,
+        "medianUs": 10643.12500000051,
+        "p95Us": 168174.2919999997,
+        "minUs": 5636.915999999474,
+        "totalMs": 254.09058399999958
       },
       "nativeError": null,
       "metrics": {
@@ -844,51 +978,20 @@
       }
     },
     {
-      "id": "boundary/arg-length?raw=false&records=1000",
+      "id": "boundary/arg-length?records=1000",
       "suite": "boundary",
       "name": "arg-length",
       "params": {
-        "records": 1000,
-        "raw": false
+        "records": 1000
       },
       "stats": {
         "samples": 120,
-        "batch": 308,
-        "meanUs": 1.0495523809523546,
-        "medianUs": 0.7987012987045586,
-        "p95Us": 2.25757467532949,
-        "minUs": 0.719022727273775,
-        "totalMs": 38.81829199999993
-      },
-      "error": null,
-      "native": null,
-      "nativeError": null,
-      "metrics": {
-        "evaluateExpression": 2,
-        "callFunctionInternal": 2,
-        "replaceVars": 0,
-        "rawSkips": 0,
-        "structuredClones": 0,
-        "maxCallDepth": 2,
-        "fuel": 4
-      }
-    },
-    {
-      "id": "boundary/arg-length?raw=true&records=1000",
-      "suite": "boundary",
-      "name": "arg-length",
-      "params": {
-        "records": 1000,
-        "raw": true
-      },
-      "stats": {
-        "samples": 120,
-        "batch": 60,
-        "meanUs": 0.7568399999996067,
-        "medianUs": 0.7270833333374563,
-        "p95Us": 1.177783333332627,
-        "minUs": 0.5423500000082034,
-        "totalMs": 5.463708999999653
+        "batch": 156,
+        "meanUs": 1.2429731303420815,
+        "medianUs": 0.9115961538438383,
+        "p95Us": 2.7144743589815334,
+        "minUs": 0.8269230769283007,
+        "totalMs": 23.29791699999987
       },
       "error": null,
       "native": null,
@@ -912,12 +1015,12 @@
       },
       "stats": {
         "samples": 120,
-        "batch": 857,
-        "meanUs": 0.6066960229484832,
-        "medianUs": 0.5913547257873906,
-        "p95Us": 0.8622625437575846,
-        "minUs": 0.46197899649881924,
-        "totalMs": 62.55949999999939
+        "batch": 961,
+        "meanUs": 0.9961826829692543,
+        "medianUs": 0.7104151925084431,
+        "p95Us": 2.157344432882201,
+        "minUs": 0.526881373570424,
+        "totalMs": 114.95466699999997
       },
       "error": null,
       "native": null,
@@ -933,51 +1036,20 @@
       }
     },
     {
-      "id": "boundary/arg-length?raw=false&records=10000",
+      "id": "boundary/arg-length?records=10000",
       "suite": "boundary",
       "name": "arg-length",
       "params": {
-        "records": 10000,
-        "raw": false
+        "records": 10000
       },
       "stats": {
         "samples": 120,
-        "batch": 828,
-        "meanUs": 0.6143535024156094,
-        "medianUs": 0.5815217391302766,
-        "p95Us": 0.7753128019307709,
-        "minUs": 0.5607391304354696,
-        "totalMs": 61.059667000001355
-      },
-      "error": null,
-      "native": null,
-      "nativeError": null,
-      "metrics": {
-        "evaluateExpression": 2,
-        "callFunctionInternal": 2,
-        "replaceVars": 0,
-        "rawSkips": 0,
-        "structuredClones": 0,
-        "maxCallDepth": 2,
-        "fuel": 4
-      }
-    },
-    {
-      "id": "boundary/arg-length?raw=true&records=10000",
-      "suite": "boundary",
-      "name": "arg-length",
-      "params": {
-        "records": 10000,
-        "raw": true
-      },
-      "stats": {
-        "samples": 120,
-        "batch": 511,
-        "meanUs": 0.5998858284409577,
-        "medianUs": 0.5807240704491581,
-        "p95Us": 0.647342465751149,
-        "minUs": 0.5672700587091837,
-        "totalMs": 36.800584000000526
+        "batch": 174,
+        "meanUs": 1.1124958333334602,
+        "medianUs": 0.6949252873574164,
+        "p95Us": 2.326632183912911,
+        "minUs": 0.6556551724179894,
+        "totalMs": 23.256541000000652
       },
       "error": null,
       "native": null,
@@ -1001,12 +1073,12 @@
       },
       "stats": {
         "samples": 120,
-        "batch": 1091,
-        "meanUs": 0.6542182325084233,
-        "medianUs": 0.49209440879906663,
-        "p95Us": 1.272838680109312,
-        "minUs": 0.4686067827693698,
-        "totalMs": 85.67383400000108
+        "batch": 334,
+        "meanUs": 0.7264928393215453,
+        "medianUs": 0.5426646706630396,
+        "p95Us": 1.912050898202373,
+        "minUs": 0.5152185628781253,
+        "totalMs": 29.143208999999842
       },
       "error": null,
       "native": null,
@@ -1022,51 +1094,20 @@
       }
     },
     {
-      "id": "boundary/arg-length?raw=false&records=100000",
+      "id": "boundary/arg-length?records=100000",
       "suite": "boundary",
       "name": "arg-length",
       "params": {
-        "records": 100000,
-        "raw": false
+        "records": 100000
       },
       "stats": {
         "samples": 120,
-        "batch": 889,
-        "meanUs": 0.593704630671165,
-        "medianUs": 0.5785050618687533,
-        "p95Us": 0.6825084364443312,
-        "minUs": 0.5575556805411126,
-        "totalMs": 63.35141599999952
-      },
-      "error": null,
-      "native": null,
-      "nativeError": null,
-      "metrics": {
-        "evaluateExpression": 2,
-        "callFunctionInternal": 2,
-        "replaceVars": 0,
-        "rawSkips": 0,
-        "structuredClones": 0,
-        "maxCallDepth": 2,
-        "fuel": 4
-      }
-    },
-    {
-      "id": "boundary/arg-length?raw=true&records=100000",
-      "suite": "boundary",
-      "name": "arg-length",
-      "params": {
-        "records": 100000,
-        "raw": true
-      },
-      "stats": {
-        "samples": 120,
-        "batch": 960,
-        "meanUs": 0.5995818576389902,
-        "medianUs": 0.5773874999988493,
-        "p95Us": 0.736718750001349,
-        "minUs": 0.5608937500009384,
-        "totalMs": 69.08712500000001
+        "batch": 211,
+        "meanUs": 0.9628375197471638,
+        "medianUs": 0.6891800947940464,
+        "p95Us": 2.001976303316438,
+        "minUs": 0.6486966824565238,
+        "totalMs": 24.40679199999977
       },
       "error": null,
       "native": null,
@@ -1090,12 +1131,12 @@
       },
       "stats": {
         "samples": 120,
-        "batch": 828,
-        "meanUs": 0.48255883655408494,
-        "medianUs": 0.47408333333463076,
-        "p95Us": 0.5145942028993095,
-        "minUs": 0.46220893719749073,
-        "totalMs": 47.95983400000114
+        "batch": 293,
+        "meanUs": 0.676354323094497,
+        "medianUs": 0.5504846416405639,
+        "p95Us": 1.1592696245790817,
+        "minUs": 0.5270204778210182,
+        "totalMs": 23.80241600000045
       },
       "error": null,
       "native": null,
@@ -1111,115 +1152,51 @@
       }
     },
     {
-      "id": "boundary/capture-then-invoke?invocations=50&raw=false&records=1000",
+      "id": "boundary/capture-then-invoke?invocations=50&records=1000",
       "suite": "boundary",
       "name": "capture-then-invoke",
       "params": {
         "records": 1000,
-        "raw": false,
+        "invocations": 50
+      },
+      "stats": {
+        "samples": 120,
+        "batch": 37,
+        "meanUs": 36.22641644144202,
+        "medianUs": 27.129486486513553,
+        "p95Us": 63.751108108123375,
+        "minUs": 20.97745945944995,
+        "totalMs": 160.87774999999965
+      },
+      "error": null,
+      "native": null,
+      "nativeError": null,
+      "metrics": {
+        "evaluateExpression": 255,
+        "callFunctionInternal": 54,
+        "replaceVars": 6,
+        "rawSkips": 50,
+        "structuredClones": 0,
+        "maxCallDepth": 3,
+        "fuel": 509
+      }
+    },
+    {
+      "id": "boundary/capture-then-invoke?invocations=50&records=10000",
+      "suite": "boundary",
+      "name": "capture-then-invoke",
+      "params": {
+        "records": 10000,
         "invocations": 50
       },
       "stats": {
         "samples": 120,
         "batch": 45,
-        "meanUs": 31.746564629631937,
-        "medianUs": 24.12406666666761,
-        "p95Us": 30.186111111106584,
-        "minUs": 21.119444444411783,
-        "totalMs": 171.4477079999997
-      },
-      "error": null,
-      "native": null,
-      "nativeError": null,
-      "metrics": {
-        "evaluateExpression": 255,
-        "callFunctionInternal": 54,
-        "replaceVars": 6,
-        "rawSkips": 50,
-        "structuredClones": 0,
-        "maxCallDepth": 3,
-        "fuel": 509
-      }
-    },
-    {
-      "id": "boundary/capture-then-invoke?invocations=50&raw=true&records=1000",
-      "suite": "boundary",
-      "name": "capture-then-invoke",
-      "params": {
-        "records": 1000,
-        "raw": true,
-        "invocations": 50
-      },
-      "stats": {
-        "samples": 120,
-        "batch": 42,
-        "meanUs": 30.285656349205023,
-        "medianUs": 22.02678571427982,
-        "p95Us": 30.697404761884258,
-        "minUs": 21.012904761889892,
-        "totalMs": 152.70829200000117
-      },
-      "error": null,
-      "native": null,
-      "nativeError": null,
-      "metrics": {
-        "evaluateExpression": 255,
-        "callFunctionInternal": 54,
-        "replaceVars": 6,
-        "rawSkips": 50,
-        "structuredClones": 0,
-        "maxCallDepth": 3,
-        "fuel": 509
-      }
-    },
-    {
-      "id": "boundary/capture-then-invoke?invocations=50&raw=false&records=10000",
-      "suite": "boundary",
-      "name": "capture-then-invoke",
-      "params": {
-        "records": 10000,
-        "raw": false,
-        "invocations": 50
-      },
-      "stats": {
-        "samples": 120,
-        "batch": 41,
-        "meanUs": 30.558698577238847,
-        "medianUs": 21.81200000002097,
-        "p95Us": 29.822146341491422,
-        "minUs": 21.29268292681933,
-        "totalMs": 150.37108400000034
-      },
-      "error": null,
-      "native": null,
-      "nativeError": null,
-      "metrics": {
-        "evaluateExpression": 255,
-        "callFunctionInternal": 54,
-        "replaceVars": 6,
-        "rawSkips": 50,
-        "structuredClones": 0,
-        "maxCallDepth": 3,
-        "fuel": 509
-      }
-    },
-    {
-      "id": "boundary/capture-then-invoke?invocations=50&raw=true&records=10000",
-      "suite": "boundary",
-      "name": "capture-then-invoke",
-      "params": {
-        "records": 10000,
-        "raw": true,
-        "invocations": 50
-      },
-      "stats": {
-        "samples": 120,
-        "batch": 40,
-        "meanUs": 30.421961041667675,
-        "medianUs": 21.3604249999662,
-        "p95Us": 25.691675000007308,
-        "minUs": 19.805200000018885,
-        "totalMs": 146.04466599999978
+        "meanUs": 29.445662592591,
+        "medianUs": 22.171288888865902,
+        "p95Us": 48.18333333334724,
+        "minUs": 20.349088888906408,
+        "totalMs": 159.03858299999956
       },
       "error": null,
       "native": null,
@@ -1245,11 +1222,11 @@
       "stats": {
         "samples": 120,
         "batch": 2,
-        "meanUs": 741.6525833333253,
-        "medianUs": 729.041500000676,
-        "p95Us": 803.8539999997738,
-        "minUs": 713.0000000006476,
-        "totalMs": 178.01504100000056
+        "meanUs": 930.9052249999921,
+        "medianUs": 790.7914999996137,
+        "p95Us": 1530.1460000000588,
+        "minUs": 745.2290000001085,
+        "totalMs": 223.46445900000072
       },
       "error": null,
       "native": null,
@@ -1273,13 +1250,13 @@
         "pure": false
       },
       "stats": {
-        "samples": 87,
+        "samples": 94,
         "batch": 1,
-        "meanUs": 2897.1795172413795,
-        "medianUs": 2392.541999999594,
-        "p95Us": 5243.375000000015,
-        "minUs": 2015.3749999990396,
-        "totalMs": 252.16062500000044
+        "meanUs": 2683.860882978633,
+        "medianUs": 2306.1670000006416,
+        "p95Us": 3821.291000000201,
+        "minUs": 2083.7919999994483,
+        "totalMs": 252.31995900000038
       },
       "error": null,
       "native": null,
@@ -1304,12 +1281,12 @@
       },
       "stats": {
         "samples": 120,
-        "batch": 960,
-        "meanUs": 0.6809566840277311,
-        "medianUs": 0.6696187500002301,
-        "p95Us": 0.7761718749994391,
-        "minUs": 0.553645833332439,
-        "totalMs": 78.4652500000011
+        "batch": 924,
+        "meanUs": 0.8241665764788911,
+        "medianUs": 0.7502705627708462,
+        "p95Us": 1.1712218614720218,
+        "minUs": 0.6141320346315293,
+        "totalMs": 91.40862500000003
       },
       "error": null,
       "native": null,
@@ -1334,12 +1311,12 @@
       },
       "stats": {
         "samples": 120,
-        "batch": 68,
-        "meanUs": 0.7063419117636004,
-        "medianUs": 0.6801470588149695,
-        "p95Us": 0.7457205882233479,
-        "minUs": 0.6470588235274858,
-        "totalMs": 5.7780839999995806
+        "batch": 857,
+        "meanUs": 0.8759266238817346,
+        "medianUs": 0.7759626604444261,
+        "p95Us": 1.4933383897304813,
+        "minUs": 0.7125624270696304,
+        "totalMs": 90.10812500000065
       },
       "error": null,
       "native": null,
@@ -1363,13 +1340,13 @@
         "pure": false
       },
       "stats": {
-        "samples": 32,
+        "samples": 26,
         "batch": 1,
-        "meanUs": 7835.324343750073,
-        "medianUs": 7656.792000001587,
-        "p95Us": 8794.958000000406,
-        "minUs": 7135.6250000008,
-        "totalMs": 250.7542080000003
+        "meanUs": 9673.552884615325,
+        "medianUs": 9567.999999999302,
+        "p95Us": 10538.500000000568,
+        "minUs": 8429.791999998997,
+        "totalMs": 251.53004099999998
       },
       "error": null,
       "native": null,
@@ -1395,11 +1372,11 @@
       "stats": {
         "samples": 11,
         "batch": 1,
-        "meanUs": 22966.30681818186,
-        "medianUs": 22768.458000000464,
-        "p95Us": 24036.833000000115,
-        "minUs": 22520.292000001064,
-        "totalMs": 252.63954100000046
+        "meanUs": 24156.916818182006,
+        "medianUs": 23109.332999998514,
+        "p95Us": 28750.292000000627,
+        "minUs": 21355.41700000067,
+        "totalMs": 265.73312500000065
       },
       "error": null,
       "native": null,
@@ -1424,12 +1401,12 @@
       },
       "stats": {
         "samples": 120,
-        "batch": 1043,
-        "meanUs": 0.6535764301693281,
-        "medianUs": 0.6596356663471734,
-        "p95Us": 0.7435675934811937,
-        "minUs": 0.5456615532118749,
-        "totalMs": 81.82041700000082
+        "batch": 751,
+        "meanUs": 0.8636457057256753,
+        "medianUs": 0.7971584553926317,
+        "p95Us": 1.42521038615135,
+        "minUs": 0.6135699067903025,
+        "totalMs": 77.86325000000033
       },
       "error": null,
       "native": null,
@@ -1454,12 +1431,12 @@
       },
       "stats": {
         "samples": 120,
-        "batch": 924,
-        "meanUs": 0.6666257215007229,
-        "medianUs": 0.6548528138535883,
-        "p95Us": 0.7340822510828037,
-        "minUs": 0.6389794372288244,
-        "totalMs": 73.93204100000003
+        "batch": 1000,
+        "meanUs": 0.871894766666704,
+        "medianUs": 0.7887919999993755,
+        "p95Us": 1.492166999998517,
+        "minUs": 0.6477080000004207,
+        "totalMs": 104.66433399999914
       },
       "error": null,
       "native": null,
@@ -1485,11 +1462,11 @@
       "stats": {
         "samples": 5,
         "batch": 1,
-        "meanUs": 97424.16660000055,
-        "medianUs": 93994.0000000006,
-        "p95Us": 106416.70800000065,
-        "minUs": 93423.74999999993,
-        "totalMs": 487.1267090000001
+        "meanUs": 105437.9079999999,
+        "medianUs": 105407.41699999853,
+        "p95Us": 114709.41599999969,
+        "minUs": 98907.70800000064,
+        "totalMs": 527.1937080000025
       },
       "error": null,
       "native": null,
@@ -1515,11 +1492,11 @@
       "stats": {
         "samples": 5,
         "batch": 1,
-        "meanUs": 272538.6000000006,
-        "medianUs": 272079.83400000195,
-        "p95Us": 299890.0000000012,
-        "minUs": 242053.62500000047,
-        "totalMs": 1362.7040830000005
+        "meanUs": 331042.06659999985,
+        "medianUs": 321877.45799999905,
+        "p95Us": 393080.08300000074,
+        "minUs": 286062.75000000093,
+        "totalMs": 1655.249749999999
       },
       "error": null,
       "native": null,
@@ -1544,12 +1521,12 @@
       },
       "stats": {
         "samples": 120,
-        "batch": 286,
-        "meanUs": 0.7822856060612844,
-        "medianUs": 0.6914335664313277,
-        "p95Us": 1.1904125874209783,
-        "minUs": 0.5380244755243738,
-        "totalMs": 26.907125000001543
+        "batch": 243,
+        "meanUs": 1.6775663923186372,
+        "medianUs": 0.9727366255160801,
+        "p95Us": 5.187757201641899,
+        "minUs": 0.5965349794270369,
+        "totalMs": 48.98029199999655
       },
       "error": null,
       "native": null,
@@ -1574,12 +1551,12 @@
       },
       "stats": {
         "samples": 120,
-        "batch": 572,
-        "meanUs": 0.7082306818182903,
-        "medianUs": 0.6952937062944418,
-        "p95Us": 0.8849790209770598,
-        "minUs": 0.6070069930056424,
-        "totalMs": 48.62975000000006
+        "batch": 600,
+        "meanUs": 1.3544717361108065,
+        "medianUs": 0.8149299999968207,
+        "p95Us": 4.279861666667179,
+        "minUs": 0.6565966666676104,
+        "totalMs": 97.55325000000084
       },
       "error": null,
       "native": null,
@@ -1601,12 +1578,12 @@
       "params": {},
       "stats": {
         "samples": 120,
-        "batch": 38,
-        "meanUs": 30.543098903507065,
-        "medianUs": 25.528526315802562,
-        "p95Us": 49.78178947375885,
-        "minUs": 21.637052631616058,
-        "totalMs": 139.2971660000003
+        "batch": 37,
+        "meanUs": 32.50755675676087,
+        "medianUs": 25.88513513517289,
+        "p95Us": 63.85359459454776,
+        "minUs": 22.127270270249102,
+        "totalMs": 144.36624999999913
       },
       "error": null,
       "native": null,
@@ -1631,12 +1608,12 @@
       },
       "stats": {
         "samples": 120,
-        "batch": 20,
-        "meanUs": 47.337934583323054,
-        "medianUs": 43.59584999983781,
-        "p95Us": 70.27705000000424,
-        "minUs": 40.92709999986255,
-        "totalMs": 113.63308400000096
+        "batch": 24,
+        "meanUs": 46.88812118055364,
+        "medianUs": 41.46700000001147,
+        "p95Us": 69.73262499999085,
+        "minUs": 37.72395833326906,
+        "totalMs": 135.07016699999804
       },
       "error": null,
       "native": null,
@@ -1662,11 +1639,11 @@
       "stats": {
         "samples": 120,
         "batch": 2,
-        "meanUs": 506.90017916664755,
-        "medianUs": 488.49999999947613,
-        "p95Us": 610.7289999999921,
-        "minUs": 464.37499999956344,
-        "totalMs": 121.6755000000012
+        "meanUs": 550.3465416664918,
+        "medianUs": 497.6874999993015,
+        "p95Us": 968.9374999998108,
+        "minUs": 478.9165000001958,
+        "totalMs": 132.11054100000183
       },
       "error": null,
       "native": null,
@@ -1691,12 +1668,12 @@
       },
       "stats": {
         "samples": 120,
-        "batch": 4,
-        "meanUs": 352.8052104166818,
-        "medianUs": 292.46874999989814,
-        "p95Us": 323.0519999997341,
-        "minUs": 282.86449999995966,
-        "totalMs": 169.35854200000176
+        "batch": 2,
+        "meanUs": 482.5187625000429,
+        "medianUs": 313.02099999993516,
+        "p95Us": 1285.458500000459,
+        "minUs": 288.58299999956216,
+        "totalMs": 115.87479200000234
       },
       "error": null,
       "native": null,
@@ -1720,13 +1697,13 @@
         "strict": true
       },
       "stats": {
-        "samples": 51,
+        "samples": 49,
         "batch": 1,
-        "meanUs": 4909.279294117047,
-        "medianUs": 4866.0409999974945,
-        "p95Us": 5805.2499999976135,
-        "minUs": 4410.249999997177,
-        "totalMs": 250.41433400000096
+        "meanUs": 5197.075673469211,
+        "medianUs": 5032.624999999825,
+        "p95Us": 7098.208000003069,
+        "minUs": 4426.332999999431,
+        "totalMs": 254.68370800000048
       },
       "error": null,
       "native": null,
@@ -1752,11 +1729,11 @@
       "stats": {
         "samples": 120,
         "batch": 1,
-        "meanUs": 1468.2058583332946,
-        "medianUs": 669.9580000022252,
-        "p95Us": 2577.2499999984575,
-        "minUs": 640.2080000007118,
-        "totalMs": 176.19704099999944
+        "meanUs": 1666.2465166669183,
+        "medianUs": 752.3330000003625,
+        "p95Us": 3932.5000000026193,
+        "minUs": 651.3749999976426,
+        "totalMs": 199.99404199999844
       },
       "error": null,
       "native": null,
@@ -1780,13 +1757,13 @@
         "strict": true
       },
       "stats": {
-        "samples": 6,
+        "samples": 5,
         "batch": 1,
-        "meanUs": 49781.4374999986,
-        "medianUs": 47132.58399999904,
-        "p95Us": 56119.666999999026,
-        "minUs": 46222.0419999976,
-        "totalMs": 298.70100000000093
+        "meanUs": 63945.216800000344,
+        "medianUs": 51462.374999999156,
+        "p95Us": 112749.04199999946,
+        "minUs": 51076.70900000085,
+        "totalMs": 319.7295840000006
       },
       "error": null,
       "native": null,
@@ -1811,12 +1788,12 @@
       },
       "stats": {
         "samples": 120,
-        "batch": 10,
-        "meanUs": 129.25374666665144,
-        "medianUs": 114.73750000004657,
-        "p95Us": 203.92920000012964,
-        "minUs": 101.12079999998969,
-        "totalMs": 155.1305420000026
+        "batch": 8,
+        "meanUs": 150.12712708332097,
+        "medianUs": 121.89587500006382,
+        "p95Us": 302.2708749999765,
+        "minUs": 109.00524999988193,
+        "totalMs": 144.19766600000003
       },
       "error": null,
       "native": null,
@@ -1840,13 +1817,13 @@
         "payloadRecords": 10000
       },
       "stats": {
-        "samples": 95,
+        "samples": 92,
         "batch": 1,
-        "meanUs": 2639.651715789698,
-        "medianUs": 2613.6250000017753,
-        "p95Us": 2956.0419999979786,
-        "minUs": 2494.291000002704,
-        "totalMs": 250.78195799999958
+        "meanUs": 2728.8668369563943,
+        "medianUs": 2599.91699999955,
+        "p95Us": 3451.2090000025637,
+        "minUs": 2481.8339999983436,
+        "totalMs": 251.12687500000175
       },
       "error": null,
       "native": null,
@@ -1872,11 +1849,11 @@
       "stats": {
         "samples": 120,
         "batch": 2,
-        "meanUs": 837.8382041666251,
-        "medianUs": 807.9374999997526,
-        "p95Us": 1095.4584999999497,
-        "minUs": 736.4584999995714,
-        "totalMs": 201.10262500000317
+        "meanUs": 970.7868000001175,
+        "medianUs": 891.7710000005172,
+        "p95Us": 1595.5625000005966,
+        "minUs": 763.9790000011999,
+        "totalMs": 233.03304099999878
       },
       "error": null,
       "native": null,
@@ -1900,13 +1877,13 @@
         "payloadRecords": 10000
       },
       "stats": {
-        "samples": 23,
+        "samples": 22,
         "batch": 1,
-        "meanUs": 10987.82613043469,
-        "medianUs": 7772.832999999082,
-        "p95Us": 28334.54200000051,
-        "minUs": 7390.749999998661,
-        "totalMs": 252.7295419999973
+        "meanUs": 11660.193227272677,
+        "medianUs": 7943.458000001556,
+        "p95Us": 26376.124999998865,
+        "minUs": 7211.749999998574,
+        "totalMs": 256.54041600000346
       },
       "error": null,
       "native": null,
@@ -1931,12 +1908,12 @@
       },
       "stats": {
         "samples": 120,
-        "batch": 29,
-        "meanUs": 38.6139462643685,
-        "medianUs": 35.88220689662507,
-        "p95Us": 62.363517241339714,
-        "minUs": 32.7298620690397,
-        "totalMs": 134.39916699999958
+        "batch": 24,
+        "meanUs": 38.42098020833191,
+        "medianUs": 35.61112499998368,
+        "p95Us": 66.65800000003703,
+        "minUs": 30.86979166664605,
+        "totalMs": 110.67820800000118
       },
       "error": null,
       "native": null,
@@ -1962,11 +1939,11 @@
       "stats": {
         "samples": 120,
         "batch": 2,
-        "meanUs": 617.9996708332206,
-        "medianUs": 494.99999999898137,
-        "p95Us": 1342.5624999999854,
-        "minUs": 459.4789999991917,
-        "totalMs": 148.4004590000004
+        "meanUs": 571.7599083333122,
+        "medianUs": 538.9794999991864,
+        "p95Us": 816.4374999996653,
+        "minUs": 508.39599999926577,
+        "totalMs": 137.24166700000205
       },
       "error": null,
       "native": null,
@@ -1991,12 +1968,12 @@
       },
       "stats": {
         "samples": 120,
-        "batch": 21,
-        "meanUs": 51.2804900793714,
-        "medianUs": 50.36309523815622,
-        "p95Us": 56.63095238092605,
-        "minUs": 48.46228571425724,
-        "totalMs": 129.2712079999983
+        "batch": 12,
+        "meanUs": 57.128905555547725,
+        "medianUs": 50.50341666689443,
+        "p95Us": 91.82983333327381,
+        "minUs": 47.95833333325087,
+        "totalMs": 82.28620800000135
       },
       "error": null,
       "native": null,
@@ -2020,13 +1997,13 @@
         "strict": true
       },
       "stats": {
-        "samples": 49,
+        "samples": 50,
         "batch": 1,
-        "meanUs": 5146.2593061225225,
-        "medianUs": 5024.792000000161,
-        "p95Us": 6240.749999997206,
-        "minUs": 4626.416999999492,
-        "totalMs": 252.2049169999991
+        "meanUs": 5060.57838000037,
+        "medianUs": 5052.540999997291,
+        "p95Us": 5985.875000002125,
+        "minUs": 4480.666999999812,
+        "totalMs": 253.04275000000052
       },
       "error": null,
       "native": null,
@@ -2051,12 +2028,12 @@
       },
       "stats": {
         "samples": 120,
-        "batch": 4,
-        "meanUs": 299.0957624999889,
-        "medianUs": 294.4272499998988,
-        "p95Us": 325.02074999956676,
-        "minUs": 289.89575000014156,
-        "totalMs": 143.586041999999
+        "batch": 3,
+        "meanUs": 325.25091944446297,
+        "medianUs": 305.4166666661331,
+        "p95Us": 454.5276666661569,
+        "minUs": 299.2500000000291,
+        "totalMs": 117.11700000000201
       },
       "error": null,
       "native": null,
@@ -2082,11 +2059,11 @@
       "stats": {
         "samples": 5,
         "batch": 1,
-        "meanUs": 53378.50000000035,
-        "medianUs": 53966.12499999901,
-        "p95Us": 58915.79199999978,
-        "minUs": 48491.0830000008,
-        "totalMs": 266.90458299999955
+        "meanUs": 51532.68300000054,
+        "medianUs": 50997.79200000194,
+        "p95Us": 54472.79100000014,
+        "minUs": 50277.62499999881,
+        "totalMs": 257.66791699999885
       },
       "error": null,
       "native": null,
@@ -2110,12 +2087,12 @@
       },
       "stats": {
         "samples": 120,
-        "batch": 111,
-        "meanUs": 7.8328892642658,
-        "medianUs": 7.420792792791863,
-        "p95Us": 10.68205405406204,
-        "minUs": 6.4369369369537175,
-        "totalMs": 104.35674999999901
+        "batch": 36,
+        "meanUs": 6.764091666667372,
+        "medianUs": 5.913194444474357,
+        "p95Us": 13.317138888851332,
+        "minUs": 5.262722222242801,
+        "totalMs": 29.236250000001746
       },
       "error": null,
       "native": null,
@@ -2139,12 +2116,12 @@
       },
       "stats": {
         "samples": 120,
-        "batch": 23,
-        "meanUs": 43.29372065218141,
-        "medianUs": 39.29713043465238,
-        "p95Us": 54.224652173813766,
-        "minUs": 34.456521739269625,
-        "totalMs": 119.50741700000071
+        "batch": 28,
+        "meanUs": 51.448377083328374,
+        "medianUs": 38.90624999998441,
+        "p95Us": 72.02978571422136,
+        "minUs": 35.18007142858031,
+        "totalMs": 172.89120800000092
       },
       "error": null,
       "native": null,
@@ -2168,12 +2145,12 @@
       },
       "stats": {
         "samples": 120,
-        "batch": 14,
-        "meanUs": 106.79033035713645,
-        "medianUs": 78.2351428572708,
-        "p95Us": 110.93750000015591,
-        "minUs": 54.10714285712207,
-        "totalMs": 179.43162500000108
+        "batch": 15,
+        "meanUs": 101.08020777777912,
+        "medianUs": 69.9055333333187,
+        "p95Us": 148.40833333316064,
+        "minUs": 47.05000000006597,
+        "totalMs": 181.96566600000006
       },
       "error": null,
       "native": null,
@@ -2209,13 +2186,13 @@
         "vars": 8
       },
       "stats": {
-        "samples": 108,
-        "batch": 196,
-        "meanUs": 11.900911706349007,
-        "medianUs": 4.842260204079176,
-        "p95Us": 54.49978571429098,
-        "minUs": 3.8014489795832374,
-        "totalMs": 251.9616249999999
+        "samples": 120,
+        "batch": 204,
+        "meanUs": 5.665701511437861,
+        "medianUs": 4.213235294111085,
+        "p95Us": 9.816176470581816,
+        "minUs": 3.786357843137903,
+        "totalMs": 138.73520899999858
       },
       "error": null,
       "native": null,
@@ -2239,12 +2216,12 @@
       },
       "stats": {
         "samples": 120,
-        "batch": 39,
-        "meanUs": 32.51636260683647,
-        "medianUs": 27.537384615313314,
-        "p95Us": 34.689102564115245,
-        "minUs": 22.36858974356437,
-        "totalMs": 152.19341599999825
+        "batch": 36,
+        "meanUs": 38.05775462963166,
+        "medianUs": 28.363416666656523,
+        "p95Us": 60.56249999993371,
+        "minUs": 25.790500000059385,
+        "totalMs": 164.49199999999837
       },
       "error": null,
       "native": null,
@@ -2268,12 +2245,12 @@
       },
       "stats": {
         "samples": 120,
-        "batch": 10,
-        "meanUs": 137.93055916666768,
-        "medianUs": 115.9750000002532,
-        "p95Us": 165.34999999967113,
-        "minUs": 96.26660000030824,
-        "totalMs": 165.53199999999924
+        "batch": 9,
+        "meanUs": 179.45053425927216,
+        "medianUs": 122.28233333331042,
+        "p95Us": 363.20833333350794,
+        "minUs": 107.37499999999676,
+        "totalMs": 193.84412499999962
       },
       "error": null,
       "native": null,
@@ -2289,21 +2266,20 @@
       }
     },
     {
-      "id": "closures/capture-big-value?raw=false&records=1000",
+      "id": "closures/capture-big-value?records=1000",
       "suite": "closures",
       "name": "capture-big-value",
       "params": {
-        "records": 1000,
-        "raw": false
+        "records": 1000
       },
       "stats": {
         "samples": 120,
-        "batch": 686,
-        "meanUs": 1.5287835276966752,
-        "medianUs": 1.2326282798811101,
-        "p95Us": 1.9036078717174862,
-        "minUs": 1.1082361516025652,
-        "totalMs": 125.87679199999911
+        "batch": 500,
+        "meanUs": 1.6653584000000288,
+        "medianUs": 1.1931659999972908,
+        "p95Us": 2.786999999996624,
+        "minUs": 1.1056659999958356,
+        "totalMs": 99.94924999999785
       },
       "error": null,
       "native": null,
@@ -2319,21 +2295,20 @@
       }
     },
     {
-      "id": "closures/capture-big-value?raw=true&records=1000",
+      "id": "closures/capture-big-value?records=100000",
       "suite": "closures",
       "name": "capture-big-value",
       "params": {
-        "records": 1000,
-        "raw": true
+        "records": 100000
       },
       "stats": {
         "samples": 120,
-        "batch": 751,
-        "meanUs": 1.447268442077244,
-        "medianUs": 1.204671105195535,
-        "p95Us": 1.7922769640449134,
-        "minUs": 1.1280505992004806,
-        "totalMs": 130.4510420000006
+        "batch": 828,
+        "meanUs": 2.378528431964606,
+        "medianUs": 1.214724637681073,
+        "p95Us": 2.344253623191061,
+        "minUs": 1.082025362320828,
+        "totalMs": 236.3579580000005
       },
       "error": null,
       "native": null,
@@ -2349,82 +2324,21 @@
       }
     },
     {
-      "id": "closures/capture-big-value?raw=false&records=100000",
-      "suite": "closures",
-      "name": "capture-big-value",
-      "params": {
-        "records": 100000,
-        "raw": false
-      },
-      "stats": {
-        "samples": 120,
-        "batch": 728,
-        "meanUs": 1.8452180517400611,
-        "medianUs": 1.2505728021966247,
-        "p95Us": 1.6966579670314696,
-        "minUs": 1.1920206043964003,
-        "totalMs": 161.22249999999985
-      },
-      "error": null,
-      "native": null,
-      "nativeError": null,
-      "metrics": {
-        "evaluateExpression": 1,
-        "callFunctionInternal": 1,
-        "replaceVars": 4,
-        "rawSkips": 0,
-        "structuredClones": 0,
-        "maxCallDepth": 1,
-        "fuel": 2
-      }
-    },
-    {
-      "id": "closures/capture-big-value?raw=true&records=100000",
-      "suite": "closures",
-      "name": "capture-big-value",
-      "params": {
-        "records": 100000,
-        "raw": true
-      },
-      "stats": {
-        "samples": 120,
-        "batch": 751,
-        "meanUs": 2.0736027851753067,
-        "medianUs": 1.2176537949391288,
-        "p95Us": 1.5649693741724866,
-        "minUs": 1.1512423435401793,
-        "totalMs": 186.89537500000006
-      },
-      "error": null,
-      "native": null,
-      "nativeError": null,
-      "metrics": {
-        "evaluateExpression": 1,
-        "callFunctionInternal": 1,
-        "replaceVars": 4,
-        "rawSkips": 0,
-        "structuredClones": 0,
-        "maxCallDepth": 1,
-        "fuel": 2
-      }
-    },
-    {
-      "id": "closures/invoke-big-capture?invocations=50&raw=false&records=1000",
+      "id": "closures/invoke-big-capture?invocations=50&records=1000",
       "suite": "closures",
       "name": "invoke-big-capture",
       "params": {
         "records": 1000,
-        "raw": false,
         "invocations": 50
       },
       "stats": {
         "samples": 120,
-        "batch": 39,
-        "meanUs": 41.5510940170939,
-        "medianUs": 25.342948717969612,
-        "p95Us": 37.450846153847245,
-        "minUs": 22.48289743585748,
-        "totalMs": 194.48387500000172
+        "batch": 35,
+        "meanUs": 35.358421666668214,
+        "medianUs": 22.817857142841344,
+        "p95Us": 51.65594285717816,
+        "minUs": 20.69402857149336,
+        "totalMs": 148.53237499999886
       },
       "error": null,
       "native": null,
@@ -2440,84 +2354,21 @@
       }
     },
     {
-      "id": "closures/invoke-big-capture?invocations=50&raw=true&records=1000",
-      "suite": "closures",
-      "name": "invoke-big-capture",
-      "params": {
-        "records": 1000,
-        "raw": true,
-        "invocations": 50
-      },
-      "stats": {
-        "samples": 120,
-        "batch": 19,
-        "meanUs": 36.975967543864826,
-        "medianUs": 24.521947368492345,
-        "p95Us": 35.38157894753998,
-        "minUs": 23.537315789565724,
-        "totalMs": 84.3382079999974
-      },
-      "error": null,
-      "native": null,
-      "nativeError": null,
-      "metrics": {
-        "evaluateExpression": 257,
-        "callFunctionInternal": 54,
-        "replaceVars": 12,
-        "rawSkips": 50,
-        "structuredClones": 0,
-        "maxCallDepth": 3,
-        "fuel": 511
-      }
-    },
-    {
-      "id": "closures/invoke-big-capture?invocations=50&raw=false&records=10000",
+      "id": "closures/invoke-big-capture?invocations=50&records=10000",
       "suite": "closures",
       "name": "invoke-big-capture",
       "params": {
         "records": 10000,
-        "raw": false,
         "invocations": 50
       },
       "stats": {
         "samples": 120,
-        "batch": 42,
-        "meanUs": 41.21855178571365,
-        "medianUs": 24.999023809522487,
-        "p95Us": 40.22719047619224,
-        "minUs": 22.676595238105318,
-        "totalMs": 207.7636670000029
-      },
-      "error": null,
-      "native": null,
-      "nativeError": null,
-      "metrics": {
-        "evaluateExpression": 257,
-        "callFunctionInternal": 54,
-        "replaceVars": 12,
-        "rawSkips": 50,
-        "structuredClones": 0,
-        "maxCallDepth": 3,
-        "fuel": 511
-      }
-    },
-    {
-      "id": "closures/invoke-big-capture?invocations=50&raw=true&records=10000",
-      "suite": "closures",
-      "name": "invoke-big-capture",
-      "params": {
-        "records": 10000,
-        "raw": true,
-        "invocations": 50
-      },
-      "stats": {
-        "samples": 120,
-        "batch": 47,
-        "meanUs": 34.351750177306016,
-        "medianUs": 20.301404255309187,
-        "p95Us": 25.81738297870269,
-        "minUs": 19.553191489397616,
-        "totalMs": 193.76391700000022
+        "batch": 44,
+        "meanUs": 34.61433844696798,
+        "medianUs": 21.814409090934948,
+        "p95Us": 49.739590909087966,
+        "minUs": 20.31818181818711,
+        "totalMs": 182.79550000000017
       },
       "error": null,
       "native": null,
@@ -2541,12 +2392,12 @@
       },
       "stats": {
         "samples": 120,
-        "batch": 1044,
-        "meanUs": 0.6093045178799782,
-        "medianUs": 0.3977097701138578,
-        "p95Us": 0.49924137930871276,
-        "minUs": 0.37847222222484267,
-        "totalMs": 76.42450000000099
+        "batch": 728,
+        "meanUs": 0.6081067193222124,
+        "medianUs": 0.42364835164814824,
+        "p95Us": 0.7744958791210973,
+        "minUs": 0.3939436813217961,
+        "totalMs": 53.14587500000198
       },
       "error": null,
       "native": null,
@@ -2570,22 +2421,22 @@
       },
       "stats": {
         "samples": 120,
-        "batch": 12,
-        "meanUs": 108.86142986111182,
-        "medianUs": 69.79166666648477,
-        "p95Us": 94.35416666656238,
-        "minUs": 64.5833333334546,
-        "totalMs": 156.78499999999985
+        "batch": 16,
+        "meanUs": 103.90805729167216,
+        "medianUs": 65.91406250004184,
+        "p95Us": 121.33337499994923,
+        "minUs": 56.10681249982008,
+        "totalMs": 199.52912500000093
       },
       "error": null,
       "native": {
         "samples": 120,
-        "batch": 616,
-        "meanUs": 1.334813460497821,
-        "medianUs": 0.5842126623407806,
-        "p95Us": 0.868100649348854,
-        "minUs": 0.5410584415573806,
-        "totalMs": 98.68808300000092
+        "batch": 1500,
+        "meanUs": 1.2724231666668049,
+        "medianUs": 0.5649166666650368,
+        "p95Us": 8.815221999999872,
+        "minUs": 0.5441393333336842,
+        "totalMs": 229.05670800000007
       },
       "nativeError": null,
       "metrics": {
@@ -2606,23 +2457,23 @@
         "closures": 1000
       },
       "stats": {
-        "samples": 104,
+        "samples": 120,
         "batch": 2,
-        "meanUs": 1224.6706586537794,
-        "medianUs": 699.6875000004366,
-        "p95Us": 911.6249999988213,
-        "minUs": 624.1669999999431,
-        "totalMs": 254.77549999999974
+        "meanUs": 998.3536541666884,
+        "medianUs": 606.2290000008943,
+        "p95Us": 1223.5830000008718,
+        "minUs": 561.8749999994179,
+        "totalMs": 239.6367919999975
       },
       "error": null,
       "native": {
-        "samples": 99,
-        "batch": 164,
-        "meanUs": 16.340157243162107,
-        "medianUs": 5.554878048780843,
-        "p95Us": 156.35238414635265,
-        "minUs": 5.220274390234319,
-        "totalMs": 265.33191700000316
+        "samples": 120,
+        "batch": 144,
+        "meanUs": 13.585194733797232,
+        "medianUs": 5.633395833329915,
+        "p95Us": 96.6258680555509,
+        "minUs": 5.313659722206567,
+        "totalMs": 234.7793750000019
       },
       "nativeError": null,
       "metrics": {
@@ -2643,23 +2494,23 @@
         "closures": 10000
       },
       "stats": {
-        "samples": 21,
+        "samples": 13,
         "batch": 1,
-        "meanUs": 12623.418666666284,
-        "medianUs": 7368.9159999994445,
-        "p95Us": 36112.207999998645,
-        "minUs": 6404.916000003141,
-        "totalMs": 265.1067089999997
+        "meanUs": 19571.256461538724,
+        "medianUs": 9076.54100000218,
+        "p95Us": 75994.87500000032,
+        "minUs": 6248.583000000508,
+        "totalMs": 254.4710410000007
       },
       "error": null,
       "native": {
-        "samples": 100,
-        "batch": 18,
-        "meanUs": 139.1588233333399,
-        "medianUs": 54.68522222205744,
-        "p95Us": 1422.8657222223167,
-        "minUs": 51.863444444380654,
-        "totalMs": 250.50875000000087
+        "samples": 120,
+        "batch": 8,
+        "meanUs": 258.10482083334136,
+        "medianUs": 68.15624999990177,
+        "p95Us": 1459.3593750000764,
+        "minUs": 53.65112499976021,
+        "totalMs": 247.825499999999
       },
       "nativeError": null,
       "metrics": {
@@ -2681,12 +2532,12 @@
       },
       "stats": {
         "samples": 120,
-        "batch": 59,
-        "meanUs": 24.52595805085048,
-        "medianUs": 14.765542372900862,
-        "p95Us": 19.10805084745812,
-        "minUs": 13.990118644068065,
-        "totalMs": 173.66783299999952
+        "batch": 56,
+        "meanUs": 25.792007738097517,
+        "medianUs": 16.164428571430886,
+        "p95Us": 26.915910714316333,
+        "minUs": 14.698660714267524,
+        "totalMs": 173.35233300000255
       },
       "error": null,
       "native": null,
@@ -2711,11 +2562,11 @@
       "stats": {
         "samples": 120,
         "batch": 7,
-        "meanUs": 290.59395119047633,
-        "medianUs": 190.47028571471205,
-        "p95Us": 238.80357142895394,
-        "minUs": 158.63685714274263,
-        "totalMs": 244.12412499999846
+        "meanUs": 280.27881190474506,
+        "medianUs": 170.69642857105853,
+        "p95Us": 302.8214285711459,
+        "minUs": 140.70242857113564,
+        "totalMs": 235.4586249999993
       },
       "error": null,
       "native": null,
@@ -2740,11 +2591,11 @@
       "stats": {
         "samples": 53,
         "batch": 1,
-        "meanUs": 4718.706754717167,
-        "medianUs": 2860.624999997526,
-        "p95Us": 3385.083000001032,
-        "minUs": 2761.958000002778,
-        "totalMs": 250.11049999999886
+        "meanUs": 4773.716150943211,
+        "medianUs": 2932.1249999993597,
+        "p95Us": 7502.124999999069,
+        "minUs": 2663.957999997365,
+        "totalMs": 253.0297500000015
       },
       "error": null,
       "native": null,
@@ -2767,13 +2618,13 @@
         "depth": 128
       },
       "stats": {
-        "samples": 11,
+        "samples": 13,
         "batch": 1,
-        "meanUs": 25268.299090909168,
-        "medianUs": 15722.250000002532,
-        "p95Us": 103506.12499999988,
-        "minUs": 15548.624999999447,
-        "totalMs": 277.9629590000004
+        "meanUs": 23831.253230769318,
+        "medianUs": 16779.624999999214,
+        "p95Us": 60321.209000001545,
+        "minUs": 15507.709000001341,
+        "totalMs": 309.8134170000012
       },
       "error": null,
       "native": null,
@@ -2797,12 +2648,12 @@
       },
       "stats": {
         "samples": 120,
-        "batch": 37,
-        "meanUs": 37.01048130630731,
-        "medianUs": 19.692567567560488,
-        "p95Us": 29.833324324352212,
-        "minUs": 17.334459459439007,
-        "totalMs": 164.34808300000077
+        "batch": 51,
+        "meanUs": 25.97567418300541,
+        "medianUs": 18.00652941179293,
+        "p95Us": 25.29901960787909,
+        "minUs": 15.9885490196329,
+        "totalMs": 158.98816699999952
       },
       "error": null,
       "native": null,
@@ -2826,12 +2677,12 @@
       },
       "stats": {
         "samples": 120,
-        "batch": 9,
-        "meanUs": 192.46359259257733,
-        "medianUs": 109.60188888889712,
-        "p95Us": 144.26855555535033,
-        "minUs": 94.73155555517427,
-        "totalMs": 207.88087499999892
+        "batch": 6,
+        "meanUs": 174.6730972221991,
+        "medianUs": 105.4236666665626,
+        "p95Us": 152.38200000021607,
+        "minUs": 92.15983333342592,
+        "totalMs": 125.77924999999959
       },
       "error": null,
       "native": null,
@@ -2854,13 +2705,13 @@
         "localFns": 128
       },
       "stats": {
-        "samples": 112,
+        "samples": 115,
         "batch": 2,
-        "meanUs": 1173.9146294642069,
-        "medianUs": 598.1249999986176,
-        "p95Us": 845.0835000003281,
-        "minUs": 503.54150000021036,
-        "totalMs": 262.9797920000019
+        "meanUs": 1177.511930434823,
+        "medianUs": 557.8540000005887,
+        "p95Us": 9094.375000000582,
+        "minUs": 502.54150000000664,
+        "totalMs": 270.8457500000004
       },
       "error": null,
       "native": null,
@@ -2885,11 +2736,11 @@
       "stats": {
         "samples": 28,
         "batch": 1,
-        "meanUs": 10504.291678571592,
-        "medianUs": 3789.91600000154,
-        "p95Us": 44464.45799999856,
-        "minUs": 3456.8339999968885,
-        "totalMs": 294.13774999999805
+        "meanUs": 9467.9211428581,
+        "medianUs": 4114.500000003318,
+        "p95Us": 20152.500000000146,
+        "minUs": 3416.3750000006985,
+        "totalMs": 265.1958330000016
       },
       "error": null,
       "native": null,
@@ -2915,11 +2766,11 @@
       "stats": {
         "samples": 120,
         "batch": 3,
-        "meanUs": 531.9452833333748,
-        "medianUs": 392.2916666670062,
-        "p95Us": 495.75000000065,
-        "minUs": 291.70833333409973,
-        "totalMs": 191.52008300000307
+        "meanUs": 483.4694250000312,
+        "medianUs": 312.7083333335274,
+        "p95Us": 539.2219999994268,
+        "minUs": 284.69433333278477,
+        "totalMs": 174.0884170000063
       },
       "error": null,
       "native": null,
@@ -2943,13 +2794,13 @@
         "escapes": 100
       },
       "stats": {
-        "samples": 58,
+        "samples": 59,
         "batch": 1,
-        "meanUs": 4769.267310345421,
-        "medianUs": 2663.542000002053,
-        "p95Us": 29948.209000001953,
-        "minUs": 2483.250000001135,
-        "totalMs": 276.6413329999996
+        "meanUs": 4260.83896610066,
+        "medianUs": 2223.4580000003916,
+        "p95Us": 18194.958000000042,
+        "minUs": 2092.0829999959096,
+        "totalMs": 251.4159589999981
       },
       "error": null,
       "native": null,
@@ -2973,13 +2824,13 @@
         "escapes": 100
       },
       "stats": {
-        "samples": 6,
+        "samples": 7,
         "batch": 1,
-        "meanUs": 43231.09716666537,
-        "medianUs": 49579.20799999556,
-        "p95Us": 71099.74999999395,
-        "minUs": 18796.541999996407,
-        "totalMs": 259.4180839999972
+        "meanUs": 37457.88671428662,
+        "medianUs": 35292.458000003535,
+        "p95Us": 45717.750000003434,
+        "minUs": 35012.24999999977,
+        "totalMs": 262.2196249999979
       },
       "error": null,
       "native": null,
@@ -3004,12 +2855,12 @@
       },
       "stats": {
         "samples": 120,
-        "batch": 15,
-        "meanUs": 119.28045722221822,
-        "medianUs": 72.31946666676474,
-        "p95Us": 101.67500000000776,
-        "minUs": 63.51666666644935,
-        "totalMs": 214.73475000000326
+        "batch": 16,
+        "meanUs": 123.3524552083433,
+        "medianUs": 61.93493749970003,
+        "p95Us": 95.3567500000645,
+        "minUs": 55.07812499990905,
+        "totalMs": 236.85916699999507
       },
       "error": null,
       "native": null,
@@ -3034,12 +2885,12 @@
       },
       "stats": {
         "samples": 120,
-        "batch": 13,
-        "meanUs": 114.79438782053668,
-        "medianUs": 76.8621538462377,
-        "p95Us": 117.82053846120387,
-        "minUs": 70.733923077149,
-        "totalMs": 179.10537499999919
+        "batch": 15,
+        "meanUs": 102.42920888888166,
+        "medianUs": 66.93333333338767,
+        "p95Us": 120.08053333314213,
+        "minUs": 62.04166666672487,
+        "totalMs": 184.40000000000146
       },
       "error": null,
       "native": null,
@@ -3064,12 +2915,12 @@
       },
       "stats": {
         "samples": 120,
-        "batch": 10,
-        "meanUs": 159.7262883333436,
-        "medianUs": 111.00409999999101,
-        "p95Us": 175.4291999997804,
-        "minUs": 97.97919999982696,
-        "totalMs": 191.7019169999985
+        "batch": 5,
+        "meanUs": 169.13144999994984,
+        "medianUs": 109.80819999967935,
+        "p95Us": 206.40840000123717,
+        "minUs": 96.96680000051856,
+        "totalMs": 101.50133300000016
       },
       "error": null,
       "native": null,
@@ -3094,12 +2945,12 @@
       },
       "stats": {
         "samples": 120,
-        "batch": 9,
-        "meanUs": 176.25601944444628,
-        "medianUs": 111.80088888876425,
-        "p95Us": 183.32411111057607,
-        "minUs": 102.78711111136039,
-        "totalMs": 190.37837500000023
+        "batch": 8,
+        "meanUs": 178.97760937497273,
+        "medianUs": 119.28650000027119,
+        "p95Us": 301.6874999993888,
+        "minUs": 102.42712499984918,
+        "totalMs": 171.84599999999773
       },
       "error": null,
       "native": null,
@@ -3124,11 +2975,11 @@
       "stats": {
         "samples": 120,
         "batch": 7,
-        "meanUs": 163.8839321428392,
-        "medianUs": 152.29171428550868,
-        "p95Us": 193.1727142852781,
-        "minUs": 144.13099999988586,
-        "totalMs": 137.71570799999608
+        "meanUs": 189.50327261903848,
+        "medianUs": 159.04757142873547,
+        "p95Us": 306.1488571433334,
+        "minUs": 150.4404285712683,
+        "totalMs": 159.2321660000016
       },
       "error": null,
       "native": null,
@@ -3145,12 +2996,12 @@
       },
       "stats": {
         "samples": 120,
-        "batch": 11,
-        "meanUs": 98.4279045454362,
-        "medianUs": 66.68936363646273,
-        "p95Us": 115.33709090872435,
-        "minUs": 61.265181818188545,
-        "totalMs": 129.95412500000384
+        "batch": 12,
+        "meanUs": 96.05673819445555,
+        "medianUs": 63.18058333332981,
+        "p95Us": 135.84025000030428,
+        "minUs": 56.98958333293073,
+        "totalMs": 138.35654200000135
       },
       "error": null,
       "native": null,
@@ -3176,11 +3027,11 @@
       "stats": {
         "samples": 120,
         "batch": 12,
-        "meanUs": 93.16559652776158,
-        "medianUs": 66.32641666631874,
-        "p95Us": 108.86458333334303,
-        "minUs": 59.23608333311373,
-        "totalMs": 134.18454099999508
+        "meanUs": 96.11185902775911,
+        "medianUs": 66.28466666673678,
+        "p95Us": 144.5729166662204,
+        "minUs": 59.51733333313314,
+        "totalMs": 138.42483400000492
       },
       "error": null,
       "native": null,
@@ -3205,12 +3056,12 @@
       },
       "stats": {
         "samples": 120,
-        "batch": 6,
-        "meanUs": 137.02285833336043,
-        "medianUs": 100.95833333374078,
-        "p95Us": 129.0833333344684,
-        "minUs": 90.23616666672751,
-        "totalMs": 98.67854200000147
+        "batch": 1,
+        "meanUs": 116.71290000049339,
+        "medianUs": 107.20800000126474,
+        "p95Us": 186.1669999998412,
+        "minUs": 98.08300000440795,
+        "totalMs": 14.021459000003233
       },
       "error": null,
       "native": null,
@@ -3235,12 +3086,12 @@
       },
       "stats": {
         "samples": 120,
-        "batch": 11,
-        "meanUs": 156.8699507575454,
-        "medianUs": 104.05309090922609,
-        "p95Us": 309.85227272718805,
-        "minUs": 95.71972727280809,
-        "totalMs": 207.08954200000153
+        "batch": 9,
+        "meanUs": 177.63240370367618,
+        "medianUs": 111.65733333392483,
+        "p95Us": 312.1435555553439,
+        "minUs": 99.1712222223416,
+        "totalMs": 191.86812500000087
       },
       "error": null,
       "native": null,
@@ -3265,11 +3116,11 @@
       "stats": {
         "samples": 120,
         "batch": 1,
-        "meanUs": 1561.6937999997997,
-        "medianUs": 1413.1249999991269,
-        "p95Us": 1755.3749999933643,
-        "minUs": 1333.7089999986347,
-        "totalMs": 187.47612499999377
+        "meanUs": 1652.1562833331093,
+        "medianUs": 1461.5829999966081,
+        "p95Us": 2341.2499999976717,
+        "minUs": 1362.3749999969732,
+        "totalMs": 198.3089170000021
       },
       "error": null,
       "native": null,
@@ -3286,12 +3137,12 @@
       },
       "stats": {
         "samples": 120,
-        "batch": 13,
-        "meanUs": 87.8074249999862,
-        "medianUs": 60.554538461684174,
-        "p95Us": 93.56407692338017,
-        "minUs": 55.63461538426614,
-        "totalMs": 137.01037499999802
+        "batch": 11,
+        "meanUs": 132.6535015151118,
+        "medianUs": 68.3068181818023,
+        "p95Us": 241.65909090912797,
+        "minUs": 54.742454545868725,
+        "totalMs": 175.13424999999552
       },
       "error": null,
       "native": null,
@@ -3316,12 +3167,12 @@
       },
       "stats": {
         "samples": 120,
-        "batch": 12,
-        "meanUs": 89.16305624998635,
-        "medianUs": 64.12158333296247,
-        "p95Us": 97.14583333334303,
-        "minUs": 55.291666666865545,
-        "totalMs": 128.4228340000045
+        "batch": 15,
+        "meanUs": 127.77388833333842,
+        "medianUs": 73.15553333319258,
+        "p95Us": 243.12500000038807,
+        "minUs": 62.166666666841294,
+        "totalMs": 230.03904200000397
       },
       "error": null,
       "native": null,
@@ -3346,12 +3197,12 @@
       },
       "stats": {
         "samples": 120,
-        "batch": 12,
-        "meanUs": 144.54673125002148,
-        "medianUs": 98.36458333302289,
-        "p95Us": 161.50000000016007,
-        "minUs": 90.53124999991269,
-        "totalMs": 208.17216700000426
+        "batch": 7,
+        "meanUs": 146.17559642857884,
+        "medianUs": 103.23214285745053,
+        "p95Us": 216.976142857415,
+        "minUs": 93.82728571446413,
+        "totalMs": 122.80929099999776
       },
       "error": null,
       "native": null,
@@ -3376,12 +3227,12 @@
       },
       "stats": {
         "samples": 120,
-        "batch": 10,
-        "meanUs": 154.47319833331372,
-        "medianUs": 108.32920000029844,
-        "p95Us": 180.00840000022436,
-        "minUs": 96.35420000049635,
-        "totalMs": 185.39487499999814
+        "batch": 7,
+        "meanUs": 189.4789119047865,
+        "medianUs": 118.68457142866517,
+        "p95Us": 300.61299999943003,
+        "minUs": 102.19642857139532,
+        "totalMs": 159.1895829999994
       },
       "error": null,
       "native": null,
@@ -3404,13 +3255,13 @@
         "records": 50000
       },
       "stats": {
-        "samples": 33,
+        "samples": 30,
         "batch": 1,
-        "meanUs": 7703.0265151508065,
-        "medianUs": 7205.957999998645,
-        "p95Us": 13587.040999998862,
-        "minUs": 6799.958000003244,
-        "totalMs": 254.23658299999806
+        "meanUs": 8339.501400000396,
+        "medianUs": 7892.9169999973965,
+        "p95Us": 14497.292000000016,
+        "minUs": 7014.667000003101,
+        "totalMs": 250.23800000000483
       },
       "error": null,
       "native": null,
@@ -3427,21 +3278,21 @@
       "stats": {
         "samples": 120,
         "batch": 2,
-        "meanUs": 871.1317833332942,
-        "medianUs": 717.1460000026855,
-        "p95Us": 972.250000002532,
-        "minUs": 675.1039999981003,
-        "totalMs": 209.20358399999532
+        "meanUs": 964.5998333334015,
+        "medianUs": 730.2290000006906,
+        "p95Us": 1568.5415000007197,
+        "minUs": 688.1460000004154,
+        "totalMs": 231.75291599999764
       },
       "error": null,
       "native": {
         "samples": 120,
-        "batch": 1413,
-        "meanUs": 0.5552761854209424,
-        "medianUs": 0.5469157820213135,
-        "p95Us": 0.6175102618523272,
-        "minUs": 0.5363588110424405,
-        "totalMs": 94.17750000000524
+        "batch": 1044,
+        "meanUs": 0.5659443167304178,
+        "medianUs": 0.5473745210717121,
+        "p95Us": 0.6445565134133221,
+        "minUs": 0.5403093869707675,
+        "totalMs": 70.92545799999789
       },
       "nativeError": null,
       "metrics": {
@@ -3465,12 +3316,12 @@
       "error": "Maximum evaluation nesting of 4096 exceeded",
       "native": {
         "samples": 120,
-        "batch": 422,
-        "meanUs": 2.1725594786727953,
-        "medianUs": 2.150376777255536,
-        "p95Us": 2.344097156396662,
-        "minUs": 2.122530805695856,
-        "totalMs": 110.04191600000195
+        "batch": 297,
+        "meanUs": 2.2229914421994,
+        "medianUs": 2.18013468013174,
+        "p95Us": 2.382154882144103,
+        "minUs": 2.1210707070630104,
+        "totalMs": 79.2568339999998
       },
       "nativeError": null,
       "metrics": null
@@ -3486,12 +3337,12 @@
       "error": "Maximum evaluation nesting of 4096 exceeded",
       "native": {
         "samples": 120,
-        "batch": 229,
-        "meanUs": 4.447666375544331,
-        "medianUs": 4.343886462873454,
-        "p95Us": 4.876816593888104,
-        "minUs": 4.229441048045171,
-        "totalMs": 122.26200000000244
+        "batch": 211,
+        "meanUs": 4.5800718009475885,
+        "medianUs": 4.3852654028415206,
+        "p95Us": 5.665483412334765,
+        "minUs": 4.2821848341216935,
+        "totalMs": 115.99987500000134
       },
       "nativeError": null,
       "metrics": null
@@ -3507,12 +3358,12 @@
       "error": "Maximum evaluation nesting of 4096 exceeded",
       "native": {
         "samples": 120,
-        "batch": 110,
-        "meanUs": 8.989671742427058,
-        "medianUs": 8.707954545455074,
-        "p95Us": 11.343936363647861,
-        "minUs": 8.599245454586873,
-        "totalMs": 118.70891699999629
+        "batch": 109,
+        "meanUs": 10.325120565746623,
+        "medianUs": 8.827220183533377,
+        "p95Us": 16.374614678879713,
+        "minUs": 8.37920183483287,
+        "totalMs": 135.09641600000032
       },
       "nativeError": null,
       "metrics": null
@@ -3525,13 +3376,13 @@
         "depth": 1000
       },
       "stats": {
-        "samples": 120,
-        "batch": 1,
-        "meanUs": 1067.272233333036,
-        "medianUs": 960.5419999934384,
-        "p95Us": 1448.9590000011958,
-        "minUs": 904.4590000048629,
-        "totalMs": 128.15224999999919
+        "samples": 111,
+        "batch": 2,
+        "meanUs": 1139.6959549548137,
+        "medianUs": 990.7080000011774,
+        "p95Us": 1869.1455000007409,
+        "minUs": 947.2290000012435,
+        "totalMs": 253.18300000000454
       },
       "error": null,
       "native": null,
@@ -3569,11 +3420,11 @@
       "stats": {
         "samples": 120,
         "batch": 2,
-        "meanUs": 831.8734208332899,
-        "medianUs": 759.4585000006191,
-        "p95Us": 1350.541499999963,
-        "minUs": 717.8749999984575,
-        "totalMs": 199.82395800000086
+        "meanUs": 820.6347083334853,
+        "medianUs": 758.7080000012065,
+        "p95Us": 1104.9579999998969,
+        "minUs": 720.3545000011218,
+        "totalMs": 197.0777090000047
       },
       "error": null,
       "native": null,
@@ -3609,23 +3460,23 @@
         "n": 16
       },
       "stats": {
-        "samples": 102,
+        "samples": 90,
         "batch": 1,
-        "meanUs": 2467.3390980394342,
-        "medianUs": 2417.124999999942,
-        "p95Us": 2834.167000000889,
-        "minUs": 2289.3330000006245,
-        "totalMs": 251.71737500000017
+        "meanUs": 2803.047344444591,
+        "medianUs": 2583.958999995957,
+        "p95Us": 3727.2910000028787,
+        "minUs": 2342.499999998836,
+        "totalMs": 252.3234169999996
       },
       "error": null,
       "native": {
         "samples": 120,
-        "batch": 238,
-        "meanUs": 4.177052521008182,
-        "medianUs": 4.039218487393379,
-        "p95Us": 5.053046218509896,
-        "minUs": 3.9173655462059473,
-        "totalMs": 119.32670900000085
+        "batch": 223,
+        "meanUs": 4.251532062778094,
+        "medianUs": 4.0263452914905224,
+        "p95Us": 5.7585964125796165,
+        "minUs": 3.960201793723278,
+        "totalMs": 113.81862499999988
       },
       "nativeError": null,
       "metrics": {
@@ -3648,21 +3499,21 @@
       "stats": {
         "samples": 15,
         "batch": 1,
-        "meanUs": 17713.26680000105,
-        "medianUs": 17712.41700000246,
-        "p95Us": 18118.875000000116,
-        "minUs": 17192.542000004323,
-        "totalMs": 265.72204200000124
+        "meanUs": 17459.358133332473,
+        "medianUs": 17354.374999995343,
+        "p95Us": 18717.917000001762,
+        "minUs": 16624.040999995486,
+        "totalMs": 261.90262500000244
       },
       "error": null,
       "native": {
         "samples": 120,
-        "batch": 12,
-        "meanUs": 43.82404583331358,
-        "medianUs": 43.04858333307493,
-        "p95Us": 45.21533333354455,
-        "minUs": 42.21183333356748,
-        "totalMs": 63.13558400000329
+        "batch": 19,
+        "meanUs": 43.70387324561947,
+        "medianUs": 42.78726315801338,
+        "p95Us": 48.688578947468685,
+        "minUs": 42.210526315964096,
+        "totalMs": 99.68041600000288
       },
       "nativeError": null,
       "metrics": {
@@ -3685,21 +3536,21 @@
       "stats": {
         "samples": 6,
         "batch": 1,
-        "meanUs": 44934.24300000091,
-        "medianUs": 44364.8749999993,
-        "p95Us": 46233.70799999975,
-        "minUs": 44299.62499999965,
-        "totalMs": 269.61045799999556
+        "meanUs": 46762.89600000018,
+        "medianUs": 46516.91700000083,
+        "p95Us": 47792.04100000061,
+        "minUs": 45523.542000002635,
+        "totalMs": 280.58279200000106
       },
       "error": null,
       "native": {
         "samples": 120,
-        "batch": 9,
-        "meanUs": 120.82801388889371,
-        "medianUs": 118.37500000062089,
-        "p95Us": 144.81011111153444,
-        "minUs": 117.29166666676367,
-        "totalMs": 130.54699999999866
+        "batch": 8,
+        "meanUs": 125.24726562500443,
+        "medianUs": 118.66137500055629,
+        "p95Us": 153.73949999957404,
+        "minUs": 117.38024999976915,
+        "totalMs": 120.29408400000102
       },
       "nativeError": null,
       "metrics": {
@@ -3722,12 +3573,12 @@
       },
       "stats": {
         "samples": 120,
-        "batch": 2,
-        "meanUs": 882.3428958332746,
-        "medianUs": 802.937499996915,
-        "p95Us": 1303.6250000004657,
-        "minUs": 751.2290000013309,
-        "totalMs": 211.87012500000128
+        "batch": 1,
+        "meanUs": 914.0180416664103,
+        "medianUs": 803.9999999964493,
+        "p95Us": 1467.624999997497,
+        "minUs": 757.499999999709,
+        "totalMs": 109.80787500000588
       },
       "error": null,
       "native": null,
@@ -3751,13 +3602,13 @@
         "records": 100000
       },
       "stats": {
-        "samples": 109,
+        "samples": 104,
         "batch": 2,
-        "meanUs": 1152.7798440367255,
-        "medianUs": 787.5205000018468,
-        "p95Us": 6244.062499998108,
-        "minUs": 740.2084999994258,
-        "totalMs": 251.3898329999938
+        "meanUs": 1237.1155625000588,
+        "medianUs": 788.4374999994179,
+        "p95Us": 6084.416499998042,
+        "minUs": 751.4164999993227,
+        "totalMs": 257.43133300000045
       },
       "error": null,
       "native": null,
@@ -3781,22 +3632,22 @@
       },
       "stats": {
         "samples": 120,
-        "batch": 44,
-        "meanUs": 29.309105492415476,
-        "medianUs": 23.475386363563963,
-        "p95Us": 30.606045454491817,
-        "minUs": 21.56154545446043,
-        "totalMs": 154.77733399999852
+        "batch": 30,
+        "meanUs": 35.125186666662344,
+        "medianUs": 26.048599999921862,
+        "p95Us": 54.19026666665256,
+        "minUs": 24.008333333282888,
+        "totalMs": 126.48141599999508
       },
       "error": null,
       "native": {
         "samples": 120,
-        "batch": 4785,
-        "meanUs": 0.0177817729014225,
-        "medianUs": 0.016013584115828098,
-        "p95Us": 0.02286666666659699,
-        "minUs": 0.015935214210711344,
-        "totalMs": 10.226875000000291
+        "batch": 3425,
+        "meanUs": 0.017687233576644267,
+        "medianUs": 0.016033868613418354,
+        "p95Us": 0.016910072992195505,
+        "minUs": 0.015985401458596386,
+        "totalMs": 7.283999999999651
       },
       "nativeError": null,
       "metrics": {
@@ -3818,22 +3669,22 @@
       },
       "stats": {
         "samples": 120,
-        "batch": 18,
-        "meanUs": 71.1216856481365,
-        "medianUs": 55.33566666660287,
-        "p95Us": 77.42133333360674,
-        "minUs": 53.09488888896238,
-        "totalMs": 153.6521670000002
+        "batch": 16,
+        "meanUs": 81.96469218750433,
+        "medianUs": 62.364562500079046,
+        "p95Us": 102.47399999980189,
+        "minUs": 60.06775000014386,
+        "totalMs": 157.4074580000015
       },
       "error": null,
       "native": {
         "samples": 120,
-        "batch": 3425,
-        "meanUs": 0.03724096836983564,
-        "medianUs": 0.03615562043732277,
-        "p95Us": 0.03933109488995936,
-        "minUs": 0.03609489051099989,
-        "totalMs": 15.320375000002969
+        "batch": 3004,
+        "meanUs": 0.03976327674216434,
+        "medianUs": 0.03700599200903366,
+        "p95Us": 0.04191644473953765,
+        "minUs": 0.03611850865340197,
+        "totalMs": 14.389416999998502
       },
       "nativeError": null,
       "metrics": {
@@ -3857,12 +3708,12 @@
       "error": "Maximum structural depth of 512 exceeded",
       "native": {
         "samples": 120,
-        "batch": 2995,
-        "meanUs": 0.14828928491922141,
-        "medianUs": 0.14546477462610896,
-        "p95Us": 0.1597522537555166,
-        "minUs": 0.14268247078463223,
-        "totalMs": 53.32616599999892
+        "batch": 2667,
+        "meanUs": 0.15385149981234536,
+        "medianUs": 0.1455601799763798,
+        "p95Us": 0.18678927633967768,
+        "minUs": 0.14277915260726154,
+        "totalMs": 49.27408400000422
       },
       "nativeError": null,
       "metrics": null

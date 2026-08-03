@@ -10,7 +10,6 @@
  */
 
 import { callFunction, callProgram, createStdlib } from "../../src";
-import { markRuntimeValue } from "../../src/runtime-values";
 import type { FunctionDeclaration, JSONType } from "../../src";
 import type { BenchDef, Mode, Suite } from "../harness";
 import { withMetrics } from "../harness";
@@ -56,45 +55,39 @@ export function makeSuite(mode: Mode): Suite {
   }
 
   // -- 3. Capturing a big value should be O(1) (inlined by reference). --------
+  // Entry arguments are auto-marked as runtime values at the boundary, so the
+  // old raw-vs-unmarked split collapsed into one variant.
   const captureProgram = fn(["xs"], {
     $params: ["i"],
     $return: get(v("i"), v("xs")),
   }) as FunctionDeclaration;
   for (const n of pick([1_000, 100_000], [1_000])) {
-    for (const marked of [false, true]) {
-      const arg = marked
-        ? markRuntimeValue(makeRecords(n) as JSONType)
-        : (makeRecords(n) as JSONType);
-      benches.push({
-        name: "capture-big-value",
-        params: { records: n, raw: marked },
-        ...withMetrics((limits) => () => callFunction(captureProgram, [arg], registry, limits)),
-      });
-    }
+    const arg = makeRecords(n) as JSONType;
+    benches.push({
+      name: "capture-big-value",
+      params: { records: n },
+      ...withMetrics((limits) => () => callFunction(captureProgram, [arg], registry, limits)),
+    });
   }
 
   // -- 4. Invoking a closure that holds a big captured value. ------------------
-  // The captured array sits in expression position. Substitution should
-  // auto-mark the unmarked case, keeping both variants flat per invocation.
+  // The captured array sits in expression position as a runtime value, so
+  // each invocation should skip it in O(1).
   const invokeProgram = fn(["xs"], call("sum", call("map", v("f"), call("range", 50))), {
     f: { $params: ["i"], $return: get("score", get(v("i"), v("xs"))) },
   }) as FunctionDeclaration;
   for (const n of pick([1_000, 10_000], [1_000])) {
-    for (const marked of [false, true]) {
-      const arg = marked
-        ? markRuntimeValue(makeRecords(n) as JSONType)
-        : (makeRecords(n) as JSONType);
-      benches.push({
-        name: "invoke-big-capture",
-        params: { records: n, raw: marked, invocations: 50 },
-        ...withMetrics((limits) => () => callFunction(invokeProgram, [arg], registry, limits)),
-      });
-    }
+    const arg = makeRecords(n) as JSONType;
+    benches.push({
+      name: "invoke-big-capture",
+      params: { records: n, invocations: 50 },
+      ...withMetrics((limits) => () => callFunction(invokeProgram, [arg], registry, limits)),
+    });
   }
 
   // -- 5. Host applies an escaped closure repeatedly. --------------------------
   {
-    const arg = markRuntimeValue(makeRecords(10_000) as JSONType);
+    const arg = makeRecords(10_000) as JSONType;
     const closure = callFunction(captureProgram, [arg], registry) as FunctionDeclaration;
     benches.push({
       name: "apply-escaped-closure",

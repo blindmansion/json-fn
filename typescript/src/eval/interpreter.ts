@@ -25,6 +25,7 @@ import {
   formatFunctionBodyStructureIssue,
 } from "../function-body-structure";
 import { isCommentKey, isPure, isMeteredPure, isBuiltin } from "../utils";
+import { getStaticCost, hasStaticCost, rememberStaticCost } from "../expression-metadata";
 import { isRuntimeValue, markRuntimeValue } from "../runtime-values";
 import {
   enforceRuntimeContract,
@@ -98,16 +99,16 @@ function cloneIfNeeded(value: JSONType, perf?: PerfStats): JSONType {
 
 const EMPTY_LOCAL_FNS: ReadonlySet<string> = new Set();
 
-// Pure-data literals keep their original identity after evaluation. Cache the
-// number of expression nodes that first evaluation visited so later evaluations
-// can skip descendant classification/allocation without making normative fuel
-// depend on whether this object was already evaluated in the current process.
-const constantEvaluationCosts = new WeakMap<object, number>();
+// Pure-data literals keep their original identity after evaluation. Their
+// static costs live in ../expression-metadata so first evaluation can record
+// what it charged and later evaluations can skip descendant
+// classification/allocation without making normative fuel depend on whether
+// this object was already evaluated in the current process.
 
 function constantChildCost(original: JSONType, evaluated: JSONType): number | null {
   if (evaluated !== original) return null;
   if (original === null || typeof original !== "object") return 1;
-  return constantEvaluationCosts.get(original) ?? (isRuntimeValue(original) ? 1 : null);
+  return getStaticCost(original) ?? (isRuntimeValue(original) ? 1 : null);
 }
 
 function resolveVar(
@@ -538,7 +539,7 @@ function evaluateExpressionDispatch(expression: JSONType, context: EvaluationCon
     // that was returned by identity is both syntax and its own value; it must
     // fall through to the literal evaluators so re-evaluation charges its
     // recorded constant cost instead of the one-node runtime-value re-entry.
-    if (isRuntimeValue(expression) && !constantEvaluationCosts.has(expression)) {
+    if (isRuntimeValue(expression) && !hasStaticCost(expression)) {
       if (perf) perf.rawSkips++;
       return expression;
     }
@@ -710,7 +711,7 @@ function evaluateExpressionDispatch(expression: JSONType, context: EvaluationCon
 // scope (getVar undefined), a function-body child also evaluates to itself, so
 // identity would not prove const-ness and the cache is not populated.
 function evaluateArrayLiteral(array: JSONType[], context: EvaluationContext): JSONType {
-  const constantCost = constantEvaluationCosts.get(array);
+  const constantCost = getStaticCost(array);
   if (constantCost !== undefined) {
     chargeFuel(context, constantCost - 1);
     if (context.perf) context.perf.rawSkips++;
@@ -730,7 +731,7 @@ function evaluateArrayLiteral(array: JSONType[], context: EvaluationContext): JS
     return evaluated;
   });
   if (allSame) {
-    if (context.getVar) constantEvaluationCosts.set(array, evaluationCost);
+    if (context.getVar) rememberStaticCost(array, evaluationCost);
     return array;
   }
   return evaluatedItems;
@@ -740,7 +741,7 @@ function evaluateObjectLiteral(
   object: { [key: string]: JSONType },
   context: EvaluationContext,
 ): JSONType {
-  const constantCost = constantEvaluationCosts.get(object);
+  const constantCost = getStaticCost(object);
   if (constantCost !== undefined) {
     chargeFuel(context, constantCost - 1);
     if (context.perf) context.perf.rawSkips++;
@@ -763,7 +764,7 @@ function evaluateObjectLiteral(
     setOwnProperty(evaluatedObject, key, evaluated);
   }
   if (allSame) {
-    if (context.getVar) constantEvaluationCosts.set(object, evaluationCost);
+    if (context.getVar) rememberStaticCost(object, evaluationCost);
     return object;
   }
   return evaluatedObject;

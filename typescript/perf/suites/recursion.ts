@@ -12,7 +12,6 @@
  */
 
 import { callProgram, createStdlib } from "../../src";
-import { markRuntimeValue } from "../../src/runtime-values";
 import type { ExecutionLimits, JSONType } from "../../src";
 import type { BenchDef, Mode, Suite } from "../harness";
 import { withMetrics } from "../harness";
@@ -113,11 +112,11 @@ export function makeSuite(mode: Mode): Suite {
     });
   }
 
-  // -- 5. Deep recursion carrying a big raw value. ----------------------------------
+  // -- 5. Deep recursion carrying a big argument value. -------------------------------
   // Flat in payload size expected (reference passing through call frames).
   // Depth stays under the evaluation-nesting cap so the series keeps timing.
   for (const n of pick([1_000, 100_000], [1_000])) {
-    const arg = markRuntimeValue(makeRecords(n) as JSONType);
+    const arg = makeRecords(n) as JSONType;
     const depth = 1_000;
     benches.push({
       name: "deep-carry-payload",

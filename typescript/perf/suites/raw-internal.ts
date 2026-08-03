@@ -1,18 +1,20 @@
 /**
- * Suite 1: large objects and raw marking inside the interpreter.
+ * Suite 1: large values inside the interpreter.
  *
  * These benchmarks scale the size of the data while holding the amount of
  * guest work fixed. Where the interpreter handles big values by reference
- * (raw-marked or plain argument passing) the timings should stay flat as the
- * data grows; a linear slope means the value is being re-walked or rebuilt.
+ * (runtime values, cached constant ASTs, plain argument passing) the timings
+ * should stay flat as the data grows; a linear slope means the value is being
+ * re-walked or rebuilt.
  */
 
 import { callFunction, callProgram, createStdlib } from "../../src";
+import { rememberStaticCost } from "../../src/expression-metadata";
 import { markRuntimeValue } from "../../src/runtime-values";
 import type { FunctionDeclaration, JSONType } from "../../src";
 import type { BenchDef, Mode, Suite } from "../harness";
 import { withMetrics } from "../harness";
-import { call, fn, get, iff, makeRecords, v } from "../data";
+import { call, fn, get, iff, makeRecords, staticLiteralCost, v } from "../data";
 
 const registry = createStdlib();
 
@@ -20,26 +22,55 @@ export function makeSuite(mode: Mode): Suite {
   const pick = <T>(full: T[], quick: T[]): T[] => (mode === "quick" ? quick : full);
   const benches: BenchDef[] = [];
 
-  // -- 1. Large literal embedded in the program body, raw vs unmarked. -------
-  // The first unmarked evaluation discovers and caches a constant subtree;
-  // warmed calls should then be as flat as the explicit `$raw` control.
+  // -- 1. Large literal embedded in the program body, per ingestion route. ---
+  // Formerly grouped under a `raw` boolean; measured separately now:
+  //   raw-syntax    — canonical `$raw` value boundary around the payload;
+  //   runtime-value — an already-produced (marked) value in expression position;
+  //   preseeded     — plain constant literal whose static cost was preseeded
+  //                   the way the shorthand parser will (no discovery walk);
+  //   discovered    — plain constant literal; the evaluator discovers and
+  //                   caches the constant subtree on first run, so timed
+  //                   samples measure the warm skip path;
+  //   cold          — fresh canonical AST every run, so every sample pays the
+  //                   full classification walk (plus the structuredClone that
+  //                   produces the fresh AST; the native floor is clone-only).
+  // The three constant-AST routes (preseeded/discovered/cold) charge identical
+  // deterministic fuel; only host work differs. raw-syntax and runtime-value
+  // currently charge one node — Workstream E of plans/raw-semantics-cleanup.md
+  // will move `$raw` to the same full static cost.
   for (const n of pick([100, 1_000, 10_000], [100, 1_000])) {
-    for (const marked of [false, true]) {
-      // Separate instances: `$raw` marking is permanent (identity WeakSet).
-      const records = makeRecords(n);
-      const program = fn([], call("length", v("data")), {
-        data: marked ? { $raw: records } : (records as JSONType),
-      }) as FunctionDeclaration;
+    // Separate data instances per route: marking and constant-cost metadata
+    // are by object identity, so one instance cannot serve two routes.
+    const makeProgram = (data: JSONType): FunctionDeclaration =>
+      fn([], call("length", v("data")), { data }) as FunctionDeclaration;
+    const bench = (ast: string, program: FunctionDeclaration): void => {
       benches.push({
         name: "body-literal",
-        params: { records: n, raw: marked },
+        params: { records: n, ast },
         ...withMetrics((limits) => () => callFunction(program, [], registry, limits)),
       });
-    }
+    };
+    bench("raw-syntax", makeProgram({ $raw: makeRecords(n) }));
+    bench("runtime-value", makeProgram(markRuntimeValue(makeRecords(n) as JSONType)));
+    const preseeded = makeRecords(n);
+    rememberStaticCost(preseeded, staticLiteralCost(preseeded));
+    bench("preseeded", makeProgram(preseeded as JSONType));
+    bench("discovered", makeProgram(makeRecords(n) as JSONType));
+    const coldTemplate = makeProgram(makeRecords(n) as JSONType);
+    benches.push({
+      name: "body-literal",
+      params: { records: n, ast: "cold" },
+      ...withMetrics(
+        (limits) => () => callFunction(structuredClone(coldTemplate), [], registry, limits),
+      ),
+      native: () => structuredClone(coldTemplate),
+    });
   }
 
   // -- 2. Big value threaded through a chain of guest calls. -----------------
   // 100 calls each pass the array along; time should be flat in array size.
+  // Entry arguments are auto-marked as runtime values at the host boundary,
+  // so the old raw-vs-unmarked split collapsed into one variant.
   const passModule = {
     loop: fn(
       ["obj", "k"],
@@ -54,17 +85,14 @@ export function makeSuite(mode: Mode): Suite {
   const nativePass = (obj: unknown[], k: number): number =>
     k <= 0 ? obj.length : nativePass(obj, k - 1);
   for (const n of pick([100, 1_000, 10_000, 100_000], [100, 1_000])) {
-    for (const marked of [false, true]) {
-      const records = makeRecords(n);
-      const arg = marked ? markRuntimeValue(records as JSONType) : (records as JSONType);
-      const nativeArg = makeRecords(n) as unknown[];
-      benches.push({
-        name: "pass-through-calls",
-        params: { records: n, raw: marked, calls: 100 },
-        ...withMetrics((limits) => () => callProgram(passModule, "main", [arg], registry, limits)),
-        native: () => nativePass(nativeArg, 100),
-      });
-    }
+    const arg = makeRecords(n) as JSONType;
+    const nativeArg = makeRecords(n) as unknown[];
+    benches.push({
+      name: "pass-through-calls",
+      params: { records: n, calls: 100 },
+      ...withMetrics((limits) => () => callProgram(passModule, "main", [arg], registry, limits)),
+      native: () => nativePass(nativeArg, 100),
+    });
   }
 
   // -- 3. Big accumulator carried through reduce. -----------------------------
@@ -74,7 +102,7 @@ export function makeSuite(mode: Mode): Suite {
     call("length", call("reduce", fn(["acc", "i"], v("acc")), v("xs"), call("range", 500))),
   ) as FunctionDeclaration;
   for (const n of pick([1_000, 10_000, 100_000], [1_000])) {
-    const arg = markRuntimeValue(makeRecords(n) as JSONType);
+    const arg = makeRecords(n) as JSONType;
     const nativeArg = makeRecords(n) as unknown[];
     benches.push({
       name: "reduce-carry-big-acc",
@@ -90,14 +118,14 @@ export function makeSuite(mode: Mode): Suite {
     });
   }
 
-  // -- 4. Indexed reads into a big raw array. ---------------------------------
+  // -- 4. Indexed reads into a big argument array. -----------------------------
   // 200 `$get` accesses; flat in array size expected.
   const readProgram = fn(
     ["xs"],
     call("sum", call("map", fn(["i"], get("score", get(v("i"), v("xs")))), call("range", 200))),
   ) as FunctionDeclaration;
   for (const n of pick([1_000, 10_000, 100_000], [1_000])) {
-    const arg = markRuntimeValue(makeRecords(n) as JSONType);
+    const arg = makeRecords(n) as JSONType;
     const nativeArg = makeRecords(n) as { score: number }[];
     benches.push({
       name: "indexed-get",
@@ -128,7 +156,7 @@ export function makeSuite(mode: Mode): Suite {
     ),
   ) as FunctionDeclaration;
   for (const n of pick([1_000, 10_000, 50_000], [1_000])) {
-    const arg = markRuntimeValue(makeRecords(n) as JSONType);
+    const arg = makeRecords(n) as JSONType;
     const nativeArg = makeRecords(n) as unknown[];
     benches.push({
       name: "setat-copies",

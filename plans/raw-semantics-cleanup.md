@@ -7,6 +7,15 @@ runtime-value mark, `markEvaluated` folded into it (with a constant-cost guard
 in evaluator dispatch preserving constant-subtree fuel), the public `raw`
 export is removed, and entry arguments/effect results are marked at their host
 boundaries. Characterization tests live in `test/runtime-values.test.ts`.
+Workstream B (extract constant-expression metadata) has landed:
+`src/expression-metadata.ts` owns the static-cost `WeakMap`
+(`rememberStaticCost`/`getStaticCost`/`hasStaticCost`), the evaluator keeps
+its first-evaluation discovery path, the parser-facing preseed operation is
+`rememberStaticCost`, metadata-loss/preseed fuel equivalence is tested in
+`test/expression-metadata.test.ts`, and the perf suites measure `$raw`
+syntax, runtime values, preseeded static ASTs, discovered constants, and cold
+canonical ASTs separately (the old raw-vs-unmarked entry-argument variants
+collapsed because entry arguments are auto-marked).
 
 ## Summary
 

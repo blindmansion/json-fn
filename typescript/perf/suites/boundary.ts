@@ -14,7 +14,6 @@ import {
   pure,
   runTask as runPreparedTask,
 } from "../../src";
-import { markRuntimeValue } from "../../src/runtime-values";
 import type {
   EnvironmentContract,
   ExecutionLimits,
@@ -113,53 +112,49 @@ export function makeSuite(mode: Mode): Suite {
   const benches: BenchDef[] = [];
 
   // -- 1. Big argument in, O(1) guest work. -----------------------------------
-  // Flat timings mean the argument crosses by reference.
+  // Flat timings mean the argument crosses by reference. Entry arguments are
+  // auto-marked as runtime values at the boundary, so the old raw-vs-unmarked
+  // split collapsed into one variant.
   const lengthProgram = fn(["xs"], call("length", v("xs"))) as FunctionDeclaration;
   const identityProgram = fn(["xs"], v("xs")) as FunctionDeclaration;
   for (const n of pick([1_000, 10_000, 100_000], [1_000, 10_000])) {
-    for (const marked of [false, true]) {
-      const arg = marked
-        ? markRuntimeValue(makeRecords(n) as JSONType)
-        : (makeRecords(n) as JSONType);
-      benches.push({
-        name: "arg-length",
-        params: { records: n, raw: marked },
-        ...withMetrics((limits) => () => callFunction(lengthProgram, [arg], registry, limits)),
-      });
-    }
-    const arg = markRuntimeValue(makeRecords(n) as JSONType);
+    const arg = makeRecords(n) as JSONType;
+    benches.push({
+      name: "arg-length",
+      params: { records: n },
+      ...withMetrics((limits) => () => callFunction(lengthProgram, [arg], registry, limits)),
+    });
+    const identityArg = makeRecords(n) as JSONType;
     benches.push({
       name: "arg-identity",
       params: { records: n },
-      ...withMetrics((limits) => () => callFunction(identityProgram, [arg], registry, limits)),
+      ...withMetrics(
+        (limits) => () => callFunction(identityProgram, [identityArg], registry, limits),
+      ),
     });
   }
 
   // -- 2. Argument captured into a closure, then invoked. ---------------------
-  // Substitution inlines the value by reference and auto-marks data values.
-  // The unmarked case should therefore match the explicit raw control.
+  // Substitution inlines the value by reference; entry arguments arrive
+  // already runtime-value marked, so a single variant covers it.
   const captureProgram = fn(
     ["xs"],
     call("sum", call("map", fn(["i"], get("score", get(v("i"), v("xs")))), call("range", 50))),
   ) as FunctionDeclaration;
   for (const n of pick([1_000, 10_000], [1_000])) {
-    for (const marked of [false, true]) {
-      const arg = marked
-        ? markRuntimeValue(makeRecords(n) as JSONType)
-        : (makeRecords(n) as JSONType);
-      benches.push({
-        name: "capture-then-invoke",
-        params: { records: n, raw: marked, invocations: 50 },
-        ...withMetrics((limits) => () => callFunction(captureProgram, [arg], registry, limits)),
-      });
-    }
+    const arg = makeRecords(n) as JSONType;
+    benches.push({
+      name: "capture-then-invoke",
+      params: { records: n, invocations: 50 },
+      ...withMetrics((limits) => () => callFunction(captureProgram, [arg], registry, limits)),
+    });
   }
 
   // -- 3. External JS functions: pure (by reference) vs impure (cloned). ------
   const consumeProgram = fn(["xs"], call("consume", v("xs"))) as FunctionDeclaration;
   const echoProgram = fn(["xs"], call("length", call("echo", v("xs")))) as FunctionDeclaration;
   for (const n of pick([1_000, 10_000, 100_000], [1_000, 10_000])) {
-    const arg = markRuntimeValue(makeRecords(n) as JSONType);
+    const arg = makeRecords(n) as JSONType;
     for (const isPure of [false, true]) {
       const consume = (xs: JSONType): number => (xs as JSONType[]).length;
       const withConsume: FunctionRegistry = {
@@ -252,7 +247,7 @@ export function makeSuite(mode: Mode): Suite {
     main: fn(["xs"], call("pure", call("length", v("xs")))),
   } as Record<string, JSONType>;
   for (const n of pick([1_000, 10_000, 100_000], [1_000])) {
-    const arg = markRuntimeValue(makeRecords(n) as JSONType);
+    const arg = makeRecords(n) as JSONType;
     for (const strict of [false, true]) {
       const env = taskEnvironment({}, [strict ? strictArray : looseArray]);
       const host = { registry, capabilities: {} };

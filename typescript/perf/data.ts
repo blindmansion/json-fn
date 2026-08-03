@@ -26,6 +26,26 @@ export function makeRecords(n: number): JSONType[] {
 /** Approximate JSON node count of one `makeRecords` record. */
 export const RECORD_NODES = 12;
 
+/**
+ * Deterministic static-literal cost of a pure-data JSON tree: one unit per
+ * value node (object keys are not separately charged). Matches what first
+ * evaluation of an equivalent plain constant literal charges, so suites can
+ * preseed `rememberStaticCost` the way the shorthand parser will.
+ */
+export function staticLiteralCost(node: JSONType): number {
+  let cost = 0;
+  const stack: JSONType[] = [node];
+  while (stack.length > 0) {
+    const current = stack.pop()!;
+    cost += 1;
+    if (current !== null && typeof current === "object") {
+      const children = Array.isArray(current) ? current : Object.values(current);
+      for (const child of children) stack.push(child);
+    }
+  }
+  return cost;
+}
+
 export function call(name: string, ...args: JSONType[]): JSONType {
   return { $call: name, $args: args };
 }
