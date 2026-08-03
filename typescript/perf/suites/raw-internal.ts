@@ -7,7 +7,8 @@
  * data grows; a linear slope means the value is being re-walked or rebuilt.
  */
 
-import { callFunction, callProgram, createStdlib, raw } from "../../src";
+import { callFunction, callProgram, createStdlib } from "../../src";
+import { markRuntimeValue } from "../../src/runtime-values";
 import type { FunctionDeclaration, JSONType } from "../../src";
 import type { BenchDef, Mode, Suite } from "../harness";
 import { withMetrics } from "../harness";
@@ -55,7 +56,7 @@ export function makeSuite(mode: Mode): Suite {
   for (const n of pick([100, 1_000, 10_000, 100_000], [100, 1_000])) {
     for (const marked of [false, true]) {
       const records = makeRecords(n);
-      const arg = marked ? raw(records as JSONType) : (records as JSONType);
+      const arg = marked ? markRuntimeValue(records as JSONType) : (records as JSONType);
       const nativeArg = makeRecords(n) as unknown[];
       benches.push({
         name: "pass-through-calls",
@@ -73,7 +74,7 @@ export function makeSuite(mode: Mode): Suite {
     call("length", call("reduce", fn(["acc", "i"], v("acc")), v("xs"), call("range", 500))),
   ) as FunctionDeclaration;
   for (const n of pick([1_000, 10_000, 100_000], [1_000])) {
-    const arg = raw(makeRecords(n) as JSONType);
+    const arg = markRuntimeValue(makeRecords(n) as JSONType);
     const nativeArg = makeRecords(n) as unknown[];
     benches.push({
       name: "reduce-carry-big-acc",
@@ -96,7 +97,7 @@ export function makeSuite(mode: Mode): Suite {
     call("sum", call("map", fn(["i"], get("score", get(v("i"), v("xs")))), call("range", 200))),
   ) as FunctionDeclaration;
   for (const n of pick([1_000, 10_000, 100_000], [1_000])) {
-    const arg = raw(makeRecords(n) as JSONType);
+    const arg = markRuntimeValue(makeRecords(n) as JSONType);
     const nativeArg = makeRecords(n) as { score: number }[];
     benches.push({
       name: "indexed-get",
@@ -127,7 +128,7 @@ export function makeSuite(mode: Mode): Suite {
     ),
   ) as FunctionDeclaration;
   for (const n of pick([1_000, 10_000, 50_000], [1_000])) {
-    const arg = raw(makeRecords(n) as JSONType);
+    const arg = markRuntimeValue(makeRecords(n) as JSONType);
     const nativeArg = makeRecords(n) as unknown[];
     benches.push({
       name: "setat-copies",

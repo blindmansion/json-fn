@@ -60,35 +60,6 @@ export function isBuiltin(fn: unknown): fn is BuiltinFunction {
   return typeof fn === "function" && BUILTIN_MARKER in fn;
 }
 
-export function raw(value: JSONType): JSONType {
-  if (typeof value === "object" && value !== null) {
-    _rawValues.add(value as object);
-  }
-  return value;
-}
-
-export function markEvaluated(value: JSONType): JSONType {
-  if (typeof value === "object" && value !== null) {
-    _evaluatedValues.add(value as object);
-  }
-  return value;
-}
-
-export function isRaw(value: unknown): boolean {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    (_rawValues.has(value as object) || _evaluatedValues.has(value as object))
-  );
-}
-
-export function isInert(value: unknown): boolean {
-  return typeof value === "object" && value !== null && _rawValues.has(value as object);
-}
-
-const _rawValues = new WeakSet<object>();
-const _evaluatedValues = new WeakSet<object>();
-
 export function getArity(fn: unknown, registry?: FunctionRegistry): number | null {
   if (isFunctionBody(fn)) {
     return requireParameterLayout(fn.$params, fn).fixedCount;

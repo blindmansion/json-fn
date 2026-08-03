@@ -24,16 +24,8 @@ import {
   analyzeFunctionBodyStructure,
   formatFunctionBodyStructureIssue,
 } from "../function-body-structure";
-import {
-  isCommentKey,
-  isPure,
-  isMeteredPure,
-  isBuiltin,
-  isRaw,
-  isInert,
-  markEvaluated,
-  raw,
-} from "../utils";
+import { isCommentKey, isPure, isMeteredPure, isBuiltin } from "../utils";
+import { isRuntimeValue, markRuntimeValue } from "../runtime-values";
 import {
   enforceRuntimeContract,
   enforceRuntimeContractReturn,
@@ -115,7 +107,7 @@ const constantEvaluationCosts = new WeakMap<object, number>();
 function constantChildCost(original: JSONType, evaluated: JSONType): number | null {
   if (evaluated !== original) return null;
   if (original === null || typeof original !== "object") return 1;
-  return constantEvaluationCosts.get(original) ?? (isRaw(original) ? 1 : null);
+  return constantEvaluationCosts.get(original) ?? (isRuntimeValue(original) ? 1 : null);
 }
 
 function resolveVar(
@@ -177,7 +169,7 @@ export function callFunctionInternal(
       const lexical = context.localFns.has(fn) ? undefined : context.getVar?.(fn);
       if (lexical !== undefined && isFunctionDeclaration(lexical)) {
         result = callFunctionInternal(lexical, args, context);
-        markEvaluated(result);
+        markRuntimeValue(result);
         return result;
       }
       const entry = getOwnProperty(functions, fn);
@@ -227,7 +219,10 @@ export function callFunctionInternal(
         runtimeDefs: context.runtimeDefs,
       });
     }
-    markEvaluated(result);
+    // Returning from a call is a value boundary: the result was produced (and
+    // fuel-accounted) here, so it must never be reclassified as syntax if it
+    // re-enters expression position.
+    markRuntimeValue(result);
     return result;
   } finally {
     context.state.depth--;
@@ -537,10 +532,13 @@ function evaluateExpression(expression: JSONType, context: EvaluationContext): J
 function evaluateExpressionDispatch(expression: JSONType, context: EvaluationContext): JSONType {
   const { perf } = context;
   if (expression !== null && typeof expression === "object") {
-    // Raw values are values, not syntax. Check before expression
+    // Runtime values are values, not syntax. Check before expression
     // classification so data containing keys such as $call or $var remains
-    // inert when it is captured into expression position.
-    if (isInert(expression)) {
+    // inert when it re-enters expression position. A constant program subtree
+    // that was returned by identity is both syntax and its own value; it must
+    // fall through to the literal evaluators so re-evaluation charges its
+    // recorded constant cost instead of the one-node runtime-value re-entry.
+    if (isRuntimeValue(expression) && !constantEvaluationCosts.has(expression)) {
       if (perf) perf.rawSkips++;
       return expression;
     }
@@ -677,8 +675,10 @@ function evaluateExpressionDispatch(expression: JSONType, context: EvaluationCon
       return evaluatePropertyAccess(expression as PropertyAccess, context);
 
     case ExpressionType.Raw:
+      // Canonical `$raw` is the serializable value boundary: the payload is a
+      // JSON value, not expression syntax.
       const rawValue = (expression as { $raw: JSONType }).$raw;
-      raw(rawValue);
+      markRuntimeValue(rawValue);
       return rawValue;
 
     // Kept as helper calls so their locals do not enlarge this function's
@@ -716,7 +716,7 @@ function evaluateArrayLiteral(array: JSONType[], context: EvaluationContext): JS
     if (context.perf) context.perf.rawSkips++;
     return array;
   }
-  if (isRaw(array)) {
+  if (isRuntimeValue(array)) {
     if (context.perf) context.perf.rawSkips++;
     return array;
   }
@@ -746,7 +746,7 @@ function evaluateObjectLiteral(
     if (context.perf) context.perf.rawSkips++;
     return object;
   }
-  if (isRaw(object)) {
+  if (isRuntimeValue(object)) {
     if (context.perf) context.perf.rawSkips++;
     return object;
   }

@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { callFunction, callProgram, createPerfStats, createStdlib, raw } from "../src";
+import { callFunction, callProgram, createPerfStats, createStdlib } from "../src";
+import { markRuntimeValue } from "../src/runtime-values";
 import type { FunctionDeclaration, JSONType } from "../src";
 
 const stdlib = createStdlib();
@@ -72,7 +73,7 @@ describe("captured data values", () => {
     $return: { $params: [], $return: { $var: "value" } },
   };
   test("keeps explicitly raw function-shaped host data inert", () => {
-    const payload = raw({ $return: "data", metadata: true });
+    const payload = markRuntimeValue({ $return: "data", metadata: true });
     const closure = callFunction(capture, [payload], stdlib) as FunctionDeclaration;
     expect(callFunction(closure, [], stdlib)).toBe(payload);
   });

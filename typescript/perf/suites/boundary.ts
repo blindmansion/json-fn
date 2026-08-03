@@ -12,9 +12,9 @@ import {
   createStdlib,
   prepareDeployment,
   pure,
-  raw,
   runTask as runPreparedTask,
 } from "../../src";
+import { markRuntimeValue } from "../../src/runtime-values";
 import type {
   EnvironmentContract,
   ExecutionLimits,
@@ -118,14 +118,16 @@ export function makeSuite(mode: Mode): Suite {
   const identityProgram = fn(["xs"], v("xs")) as FunctionDeclaration;
   for (const n of pick([1_000, 10_000, 100_000], [1_000, 10_000])) {
     for (const marked of [false, true]) {
-      const arg = marked ? raw(makeRecords(n) as JSONType) : (makeRecords(n) as JSONType);
+      const arg = marked
+        ? markRuntimeValue(makeRecords(n) as JSONType)
+        : (makeRecords(n) as JSONType);
       benches.push({
         name: "arg-length",
         params: { records: n, raw: marked },
         ...withMetrics((limits) => () => callFunction(lengthProgram, [arg], registry, limits)),
       });
     }
-    const arg = raw(makeRecords(n) as JSONType);
+    const arg = markRuntimeValue(makeRecords(n) as JSONType);
     benches.push({
       name: "arg-identity",
       params: { records: n },
@@ -142,7 +144,9 @@ export function makeSuite(mode: Mode): Suite {
   ) as FunctionDeclaration;
   for (const n of pick([1_000, 10_000], [1_000])) {
     for (const marked of [false, true]) {
-      const arg = marked ? raw(makeRecords(n) as JSONType) : (makeRecords(n) as JSONType);
+      const arg = marked
+        ? markRuntimeValue(makeRecords(n) as JSONType)
+        : (makeRecords(n) as JSONType);
       benches.push({
         name: "capture-then-invoke",
         params: { records: n, raw: marked, invocations: 50 },
@@ -155,7 +159,7 @@ export function makeSuite(mode: Mode): Suite {
   const consumeProgram = fn(["xs"], call("consume", v("xs"))) as FunctionDeclaration;
   const echoProgram = fn(["xs"], call("length", call("echo", v("xs")))) as FunctionDeclaration;
   for (const n of pick([1_000, 10_000, 100_000], [1_000, 10_000])) {
-    const arg = raw(makeRecords(n) as JSONType);
+    const arg = markRuntimeValue(makeRecords(n) as JSONType);
     for (const isPure of [false, true]) {
       const consume = (xs: JSONType): number => (xs as JSONType[]).length;
       const withConsume: FunctionRegistry = {
@@ -248,7 +252,7 @@ export function makeSuite(mode: Mode): Suite {
     main: fn(["xs"], call("pure", call("length", v("xs")))),
   } as Record<string, JSONType>;
   for (const n of pick([1_000, 10_000, 100_000], [1_000])) {
-    const arg = raw(makeRecords(n) as JSONType);
+    const arg = markRuntimeValue(makeRecords(n) as JSONType);
     for (const strict of [false, true]) {
       const env = taskEnvironment({}, [strict ? strictArray : looseArray]);
       const host = { registry, capabilities: {} };

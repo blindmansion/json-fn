@@ -9,7 +9,7 @@ import type {
 } from "../types";
 import { boundParameterNames, defaultBindings, requireParameterLayout } from "../params";
 import { getOwnProperty, setOwnProperty } from "../own-properties";
-import { isRaw, raw } from "../utils";
+import { isRuntimeValue, markRuntimeValue } from "../runtime-values";
 import { isFunctionBody, isFunctionDeclaration } from "../function-value";
 import { chargeFuel, guardValueSize } from "./execution";
 import type { EvaluationContext } from "./internal-types";
@@ -47,7 +47,9 @@ export function replaceVars(
 ): JSONType {
   const { perf } = context;
   if (perf) perf.replaceVars++;
-  if (typeof expression === "object" && expression !== null && isRaw(expression)) {
+  // Runtime values are self-contained data; substitution must not descend
+  // into them looking for syntax.
+  if (typeof expression === "object" && expression !== null && isRuntimeValue(expression)) {
     if (perf) perf.rawSkips++;
     return expression;
   }
@@ -62,11 +64,12 @@ export function replaceVars(
       const varValue = getVar(expression.$var);
       if (varValue === undefined) return expression;
       // Substitution moves an already-evaluated value into expression
-      // position. Mark data values so they remain inert there, including host
-      // objects whose keys happen to look like expression syntax. Function
-      // declarations stay live for nested capture and attachment.
+      // position. Mark data values as runtime values so they remain inert
+      // there, including host objects whose keys happen to look like
+      // expression syntax. Function declarations stay live for nested capture
+      // and attachment.
       if (typeof varValue === "object" && varValue !== null && !isFunctionDeclaration(varValue)) {
-        raw(varValue);
+        markRuntimeValue(varValue);
       }
       return varValue;
     }
@@ -260,7 +263,8 @@ function collectFnNameRefs(
   blocked: ReadonlySet<string> = new Set(),
 ): void {
   if (node === null || typeof node !== "object") return;
-  if (isRaw(node)) return;
+  // Runtime values carry no live name references — they are data, not syntax.
+  if (isRuntimeValue(node)) return;
   if (Array.isArray(node)) {
     for (const item of node) collectFnNameRefs(item, filter, out, blocked);
     return;

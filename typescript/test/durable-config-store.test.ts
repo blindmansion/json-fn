@@ -10,7 +10,7 @@ import {
   type PendingEffect,
   type WorkflowRecord,
 } from "../src";
-import { isRaw } from "../src/utils";
+import { isRuntimeValue } from "../src/runtime-values";
 
 const integer = { type: "integer" } as const;
 const contract: EnvironmentContract = {
@@ -186,7 +186,7 @@ describe("InMemoryWorkflowStore", () => {
     expect(first).not.toBe(record);
     expect(second).not.toBe(first);
     if (first?.status !== "suspended") throw new Error("Expected suspended record");
-    expect(isRaw(first.pending.resume)).toBe(true);
+    expect(isRuntimeValue(first.pending.resume)).toBe(true);
   });
 
   test("rejects duplicate creates and distinguishes revision conflicts", async () => {
@@ -237,7 +237,7 @@ describe("InMemoryWorkflowStore", () => {
     if (outcome.claimed.status !== "running" || outcome.claimed.basis.kind !== "resume") {
       throw new Error("Expected resume basis");
     }
-    expect(isRaw(outcome.claimed.basis.pending.resume)).toBe(true);
+    expect(isRuntimeValue(outcome.claimed.basis.pending.resume)).toBe(true);
     expect(await store.claim(record.workflowId, record.pending.effectId, 21)).toEqual({
       stale: true,
     });

@@ -11,7 +11,8 @@
  * turning into timings.
  */
 
-import { callProgram, createStdlib, raw } from "../../src";
+import { callProgram, createStdlib } from "../../src";
+import { markRuntimeValue } from "../../src/runtime-values";
 import type { ExecutionLimits, JSONType } from "../../src";
 import type { BenchDef, Mode, Suite } from "../harness";
 import { withMetrics } from "../harness";
@@ -116,7 +117,7 @@ export function makeSuite(mode: Mode): Suite {
   // Flat in payload size expected (reference passing through call frames).
   // Depth stays under the evaluation-nesting cap so the series keeps timing.
   for (const n of pick([1_000, 100_000], [1_000])) {
-    const arg = raw(makeRecords(n) as JSONType);
+    const arg = markRuntimeValue(makeRecords(n) as JSONType);
     const depth = 1_000;
     benches.push({
       name: "deep-carry-payload",

@@ -2,8 +2,8 @@
  * Tasks & effects — the semantic kernel described in `plans/effects-implementation.md`.
  *
  * A task is an inert, tagged plain record built only by the constructors
- * (`perform`/`pure`/`bind`/`raise`) and raw-marked so the evaluator never
- * re-walks it. The kernel is deliberately tiny: three node kinds plus one
+ * (`perform`/`pure`/`bind`/`raise`) and marked as a runtime value so the
+ * evaluator never re-walks it. The kernel is deliberately tiny: three node kinds plus one
  * `handle` builtin plus (Phase 4) a host trampoline. Everything richer — retry,
  * state, error handling, dry-runs — is guest library code, which works because
  * escaping-closure capture makes continuations self-contained JSON.
@@ -20,7 +20,7 @@ import type { Defs, Schema } from "./schema/schema.ts";
 import { enforceRuntimeContract, RuntimeContractError } from "./runtime-contract";
 import { getOwnProperty } from "./own-properties";
 import { requireParameterLayout } from "./params";
-import { raw } from "./utils";
+import { markRuntimeValue } from "./runtime-values";
 import { isFunctionDeclaration } from "./function-value";
 
 /** The reserved tag key marking a value as a task node. */
@@ -61,16 +61,16 @@ function isPlainObject(value: JSONType): value is Record<string, JSONType> {
 // ----- constructors (shared by the stdlib builtins) -----
 
 export function effectTask(name: string, args: JSONType[]): JSONType {
-  return raw({ [TASK_TAG]: "effect", name, args });
+  return markRuntimeValue({ [TASK_TAG]: "effect", name, args });
 }
 
 export function pureTask(value: JSONType): JSONType {
-  return raw({ [TASK_TAG]: "pure", value });
+  return markRuntimeValue({ [TASK_TAG]: "pure", value });
 }
 
 export function bindTask(task: JSONType, then: JSONType): JSONType {
   // eslint-disable-next-line no-thenable -- `then` is the spec'd task field name, not a Promise
-  return raw({ [TASK_TAG]: "bind", task, then });
+  return markRuntimeValue({ [TASK_TAG]: "bind", task, then });
 }
 
 // The parameter name of every constructed `resume`/handler-wrapping closure.
@@ -87,15 +87,15 @@ const RESUME_PARAM = "__v";
  * `ks` is ordered outermost-last (as pushed while walking the `bind` spine), so
  * we wrap from the top of the stack (the continuation nearest the effect)
  * outward. Each continuation is embedded via `$raw` so it stays inert. The
- * result is raw-marked: it is self-contained, so `replaceVars` must never
- * descend into it during escaping-closure capture.
+ * result is marked as a runtime value: it is self-contained, so `replaceVars`
+ * must never descend into it during escaping-closure capture.
  */
 function buildStepResume(ks: JSONType[]): JSONType {
   let expr: JSONType = { $call: "pure", $args: [{ $var: RESUME_PARAM }] };
   for (let i = ks.length - 1; i >= 0; i--) {
     expr = { $call: "bind", $args: [expr, { $raw: ks[i]! }] };
   }
-  return raw({ $params: [RESUME_PARAM], $return: expr });
+  return markRuntimeValue({ $params: [RESUME_PARAM], $return: expr });
 }
 
 /**
@@ -122,7 +122,7 @@ function wrapResume(
   handlers: JSONType,
   annotation: Schema | undefined,
 ): JSONType {
-  return raw({
+  return markRuntimeValue({
     $params: [RESUME_PARAM],
     $return: {
       $call: "handle",
@@ -201,7 +201,7 @@ export function stepTask(
  * enclosing `stepTask`, which expects a task.
  */
 function bubbleContinuation(stepResume: JSONType, handlers: JSONType): JSONType {
-  return raw({
+  return markRuntimeValue({
     $params: [RESUME_PARAM],
     $return: {
       $let: {

@@ -9,7 +9,8 @@
  * and transitive local-function attachment.
  */
 
-import { callFunction, callProgram, createStdlib, raw } from "../../src";
+import { callFunction, callProgram, createStdlib } from "../../src";
+import { markRuntimeValue } from "../../src/runtime-values";
 import type { FunctionDeclaration, JSONType } from "../../src";
 import type { BenchDef, Mode, Suite } from "../harness";
 import { withMetrics } from "../harness";
@@ -61,7 +62,9 @@ export function makeSuite(mode: Mode): Suite {
   }) as FunctionDeclaration;
   for (const n of pick([1_000, 100_000], [1_000])) {
     for (const marked of [false, true]) {
-      const arg = marked ? raw(makeRecords(n) as JSONType) : (makeRecords(n) as JSONType);
+      const arg = marked
+        ? markRuntimeValue(makeRecords(n) as JSONType)
+        : (makeRecords(n) as JSONType);
       benches.push({
         name: "capture-big-value",
         params: { records: n, raw: marked },
@@ -78,7 +81,9 @@ export function makeSuite(mode: Mode): Suite {
   }) as FunctionDeclaration;
   for (const n of pick([1_000, 10_000], [1_000])) {
     for (const marked of [false, true]) {
-      const arg = marked ? raw(makeRecords(n) as JSONType) : (makeRecords(n) as JSONType);
+      const arg = marked
+        ? markRuntimeValue(makeRecords(n) as JSONType)
+        : (makeRecords(n) as JSONType);
       benches.push({
         name: "invoke-big-capture",
         params: { records: n, raw: marked, invocations: 50 },
@@ -89,7 +94,7 @@ export function makeSuite(mode: Mode): Suite {
 
   // -- 5. Host applies an escaped closure repeatedly. --------------------------
   {
-    const arg = raw(makeRecords(10_000) as JSONType);
+    const arg = markRuntimeValue(makeRecords(10_000) as JSONType);
     const closure = callFunction(captureProgram, [arg], registry) as FunctionDeclaration;
     benches.push({
       name: "apply-escaped-closure",

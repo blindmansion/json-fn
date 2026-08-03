@@ -10,7 +10,7 @@ import {
   type WorkflowFailureCode,
   type WorkflowRecord,
 } from "../src";
-import { isRaw } from "../src/utils";
+import { isRuntimeValue } from "../src/runtime-values";
 
 const metadata = {
   workflowId: "workflow-1",
@@ -54,10 +54,10 @@ describe("workflow record codec", () => {
       const hydrated = hydrateWorkflowRecord(serializeWorkflowRecord(record));
       expect(hydrated).toEqual(record);
       if (hydrated.status === "suspended") {
-        expect(isRaw(hydrated.pending.resume)).toBe(true);
+        expect(isRuntimeValue(hydrated.pending.resume)).toBe(true);
       }
       if (hydrated.status === "running" && hydrated.basis.kind === "resume") {
-        expect(isRaw(hydrated.basis.pending.resume)).toBe(true);
+        expect(isRuntimeValue(hydrated.basis.pending.resume)).toBe(true);
       }
     }
   });

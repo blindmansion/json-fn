@@ -11,13 +11,26 @@ import {
   type DefinitionPool,
   type DefinitionSources,
 } from "../definition-pool";
-import { isFunctionBody } from "../function-value";
+import { isFunctionBody, isFunctionDeclaration } from "../function-value";
+import { markRuntimeValue } from "../runtime-values";
 import { assertStructuralDepth } from "../structural-depth";
 import { chargeFuel, createExecutionState, guardValueSize } from "./execution";
 import type { EvaluationContext } from "./internal-types";
 import { callFunctionInternal, initializeModuleBindings } from "./interpreter";
 
 const EMPTY_LOCAL_FNS: ReadonlySet<string> = new Set();
+
+// Public entry arguments are already-produced values, never syntax; mark them
+// so expression-shaped host data stays inert without the host knowing about
+// interpreter identity metadata. Function-shaped arguments stay live so they
+// go through closure construction, mirroring `replaceVars` substitution.
+function markEntryArguments(args: JSONType[]): void {
+  for (const arg of args) {
+    if (typeof arg === "object" && arg !== null && !isFunctionDeclaration(arg)) {
+      markRuntimeValue(arg);
+    }
+  }
+}
 
 type EvaluationSession = {
   context: EvaluationContext;
@@ -98,6 +111,7 @@ export function callFunction(
 ): JSONType {
   assertStructuralDepth(fn);
   for (const arg of args) assertStructuralDepth(arg);
+  markEntryArguments(args);
   const session = createEvaluationSession(functions, limits, definitions);
   try {
     // Results are asserted on the way out too: guest programs can construct
@@ -123,6 +137,7 @@ export function callProgram(
 ): JSONType {
   assertStructuralDepth(module);
   for (const arg of args) assertStructuralDepth(arg);
+  markEntryArguments(args);
   const session = createProgramSession(module, baseRegistry, limits, definitions);
   try {
     initializeProgramScope(session, module);
@@ -160,6 +175,7 @@ export function prepareProgram(
   const call = (fn: JSONType, args: JSONType[]): JSONType => {
     assertStructuralDepth(fn);
     for (const arg of args) assertStructuralDepth(arg);
+    markEntryArguments(args);
     const result = callFunctionInternal(fn as FunctionDeclaration, args, session.context);
     // See callFunction: over-deep runtime-built values are caught on exit.
     assertStructuralDepth(result);

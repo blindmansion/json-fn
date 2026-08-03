@@ -1,7 +1,7 @@
 import { isFunctionBody } from "../../function-value";
 import { assertStructuralDepth } from "../../structural-depth";
 import type { JSONType } from "../../types";
-import { raw } from "../../utils";
+import { markRuntimeValue } from "../../runtime-values";
 import { remarkTaskNodes } from "../task-serialization";
 
 export type PendingEffect = {
@@ -121,13 +121,13 @@ export function hydrateWorkflowRecord(serialized: string): WorkflowRecord {
   const value: unknown = JSON.parse(serialized);
   validateWorkflowRecord(value);
 
-  // JSON parsing loses both kinds of WeakSet-backed inertness. Restore task
-  // nodes throughout the record before marking the continuation itself raw.
+  // JSON parsing loses the WeakSet-backed runtime-value marks. Restore task
+  // nodes throughout the record before marking the continuation itself.
   remarkTaskNodes(value);
   if (value.status === "suspended") {
-    raw(value.pending.resume);
+    markRuntimeValue(value.pending.resume);
   } else if (value.status === "running" && value.basis.kind === "resume") {
-    raw(value.basis.pending.resume);
+    markRuntimeValue(value.basis.pending.resume);
   }
   return value;
 }

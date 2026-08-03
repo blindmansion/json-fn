@@ -57,7 +57,7 @@ export {
   validateDefinitionTable,
   validateSchemaFragment,
 } from "./schema";
-export { builtin, pure, meteredPure, raw, getArity } from "./utils";
+export { builtin, pure, meteredPure, getArity } from "./utils";
 export type {
   JSONType,
   BuiltinFunction,

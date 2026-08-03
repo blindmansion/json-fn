@@ -1,7 +1,12 @@
 # Raw semantics cleanup
 
-Status: proposed; the Phase 0 fuel-model decision is settled (stable virtual
-cost — see section 5)
+Status: in progress; the Phase 0 fuel-model decision is settled (stable
+virtual cost — see section 5). Workstream A (characterize and separate runtime
+identity) has landed in `typescript/`: `src/runtime-values.ts` owns the single
+runtime-value mark, `markEvaluated` folded into it (with a constant-cost guard
+in evaluator dispatch preserving constant-subtree fuel), the public `raw`
+export is removed, and entry arguments/effect results are marked at their host
+boundaries. Characterization tests live in `test/runtime-values.test.ts`.
 
 ## Summary
 

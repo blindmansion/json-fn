@@ -1,11 +1,11 @@
 import { assertStructuralDepth } from "../structural-depth";
 import { isTask, TASK_TAG } from "../task";
 import type { JSONType } from "../types";
-import { raw } from "../utils";
+import { markRuntimeValue } from "../runtime-values";
 
 /**
  * Serialize a task for durable storage. Escaping-closure capture makes the task
- * graph self-contained JSON; runtime-only inertness marks are restored on load.
+ * graph self-contained JSON; runtime-value marks are restored on load.
  */
 export function serializeTask(task: JSONType): string {
   if (!isTask(task)) {
@@ -18,7 +18,7 @@ export function serializeTask(task: JSONType): string {
   return JSON.stringify(task);
 }
 
-/** Parse a serialized task and restore runtime-only task inertness marks. */
+/** Parse a serialized task and restore runtime-value marks on task nodes. */
 export function hydrateTask(serialized: string): JSONType {
   const value = JSON.parse(serialized) as JSONType;
   // Reject over-deep records before the recursive re-mark walk below.
@@ -36,7 +36,7 @@ export function remarkTaskNodes(value: JSONType): void {
     return;
   }
   if (value !== null && typeof value === "object") {
-    if (typeof value[TASK_TAG] === "string") raw(value);
+    if (typeof value[TASK_TAG] === "string") markRuntimeValue(value);
     for (const key of Object.keys(value)) remarkTaskNodes(value[key]!);
   }
 }

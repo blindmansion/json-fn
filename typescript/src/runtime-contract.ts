@@ -14,7 +14,7 @@ import {
   unionArms,
 } from "./schema/schema.ts";
 import { valueMismatch, valueSatisfies } from "./schema/values.ts";
-import { raw } from "./utils";
+import { markRuntimeValue } from "./runtime-values";
 
 const CONTRACT_ARGS = "__contractArgs";
 
@@ -108,7 +108,7 @@ function contractFailure(
 
 function wrapFunction(value: JSONType, schema: Schema, defs: Defs): JSONType {
   const contract: RuntimeFunctionContract = { schema, defs, target: value };
-  return raw({
+  return markRuntimeValue({
     $params: [`...${CONTRACT_ARGS}`],
     $runtimeContract: contract as unknown as JSONType,
     // The evaluator recognizes the metadata above and calls `target` directly.

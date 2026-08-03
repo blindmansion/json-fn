@@ -1,11 +1,5 @@
-import {
-  callFunction,
-  createStdlib,
-  createPerfStats,
-  raw,
-  type JSONType,
-  type PerfStats,
-} from "../src";
+import { callFunction, createStdlib, createPerfStats, type JSONType, type PerfStats } from "../src";
+import { markRuntimeValue } from "../src/runtime-values";
 import type { FunctionDeclaration } from "../src/types";
 
 const functions: Record<string, any> = createStdlib();
@@ -59,7 +53,7 @@ function generateRecords(n: number): JSONType[] {
 //
 // map over records where each callback captures the full dataset to compute
 // a data-relative field (the total count). The callback is called N times,
-// and each time the captured array would be walked without raw().
+// and each time the captured array would be walked without markRuntimeValue().
 // ===========================================================================
 console.log("═══ 1. Closure captures large dataset (map with captured array) ═══\n");
 
@@ -83,7 +77,7 @@ const closureCapture: JSONType = {
 for (const size of [100, 500, 1000]) {
   const data = generateRecords(size);
 
-  console.log(`  --- size=${size}, without raw() ---`);
+  console.log(`  --- size=${size}, without markRuntimeValue() ---`);
   let stats = createPerfStats();
   bench(
     `plain`,
@@ -92,11 +86,11 @@ for (const size of [100, 500, 1000]) {
   );
   printPerfStats(stats);
 
-  const rawData = raw(structuredClone(data)) as JSONType[];
-  console.log(`  --- size=${size}, with raw() ---`);
+  const rawData = markRuntimeValue(structuredClone(data)) as JSONType[];
+  console.log(`  --- size=${size}, with markRuntimeValue() ---`);
   stats = createPerfStats();
   bench(
-    `raw()`,
+    `markRuntimeValue()`,
     () =>
       callFunction(closureCapture as FunctionDeclaration, [rawData], functions, { perf: stats }),
     5,
@@ -149,7 +143,7 @@ functions.pipelineProcess = {
 for (const size of [100, 500, 1000]) {
   const data = generateRecords(size);
 
-  console.log(`  --- size=${size}, without raw() ---`);
+  console.log(`  --- size=${size}, without markRuntimeValue() ---`);
   let stats = createPerfStats();
   bench(
     `plain`,
@@ -159,11 +153,11 @@ for (const size of [100, 500, 1000]) {
   );
   printPerfStats(stats);
 
-  const rawData = raw(structuredClone(data)) as JSONType[];
-  console.log(`  --- size=${size}, with raw() ---`);
+  const rawData = markRuntimeValue(structuredClone(data)) as JSONType[];
+  console.log(`  --- size=${size}, with markRuntimeValue() ---`);
   stats = createPerfStats();
   bench(
-    `raw()`,
+    `markRuntimeValue()`,
     () =>
       callFunction({ $return: { $fn: ["pipelineProcess", rawData] } }, [], functions, {
         perf: stats,
@@ -214,7 +208,7 @@ const nestedCapture: JSONType = {
 for (const size of [50, 200, 500]) {
   const data = generateRecords(size);
 
-  console.log(`  --- size=${size} (${size * 3} inner iterations), without raw() ---`);
+  console.log(`  --- size=${size} (${size * 3} inner iterations), without markRuntimeValue() ---`);
   let stats = createPerfStats();
   bench(
     `plain`,
@@ -223,11 +217,11 @@ for (const size of [50, 200, 500]) {
   );
   printPerfStats(stats);
 
-  const rawData = raw(structuredClone(data)) as JSONType[];
-  console.log(`  --- size=${size} (${size * 3} inner iterations), with raw() ---`);
+  const rawData = markRuntimeValue(structuredClone(data)) as JSONType[];
+  console.log(`  --- size=${size} (${size * 3} inner iterations), with markRuntimeValue() ---`);
   stats = createPerfStats();
   bench(
-    `raw()`,
+    `markRuntimeValue()`,
     () => callFunction(nestedCapture as FunctionDeclaration, [rawData], functions, { perf: stats }),
     3,
   );
@@ -237,7 +231,7 @@ for (const size of [50, 200, 500]) {
 }
 
 // ===========================================================================
-// 4. $raw in JSON — same as test 1 but using $raw instead of raw()
+// 4. $raw in JSON — same as test 1 but using $raw instead of markRuntimeValue()
 // ===========================================================================
 console.log("═══ 4. $raw (JSON-level escape) ═══\n");
 
