@@ -179,6 +179,13 @@ instrumentation for:
 - hydration time and peak memory; and
 - expected blob read/write amplification under candidate thresholds.
 
+This instrumentation is implemented in the TypeScript durable host
+(`createDurableInstrumentation` / `instrumentWorkflowStore`; see the
+measurement-instrumentation section of `../docs/durable-host.md`), with an
+observation-only store decorator and a representative-workload report script
+(`bun run instrument:durable`). Reports contain only counts, sizes, durations,
+and ratios — no workflow IDs, effect names, or guest values.
+
 The encoder/hash library may be prototyped during this phase, but module
 identity must not be finalized until program normalization is stable. With
 every Phase 0 decision settled, normalization stability is the only remaining

@@ -1,6 +1,14 @@
 export type { DurableCapability, DurableEffectContext, DurableEffectMode } from "./config";
 export { DeploymentMismatchError, createDurableDriver } from "./driver";
 export type { AdvanceOutcome, DeliveryOutcome, DurableDriver } from "./driver";
+export { createDurableInstrumentation, instrumentWorkflowStore } from "./instrumentation";
+export type {
+  BlobbingEstimate,
+  DurableInstrumentation,
+  DurableInstrumentationOptions,
+  DurableInstrumentationReport,
+  StatSummary,
+} from "./instrumentation";
 export {
   InMemoryWorkflowStore,
   WorkflowAlreadyExistsError,

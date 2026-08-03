@@ -286,7 +286,34 @@ are accepted by live `runTask`, not by the current public durable-driver API.
 See [Execution limits](execution-limits.md) for the interpreter's fuel, depth,
 size, cancellation, and timeout model.
 
-## 11. Complete example
+## 11. Measurement instrumentation
+
+`createDurableInstrumentation` and `instrumentWorkflowStore` provide opt-in,
+observation-only measurement of persisted workflow records. Wrapping a store
+observes every persisted revision (create, transition, and successful claim)
+without changing driver behavior:
+
+```ts
+const instrumentation = createDurableInstrumentation();
+const store = instrumentWorkflowStore(new InMemoryWorkflowStore(), instrumentation);
+// ... run workflows through a driver backed by `store` ...
+const report = instrumentation.report();
+```
+
+The report is plain JSON containing only counts, byte sizes, durations, and
+ratios — never workflow IDs, effect names, or guest values:
+
+- serialized record sizes by workflow state;
+- repeated-subtree duplication and continuation (closure-substitution) size;
+- byte growth and reuse between consecutive suspensions of a workflow;
+- hydration time and approximate memory; and
+- estimated read/write amplification if subtrees above candidate byte
+  thresholds were stored as content-addressed blobs.
+
+`bun run instrument:durable` (in `typescript/`) prints these measurements for
+representative synthetic workloads; pass `--json` for the full reports.
+
+## 12. Complete example
 
 `typescript/examples/durable-orchestration/` contains a commented, runnable
 example with:
