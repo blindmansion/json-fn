@@ -14,6 +14,7 @@
 // (falling back to the M0 warning path), never a silent pass.
 
 import type { JSONType } from "../types";
+import { getOwnProperty, setOwnProperty } from "../own-properties";
 import { asPath, asVarName, litOf, nodeKind } from "./ast";
 import { type CheckContext } from "./context";
 import {
@@ -37,7 +38,8 @@ import { valueSatisfies } from "../schema/values.ts";
 // The type a var has *right now*: its active narrowing if any, else its
 // declared type from Γ. `undefined` when the name is unbound (can't narrow).
 function currentType(name: string, ctx: CheckContext): Schema | undefined {
-  return ctx.narrowings?.[name] ?? ctx.env.lookupType(name);
+  const narrowed = ctx.narrowings === undefined ? undefined : getOwnProperty(ctx.narrowings, name);
+  return narrowed ?? ctx.env.lookupType(name);
 }
 
 // The type an access-path expression has *right now* (§5.5 M3): the path's own
@@ -47,7 +49,7 @@ function currentType(name: string, ctx: CheckContext): Schema | undefined {
 function currentTypeOfExpr(node: JSONType, ctx: CheckContext): Schema | undefined {
   const path = asPath(node);
   if (path === null) return undefined;
-  const narrowed = ctx.narrowings?.[path];
+  const narrowed = ctx.narrowings === undefined ? undefined : getOwnProperty(ctx.narrowings, path);
   if (narrowed !== undefined) return narrowed;
 
   const name = asVarName(node);
@@ -289,7 +291,7 @@ function truthinessFact(expr: JSONType, sense: boolean, ctx: CheckContext): Reco
       sense,
       ctx.defs,
     );
-    if (narrowed !== null) facts[discriminant.base] = narrowed;
+    if (narrowed !== null) setOwnProperty(facts, discriminant.base, narrowed);
   }
   return facts;
 }
@@ -336,7 +338,7 @@ function factsFromCondition(
 
   if (name === "not" && args.length === 1) return factsFromCondition(args[0]!, !sense, ctx, seen);
 
-  if (name in TYPE_PREDICATES && args.length === 1) {
+  if (Object.hasOwn(TYPE_PREDICATES, name) && args.length === 1) {
     // The subject may be a bare `$var` (M1) or a static access path like
     // `move.from` (M3); both serialize to a `ctx.narrowings` key via `asPath`.
     const subject = asPath(args[0]!);

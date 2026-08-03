@@ -1,4 +1,5 @@
 import type { FunctionBody, JSONType } from "./types";
+import { getOwnProperty } from "./own-properties";
 import { isFunctionDeclaration } from "./function-value";
 import { isReadableRuntimeFunctionContract } from "./function-body-structure";
 import type { Defs, FnTypeShape, Schema } from "./schema/schema.ts";
@@ -48,7 +49,7 @@ function resolveSchema(schema: Schema, defs: Defs, seen = new Set<string>()): Sc
       throw new RuntimeContractError(`runtime contract contains a cyclic reference to "${name}"`);
     }
     seen.add(name);
-    const resolved = defs[name];
+    const resolved = getOwnProperty(defs, name);
     if (resolved === undefined) {
       throw new RuntimeContractError(`runtime contract references undefined type "${name}"`);
     }
@@ -61,7 +62,7 @@ function assertReferencesDefined(schema: Schema, defs: Defs, seen = new Set<stri
   const refs = new Set<string>();
   collectSchemaRefs(schema, refs);
   for (const name of refs) {
-    const resolved = defs[name];
+    const resolved = getOwnProperty(defs, name);
     if (resolved === undefined) {
       throw new RuntimeContractError(`runtime contract references undefined type "${name}"`);
     }

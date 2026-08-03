@@ -16,6 +16,7 @@
 // (contextual typing, §4.3), and instantiate the return.
 
 import type { JSONType } from "../types";
+import { getOwnProperty, setOwnProperty } from "../own-properties";
 import type {
   TVarNode,
   Bindings,
@@ -116,7 +117,8 @@ function instantiate(schema: Schema, bindings: Bindings): Schema {
       return unionOf((schema.anyOf as Schema[]).map((x) => instantiate(x, bindings)));
     }
     const out: Record<string, JSONType> = {};
-    for (const [k, v] of Object.entries(schema)) out[k] = instantiate(v as Schema, bindings);
+    for (const [k, v] of Object.entries(schema))
+      setOwnProperty(out, k, instantiate(v as Schema, bindings));
     return out;
   }
   return schema;
@@ -181,7 +183,7 @@ function callableReferenceEntry(expr: JSONType, ctx: CheckContext): CallableEntr
   ) {
     return null;
   }
-  return ctx.callables[name] ?? null;
+  return getOwnProperty(ctx.callables, name) ?? null;
 }
 
 // The element schema of a concrete array/tuple, for matching an `array items T`
@@ -216,7 +218,11 @@ function unifyTemplateInto(
 
   if (isTVar(template)) {
     const name = template.$tvar;
-    bindings[name] = name in bindings ? unionOf([bindings[name]!, concrete]) : concrete;
+    setOwnProperty(
+      bindings,
+      name,
+      Object.hasOwn(bindings, name) ? unionOf([bindings[name]!, concrete]) : concrete,
+    );
     return true;
   }
 

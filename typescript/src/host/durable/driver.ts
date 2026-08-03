@@ -1,4 +1,5 @@
 import { RuntimeContractError } from "../../runtime-contract";
+import { getOwnProperty } from "../../own-properties";
 import { ExternalFunctionError } from "../../eval";
 import type { JSONType } from "../../types";
 import type { PreparedDurableDeployment } from "../deployment";
@@ -128,7 +129,7 @@ export function createDurableDriver(options: {
         const effectId = `${current.workflowId}:${sequence}`;
         sequence += 1;
 
-        const classification = deployment.profile.effects[name];
+        const classification = getOwnProperty(deployment.profile.effects, name);
         if (classification === undefined) throw new UnhandledEffectError(name);
         if (classification === "suspending") {
           const pending: PendingEffect = { effectId, name, args, resume };
@@ -139,7 +140,7 @@ export function createDurableDriver(options: {
           });
         }
 
-        const capability = deployment.effects[name]!;
+        const capability = getOwnProperty(deployment.effects, name)!;
         let result: JSONType;
         try {
           runtime.refreshDeadline();

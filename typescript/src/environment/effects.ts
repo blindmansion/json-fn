@@ -2,6 +2,7 @@ import { readFileSync } from "fs";
 import type { CallableTable } from "../check/builtin-types";
 import { taskType, type Defs, type Schema } from "../schema/schema.ts";
 import { CallableTableValidationError, validateCallableTable } from "../builtins";
+import { getOwnProperty, setOwnProperty } from "../own-properties";
 import type { JSONType } from "../types";
 import type { EffectManifest } from "./effect-types";
 const EFFECTS_BINDING = "effects";
@@ -103,10 +104,10 @@ function buildEffectNamespace(effects: EffectManifest = {}): Record<string, JSON
     const segments = name.split(".");
     let parent = root;
     for (const segment of segments.slice(0, -1)) {
-      const child = parent[segment];
+      const child = getOwnProperty(parent, segment);
       if (child === undefined) {
         const created: Record<string, JSONType> = {};
-        parent[segment] = created;
+        setOwnProperty(parent, segment, created);
         parent = created;
       } else {
         parent = child as Record<string, JSONType>;
@@ -114,7 +115,7 @@ function buildEffectNamespace(effects: EffectManifest = {}): Record<string, JSON
     }
 
     const params = signature.params.map((_, index) => `_effectArg${index}`);
-    parent[segments.at(-1)!] = {
+    setOwnProperty(parent, segments.at(-1)!, {
       $params: params,
       $sig: {
         required: signature.params,
@@ -125,7 +126,7 @@ function buildEffectNamespace(effects: EffectManifest = {}): Record<string, JSON
         $call: "perform",
         $args: [name, params.map((param) => ({ $var: param }))],
       },
-    };
+    });
   }
   return root;
 }

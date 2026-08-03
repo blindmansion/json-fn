@@ -1,6 +1,7 @@
 import type { JSONType, BuiltinFunction, FunctionRegistry, Meter, RuntimeContext } from "./types";
 import { BUILTIN_MARKER, PURE_MARKER, METERED_PURE_MARKER, ARITY_MARKER } from "./types";
 import { isFunctionBody } from "./function-value";
+import { getOwnProperty } from "./own-properties";
 import { requireParameterLayout } from "./params";
 
 export function objectKeyCount(obj: Record<string, unknown>): number {
@@ -94,7 +95,7 @@ export function getArity(fn: unknown, registry?: FunctionRegistry): number | nul
   }
 
   if (typeof fn === "string" && registry) {
-    const entry = registry[fn];
+    const entry = getOwnProperty(registry, fn);
     if (entry === undefined) return null;
     return getArity(entry, registry);
   }

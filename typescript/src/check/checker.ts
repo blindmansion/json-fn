@@ -21,6 +21,7 @@ import {
   type ParameterLayout,
   type ParameterPath,
 } from "../params";
+import { getOwnProperty, setOwnProperty } from "../own-properties";
 import { asPath, litOf, nodeKind } from "./ast";
 import {
   at,
@@ -210,7 +211,7 @@ function bindParams(
     for (const binding of slot.bindings) {
       const path: ParameterPath = [slot.index, "$fields", binding.fieldIndex];
       const fieldCtx = parameterIssueContext(ctx, path);
-      const isNamed = binding.name in props;
+      const isNamed = hasOwn(props, binding.name);
       const fieldSchema = isNamed
         ? props[binding.name]!
         : mode.kind === "map"
@@ -701,7 +702,7 @@ function synthData(v: JSONType): Schema {
     const props: Record<string, Schema> = {};
     const required: string[] = [];
     for (const [k, val] of Object.entries(v)) {
-      props[k] = synthData(val);
+      setOwnProperty(props, k, synthData(val));
       required.push(k);
     }
     return { type: "object", properties: props, required, additionalProperties: false };
@@ -780,7 +781,7 @@ function callableReferenceName(expr: JSONType, ctx: CheckContext): string | null
     name === null ||
     ctx.env.lookupType(name, ctx.narrowings) !== undefined ||
     ctx.callables === undefined ||
-    !(name in ctx.callables)
+    !hasOwn(ctx.callables, name)
   ) {
     return null;
   }
@@ -966,7 +967,7 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
       const required: string[] = [];
       for (const [k, v] of Object.entries(o)) {
         if (k === "$comment" && typeof v === "string") continue;
-        props[k] = synth(v, at(ctx, k));
+        setOwnProperty(props, k, synth(v, at(ctx, k)));
         required.push(k);
       }
       return { type: "object", properties: props, required, additionalProperties: false };
@@ -977,7 +978,8 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
       // A dominating guard may have refined this var within the current arm
       // (§5.5). The narrowed type is already intersected with the declared one,
       // so a hit is authoritative.
-      const narrowed = ctx.narrowings?.[name];
+      const narrowed =
+        ctx.narrowings === undefined ? undefined : getOwnProperty(ctx.narrowings, name);
       if (narrowed !== undefined) return narrowed;
       // A direct hit above; otherwise this may be an *indirect* narrowing — a
       // lazy local that references a narrowed var — so pass the active facts
@@ -1063,7 +1065,7 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
         typeof call.$call === "string" &&
         ctx.callables &&
         ctx.synthCallableCall &&
-        call.$call in ctx.callables
+        hasOwn(ctx.callables, call.$call)
       ) {
         if (ctx.env.lookupType(call.$call) === undefined) {
           return ctx.synthCallableCall(call.$call, ctx.callables[call.$call]!, args, ctx);
@@ -1077,7 +1079,7 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
       if (
         typeof call.$call === "string" &&
         ctx.env.lookupType(call.$call) === undefined &&
-        !(ctx.callables && call.$call in ctx.callables)
+        !(ctx.callables && hasOwn(ctx.callables, call.$call))
       ) {
         args.forEach((a, i) => synth(a, at(ctx, `$args[${i}]`)));
         report(ctx, `Unknown function "${call.$call}".`);
@@ -1161,7 +1163,7 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
       const refs = new Set<string>();
       collectSchemaRefs(ascription.$type, refs);
       for (const name of refs) {
-        if (!(name in ctx.defs)) {
+        if (!hasOwn(ctx.defs, name)) {
           report(at(ctx, "$type"), `reference to undefined type "${name}"`);
         }
       }
@@ -1176,7 +1178,8 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
       // authoritative — mirror the `"var"` case and return it directly.
       const path = asPath(expr);
       if (path !== undefined && path !== null) {
-        const narrowed = ctx.narrowings?.[path];
+        const narrowed =
+          ctx.narrowings === undefined ? undefined : getOwnProperty(ctx.narrowings, path);
         if (narrowed !== undefined) return narrowed;
       }
       const target = synth(g.$from, at(ctx, "$from"));
@@ -1261,7 +1264,7 @@ function reportCheckMismatch(
 // push the expected field type inward instead of comparing whole schemas.
 function expectedFieldSchema(exp: Record<string, JSONType>, k: string): Schema | null {
   const props = properties(exp);
-  if (k in props) return props[k]!;
+  if (hasOwn(props, k)) return props[k]!;
   const mode = apMode(exp);
   if (mode.kind === "closed") return null;
   if (mode.kind === "open") return true;

@@ -4,6 +4,7 @@ import { isTaskReturn } from "../../environment/environment";
 import type { EnvironmentContract } from "../../environment/types";
 import { linkModule, type LinkedModule } from "../../module-linker";
 import { enforceRuntimeContract } from "../../runtime-contract";
+import { setOwnProperty } from "../../own-properties";
 import type { FunctionRegistry, JSONType } from "../../types";
 import { createStdlib } from "../../stdlib";
 import type { DurableCapability } from "../durable/config";
@@ -167,7 +168,7 @@ function validateExactBindings(
   kind: "function",
 ): void {
   for (const name of Object.keys(contracts)) {
-    if (!(name in implementations)) {
+    if (!Object.hasOwn(implementations, name)) {
       throw new AdapterLinkError(
         "MISSING_ADAPTER_FUNCTION",
         `adapter.functions.${name}`,
@@ -183,7 +184,7 @@ function validateExactBindings(
     }
   }
   for (const name of Object.keys(implementations)) {
-    if (!(name in contracts)) {
+    if (!Object.hasOwn(contracts, name)) {
       throw new AdapterLinkError(
         "EXTRA_ADAPTER_FUNCTION",
         `adapter.functions.${name}`,
@@ -198,7 +199,7 @@ function validateExactEffectBindings(
   selected: Set<string>,
 ): void {
   for (const name of selected) {
-    if (!(name in implementations)) {
+    if (!Object.hasOwn(implementations, name)) {
       throw new AdapterLinkError(
         "MISSING_ADAPTER_EFFECT",
         `adapter.effects.${name}`,
@@ -234,7 +235,7 @@ function wrapContractFunctions(
   for (const [name, callable] of Object.entries(contract.functions ?? {})) {
     const implementation = implementations[name] as FunctionRegistry[string];
     const alias = `@adapter:${name}`;
-    registry[alias] = implementation;
+    setOwnProperty(registry, alias, implementation);
     const arms = callable.signatures.map((signature) => ({
       $fnType: {
         required: signature.required.map(eraseTypeVariables),
@@ -243,12 +244,16 @@ function wrapContractFunctions(
         returns: eraseTypeVariables(signature.returns),
       },
     }));
-    registry[name] = enforceRuntimeContract(
-      alias,
-      arms.length === 1 ? arms[0]! : { anyOf: arms },
-      linked.definitions,
-      `host function "${name}"`,
-    ) as FunctionRegistry[string];
+    setOwnProperty(
+      registry,
+      name,
+      enforceRuntimeContract(
+        alias,
+        arms.length === 1 ? arms[0]! : { anyOf: arms },
+        linked.definitions,
+        `host function "${name}"`,
+      ) as FunctionRegistry[string],
+    );
   }
   return registry;
 }

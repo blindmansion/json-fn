@@ -1,10 +1,11 @@
 # Runtime representation gaps
 
-Status: investigation; Unicode code-point semantics are implemented in the
-canonical TypeScript implementation, and the structural-depth contract is
-decided (portable depth limit — see section 2). The object-key fix, the
-depth-limit implementation, the Unicode performance/metering work, and
-enforcement of the selected ill-formed-surrogate policy remain open.
+Status: investigation; Unicode code-point semantics and the `__proto__`
+object-key fix are implemented in the canonical TypeScript implementation
+(see section 1), and the structural-depth contract is decided (portable
+depth limit — see section 2). The depth-limit implementation, the Unicode
+performance/metering work, and enforcement of the selected
+ill-formed-surrogate policy remain open.
 
 ## Summary
 
@@ -161,6 +162,35 @@ Conformance coverage should include:
 - shorthand ordinary and `raw` objects; and
 - `keys`, `entries`, `$get`, `fromEntries`, `pick`, `omit`, and serialization
   round trips over the key.
+
+### Resolution (implemented in TypeScript)
+
+The shared helper lives in `typescript/src/own-properties.ts`:
+`setOwnProperty` defines `__proto__` with `Object.defineProperty` (plain
+assignment otherwise), and `getOwnProperty` reads only own properties. The
+repository-wide audit converted every object construction keyed by
+guest-controlled strings: shorthand data-object, raw-JSON, and type parsing;
+evaluator object-literal rebuilding and parameter/let/capture scope maps;
+closure substitution; checker property maps and `synthData`; schema merge;
+stdlib (`groupBy`, `countBy`, `mapValues`, regex named groups, `pick`/`omit`);
+effect-namespace and deployment-registry construction; and the perf counters
+(now null-prototype).
+
+The audit also fixed the complementary read-side hole the reproduction work
+uncovered: prototype-chain lookups (`registry[name]`, `k in props`) observed
+inherited `Object.prototype` members, so calling `toString` or
+`hasOwnProperty` invoked the inherited *host* function through
+`callExternalFunction`, `groupBy` with a `__proto__` key threw a host
+`TypeError`, and a schema requiring a key named `constructor` validated
+vacuously. Function-registry resolution, schema property/`$defs`/callable
+lookups, effect-manifest and handler-clause lookups, and narrowing-fact reads
+now use own-property access.
+
+Conformance coverage: `spec/cases/special-object-keys.json` (evaluation,
+stdlib, bindings named `__proto__`, inherited names not callable) and
+`spec/parse-cases/special-object-keys.json` (shorthand and `raw` parsing;
+the printer round-trip corpus consumes the same cases). Checker, validation,
+and helper coverage: `typescript/test/special-object-keys.test.ts`.
 
 ## 2. Expression nesting can exhaust the host stack
 
@@ -474,9 +504,10 @@ clusters, noncharacters, or other well-formed code-point sequences.
 
 ## Suggested sequencing
 
-1. Fix `__proto__` handling independently. It is a narrow correctness defect
-   with no credible compatibility reason to retain. Land the shared helper and
-   repository-wide audit before program normalization in
+1. **Done.** Fix `__proto__` handling independently. It is a narrow
+   correctness defect with no credible compatibility reason to retain. The
+   shared helper and repository-wide audit landed (see section 1) before
+   program normalization in
    [`raw-semantics-cleanup.md`](raw-semantics-cleanup.md) or generic codec
    reconstruction in
    [`content-addressed-values.md`](content-addressing/content-addressed-values.md).
@@ -487,6 +518,6 @@ clusters, noncharacters, or other well-formed code-point sequences.
 3. Enforce the selected rejection policy for ill-formed strings at every input,
    production, persistence, hydration, and hashing boundary.
 
-The first item is implementation-defined accidental behavior. The second and
-third now have settled contracts but still require implementation and
-conformance coverage.
+The first item was implementation-defined accidental behavior and is fixed in
+the canonical implementation. The second and third now have settled contracts
+but still require implementation and conformance coverage.

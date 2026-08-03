@@ -1,4 +1,5 @@
 import type { JSONType } from "../types";
+import { getOwnProperty, setOwnProperty } from "../own-properties";
 import { litOf, nodeKind } from "./ast";
 import type { CallableTypeRuleApplyV1, CallableTypeRuleRegistry } from "./builtin-types";
 import { isRuntimeContractSchema } from "../schema/contract.ts";
@@ -104,7 +105,7 @@ const performRule: CallableTypeRuleApplyV1 = (request, services) => {
     services.reportCoverageDegradation("no effect manifest is configured");
     return request.fallbackResult;
   }
-  const effect = services.effects[literal.v];
+  const effect = getOwnProperty(services.effects, literal.v);
   if (effect === undefined) {
     services.reportError(`unknown effect "${literal.v}"`, { argumentIndex: 0 });
     return request.fallbackResult;
@@ -285,7 +286,7 @@ const handleRule: CallableTypeRuleApplyV1 = (request, services) => {
   const refs = new Set<string>();
   collectSchemaRefs(schema, refs);
   for (const name of refs) {
-    if (!(name in services.defs)) {
+    if (!Object.hasOwn(services.defs, name)) {
       services.reportError(`reference to undefined type "${name}"`, {
         argumentIndex: 2,
         path: ["$raw"],
@@ -310,7 +311,11 @@ const handleRule: CallableTypeRuleApplyV1 = (request, services) => {
   });
   const clauseProperties: Record<string, Schema> = {};
   for (const [name, effect] of Object.entries(services.effects ?? {})) {
-    clauseProperties[name] = clauseType([...effect.params, resumeType(effect.returns)]);
+    setOwnProperty(
+      clauseProperties,
+      name,
+      clauseType([...effect.params, resumeType(effect.returns)]),
+    );
   }
   clauseProperties.return = clauseType([handledCompletion]);
   clauseProperties["*"] = clauseType([
@@ -332,7 +337,7 @@ const handleRule: CallableTypeRuleApplyV1 = (request, services) => {
   }
 
   for (const name of Object.keys(clausesExpr as Record<string, JSONType>)) {
-    if (name !== "$comment" && clauseProperties[name] === undefined) {
+    if (name !== "$comment" && getOwnProperty(clauseProperties, name) === undefined) {
       services.reportCoverageDegradation(
         `handler clause "${name}" has no configured effect contract`,
       );

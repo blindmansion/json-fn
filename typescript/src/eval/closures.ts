@@ -8,6 +8,7 @@ import type {
   JSONType,
 } from "../types";
 import { boundParameterNames, defaultBindings, requireParameterLayout } from "../params";
+import { getOwnProperty, setOwnProperty } from "../own-properties";
 import { isRaw, raw } from "../utils";
 import { isFunctionBody, isFunctionDeclaration } from "../function-value";
 import { chargeFuel, guardValueSize } from "./execution";
@@ -87,13 +88,10 @@ export function replaceVars(
       }
       const newBindings: Record<string, JSONType> = {};
       for (const [name, value] of Object.entries(bindings)) {
-        newBindings[name] = replaceVars(
-          value,
-          maskedGetVar,
-          scopedLocalFns,
-          maskedAttachFns,
-          localFnDefs,
-          context,
+        setOwnProperty(
+          newBindings,
+          name,
+          replaceVars(value, maskedGetVar, scopedLocalFns, maskedAttachFns, localFnDefs, context),
         );
       }
       return {
@@ -180,13 +178,10 @@ export function replaceVars(
       if (captures !== undefined) {
         const newCaptures: FunctionCaptures = {};
         for (const [name, definition] of Object.entries(captures)) {
-          newCaptures[name] = replaceVars(
-            definition,
-            maskedGetVar,
-            scopedLocalFns,
-            attachFns,
-            localFnDefs,
-            context,
+          setOwnProperty(
+            newCaptures,
+            name,
+            replaceVars(definition, maskedGetVar, scopedLocalFns, attachFns, localFnDefs, context),
           );
         }
         newObject.$captures = newCaptures;
@@ -236,7 +231,11 @@ export function replaceVars(
 
     const newObject: Record<string, JSONType> = {};
     for (const [key, value] of Object.entries(expression)) {
-      newObject[key] = replaceVars(value, getVar, localFns, attachFns, localFnDefs, context);
+      setOwnProperty(
+        newObject,
+        key,
+        replaceVars(value, getVar, localFns, attachFns, localFnDefs, context),
+      );
     }
     return newObject;
   }
@@ -414,7 +413,7 @@ function attachFreeLocalFns(
   while (queue.length > 0) {
     const name = queue.shift()!;
     if (capturedNames.has(name) || boundNames.has(name)) continue;
-    const definition = localFnDefs[name];
+    const definition = getOwnProperty(localFnDefs, name);
     if (!isFunctionBody(definition)) {
       continue;
     }
@@ -424,7 +423,7 @@ function attachFreeLocalFns(
     attachedNodes += cachedCountNodes(definition);
     guardValueSize(context, attachedNodes);
     chargeFuel(context, attachedNodes);
-    existingCaptures[name] = definition as JSONType;
+    setOwnProperty(existingCaptures, name, definition as JSONType);
     capturedNames.add(name);
     for (const reference of cachedBodyLevelFnNameRefs(definition as Record<string, JSONType>)) {
       if (

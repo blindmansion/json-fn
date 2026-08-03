@@ -18,6 +18,7 @@
 import type { JSONType, Meter } from "./types";
 import type { Defs, Schema } from "./schema/schema.ts";
 import { enforceRuntimeContract, RuntimeContractError } from "./runtime-contract";
+import { getOwnProperty } from "./own-properties";
 import { requireParameterLayout } from "./params";
 import { raw } from "./utils";
 import { isFunctionDeclaration } from "./function-value";
@@ -266,7 +267,7 @@ export function runHandle(
   const { name, args, resume } = s.pending;
   const handleResume = wrapResume(resume, handlers, annotation);
 
-  const named = handlers[name];
+  const named = getOwnProperty(handlers as Record<string, JSONType>, name);
   if (named !== undefined && isFunctionDeclaration(named)) {
     return finish(call(named, [...args, handleResume]));
   }

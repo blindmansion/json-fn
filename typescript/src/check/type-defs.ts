@@ -1,3 +1,4 @@
+import { getOwnProperty } from "../own-properties";
 import {
   SchemaKind,
   classifySchema,
@@ -60,14 +61,16 @@ function isNonContractive(name: string, defs: Defs): boolean {
     if (current === name) return true;
     if (visited.has(current)) continue;
     visited.add(current);
-    const definition = defs[current];
+    const definition = getOwnProperty(defs, current);
     if (definition !== undefined) pending.push(...unguardedEdges(definition));
   }
   return false;
 }
 
 function nonContractiveDefinitions(names: string[], defs: Defs): string[] {
-  return names.filter((name) => defs[name] !== undefined && isNonContractive(name, defs));
+  return names.filter(
+    (name) => getOwnProperty(defs, name) !== undefined && isNonContractive(name, defs),
+  );
 }
 
 export { nonContractiveDefinitions };

@@ -171,13 +171,13 @@ function objectValueMismatch(
   const v = value as Record<string, JSONType>;
 
   for (const k of requiredKeys(o)) {
-    if (!(k in v)) return mismatch("required property is missing", [k]);
+    if (!Object.hasOwn(v, k)) return mismatch("required property is missing", [k]);
   }
 
   const props = properties(o);
   const mode = apMode(o);
   for (const [k, val] of Object.entries(v)) {
-    if (k in props) {
+    if (Object.hasOwn(props, k)) {
       const failure = valueMismatch(val, props[k]!, defs);
       if (failure !== null) return prepend(k, failure);
     } else if (mode.kind === "closed") {

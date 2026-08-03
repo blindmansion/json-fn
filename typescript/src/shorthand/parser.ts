@@ -7,6 +7,7 @@
 
 import type { FieldPattern, FunctionBody, JSONType, Param } from "../types";
 import { analyzeParameters, formatParameterIssue } from "../params";
+import { setOwnProperty } from "../own-properties";
 import { TokenCursor, describe } from "./cursor";
 import { lex } from "./lexer";
 import type { TemplatePart, TokPunct } from "./lexer";
@@ -537,10 +538,10 @@ class Parser extends TokenCursor {
     // Shorthand-property punning: a bare identifier key not followed by `:`
     // stands for `key: key`, lowering to a `$var` read of the same name.
     if (bareIdent && (this.peekType() === "comma" || this.peekType() === "rbrace")) {
-      map[key] = { $var: key };
+      setOwnProperty(map, key, { $var: key });
     } else {
       this.expect("colon", "':' after data-object key");
-      map[key] = this.parseExpr();
+      setOwnProperty(map, key, this.parseExpr());
     }
   }
 
@@ -589,14 +590,14 @@ class Parser extends TokenCursor {
         if (name === "Task") {
           throw this.err("'Task' is reserved for the built-in Task<A> type constructor");
         }
-        if (name in types) {
+        if (Object.hasOwn(types, name)) {
           throw this.err(`duplicate type declaration '${name}'`);
         }
         this.expect("equals", "'=' in type declaration");
         const typePos = this.positions !== undefined ? this.startPos() : undefined;
         const schema = this.parseTypeExpr();
         if (typePos !== undefined) this.record(schema, typePos);
-        types[name] = schema;
+        setOwnProperty(types, name, schema);
       } else if (this.peekType() === "dotdotdot" || this.peekType() === "lbracket") {
         throw this.err("module entries must be named bindings or type declarations");
       } else {
@@ -1214,7 +1215,7 @@ class Parser extends TokenCursor {
           }
           this.advance();
           this.expect("colon", "':' in raw JSON object");
-          map[k.value] = this.parseRawJson();
+          setOwnProperty(map, k.value, this.parseRawJson());
           const type = this.peekType();
           if (type === "comma") {
             this.advance();

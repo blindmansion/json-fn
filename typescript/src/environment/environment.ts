@@ -195,7 +195,7 @@ function mergeCallableTables(
     return core;
   }
   for (const name of Object.keys(hostFunctions)) {
-    if (name in core.builtins) {
+    if (Object.hasOwn(core.builtins, name)) {
       throw new DuplicateCallableContractError(name, `contract.functions.${name}`);
     }
   }

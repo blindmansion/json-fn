@@ -1,4 +1,5 @@
 import type { JSONType } from "../types.ts";
+import { getOwnProperty, setOwnProperty } from "../own-properties.ts";
 
 // A type is represented as canonical-fragment JSON Schema, extended with
 // `$ref` (named types) and distinguished checker nodes. `$fnType` represents
@@ -84,7 +85,7 @@ function refName(s: Schema): string {
 // pure checker never crashes on malformed hand-written schemas.
 function resolveRef(s: Schema, defs: Defs): Schema {
   const name = refName(s);
-  const def = defs[name];
+  const def = getOwnProperty(defs, name);
   return def === undefined ? true : def;
 }
 
@@ -191,7 +192,9 @@ function deepEqual(a: JSONType, b: JSONType): boolean {
     const ak = Object.keys(a);
     const bk = Object.keys(b);
     if (ak.length !== bk.length) return false;
-    return ak.every((k) => k in b && deepEqual(a[k]!, (b as Record<string, JSONType>)[k]!));
+    return ak.every(
+      (k) => Object.hasOwn(b, k) && deepEqual(a[k]!, (b as Record<string, JSONType>)[k]!),
+    );
   }
   return false;
 }
@@ -309,7 +312,7 @@ function projectField(target: Schema, key: JSONType, defs: Defs): Schema {
     if (classifySchema(t) !== SchemaKind.Object) return true;
     const o = asObject(t);
     const props = properties(o);
-    if (key in props) {
+    if (Object.hasOwn(props, key)) {
       // An optional field (declared in `properties` but absent from `required`)
       // may be missing at runtime, where the evaluator yields null. Reflect the
       // absence as `T | null` so readers must account for it.
@@ -360,7 +363,7 @@ function isClosedMissingKey(target: Schema, key: string, defs: Defs): boolean {
   if (arms !== null) return arms.length > 0 && arms.every((a) => isClosedMissingKey(a, key, defs));
   if (classifySchema(t) !== SchemaKind.Object) return false;
   const o = asObject(t);
-  if (key in properties(o)) return false;
+  if (Object.hasOwn(properties(o), key)) return false;
   return apMode(o).kind === "closed";
 }
 
@@ -441,7 +444,7 @@ function keyView(
   k: string,
 ): { schema: Schema; required: boolean } | null {
   const props = properties(o);
-  if (k in props) return { schema: props[k]!, required: requiredKeys(o).includes(k) };
+  if (Object.hasOwn(props, k)) return { schema: props[k]!, required: requiredKeys(o).includes(k) };
   const mode = apMode(o);
   if (mode.kind === "closed") return null;
   if (mode.kind === "open") return { schema: true, required: false };
@@ -478,7 +481,7 @@ function mergeObjects(a: Record<string, JSONType>, b: Record<string, JSONType>):
     const av = keyView(a, k);
     const bv = keyView(b, k);
     if (bv !== null && bv.required) {
-      props[k] = bv.schema; // b definitely wins
+      setOwnProperty(props, k, bv.schema); // b definitely wins
       required.push(k);
       continue;
     }
@@ -487,7 +490,7 @@ function mergeObjects(a: Record<string, JSONType>, b: Record<string, JSONType>):
     if (bv !== null) parts.push(bv.schema);
     if (av !== null) parts.push(av.schema);
     if (parts.length === 0) continue; // neither side can carry k
-    props[k] = unionOf(parts);
+    setOwnProperty(props, k, unionOf(parts));
     if (av !== null && av.required) required.push(k); // only a can guarantee it
   }
 

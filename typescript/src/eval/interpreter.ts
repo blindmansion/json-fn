@@ -41,6 +41,7 @@ import {
   readRuntimeFunctionContract,
 } from "../runtime-contract";
 import { validateRuntimeArguments, type ParameterLayout } from "../params";
+import { getOwnProperty, setOwnProperty } from "../own-properties";
 import { isFunctionBody, isFunctionDeclaration } from "../function-value";
 import { replaceVars } from "./closures";
 import { accountForResult, chargeFuel, checkInterrupt, guardValueSize } from "./execution";
@@ -119,7 +120,7 @@ function resolveVar(
     // P4: a bare identifier that isn't a lexical binding but *is* a registered
     // function resolves to its name reference (i.e. `map(length, xs)` ==
     // `map(&length, xs)`), so `&` is optional.
-    if (functions[name] !== undefined) {
+    if (getOwnProperty(functions, name) !== undefined) {
       return name;
     }
     exprError(expression, `Variable ${name} not found.`);
@@ -166,7 +167,7 @@ export function callFunctionInternal(
         markEvaluated(result);
         return result;
       }
-      const entry = functions[fn];
+      const entry = getOwnProperty(functions, fn);
       if (entry === undefined) {
         throw new Error(`Function ${fn} not found`);
       }
@@ -280,7 +281,7 @@ function createLazyFrame(
   for (const [key, value] of Object.entries(lazyBindings)) {
     if (isFunctionBody(value)) {
       if (scopedFunctions === functions) scopedFunctions = { ...functions };
-      scopedFunctions[key] = value;
+      setOwnProperty(scopedFunctions, key, value);
       localFnKeys.push(key);
     }
   }
@@ -329,7 +330,7 @@ function createLazyFrame(
           runtimeDefs: context.runtimeDefs,
         });
         pendingBindings.delete(name);
-        evaluatedVars[name] = evaluated;
+        setOwnProperty(evaluatedVars, name, evaluated);
         return evaluated;
       } finally {
         resolvingVars.pop();
@@ -345,7 +346,7 @@ function createLazyFrame(
       const body = lazyBindings[key]!;
       if (!isFunctionBody(body)) continue;
       const closedBody = replaceVars(body, getVar, localFns, attachFns, undefined, context);
-      scopedFunctions[key] = closedBody;
+      setOwnProperty(scopedFunctions, key, closedBody);
       registerFunctionEnvironment(closedBody, environment);
     }
   }
@@ -364,7 +365,7 @@ function materializeParameterBindings(
   const lazy: Record<string, JSONType> = {};
   for (const slot of layout.slots) {
     if (slot.kind === "rest") {
-      evaluated[slot.name] = args.slice(slot.index);
+      setOwnProperty(evaluated, slot.name, args.slice(slot.index));
       continue;
     }
     if (slot.kind === "fields") {
@@ -374,21 +375,21 @@ function materializeParameterBindings(
       const value = args[slot.index] as Record<string, JSONType>;
       for (const binding of slot.bindings) {
         if (Object.prototype.hasOwnProperty.call(value, binding.name)) {
-          evaluated[binding.name] = value[binding.name]!;
+          setOwnProperty(evaluated, binding.name, value[binding.name]!);
         } else if (binding.kind === "defaulted") {
-          lazy[binding.name] = binding.defaultExpression;
+          setOwnProperty(lazy, binding.name, binding.defaultExpression);
         } else if (binding.kind === "optional") {
-          evaluated[binding.name] = null;
+          setOwnProperty(evaluated, binding.name, null);
         }
       }
       continue;
     }
     if (slot.index < args.length) {
-      evaluated[slot.name] = args[slot.index]!;
+      setOwnProperty(evaluated, slot.name, args[slot.index]!);
     } else if (slot.kind === "defaulted") {
-      lazy[slot.name] = slot.defaultExpression;
+      setOwnProperty(lazy, slot.name, slot.defaultExpression);
     } else if (slot.kind === "optional") {
-      evaluated[slot.name] = null;
+      setOwnProperty(evaluated, slot.name, null);
     }
   }
   return { evaluated, lazy };
@@ -428,8 +429,8 @@ function seedFunctionCaptures(
   const functions = { ...context.functions };
   for (const name of names) {
     const definition = captures[name];
-    if (!context.localFns.has(name) || !isFunctionBody(functions[name])) {
-      functions[name] = definition!;
+    if (!context.localFns.has(name) || !isFunctionBody(getOwnProperty(functions, name))) {
+      setOwnProperty(functions, name, definition!);
     }
   }
 
@@ -731,7 +732,7 @@ function evaluateObjectLiteral(
     const childCost = constantChildCost(value, evaluated);
     if (childCost === null) allSame = false;
     else evaluationCost += childCost;
-    evaluatedObject[key] = evaluated;
+    setOwnProperty(evaluatedObject, key, evaluated);
   }
   if (allSame) {
     if (context.getVar) constantEvaluationCosts.set(object, evaluationCost);

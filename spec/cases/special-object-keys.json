@@ -1,0 +1,204 @@
+{
+  "description": "special object keys: __proto__ and other Object.prototype names survive every construction route",
+  "functions": {
+    "__proto__": {
+      "$params": ["n"],
+      "$return": { "$call": "add", "$args": [{ "$var": "n" }, 1] }
+    }
+  },
+  "cases": [
+    {
+      "description": "constant object literal keeps an own __proto__ key",
+      "body": { "$return": { "__proto__": { "p": 1 } } },
+      "expected": { "__proto__": { "p": 1 } }
+    },
+    {
+      "description": "dynamic object literal keeps an own __proto__ key",
+      "body": {
+        "$params": ["x"],
+        "$return": { "__proto__": { "$var": "x" }, "b": 2 }
+      },
+      "args": [1],
+      "expected": { "__proto__": 1, "b": 2 }
+    },
+    {
+      "description": "comment stripping rebuilds the object without losing __proto__",
+      "body": {
+        "$return": { "__proto__": 1, "$comment": "stripped", "b": 2 }
+      },
+      "expected": { "__proto__": 1, "b": 2 }
+    },
+    {
+      "description": "$raw payload keeps an own __proto__ key",
+      "body": { "$return": { "$raw": { "__proto__": { "p": 1 } } } },
+      "expected": { "__proto__": { "p": 1 } }
+    },
+    {
+      "description": "object literal built inside a lambda keeps __proto__",
+      "body": {
+        "$params": ["xs"],
+        "$return": {
+          "$call": "map",
+          "$args": [
+            { "$params": ["x"], "$return": { "__proto__": { "$var": "x" } } },
+            { "$var": "xs" }
+          ]
+        }
+      },
+      "args": [[1, 2]],
+      "expected": [{ "__proto__": 1 }, { "__proto__": 2 }]
+    },
+    {
+      "description": "$get reads an own __proto__ key",
+      "body": { "$return": { "$get": "__proto__", "$from": { "$raw": { "__proto__": 9 } } } },
+      "expected": 9
+    },
+    {
+      "description": "$get does not observe inherited Object.prototype members",
+      "body": { "$return": { "$get": "constructor", "$from": { "$raw": { "a": 1 } } } },
+      "expected": null
+    },
+    {
+      "description": "keys lists __proto__",
+      "body": { "$return": { "$call": "keys", "$args": [{ "$raw": { "__proto__": 1, "b": 2 } }] } },
+      "expected": ["__proto__", "b"]
+    },
+    {
+      "description": "entries then fromEntries round-trips __proto__",
+      "body": {
+        "$return": {
+          "$call": "fromEntries",
+          "$args": [{ "$call": "entries", "$args": [{ "$raw": { "__proto__": 1, "b": 2 } }] }]
+        }
+      },
+      "expected": { "__proto__": 1, "b": 2 }
+    },
+    {
+      "description": "fromEntries defines __proto__ as an own key",
+      "body": { "$return": { "$call": "fromEntries", "$args": [[["__proto__", 1]]] } },
+      "expected": { "__proto__": 1 }
+    },
+    {
+      "description": "pick copies __proto__",
+      "body": {
+        "$return": {
+          "$call": "pick",
+          "$args": [{ "$raw": { "__proto__": 1, "b": 2 } }, ["__proto__"]]
+        }
+      },
+      "expected": { "__proto__": 1 }
+    },
+    {
+      "description": "omit keeps a remaining __proto__ key",
+      "body": {
+        "$return": {
+          "$call": "omit",
+          "$args": [{ "$raw": { "__proto__": 1, "b": 2 } }, ["b"]]
+        }
+      },
+      "expected": { "__proto__": 1 }
+    },
+    {
+      "description": "merge keeps __proto__ from either side",
+      "body": {
+        "$return": {
+          "$call": "merge",
+          "$args": [{ "$raw": { "__proto__": 1 } }, { "$raw": { "b": 2 } }]
+        }
+      },
+      "expected": { "__proto__": 1, "b": 2 }
+    },
+    {
+      "description": "hasKey sees an own __proto__ key",
+      "body": {
+        "$return": { "$call": "hasKey", "$args": [{ "$raw": { "__proto__": 1 } }, "__proto__"] }
+      },
+      "expected": true
+    },
+    {
+      "description": "hasKey does not see inherited Object.prototype members",
+      "body": {
+        "$return": { "$call": "hasKey", "$args": [{ "$raw": { "a": 1 } }, "constructor"] }
+      },
+      "expected": false
+    },
+    {
+      "description": "mapValues keeps __proto__",
+      "body": {
+        "$return": {
+          "$call": "mapValues",
+          "$args": [
+            { "$params": ["v", "k"], "$return": { "$call": "add", "$args": [{ "$var": "v" }, 1] } },
+            { "$raw": { "__proto__": 1, "b": 2 } }
+          ]
+        }
+      },
+      "expected": { "__proto__": 2, "b": 3 }
+    },
+    {
+      "description": "groupBy groups under a __proto__ key",
+      "body": {
+        "$return": {
+          "$call": "groupBy",
+          "$args": [{ "$params": ["x"], "$return": "__proto__" }, [1, 2]]
+        }
+      },
+      "expected": { "__proto__": [1, 2] }
+    },
+    {
+      "description": "countBy counts under a __proto__ key",
+      "body": {
+        "$return": {
+          "$call": "countBy",
+          "$args": [
+            { "$params": ["x"], "$return": { "$var": "x" } },
+            ["__proto__", "__proto__", "a"]
+          ]
+        }
+      },
+      "expected": { "__proto__": 2, "a": 1 }
+    },
+    {
+      "description": "eq compares own __proto__ keys structurally",
+      "body": {
+        "$return": {
+          "$call": "eq",
+          "$args": [{ "$raw": { "__proto__": 1 } }, { "$raw": { "__proto__": 1 } }]
+        }
+      },
+      "expected": true
+    },
+    {
+      "description": "a parameter may be named __proto__",
+      "body": { "$params": ["__proto__"], "$return": { "$var": "__proto__" } },
+      "args": [7],
+      "expected": 7
+    },
+    {
+      "description": "a destructured field may be named __proto__",
+      "body": { "$params": [{ "$fields": ["__proto__"] }], "$return": { "$var": "__proto__" } },
+      "args": [{ "__proto__": 3 }],
+      "expected": 3
+    },
+    {
+      "description": "a let binding may be named __proto__",
+      "body": { "$return": { "$let": { "__proto__": 5 }, "$in": { "$var": "__proto__" } } },
+      "expected": 5
+    },
+    {
+      "description": "a module function may be named __proto__",
+      "body": { "$return": { "$call": "__proto__", "$args": [41] } },
+      "expected": 42
+    },
+    {
+      "description": "inherited Object.prototype members are not callable functions",
+      "body": { "$return": { "$call": "toString", "$args": [] } },
+      "error": "Function toString not found"
+    },
+    {
+      "description": "inherited Object.prototype methods are not callable with arguments",
+      "body": { "$return": { "$call": "hasOwnProperty", "$args": ["x"] } },
+      "error": "Function hasOwnProperty not found"
+    }
+  ]
+}

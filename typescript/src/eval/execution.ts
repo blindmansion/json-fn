@@ -23,8 +23,10 @@ export function createPerfStats(): PerfStats {
     cloneIfNeeded: 0,
     structuredClones: 0,
     rawSkips: 0,
-    exprTypeCounts: {},
-    functionCallCounts: {},
+    // Null-prototype so counter reads/writes keyed by guest-controlled names
+    // (e.g. a function named "__proto__" or "constructor") stay own-property.
+    exprTypeCounts: Object.create(null) as Record<string, number>,
+    functionCallCounts: Object.create(null) as Record<string, number>,
     maxCallDepth: 0,
   };
 }

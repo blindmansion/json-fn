@@ -289,7 +289,7 @@ function tupleSubsumesTuple(
 // additional-properties rule). Returns null when `sup` forbids `k`.
 function supSchemaForKey(sup: Record<string, JSONType>, k: string): Schema | null {
   const props = properties(sup);
-  if (k in props) return props[k]!;
+  if (Object.hasOwn(props, k)) return props[k]!;
   const mode = apMode(sup);
   if (mode.kind === "closed") return null;
   if (mode.kind === "open") return true;

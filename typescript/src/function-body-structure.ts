@@ -1,4 +1,5 @@
 import { isFunctionBody, isFunctionDeclaration } from "./function-value";
+import { setOwnProperty } from "./own-properties";
 import {
   analyzeParameters,
   formatParameterIssue,
@@ -130,7 +131,7 @@ function analyzeFunctionBodyStructure(value: unknown): FunctionBodyStructureAnal
         if (!isFunctionBody(capture)) {
           issues.push({ code: "invalid-capture", path: ["$captures", name], name });
         } else {
-          captures[name] = capture;
+          setOwnProperty(captures, name, capture);
         }
       }
     }

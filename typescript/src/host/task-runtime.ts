@@ -1,5 +1,6 @@
 import type { EffectManifest } from "../environment/effect-types";
 import { entryCompletionType } from "../environment/environment";
+import { getOwnProperty } from "../own-properties";
 import { prepareProgram } from "../eval";
 import { enforceRuntimeContract, RuntimeContractError } from "../runtime-contract";
 import { stepTask } from "../task";
@@ -75,7 +76,7 @@ export function createTaskSession(
   const defs = linked.definitions;
 
   const effectContract = (name: string): EffectManifest[string] => {
-    const effect = effects[name];
+    const effect = getOwnProperty(effects, name);
     if (effect === undefined) {
       throw new RuntimeContractError(`unknown effect "${name}"`);
     }

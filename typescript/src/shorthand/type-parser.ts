@@ -14,6 +14,7 @@
 
 import { TokenCursor, describe } from "./cursor";
 import { ParseError } from "./error";
+import { setOwnProperty } from "../own-properties";
 import type { JSONType } from "../types";
 
 // A type is canonical-fragment JSON Schema (extended with `$ref` and the
@@ -256,7 +257,7 @@ export class TypeParser extends TokenCursor {
         if (optional) this.advance();
         this.expect("colon", "':' after object field name");
         const fieldType = this.parseType();
-        properties[key] = fieldType;
+        setOwnProperty(properties, key, fieldType);
         hasFields = true;
         if (!optional) required.push(key);
       }
@@ -620,7 +621,9 @@ function deepEqual(a: JSONType, b: JSONType): boolean {
     const ak = Object.keys(a);
     const bk = Object.keys(b);
     if (ak.length !== bk.length) return false;
-    return ak.every((k) => k in b && deepEqual(a[k]!, (b as Record<string, JSONType>)[k]!));
+    return ak.every(
+      (k) => Object.hasOwn(b, k) && deepEqual(a[k]!, (b as Record<string, JSONType>)[k]!),
+    );
   }
   return false;
 }

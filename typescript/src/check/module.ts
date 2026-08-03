@@ -173,7 +173,7 @@ function reportMissingRefs(schema: Schema, path: string[], defs: Defs, ctx: Chec
   const names = new Set<string>();
   collectSchemaRefs(schema, names);
   for (const name of names) {
-    if (!(name in defs)) {
+    if (!Object.hasOwn(defs, name)) {
       report({ ...ctx, path }, `reference to undefined type "${name}"`);
     }
   }

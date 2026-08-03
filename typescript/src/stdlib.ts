@@ -1,4 +1,5 @@
 import { builtin, pure, meteredPure, getArity } from "./utils";
+import { setOwnProperty } from "./own-properties";
 import type { BuiltinFunction, FunctionRegistry, JSONType, Meter } from "./types";
 import { effectTask, pureTask, bindTask, runHandle } from "./task";
 import { isFunctionDeclaration } from "./function-value";
@@ -37,7 +38,7 @@ function buildMatchResult(m: RegExpExecArray): Record<string, any> {
   const named: Record<string, string> = {};
   if (m.groups) {
     for (const [k, v] of Object.entries(m.groups)) {
-      named[k] = v ?? null;
+      setOwnProperty(named, k, v ?? null);
     }
   }
   const groups: (string | null)[] = [];
@@ -97,12 +98,7 @@ function copyOwnProperty(
   source: Record<string, JSONType>,
   key: string,
 ): void {
-  Object.defineProperty(target, key, {
-    value: source[key],
-    writable: true,
-    enumerable: true,
-    configurable: true,
-  });
+  setOwnProperty(target, key, source[key]!);
 }
 
 function compareStrings(a: string, b: string, meter: Meter): number {
@@ -182,12 +178,7 @@ function incrementCount(counts: Record<string, number>, key: string): void {
     counts[key]!++;
     return;
   }
-  Object.defineProperty(counts, key, {
-    value: 1,
-    writable: true,
-    enumerable: true,
-    configurable: true,
-  });
+  setOwnProperty(counts, key, 1);
 }
 
 function numericArgExtrema(name: "argmin" | "argmax", arr: JSONType, meter: Meter): number | null {
@@ -304,8 +295,8 @@ function arrayGroupByBuiltin(name: string, indexed: boolean): BuiltinFunction {
         throw new Error(`${name}: key function must return a string or number, got ${typeof key}`);
       }
       const normalizedKey = String(key);
-      if (!groups[normalizedKey]) groups[normalizedKey] = [];
-      groups[normalizedKey].push(arr[index]!);
+      if (!Object.hasOwn(groups, normalizedKey)) setOwnProperty(groups, normalizedKey, []);
+      groups[normalizedKey]!.push(arr[index]!);
     }
     return groups;
   }, 2);
@@ -909,7 +900,7 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
       meter.charge(entries.length);
       const result: Record<string, any> = {};
       for (const [k, v] of entries) {
-        result[k] = call(callback!, [v, k]);
+        setOwnProperty(result, k, call(callback!, [v, k]));
       }
       return result;
     }, 2),

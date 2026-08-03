@@ -4,6 +4,7 @@
  */
 
 import { isTaskReturn } from "../environment/environment";
+import { getOwnProperty } from "../own-properties";
 import type { JSONType } from "../types";
 import type { PreparedLiveDeployment } from "./deployment";
 import type { HostLocalRunOptions } from "./task-runtime";
@@ -43,7 +44,7 @@ export async function runTask(
       }
 
       const { name, args: effectArgs, resume } = stepped.pending;
-      const capability = deployment.effects[name];
+      const capability = getOwnProperty(deployment.effects, name);
       if (capability === undefined) {
         throw new UnhandledEffectError(name);
       }
