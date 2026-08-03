@@ -22,7 +22,7 @@ export type {
   LiveRuntimeAdapter,
   RuntimeAdapter,
 } from "./deployment";
-export { serializeTask, hydrateTask } from "./task-serialization";
+export { serializeTask, hydrateTask, TaskShapeValidationError } from "./task-serialization";
 export { analyzeDeploymentCapabilities } from "./required-capabilities";
 export type { DeploymentCapabilityAnalysis } from "./required-capabilities";
 export { RunOptionsValidationError } from "./task-runtime";

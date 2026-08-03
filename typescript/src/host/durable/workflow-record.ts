@@ -2,7 +2,7 @@ import { isFunctionBody } from "../../function-value";
 import { assertStructuralDepth } from "../../structural-depth";
 import type { JSONType } from "../../types";
 import { markRuntimeValue } from "../../runtime-values";
-import { remarkTaskNodes } from "../task-serialization";
+import { assertTaskShapes, restoreRuntimeMarks } from "../task-serialization";
 
 export type PendingEffect = {
   effectId: string;
@@ -114,6 +114,10 @@ export function validateWorkflowRecord(value: unknown): asserts value is Workflo
 
 export function serializeWorkflowRecord(record: WorkflowRecord): string {
   validateWorkflowRecord(record);
+  // Tagged shapes embedded in guest values (effect args, results, resume
+  // bodies) are validated at persist time too, so a forged malformed task can
+  // never poison a stored record and fail only at recovery.
+  assertTaskShapes(record as unknown as JSONType, "record", fail);
   return JSON.stringify(record);
 }
 
@@ -121,9 +125,11 @@ export function hydrateWorkflowRecord(serialized: string): WorkflowRecord {
   const value: unknown = JSON.parse(serialized);
   validateWorkflowRecord(value);
 
-  // JSON parsing loses the WeakSet-backed runtime-value marks. Restore task
-  // nodes throughout the record before marking the continuation itself.
-  remarkTaskNodes(value);
+  // JSON parsing loses the WeakSet-backed runtime-value marks. The shared
+  // rehydration pass validates every `@task`-tagged shape in the record and
+  // restores marks to the validated task nodes; the record's own validated
+  // continuation closures are then marked from their known workflow fields.
+  restoreRuntimeMarks(value as unknown as JSONType, "record", fail);
   if (value.status === "suspended") {
     markRuntimeValue(value.pending.resume);
   } else if (value.status === "running" && value.basis.kind === "resume") {

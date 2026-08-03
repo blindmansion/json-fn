@@ -191,9 +191,12 @@ reason the at-least-once obligation is mandatory.
 
 Store boundaries must preserve the complete `WorkflowRecord` as JSON. Use
 `serializeWorkflowRecord` and `hydrateWorkflowRecord` when persisting text.
-Hydration validates the record and restores the interpreter's inertness marks
-on task nodes and continuation closures. Do not parse a stored record with
-plain `JSON.parse` and pass it directly to the driver.
+Both directions validate the complete record, including every `@task`-tagged
+shape embedded in guest values: malformed or unknown tagged shapes are
+rejected at persist time and again at recovery, before evaluation ever sees
+them. Hydration then restores the interpreter's runtime-value marks — but only
+to the validated task nodes and continuation closures. Do not parse a stored
+record with plain `JSON.parse` and pass it directly to the driver.
 
 `InMemoryWorkflowStore` is a reference implementation for tests and examples.
 It deliberately serializes and hydrates every access, but it is not a

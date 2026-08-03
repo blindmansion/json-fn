@@ -13,6 +13,9 @@
  * `$`-keys is untouched. Users *can* forge one, which is harmless: enforcement
  * is host-side (a forged effect name has no interpreter), and forged *malformed*
  * nodes fail here as clean guest-visible evaluator errors, never TS exceptions.
+ * The durable boundary is stricter: serialization and hydration validate every
+ * tagged shape (`taskNodeShapeProblem`) and reject malformed or unknown ones
+ * before evaluation ever sees them (see `host/task-serialization.ts`).
  */
 
 import type { JSONType, Meter } from "./types";
@@ -52,6 +55,46 @@ export function isTask(value: unknown): value is TaskNode {
     !Array.isArray(value) &&
     typeof (value as Record<string, unknown>)[TASK_TAG] === "string"
   );
+}
+
+const TASK_NODE_KEYS: Record<string, readonly string[]> = {
+  effect: [TASK_TAG, "name", "args"],
+  pure: [TASK_TAG, "value"],
+  bind: [TASK_TAG, "task", "then"],
+};
+
+/**
+ * Describe what is structurally wrong with a `@task`-tagged object, or return
+ * undefined when it matches a constructor shape exactly. This is the single
+ * owner of what counts as a well-formed task node at the serialization/
+ * hydration boundary: only shapes the constructors above can produce are
+ * accepted, so runtime-value marks are never restored to forged or malformed
+ * tagged data. (`stepTask` below stays the guest-visible enforcement point for
+ * tasks that never cross that boundary.)
+ */
+export function taskNodeShapeProblem(node: Record<string, JSONType>): string | undefined {
+  const tag = node[TASK_TAG];
+  if (typeof tag !== "string" || !Object.prototype.hasOwnProperty.call(TASK_NODE_KEYS, tag)) {
+    return `unknown @task tag ${JSON.stringify(tag)}`;
+  }
+  const allowed = TASK_NODE_KEYS[tag]!;
+  for (const key of Object.keys(node)) {
+    if (!allowed.includes(key)) {
+      return `${tag} task has unsupported field ${JSON.stringify(key)}`;
+    }
+  }
+  for (const key of allowed) {
+    if (!Object.prototype.hasOwnProperty.call(node, key)) {
+      return `${tag} task field ${JSON.stringify(key)} is required`;
+    }
+  }
+  if (tag === "effect") {
+    if (typeof node.name !== "string") return "effect `name` must be a string";
+    if (!Array.isArray(node.args)) return "effect `args` must be an array";
+  } else if (tag === "bind" && !isFunctionDeclaration(node.then)) {
+    return "bind `then` must be a function";
+  }
+  return undefined;
 }
 
 function isPlainObject(value: JSONType): value is Record<string, JSONType> {

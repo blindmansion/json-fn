@@ -16,6 +16,18 @@ its first-evaluation discovery path, the parser-facing preseed operation is
 syntax, runtime values, preseeded static ASTs, discovered constants, and cold
 canonical ASTs separately (the old raw-vs-unmarked entry-argument variants
 collapsed because entry arguments are auto-marked).
+Workstream D (centralize rehydration) has landed: `hydrateTask` and
+`hydrateWorkflowRecord` share one rehydration pass
+(`restoreRuntimeMarks` in `src/host/task-serialization.ts`) that first
+validates every `@task`-tagged shape against the exact constructor shapes
+(`taskNodeShapeProblem` in `src/task.ts`) and only then restores runtime-value
+marks to the validated task nodes; a workflow record's validated `resume`
+continuations are marked from their known fields. Malformed or unknown tagged
+shapes are rejected with a path (`TaskShapeValidationError`, or
+`WorkflowRecordValidationError` at the durable boundary) on hydration *and* at
+persist time, so a forged shape can never poison a stored record. Direct,
+serialized, and durable round trips per restored runtime category are tested
+in `test/task-rehydration.test.ts`.
 
 ## Summary
 

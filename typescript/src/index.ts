@@ -102,6 +102,7 @@ export {
   prepareDeployment,
   serializeTask,
   hydrateTask,
+  TaskShapeValidationError,
   serializeWorkflowRecord,
   hydrateWorkflowRecord,
   validateDeploymentProfile,
