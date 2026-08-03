@@ -56,7 +56,7 @@ export function makeSuite(mode: Mode): Suite {
 
   // -- 3. Capturing a big value should be O(1) (inlined by reference). --------
   // Entry arguments are auto-marked as runtime values at the boundary, so the
-  // old raw-vs-unmarked split collapsed into one variant.
+  // old explicitly-marked-vs-unmarked split collapsed into one variant.
   const captureProgram = fn(["xs"], {
     $params: ["i"],
     $return: get(v("i"), v("xs")),

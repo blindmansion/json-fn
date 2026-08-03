@@ -113,8 +113,8 @@ export function makeSuite(mode: Mode): Suite {
 
   // -- 1. Big argument in, O(1) guest work. -----------------------------------
   // Flat timings mean the argument crosses by reference. Entry arguments are
-  // auto-marked as runtime values at the boundary, so the old raw-vs-unmarked
-  // split collapsed into one variant.
+  // auto-marked as runtime values at the boundary, so the old
+  // explicitly-marked-vs-unmarked split collapsed into one variant.
   const lengthProgram = fn(["xs"], call("length", v("xs"))) as FunctionDeclaration;
   const identityProgram = fn(["xs"], v("xs")) as FunctionDeclaration;
   for (const n of pick([1_000, 10_000, 100_000], [1_000, 10_000])) {

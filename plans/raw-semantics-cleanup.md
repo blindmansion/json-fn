@@ -1,6 +1,8 @@
 # Raw semantics cleanup
 
-Status: in progress; the Phase 0 fuel-model decision is settled (stable
+Status: **complete** (all workstreams landed in `typescript/`; see the
+workstream summaries below and Workstream H's closing verification at the end
+of this status note). The Phase 0 fuel-model decision is settled (stable
 virtual cost — see section 5). Workstream A (characterize and separate runtime
 identity) has landed in `typescript/`: `src/runtime-values.ts` owns the single
 runtime-value mark, `markEvaluated` folded into it (with a constant-cost guard
@@ -74,8 +76,22 @@ contextual-keyword updates, `$raw`-quoted annotated-handle lowering),
 dynamic objects), and `docs/language.md` (shorthand-inference note under
 `$raw`, canonical annotated-handle spelling). The only bare `raw` left in
 docs is the statement that `raw` is an ordinary identifier; shared spec
-cases needed no further changes. Workstream H (final verification sweep and
-focused perf suites) is the next pass.
+cases needed no further changes.
+Workstream H (verification and cleanup) has landed: `bun run fix`,
+`bun run check`, and `bun test` are clean; the `raw-internal`, `boundary`,
+`closures`, and `effects` perf suites were run in full against the
+workstream-E baseline (`perf/baselines/baseline.json`) — 122 benchmarks
+compared, 12 improvements ≥20%, and the single flagged micro-benchmark
+regression (`closures/attach-local-fns?localFns=4`, ~14µs → ~20µs) was shown
+to be environmental by re-running the identical pre-change code in a worktree
+at the baseline commit, which reproduced the same timing. The final
+terminology sweep found no `isRaw`/`isInert`/`markEvaluated` references and
+updated the last stale perf prose (`perf/README.md` suite descriptions,
+`perf/data.ts`, and the collapsed raw-vs-unmarked notes in
+`perf/suites/boundary.ts`/`closures.ts`) to runtime-value terminology. The
+remaining `raw` spellings refer to canonical `$raw` (expression kind, parser
+inference, printer/normalizer) or to undecoded source text in the
+lexer/CLI — neither runtime identity nor caching.
 
 ## Summary
 

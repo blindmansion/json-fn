@@ -4,9 +4,10 @@ import type { JSONType } from "../src";
 
 /**
  * An array of `n` realistic-ish records, roughly 12 JSON nodes each. Callers
- * that need both a raw-marked and an unmarked copy of the "same" data must
- * generate two separate instances: raw marking is by object identity in a
- * process-wide WeakSet, so a single instance cannot be both.
+ * that need both a runtime-value-marked and an unmarked copy of the "same"
+ * data must generate two separate instances: runtime-value marking is by
+ * object identity in a process-wide WeakSet, so a single instance cannot be
+ * both.
  */
 export function makeRecords(n: number): JSONType[] {
   const records: JSONType[] = [];

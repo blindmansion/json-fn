@@ -1,7 +1,8 @@
 # Implementation roadmap
 
-Status: active; reconciliation pre-step and Phase 0 completed (gate audited
-2026-08-03; see [`phase0-gate-audit.md`](phase0-gate-audit.md))
+Status: active; reconciliation pre-step, Phase 0 (gate audited 2026-08-03;
+see [`phase0-gate-audit.md`](phase0-gate-audit.md)), and Phase 2
+([`raw-semantics-cleanup.md`](raw-semantics-cleanup.md)) completed
 
 ## Summary
 
@@ -244,6 +245,10 @@ hashing phase.
 
 Owner: [`raw-semantics-cleanup.md`](raw-semantics-cleanup.md)
 
+**Completed.** All workstreams of the owning plan have landed in `typescript/`;
+see its status note for the per-workstream summaries and the closing
+verification (checks, tests, focused perf suites, and terminology sweep).
+
 Implement the revised phases from that plan:
 
 1. characterize host arguments/results, closures, task construction,
@@ -274,6 +279,12 @@ must produce equal values, errors, and exact fuel usage.
 
 Losing weak metadata across serialization may affect preparation time, but not
 guest-observable behavior.
+
+**Gate met:** ingestion-route and metadata-loss equivalence under exact fuel
+limits are pinned in `typescript/test/runtime-values.test.ts`,
+`typescript/test/expression-metadata.test.ts`,
+`typescript/test/task-rehydration.test.ts`, and portably in
+`spec/cases/fuel-limits.json`.
 
 ## Phase 3: canonical encoding and hashing
 

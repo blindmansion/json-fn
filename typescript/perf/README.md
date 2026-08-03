@@ -33,20 +33,23 @@ improvements (▼). `compare.ts` exits non-zero when regressions are present.
 
 Benchmarks are grouped into five suites, one file each under `suites/`:
 
-- **`raw-internal`** — large objects and raw marking inside the interpreter:
-  automatically cached vs `$raw` literals in program bodies, big values threaded
+- **`raw-internal`** — large objects and value/constant handling inside the
+  interpreter: `$raw` boundaries, runtime values, preseeded and discovered
+  constant ASTs, and cold canonical JSON in program bodies, big values threaded
   through call chains and `reduce`, indexed reads, and `setAt` copy costs. Most
   benchmarks scale data size while holding guest work fixed, so a flat series
   means by-reference handling and a linear slope means re-walking/copying.
 - **`boundary`** — large values crossing the host boundary: argument passing
-  into `callFunction`, closure capture of unmarked vs raw arguments, pure vs
-  impure external functions (impure ones are `structuredClone`d both ways),
-  and the effects kernel via `runTask`: fixed trampoline overhead, per-hop
-  cost, and loose vs strict runtime contracts over big payloads.
+  into `callFunction` (entry arguments are auto-marked as runtime values),
+  closure capture of big arguments, pure vs impure external functions (impure
+  ones are `structuredClone`d both ways), and the effects kernel via `runTask`:
+  fixed trampoline overhead, per-hop cost, and loose vs strict runtime
+  contracts over big payloads.
 - **`closures`** — capture/escape costs: body size, captured-binding count,
-  big captured values (automatic substitution marking should match explicit
-  raw marking), one-closure-per-element, curried application (expected O(depth²)
-  today — anything worse is a bug), and transitive local-function attachment.
+  big captured values (substitution marks captures as runtime values, so
+  capture stays by-reference), one-closure-per-element, curried application
+  (expected O(depth²) today — anything worse is a bug), and transitive
+  local-function attachment.
 - **`effects`** — orchestration with large effect payloads: flow-through versus
   continuation-captured values through both the manual task kernel and
   `runTask`, plus durable task serialization as a separately scaling cost.
