@@ -244,7 +244,7 @@
           "$args": [{ "$var": "start" }, 0]
         }
       },
-      "args": [4000],
+      "args": [1000],
       "functions": {
         "go": {
           "$params": ["n", "acc"],
@@ -271,9 +271,9 @@
         }
       },
       "limits": {
-        "maxCallDepth": 4200
+        "maxCallDepth": 1200
       },
-      "expected": 8002000
+      "expected": 500500
     },
     {
       "description": "non-circular variable chain resolves correctly",

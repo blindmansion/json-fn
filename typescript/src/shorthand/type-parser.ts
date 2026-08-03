@@ -15,6 +15,7 @@
 import { TokenCursor, describe } from "./cursor";
 import { ParseError } from "./error";
 import { setOwnProperty } from "../own-properties";
+import { MAX_STRUCTURAL_DEPTH } from "../structural-depth";
 import type { JSONType } from "../types";
 
 // A type is canonical-fragment JSON Schema (extended with `$ref` and the
@@ -49,9 +50,21 @@ const REFINEMENTS: Record<string, RefinementSpec> = {
 const PRIMITIVE_KEYWORDS = new Set(["null", "boolean", "number", "integer", "string"]);
 
 export class TypeParser extends TokenCursor {
+  /** Nested type-expression descent level, bounded by the portable
+   * structural-depth limit (every nested type re-enters `parseType`). */
+  private nesting = 0;
+
   /** Parse a full type expression (lowest precedence: union). */
   parseType(): Schema {
-    return this.parseUnion();
+    this.nesting++;
+    if (this.nesting > MAX_STRUCTURAL_DEPTH) {
+      throw this.err(`Maximum structural depth of ${MAX_STRUCTURAL_DEPTH} exceeded`);
+    }
+    try {
+      return this.parseUnion();
+    } finally {
+      this.nesting--;
+    }
   }
 
   // ----- union (spec §4) -----

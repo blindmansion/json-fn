@@ -22,6 +22,7 @@
 
 import type { JSONType } from "../types";
 import { FUNCTION_BODY_SOURCE_FIELDS } from "../function-body-structure";
+import { assertStructuralDepth } from "../structural-depth";
 import { fixedParamSchemas } from "../schema/schema.ts";
 import {
   analyzeParameters,
@@ -38,6 +39,7 @@ export function print(node: JSONType): string {
 }
 
 export function printModule(node: JSONType): string {
+  assertStructuralDepth(node);
   validatePrintableTree(node, "$");
   if (!isPlainObject(node)) throw new Error("Cannot print module from a non-object value");
   return renderModule(node, "");
@@ -45,6 +47,7 @@ export function printModule(node: JSONType): string {
 
 /** Pretty-print one standalone canonical expression. */
 export function printExpression(node: JSONType): string {
+  assertStructuralDepth(node);
   validatePrintableTree(node, "$");
   if (isPlainObject(node) && "$types" in node) {
     throw new Error("Cannot print module type declarations as an expression");

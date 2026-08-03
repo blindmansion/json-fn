@@ -1,5 +1,6 @@
 import { builtin, pure, meteredPure, getArity } from "./utils";
 import { setOwnProperty } from "./own-properties";
+import { MAX_STRUCTURAL_DEPTH, structuralDepthError } from "./structural-depth";
 import type { BuiltinFunction, FunctionRegistry, JSONType, Meter } from "./types";
 import { effectTask, pureTask, bindTask, runHandle } from "./task";
 import { isFunctionDeclaration } from "./function-value";
@@ -48,7 +49,7 @@ function buildMatchResult(m: RegExpExecArray): Record<string, any> {
   return { match: m[0], index: m.index, groups, named };
 }
 
-function jsonEqual(a: JSONType, b: JSONType, meter: Meter): boolean {
+function jsonEqual(a: JSONType, b: JSONType, meter: Meter, depth = 0): boolean {
   meter.charge(1);
   if (a === null || b === null) return a === b;
   if (typeof a === "boolean" || typeof b === "boolean") return typeof b === "boolean" && a === b;
@@ -59,10 +60,15 @@ function jsonEqual(a: JSONType, b: JSONType, meter: Meter): boolean {
     }
     return typeof a === "string" && typeof b === "string" && a === b;
   }
+  // Structural equality is a covered traversal: runtime-built values deeper
+  // than the portable limit fail deterministically instead of exhausting the
+  // host stack. Only pairs that are both containers past the limit descend
+  // that far, so any value within the limit still compares normally.
+  if (depth >= MAX_STRUCTURAL_DEPTH) throw structuralDepthError();
   if (Array.isArray(a) || Array.isArray(b)) {
     if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
     for (let i = 0; i < a.length; i++) {
-      if (!jsonEqual(a[i]!, b[i]!, meter)) return false;
+      if (!jsonEqual(a[i]!, b[i]!, meter, depth + 1)) return false;
     }
     return true;
   }
@@ -73,7 +79,7 @@ function jsonEqual(a: JSONType, b: JSONType, meter: Meter): boolean {
   meter.charge(aEntries.length + bKeys.length);
   if (aEntries.length !== bKeys.length) return false;
   for (const [key, value] of aEntries) {
-    if (!Object.hasOwn(bObj, key) || !jsonEqual(value, bObj[key]!, meter)) return false;
+    if (!Object.hasOwn(bObj, key) || !jsonEqual(value, bObj[key]!, meter, depth + 1)) return false;
   }
   return true;
 }

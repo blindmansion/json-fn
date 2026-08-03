@@ -1221,6 +1221,15 @@ produced-value size has a portable definition. When explicitly configured:
 
 A third cap, **call depth** (`maxCallDepth`), guards recursion against host stack overflow and uses an implementation-defined default when unset. Hosts may additionally cancel a run cooperatively or impose a wall-clock timeout; those are host-only safety nets and, being non-deterministic, are **not** part of the conformance spec.
 
+Two further limits are fixed language constants rather than host
+configuration: every JSON tree is bounded by a **structural depth** of 512
+nested container levels (erroring with `Maximum structural depth of 512
+exceeded` at every parsing, checking, evaluation, printing, validation, and
+hydration boundary), and combined expression-plus-invocation nesting during
+evaluation is bounded at 4,096 (erroring with `Maximum evaluation nesting of
+4096 exceeded`). See
+[Execution limits § Fixed structural limits](execution-limits.md#4-fixed-structural-limits).
+
 Portable deployment limits are supplied through a
 [deployment profile](deployment-profile.md); host entry and runtime-adapter boundaries
 are described by the [environment contract](environment-contract.md), with

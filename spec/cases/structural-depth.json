@@ -1,0 +1,165 @@
+{
+  "description": "Structural-depth limit",
+  "functions": {
+    "wrap": {
+      "$params": ["n"],
+      "$return": {
+        "$if": {
+          "$call": "lte",
+          "$args": [{ "$var": "n" }, 0]
+        },
+        "$then": 0,
+        "$else": [
+          {
+            "$call": "wrap",
+            "$args": [
+              {
+                "$call": "sub",
+                "$args": [{ "$var": "n" }, 1]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "unwrap": {
+      "$params": ["n", "v"],
+      "$return": {
+        "$if": {
+          "$call": "lte",
+          "$args": [{ "$var": "n" }, 0]
+        },
+        "$then": { "$var": "v" },
+        "$else": {
+          "$call": "unwrap",
+          "$args": [
+            {
+              "$call": "sub",
+              "$args": [{ "$var": "n" }, 1]
+            },
+            {
+              "$call": "head",
+              "$args": [{ "$var": "v" }]
+            }
+          ]
+        }
+      }
+    }
+  },
+  "cases": [
+    {
+      "description": "builds and consumes a value at the structural-depth limit (512)",
+      "body": {
+        "$return": {
+          "$call": "unwrap",
+          "$args": [
+            512,
+            {
+              "$call": "wrap",
+              "$args": [512]
+            }
+          ]
+        }
+      },
+      "limits": {
+        "maxCallDepth": 600
+      },
+      "expected": 0
+    },
+    {
+      "description": "returning a runtime-built value one past the limit is rejected at the host boundary",
+      "body": {
+        "$return": {
+          "$call": "wrap",
+          "$args": [513]
+        }
+      },
+      "limits": {
+        "maxCallDepth": 600
+      },
+      "error": "Maximum structural depth of 512 exceeded"
+    },
+    {
+      "description": "deep equality succeeds on values at the limit",
+      "body": {
+        "$return": {
+          "$call": "eq",
+          "$args": [
+            {
+              "$call": "wrap",
+              "$args": [512]
+            },
+            {
+              "$call": "wrap",
+              "$args": [512]
+            }
+          ]
+        }
+      },
+      "limits": {
+        "maxCallDepth": 600
+      },
+      "expected": true
+    },
+    {
+      "description": "deep equality on values past the limit fails with the depth error",
+      "body": {
+        "$return": {
+          "$call": "eq",
+          "$args": [
+            {
+              "$call": "wrap",
+              "$args": [513]
+            },
+            {
+              "$call": "wrap",
+              "$args": [513]
+            }
+          ]
+        }
+      },
+      "limits": {
+        "maxCallDepth": 600
+      },
+      "error": "Maximum structural depth of 512 exceeded"
+    },
+    {
+      "description": "recursion past the evaluation-nesting cap fails deterministically",
+      "body": {
+        "$return": {
+          "$call": "go",
+          "$args": [4000, 0]
+        }
+      },
+      "functions": {
+        "go": {
+          "$params": ["n", "acc"],
+          "$return": {
+            "$if": {
+              "$call": "lte",
+              "$args": [{ "$var": "n" }, 0]
+            },
+            "$then": { "$var": "acc" },
+            "$else": {
+              "$call": "go",
+              "$args": [
+                {
+                  "$call": "sub",
+                  "$args": [{ "$var": "n" }, 1]
+                },
+                {
+                  "$call": "add",
+                  "$args": [{ "$var": "acc" }, { "$var": "n" }]
+                }
+              ]
+            }
+          }
+        }
+      },
+      "limits": {
+        "maxCallDepth": 4200
+      },
+      "error": "Maximum evaluation nesting of 4096 exceeded"
+    }
+  ]
+}

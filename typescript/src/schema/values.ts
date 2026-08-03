@@ -1,3 +1,4 @@
+import { MAX_STRUCTURAL_DEPTH, structuralDepthError } from "../structural-depth.ts";
 import type { JSONType } from "../types.ts";
 import { codePointLength } from "../unicode.ts";
 import type { Schema, Defs } from "./schema.ts";
@@ -24,7 +25,14 @@ type ValueMismatch = {
 };
 
 function shown(value: JSONType): string {
-  return JSON.stringify(value);
+  // Presentation only: an over-deep or otherwise unstringifiable value gets a
+  // placeholder instead of crashing the mismatch report. The structural-depth
+  // *limit* is enforced separately by the container walks below.
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return "[unrepresentable value]";
+  }
 }
 
 function mismatch(reason: string, path: Array<string | number> = []): ValueMismatch {
@@ -35,7 +43,12 @@ function prepend(segment: string | number, failure: ValueMismatch): ValueMismatc
   return { ...failure, path: [segment, ...failure.path] };
 }
 
-function valueMismatch(value: JSONType, schema: Schema, defs: Defs = {}): ValueMismatch | null {
+function valueMismatch(
+  value: JSONType,
+  schema: Schema,
+  defs: Defs = {},
+  depth = 0,
+): ValueMismatch | null {
   const kind = classifySchema(schema);
   switch (kind) {
     case SchemaKind.Any:
@@ -43,7 +56,7 @@ function valueMismatch(value: JSONType, schema: Schema, defs: Defs = {}): ValueM
     case SchemaKind.Never:
       return mismatch("the contract rejects every value");
     case SchemaKind.Ref:
-      return valueMismatch(value, resolveRef(schema, defs), defs);
+      return valueMismatch(value, resolveRef(schema, defs), defs, depth);
     case SchemaKind.Const:
       return deepEqual(value, asObject(schema).const!)
         ? null
@@ -55,7 +68,9 @@ function valueMismatch(value: JSONType, schema: Schema, defs: Defs = {}): ValueM
         : mismatch(`${shown(value)} is not one of ${shown(allowed)}`);
     }
     case SchemaKind.Union: {
-      const failures = (unionArms(schema) ?? []).map((arm) => valueMismatch(value, arm, defs));
+      const failures = (unionArms(schema) ?? []).map((arm) =>
+        valueMismatch(value, arm, defs, depth),
+      );
       if (failures.some((failure) => failure === null)) return null;
       if (failures.length === 0) return mismatch("the contract has no matching union arms");
       const best = (failures as ValueMismatch[]).reduce((a, b) =>
@@ -67,9 +82,9 @@ function valueMismatch(value: JSONType, schema: Schema, defs: Defs = {}): ValueM
       return primitiveValueMismatch(value, asObject(schema));
     case SchemaKind.Array:
     case SchemaKind.Tuple:
-      return arrayValueMismatch(value, asObject(schema), defs);
+      return arrayValueMismatch(value, asObject(schema), defs, depth);
     case SchemaKind.Object:
-      return objectValueMismatch(value, asObject(schema), defs);
+      return objectValueMismatch(value, asObject(schema), defs, depth);
     case SchemaKind.FnType:
       // Function-value validation (shape + embedded `$sig`) is a later concern;
       // a plain data literal never satisfies a function type.
@@ -123,8 +138,12 @@ function arrayValueMismatch(
   value: JSONType,
   o: Record<string, JSONType>,
   defs: Defs,
+  depth: number,
 ): ValueMismatch | null {
   if (!Array.isArray(value)) return mismatch(`${shown(value)} is not of type array`);
+  // Covered traversal: reject values past the portable structural-depth limit
+  // deterministically before the recursive element walk below.
+  if (depth >= MAX_STRUCTURAL_DEPTH) throw structuralDepthError();
   if ("minItems" in o && value.length < (o.minItems as number)) {
     return mismatch(`expected at least ${o.minItems} items, received ${value.length}`);
   }
@@ -139,7 +158,7 @@ function arrayValueMismatch(
     if (elemSchema === null || elemSchema === undefined) {
       return mismatch("additional item is not allowed", [i]);
     }
-    const failure = valueMismatch(value[i]!, elemSchema, defs);
+    const failure = valueMismatch(value[i]!, elemSchema, defs, depth + 1);
     if (failure !== null) return prepend(i, failure);
   }
   const requiredPrefixLength =
@@ -164,10 +183,12 @@ function objectValueMismatch(
   value: JSONType,
   o: Record<string, JSONType>,
   defs: Defs,
+  depth: number,
 ): ValueMismatch | null {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     return mismatch(`${shown(value)} is not of type object`);
   }
+  if (depth >= MAX_STRUCTURAL_DEPTH) throw structuralDepthError();
   const v = value as Record<string, JSONType>;
 
   for (const k of requiredKeys(o)) {
@@ -178,12 +199,12 @@ function objectValueMismatch(
   const mode = apMode(o);
   for (const [k, val] of Object.entries(v)) {
     if (Object.hasOwn(props, k)) {
-      const failure = valueMismatch(val, props[k]!, defs);
+      const failure = valueMismatch(val, props[k]!, defs, depth + 1);
       if (failure !== null) return prepend(k, failure);
     } else if (mode.kind === "closed") {
       return mismatch("additional property is not allowed", [k]);
     } else if (mode.kind === "map") {
-      const failure = valueMismatch(val, mode.schema, defs);
+      const failure = valueMismatch(val, mode.schema, defs, depth + 1);
       if (failure !== null) return prepend(k, failure);
     }
   }

@@ -1,4 +1,5 @@
 import { isFunctionBody } from "../../function-value";
+import { assertStructuralDepth } from "../../structural-depth";
 import type { JSONType } from "../../types";
 import { raw } from "../../utils";
 import { remarkTaskNodes } from "../task-serialization";
@@ -74,6 +75,11 @@ const FAILURE_CODES = new Set<WorkflowFailureCode>([
 ]);
 
 export function validateWorkflowRecord(value: unknown): asserts value is WorkflowRecord {
+  // Records embed guest values and continuations; enforce the portable
+  // structural-depth limit before serialization (`JSON.stringify`) or the
+  // recursive re-mark walk can recurse on the host stack. Serialize and
+  // hydrate both validate, so the one check covers both directions.
+  assertStructuralDepth(value);
   if (!isObject(value)) fail("record", "expected an object");
 
   requireNonEmptyString(value.workflowId, "record.workflowId");

@@ -8,6 +8,7 @@
 import type { FieldPattern, FunctionBody, JSONType, Param } from "../types";
 import { analyzeParameters, formatParameterIssue } from "../params";
 import { setOwnProperty } from "../own-properties";
+import { assertStructuralDepth, MAX_STRUCTURAL_DEPTH } from "../structural-depth";
 import { TokenCursor, describe } from "./cursor";
 import { lex } from "./lexer";
 import type { TemplatePart, TokPunct } from "./lexer";
@@ -25,6 +26,7 @@ export function parseModule(src: string): JSONType {
   const p = new Parser(tokens);
   const v = p.parseModule();
   p.expect("eof", "end of input");
+  assertStructuralDepth(v);
   return v;
 }
 
@@ -34,6 +36,7 @@ export function parseExpression(src: string): JSONType {
   const p = new Parser(tokens);
   const v = p.parseExpression();
   p.expect("eof", "end of input");
+  assertStructuralDepth(v);
   return v;
 }
 
@@ -55,6 +58,7 @@ export function parseModuleWithPositions(src: string): ParsedWithPositions {
   p.positions = positions;
   const v = p.parseModule();
   p.expect("eof", "end of input");
+  assertStructuralDepth(v);
   return { value: v, positions };
 }
 
@@ -66,6 +70,7 @@ export function parseExpressionWithPositions(src: string): ParsedWithPositions {
   p.positions = positions;
   const v = p.parseExpression();
   p.expect("eof", "end of input");
+  assertStructuralDepth(v);
   return { value: v, positions };
 }
 
@@ -108,6 +113,22 @@ class Parser extends TokenCursor {
    * the innermost (most specific) producer of a node determines its position. */
   positions: WeakMap<object, SourcePos> | undefined;
 
+  /** Nested-expression descent level. Bounded by the portable structural-depth
+   * limit so adversarially nested source cannot exhaust the parser's own host
+   * stack before the produced-tree check in the entry points can run. Grouping
+   * constructs (including parentheses) count toward source nesting. The bound
+   * allows one extra entry because the top-level expression and the scalar
+   * leaf inside the deepest container each re-enter the descent without adding
+   * a container level; the produced-tree check remains authoritative. */
+  private nesting = 0;
+
+  private enterNested(): void {
+    this.nesting++;
+    if (this.nesting > MAX_STRUCTURAL_DEPTH + 1) {
+      throw this.err(`Maximum structural depth of ${MAX_STRUCTURAL_DEPTH} exceeded`);
+    }
+  }
+
   /** The position of the token at the cursor (the start of whatever parses next). */
   private startPos(): SourcePos {
     const t = this.tokens[this.pos]!;
@@ -134,9 +155,14 @@ class Parser extends TokenCursor {
   // ----- expression precedence ladder (spec section 6) -----
 
   parseExpr(): JSONType {
-    if (this.positions === undefined) return this.parseAscription();
-    const pos = this.startPos();
-    return this.record(this.parseAscription(), pos);
+    this.enterNested();
+    try {
+      if (this.positions === undefined) return this.parseAscription();
+      const pos = this.startPos();
+      return this.record(this.parseAscription(), pos);
+    } finally {
+      this.nesting--;
+    }
   }
 
   private parseAscription(): JSONType {
@@ -1147,6 +1173,15 @@ class Parser extends TokenCursor {
 
   /** Parse a strict-JSON value (quoted keys, no shorthand) for a `raw` island. */
   private parseRawJson(): JSONType {
+    this.enterNested();
+    try {
+      return this.parseRawJsonInner();
+    } finally {
+      this.nesting--;
+    }
+  }
+
+  private parseRawJsonInner(): JSONType {
     const t = this.peek();
     switch (t.type) {
       case "num":
@@ -1247,13 +1282,25 @@ class Parser extends TokenCursor {
         // nothing.
         if (part.value !== "") segs.push(part.value);
       } else {
-        segs.push(parseExpression(part.value));
+        segs.push(this.parseHole(part.value));
       }
     }
     // Degenerate forms normalize: no segments -> "", single -> itself.
     if (segs.length === 0) return "";
     if (segs.length === 1) return segs[0]!;
     return fncall("strcat", segs);
+  }
+
+  /** Parse one `${...}` hole as a standalone expression. The sub-parser
+   * inherits the current descent level so nested templates cannot restart the
+   * structural-depth guard and stack unbounded parser frames. */
+  private parseHole(src: string): JSONType {
+    const tokens = lex(src);
+    const p = new Parser(tokens);
+    p.nesting = this.nesting;
+    const v = p.parseExpression();
+    p.expect("eof", "end of input");
+    return v;
   }
 
   private parseCallArgs(): ParsedSpreadList {

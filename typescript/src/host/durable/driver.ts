@@ -279,7 +279,9 @@ function mapExecutionFailure(error: unknown): WorkflowFailure {
     message === "Execution timed out" ||
     message.startsWith("Maximum fuel limit") ||
     message.startsWith("Maximum value size") ||
-    message.startsWith("Maximum call depth")
+    message.startsWith("Maximum call depth") ||
+    message.startsWith("Maximum structural depth") ||
+    message.startsWith("Maximum evaluation nesting")
   ) {
     return { code: "limit", message };
   }

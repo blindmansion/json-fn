@@ -3,6 +3,7 @@ import type { CallableTable } from "../check/builtin-types";
 import { taskType, type Defs, type Schema } from "../schema/schema.ts";
 import { CallableTableValidationError, validateCallableTable } from "../builtins";
 import { getOwnProperty, setOwnProperty } from "../own-properties";
+import { assertStructuralDepth } from "../structural-depth";
 import type { JSONType } from "../types";
 import type { EffectManifest } from "./effect-types";
 const EFFECTS_BINDING = "effects";
@@ -27,6 +28,7 @@ function isObject(value: unknown): value is Record<string, unknown> {
  * into one operator-owned contract.
  */
 function validateEffectManifest(value: unknown, defs: Defs = {}): asserts value is EffectManifest {
+  assertStructuralDepth(value);
   if (!isObject(value)) {
     throw new EffectManifestValidationError("effects", "expected an object");
   }

@@ -12,6 +12,7 @@ import {
   type DefinitionSources,
 } from "../definition-pool";
 import { isFunctionBody } from "../function-value";
+import { assertStructuralDepth } from "../structural-depth";
 import { chargeFuel, createExecutionState, guardValueSize } from "./execution";
 import type { EvaluationContext } from "./internal-types";
 import { callFunctionInternal, initializeModuleBindings } from "./interpreter";
@@ -95,9 +96,16 @@ export function callFunction(
   limits?: ExecutionLimits,
   definitions?: DefinitionSources,
 ): JSONType {
+  assertStructuralDepth(fn);
+  for (const arg of args) assertStructuralDepth(arg);
   const session = createEvaluationSession(functions, limits, definitions);
   try {
-    return callFunctionInternal(fn, args, session.context);
+    // Results are asserted on the way out too: guest programs can construct
+    // values level by level (each construction step is shallow), so the exit
+    // boundary is where an over-deep runtime-built value is caught.
+    const result = callFunctionInternal(fn, args, session.context);
+    assertStructuralDepth(result);
+    return result;
   } finally {
     session.syncUsage();
   }
@@ -113,11 +121,16 @@ export function callProgram(
   limits?: ExecutionLimits,
   definitions?: DefinitionSources,
 ): JSONType {
+  assertStructuralDepth(module);
+  for (const arg of args) assertStructuralDepth(arg);
   const session = createProgramSession(module, baseRegistry, limits, definitions);
   try {
     initializeProgramScope(session, module);
     const fn = getProgramEntry(module, entry, session.context.functions);
-    return callFunctionInternal(fn, args, session.context);
+    const result = callFunctionInternal(fn, args, session.context);
+    // See callFunction: over-deep runtime-built values are caught on exit.
+    assertStructuralDepth(result);
+    return result;
   } finally {
     session.syncUsage();
   }
@@ -140,11 +153,16 @@ export function prepareProgram(
   refreshDeadline: () => void;
   fuelUsed: () => number;
 } {
+  assertStructuralDepth(module);
   const session = createProgramSession(module, baseRegistry, limits, definitions);
   initializeProgramScope(session, module);
 
   const call = (fn: JSONType, args: JSONType[]): JSONType => {
+    assertStructuralDepth(fn);
+    for (const arg of args) assertStructuralDepth(arg);
     const result = callFunctionInternal(fn as FunctionDeclaration, args, session.context);
+    // See callFunction: over-deep runtime-built values are caught on exit.
+    assertStructuralDepth(result);
     session.syncUsage();
     return result;
   };

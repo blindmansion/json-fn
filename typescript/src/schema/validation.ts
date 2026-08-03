@@ -1,4 +1,5 @@
 import type { CallableSignature } from "../check/builtin-types";
+import { assertStructuralDepth } from "../structural-depth";
 import type { Defs, Schema } from "./schema";
 
 export class SchemaFragmentValidationError extends Error {
@@ -317,6 +318,7 @@ export function validateSchemaFragment(
   defs: Defs = {},
   path = "schema",
 ): asserts value is Schema {
+  assertStructuralDepth(value);
   validateSchema(value, path, {
     defs: new Set(Object.keys(defs)),
     declaredTVars: null,
@@ -325,6 +327,7 @@ export function validateSchemaFragment(
 }
 
 export function validateDefinitionTable(value: unknown, path = "$defs"): asserts value is Defs {
+  assertStructuralDepth(value);
   const definitions = assertObject(value, path);
   const defs = new Set(Object.keys(definitions));
   for (const [name, schema] of Object.entries(definitions)) {
@@ -338,5 +341,6 @@ export function validateCallableSignature(
   defs: Defs = {},
   path = "signature",
 ): asserts value is CallableSignature {
+  assertStructuralDepth(value);
   validateSignature(value, path, new Set(Object.keys(defs)));
 }

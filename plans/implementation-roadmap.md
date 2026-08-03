@@ -139,17 +139,18 @@ The following Phase 0 decisions are settled:
   evaluating a constant literal charges one unit per JSON value node of the
   produced value, and `$raw` charges `staticLiteralCost(payload)` in total, so
   quotation cannot reduce deterministic fuel.
-- **Permanent structural-depth contract (decided: portable depth limit).** A
-  specified, portable structural-depth limit is the language contract, not an
-  implementation step toward arbitrary depth. One counting rule — structural
-  depth of the JSON tree — is shared by the parser, checker, evaluator,
-  closure, printer, normalization, hashing, validation, and hydration
-  traversals, with a conservative limit enforced below any host stack and a
-  deterministic json-fn limit error. The contract, rationale, and
+- **Permanent structural-depth contract (implemented: portable depth limit
+  of 512).** A specified, portable structural-depth limit is the language
+  contract, not an implementation step toward arbitrary depth. One counting
+  rule — structural depth of the JSON tree — is shared by the parser,
+  checker, evaluator, closure, printer, normalization, hashing, validation,
+  and hydration traversals, with a conservative limit enforced below any host
+  stack and a deterministic json-fn limit error. The contract, rationale, and
   requirements are specified in
-  [`runtime-representation-gaps.md`](runtime-representation-gaps.md). Raising
-  the limit later — or lifting it via iterative walks — remains backwards
-  compatible.
+  [`runtime-representation-gaps.md`](runtime-representation-gaps.md), and the
+  TypeScript implementation enforces it (with a companion evaluation-nesting
+  cap of 4,096) per `docs/execution-limits.md`. Raising the limit later — or
+  lifting it via iterative walks — remains backwards compatible.
 - **Authored-artifact versus normalized program identity (decided: retain
   both).** Durable identity manifests retain both an exact hash of the
   reviewed authored artifact and the normalized semantic module hash, in
@@ -221,7 +222,13 @@ serialization, environment construction, and future codecs.
 Implement the settled structural-depth contract — a portable conservative
 limit with one shared counting rule — far enough that later raw,
 normalization, hashing, and hydration work cannot introduce undocumented host
-stack failures.
+stack failures. **Done in TypeScript:** `MAX_STRUCTURAL_DEPTH = 512` and the
+`MAX_EVALUATION_NESTING = 4096` evaluator cap are enforced across parsing,
+checking, evaluation (entry and exit), printing, validation,
+serialization/hydration, and artifact loading, with conformance suites
+pinning the 512/513 boundary and docs in `docs/execution-limits.md`
+(see the resolution subsection of
+[`runtime-representation-gaps.md`](runtime-representation-gaps.md) section 2).
 
 Complete or explicitly defer the remaining Unicode performance/metering work.
 The canonical-encoding string policy from Phase 0 must be settled before the

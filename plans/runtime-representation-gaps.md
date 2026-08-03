@@ -2,10 +2,9 @@
 
 Status: investigation; Unicode code-point semantics and the `__proto__`
 object-key fix are implemented in the canonical TypeScript implementation
-(see section 1), and the structural-depth contract is decided (portable
-depth limit — see section 2). The depth-limit implementation, the Unicode
-performance/metering work, and enforcement of the selected
-ill-formed-surrogate policy remain open.
+(see section 1), and the portable structural-depth limit is implemented
+(see section 2). The Unicode performance/metering work and enforcement of
+the selected ill-formed-surrogate policy remain open.
 
 ## Summary
 
@@ -373,6 +372,47 @@ limit — most plausibly deep external data reaching validation, hashing, or
 hydration — the response is to make those specific value-side walks iterative
 and raise the limit, which is backwards compatible.
 
+### Resolution (implemented in TypeScript)
+
+The constants live in `typescript/src/structural-depth.ts`:
+`MAX_STRUCTURAL_DEPTH = 512` with an iterative (explicit work stack,
+WeakMap-cached) `assertStructuralDepth`, plus `MAX_EVALUATION_NESTING = 4096`,
+a dynamic counter on `CallState` incremented by both `evaluateExpression` and
+`callFunctionInternal` so nesting that compounds across guest call frames is
+bounded too (per-tree depth alone cannot bound it: call depth multiplies with
+the expression depth at each call site).
+
+Enforcement points: shorthand parsing (a descent guard counts source-level
+nesting, including grouping parentheses, and the produced canonical tree is
+re-verified; raw-JSON islands and the type parser share the guard); program
+bodies, arguments, and — because guest programs build values level by level —
+results at the `callFunction`/`callProgram`/`prepareProgram` exit boundaries;
+`cloneIfNeeded` before `structuredClone`; checker entry; printer entry; schema
+fragment/definition-table/callable-signature validation plus depth-guarded
+`deepEqual`/`jsonEqual`/`valueMismatch` walks; task serialization and
+hydration; workflow records; environment contracts; effect manifests;
+deployment profiles; and builtin tables. The durable host's
+`mapExecutionFailure` classifies both error prefixes as `"limit"` failures.
+
+Constants were pinned by measurement on Bun (the canonical host): with guards
+disabled, the worst reachable shape (recursion through call sites buried
+under near-limit literals) overflows the host stack near ~8,000 nesting units
+on the main thread and ~6,800 in a worker, giving the 4,096 cap ~1.6x margin;
+adversarial shapes (deep call sites, `map`/`reduce` recursion, object sites,
+`$let` chains) all fail with the deterministic error in a worker, and
+near-limit shapes all succeed. Node's default ~1 MB stack overflows near ~400
+units, so Node hosts need a larger stack (e.g. `--stack-size`); the limits are
+guaranteed on Bun.
+
+Conformance coverage: `spec/cases/structural-depth.json` (runtime-built
+values accepted at 512 and rejected at 513, depth-guarded deep equality, the
+nesting-cap error) and `spec/parse-cases/structural-depth.json` (source
+nesting at the 512/513 boundary for arrays, objects, and grouping
+parentheses). Helper, boundary, checker, printer, validation, hydration, and
+closure-growth coverage: `typescript/test/structural-depth.test.ts`. Docs:
+`docs/execution-limits.md` section 4, cross-referenced from
+`docs/language.md` and `docs/durable-host.md`.
+
 ## 3. Unicode string representation
 
 ### 3a. Code-point semantics (implemented)
@@ -511,13 +551,13 @@ clusters, noncharacters, or other well-formed code-point sequences.
    [`raw-semantics-cleanup.md`](raw-semantics-cleanup.md) or generic codec
    reconstruction in
    [`content-addressed-values.md`](content-addressing/content-addressed-values.md).
-2. Implement the settled structural-depth contract: a portable depth limit
-   with one shared counting rule, enforced across the covered traversals (see
-   section 2). Do not present caught host `RangeError`s as deterministic
-   limits on their own.
+2. **Done.** Implement the settled structural-depth contract: a portable
+   depth limit with one shared counting rule, enforced across the covered
+   traversals (see the section 2 resolution). The limits are deterministic
+   json-fn errors, not renamed host `RangeError`s.
 3. Enforce the selected rejection policy for ill-formed strings at every input,
    production, persistence, hydration, and hashing boundary.
 
-The first item was implementation-defined accidental behavior and is fixed in
-the canonical implementation. The second and third now have settled contracts
-but still require implementation and conformance coverage.
+The first two items are fixed in the canonical implementation with
+conformance coverage. The third has a settled contract but still requires
+implementation and conformance coverage.

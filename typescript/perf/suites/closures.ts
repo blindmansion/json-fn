@@ -22,7 +22,9 @@ export function makeSuite(mode: Mode): Suite {
   const benches: BenchDef[] = [];
 
   // -- 1. Escape cost scales with the lambda body size. -----------------------
-  for (const nodes of pick([16, 128, 1_024, 8_192], [16, 128])) {
+  // Each chain link adds two container levels, so the structural-depth limit
+  // (512) allows ~250 links; 1_024 records the deterministic limit error.
+  for (const nodes of pick([16, 128, 250, 1_024], [16, 128])) {
     const program = fn([], {
       $params: ["y"],
       $return: addChain("y", nodes),
@@ -35,7 +37,9 @@ export function makeSuite(mode: Mode): Suite {
   }
 
   // -- 2. Escape cost vs number of captured bindings. --------------------------
-  for (const vars of pick([8, 64, 512], [8, 64])) {
+  // The summing chain nests one call per binding (two container levels), so
+  // the structural-depth limit keeps the series at or below 250 bindings.
+  for (const vars of pick([8, 64, 250], [8, 64])) {
     const bindings: Record<string, JSONType> = {};
     let chain: JSONType = 0;
     for (let i = 0; i < vars; i++) {

@@ -262,7 +262,9 @@ Terminal failures use one of these codes:
 - `"unknown-effect"` — the task performed an effect absent from the contract or
   not selected by the durable profile.
 - `"malformed-task"` — task structure could not be stepped.
-- `"limit"` — fuel, call depth, or value size stopped evaluation.
+- `"limit"` — fuel, call depth, value size, structural depth, or evaluation
+  nesting stopped evaluation (see
+  [Execution limits § Fixed structural limits](execution-limits.md#4-fixed-structural-limits)).
 - `"host"` — an inline capability or direct runtime-adapter function threw or rejected.
 - `"external"` — the host called `deliverFailure` for suspended work.
 

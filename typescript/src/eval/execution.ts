@@ -37,7 +37,7 @@ export function createExecutionState(limits?: ExecutionLimits): ExecutionState {
   const configuredTimeoutMs = limits?.timeoutMs;
   const timeoutMs =
     configuredTimeoutMs !== undefined && configuredTimeoutMs >= 0 ? configuredTimeoutMs : undefined;
-  const state: CallState = { depth: 0, fuel: 0 };
+  const state: CallState = { depth: 0, fuel: 0, nesting: 0 };
   const resolved: ResolvedLimits = {
     maxCallDepth: limits?.maxCallDepth ?? DEFAULT_MAX_CALL_DEPTH,
     maxFuel,

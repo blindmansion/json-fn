@@ -353,13 +353,21 @@ function cachedBodyLevelFnNameRefs(body: Record<string, JSONType>): ReadonlySet<
 // Count the JSON nodes in a value — used to meter escaping-closure attachment
 // so a runaway capture fails against the value-size/fuel limits instead of
 // hanging (the safety net for pathological but bounded capture growth).
+// Iterative: attached definitions can embed substituted runtime values of any
+// depth (they are inert for evaluation but still get counted here), so a
+// recursive walk could exhaust the host stack.
 function countNodes(node: JSONType): number {
-  if (node === null || typeof node !== "object") return 1;
-  let count = 1;
-  if (Array.isArray(node)) {
-    for (const item of node) count += countNodes(item);
-  } else {
-    for (const value of Object.values(node)) count += countNodes(value);
+  let count = 0;
+  const stack: JSONType[] = [node];
+  while (stack.length > 0) {
+    const current = stack.pop()!;
+    count++;
+    if (current === null || typeof current !== "object") continue;
+    if (Array.isArray(current)) {
+      for (const item of current) stack.push(item);
+    } else {
+      for (const value of Object.values(current)) stack.push(value);
+    }
   }
   return count;
 }

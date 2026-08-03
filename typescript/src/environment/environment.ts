@@ -3,6 +3,7 @@ import type { CallableSignature, CallableTable } from "../check/builtin-types";
 import type { Defs, Schema } from "../schema/schema.ts";
 import { taskType } from "../schema/schema.ts";
 import { CallableTableValidationError, loadBuiltinTable, validateCallableTable } from "../builtins";
+import { assertStructuralDepth } from "../structural-depth";
 import { EFFECTS_BINDING, EffectManifestValidationError, validateEffectManifest } from "./effects";
 import type { EntryReturn, EnvironmentContract } from "./types";
 
@@ -73,6 +74,7 @@ function validateEnvironmentContract(
   value: unknown,
   core: CallableTable | false = loadBuiltinTable(),
 ): asserts value is EnvironmentContract {
+  assertStructuralDepth(value);
   if (!isObject(value)) fail("contract", "expected an object");
   assertOnlyKeys(value, new Set(["version", "$defs", "functions", "effects", "entry"]), "contract");
   if (typeof value.version !== "number" || !Number.isInteger(value.version)) {

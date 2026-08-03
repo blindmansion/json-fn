@@ -13,6 +13,13 @@ export type ResolvedLimits = {
 export type CallState = {
   depth: number;
   fuel: number;
+  /**
+   * Nested evaluation levels currently active, counting both expression
+   * subterm recursion and guest function invocations. Unlike `depth`, this is
+   * not reset by call boundaries: it deterministically bounds the evaluator's
+   * own host-stack recursion (see `structural-depth.ts`).
+   */
+  nesting: number;
 };
 
 export type EvaluationContext = {

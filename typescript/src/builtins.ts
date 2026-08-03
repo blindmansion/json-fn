@@ -15,6 +15,7 @@ import {
   validateCallableSignature,
   validateDefinitionTable,
 } from "./schema/validation";
+import { assertStructuralDepth } from "./structural-depth";
 
 const DEFAULT_PATH = join(import.meta.dir, "../../spec/builtins.json");
 
@@ -55,6 +56,7 @@ function validateSchemaErrors(validate: () => void): void {
 }
 
 export function validateCallableTable(value: unknown): asserts value is CallableTable {
+  assertStructuralDepth(value);
   const table = assertObject(value, "table");
   assertOnlyKeys(table, new Set(["description", "$defs", "builtins"]), "table");
   if ("description" in table && typeof table.description !== "string") {

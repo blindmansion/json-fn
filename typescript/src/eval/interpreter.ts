@@ -42,6 +42,11 @@ import {
 } from "../runtime-contract";
 import { validateRuntimeArguments, type ParameterLayout } from "../params";
 import { getOwnProperty, setOwnProperty } from "../own-properties";
+import {
+  assertStructuralDepth,
+  evaluationNestingError,
+  MAX_EVALUATION_NESTING,
+} from "../structural-depth";
 import { isFunctionBody, isFunctionDeclaration } from "../function-value";
 import { replaceVars } from "./closures";
 import { accountForResult, chargeFuel, checkInterrupt, guardValueSize } from "./execution";
@@ -91,6 +96,10 @@ function assertMatchScalar(value: JSONType, expression: JSONType): void {
 function cloneIfNeeded(value: JSONType, perf?: PerfStats): JSONType {
   if (perf) perf.cloneIfNeeded++;
   if (value === null || typeof value !== "object") return value;
+  // The host-boundary clone is a recursive host walk; enforce the portable
+  // structural-depth limit first so it fails deterministically rather than
+  // with a host stack overflow.
+  assertStructuralDepth(value);
   if (perf) perf.structuredClones++;
   return structuredClone(value);
 }
@@ -138,9 +147,13 @@ export function callFunctionInternal(
   checkInterrupt(context);
   chargeFuel(context, 1);
   context.state.depth++;
+  context.state.nesting++;
   try {
     if (context.state.depth > context.limits.maxCallDepth) {
       throw new Error(`Maximum call depth of ${context.limits.maxCallDepth} exceeded`);
+    }
+    if (context.state.nesting > MAX_EVALUATION_NESTING) {
+      throw evaluationNestingError();
     }
     if (perf && context.state.depth > perf.maxCallDepth) perf.maxCallDepth = context.state.depth;
     const { functions } = context;
@@ -218,6 +231,7 @@ export function callFunctionInternal(
     return result;
   } finally {
     context.state.depth--;
+    context.state.nesting--;
   }
 }
 
@@ -508,6 +522,20 @@ function evaluateExpression(expression: JSONType, context: EvaluationContext): J
 
   chargeFuel(context, 1);
 
+  const { state } = context;
+  state.nesting++;
+  try {
+    if (state.nesting > MAX_EVALUATION_NESTING) {
+      throw evaluationNestingError();
+    }
+    return evaluateExpressionDispatch(expression, context);
+  } finally {
+    state.nesting--;
+  }
+}
+
+function evaluateExpressionDispatch(expression: JSONType, context: EvaluationContext): JSONType {
+  const { perf } = context;
   if (expression !== null && typeof expression === "object") {
     // Raw values are values, not syntax. Check before expression
     // classification so data containing keys such as $call or $var remains

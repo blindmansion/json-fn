@@ -62,25 +62,25 @@ function runTask(
 }
 
 const flowThrough = parseShorthand(`
-  run: (hops) => go(hops, 0),
+  run: (hops) => go(hops, 0)
   go: (k, acc) => if k <= 0 then pure(acc)
     else bind(perform("fetch", [k]), (rows) => go(k - 1, acc + length(rows)))
 `) as Record<string, JSONType>;
 
 const captured = parseShorthand(`
-  run: (hops) => bind(perform("fetch", [0]), (rows) => loop(rows, hops, 0)),
+  run: (hops) => bind(perform("fetch", [0]), (rows) => loop(rows, hops, 0))
   loop: (rows, k, acc) => if k <= 0 then pure(acc + length(rows))
     else bind(perform("ping", [k]), (x) => loop(rows, k - 1, acc + x))
 `) as Record<string, JSONType>;
 
 const flowThroughEnvironment = parseShorthand(`
-  run: (hops) => go(hops, 0),
+  run: (hops) => go(hops, 0)
   go: (k, acc) => if k <= 0 then pure(acc)
     else bind(effects.fetch(k), (rows) => go(k - 1, acc + length(rows)))
 `) as Record<string, JSONType>;
 
 const capturedEnvironment = parseShorthand(`
-  run: (hops) => bind(effects.fetch(0), (rows) => loop(rows, hops, 0)),
+  run: (hops) => bind(effects.fetch(0), (rows) => loop(rows, hops, 0))
   loop: (rows, k, acc) => if k <= 0 then pure(acc + length(rows))
     else bind(effects.ping(k), (x) => loop(rows, k - 1, acc + x))
 `) as Record<string, JSONType>;

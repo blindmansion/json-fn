@@ -1,5 +1,6 @@
 import { readFileSync } from "fs";
 import type { EnvironmentContract } from "../../environment/types";
+import { assertStructuralDepth } from "../../structural-depth";
 
 export const DEPLOYMENT_PROFILE_VERSION = 1;
 
@@ -70,6 +71,7 @@ export function validateDeploymentProfile(
   value: unknown,
   contract?: EnvironmentContract,
 ): asserts value is DeploymentProfile {
+  assertStructuralDepth(value);
   const profile = object(value, "profile");
   if (profile.version !== DEPLOYMENT_PROFILE_VERSION) {
     fail(

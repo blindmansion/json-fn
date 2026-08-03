@@ -3,6 +3,7 @@
 
 import type { JSONType } from "../types";
 import type { EnvironmentContract } from "../environment/types";
+import { assertStructuralDepth } from "../structural-depth";
 import { linkModule } from "../module-linker";
 import type { CallableTable, CallableTypeRuleRegistry } from "./builtin-types";
 import { synthCallableCall, synthCallableReference } from "./builtin-rules";
@@ -44,6 +45,9 @@ function checkModule(
   builtins?: CallableTable,
   options: CheckOptions = {},
 ): Diagnostic[] {
+  // The checker's synthesis walks are recursive; enforcing the portable
+  // structural-depth limit at entry keeps them off the host stack limit.
+  assertStructuralDepth(module);
   const contract = options.contract;
   const linked = linkModule({
     module,
@@ -240,6 +244,8 @@ function checkExpr(
   builtins?: CallableTable,
   options: CheckOptions = {},
 ): { type: Schema; diagnostics: Diagnostic[] } {
+  assertStructuralDepth(expr);
+  assertStructuralDepth(defs);
   const contract = options.contract;
   const linked = linkModule({
     module: Object.keys(defs).length === 0 ? {} : { $types: defs },

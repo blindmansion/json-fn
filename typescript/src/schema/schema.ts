@@ -1,5 +1,6 @@
 import type { JSONType } from "../types.ts";
 import { getOwnProperty, setOwnProperty } from "../own-properties.ts";
+import { MAX_STRUCTURAL_DEPTH, structuralDepthError } from "../structural-depth.ts";
 
 // A type is represented as canonical-fragment JSON Schema, extended with
 // `$ref` (named types) and distinguished checker nodes. `$fnType` represents
@@ -180,20 +181,25 @@ function widenLiteral(s: Schema): Schema {
   return s;
 }
 
-function deepEqual(a: JSONType, b: JSONType): boolean {
+function deepEqual(a: JSONType, b: JSONType, depth = 0): boolean {
   if (a === b) return true;
   if (typeof a !== typeof b) return false;
   if (a === null || b === null) return false;
   if (Array.isArray(a) || Array.isArray(b)) {
     if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
-    return a.every((x, i) => deepEqual(x, b[i]!));
+    // Covered traversal: fail deterministically past the portable
+    // structural-depth limit instead of exhausting the host stack.
+    if (depth >= MAX_STRUCTURAL_DEPTH) throw structuralDepthError();
+    return a.every((x, i) => deepEqual(x, b[i]!, depth + 1));
   }
   if (typeof a === "object" && typeof b === "object") {
     const ak = Object.keys(a);
     const bk = Object.keys(b);
     if (ak.length !== bk.length) return false;
+    if (depth >= MAX_STRUCTURAL_DEPTH) throw structuralDepthError();
     return ak.every(
-      (k) => Object.hasOwn(b, k) && deepEqual(a[k]!, (b as Record<string, JSONType>)[k]!),
+      (k) =>
+        Object.hasOwn(b, k) && deepEqual(a[k]!, (b as Record<string, JSONType>)[k]!, depth + 1),
     );
   }
   return false;

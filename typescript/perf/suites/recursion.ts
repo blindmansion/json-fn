@@ -2,9 +2,12 @@
  * Suite 4: deep recursion.
  *
  * The interpreter is a recursive tree-walker: guest call depth and expression
- * nesting both consume JS stack. Depths that overflow are recorded as errors
- * in the results JSON — the set of depths that *succeed* is part of the
- * baseline, so gaining headroom (e.g. via trampolining) shows up as errors
+ * nesting both consume JS stack, bounded by the portable limits in
+ * `src/structural-depth.ts` (structural depth 512, evaluation nesting 4096).
+ * Depths past a limit now fail with the deterministic limit error rather than
+ * a host stack overflow; those failures are recorded as errors in the results
+ * JSON — the set of depths that *succeed* is part of the baseline, so gaining
+ * headroom (e.g. via trampolining plus raised limits) shows up as errors
  * turning into timings.
  */
 
@@ -111,9 +114,10 @@ export function makeSuite(mode: Mode): Suite {
 
   // -- 5. Deep recursion carrying a big raw value. ----------------------------------
   // Flat in payload size expected (reference passing through call frames).
+  // Depth stays under the evaluation-nesting cap so the series keeps timing.
   for (const n of pick([1_000, 100_000], [1_000])) {
     const arg = raw(makeRecords(n) as JSONType);
-    const depth = 2_000;
+    const depth = 1_000;
     benches.push({
       name: "deep-carry-payload",
       params: { depth, records: n },
@@ -126,8 +130,10 @@ export function makeSuite(mode: Mode): Suite {
 
   // -- 6. Deep expression nesting without calls. --------------------------------------
   // Stresses the interpreter's own JS-stack recursion (evaluateExpression /
-  // replaceVars). Depths that overflow the JS stack are recorded as errors.
-  for (const depth of pick([1_000, 5_000, 10_000, 30_000], [1_000])) {
+  // replaceVars). Each `add` level adds two container levels ($call object +
+  // $args array), so the structural-depth limit allows ~250 levels; 1_000
+  // records the deterministic limit error.
+  for (const depth of pick([100, 250, 1_000], [100])) {
     let expr: JSONType = 0;
     for (let i = 0; i < depth; i++) expr = call("add", 1, expr);
     const nested = { main: fn([], expr) } as Record<string, JSONType>;
