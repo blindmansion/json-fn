@@ -1,6 +1,7 @@
 # Implementation roadmap
 
-Status: active; reconciliation pre-step completed
+Status: active; reconciliation pre-step and Phase 0 completed (gate audited
+2026-08-03; see [`phase0-gate-audit.md`](phase0-gate-audit.md))
 
 ## Summary
 
@@ -200,6 +201,10 @@ durable records each have:
 - one defined validation and hydration path;
 - deterministic depth/fuel behavior; and
 - an unambiguous hash domain, if they are hashed.
+
+**Audited 2026-08-03 and passed** — the per-category findings and the owned
+implementation gaps are recorded in
+[`phase0-gate-audit.md`](phase0-gate-audit.md). Phase 1 may begin.
 
 ## Phase 1: representation integrity
 
