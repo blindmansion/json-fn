@@ -34,10 +34,10 @@ export function makeSuite(mode: Mode): Suite {
   //   cold          — fresh canonical AST every run, so every sample pays the
   //                   full classification walk (plus the structuredClone that
   //                   produces the fresh AST; the native floor is clone-only).
-  // The three constant-AST routes (preseeded/discovered/cold) charge identical
-  // deterministic fuel; only host work differs. raw-syntax and runtime-value
-  // currently charge one node — Workstream E of plans/raw-semantics-cleanup.md
-  // will move `$raw` to the same full static cost.
+  // The three constant-AST routes (preseeded/discovered/cold) and raw-syntax
+  // all charge the identical full static-literal fuel; only host work
+  // differs. runtime-value charges one node (already produced and accounted
+  // for at its original boundary).
   for (const n of pick([100, 1_000, 10_000], [100, 1_000])) {
     // Separate data instances per route: marking and constant-cost metadata
     // are by object identity, so one instance cannot serve two routes.

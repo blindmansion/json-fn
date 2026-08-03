@@ -168,7 +168,14 @@ type PerfStats = {
   replaceVars: number;
   cloneIfNeeded: number;
   structuredClones: number;
-  rawSkips: number;
+  /** Canonical `$raw` value boundaries evaluated. */
+  rawBoundaries: number;
+  /** Already-produced runtime values returned without reclassification. */
+  runtimeValueSkips: number;
+  /** Constant-subtree skips whose static cost was preseeded (parser-style). */
+  preseededStaticSkips: number;
+  /** Constant-subtree skips whose static cost was discovered by evaluation. */
+  discoveredStaticSkips: number;
   exprTypeCounts: Record<string, number>;
   functionCallCounts: Record<string, number>;
   maxCallDepth: number;

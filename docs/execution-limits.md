@@ -29,15 +29,26 @@ Fuel is deterministic and additive:
 - callback invocations accrue their ordinary call, expression, and builtin
   costs separately.
 
-Raw and cached values refine the expression-node rule:
+Fuel is a **stable virtual cost**: a pure function of the program, its inputs,
+and recorded effect results, independent of parser metadata, caches,
+serialization, and ingestion route. Quotation, runtime values, and caches
+refine the expression-node rule without breaking that property:
 
-- a `$raw` wrapper costs 1, but its payload is not evaluated and its descendants
-  are not charged;
-- re-entering an explicitly raw or already-evaluated runtime value costs 1 for
-  the value itself, with no descendant charges; and
-- a cached constant program subtree skips repeated interpreter work but charges
-  the same complete node count measured by its first evaluation. Reusing a
-  program object therefore does not change its constant-subtree fuel cost.
+- a `$raw` boundary charges the complete static-literal cost of its payload —
+  one unit per produced value node (object keys are not separately charged) —
+  which is exactly what evaluating the equivalent plain constant literal
+  charges. The payload is never interpreted as syntax, and the runtime may
+  charge from cached cost metadata instead of walking it. Where quotation and
+  literal syntax produce different values (literal `$comment` entries, which
+  literals strip and `$raw` preserves), each form charges the node count of
+  the value it actually produces;
+- re-entering an already-produced runtime value costs 1 for the value itself,
+  with no descendant charges — it was accounted for at its original
+  boundary; and
+- a discovered or preseeded constant program subtree skips repeated
+  interpreter work but charges the same complete node count as its first
+  evaluation. Losing that metadata (for example through JSON serialization)
+  changes host preparation work only — never fuel, results, or errors.
 
 Examples of explicitly metered native work include traversing numeric
 aggregates, collection higher-order functions, structural equality and

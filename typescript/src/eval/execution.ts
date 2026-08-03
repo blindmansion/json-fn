@@ -22,7 +22,10 @@ export function createPerfStats(): PerfStats {
     replaceVars: 0,
     cloneIfNeeded: 0,
     structuredClones: 0,
-    rawSkips: 0,
+    rawBoundaries: 0,
+    runtimeValueSkips: 0,
+    preseededStaticSkips: 0,
+    discoveredStaticSkips: 0,
     // Null-prototype so counter reads/writes keyed by guest-controlled names
     // (e.g. a function named "__proto__" or "constructor") stay own-property.
     exprTypeCounts: Object.create(null) as Record<string, number>,

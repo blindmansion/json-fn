@@ -64,7 +64,8 @@ JS — as a floor for interpretation overhead.
 `harness.ts`): run metadata (bun version, git commit, mode) plus one entry per
 benchmark with median/mean/p95/min µs-per-op, optional native stats, and — for
 one untimed instrumented run — interpreter counters (`evaluateExpression`,
-`replaceVars`, `rawSkips`, `structuredClones`, `maxCallDepth`, `fuel`). The
+`replaceVars`, `rawBoundaries`, `runtimeValueSkips`, `preseededStaticSkips`,
+`discoveredStaticSkips`, `structuredClones`, `maxCallDepth`, `fuel`). The
 counters make timing changes attributable: e.g. a regression with a jump in
 `replaceVars` points at closure capture, not GC noise.
 

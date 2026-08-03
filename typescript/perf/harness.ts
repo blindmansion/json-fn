@@ -220,7 +220,7 @@ function logResult(result: BenchResult): void {
 /**
  * Wire a benchmark's `run` and `metrics` from a single factory that accepts
  * execution limits. The metrics run executes once, untimed, with perf counters
- * and fuel tracking enabled — counter values (replaceVars, rawSkips,
+ * and fuel tracking enabled — counter values (replaceVars, runtimeValueSkips,
  * structuredClones, ...) are the diagnostic companion to the timings.
  */
 export function withMetrics(
@@ -237,7 +237,10 @@ export function withMetrics(
         evaluateExpression: perf.evaluateExpression,
         callFunctionInternal: perf.callFunctionInternal,
         replaceVars: perf.replaceVars,
-        rawSkips: perf.rawSkips,
+        rawBoundaries: perf.rawBoundaries,
+        runtimeValueSkips: perf.runtimeValueSkips,
+        preseededStaticSkips: perf.preseededStaticSkips,
+        discoveredStaticSkips: perf.discoveredStaticSkips,
         structuredClones: perf.structuredClones,
         maxCallDepth: perf.maxCallDepth,
         fuel: usage.fuel,

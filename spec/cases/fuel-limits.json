@@ -260,6 +260,38 @@
       "error": "Maximum fuel"
     },
     {
+      "description": "$raw charges the payload's full static-literal cost: exact budget passes",
+      "comment": "1 (call) + 4 ($raw boundary charging array + 3 elements) = 5, identical to the equivalent plain literal.",
+      "body": { "$return": { "$raw": [1, 2, 3] } },
+      "limits": { "maxFuel": 5 },
+      "expected": [1, 2, 3]
+    },
+    {
+      "description": "$raw charges the payload's full static-literal cost: one unit less fails",
+      "body": { "$return": { "$raw": [1, 2, 3] } },
+      "limits": { "maxFuel": 4 },
+      "error": "Maximum fuel"
+    },
+    {
+      "description": "an expression-shaped $raw payload charges its node count without being evaluated",
+      "comment": "1 (call) + 2 (object + one entry value) = 3; the $var key is quoted data, not syntax.",
+      "body": { "$return": { "$raw": { "$var": "quoted" } } },
+      "limits": { "maxFuel": 3 },
+      "expected": { "$var": "quoted" }
+    },
+    {
+      "description": "a plain constant literal charges the same fuel as its $raw equivalent",
+      "body": { "$return": [1, 2, 3] },
+      "limits": { "maxFuel": 5 },
+      "expected": [1, 2, 3]
+    },
+    {
+      "description": "a plain constant literal one unit under its cost fails like its $raw equivalent",
+      "body": { "$return": [1, 2, 3] },
+      "limits": { "maxFuel": 4 },
+      "error": "Maximum fuel"
+    },
+    {
       "description": "flattenDepth charges fuel for each visited nested element",
       "body": {
         "$return": {

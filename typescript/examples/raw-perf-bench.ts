@@ -25,7 +25,8 @@ function printPerfStats(stats: PerfStats) {
   console.log(`  evaluateExpression:   ${stats.evaluateExpression.toLocaleString()}`);
   console.log(`  getExpressionType:    ${stats.getExpressionType.toLocaleString()}`);
   console.log(`  replaceVars:          ${stats.replaceVars.toLocaleString()}`);
-  console.log(`  rawSkips:             ${stats.rawSkips.toLocaleString()}`);
+  console.log(`  rawBoundaries:        ${stats.rawBoundaries.toLocaleString()}`);
+  console.log(`  runtimeValueSkips:    ${stats.runtimeValueSkips.toLocaleString()}`);
 }
 
 function generateRecords(n: number): JSONType[] {

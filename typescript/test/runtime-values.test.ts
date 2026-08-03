@@ -6,10 +6,10 @@
  * crosses from expression syntax into value space: host arguments and results,
  * closure capture/substitution, canonical `$raw` payloads, task nodes and
  * generated continuations, and serialization/hydration. They also pin the
- * *exact current fuel* charged for raw payloads, runtime values re-entering
- * expression position, and cached constant literals, so later workstreams
- * (static-cost extraction, `$raw` fuel migration) change those numbers
- * deliberately rather than accidentally.
+ * *exact fuel* charged under the stable virtual-cost model: `$raw` payloads
+ * charge their full static-literal cost, runtime values re-enter at one
+ * node, and cached constant literals keep charging their complete recorded
+ * cost, independent of caches, marks, and ingestion route.
  */
 import { describe, expect, test } from "bun:test";
 import {
@@ -28,6 +28,7 @@ import {
   type WorkflowRecord,
 } from "../src";
 import type { FunctionDeclaration } from "../src";
+import { staticLiteralCost } from "../src/expression-metadata";
 import { markRuntimeValue } from "../src/runtime-values";
 
 const stdlib = createStdlib();
@@ -343,21 +344,81 @@ describe("task and workflow serialization round trips", () => {
   });
 });
 
-describe("fuel: explicitly raw payloads (current semantics)", () => {
-  // Current model: a `$raw` wrapper costs one evaluation unit regardless of
-  // payload size. Workstream E deliberately replaces this with the full
-  // static-literal cost; update these expectations with that change.
-  test("costs one unit regardless of payload size", () => {
+describe("fuel: explicitly raw payloads", () => {
+  // Stable virtual cost (Workstream E): a `$raw` boundary charges the
+  // complete static-literal cost of its payload — the same deterministic
+  // fuel as evaluating the equivalent plain constant literal — independent
+  // of quotation, caches, and ingestion route. Quoting no longer reduces
+  // fuel; it only skips the classification walk.
+  test("charges the payload's full static-literal cost", () => {
+    // 1 (call) + 2 ({a: 1}: object node + one entry value) = 3.
     const small: FunctionDeclaration = { $return: { $raw: { a: 1 } } };
-    const large: FunctionDeclaration = { $return: { $raw: bigRecords(200) } };
-    // 1 (call) + 1 (evaluate the $raw expression node) = 2.
-    expect(measureFuel(small, [])).toBe(2);
-    expect(measureFuel(large, [])).toBe(2);
+    expect(measureFuel(small, [])).toBe(3);
+
+    const payload = bigRecords(200);
+    const large: FunctionDeclaration = { $return: { $raw: payload } };
+    expect(measureFuel(large, [])).toBe(1 + staticLiteralCost(payload));
+  });
+
+  test("charges the same fuel as the equivalent plain constant literal", () => {
+    const rawProgram: FunctionDeclaration = { $return: { $raw: bigRecords(50) } };
+    const literalProgram: FunctionDeclaration = { $return: bigRecords(50) };
+    expect(measureFuel(rawProgram, [])).toBe(measureFuel(literalProgram, []));
   });
 
   test("is stable across repeated evaluation", () => {
     const program: FunctionDeclaration = { $return: { $raw: bigRecords(50) } };
     expect(measureFuel(program, [])).toBe(measureFuel(program, []));
+  });
+
+  test("$comment payloads charge the node count of the value each form produces", () => {
+    // `$raw` preserves the `$comment` entry (3 produced nodes); the plain
+    // literal strips it (2 produced nodes). Each charges its own output.
+    const viaRaw: FunctionDeclaration = { $return: { $raw: { $comment: "kept", value: 1 } } };
+    const viaLiteral: FunctionDeclaration = { $return: { $comment: "stripped", value: 1 } };
+    expect(measureFuel(viaRaw, [])).toBe(1 + 3);
+    expect(measureFuel(viaLiteral, [])).toBe(1 + 2);
+  });
+});
+
+describe("fuel: ingestion-route equivalence", () => {
+  // The same program charges identical fuel whether it is evaluated
+  // directly, after a JSON serialization round trip (losing all identity
+  // metadata), or from an independently constructed deep-equal tree. Only
+  // host preparation work may differ.
+  const makeProgram = (): FunctionDeclaration => ({
+    $return: {
+      quoted: { $raw: { $var: "data, not a variable" } },
+      constant: [1, 2, [3, 4]],
+    },
+  });
+
+  test("direct, serialized, and independently constructed programs charge identical fuel", () => {
+    const direct = makeProgram();
+    const fuel = measureFuel(direct, []);
+    expect(measureFuel(direct, [])).toBe(fuel); // warm identity caches
+    const serialized = JSON.parse(JSON.stringify(direct)) as FunctionDeclaration;
+    expect(measureFuel(serialized, [])).toBe(fuel);
+    expect(measureFuel(makeProgram(), [])).toBe(fuel);
+  });
+
+  test("exact fuel limits accept and reject identically across routes", () => {
+    const fuel = measureFuel(makeProgram(), []);
+    const routes = () => [
+      makeProgram(),
+      JSON.parse(JSON.stringify(makeProgram())) as FunctionDeclaration,
+    ];
+    for (const program of routes()) {
+      expect(callFunction(program, [], stdlib, { maxFuel: fuel })).toEqual({
+        quoted: { $var: "data, not a variable" },
+        constant: [1, 2, [3, 4]],
+      });
+    }
+    for (const program of routes()) {
+      expect(() => callFunction(program, [], stdlib, { maxFuel: fuel - 1 })).toThrow(
+        "Maximum fuel",
+      );
+    }
   });
 });
 

@@ -28,6 +28,18 @@ shapes are rejected with a path (`TaskShapeValidationError`, or
 persist time, so a forged shape can never poison a stored record. Direct,
 serialized, and durable round trips per restored runtime category are tested
 in `test/task-rehydration.test.ts`.
+Workstream E (decouple `$raw` from fuel) has landed: `staticLiteralCost` in
+`src/expression-metadata.ts` is the one normative node-count function shared
+by evaluator discovery, parser preseeding, and `$raw` payload charging; the
+evaluator's `$raw` branch charges the complete static-literal cost of its
+payload (cached by payload identity, computed iteratively, and skipped
+entirely when fuel is untracked), so quotation no longer changes
+deterministic fuel. Runtime values still re-enter at one node. Perf counters
+split the old `rawSkips` into `rawBoundaries`, `runtimeValueSkips`,
+`preseededStaticSkips`, and `discoveredStaticSkips`. Ingestion-route fuel
+equivalence under exact limits is tested in `test/runtime-values.test.ts`
+and pinned portably in `spec/cases/fuel-limits.json`;
+`docs/execution-limits.md` documents the stable virtual-cost rules.
 
 ## Summary
 

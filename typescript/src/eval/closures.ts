@@ -50,7 +50,7 @@ export function replaceVars(
   // Runtime values are self-contained data; substitution must not descend
   // into them looking for syntax.
   if (typeof expression === "object" && expression !== null && isRuntimeValue(expression)) {
-    if (perf) perf.rawSkips++;
+    if (perf) perf.runtimeValueSkips++;
     return expression;
   }
   if (Array.isArray(expression)) {

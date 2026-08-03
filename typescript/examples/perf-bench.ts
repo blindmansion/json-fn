@@ -31,7 +31,10 @@ function printPerfStats(stats: PerfStats) {
   console.log(`  replaceVars:          ${stats.replaceVars.toLocaleString()}`);
   console.log(`  cloneIfNeeded:        ${stats.cloneIfNeeded.toLocaleString()}`);
   console.log(`  structuredClones:     ${stats.structuredClones.toLocaleString()}`);
-  console.log(`  rawSkips:             ${stats.rawSkips.toLocaleString()}`);
+  console.log(`  rawBoundaries:        ${stats.rawBoundaries.toLocaleString()}`);
+  console.log(`  runtimeValueSkips:    ${stats.runtimeValueSkips.toLocaleString()}`);
+  console.log(`  preseededStaticSkips: ${stats.preseededStaticSkips.toLocaleString()}`);
+  console.log(`  discoveredStaticSkips:${stats.discoveredStaticSkips.toLocaleString()}`);
   console.log(`  maxCallDepth:         ${stats.maxCallDepth}`);
 
   const sortedTypes = Object.entries(stats.exprTypeCounts).sort((a, b) => b[1] - a[1]);

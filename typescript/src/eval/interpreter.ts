@@ -25,7 +25,13 @@ import {
   formatFunctionBodyStructureIssue,
 } from "../function-body-structure";
 import { isCommentKey, isPure, isMeteredPure, isBuiltin } from "../utils";
-import { getStaticCost, hasStaticCost, rememberStaticCost } from "../expression-metadata";
+import {
+  getStaticCost,
+  hasStaticCost,
+  rawPayloadCost,
+  recordDiscoveredStaticCost,
+  wasPreseeded,
+} from "../expression-metadata";
 import { isRuntimeValue, markRuntimeValue } from "../runtime-values";
 import {
   enforceRuntimeContract,
@@ -540,7 +546,7 @@ function evaluateExpressionDispatch(expression: JSONType, context: EvaluationCon
     // fall through to the literal evaluators so re-evaluation charges its
     // recorded constant cost instead of the one-node runtime-value re-entry.
     if (isRuntimeValue(expression) && !hasStaticCost(expression)) {
-      if (perf) perf.rawSkips++;
+      if (perf) perf.runtimeValueSkips++;
       return expression;
     }
   }
@@ -677,8 +683,19 @@ function evaluateExpressionDispatch(expression: JSONType, context: EvaluationCon
 
     case ExpressionType.Raw:
       // Canonical `$raw` is the serializable value boundary: the payload is a
-      // JSON value, not expression syntax.
+      // JSON value, not expression syntax. Fuel is the complete static-literal
+      // cost of the payload — the same deterministic cost as evaluating the
+      // equivalent plain constant literal — independent of quotation, caches,
+      // and ingestion route. The universal expression-entry unit was already
+      // charged above, so charge the remainder here; the payload itself is
+      // never interpreted, and its cost is cached by identity so warm
+      // evaluations skip the counting walk. When fuel is not tracked the walk
+      // is skipped entirely (the charge would be unobservable).
       const rawValue = (expression as { $raw: JSONType }).$raw;
+      if (perf) perf.rawBoundaries++;
+      if (context.limits.trackFuel) {
+        chargeFuel(context, rawPayloadCost(rawValue) - 1);
+      }
       markRuntimeValue(rawValue);
       return rawValue;
 
@@ -714,11 +731,11 @@ function evaluateArrayLiteral(array: JSONType[], context: EvaluationContext): JS
   const constantCost = getStaticCost(array);
   if (constantCost !== undefined) {
     chargeFuel(context, constantCost - 1);
-    if (context.perf) context.perf.rawSkips++;
+    if (context.perf) countStaticSkip(context.perf, array);
     return array;
   }
   if (isRuntimeValue(array)) {
-    if (context.perf) context.perf.rawSkips++;
+    if (context.perf) context.perf.runtimeValueSkips++;
     return array;
   }
   let allSame = true;
@@ -731,10 +748,16 @@ function evaluateArrayLiteral(array: JSONType[], context: EvaluationContext): JS
     return evaluated;
   });
   if (allSame) {
-    if (context.getVar) rememberStaticCost(array, evaluationCost);
+    if (context.getVar) recordDiscoveredStaticCost(array, evaluationCost);
     return array;
   }
   return evaluatedItems;
+}
+
+// Attribute a constant-subtree skip to its metadata route (counters only).
+function countStaticSkip(perf: PerfStats, node: object): void {
+  if (wasPreseeded(node)) perf.preseededStaticSkips++;
+  else perf.discoveredStaticSkips++;
 }
 
 function evaluateObjectLiteral(
@@ -744,11 +767,11 @@ function evaluateObjectLiteral(
   const constantCost = getStaticCost(object);
   if (constantCost !== undefined) {
     chargeFuel(context, constantCost - 1);
-    if (context.perf) context.perf.rawSkips++;
+    if (context.perf) countStaticSkip(context.perf, object);
     return object;
   }
   if (isRuntimeValue(object)) {
-    if (context.perf) context.perf.rawSkips++;
+    if (context.perf) context.perf.runtimeValueSkips++;
     return object;
   }
   const stripComment = isCommentKey(object);
@@ -764,7 +787,7 @@ function evaluateObjectLiteral(
     setOwnProperty(evaluatedObject, key, evaluated);
   }
   if (allSame) {
-    if (context.getVar) rememberStaticCost(object, evaluationCost);
+    if (context.getVar) recordDiscoveredStaticCost(object, evaluationCost);
     return object;
   }
   return evaluatedObject;

@@ -55,7 +55,7 @@ describe("constant-expression metadata", () => {
     // ...while host-side preparation work differs: the warm run returns the
     // cached constant from its recorded cost instead of re-walking it.
     expect(warm.perf.evaluateExpression).toBeLessThan(cold.perf.evaluateExpression);
-    expect(warm.perf.rawSkips).toBeGreaterThan(cold.perf.rawSkips);
+    expect(warm.perf.discoveredStaticSkips).toBeGreaterThan(cold.perf.discoveredStaticSkips);
   });
 
   test("serializing/reparsing the program loses metadata but changes counters only", () => {
@@ -73,7 +73,7 @@ describe("constant-expression metadata", () => {
     expect(replay.result).toEqual(cold.result);
     expect(replay.fuel).toBe(cold.fuel);
     expect(replay.perf.evaluateExpression).toBe(cold.perf.evaluateExpression);
-    expect(replay.perf.rawSkips).toBe(cold.perf.rawSkips);
+    expect(replay.perf.discoveredStaticSkips).toBe(cold.perf.discoveredStaticSkips);
   });
 
   test("parser-style preseeding skips discovery and charges the same fuel", () => {
@@ -94,7 +94,10 @@ describe("constant-expression metadata", () => {
     expect(preseeded.result).toEqual(discovered.result);
     expect(preseeded.fuel).toBe(discovered.fuel);
     expect(preseeded.perf.evaluateExpression).toBeLessThan(discovered.perf.evaluateExpression);
-    expect(preseeded.perf.rawSkips).toBeGreaterThan(discovered.perf.rawSkips);
+    // The skip is attributed to the preseeded route; a discovery run first
+    // pays the full walk and records no preseeded skips at all.
+    expect(preseeded.perf.preseededStaticSkips).toBeGreaterThan(0);
+    expect(discovered.perf.preseededStaticSkips).toBe(0);
 
     // Later evaluations stay stable after the result also becomes a runtime
     // value (returned by identity from the call).
