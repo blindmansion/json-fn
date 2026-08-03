@@ -5,15 +5,6 @@ import type { FunctionDeclaration, FunctionRegistry, JSONType } from "../src";
 const stdlib = createStdlib();
 
 describe("strict runtime parameter semantics", () => {
-  test("distinguishes omitted required arguments from explicit null", () => {
-    const body = { $params: ["value"], $return: { $var: "value" } } as FunctionDeclaration;
-
-    expect(() => callFunction(body, [], stdlib)).toThrow(
-      "Missing required argument at parameter position 1",
-    );
-    expect(callFunction(body, [null], stdlib)).toBeNull();
-  });
-
   test("validates fixed slots before a rest parameter", () => {
     const body = {
       $params: ["first", "...rest"],
@@ -40,43 +31,10 @@ describe("strict runtime parameter semantics", () => {
     expect(callFunction(body, [{ value: null }], stdlib)).toBeNull();
   });
 
-  test("binds omitted optional parameters and fields to null", () => {
-    const body = {
-      $params: [
-        { $fields: [{ $field: "field", $optional: true }] },
-        { $param: "value", $optional: true },
-      ],
-      $return: { field: { $var: "field" }, value: { $var: "value" } },
-    } as FunctionDeclaration;
-
-    expect(callFunction(body, [{}], stdlib)).toEqual({ field: null, value: null });
-    expect(callFunction(body, [{ field: 1 }, 2], stdlib)).toEqual({ field: 1, value: 2 });
-  });
-
-  test("requires plain objects and required own fields but ignores extra keys", () => {
-    const body = {
-      $params: [{ $fields: ["value"] }],
-      $return: { $var: "value" },
-    } as FunctionDeclaration;
-
-    for (const [value, kind] of [
-      [null, "null"],
-      [0, "number"],
-      ["text", "string"],
-      [false, "boolean"],
-      [[], "array"],
-    ] satisfies [JSONType, string][]) {
-      expect(() => callFunction(body, [value], stdlib)).toThrow(`received ${kind}`);
-    }
-    expect(() => callFunction(body, [{}], stdlib)).toThrow('Missing required field "value"');
-    expect(callFunction(body, [{ value: 2, extra: 9 }], stdlib)).toBe(2);
-  });
-
   test.each([
     {
       name: "required-only",
       params: ["value"],
-      accepted: [[1]],
       rejected: [
         [
           [],
@@ -91,13 +49,11 @@ describe("strict runtime parameter semantics", () => {
         { $param: "first", $optional: true },
         { $param: "second", $optional: true },
       ],
-      accepted: [[], [1, 2]],
       rejected: [[[1, 2, 3], "Expected 0 to 2 arguments, received 3."]],
     },
     {
       name: "required-plus-optional",
       params: ["required", { $param: "optional", $optional: true }],
-      accepted: [[1], [1, 2]],
       rejected: [
         [
           [],
@@ -109,7 +65,6 @@ describe("strict runtime parameter semantics", () => {
     {
       name: "required-plus-defaulted",
       params: ["required", { $param: "defaulted", $default: 2 }],
-      accepted: [[1], [1, 2]],
       rejected: [
         [
           [],
@@ -125,7 +80,6 @@ describe("strict runtime parameter semantics", () => {
         { $param: "optional", $optional: true },
         { $param: "defaulted", $default: 3 },
       ],
-      accepted: [[1], [1, 2, 3]],
       rejected: [
         [
           [],
@@ -137,7 +91,6 @@ describe("strict runtime parameter semantics", () => {
     {
       name: "rest",
       params: ["required", "...rest"],
-      accepted: [[1], [1, 2, 3]],
       rejected: [
         [
           [],
@@ -148,14 +101,10 @@ describe("strict runtime parameter semantics", () => {
   ] satisfies {
     name: string;
     params: JSONType[];
-    accepted: JSONType[][];
     rejected: [JSONType[], string][];
-  }[])("reports the accepted range for $name layouts", ({ params, accepted, rejected }) => {
+  }[])("keeps the exact accepted-range diagnostic for $name layouts", ({ params, rejected }) => {
     const body = { $params: params, $return: null } as FunctionDeclaration;
 
-    for (const args of accepted) {
-      expect(callFunction(body, args, stdlib)).toBeNull();
-    }
     for (const [args, expected] of rejected) {
       let thrown: unknown;
       try {

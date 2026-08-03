@@ -181,48 +181,10 @@ describe("checked ascription runtime contracts", () => {
       "checked ascription contract failed",
     );
   });
-
-  test("wraps functions and enforces eventual arguments and returns", () => {
-    const contract: JSONType = {
-      $fnType: {
-        required: [{ type: "integer" }],
-        optional: [],
-        returns: { type: "integer" },
-      },
-    };
-    const identity: JSONType = {
-      $as: {
-        $params: ["value"],
-        $return: { $var: "value" },
-      },
-      $type: contract,
-    };
-    expect(callFunction({ $return: { $call: identity, $args: [3] } }, [], stdlib)).toBe(3);
-    expect(() =>
-      callFunction({ $return: { $call: identity, $args: ["wrong"] } }, [], stdlib),
-    ).toThrow(RuntimeContractError);
-
-    const badReturn: JSONType = {
-      $as: {
-        $params: ["_value"],
-        $return: "wrong",
-      },
-      $type: contract,
-    };
-    expect(() => callFunction({ $return: { $call: badReturn, $args: [3] } }, [], stdlib)).toThrow(
-      "function return contract failed",
-    );
-  });
-
-  test("rejects schemas outside the runtime-contract fragment", () => {
-    expect(() =>
-      callFunction({ $return: { $as: 1, $type: { $taskType: { type: "integer" } } } }, [], stdlib),
-    ).toThrow("checked ascription contract failed: unsupported schema");
-  });
 });
 
 describe("annotated handle runtime contracts", () => {
-  test("function contracts reject invalid eventual arguments", () => {
+  test("invalid eventual arguments use RuntimeContractError", () => {
     const expression = {
       $return: {
         $call: annotatedFunctionHandle({
@@ -234,23 +196,6 @@ describe("annotated handle runtime contracts", () => {
     };
 
     expect(() => callFunction(expression, [], stdlib)).toThrow(RuntimeContractError);
-    expect(() => callFunction(expression, [], stdlib)).toThrow(
-      "function arguments contract failed",
-    );
-  });
-
-  test("function contracts reject invalid eventual return values", () => {
-    const expression = {
-      $return: {
-        $call: annotatedFunctionHandle({
-          $params: ["_value"],
-          $return: "wrong",
-        }),
-        $args: [1],
-      },
-    };
-
-    expect(() => callFunction(expression, [], stdlib)).toThrow("function return contract failed");
   });
 
   test("runtime contracts resolve active module types", () => {

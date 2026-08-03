@@ -1,0 +1,42 @@
+{
+  "description": "runtime function-body validation",
+  "cases": [
+    {
+      "description": "direct function bodies reject unsupported ordinary fields",
+      "body": {
+        "local": 1,
+        "$return": null
+      },
+      "error": "Function body field \"local\" is not supported"
+    },
+    {
+      "description": "inline function bodies reject unsupported reserved fields",
+      "body": {
+        "$return": {
+          "$call": {
+            "$unknown": true,
+            "$return": null
+          },
+          "$args": []
+        }
+      },
+      "error": "Function body field \"$unknown\" is not supported"
+    },
+    {
+      "description": "registered function bodies reject unsupported ordinary fields",
+      "body": {
+        "$return": {
+          "$call": "bad",
+          "$args": []
+        }
+      },
+      "functions": {
+        "bad": {
+          "local": 1,
+          "$return": null
+        }
+      },
+      "error": "Function body field \"local\" is not supported"
+    }
+  ]
+}

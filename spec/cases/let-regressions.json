@@ -471,6 +471,83 @@
           ]
         }
       }
+    },
+    {
+      "description": "$let requires $in",
+      "body": { "$return": { "$let": { "value": 1 } } },
+      "error": "must have both $let and $in"
+    },
+    {
+      "description": "$in requires $let",
+      "body": { "$return": { "$in": 1 } },
+      "error": "must have both $let and $in"
+    },
+    {
+      "description": "$let bindings cannot be null",
+      "body": { "$return": { "$let": null, "$in": 1 } },
+      "error": "$let must be a non-null object"
+    },
+    {
+      "description": "$let bindings cannot be an array",
+      "body": { "$return": { "$let": [], "$in": 1 } },
+      "error": "$let must be a non-null object"
+    },
+    {
+      "description": "$let requires at least one binding",
+      "body": { "$return": { "$let": {}, "$in": 1 } },
+      "error": "$let must contain at least one binding"
+    },
+    {
+      "description": "$let rejects additional ordinary properties",
+      "body": {
+        "$return": {
+          "$let": { "value": 1 },
+          "$in": 1,
+          "extra": true
+        }
+      },
+      "error": "cannot have other properties"
+    },
+    {
+      "description": "$let rejects additional reserved properties",
+      "body": {
+        "$return": {
+          "$let": { "value": 1 },
+          "$in": 1,
+          "$call": "value"
+        }
+      },
+      "error": "cannot have other properties"
+    },
+    {
+      "description": "a nested let masks an outer same-named function",
+      "body": {
+        "$return": {
+          "$call": {
+            "$call": {
+              "$let": {
+                "selected": { "$return": "outer" }
+              },
+              "$in": {
+                "$return": {
+                  "$let": {
+                    "selected": { "$return": "inner" }
+                  },
+                  "$in": {
+                    "$return": {
+                      "$call": "selected",
+                      "$args": []
+                    }
+                  }
+                }
+              }
+            },
+            "$args": []
+          },
+          "$args": []
+        }
+      },
+      "expected": "inner"
     }
   ]
 }

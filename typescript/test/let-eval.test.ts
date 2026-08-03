@@ -15,18 +15,6 @@ function letExpression(bindings: Record<string, JSONType>, body: JSONType): JSON
 }
 
 describe("$let validation", () => {
-  test.each([
-    [{ $let: { value: 1 } }, "must have both $let and $in"],
-    [{ $in: 1 }, "must have both $let and $in"],
-    [{ $let: null, $in: 1 }, "$let must be a non-null object"],
-    [{ $let: [], $in: 1 }, "$let must be a non-null object"],
-    [{ $let: {}, $in: 1 }, "$let must contain at least one binding"],
-    [{ $let: { value: 1 }, $in: 1, extra: true }, "cannot have other properties"],
-    [{ $let: { value: 1 }, $in: 1, $call: "value" }, "cannot have other properties"],
-  ] satisfies [JSONType, string][])("rejects malformed shape %#", (expression, message) => {
-    expect(() => evaluate(expression)).toThrow(message);
-  });
-
   test("does not classify an unused binding expression", () => {
     expect(evaluate(letExpression({ unused: { $let: {} } }, "ok"))).toBe("ok");
   });

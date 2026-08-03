@@ -77,6 +77,126 @@
       },
       "args": [{ "value": null }],
       "expected": null
+    },
+    {
+      "description": "explicit null supplies a required positional value",
+      "body": { "$params": ["value"], "$return": { "$var": "value" } },
+      "args": [null],
+      "expected": null
+    },
+    {
+      "description": "omitted optional parameters and fields bind to null",
+      "body": {
+        "$params": [
+          { "$fields": [{ "$field": "field", "$optional": true }] },
+          { "$param": "value", "$optional": true }
+        ],
+        "$return": {
+          "field": { "$var": "field" },
+          "value": { "$var": "value" }
+        }
+      },
+      "args": [{}],
+      "expected": { "field": null, "value": null }
+    },
+    {
+      "description": "supplied optional parameters and fields retain their values",
+      "body": {
+        "$params": [
+          { "$fields": [{ "$field": "field", "$optional": true }] },
+          { "$param": "value", "$optional": true }
+        ],
+        "$return": {
+          "field": { "$var": "field" },
+          "value": { "$var": "value" }
+        }
+      },
+      "args": [{ "field": 1 }, 2],
+      "expected": { "field": 1, "value": 2 }
+    },
+    {
+      "description": "optional-only layout accepts no arguments",
+      "body": {
+        "$params": [
+          { "$param": "first", "$optional": true },
+          { "$param": "second", "$optional": true }
+        ],
+        "$return": [{ "$var": "first" }, { "$var": "second" }]
+      },
+      "expected": [null, null]
+    },
+    {
+      "description": "optional-only layout rejects too many arguments",
+      "body": {
+        "$params": [
+          { "$param": "first", "$optional": true },
+          { "$param": "second", "$optional": true }
+        ],
+        "$return": null
+      },
+      "args": [1, 2, 3],
+      "error": "Expected 0 to 2 arguments, received 3."
+    },
+    {
+      "description": "required-plus-optional layout accepts omission",
+      "body": {
+        "$params": ["required", { "$param": "optional", "$optional": true }],
+        "$return": [{ "$var": "required" }, { "$var": "optional" }]
+      },
+      "args": [1],
+      "expected": [1, null]
+    },
+    {
+      "description": "required-plus-optional layout reports its accepted range",
+      "body": {
+        "$params": ["required", { "$param": "optional", "$optional": true }],
+        "$return": null
+      },
+      "error": "Expected 1 to 2 arguments, received 0."
+    },
+    {
+      "description": "required-plus-defaulted layout accepts omission",
+      "body": {
+        "$params": ["required", { "$param": "defaulted", "$default": 2 }],
+        "$return": [{ "$var": "required" }, { "$var": "defaulted" }]
+      },
+      "args": [1],
+      "expected": [1, 2]
+    },
+    {
+      "description": "required-plus-defaulted layout rejects too many arguments",
+      "body": {
+        "$params": ["required", { "$param": "defaulted", "$default": 2 }],
+        "$return": null
+      },
+      "args": [1, 2, 3],
+      "error": "Expected 1 to 2 arguments, received 3."
+    },
+    {
+      "description": "mixed optional-defaulted layout accepts trailing omission",
+      "body": {
+        "$params": [
+          "required",
+          { "$param": "optional", "$optional": true },
+          { "$param": "defaulted", "$default": 3 }
+        ],
+        "$return": [{ "$var": "required" }, { "$var": "optional" }, { "$var": "defaulted" }]
+      },
+      "args": [1],
+      "expected": [1, null, 3]
+    },
+    {
+      "description": "mixed optional-defaulted layout reports its accepted range",
+      "body": {
+        "$params": [
+          "required",
+          { "$param": "optional", "$optional": true },
+          { "$param": "defaulted", "$default": 3 }
+        ],
+        "$return": null
+      },
+      "args": [1, 2, 3, 4],
+      "error": "Expected 1 to 3 arguments, received 4."
     }
   ]
 }

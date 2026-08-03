@@ -90,14 +90,11 @@ describe("function body structure", () => {
 describe("function body structural boundaries", () => {
   const stdlib = createStdlib();
 
-  test("evaluator rejects stray fields in direct, expression, and registry functions", () => {
+  test("evaluator uses the same stray-field validation for expression and registry functions", () => {
     const ordinary = { local: 1, $return: null } as unknown as FunctionBody;
     const reserved = { $unknown: true, $return: null } as unknown as FunctionDeclaration;
     const registry: FunctionRegistry = { ...stdlib, bad: ordinary };
 
-    expect(() => callFunction(ordinary, [], stdlib)).toThrow(
-      'Function body field "local" is not supported.',
-    );
     expect(() => callFunction({ $return: reserved }, [], stdlib)).toThrow(
       'Function body field "$unknown" is not supported.',
     );

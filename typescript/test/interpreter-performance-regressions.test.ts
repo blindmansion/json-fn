@@ -33,10 +33,6 @@ describe("flat function-body dispatch", () => {
     expect(perf.maxCallDepth).toBeLessThan(1200);
   });
 
-  test("deep recursion fits a tight depth budget", () => {
-    expect(callProgram(countdown, "go", [4000, 0], stdlib, { maxCallDepth: 4200 })).toBe(8002000);
-  });
-
   test("preserves escaping local-function attachment metadata", () => {
     const module: Record<string, JSONType> = {
       makeCountdown: {
@@ -75,16 +71,6 @@ describe("captured data values", () => {
     $params: ["value"],
     $return: { $params: [], $return: { $var: "value" } },
   };
-  const expressionShapedPayloads: [string, JSONType][] = [
-    ["$call", { $call: "missing", $args: [] }],
-    ["$var", { $var: "missing" }],
-  ];
-
-  test.each(expressionShapedPayloads)("keeps %s-shaped host data inert", (_name, payload) => {
-    const closure = callFunction(capture, [payload], stdlib) as FunctionDeclaration;
-    expect(callFunction(closure, [], stdlib)).toBe(payload);
-  });
-
   test("keeps explicitly raw function-shaped host data inert", () => {
     const payload = raw({ $return: "data", metadata: true });
     const closure = callFunction(capture, [payload], stdlib) as FunctionDeclaration;

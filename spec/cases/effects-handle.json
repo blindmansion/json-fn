@@ -848,6 +848,78 @@
       "expected": 8
     },
     {
+      "description": "a function-valued annotated handle rejects an invalid eventual argument",
+      "body": {
+        "$return": {
+          "$call": {
+            "$call": "handle",
+            "$args": [
+              {
+                "$call": "pure",
+                "$args": [null]
+              },
+              {
+                "return": {
+                  "$params": ["_"],
+                  "$return": {
+                    "$params": ["value"],
+                    "$return": { "$var": "value" }
+                  }
+                }
+              },
+              {
+                "$raw": {
+                  "$fnType": {
+                    "required": [{ "type": "integer" }],
+                    "optional": [],
+                    "returns": { "type": "integer" }
+                  }
+                }
+              }
+            ]
+          },
+          "$args": ["wrong"]
+        }
+      },
+      "error": "function arguments contract failed"
+    },
+    {
+      "description": "a function-valued annotated handle rejects an invalid eventual return",
+      "body": {
+        "$return": {
+          "$call": {
+            "$call": "handle",
+            "$args": [
+              {
+                "$call": "pure",
+                "$args": [null]
+              },
+              {
+                "return": {
+                  "$params": ["_"],
+                  "$return": {
+                    "$params": ["value"],
+                    "$return": "wrong"
+                  }
+                }
+              },
+              {
+                "$raw": {
+                  "$fnType": {
+                    "required": [{ "type": "integer" }],
+                    "optional": [],
+                    "returns": { "type": "integer" }
+                  }
+                }
+              }
+            ]
+          },
+          "$args": [1]
+        }
+      },
+      "error": "function return contract failed"
+    },
+    {
       "description": "load-bearing: a recursive nested where-local effectful loop whose suspended continuation escapes handle still works (escaping-closures x bind chains)",
       "body": {
         "$params": ["start"],

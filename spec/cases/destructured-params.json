@@ -217,6 +217,24 @@
       "error": "expected a plain object, received array"
     },
     {
+      "description": "string object-pattern argument is rejected",
+      "body": {
+        "$params": [{ "$fields": ["a"] }],
+        "$return": { "$var": "a" }
+      },
+      "args": ["text"],
+      "error": "expected a plain object, received string"
+    },
+    {
+      "description": "boolean object-pattern argument is rejected",
+      "body": {
+        "$params": [{ "$fields": ["a"] }],
+        "$return": { "$var": "a" }
+      },
+      "args": [false],
+      "error": "expected a plain object, received boolean"
+    },
+    {
       "description": "mixed positional and pattern slots",
       "body": {
         "$params": [

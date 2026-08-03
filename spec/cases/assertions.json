@@ -118,6 +118,108 @@
         }
       },
       "expected": "ok"
+    },
+    {
+      "description": "$nonnull rejects additional properties",
+      "body": { "$return": { "$nonnull": 1, "extra": true } },
+      "error": "$nonnull expressions cannot have other properties"
+    },
+    {
+      "description": "checked ascription requires a $type",
+      "body": { "$return": { "$as": 1 } },
+      "error": "Checked ascriptions must have both $as and $type"
+    },
+    {
+      "description": "checked ascription rejects additional properties",
+      "body": {
+        "$return": {
+          "$as": 1,
+          "$type": { "type": "integer" },
+          "extra": true
+        }
+      },
+      "error": "Checked ascriptions cannot have other properties"
+    },
+    {
+      "description": "$cast remains ordinary data",
+      "body": { "$return": { "$cast": null } },
+      "expected": { "$cast": null }
+    },
+    {
+      "description": "checked function ascription accepts a matching argument and return",
+      "body": {
+        "$return": {
+          "$call": {
+            "$as": {
+              "$params": ["value"],
+              "$return": { "$var": "value" }
+            },
+            "$type": {
+              "$fnType": {
+                "required": [{ "type": "integer" }],
+                "optional": [],
+                "returns": { "type": "integer" }
+              }
+            }
+          },
+          "$args": [3]
+        }
+      },
+      "expected": 3
+    },
+    {
+      "description": "checked function ascription rejects an invalid eventual argument",
+      "body": {
+        "$return": {
+          "$call": {
+            "$as": {
+              "$params": ["value"],
+              "$return": { "$var": "value" }
+            },
+            "$type": {
+              "$fnType": {
+                "required": [{ "type": "integer" }],
+                "optional": [],
+                "returns": { "type": "integer" }
+              }
+            }
+          },
+          "$args": ["wrong"]
+        }
+      },
+      "error": "function arguments contract failed"
+    },
+    {
+      "description": "checked function ascription rejects an invalid eventual return",
+      "body": {
+        "$return": {
+          "$call": {
+            "$as": {
+              "$params": ["value"],
+              "$return": "wrong"
+            },
+            "$type": {
+              "$fnType": {
+                "required": [{ "type": "integer" }],
+                "optional": [],
+                "returns": { "type": "integer" }
+              }
+            }
+          },
+          "$args": [3]
+        }
+      },
+      "error": "function return contract failed"
+    },
+    {
+      "description": "checked ascription rejects schemas outside the runtime fragment",
+      "body": {
+        "$return": {
+          "$as": 1,
+          "$type": { "$taskType": { "type": "integer" } }
+        }
+      },
+      "error": "checked ascription contract failed: unsupported schema"
     }
   ]
 }

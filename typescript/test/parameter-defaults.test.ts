@@ -22,14 +22,6 @@ function defaultedField(name: string, expression: JSONType): FieldBinding {
   return { $field: name, $default: expression };
 }
 
-function optional(name: string): Param {
-  return { $param: name, $optional: true };
-}
-
-function optionalField(name: string): FieldBinding {
-  return { $field: name, $optional: true };
-}
-
 function fn(params: Param[], returnExpression: JSONType): JSONFunction {
   return { $params: params, $return: returnExpression };
 }
@@ -38,40 +30,12 @@ function malformedFn(params: JSONType[], returnExpression: JSONType): JSONFuncti
   return { $params: params, $return: returnExpression } as unknown as JSONFunction;
 }
 
-function closeOver(bindings: Record<string, JSONType>, body: JSONFunction): JSONFunction {
-  return callFunction({ $return: { $let: bindings, $in: body } }, [], stdlib) as JSONFunction;
-}
-
 describe("positional parameter defaults", () => {
   test("rejects omitted required parameters and evaluates missing defaults", () => {
     expect(() => callFunction(fn(["required"], { $var: "required" }), [], stdlib)).toThrow(
       "Missing required argument at parameter position 1",
     );
     expect(callFunction(fn([defaulted("value", 7)], { $var: "value" }), [], stdlib)).toBe(7);
-  });
-
-  test("evaluates computed defaults with builtins", () => {
-    const body = fn([defaulted("value", { $call: "add", $args: [2, 3] })], { $var: "value" });
-    expect(callFunction(body, [], stdlib)).toBe(5);
-  });
-
-  test("every supplied JSON value suppresses the default", () => {
-    const body = fn([defaulted("value", "fallback")], { $var: "value" });
-    for (const value of [null, false, 0, "", [], {}] satisfies JSONType[]) {
-      expect(callFunction(body, [value], stdlib)).toEqual(value);
-    }
-  });
-
-  test("supports an explicit null default", () => {
-    expect(callFunction(fn([defaulted("value", null)], { $var: "value" }), [], stdlib)).toBeNull();
-  });
-
-  test("does not evaluate an unused default", () => {
-    const body = {
-      $params: [defaulted("unused", { $var: "doesNotExist" })],
-      $return: "ok",
-    } as FunctionDeclaration;
-    expect(callFunction(body, [], stdlib)).toBe("ok");
   });
 
   test("memoizes a forced default once per call", () => {
@@ -92,37 +56,6 @@ describe("positional parameter defaults", () => {
     expect(calls).toBe(1);
   });
 
-  test("supports forward references between defaults", () => {
-    const body = fn([defaulted("first", { $var: "second" }), defaulted("second", 2)], {
-      $var: "first",
-    });
-    expect(callFunction(body, [], stdlib)).toBe(2);
-  });
-
-  test("defaults can reference enclosing values and captured local functions", () => {
-    const fromValue = closeOver(
-      { fallback: { $call: "add", $args: [3, 4] } },
-      fn([defaulted("value", { $var: "fallback" })], { $var: "value" }),
-    );
-    const fromFunction = closeOver(
-      { fallback: { $return: 9 } },
-      fn([defaulted("value", { $call: "fallback", $args: [] })], { $var: "value" }),
-    );
-
-    expect(callFunction(fromValue, [], stdlib)).toBe(7);
-    expect(callFunction(fromFunction, [], stdlib)).toBe(9);
-  });
-
-  test("reports cycles spanning defaults", () => {
-    const defaultsCycle = fn([defaulted("a", { $var: "b" }), defaulted("b", { $var: "a" })], {
-      $var: "a",
-    });
-
-    expect(() => callFunction(defaultsCycle, [], stdlib)).toThrow(
-      "Circular variable dependency detected: a -> b -> a",
-    );
-  });
-
   test("keeps rest collection and rejects extra arguments without rest", () => {
     const withRest = fn([defaulted("head", null), "...tail"], {
       head: { $var: "head" },
@@ -135,40 +68,13 @@ describe("positional parameter defaults", () => {
     ).toThrow("Expected 0 to 1 arguments, received 2");
   });
 
-  test("uses the normalized layout for JSON function arity", () => {
-    expect(
-      getArity(
-        fn(
-          [
-            "required",
-            { $fields: ["field", optionalField("optionalField")] },
-            optional("optional"),
-            defaulted("defaulted", 1),
-            "...rest",
-          ],
-          null,
-        ),
-      ),
-    ).toBe(4);
-  });
-
-  test("rejects malformed parameters during arity introspection", () => {
+  test("direct arity introspection rejects malformed parameters", () => {
     const malformed = malformedFn([{ $param: "value" }], null);
 
     expect(() => getArity(malformed)).toThrow("Invalid JSON expression");
     expect(() => getArity(malformed)).toThrow(
       "$params[0]: A defaulted parameter must contain exactly",
     );
-    expect(() =>
-      callFunction(
-        fn([], {
-          $call: "arity",
-          $args: [{ $raw: malformed }],
-        }),
-        [],
-        stdlib,
-      ),
-    ).toThrow("$params[0]: A defaulted parameter must contain exactly");
   });
 });
 
@@ -200,41 +106,6 @@ describe("destructured field defaults", () => {
     );
   });
 
-  test("rejects supplied non-objects", () => {
-    const body = fn(
-      [{ $fields: ["required", defaultedField("withDefault", { $var: "doesNotExist" })] }],
-      [{ $var: "required" }, { $var: "withDefault" }],
-    );
-
-    for (const value of [null, 0, "text", false, []] satisfies JSONType[]) {
-      expect(() => callFunction(body, [value], stdlib)).toThrow(
-        "expected a plain object, received",
-      );
-    }
-  });
-
-  test("field defaults can depend on positional parameters and other fields", () => {
-    const body = fn(
-      [
-        "base",
-        {
-          $fields: [
-            defaultedField("first", { $var: "base" }),
-            defaultedField("second", 2),
-            defaultedField("total", {
-              $call: "add",
-              $args: [{ $var: "first" }, { $var: "second" }],
-            }),
-          ],
-        },
-      ],
-      { $var: "total" },
-    );
-
-    expect(callFunction(body, [3, {}], stdlib)).toBe(5);
-    expect(callFunction(body, [3, { second: 4 }], stdlib)).toBe(7);
-  });
-
   test("treats inherited properties as absent", () => {
     const body = fn([{ $fields: [defaultedField("value", 5)] }], { $var: "value" });
     const argument = Object.create({ value: 99 }) as JSONType;
@@ -246,46 +117,9 @@ describe("destructured field defaults", () => {
     const argument = Object.create({ value: 99 }) as JSONType;
     expect(() => callFunction(body, [argument], stdlib)).toThrow('Missing required field "value"');
   });
-
-  test("captures local functions referenced only by a field default", () => {
-    const outer = {
-      $return: {
-        $let: { fallback: { $return: 13 } },
-        $in: fn([{ $fields: [defaultedField("value", { $call: "fallback", $args: [] })] }], {
-          $var: "value",
-        }),
-      },
-    } as FunctionDeclaration;
-    const inner = callFunction(outer, [], stdlib) as FunctionDeclaration;
-    expect(callFunction(inner, [{}], stdlib)).toBe(13);
-  });
 });
 
 describe("defaults in escaping closures", () => {
-  test("captures outer values referenced only by a default", () => {
-    const outer = {
-      $return: {
-        $let: { fallback: 7 },
-        $in: fn([defaulted("value", { $var: "fallback" })], { $var: "value" }),
-      },
-    } as FunctionDeclaration;
-    const inner = callFunction(outer, [], stdlib) as FunctionDeclaration;
-    expect(callFunction(inner, [], stdlib)).toBe(7);
-  });
-
-  test("current parameters mask same-named outer bindings inside defaults", () => {
-    const outer = {
-      $return: {
-        $let: { value: 99 },
-        $in: fn([defaulted("value", 1), defaulted("copy", { $var: "value" })], {
-          $var: "copy",
-        }),
-      },
-    } as FunctionDeclaration;
-    const inner = callFunction(outer, [], stdlib) as FunctionDeclaration;
-    expect(callFunction(inner, [], stdlib)).toBe(1);
-  });
-
   test("attaches an enclosing local function referenced only by a default", () => {
     const outer = {
       $return: {
@@ -296,67 +130,6 @@ describe("defaults in escaping closures", () => {
     const inner = callFunction(outer, [], stdlib) as FunctionDeclaration;
     expect(callFunction(inner, [], stdlib)).toBe(11);
     expect(callFunction(JSON.parse(JSON.stringify(inner)), [], stdlib)).toBe(11);
-  });
-
-  test("every parameter kind shadows same-named outer bindings", () => {
-    const outer = {
-      $return: {
-        $let: {
-          required: "outer",
-          fieldRequired: "outer",
-          fieldOptional: "outer",
-          fieldDefaulted: "outer",
-          optional: "outer",
-          defaulted: "outer",
-          rest: "outer",
-        },
-        $in: fn(
-          [
-            "required",
-            {
-              $fields: [
-                "fieldRequired",
-                optionalField("fieldOptional"),
-                defaultedField("fieldDefaulted", "field default"),
-              ],
-            },
-            optional("optional"),
-            defaulted("defaulted", "parameter default"),
-            "...rest",
-          ],
-          {
-            required: { $var: "required" },
-            fieldRequired: { $var: "fieldRequired" },
-            fieldOptional: { $var: "fieldOptional" },
-            fieldDefaulted: { $var: "fieldDefaulted" },
-            optional: { $var: "optional" },
-            defaulted: { $var: "defaulted" },
-            rest: { $var: "rest" },
-          },
-        ),
-      },
-    } as FunctionDeclaration;
-
-    const inner = callFunction(outer, [], stdlib) as FunctionDeclaration;
-    expect(callFunction(inner, ["required", { fieldRequired: "field" }], stdlib)).toEqual({
-      required: "required",
-      fieldRequired: "field",
-      fieldOptional: null,
-      fieldDefaulted: "field default",
-      optional: null,
-      defaulted: "parameter default",
-      rest: [],
-    });
-  });
-
-  test("rejects malformed nested parameters while creating a closure", () => {
-    const outer = {
-      $return: malformedFn([{ $param: "value" }], null),
-    } as FunctionDeclaration;
-
-    expect(() => callFunction(outer, [], stdlib)).toThrow(
-      "$params[0]: A defaulted parameter must contain exactly",
-    );
   });
 });
 
@@ -432,57 +205,6 @@ describe("positional default validation", () => {
         stdlib,
       ),
     ).toEqual({ value: 2, fallback: 3 });
-  });
-
-  test("allows required and defaulted fields in either order", () => {
-    for (const fields of [
-      ["required", defaultedField("fallback", 2)],
-      [defaultedField("fallback", 2), "required"],
-    ]) {
-      expect(
-        callFunction(
-          fn(
-            [{ $fields: fields }, defaulted("suffix", 3)],
-            [{ $var: "required" }, { $var: "fallback" }, { $var: "suffix" }],
-          ),
-          [{ required: 1 }],
-          stdlib,
-        ),
-      ).toEqual([1, 2, 3]);
-    }
-  });
-
-  test("rejects invalid descriptors, duplicates, and rest forms", () => {
-    const invalidParams: JSONType[][] = [
-      [{ $param: "x" }],
-      [{ $param: "x", $default: 1, extra: true }],
-      [{ $param: "...xs", $default: [] }],
-      ["...xs", "later"],
-      ["x", { $param: "x", $default: 1 }],
-      [{ $fields: ["x"] }, { $param: "x", $default: 1 }],
-      [{ $fields: [{ $field: "x" }] }],
-      [{ $fields: [{ $field: "x", $default: 1, extra: true }] }],
-      [{ $fields: [{ $param: "x", $default: 1 }] }],
-      [{ $fields: ["x", { $field: "x", $default: 1 }] }],
-    ];
-
-    for (const params of invalidParams) {
-      expect(() => callFunction(malformedFn(params, null), [], stdlib)).toThrow(
-        "Invalid JSON expression",
-      );
-    }
-  });
-
-  test("preserves specific validation errors after a defaulted slot", () => {
-    expect(() =>
-      callFunction(malformedFn([defaulted("first", 1), { $param: "second" }], null), [], stdlib),
-    ).toThrow("A defaulted parameter must contain exactly");
-    expect(() => callFunction(fn([defaulted("same", 1), "same"], null), [1, 2], stdlib)).toThrow(
-      'Duplicate parameter binding "same"',
-    );
-    expect(() =>
-      callFunction(fn([defaulted("first", 1), "...rest", "later"], null), [], stdlib),
-    ).toThrow("A rest parameter must have a name and be the final $params entry");
   });
 
   test("uses the same validation through registry, program, and prepared calls", () => {

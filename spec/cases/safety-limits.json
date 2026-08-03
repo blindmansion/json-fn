@@ -236,6 +236,46 @@
       "expected": 15
     },
     {
+      "description": "deep recursion fits a tight configured call-depth budget",
+      "body": {
+        "$params": ["start"],
+        "$return": {
+          "$call": "go",
+          "$args": [{ "$var": "start" }, 0]
+        }
+      },
+      "args": [4000],
+      "functions": {
+        "go": {
+          "$params": ["n", "acc"],
+          "$return": {
+            "$if": {
+              "$call": "lte",
+              "$args": [{ "$var": "n" }, 0]
+            },
+            "$then": { "$var": "acc" },
+            "$else": {
+              "$call": "go",
+              "$args": [
+                {
+                  "$call": "sub",
+                  "$args": [{ "$var": "n" }, 1]
+                },
+                {
+                  "$call": "add",
+                  "$args": [{ "$var": "acc" }, { "$var": "n" }]
+                }
+              ]
+            }
+          }
+        }
+      },
+      "limits": {
+        "maxCallDepth": 4200
+      },
+      "expected": 8002000
+    },
+    {
       "description": "non-circular variable chain resolves correctly",
       "body": {
         "$return": {
