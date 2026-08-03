@@ -267,7 +267,7 @@ function isUnshadowed(name: string, ctx: CheckContext): boolean {
   return ctx.env.lookupType(name) === undefined;
 }
 
-// A raw value used as a condition narrows itself: it is truthy on the branch
+// A value used directly as a condition narrows itself: it is truthy on the branch
 // where the condition holds (`sense`), falsy otherwise. Applies to any static
 // access path (a bare `$var` or a `base.field` chain); other expressions yield
 // no fact.

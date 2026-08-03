@@ -186,13 +186,13 @@ more precisely than their portable signatures indicate.
 
 ## Tasks & Effects
 
-| Function  | Signature                                     | Description                                                                                                                   |
-| --------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `perform` | `(string, any[]) → Task`                      | Build a task requesting a named effect with arguments.                                                                        |
-| `pure`    | `(any) → Task`                                | Build a completed task carrying a value.                                                                                      |
-| `bind`    | `(Task, (any) → Task) → Task`                 | Sequence a task into a continuation that returns the next task.                                                               |
-| `raise`   | `(any) → Task`                                | Build a task requesting the raise effect, equivalent to `perform("raise", [value])`.                                          |
-| `handle`  | `(any, any) → any`<br>`(any, any, any) → any` | Interpret a task's effects with handler clauses; an optional raw result schema makes the handler total and runtime-validated. |
+| Function  | Signature                                     | Description                                                                                                                      |
+| --------- | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `perform` | `(string, any[]) → Task`                      | Build a task requesting a named effect with arguments.                                                                           |
+| `pure`    | `(any) → Task`                                | Build a completed task carrying a value.                                                                                         |
+| `bind`    | `(Task, (any) → Task) → Task`                 | Sequence a task into a continuation that returns the next task.                                                                  |
+| `raise`   | `(any) → Task`                                | Build a task requesting the raise effect, equivalent to `perform("raise", [value])`.                                             |
+| `handle`  | `(any, any) → any`<br>`(any, any, any) → any` | Interpret a task's effects with handler clauses; an optional static result schema makes the handler total and runtime-validated. |
 
 ## Introspection
 

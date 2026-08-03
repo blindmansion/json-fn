@@ -8,11 +8,13 @@ pretty-prints back to shorthand.
 - **Semantics-preserving.** Shorthand is correct only if it lowers to exactly
   the JSON you would have hand-written.
 - **Code-first.** Identifiers and calls are code by default; literal strings are
-  quoted; inert data is marked with `raw`.
-- **Bijective (by normal form).** One canonical shorthand per JSON node and vice
-  versa. Byte-exact round-tripping of arbitrary hand-written JSON is _not_
-  guaranteed — JSON is normalized to canonical form first (e.g. property-access
-  spellings, see §5).
+  quoted; quoted data needs no keyword — the parser infers the canonical `$raw`
+  boundary from static JSON (§3).
+- **Bijective (by normal form).** One canonical shorthand per normalized JSON
+  node and vice versa: `parse(print(node)) = normalize(node)`. Byte-exact
+  round-tripping of arbitrary hand-written JSON is _not_ guaranteed — JSON is
+  normalized to canonical form first (e.g. property-access spellings, see §5;
+  redundant `$raw` wrappers, see §3).
 
 File extension: `.jfn`.
 
@@ -42,11 +44,11 @@ File extension: `.jfn`.
 Every construct is an expression. Three value "states" from the language are
 made explicit in the surface syntax:
 
-| State                          | Surface            | JSON                   |
-| ------------------------------ | ------------------ | ---------------------- |
-| Evaluated expression           | bare code          | `$call` / `$fn` / `$var` / forms |
-| Plain data (values evaluated)  | `[...]` / `{k: v}` | array / object         |
-| Inert (verbatim, un-evaluated) | `raw <json>`       | `{ "$raw": <json> }`   |
+| State                          | Surface                                       | JSON                   |
+| ------------------------------ | --------------------------------------------- | ---------------------- |
+| Evaluated expression           | bare code                                     | `$call` / `$fn` / `$var` / forms |
+| Plain data (values evaluated)  | `[...]` / `{k: v}`                            | array / object         |
+| Inert (verbatim, un-evaluated) | static JSON with quoted `$`-keys — _inferred_ | `{ "$raw": <json> }`   |
 
 ---
 
@@ -100,8 +102,12 @@ bare identifiers or quoted strings.
 { "name": "ada", "score": { "$call": "add", "$args": [{ "$var": "x" }, 1] } }
 ```
 
-**`$`-prefixed keys are forbidden** in a data object (they would collide with a
-magic key on lowering). Use `raw` for data containing `$`-keys.
+**Bare `$`-prefixed keys are forbidden** in a data object (they would collide
+with a magic key on lowering). A **quoted** `$`-prefixed key is accepted only
+when the whole containing literal is static JSON data; the parser then quotes
+the maximal static literal under a canonical `$raw` boundary (see "Quoted
+data" below). To give a dynamic object a literal `$`-prefixed key, use a
+computed key: `{ ["$status"]: status }`.
 
 **Shorthand-property punning.** A bare identifier key with no `: value` puns to
 a same-named variable read — `{ year }` means `{ year: year }`. It mirrors the
@@ -153,26 +159,70 @@ canonical expression syntax. Object spread operands must be objects; a
 spread-only literal lowers as `{ ...source }` → `merge({}, source)` to preserve
 that validation. Computed keys follow `fromEntries`' string-key contract.
 
-### Inert data — `raw`
+### Quoted data — inferred `$raw`
 
-`raw` introduces a **verbatim JSON island**; nothing inside is evaluated. It
-lowers to `$raw`. The body is **strict JSON** (quoted keys, no shorthand).
+There is no quoting keyword. Ordinary static JSON is already a value and lowers
+to itself; when a static literal contains a **quoted `$`-prefixed key** — which
+would otherwise collide with the canonical encoding — the parser quotes the
+**maximal static literal** around it under a canonical `$raw` boundary: a
+verbatim JSON island in which nothing is evaluated.
 
 ```jfn
-raw [[-2, -1], [-2, 1], [-1, -2]]
+{ "$var": "this is data" }
 
-raw { "$call": "not", "$args": ["x"] }
+{ envelope: { payload: { "$call": "not code", "$args": [] } } }
 ```
 
 ```json
-{ "$raw": [[-2, -1], [-2, 1], [-1, -2]] }
+{ "$raw": { "$var": "this is data" } }
 
-{ "$raw": { "$call": "not", "$args": ["x"] } }
+{ "$raw": { "envelope": { "payload": { "$call": "not code", "$args": [] } } } }
 ```
 
-`raw` is the **exception**, not the default: reach for it only to (a) protect
-data containing `$`-prefixed keys, or (b) skip evaluation cost for a constant in
-a hot path. Plain constant data (e.g. `[1, 2, 3]`) needs no `raw`.
+A literal is **static** when it is a scalar, an array literal whose elements
+are all static (no spread), or a data-object literal whose values are all
+static (no spread or computed entry). Calls, variables, function references
+and literals, conditionals, ascriptions, and templates that lower to
+concatenation are dynamic. Grouping parentheses and a degenerate single-hole
+template are transparent: the literal inside keeps its provenance. When the
+parent is dynamic, only the maximal static child is quoted:
+
+```jfn
+{ receivedAt, payload: { "$call": "not code", "$args": [] } }
+```
+
+```json
+{
+  "receivedAt": { "$var": "receivedAt" },
+  "payload": { "$raw": { "$call": "not code", "$args": [] } }
+}
+```
+
+A quoted `$`-key inside a **dynamic** literal is rejected — `{ "$status": status }`
+is an error, because it cannot be a JSON value (its value is an expression)
+and it would collide with reserved syntax as a canonical object. Use a
+computed key (`{ ["$status"]: status }`) there instead. A literal `$comment`
+entry follows the same rule, which is how a `$comment` key is preserved as
+data (`{ "$comment": "note", a: 1 }` quotes; plain literal syntax strips
+`$comment`).
+
+Quotation is a semantic boundary, not a performance hint: plain constant data
+(e.g. `[1, 2, 3]`) stays plain canonical JSON, and quoting does not change
+deterministic fuel — a `$raw` payload charges the same cost as evaluating the
+equivalent plain constant literal (see
+[Execution limits](./execution-limits.md)).
+
+Printing mirrors inference: a generic `$raw` payload prints as ordinary strict
+JSON, redundant wrappers (around scalars and collision-free static JSON)
+normalize away, and boundaries re-hoist to the maximal static literal on
+reparse — the round-trip contract is `parse(print(node)) = normalize(node)`.
+Wrappers that a boundary genuinely protects (expression-shaped or reserved-key
+payloads, literal `$comment` entries, generated code embedded as data, and the
+annotated-`handle` result schema, §13) are always retained.
+
+Module bindings and `handle` clause records are explicit no-inference
+contexts: a module root stays a module and an empty clause record stays a
+handler record. `raw` is an ordinary identifier, not a keyword.
 
 ---
 
@@ -843,7 +893,7 @@ pieceType:  (piece) => upper(piece)
 }
 ```
 
-**How a module is consumed is a host concern**, unchanged from raw JSON: the
+**How a module is consumed is a host concern**, unchanged from canonical JSON: the
 host treats the resulting object as the outermost scope over the stdlib
 registry and chooses a named entry point (as with `pipeline.jfn` and
 `dungeon.jfn`). Standalone expressions are a separate parser/CLI mode and are
@@ -895,7 +945,6 @@ primary     := number | string | template | "true" | "false" | "null"
              | "do" "{" doEntry ("," doEntry)* "}"   // effects (§13)
              | "handle" expr ( "returns" type )? "with"
                         "{" (dataEntry ("," dataEntry)*)? "}"     // §13
-             | "raw" jsonValue
 
 funcLit     := "(" params ")" "=>" body
 body        := expr ( "where" "{" binding ("," binding)* "}" )?
@@ -959,7 +1008,7 @@ back.
 `do` and `handle` are **contextual keywords**: in primary position they
 introduce these forms, so — unlike ordinary identifiers — they can no longer be
 used as bare variable or call names there (a breaking change, alongside
-`if`/`cond`/`match`/`raw`). A property key or a `.field` access named `do`/`handle`
+`if`/`cond`/`match`). A property key or a `.field` access named `do`/`handle`
 is unaffected.
 
 ### `do { … }` — sequencing effects
@@ -1080,8 +1129,8 @@ rules** (§3), so dotted effect names (`io.readLine`), the `"*"` wildcard, and t
 reference.
 
 The total annotated form `handle <task> returns <type> with { … }` lowers the type
-schema as a raw third argument:
-`handle(task, { …clauses… }, raw(<result-schema>))`. The annotation precedes
+schema as a `$raw`-quoted third argument:
+`handle(task, { …clauses… }, { "$raw": <result-schema> })`. The annotation precedes
 `with` and names the handler's immediate result contract explicitly. `returns`
 is contextual: `handle returns with { … }` still handles a task variable named
 `returns`. An ascribed task operand must be parenthesized so `returns` can
@@ -1111,12 +1160,13 @@ handle greet(io) with {
 ### Canonical printback
 
 The printer folds **only exact desugar images**, preserving the
-bijective-by-normal-form guarantee (`parse(print(x)) === x`): a `bind` call whose
+bijective-by-normal-form guarantee (`parse(print(x)) = normalize(x)`, and exact
+identity for these already-normal forms): a `bind` call whose
 continuation is a structural function literal prints as `do { … }`. A leading
 `$let` around the bind spine reconstructs leading pure entries; a `$let` in a
 continuation's `$return` reconstructs the consecutive pure entries after that
 effect/discard. A `handle` call with a literal clause object prints as
-`handle … with { … }`; a third `raw(schema)` argument prints as
+`handle … with { … }`; a third `$raw` schema argument prints as
 `handle … returns Type with { … }`. Any other shape—e.g. a `bind` with an
 `&`-referenced continuation, or a `handle` whose clauses are a computed
 expression—prints as a plain call.

@@ -315,9 +315,11 @@ Comparison and negation have **no dedicated expression forms**. Comparisons (`eq
 Returns the value as-is without evaluating nested expressions: the payload is
 a JSON value, not json-fn syntax. Use `$raw` to preserve data that would
 otherwise be interpreted as expression syntax (keys such as `$fn`, `$var`, or
-`$call`) or to keep a literal `$comment` entry. Quotation is not a fuel
-escape hatch: a `$raw` payload charges the same deterministic fuel as
-evaluating the equivalent plain constant literal (see
+`$call`) or to keep a literal `$comment` entry. Shorthand has no keyword for
+it: the parser infers the boundary around static JSON containing quoted
+`$`-prefixed keys (see the [shorthand spec](shorthand-spec.md)). Quotation is
+not a fuel escape hatch: a `$raw` payload charges the same deterministic fuel
+as evaluating the equivalent plain constant literal (see
 [Execution limits](execution-limits.md)).
 
 ```json
@@ -802,7 +804,7 @@ host capability. Qualification distinguishes effects from direct functions, so
 `tap(...)` and `effects.log(...)` may coexist with different semantics. A module
 checked or run with a contract may not declare its own top-level `effects`
 binding. Manifest names may not be namespace prefixes of other names (for
-example, `sensor` and `sensor.read` cannot both be declared). Raw `perform`
+example, `sensor` and `sensor.read` cannot both be declared). Direct `perform`
 remains available as a low-level constructor.
 
 Malformed tasks (e.g. a `bind` whose `then` is not a function, or an `effect` with a non-string `name`) are rejected as ordinary **guest-visible evaluation errors** when the task is run — never as host-language exceptions.
@@ -822,7 +824,7 @@ Running a task normalizes it — walking the `bind` spine — to exactly one of 
 
 `handle(task, clauses)` runs a task, dispatching each effect it performs to a matching clause in the `clauses` record. This is a pure, in-language interpreter for effects — no host involved — which is what makes effectful code testable. This two-argument form is **partial**: unmatched effects bubble.
 
-`handle(task, clauses, raw(resultSchema))` is the **total annotated** form, written in shorthand as `handle task returns ResultType with { … }`. Its immediate result is checked against `resultSchema` at runtime, and the checker gives the expression that declared type. An unmatched effect is a `RuntimeContractError` instead of a residual task. The annotation is retained by every generated `resume`, and named types resolve through the active module's `$types`.
+`handle(task, clauses, { "$raw": resultSchema })` is the **total annotated** form, written in shorthand as `handle task returns ResultType with { … }`. Its immediate result is checked against `resultSchema` at runtime, and the checker gives the expression that declared type. An unmatched effect is a `RuntimeContractError` instead of a residual task. The annotation is retained by every generated `resume`, and named types resolve through the active module's `$types`.
 
 Clause lookup is by effect name:
 
@@ -1042,8 +1044,8 @@ Match results are objects with `match` (full matched text), `index` (start posit
 Higher-order functions can invoke json-fn callbacks. The callback argument can be a function reference (`{ "$fn": "name" }`), an inline function body, or a string name.
 
 At runtime, a callback may be an inline function, a function reference, or a
-raw string name. The static checker contextually types bare inline functions
-and checks typed function references; it does not resolve raw string names.
+plain string name. The static checker contextually types bare inline functions
+and checks typed function references; it does not resolve string names.
 Bare contextual callbacks must declare the exact required, optional, and rest
 shape supplied by the builtin; those three parts are compared independently.
 Referenced and `$sig`-annotated callbacks must also have a compatible complete

@@ -268,7 +268,7 @@ const handleRule: CallableTypeRuleApplyV1 = (request, services) => {
     Object.keys(annotationExpr).length !== 1 ||
     !("$raw" in annotationExpr)
   ) {
-    services.reportError("annotated handle requires a raw result-type schema", {
+    services.reportError("annotated handle requires a static result-type schema", {
       argumentIndex: 2,
     });
     return true;

@@ -132,7 +132,7 @@ The `[]` suffix is postfix and repeatable (`number[][]`). Fixed tuples emit
 ### 5.2 Objects
 
 **Closed by default** — `additionalProperties: false` unless opened with `...`.
-(This differs from raw JSON Schema's open default.)
+(This differs from standard JSON Schema's open default.)
 
 ```
 {name: string, age?: integer}

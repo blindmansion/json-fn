@@ -225,7 +225,7 @@ statically.
 
 #### Intentional static/runtime boundaries
 
-- Runtime higher-order functions accept raw string callback names, but the
+- Runtime higher-order functions accept plain string callback names, but the
   checker does not resolve those names. Inline lambdas and typed function
   references are the canonical checked forms.
 - `reReplaceWith` callbacks statically return `string`; the runtime

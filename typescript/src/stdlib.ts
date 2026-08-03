@@ -1015,7 +1015,7 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
     }, 3),
 
     // Tasks & effects (see src/task.ts and docs/language.md "Tasks & Effects").
-    // Constructors build inert, raw-marked tagged records; `handle` interprets
+    // Constructors build runtime-value-marked tagged records; `handle` interprets
     // them in-language. `pure` the registry key coexists with the `pure` marker
     // helper imported above — one is an object key, the other an identifier.
     perform: builtin((args) => {

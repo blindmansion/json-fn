@@ -1383,7 +1383,7 @@ describe("Section F — builtin signatures", () => {
       }
     });
 
-    test("annotated handle requires a raw result schema", () => {
+    test("annotated handle requires a static ($raw-quoted) result schema", () => {
       const missingRaw = synthB(call("handle", call("pure", 1), {}, { type: "string" }));
       expect(missingRaw.type).toBe(true);
       expect(missingRaw.diagnostics.some((d) => d.path.join(".") === "$args[2]")).toBe(true);

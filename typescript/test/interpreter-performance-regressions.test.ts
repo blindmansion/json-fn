@@ -72,7 +72,7 @@ describe("captured data values", () => {
     $params: ["value"],
     $return: { $params: [], $return: { $var: "value" } },
   };
-  test("keeps explicitly raw function-shaped host data inert", () => {
+  test("keeps runtime-value-marked function-shaped host data as data", () => {
     const payload = markRuntimeValue({ $return: "data", metadata: true });
     const closure = callFunction(capture, [payload], stdlib) as FunctionDeclaration;
     expect(callFunction(closure, [], stdlib)).toBe(payload);

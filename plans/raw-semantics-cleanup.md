@@ -60,8 +60,22 @@ Parser cases live in `spec/parse-cases/raw-inference.json` (plus updated
 `literals.json`, `handle.json`, `special-object-keys.json`); preseeding and
 ingestion-route fuel equivalence are tested in
 `test/expression-metadata.test.ts`; `examples/dungeon.jfn` dropped its `raw`
-spelling. Workstream G (docs, checker wording, remaining terminology) is the
-next pass.
+spelling.
+Workstream G (docs, checker wording, remaining terminology) has landed: the
+annotated-handle diagnostic asks for a "static result-type schema", the
+`handle` builtin description in `spec/builtins.json` matches (with
+`docs/builtins.md` regenerated), stale "raw"/"inert" wording in
+`src/check/narrowing.ts`, `src/stdlib.ts`, and test names was replaced with
+runtime-value terminology, and the docs were rewritten around inference:
+`docs/shorthand-spec.md` (quoted-data section, states table,
+`parse(print(node)) = normalize(node)` contract, grammar and
+contextual-keyword updates, `$raw`-quoted annotated-handle lowering),
+`docs/writing-jfn.md` (quoted `$`-keys in static data, computed keys in
+dynamic objects), and `docs/language.md` (shorthand-inference note under
+`$raw`, canonical annotated-handle spelling). The only bare `raw` left in
+docs is the statement that `raw` is an ordinary identifier; shared spec
+cases needed no further changes. Workstream H (final verification sweep and
+focused perf suites) is the next pass.
 
 ## Summary
 

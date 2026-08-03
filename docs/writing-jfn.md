@@ -129,10 +129,11 @@ demo: () -> { names: string[], log: string } => {
   - computed keys: `{ [keyExpr]: value }` — the key must evaluate to a string.
 - A bare `{…}` is **always a data object, never a code block** — including
   immediately after `=>`. There are no blocks in the language.
-- `$`-prefixed keys are forbidden in object literals (they collide with the
-  language's internal encoding). To produce data that contains `$`-keys, use
-  `raw <strict JSON>`: a verbatim island in which nothing is evaluated and
-  ordinary JSON syntax (quoted keys) applies. You rarely need it.
+- Bare `$`-prefixed keys are forbidden in object literals (they collide with
+  the language's internal encoding). Quoted `$`-keys are allowed when the
+  whole literal is static JSON data — `{ "$var": "this is data" }` produces
+  exactly that object. In a dynamic object, use a computed key instead:
+  `{ ["$status"]: status }`.
 - Call arguments can also be spread: `f(a, ...rest, b)`, `add(...pair)`.
   (Spread calls currently degrade the checker's knowledge of the result type
   to `any`; add `checked as T` when the result type matters.)
@@ -540,7 +541,8 @@ json-fn specifics:
 - Refine inputs and boundaries; keep recomputed fields plain (§10).
 - Comparison chaining works and evaluates operands once (§5).
 - Reserved names: `Task`, and `effects` in contract-linked modules; don't re-declare injected names (§3).
-- No `$`-keys in object literals; wrap such data in `raw { … }` (§4).
+- No bare `$`-keys in object literals; quoted `$`-keys are fine in fully
+  static JSON data, and dynamic objects need computed keys (§4).
 
 ## 14. Builtin names
 

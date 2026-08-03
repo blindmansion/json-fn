@@ -1470,7 +1470,7 @@
       "rule": "core.raise"
     },
     "handle": {
-      "description": "Interpret a task's effects with handler clauses; an optional raw result schema makes the handler total and runtime-validated.",
+      "description": "Interpret a task's effects with handler clauses; an optional static result schema makes the handler total and runtime-validated.",
       "category": "tasks-effects",
       "signatures": [
         { "required": [true, true], "optional": [], "returns": true },
