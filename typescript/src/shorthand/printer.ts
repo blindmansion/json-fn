@@ -22,6 +22,7 @@
 
 import type { JSONType } from "../types";
 import { FUNCTION_BODY_SOURCE_FIELDS } from "../function-body-structure";
+import { expressionKeyCount } from "../utils";
 import { assertStructuralDepth } from "../structural-depth";
 import { fixedParamSchemas } from "../schema/schema.ts";
 import {
@@ -175,7 +176,7 @@ function renderObject(node: { [k: string]: JSONType }, indent: string): Rendered
       prec: P_ASCRIPTION,
     };
   }
-  if ("$raw" in node) return atom(`raw ${JSON.stringify(node.$raw)}`);
+  if ("$raw" in node) return renderRaw(node.$raw!, indent);
   if ("$return" in node) return renderFunctionBody(node, indent);
   return atom(renderDataObject(node, indent));
 }
@@ -193,8 +194,9 @@ function renderRef(fn: JSONType, indent: string): Rendered {
 function renderCall(head: JSONType, args: JSONType[], indent: string): Rendered {
   if (typeof head === "string") {
     // Partial `handle(task, { …clauses… })` and total annotated
-    // `handle(task, { …clauses… }, raw(schema))` print through the contextual
-    // handle syntax. Only a literal clause object is expressible after `with`.
+    // `handle(task, { …clauses… }, { $raw: schema })` print through the
+    // contextual handle syntax. Only a literal clause object is expressible
+    // after `with`.
     if (head === "handle" && (args.length === 2 || args.length === 3) && isDataObject(args[1]!)) {
       const annotation =
         args.length === 3 && isPlainObject(args[2]!) && "$raw" in args[2]!
@@ -396,7 +398,12 @@ function validatePrintableTree(node: JSONType, path: string): void {
     node.forEach((value, index) => validatePrintableTree(value, `${path}[${index}]`));
     return;
   }
-  if ("$raw" in node) return;
+  if ("$raw" in node) {
+    if (expressionKeyCount(node) > 1) {
+      throw new Error(`Cannot print $raw expression at ${path} with other properties.`);
+    }
+    return;
+  }
 
   if ("$let" in node || "$in" in node) printableLetBindings(node, path);
 
@@ -788,13 +795,54 @@ function renderModule(node: { [k: string]: JSONType }, indent: string): string {
   return entries.join("\n");
 }
 
+/** Canonical `$raw` — the serializable value/syntax boundary. The payload
+ * prints as ordinary strict-JSON data with no keyword; reparsing reconstructs
+ * the boundary exactly where it is semantically required, so redundant
+ * wrappers (scalar or `$`-key-free payloads) normalize away. The printer
+ * property is `parse(print(node)) = normalize(node)`, not exact identity. */
+function renderRaw(payload: JSONType, indent: string): Rendered {
+  if (payload === null || typeof payload !== "object") return render(payload, indent);
+  return atom(renderQuotedData(payload, indent));
+}
+
+/** Render a raw payload subtree as pure data: every nested object prints as a
+ * data-object spelling (never as the canonical expression form its keys might
+ * resemble), with `$`-prefixed and non-identifier keys quoted. */
+function renderQuotedData(value: JSONType, indent: string): string {
+  if (value === null || typeof value !== "object") return render(value, indent).text;
+  if (Array.isArray(value)) {
+    if (value.length === 0) return "[]";
+    return `[${value.map((element) => renderQuotedData(element, indent)).join(", ")}]`;
+  }
+  const keys = Object.keys(value);
+  if (keys.length === 0) return "{}";
+  if (keys.length === 1) return `{ ${renderQuotedDataEntry(value, keys[0]!, indent)} }`;
+  const inner = indent + "  ";
+  return `{\n${keys.map((k) => inner + renderQuotedDataEntry(value, k, inner)).join(",\n")}\n${indent}}`;
+}
+
+function renderQuotedDataEntry(
+  node: { [k: string]: JSONType },
+  key: string,
+  indent: string,
+): string {
+  const renderedKey = IDENT_RE.test(key) ? key : JSON.stringify(key);
+  return `${renderedKey}: ${renderQuotedData(node[key]!, indent)}`;
+}
+
 function renderDataObject(node: { [k: string]: JSONType }, indent: string): string {
-  // `$comment` has no canonical shorthand surface form, so we ignore it for now
-  // rather than letting it force the whole object into a `raw` island.
+  // `$comment` has no canonical shorthand surface form, so we ignore it for
+  // now rather than treating the object as unprintable.
   const keys = Object.keys(node).filter((k) => k !== "$comment");
-  // A data object cannot carry `$`-prefixed keys (the parser forbids them), so
-  // such an object is only expressible as an inert `raw` island.
-  if (keys.some((k) => k.startsWith("$"))) return `raw ${JSON.stringify(node)}`;
+  // A data object cannot carry `$`-prefixed keys: in expression position such
+  // an object is (possibly malformed) canonical syntax, and a `$`-keyed JSON
+  // value is only expressible as a canonical `$raw` payload.
+  const reserved = keys.find((k) => k.startsWith("$"));
+  if (reserved !== undefined) {
+    throw new Error(
+      `Cannot print non-canonical object with reserved key ${JSON.stringify(reserved)}; a $-keyed JSON value must be quoted under $raw.`,
+    );
+  }
   if (keys.length === 0) return "{}";
 
   if (keys.length === 1) return `{ ${renderDataEntry(node, keys[0]!, indent)} }`;

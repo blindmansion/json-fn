@@ -150,12 +150,18 @@ describe("shorthand parser", () => {
     expect(() => parseExpression(src)).toThrow(DEPTH_ERROR);
   });
 
-  test("raw JSON islands share the limit (the $raw wrapper adds one level)", () => {
-    const ok =
-      "raw " + "[".repeat(MAX_STRUCTURAL_DEPTH - 1) + "1" + "]".repeat(MAX_STRUCTURAL_DEPTH - 1);
-    expect(parseExpression(ok)).toEqual({ $raw: deepArray(MAX_STRUCTURAL_DEPTH - 1) });
-    const deep = "raw " + "[".repeat(MAX_STRUCTURAL_DEPTH) + "1" + "]".repeat(MAX_STRUCTURAL_DEPTH);
-    expect(() => parseExpression(deep)).toThrow(DEPTH_ERROR);
+  test("inferred $raw wrappers count toward the produced-tree limit", () => {
+    const source = (n: number) => "[".repeat(n) + '{ "$x": 1 }' + "]".repeat(n);
+    const wrapped = (n: number): JSONType => {
+      let value: JSONType = { $x: 1 };
+      for (let i = 0; i < n; i++) value = [value];
+      return { $raw: value };
+    };
+    // The quoted $-key object adds one container level and the inferred $raw
+    // wrapper another, so acceptance tops out two below the array-only case.
+    const ok = MAX_STRUCTURAL_DEPTH - 2;
+    expect(parseExpression(source(ok))).toEqual(wrapped(ok));
+    expect(() => parseExpression(source(ok + 1))).toThrow(DEPTH_ERROR);
   });
 });
 

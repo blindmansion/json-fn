@@ -6,7 +6,7 @@ type Turn = { state: PlayerState, message: string, done: boolean }
 // lives entirely in the functions below, so the world could be loaded,
 // diffed, or generated like any other JSON value.
 
-world: raw {
+world: {
   "cell": {
     "name": "Damp Cell",
     "blurb": "Moss, straw, and a door someone forgot to lock properly.",

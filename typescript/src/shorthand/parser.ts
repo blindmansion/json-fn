@@ -9,6 +9,8 @@ import type { FieldPattern, FunctionBody, JSONType, Param } from "../types";
 import { analyzeParameters, formatParameterIssue } from "../params";
 import { setOwnProperty } from "../own-properties";
 import { assertStructuralDepth, MAX_STRUCTURAL_DEPTH } from "../structural-depth";
+import { rememberStaticCost } from "../expression-metadata";
+import { ParseError } from "./error";
 import { TokenCursor, describe } from "./cursor";
 import { lex } from "./lexer";
 import type { TemplatePart, TokPunct } from "./lexer";
@@ -27,6 +29,7 @@ export function parseModule(src: string): JSONType {
   const v = p.parseModule();
   p.expect("eof", "end of input");
   assertStructuralDepth(v);
+  p.flushPreseeds();
   return v;
 }
 
@@ -37,6 +40,7 @@ export function parseExpression(src: string): JSONType {
   const v = p.parseExpression();
   p.expect("eof", "end of input");
   assertStructuralDepth(v);
+  p.flushPreseeds();
   return v;
 }
 
@@ -59,6 +63,7 @@ export function parseModuleWithPositions(src: string): ParsedWithPositions {
   const v = p.parseModule();
   p.expect("eof", "end of input");
   assertStructuralDepth(v);
+  p.flushPreseeds();
   return { value: v, positions };
 }
 
@@ -71,6 +76,7 @@ export function parseExpressionWithPositions(src: string): ParsedWithPositions {
   const v = p.parseExpression();
   p.expect("eof", "end of input");
   assertStructuralDepth(v);
+  p.flushPreseeds();
   return { value: v, positions };
 }
 
@@ -107,11 +113,51 @@ const COMPARISON_OPS: Partial<Record<TokPunct, string>> = {
 const ORDERED_COMPARISON_NAMES = new Set(["lt", "lte", "gt", "gte"]);
 const COMPARISON_TEMP_PREFIX = "__jfn_cmp_";
 
+/** A quoted `$`-prefixed data-object key, provisionally accepted while its
+ * containing literal is proven static (spec: raw inference). */
+type DollarKey = { key: string; line: number; col: number };
+
+/** A parsed data-object/array literal context for `$`-key acceptance and raw
+ * inference. Inference applies only to ordinary data literals; module bindings
+ * and handler-clause records are explicit no-inference contexts. */
+type LiteralMode = "data" | "module" | "handlers";
+
 class Parser extends TokenCursor {
   /** When set, canonical object/array nodes are recorded here with the source
    * position of the token that begins them. Recording is first-write-wins, so
    * the innermost (most specific) producer of a node determines its position. */
   positions: WeakMap<object, SourcePos> | undefined;
+
+  // ----- static-literal provenance (raw inference) -----
+  //
+  // Track staticness only for composite nodes produced by literal grammar
+  // paths, by object identity, never by re-walking lowered canonical JSON:
+  // function bodies, calls, schemas, and other syntax are themselves JSON.
+  // Scalars are always static (cost 1) and never need a `$raw` boundary.
+
+  /** Proven-static plain literal composites -> complete static-literal cost
+   * (one unit per JSON value node of the produced value). */
+  private staticCosts = new WeakMap<object, number>();
+
+  /** Parser-emitted `{ $raw: payload }` wrappers -> payload static cost. The
+   * entry is the provenance that lets a static parent absorb the payload into
+   * a maximal boundary; it is never inferred from a wrapper-shaped node alone. */
+  private rawWrappers = new WeakMap<object, number>();
+
+  /** Plain static composites awaiting a global static-cost preseed. Preseeding
+   * is deferred to parse completion so composites absorbed into a `$raw`
+   * payload are never preseeded: a payload is quoted data, not syntax, and its
+   * interior is never charged as a constant expression on any ingestion route. */
+  private pendingPreseeds = new Set<JSONType[] | { [key: string]: JSONType }>();
+
+  /** Preseed the recorded static cost of every literal that stayed plain
+   * syntax. Called by the entry points after a successful parse. */
+  flushPreseeds(): void {
+    for (const node of this.pendingPreseeds) {
+      rememberStaticCost(node, this.staticCosts.get(node)!);
+    }
+    this.pendingPreseeds.clear();
+  }
 
   /** Nested-expression descent level. Bounded by the portable structural-depth
    * limit so adversarially nested source cannot exhaust the parser's own host
@@ -440,9 +486,6 @@ class Parser extends TokenCursor {
           case "handle":
             this.advance();
             return { value: this.parseHandle(), name: null };
-          case "raw":
-            this.advance();
-            return { value: this.parseRaw(), name: null };
           case "let":
             throw this.err("the 'let { ... } in expr' form is replaced by 'expr where { ... }'");
           case "where":
@@ -510,18 +553,125 @@ class Parser extends TokenCursor {
   private parseArray(): JSONType {
     // `[` already consumed.
     const parsed = this.parseSpreadList("rbracket", "']'", "array");
-    return parsed.hasSpread ? lowerSpreadParts(parsed.parts, false) : plainValues(parsed.parts);
+    if (parsed.hasSpread) return lowerSpreadParts(parsed.parts, false);
+    return this.finishArrayLiteral(plainValues(parsed.parts));
   }
 
-  private parseDataObject(): JSONType {
+  // ----- raw inference over literal grammar paths -----
+
+  /** Static-literal info of an already-parsed child expression, or `null` when
+   * the child is dynamic. Composites are consulted by identity against this
+   * parse's own literal provenance. */
+  private childStaticInfo(child: JSONType): { cost: number; requiresRaw: boolean } | null {
+    if (child === null || typeof child !== "object") return { cost: 1, requiresRaw: false };
+    const cost = this.staticCosts.get(child);
+    if (cost !== undefined) return { cost, requiresRaw: false };
+    const payloadCost = this.rawWrappers.get(child);
+    if (payloadCost !== undefined) return { cost: payloadCost, requiresRaw: true };
+    return null;
+  }
+
+  /** Fold one child into a raw payload: a parser-emitted wrapper contributes
+   * its payload (maximal boundaries, no nested wrappers); a plain static
+   * composite is scrubbed from the pending preseeds because it is becoming
+   * quoted data rather than constant expression syntax. */
+  private absorbStaticChild(child: JSONType): JSONType {
+    if (child === null || typeof child !== "object") return child;
+    if (this.rawWrappers.has(child)) return (child as { $raw: JSONType }).$raw;
+    this.cleanPendingPreseeds(child);
+    return child;
+  }
+
+  /** Remove a plain static subtree from the pending preseeds. Iterative, and
+   * each subtree is walked at most once over the whole parse: a wrapper child
+   * absorbed later was already scrubbed when its wrapper was created. */
+  private cleanPendingPreseeds(node: JSONType): void {
+    const stack: JSONType[] = [node];
+    while (stack.length > 0) {
+      const current = stack.pop()!;
+      if (current === null || typeof current !== "object") continue;
+      this.pendingPreseeds.delete(current);
+      const children = Array.isArray(current) ? current : Object.values(current);
+      for (const child of children) stack.push(child);
+    }
+  }
+
+  /** Classify a completed array literal: dynamic arrays keep any materialized
+   * raw child boundaries; a static array records its cost for preseeding; a
+   * static array carrying a raw requirement becomes one maximal `$raw`
+   * boundary absorbing its children's payloads. */
+  private finishArrayLiteral(values: JSONType[]): JSONType {
+    let cost = 1;
+    let requiresRaw = false;
+    for (const element of values) {
+      const info = this.childStaticInfo(element);
+      if (info === null) return values;
+      cost += info.cost;
+      if (info.requiresRaw) requiresRaw = true;
+    }
+    if (!requiresRaw) {
+      this.staticCosts.set(values, cost);
+      this.pendingPreseeds.add(values);
+      return values;
+    }
+    for (let i = 0; i < values.length; i++) {
+      values[i] = this.absorbStaticChild(values[i]!);
+    }
+    const wrapper: JSONType = { $raw: values };
+    this.rawWrappers.set(wrapper, cost);
+    return wrapper;
+  }
+
+  /** Object-literal counterpart of `finishArrayLiteral`. A quoted `$`-prefixed
+   * key demands the boundary; it is only accepted when the containing literal
+   * is proven static, because a dynamic object with a reserved-looking key
+   * would collide with canonical expression syntax. */
+  private finishObjectLiteral(
+    map: Record<string, JSONType>,
+    dollarKey: DollarKey | null,
+  ): JSONType {
+    let cost = 1;
+    let requiresRaw = dollarKey !== null;
+    for (const value of Object.values(map)) {
+      const info = this.childStaticInfo(value);
+      if (info === null) {
+        if (dollarKey !== null) throw this.dollarKeyInDynamicObject(dollarKey);
+        return map;
+      }
+      cost += info.cost;
+      if (info.requiresRaw) requiresRaw = true;
+    }
+    if (!requiresRaw) {
+      this.staticCosts.set(map, cost);
+      this.pendingPreseeds.add(map);
+      return map;
+    }
+    for (const [key, value] of Object.entries(map)) {
+      setOwnProperty(map, key, this.absorbStaticChild(value));
+    }
+    const wrapper: JSONType = { $raw: map };
+    this.rawWrappers.set(wrapper, cost);
+    return wrapper;
+  }
+
+  private dollarKeyInDynamicObject(dollarKey: DollarKey): ParseError {
+    return new ParseError(
+      `data key "${dollarKey.key}" is only allowed when the whole object literal is static JSON data; use a computed key (["${dollarKey.key}"]: value) in a dynamic object`,
+      dollarKey.line,
+      dollarKey.col,
+    );
+  }
+
+  private parseDataObject(mode: LiteralMode = "data"): JSONType {
     // `{` already consumed. Ordinary keys are literal data; computed keys and
     // spreads lower through `fromEntries` and `merge`.
     let map: Record<string, JSONType> = {};
     const chunks: ObjectChunk[] = [];
     let hasDynamicEntry = false;
+    let dollarKey: DollarKey | null = null;
     if (this.peekType() === "rbrace") {
       this.advance();
-      return map;
+      return mode === "data" ? this.finishObjectLiteral(map, null) : map;
     }
     for (;;) {
       if (this.peekType() === "dotdotdot") {
@@ -534,18 +684,26 @@ class Parser extends TokenCursor {
         map = flushObjectMap(map, chunks);
         chunks.push({ kind: "computed", value: this.parseComputedDataEntry() });
       } else {
-        this.parseDataEntry(map);
+        const entry = this.parseDataEntry(map, mode);
+        if (entry !== null && dollarKey === null) dollarKey = entry;
       }
       if (this.consumeObjectSep("data object")) break;
     }
-    if (!hasDynamicEntry) return map;
+    if (!hasDynamicEntry) {
+      return mode === "data" ? this.finishObjectLiteral(map, dollarKey) : map;
+    }
+    if (dollarKey !== null) throw this.dollarKeyInDynamicObject(dollarKey);
     flushObjectMap(map, chunks);
     return lowerObjectChunks(chunks);
   }
 
   /** Parse one ordinary object entry (binding / constant / pun) into `map`.
-   * Shared by `parseDataObject` and `parseModule`. */
-  private parseDataEntry(map: Record<string, JSONType>): void {
+   * Shared by `parseDataObject` and `parseModule`. A quoted `$`-prefixed key
+   * is provisionally accepted in data-object literals (returned so the
+   * containing literal can prove itself static and emit a `$raw` boundary)
+   * and rejected in module and handler-record contexts. */
+  private parseDataEntry(map: Record<string, JSONType>, mode: LiteralMode): DollarKey | null {
+    const keyToken = this.tokens[this.pos]!;
     const t = this.peek();
     let key: string;
     let bareIdent = false;
@@ -556,10 +714,23 @@ class Parser extends TokenCursor {
     } else {
       throw this.err(`expected data-object key, found ${describe(t)}`);
     }
+    let dollarKey: DollarKey | null = null;
     if (key.startsWith("$")) {
-      throw this.err(
-        `data-object key "${key}" must not start with '$'; use 'raw' for $-keyed data`,
-      );
+      if (mode === "module") {
+        throw new ParseError(
+          `module binding "${key}" must not start with '$'`,
+          keyToken.line,
+          keyToken.col,
+        );
+      }
+      if (mode === "handlers") {
+        throw new ParseError(
+          `handler clause name "${key}" must not start with '$'`,
+          keyToken.line,
+          keyToken.col,
+        );
+      }
+      dollarKey = { key, line: keyToken.line, col: keyToken.col };
     }
     // Shorthand-property punning: a bare identifier key not followed by `:`
     // stands for `key: key`, lowering to a `$var` read of the same name.
@@ -569,6 +740,7 @@ class Parser extends TokenCursor {
       this.expect("colon", "':' after data-object key");
       setOwnProperty(map, key, this.parseExpr());
     }
+    return dollarKey;
   }
 
   /** Parse `[key]: value`, lowering the entry to a one-pair `fromEntries` call. */
@@ -627,7 +799,7 @@ class Parser extends TokenCursor {
       } else if (this.peekType() === "dotdotdot" || this.peekType() === "lbracket") {
         throw this.err("module entries must be named bindings or type declarations");
       } else {
-        this.parseDataEntry(map);
+        this.parseDataEntry(map, "module");
       }
       if (this.consumeModuleSep()) break;
     }
@@ -1158,118 +1330,11 @@ class Parser extends TokenCursor {
     }
     this.expectKeyword("with");
     this.expect("lbrace", "'{' after 'with'");
-    const handlers = this.parseDataObject();
+    const handlers = this.parseDataObject("handlers");
     return {
       $call: "handle",
       $args: annotation === null ? [task, handlers] : [task, handlers, { $raw: annotation }],
     };
-  }
-
-  // ----- raw JSON islands (spec section 3) -----
-
-  private parseRaw(): JSONType {
-    return { $raw: this.parseRawJson() };
-  }
-
-  /** Parse a strict-JSON value (quoted keys, no shorthand) for a `raw` island. */
-  private parseRawJson(): JSONType {
-    this.enterNested();
-    try {
-      return this.parseRawJsonInner();
-    } finally {
-      this.nesting--;
-    }
-  }
-
-  private parseRawJsonInner(): JSONType {
-    const t = this.peek();
-    switch (t.type) {
-      case "num":
-        this.advance();
-        return t.value;
-      case "minus": {
-        this.advance();
-        const n = this.peek();
-        if (n.type === "num") {
-          this.advance();
-          return -n.value;
-        }
-        throw this.err(`expected number after '-', found ${describe(n)}`);
-      }
-      case "str":
-        this.advance();
-        return t.value;
-      case "ident":
-        this.advance();
-        switch (t.value) {
-          case "true":
-            return true;
-          case "false":
-            return false;
-          case "null":
-            return null;
-          default:
-            throw this.err(`invalid token '${t.value}' in raw JSON`);
-        }
-      case "lbracket": {
-        this.advance();
-        const els: JSONType[] = [];
-        if (this.peekType() === "rbracket") {
-          this.advance();
-          return els;
-        }
-        for (;;) {
-          els.push(this.parseRawJson());
-          const type = this.peekType();
-          if (type === "comma") {
-            this.advance();
-            if (this.peekType() === "rbracket") {
-              this.advance();
-              break;
-            }
-          } else if (type === "rbracket") {
-            this.advance();
-            break;
-          } else {
-            throw this.err("expected ',' or ']' in raw JSON array");
-          }
-        }
-        return els;
-      }
-      case "lbrace": {
-        this.advance();
-        const map: Record<string, JSONType> = {};
-        if (this.peekType() === "rbrace") {
-          this.advance();
-          return map;
-        }
-        for (;;) {
-          const k = this.peek();
-          if (k.type !== "str") {
-            throw this.err(`raw JSON object keys must be quoted strings, found ${describe(k)}`);
-          }
-          this.advance();
-          this.expect("colon", "':' in raw JSON object");
-          setOwnProperty(map, k.value, this.parseRawJson());
-          const type = this.peekType();
-          if (type === "comma") {
-            this.advance();
-            if (this.peekType() === "rbrace") {
-              this.advance();
-              break;
-            }
-          } else if (type === "rbrace") {
-            this.advance();
-            break;
-          } else {
-            throw this.err("expected ',' or '}' in raw JSON object");
-          }
-        }
-        return map;
-      }
-      default:
-        throw this.err(`expected a JSON value after 'raw', found ${describe(t)}`);
-    }
   }
 
   // ----- template strings (spec section 6) -----
@@ -1293,11 +1358,16 @@ class Parser extends TokenCursor {
 
   /** Parse one `${...}` hole as a standalone expression. The sub-parser
    * inherits the current descent level so nested templates cannot restart the
-   * structural-depth guard and stack unbounded parser frames. */
+   * structural-depth guard and stack unbounded parser frames. It shares the
+   * outer parser's literal provenance so a hole's literals participate in raw
+   * inference and preseeding exactly like directly nested literals. */
   private parseHole(src: string): JSONType {
     const tokens = lex(src);
     const p = new Parser(tokens);
     p.nesting = this.nesting;
+    p.staticCosts = this.staticCosts;
+    p.rawWrappers = this.rawWrappers;
+    p.pendingPreseeds = this.pendingPreseeds;
     const v = p.parseExpression();
     p.expect("eof", "end of input");
     return v;

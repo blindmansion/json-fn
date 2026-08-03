@@ -40,6 +40,28 @@ split the old `rawSkips` into `rawBoundaries`, `runtimeValueSkips`,
 equivalence under exact limits is tested in `test/runtime-values.test.ts`
 and pinned portably in `spec/cases/fuel-limits.json`;
 `docs/execution-limits.md` documents the stable virtual-cost rules.
+Workstreams F1/F2 (shorthand inference + printer normalization) have landed
+as one atomic change: the parser tracks static-literal provenance and cost
+from literal grammar paths (`staticCosts`/`rawWrappers`/`pendingPreseeds` in
+`src/shorthand/parser.ts`), provisionally accepts quoted `$`-prefixed keys in
+static data-object literals, bubbles raw requirements to a maximal `$raw`
+boundary, preseeds plain static composites via `rememberStaticCost` at parse
+completion (composites absorbed into a raw payload are scrubbed first —
+payload interiors are quoted data and must never carry constant-cost
+metadata), and no longer has a `raw` keyword (`parseRaw`/`parseRawJson`
+removed; `raw` is an ordinary identifier). Module bindings and handler-clause
+records are explicit no-inference contexts. The printer renders generic
+`$raw` payloads as quoted strict-JSON data with no keyword, rejects
+non-canonical reserved-key objects, retains contextual annotated-handle
+printing, and its round-trip property is `parse(print(node)) =
+normalize(node)` with the canonical normalizer formalized in
+`src/shorthand/normalize.ts` (redundant wrapper removal + maximal hoisting).
+Parser cases live in `spec/parse-cases/raw-inference.json` (plus updated
+`literals.json`, `handle.json`, `special-object-keys.json`); preseeding and
+ingestion-route fuel equivalence are tested in
+`test/expression-metadata.test.ts`; `examples/dungeon.jfn` dropped its `raw`
+spelling. Workstream G (docs, checker wording, remaining terminology) is the
+next pass.
 
 ## Summary
 

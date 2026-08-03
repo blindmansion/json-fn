@@ -17,9 +17,9 @@
       "expected": { "__proto__": { "$var": "__proto__" } }
     },
     {
-      "description": "raw JSON object keeps an own __proto__ key",
-      "source": "raw {\"__proto__\": { \"p\": 1 }}",
-      "expected": { "$raw": { "__proto__": { "p": 1 } } }
+      "description": "quoted $-key data keeps an own __proto__ key in the $raw payload",
+      "source": "{ \"$tag\": true, \"__proto__\": { \"p\": 1 } }",
+      "expected": { "$raw": { "$tag": true, "__proto__": { "p": 1 } } }
     },
     {
       "description": "module binding named __proto__ becomes an own key",

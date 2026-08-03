@@ -47,26 +47,23 @@
       "error": true
     },
     {
-      "description": "data-object $-key (quoted) is rejected",
+      "description": "data-object $-key (quoted) quotes the static object",
       "source": "{ \"$fn\": 1 }",
-      "error": true
+      "expected": { "$raw": { "$fn": 1 } }
     },
     {
-      "description": "raw island: nested array",
-      "source": "raw [[-2, -1], [-2, 1], [-1, -2]]",
-      "expected": {
-        "$raw": [
-          [-2, -1],
-          [-2, 1],
-          [-1, -2]
-        ]
-      }
-    },
-    {
-      "description": "raw island: object",
-      "source": "raw { \"$fn\": [\"not\", \"x\"] }",
+      "description": "expression-shaped static data lowers to a $raw boundary",
+      "source": "{ \"$fn\": [\"not\", \"x\"] }",
       "expected": { "$raw": { "$fn": ["not", "x"] } }
     },
-    { "description": "raw object requires quoted keys", "source": "raw { fn: 1 }", "error": true }
+    {
+      "description": "ordinary static nested arrays stay plain JSON",
+      "source": "[[-2, -1], [-2, 1], [-1, -2]]",
+      "expected": [
+        [-2, -1],
+        [-2, 1],
+        [-1, -2]
+      ]
+    }
   ]
 }

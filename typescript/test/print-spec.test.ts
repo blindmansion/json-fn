@@ -1,5 +1,7 @@
 import { describe, test, expect } from "bun:test";
 import {
+  normalizeExpression,
+  normalizeModule,
   parseExpression as parse,
   parseModule,
   printExpression as print,
@@ -13,8 +15,11 @@ import { join } from "path";
 
 // The core guarantee of the printer is "bijective by normal form": for any
 // canonical JSON, lowering the printed shorthand must reproduce that JSON
-// exactly. Every `expected` value in the parse-case fixtures is canonical JSON,
-// so it doubles as a printer round-trip corpus.
+// after canonical normalization (`parse ∘ print = normalize`). Redundant
+// `$raw` wrappers normalize away and raw boundaries hoist to the maximal
+// static literal; every other accepted tree round-trips exactly. The
+// `expected` values in the parse-case fixtures are canonical JSON, so they
+// double as a printer round-trip corpus.
 
 interface ParseCase {
   description: string;
@@ -35,7 +40,7 @@ const EXAMPLES_DIR = join(import.meta.dir, "../../examples");
 
 function roundTrips(json: JSONType): void {
   const parsed = parse(print(json));
-  expect(parsed).toEqual(json);
+  expect(parsed).toEqual(normalizeExpression(json));
   expectParsedParameterLayouts(parsed);
 }
 
@@ -65,7 +70,7 @@ describe("printer round-trips canonical JSON (parse ∘ print = id)", () => {
         test(tc.description, () => {
           if ((tc.mode ?? suite.mode) === "module") {
             const json = tc.expected ?? {};
-            expect(parseModule(printModule(json))).toEqual(json);
+            expect(parseModule(printModule(json))).toEqual(normalizeModule(json));
           } else {
             roundTrips(tc.expected ?? null);
           }
@@ -205,7 +210,7 @@ describe("printer output shape", () => {
     );
   });
 
-  test("retains dynamic function references and opaque raw arrays", () => {
+  test("retains dynamic function references", () => {
     const dynamic: JSONType = {
       $fn: {
         $if: { $var: "enabled" },
@@ -215,11 +220,44 @@ describe("printer output shape", () => {
     };
     expect(print(dynamic)).toBe("&(if enabled then primary else fallback)");
     expect(parse(print(dynamic))).toEqual(dynamic);
-    expect(print({ $raw: { $fn: ["add", 1, 2] } })).toBe('raw {"$fn":["add",1,2]}');
   });
 
-  test("$-keyed object falls back to raw", () => {
-    expect(print({ $raw: { $fn: ["not", "x"] } })).toBe('raw {"$fn":["not","x"]}');
+  test("expression-shaped raw payloads print as quoted data and reparse", () => {
+    const node: JSONType = { $raw: { $fn: ["not", "x"] } };
+    expect(print(node)).toBe('{ "$fn": ["not", "x"] }');
+    expect(parse(print(node))).toEqual(node);
+  });
+
+  test("redundant raw wrappers normalize away", () => {
+    expect(print({ $raw: 3 })).toBe("3");
+    expect(parse(print({ $raw: 3 }))).toEqual(3);
+    expect(print({ $raw: [1, 2, 3] })).toBe("[1, 2, 3]");
+    expect(parse(print({ $raw: [1, 2, 3] }))).toEqual([1, 2, 3]);
+    expect(print({ $raw: { rooms: ["cell"] } })).toBe('{ rooms: ["cell"] }');
+    expect(parse(print({ $raw: { rooms: ["cell"] } }))).toEqual({ rooms: ["cell"] });
+  });
+
+  test("raw boundaries hoist to the maximal static literal on reparse", () => {
+    const node: JSONType = ["x", { $raw: { $var: "d" } }];
+    expect(print(node)).toBe('["x", { "$var": "d" }]');
+    expect(parse(print(node))).toEqual({ $raw: ["x", { $var: "d" }] });
+    expect(parse(print(node))).toEqual(normalizeExpression(node));
+  });
+
+  test("a dynamic parent keeps a raw child boundary", () => {
+    const node: JSONType = {
+      receivedAt: { $var: "receivedAt" },
+      payload: { $raw: { $call: "not code", $args: [] } },
+    };
+    expect(parse(print(node))).toEqual(node);
+    expect(normalizeExpression(node)).toEqual(node);
+  });
+
+  test("cannot print malformed reserved-key objects", () => {
+    expect(() => print({ $mystery: 1, other: 2 })).toThrow("reserved key");
+    expect(() => print({ $raw: 1, other: 2 })).toThrow(
+      "Cannot print $raw expression at $ with other properties.",
+    );
   });
 
   test("object-pattern param prints as { f1, f2 } with spaces", () => {
@@ -466,7 +504,8 @@ describe("printer output shape", () => {
     const node: JSONType = {
       $raw: { $return: 1, $captures: { closed: { $return: 2 } } },
     };
-    expect(print(node)).toBe('raw {"$return":1,"$captures":{"closed":{"$return":2}}}');
+    expect(print(node)).toBe('{\n  "$return": 1,\n  "$captures": { closed: { "$return": 2 } }\n}');
+    expect(parse(print(node))).toEqual(node);
   });
 
   test("rejects historical and unknown function-body keys", () => {

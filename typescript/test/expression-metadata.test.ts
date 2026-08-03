@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { callFunction, createPerfStats, createStdlib } from "../src";
 import { getStaticCost, hasStaticCost, rememberStaticCost } from "../src/expression-metadata";
 import { isRuntimeValue } from "../src/runtime-values";
+import { parseExpression } from "../src/shorthand";
 import type { FunctionDeclaration, JSONType } from "../src";
 
 const stdlib = createStdlib();
@@ -103,5 +104,67 @@ describe("constant-expression metadata", () => {
     // value (returned by identity from the call).
     const again = run(makeProgram(preseededPayload));
     expect(again.fuel).toBe(preseeded.fuel);
+  });
+});
+
+describe("shorthand raw inference preseeding", () => {
+  test("the parser preseeds proven static composite literals", () => {
+    const parsed = parseExpression(
+      "[{ id: 1, nested: [1, 2, 3] }, { id: 2, nested: [4, 5, 6] }]",
+    ) as JSONType[];
+    expect(getStaticCost(parsed)).toBe(PAYLOAD_COST);
+
+    const discovered = run(makeProgram(makePayload()));
+    const preseeded = run(makeProgram(parsed));
+    expect(preseeded.result).toEqual(discovered.result);
+    expect(preseeded.fuel).toBe(discovered.fuel);
+    // The very first evaluation of the parsed program already skips discovery.
+    expect(preseeded.perf.preseededStaticSkips).toBeGreaterThan(0);
+  });
+
+  test("static children of a dynamic literal are preseeded individually", () => {
+    const parsed = parseExpression('{ dynamic: f(), fixed: { retries: 3, tags: ["a"] } }') as {
+      [key: string]: JSONType;
+    };
+    expect(hasStaticCost(parsed)).toBe(false);
+    // fixed(1) + retries(1) + tags array(1) + "a"(1) = 4
+    expect(getStaticCost(parsed.fixed as object)).toBe(4);
+  });
+
+  test("composites absorbed into an inferred $raw payload are not preseeded", () => {
+    const wrapper = parseExpression(
+      '{ envelope: { limits: [1, 2], payload: { "$call": "not code", "$args": [] } } }',
+    ) as { $raw: { [key: string]: JSONType } };
+    expect(Object.keys(wrapper)).toEqual(["$raw"]);
+
+    // A payload is quoted data, not constant expression syntax: on a cold
+    // canonical route its interior is never charged as a constant, so
+    // preseeding it would change re-entry fuel between ingestion routes.
+    const envelope = wrapper.$raw.envelope as { [key: string]: JSONType };
+    expect(hasStaticCost(wrapper.$raw)).toBe(false);
+    expect(hasStaticCost(envelope)).toBe(false);
+    expect(hasStaticCost(envelope.limits as object)).toBe(false);
+    const payload = envelope.payload as { [key: string]: JSONType };
+    expect(hasStaticCost(payload)).toBe(false);
+    expect(hasStaticCost(payload.$args as object)).toBe(false);
+  });
+
+  test("inferred $raw charges identical fuel across ingestion routes", () => {
+    const direct = parseExpression('{ "$fn": ["not", "x"] }');
+    const program: FunctionDeclaration = { $return: direct };
+    const directRun = run(program);
+
+    // A JSON round trip loses wrapper provenance and payload-cost caches but
+    // must not change results or deterministic fuel.
+    const reparsed = JSON.parse(JSON.stringify(program)) as FunctionDeclaration;
+    const replay = run(reparsed);
+    expect(replay.result).toEqual(directRun.result);
+    expect(replay.fuel).toBe(directRun.fuel);
+
+    // And quotation itself is fuel-neutral: the equivalent plain constant
+    // literal (same value shape without the reserved key collision) costs the
+    // same as the quoted spelling, one unit per value node.
+    const plain = run({ $return: parseExpression('{ fn: ["not", "x"] }') });
+    expect(plain.fuel).toBe(directRun.fuel);
   });
 });

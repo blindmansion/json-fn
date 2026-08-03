@@ -6,8 +6,9 @@
  * lower directly to the canonical JSON consumed by the interpreter.
  *
  * Each matching pair is bijective by normal form:
- * `parseModule(printModule(module))` and
- * `parseExpression(printExpression(expression))`.
+ * `parseModule(printModule(module)) = normalizeModule(module)` and
+ * `parseExpression(printExpression(expression)) = normalizeExpression(expression)`.
+ * Redundant `$raw` wrappers normalize away; see `./normalize`.
  */
 
 export {
@@ -20,4 +21,5 @@ export {
 export type { ParsedWithPositions, SourcePos } from "./parser";
 export { resolvePathPosition } from "./positions";
 export { print, printExpression, printModule } from "./printer";
+export { normalizeExpression, normalizeModule } from "./normalize";
 export { ParseError } from "./error";
