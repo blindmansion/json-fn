@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "json-fn evaluation test suite",
+  "description": "Documents the JSON test-suite format consumed from spec/cases/eval.",
+  "type": "object",
+  "required": ["description", "cases"],
+  "properties": {
+    "description": {
+      "type": "string",
+      "description": "A description of the test suite."
+    },
+    "comment": {
+      "type": "string",
+      "description": "Optional documentation about the suite."
+    },
+    "functions": {
+      "$ref": "#/$defs/functions"
+    },
+    "cases": {
+      "type": "array",
+      "description": "The evaluation cases in this suite.",
+      "items": {
+        "$ref": "#/$defs/case"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "case": {
+      "type": "object",
+      "required": ["description", "body"],
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "A description used as the test name."
+        },
+        "comment": {
+          "type": "string",
+          "description": "Optional documentation about the case."
+        },
+        "body": {
+          "$ref": "#/$defs/functionBody",
+          "description": "The json-fn function body to evaluate."
+        },
+        "args": {
+          "type": "array",
+          "description": "Arguments supplied to the function body. Defaults to an empty array.",
+          "items": {
+            "$ref": "#/$defs/jsonValue"
+          }
+        },
+        "functions": {
+          "$ref": "#/$defs/functions",
+          "description": "Functions available only to this case, overriding suite functions with the same name."
+        },
+        "limits": {
+          "$ref": "#/$defs/limits"
+        },
+        "expected": {
+          "$ref": "#/$defs/jsonValue",
+          "description": "The expected evaluation result. Mutually exclusive with error."
+        },
+        "error": {
+          "type": "string",
+          "description": "A substring expected in the thrown error. Mutually exclusive with expected."
+        }
+      },
+      "oneOf": [
+        {
+          "required": ["expected"],
+          "not": {
+            "required": ["error"]
+          }
+        },
+        {
+          "required": ["error"],
+          "not": {
+            "required": ["expected"]
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "functionBody": {
+      "type": "object",
+      "description": "A canonical json-fn function body. Additional fields remain allowed because some cases intentionally exercise runtime validation of malformed bodies.",
+      "required": ["$return"]
+    },
+    "functions": {
+      "type": "object",
+      "description": "Named json-fn functions added to the evaluator registry.",
+      "additionalProperties": {
+        "$ref": "#/$defs/functionBody"
+      }
+    },
+    "limits": {
+      "type": "object",
+      "description": "Deterministic execution limits applied to the case.",
+      "properties": {
+        "maxCallDepth": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Maximum nested json-fn function invocation depth."
+        },
+        "maxFuel": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Maximum metered work budget."
+        },
+        "maxValueSize": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Maximum produced array length or string length."
+        }
+      },
+      "additionalProperties": false
+    },
+    "jsonValue": {
+      "description": "Any JSON value."
+    }
+  }
+}

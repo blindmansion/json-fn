@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "json-fn shorthand parse test suite",
+  "description": "Documents the shorthand parser test-suite format consumed from spec/cases/parse.",
+  "type": "object",
+  "required": ["description", "cases"],
+  "properties": {
+    "description": {
+      "type": "string",
+      "description": "A description of the test suite."
+    },
+    "mode": {
+      "$ref": "#/$defs/mode",
+      "description": "The default parser mode for cases in this suite. Defaults to expression."
+    },
+    "cases": {
+      "type": "array",
+      "description": "The parser cases in this suite.",
+      "items": {
+        "$ref": "#/$defs/case"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "mode": {
+      "type": "string",
+      "enum": ["expression", "module"]
+    },
+    "case": {
+      "type": "object",
+      "required": ["description", "source"],
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "A description used as the test name."
+        },
+        "source": {
+          "type": "string",
+          "description": "The shorthand source text to parse."
+        },
+        "mode": {
+          "$ref": "#/$defs/mode",
+          "description": "Overrides the suite parser mode for this case."
+        },
+        "expected": {
+          "description": "The expected canonical JSON result. When omitted from a non-error case, the harness expects null."
+        },
+        "error": {
+          "description": "Marks a case that must fail. A string must occur in the error message; any other JSON value only requires an error."
+        }
+      },
+      "not": {
+        "required": ["expected", "error"]
+      },
+      "additionalProperties": false
+    }
+  }
+}

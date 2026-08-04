@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "json-fn hash vector suite",
+  "description": "Documents the cross-runtime hash vector format consumed from spec/cases/hash.",
+  "type": "object",
+  "required": ["description", "cases"],
+  "properties": {
+    "description": {
+      "type": "string",
+      "description": "A description of the vector suite."
+    },
+    "cases": {
+      "type": "array",
+      "description": "The hash vectors in this suite.",
+      "items": {
+        "$ref": "#/$defs/case"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "case": {
+      "type": "object",
+      "required": ["name", "value", "canonical", "valueHash"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "A name used as the test name."
+        },
+        "value": {
+          "description": "The JSON value to canonicalize and hash."
+        },
+        "canonical": {
+          "type": "string",
+          "description": "The expected canonical JSON encoding."
+        },
+        "valueHash": {
+          "type": "string",
+          "description": "The expected versioned SHA-256 value address.",
+          "pattern": "^jfn:value:v1:sha256:[0-9a-f]{64}$"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
