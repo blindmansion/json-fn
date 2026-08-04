@@ -5,7 +5,7 @@ import type { CheckContext } from "../../src/check/context";
 import { factsFromCondition, matchCaseFact, matchElseFact } from "../../src/check/narrowing";
 
 // ---------------------------------------------------------------------------
-// Frozen-narrowing table tests (docs/language/json/narrowing.md).
+// Frozen-narrowing table tests.
 //
 // These pin the exact fact each recognized condition form produces on both the
 // then/matching sense and the else sense, plus the composition rules and the
