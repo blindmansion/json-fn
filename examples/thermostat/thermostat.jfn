@@ -8,7 +8,7 @@
 // Run it through the validated host contract:
 //   bun run typescript/examples/thermostat.ts
 // Check it against the same contract:
-//   bun run typescript/src/cli.ts check --contract examples/thermostat.contract.json --file examples/thermostat.jfn
+//   bun run typescript/src/cli.ts check --contract examples/thermostat/thermostat.contract.json --file examples/thermostat/thermostat.jfn
 // A fault the controller reports rather than silently swallowing.
 type Fault =
     { tag: "OutOfRange", temp: Celsius }

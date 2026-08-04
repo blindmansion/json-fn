@@ -7,7 +7,7 @@
 // Run it through the host:
 //   bun run typescript/examples/parcel-sorter.ts
 // Check it against the contract:
-//   bun run typescript/src/cli.ts check --contract examples/parcel-sorter.contract.json --file examples/parcel-sorter.jfn
+//   bun run typescript/src/cli.ts check --contract examples/parcel-sorter/parcel-sorter.contract.json --file examples/parcel-sorter/parcel-sorter.jfn
 type Fault =
     { tag: "Overweight", id: string, kilograms: number }
   | { tag: "BadLabel", id: string }

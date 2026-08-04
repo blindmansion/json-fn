@@ -2,8 +2,8 @@
 // approach, rank conjunction alerts, and produce a compact operator report.
 //
 // Check and run it through the CLI:
-//   bun run src/cli.ts check --contract ../examples/orbital-traffic.contract.json --file ../examples/orbital-traffic.jfn
-//   bun run src/cli.ts eval --contract ../examples/orbital-traffic.contract.json --file ../examples/orbital-traffic.jfn --function demo
+//   bun run src/cli.ts check --contract ../examples/orbital-traffic/orbital-traffic.contract.json --file ../examples/orbital-traffic/orbital-traffic.jfn
+//   bun run src/cli.ts eval --contract ../examples/orbital-traffic/orbital-traffic.contract.json --file ../examples/orbital-traffic/orbital-traffic.jfn --function demo
 type TrackPair = [Track, Track]
 
 dot: (a: Vector, b: Vector) -> number => a.x * b.x + a.y * b.y

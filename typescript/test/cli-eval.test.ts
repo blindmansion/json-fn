@@ -285,9 +285,9 @@ describe("jfn eval contract modes", () => {
   test("reports the nested instance path for invalid contract entry arguments", () => {
     const result = runEval([
       "--file",
-      join(examples, "dungeon.jfn"),
+      join(examples, "dungeon", "dungeon.jfn"),
       "--contract",
-      join(examples, "dungeon.contract.json"),
+      join(examples, "dungeon", "dungeon.contract.json"),
       "--args",
       '[{"at":"attic","held":[]}]',
     ]);
@@ -522,7 +522,7 @@ describe("jfn eval contract modes", () => {
   test("development-evaluates a typed example without a contract", () => {
     const result = runEval([
       "--file",
-      join(examples, "pipeline.jfn"),
+      join(examples, "pipeline", "pipeline.jfn"),
       "--function",
       "demo",
       "--compact",

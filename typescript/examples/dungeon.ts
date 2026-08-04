@@ -1,4 +1,4 @@
-// dungeon.ts — interactive host for examples/dungeon.jfn.
+// dungeon.ts — interactive host for examples/dungeon/dungeon.jfn.
 //
 // The game's `play` loop performs exactly two effects — `input` (read a
 // command) and `print` (show a line) — declared by the operator-owned
@@ -28,13 +28,13 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import { createInterface } from "readline";
 
-const source = readFileSync(join(import.meta.dir, "../../examples/dungeon.jfn"), "utf-8");
+const source = readFileSync(join(import.meta.dir, "../../examples/dungeon/dungeon.jfn"), "utf-8");
 const game = parseShorthand(source) as Record<string, JSONType>;
 const contract = loadEnvironmentContract(
-  join(import.meta.dir, "../../examples/dungeon.contract.json"),
+  join(import.meta.dir, "../../examples/dungeon/dungeon.contract.json"),
 );
 const profile = loadDeploymentProfile(
-  join(import.meta.dir, "../../examples/dungeon.profile.json"),
+  join(import.meta.dir, "../../examples/dungeon/dungeon.profile.json"),
   contract,
 );
 if (profile.mode !== "live") throw new Error("dungeon requires a live deployment profile");

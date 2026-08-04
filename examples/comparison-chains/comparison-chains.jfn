@@ -2,10 +2,10 @@
 // collection predicates, operator precedence, and short-circuiting.
 //
 // Evaluate it:
-//   bun run typescript/src/cli.ts eval --file examples/comparison-chains.jfn --function demo
+//   bun run typescript/src/cli.ts eval --file examples/comparison-chains/comparison-chains.jfn --function demo
 //
 // Typecheck it:
-//   bun run typescript/src/cli.ts check --file examples/comparison-chains.jfn
+//   bun run typescript/src/cli.ts check --file examples/comparison-chains/comparison-chains.jfn
 type Range = { lo: number, hi: number }
 type Results = {
   inclusive: boolean,

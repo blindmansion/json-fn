@@ -1,10 +1,10 @@
 // Spread operators and block comments in one runnable module.
 //
 // Evaluate it:
-//   bun run typescript/src/cli.ts eval --file examples/spread-and-comments.jfn --function main
+//   bun run typescript/src/cli.ts eval --file examples/spread-and-comments/spread-and-comments.jfn --function main
 //
 // Typecheck it (spread calls currently report incomplete type coverage):
-//   bun run typescript/src/cli.ts check --allow-untyped-functions --file examples/spread-and-comments.jfn
+//   bun run typescript/src/cli.ts check --allow-untyped-functions --file examples/spread-and-comments/spread-and-comments.jfn
 main: () => ({
 // Ordinary array elements and multiple spreads retain source order.
 numbers: [0, ...middle, 4, ...tail],

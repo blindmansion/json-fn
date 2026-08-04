@@ -1,4 +1,4 @@
-// thermostat.ts — host driver for examples/thermostat.jfn.
+// thermostat.ts — host driver for examples/thermostat/thermostat.jfn.
 //
 // The controller's `loop` performs exactly three effects — `sensor.read` (get
 // the next reading), `hvac.set` (actuate), and `log` (narrate) — declared by
@@ -25,13 +25,16 @@ import {
 import { readFileSync } from "fs";
 import { join } from "path";
 
-const source = readFileSync(join(import.meta.dir, "../../examples/thermostat.jfn"), "utf-8");
+const source = readFileSync(
+  join(import.meta.dir, "../../examples/thermostat/thermostat.jfn"),
+  "utf-8",
+);
 const controller = parseShorthand(source) as Record<string, JSONType>;
 const contract = loadEnvironmentContract(
-  join(import.meta.dir, "../../examples/thermostat.contract.json"),
+  join(import.meta.dir, "../../examples/thermostat/thermostat.contract.json"),
 );
 const profile = loadDeploymentProfile(
-  join(import.meta.dir, "../../examples/thermostat.profile.json"),
+  join(import.meta.dir, "../../examples/thermostat/thermostat.profile.json"),
   contract,
 );
 if (profile.mode !== "live") throw new Error("thermostat requires a live deployment profile");

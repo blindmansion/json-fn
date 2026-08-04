@@ -1,4 +1,4 @@
-// parcel-sorter.ts — host driver for examples/parcel-sorter.jfn.
+// parcel-sorter.ts — host driver for examples/parcel-sorter/parcel-sorter.jfn.
 //
 // The guest owns routing policy and performs three declared effects:
 // `scanner.read`, `conveyor.route`, and `log`. This host connects those effects
@@ -20,13 +20,16 @@ import {
 import { readFileSync } from "fs";
 import { join } from "path";
 
-const source = readFileSync(join(import.meta.dir, "../../examples/parcel-sorter.jfn"), "utf-8");
+const source = readFileSync(
+  join(import.meta.dir, "../../examples/parcel-sorter/parcel-sorter.jfn"),
+  "utf-8",
+);
 const sorter = parseShorthand(source) as Record<string, JSONType>;
 const contract = loadEnvironmentContract(
-  join(import.meta.dir, "../../examples/parcel-sorter.contract.json"),
+  join(import.meta.dir, "../../examples/parcel-sorter/parcel-sorter.contract.json"),
 );
 const profile = loadDeploymentProfile(
-  join(import.meta.dir, "../../examples/parcel-sorter.profile.json"),
+  join(import.meta.dir, "../../examples/parcel-sorter/parcel-sorter.profile.json"),
   contract,
 );
 if (profile.mode !== "live") throw new Error("parcel sorter requires a live deployment profile");

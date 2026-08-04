@@ -1,4 +1,4 @@
-// critical-path.ts — host driver for examples/critical-path.jfn.
+// critical-path.ts — host driver for examples/critical-path/critical-path.jfn.
 //
 // Pure CPM scheduling: empty adapter, contract entry `demo` returns a direct
 // report (not a task). Asserts makespan, critical path names, and slack tasks
@@ -17,13 +17,16 @@ import {
 import { readFileSync } from "fs";
 import { join } from "path";
 
-const source = readFileSync(join(import.meta.dir, "../../examples/critical-path.jfn"), "utf-8");
+const source = readFileSync(
+  join(import.meta.dir, "../../examples/critical-path/critical-path.jfn"),
+  "utf-8",
+);
 const cpmModule = parseShorthand(source) as Record<string, JSONType>;
 const contract = loadEnvironmentContract(
-  join(import.meta.dir, "../../examples/critical-path.contract.json"),
+  join(import.meta.dir, "../../examples/critical-path/critical-path.contract.json"),
 );
 const profile = loadDeploymentProfile(
-  join(import.meta.dir, "../../examples/critical-path.profile.json"),
+  join(import.meta.dir, "../../examples/critical-path/critical-path.profile.json"),
   contract,
 );
 if (profile.mode !== "live") throw new Error("critical-path requires a live deployment profile");

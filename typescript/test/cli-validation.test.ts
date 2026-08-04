@@ -20,7 +20,10 @@ function run(command: string, args: string[], stdin?: string) {
 
 describe("jfn portable artifact validation", () => {
   test("validates a contract from standard file input", () => {
-    const result = run("validate-contract", ["--file", join(examples, "thermostat.contract.json")]);
+    const result = run("validate-contract", [
+      "--file",
+      join(examples, "thermostat", "thermostat.contract.json"),
+    ]);
 
     expect(result).toEqual({
       exitCode: 0,
@@ -30,10 +33,10 @@ describe("jfn portable artifact validation", () => {
   });
 
   test("validates a profile from stdin against its contract", async () => {
-    const profile = await Bun.file(join(examples, "thermostat.profile.json")).text();
+    const profile = await Bun.file(join(examples, "thermostat", "thermostat.profile.json")).text();
     const result = run(
       "validate-profile",
-      ["--contract", join(examples, "thermostat.contract.json"), "-"],
+      ["--contract", join(examples, "thermostat", "thermostat.contract.json"), "-"],
       profile,
     );
 
@@ -47,7 +50,7 @@ describe("jfn portable artifact validation", () => {
   test("reports profile selections absent from the contract", () => {
     const result = run(
       "validate-profile",
-      ["--contract", join(examples, "orbital-traffic.contract.json")],
+      ["--contract", join(examples, "orbital-traffic", "orbital-traffic.contract.json")],
       '{"version":1,"mode":"live","effects":["network.send"]}',
     );
 

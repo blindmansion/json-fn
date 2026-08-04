@@ -61,7 +61,7 @@ normalize(node)` with the canonical normalizer formalized in
 Parser cases live in `spec/parse-cases/raw-inference.json` (plus updated
 `literals.json`, `handle.json`, `special-object-keys.json`); preseeding and
 ingestion-route fuel equivalence are tested in
-`test/expression-metadata.test.ts`; `examples/dungeon.jfn` dropped its `raw`
+`test/expression-metadata.test.ts`; `examples/dungeon/dungeon.jfn` dropped its `raw`
 spelling.
 Workstream G (docs, checker wording, remaining terminology) has landed: the
 annotated-handle diagnostic asks for a "static result-type schema", the
@@ -782,7 +782,7 @@ Primary files:
    quotation.
 2. Verify annotated-handle static schema typing and runtime enforcement.
 3. Update task generation and hydration tests for the new runtime marker names.
-4. Remove explicit shorthand `raw` from `examples/dungeon.jfn`.
+4. Remove explicit shorthand `raw` from `examples/dungeon/dungeon.jfn`.
 5. Rewrite shorthand and language documentation around automatic data
    inference.
 6. Update shared conformance and parse cases.
@@ -798,7 +798,7 @@ Primary files:
 - `docs/language/json/expressions.md`
 - `docs/language/shorthand/index.md`
 - `docs/runtime/execution-limits.md`
-- `examples/dungeon.jfn`
+- `examples/dungeon/dungeon.jfn`
 - `spec/cases/`
 - `spec/parse-cases/`
 

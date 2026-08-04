@@ -1,4 +1,4 @@
-// spreadsheet.ts — host driver for examples/spreadsheet.jfn.
+// spreadsheet.ts — host driver for examples/spreadsheet/spreadsheet.jfn.
 //
 // The spreadsheet engine is entirely pure: the contract declares no host
 // functions and no effects, so the runtime adapter is empty and the `demo`
@@ -20,13 +20,16 @@ import {
 import { readFileSync } from "fs";
 import { join } from "path";
 
-const source = readFileSync(join(import.meta.dir, "../../examples/spreadsheet.jfn"), "utf-8");
+const source = readFileSync(
+  join(import.meta.dir, "../../examples/spreadsheet/spreadsheet.jfn"),
+  "utf-8",
+);
 const sheetModule = parseShorthand(source) as Record<string, JSONType>;
 const contract = loadEnvironmentContract(
-  join(import.meta.dir, "../../examples/spreadsheet.contract.json"),
+  join(import.meta.dir, "../../examples/spreadsheet/spreadsheet.contract.json"),
 );
 const profile = loadDeploymentProfile(
-  join(import.meta.dir, "../../examples/spreadsheet.profile.json"),
+  join(import.meta.dir, "../../examples/spreadsheet/spreadsheet.profile.json"),
   contract,
 );
 if (profile.mode !== "live") throw new Error("spreadsheet requires a live deployment profile");

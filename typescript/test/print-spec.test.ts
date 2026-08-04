@@ -88,7 +88,7 @@ describe("printer output shape", () => {
   });
 
   test("round-trips the type syntax showcase module", () => {
-    const source = readFileSync(join(EXAMPLES_DIR, "types.jfn"), "utf-8");
+    const source = readFileSync(join(EXAMPLES_DIR, "typed", "types.jfn"), "utf-8");
     const node = parseModule(source);
     expect(parseModule(printModule(node))).toEqual(node);
   });

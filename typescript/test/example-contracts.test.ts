@@ -25,11 +25,12 @@ function dungeonFixture(): {
   contract: EnvironmentContract;
   profile: DeploymentProfile;
 } {
-  const contract = loadEnvironmentContract(join(examples, "dungeon.contract.json"));
+  const directory = join(examples, "dungeon");
+  const contract = loadEnvironmentContract(join(directory, "dungeon.contract.json"));
   return {
-    module: loadModule(join(examples, "dungeon.jfn")),
+    module: loadModule(join(directory, "dungeon.jfn")),
     contract,
-    profile: loadDeploymentProfile(join(examples, "dungeon.profile.json"), contract),
+    profile: loadDeploymentProfile(join(directory, "dungeon.profile.json"), contract),
   };
 }
 
@@ -43,21 +44,26 @@ describe("typed host-contract examples", () => {
       "spreadsheet",
       "thermostat",
     ]) {
-      const contract = loadEnvironmentContract(join(examples, `${name}.contract.json`));
-      expect(loadDeploymentProfile(join(examples, `${name}.profile.json`), contract)).toBeDefined();
+      const directory = join(examples, name);
+      const contract = loadEnvironmentContract(join(directory, `${name}.contract.json`));
+      expect(
+        loadDeploymentProfile(join(directory, `${name}.profile.json`), contract),
+      ).toBeDefined();
     }
   });
 
   test("critical-path satisfies its operator-owned contract", () => {
-    const contract = loadEnvironmentContract(join(examples, "critical-path.contract.json"));
-    const module = loadModule(join(examples, "critical-path.jfn"));
+    const directory = join(examples, "critical-path");
+    const contract = loadEnvironmentContract(join(directory, "critical-path.contract.json"));
+    const module = loadModule(join(directory, "critical-path.jfn"));
     expect(checkModule(module, loadBuiltinTable(), { contract })).toEqual([]);
   });
 
   test("critical-path demo entry matches CPM oracle", async () => {
-    const contract = loadEnvironmentContract(join(examples, "critical-path.contract.json"));
-    const module = loadModule(join(examples, "critical-path.jfn"));
-    const profile = loadDeploymentProfile(join(examples, "critical-path.profile.json"), contract);
+    const directory = join(examples, "critical-path");
+    const contract = loadEnvironmentContract(join(directory, "critical-path.contract.json"));
+    const module = loadModule(join(directory, "critical-path.jfn"));
+    const profile = loadDeploymentProfile(join(directory, "critical-path.profile.json"), contract);
     const report = (await runTask(
       prepareDeployment({
         module,
