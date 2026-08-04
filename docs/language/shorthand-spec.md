@@ -999,7 +999,7 @@ Everything else in this document is resolved and implementable.
 ## 13. Effects: `do` and `handle`
 
 Two surface forms lower to the effects kernel (`perform` / `pure` / `bind` /
-`handle`; see the [Tasks & Effects](./language.md#tasks--effects) section of the
+`handle`; see the [Tasks & Effects](json/tasks-and-effects.md) section of the
 language reference for the runtime semantics). Both are **parser-only sugar**.
 `handle` lowers to a call, while `do` lowers to a `bind` call spine plus
 canonical `$let` nodes for pure bindings. The printer folds those exact shapes

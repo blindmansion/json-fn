@@ -2,7 +2,6 @@
 
 ~60 functions across arithmetic, comparison, logic, type checks/coercion,
 arrays, strings, objects, regex, higher-order, and introspection categories.
-See ``docs/language/language.md`` in the repo for the full reference.
 
 Functions are registered via :class:`_Registry`'s decorator API. Pure functions
 receive their arguments unpacked (``def add(a, b)``); builtins additionally

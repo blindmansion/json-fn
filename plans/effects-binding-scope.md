@@ -22,7 +22,7 @@ contract. Do not change the current linker behavior.
 This contract-scoped behavior is intentional and already described correctly
 in
 [`docs/deployment/environment-contract.md`](../docs/deployment/environment-contract.md) and
-[`docs/language/language.md`](../docs/language/language.md).
+[`docs/language/json/modules.md`](../docs/language/json/modules.md).
 
 ## Documentation issue
 

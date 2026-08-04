@@ -50,7 +50,7 @@ Each form is evaluated on both the branch where the condition holds (the
 ### 1. Truthiness
 
 A subject used directly as a condition is known-truthy on the then-branch and
-known-falsy on the else-branch (`docs/language/language.md` truthiness: `false`, `null`,
+known-falsy on the else-branch (`docs/language/json/expressions.md` truthiness: `false`, `null`,
 `0`, and `""` are falsy; everything else — including all arrays/objects — is
 truthy).
 

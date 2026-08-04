@@ -11,7 +11,6 @@ Quick start:
     >>> call_function(body, [2, 3], stdlib)
     5
 
-See ``docs/language/language.md`` in the repository for the full language reference.
 """
 
 from __future__ import annotations

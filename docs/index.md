@@ -15,7 +15,7 @@ syntax and type rules, consult the
 
 ### Understand or implement the language
 
-The [language reference](language/language.md) is the canonical semantics
+The [JSON language reference](language/json/index.md) is the canonical semantics
 reference. The remaining references cover
 [shorthand syntax](language/shorthand-spec.md),
 [type syntax](language/type-syntax-spec.md),
@@ -40,7 +40,7 @@ covered by [execution limits](runtime/execution-limits.md),
 
 ### Language
 
-- [Language reference](language/language.md) — canonical JSON forms and
+- [JSON language reference](language/json/index.md) — canonical JSON forms and
   evaluation semantics.
 - [Shorthand specification](language/shorthand-spec.md) — `.jfn` surface
   syntax and lowering rules.

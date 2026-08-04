@@ -16,7 +16,7 @@ export type StdlibOptions = {
   logger?: LoggerFn;
 };
 
-const noopLogger: LoggerFn = () => {};
+const noopLogger: LoggerFn = () => { };
 
 const INLINE_FLAGS_RE = /^\(\?([imsu]*)\)/;
 const VALID_FLAGS = new Set(["i", "m", "s", "u"]);
@@ -1014,7 +1014,7 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
       return parts.join("");
     }, 3),
 
-    // Tasks & effects (see src/task.ts and docs/language/language.md "Tasks & Effects").
+    // Tasks & effects
     // Constructors build runtime-value-marked tagged records; `handle` interprets
     // them in-language. `pure` the registry key coexists with the `pure` marker
     // helper imported above — one is an object key, the other an identifier.

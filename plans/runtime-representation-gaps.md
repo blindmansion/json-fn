@@ -411,7 +411,7 @@ nesting at the 512/513 boundary for arrays, objects, and grouping
 parentheses). Helper, boundary, checker, printer, validation, hydration, and
 closure-growth coverage: `typescript/test/structural-depth.test.ts`. Docs:
 `docs/runtime/execution-limits.md` section 4, cross-referenced from
-`docs/language/language.md` and `docs/runtime/durable-host.md`.
+`docs/language/json/execution-limits.md` and `docs/runtime/durable-host.md`.
 
 ## 3. Unicode string representation
 
@@ -478,7 +478,7 @@ cannot be encoded as well-formed UTF-8 without replacement or rejection.
 
 ### Why this matters
 
-`docs/language/language.md` describes integer string indexing as reading a "character."
+`docs/language/json/expressions.md` describes integer string indexing as reading a "character."
 That term could mean:
 
 - a UTF-16 code unit;

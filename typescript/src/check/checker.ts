@@ -111,15 +111,13 @@ function parameterShapeMatches(layout: ParameterLayout, sig: Sig): boolean {
 }
 
 function describeParameterLayout(layout: ParameterLayout): string {
-  return `${layout.requiredCount} required parameter(s), ${layout.omittableCount} optional parameter(s), and ${
-    layout.rest === null ? "no rest parameter" : "a rest parameter"
-  }`;
+  return `${layout.requiredCount} required parameter(s), ${layout.omittableCount} optional parameter(s), and ${layout.rest === null ? "no rest parameter" : "a rest parameter"
+    }`;
 }
 
 function describeSigShape(sig: Sig): string {
-  return `${sig.required.length} required parameter(s), ${sig.optional.length} optional parameter(s), and ${
-    sig.rest === undefined ? "no rest parameter" : "a rest parameter"
-  }`;
+  return `${sig.required.length} required parameter(s), ${sig.optional.length} optional parameter(s), and ${sig.rest === undefined ? "no rest parameter" : "a rest parameter"
+    }`;
 }
 
 function acceptsArgumentCount(sig: Sig, argc: number): boolean {
@@ -810,7 +808,7 @@ function checkArity(sig: Sig, argc: number, ctx: CheckContext): boolean {
   return false;
 }
 
-// Result type of a short-circuit `$and`/`$or` (docs/language/language.md): these are
+// Result type of a short-circuit `$and`/`$or`: these are
 // value-returning special forms, not boolean operators — the result is *an
 // operand*. A non-final operand reaches the result only when it stops the chain
 // (falsy for `$and`, truthy for `$or`), so it contributes just that slice of
@@ -1102,7 +1100,7 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
           // A literal null supplied to an omittable fixed slot whose schema
           // does not admit null is almost always an attempt to "skip" the
           // slot JS-style. Explain the omission model instead of emitting the
-          // bare assignability error (docs/language/language.md: explicit null is
+          // bare assignability error (explicit null is
           // supplied data and suppresses omission/default behavior).
           a === null &&
           i >= sig.required.length &&

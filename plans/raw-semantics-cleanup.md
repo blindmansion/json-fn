@@ -73,7 +73,7 @@ runtime-value terminology, and the docs were rewritten around inference:
 `parse(print(node)) = normalize(node)` contract, grammar and
 contextual-keyword updates, `$raw`-quoted annotated-handle lowering),
 `docs/guides/writing-jfn.md` (quoted `$`-keys in static data, computed keys in
-dynamic objects), and `docs/language/language.md` (shorthand-inference note under
+dynamic objects), and `docs/language/json/expressions.md` (shorthand-inference note under
 `$raw`, canonical annotated-handle spelling). The only bare `raw` left in
 docs is the statement that `raw` is an ordinary identifier; shared spec
 cases needed no further changes.
@@ -795,7 +795,7 @@ Primary files:
 - `typescript/src/check/module.ts`
 - `typescript/src/check/callable-rules.ts`
 - `typescript/src/task.ts`
-- `docs/language/language.md`
+- `docs/language/json/expressions.md`
 - `docs/language/shorthand-spec.md`
 - `docs/runtime/execution-limits.md`
 - `examples/dungeon.jfn`

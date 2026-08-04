@@ -14,7 +14,7 @@ unblocked. Can land with v1 or independently before it.
 A serialized continuation is deliberately **not** self-contained with respect
 to the module: escaping-closure capture attaches `where`-locals and nested
 locals, but module-level (registry) functions resolve **by name at call time**
-on whatever host resumes the task. `docs/language/language.md` states the contract
+on whatever host resumes the task. `docs/language/json/closures.md` states the contract
 plainly: a shipped closure "still relies on the target host providing the
 registry (module + stdlib) — exactly as it already relies on `add`, `map`, and
 friends being present."
