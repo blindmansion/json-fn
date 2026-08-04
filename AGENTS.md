@@ -19,26 +19,11 @@ json-fn is a pure-JSON functional expression language evaluated by a tree-walkin
 
 ## Implementations
 
-There are four interpreters. **The TypeScript implementation (`typescript/`) is the canonical one** — treat it as the source of truth when behaviors disagree.
+The TypeScript implementation (`typescript/`) is the canonical interpreter and source of truth.
 
 - `typescript/` — **canonical.** All new language work lands here first.
-- `go/` — known to be out of spec.
-- `python/` — known to be out of spec.
-- `rust/` — known to be out of spec.
 
-The Go, Python, and Rust implementations are **known to lag / be out of spec** right now while we iterate on the language itself. Don't assume they're correct, and don't spend effort reconciling them unless explicitly asked.
-
-The shared, language-agnostic conformance suites live in `spec/cases/` (and `spec/parse-cases/`). Every implementation is meant to pass them, but currently only TypeScript is expected to.
-
-## Root scripts
-
-Run from the repo root:
-
-- `./format-all.sh` — format + safe auto-fixes across all four implementations.
-- `./test-all.sh` — run all checks/tests: TS check+tests, Python lint+pytest, Go vet+tests, Rust clippy+tests.
-- `./benchmark.sh` — Go vs TypeScript (Bun) benchmark comparison table (`-v` for raw output).
-
-When working only on TypeScript, prefer the scoped commands below over the whole-repo scripts.
+The shared, language-agnostic conformance suites live in `spec/cases/` (and `spec/parse-cases/`).
 
 ## TypeScript project (`typescript/`)
 
