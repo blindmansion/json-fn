@@ -1,26 +1,26 @@
 # json-fn documentation
 
-The TypeScript implementation is canonical. These documents define the shared
-language, authoring syntax, and portable hosting boundary.
+These documents define the language, authoring syntax, and portable hosting
+boundary.
 
 ## Choose a path
 
 ### Write a `.jfn` module
 
-Start with [Writing json-fn](guides/writing-jfn.md), then use the generated
+Start with [Writing json-fn](guides/writing-jfn.md), then use the
 [builtins catalog](builtins/builtins.md) as a lookup reference. For exact
 syntax and type rules, consult the
-[shorthand specification](language/shorthand/index.md) and
-[type syntax specification](language/shorthand/type-syntax-spec.md).
+[shorthand language reference](language/shorthand/index.md) and
+[type syntax reference](language/shorthand/type-syntax-spec.md).
 
-### Understand or implement the language
+### Understand the language
 
 Start with the [JSON language reference index](language/json/index.md) for
 canonical semantics, including expressions, functions, narrowing, effects, and
 runtime constraints. Use the
-[shorthand specification index](language/shorthand/index.md) for `.jfn`
-authoring syntax, type syntax, lowering rules, and grammar. Implementers of the
-builtin type system should also consult
+[shorthand language reference](language/shorthand/index.md) for `.jfn`
+authoring syntax, type syntax, lowering rules, and grammar. For the builtin
+registry dialect and polymorphism rules, see
 [builtin type signatures](builtins/builtin-signatures.md).
 
 ### Deploy or host a module
@@ -43,16 +43,16 @@ covered by [execution limits](runtime/execution-limits.md),
 
 - [JSON language reference](language/json/index.md) — canonical JSON forms and
   evaluation semantics.
-- [Shorthand specification](language/shorthand/index.md) — `.jfn` surface
+- [Shorthand language reference](language/shorthand/index.md) — `.jfn` surface
   syntax and lowering rules.
-- [Type syntax specification](language/shorthand/type-syntax-spec.md) — type notation
+- [Type syntax reference](language/shorthand/type-syntax-spec.md) — type notation
   and schema lowering.
-- [Flow narrowing](language/json/narrowing.md) — frozen checker narrowing rules.
+- [Flow narrowing](language/json/narrowing.md) — branch-sensitive static
+  narrowing rules.
 
 ### Builtins
 
-- [Builtins](builtins/builtins.md) — generated signature and description
-  catalog sourced from `spec/builtins.json`.
+- [Builtins](builtins/builtins.md) — signature and description catalog.
 - [Builtin type signatures](builtins/builtin-signatures.md) — shared registry
   dialect, polymorphism, and semantic rules.
 
