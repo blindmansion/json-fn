@@ -15,11 +15,12 @@ syntax and type rules, consult the
 
 ### Understand or implement the language
 
-The [JSON language reference](language/json/index.md) is the canonical semantics
-reference. The remaining references cover
-[shorthand syntax](language/shorthand/index.md),
-[type syntax](language/shorthand/type-syntax-spec.md),
-[flow narrowing](language/json/narrowing.md), and
+Start with the [JSON language reference index](language/json/index.md) for
+canonical semantics, including expressions, functions, narrowing, effects, and
+runtime constraints. Use the
+[shorthand specification index](language/shorthand/index.md) for `.jfn`
+authoring syntax, type syntax, lowering rules, and grammar. Implementers of the
+builtin type system should also consult
 [builtin type signatures](builtins/builtin-signatures.md).
 
 ### Deploy or host a module
