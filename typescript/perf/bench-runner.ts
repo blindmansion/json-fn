@@ -109,7 +109,7 @@ for (const name of names) {
   const meanMs = totalMs / iters;
   console.log(
     `${name.padEnd(20)} min ${minMs.toFixed(2).padStart(8)} ms   ` +
-    `mean ${meanMs.toFixed(2).padStart(8)} ms   (${iters} iters)`,
+      `mean ${meanMs.toFixed(2).padStart(8)} ms   (${iters} iters)`,
   );
 }
 

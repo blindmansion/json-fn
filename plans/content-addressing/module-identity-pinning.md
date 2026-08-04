@@ -4,7 +4,10 @@ Status: proposed; the Phase 0 artifact/semantic identity and executable-world
 projection decisions are settled (see "What gets hashed"). Depends only on the
 canonical-encoding + hashing layer from
 [`content-addressed-values.md`](content-addressed-values.md) — not on the blob
-store. Can land with v1 or independently before it.
+store. That layer is now implemented (roadmap Phase 3:
+`typescript/src/hashing/`, including the component and aggregate identity
+hash helpers this plan consumes; see `docs/hashing.md`), so this plan is
+unblocked. Can land with v1 or independently before it.
 
 ## Summary
 

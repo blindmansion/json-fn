@@ -83,6 +83,41 @@ export {
   ParseError,
 } from "./shorthand";
 export type { ParsedWithPositions, SourcePos } from "./shorthand";
+export {
+  BLOB_HASH_DOMAIN,
+  blobHash,
+  BUILTIN_TABLE_HASH_DOMAIN,
+  builtinTableHash,
+  CanonicalEncodingError,
+  canonicalJsonBytes,
+  canonicalJsonText,
+  CONTRACT_HASH_DOMAIN,
+  contractHash,
+  DEPLOYMENT_HASH_DOMAIN,
+  deploymentHash,
+  hashWithDomain,
+  MODULE_ARTIFACT_HASH_DOMAIN,
+  moduleArtifactHash,
+  MODULE_HASH_DOMAIN,
+  moduleHash,
+  PROFILE_HASH_DOMAIN,
+  profileProjectionHash,
+  VALUE_HASH_DOMAIN,
+  valueHash,
+} from "./hashing";
+export type {
+  BlobHash,
+  BuiltinTableHash,
+  CanonicalEncodingErrorCode,
+  ContractHash,
+  DeploymentHash,
+  DeploymentIdentityComponents,
+  HashAddress,
+  ModuleArtifactHash,
+  ModuleHash,
+  ProfileHash,
+  ValueHash,
+} from "./hashing";
 export { isTask, stepTask, runHandle, TASK_TAG } from "./task";
 export type { TaskNode, EffectTask, PureTask, BindTask, Suspended } from "./task";
 export { RuntimeContractError } from "./runtime-contract";

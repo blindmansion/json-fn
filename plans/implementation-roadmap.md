@@ -1,8 +1,9 @@
 # Implementation roadmap
 
 Status: active; reconciliation pre-step, Phase 0 (gate audited 2026-08-03;
-see [`phase0-gate-audit.md`](phase0-gate-audit.md)), and Phase 2
-([`raw-semantics-cleanup.md`](raw-semantics-cleanup.md)) completed
+see [`phase0-gate-audit.md`](phase0-gate-audit.md)), Phase 2
+([`raw-semantics-cleanup.md`](raw-semantics-cleanup.md)), and Phase 3
+(canonical encoding and hashing; see `docs/hashing.md`) completed
 
 ## Summary
 
@@ -294,6 +295,13 @@ Primary owner:
 Program-normalization input:
 [`raw-semantics-cleanup.md`](raw-semantics-cleanup.md)
 
+**Completed.** The shared hashing layer is implemented in
+`typescript/src/hashing/` (canonical JCS-style encoder with boundary
+validation, domain-separated SHA-256 hashes, and component/aggregate
+deployment identity helpers), documented in `docs/hashing.md`, with
+cross-runtime vectors in `spec/hash-cases/`. No blob store or durable-host
+integration was included; those remain Phases 4A/4B.
+
 Build the shared, versioned hashing foundation:
 
 - canonical JSON bytes for accepted guest values;
@@ -314,6 +322,13 @@ No blob store is required in this phase.
 - Codec/chunk configuration cannot change semantic value identity.
 - Program normalization preserves results, errors, and deterministic limits.
 - Program normalization cannot rewrite expression-shaped guest data.
+
+**Gate met:** the first two checks are pinned by `spec/hash-cases/` and
+`typescript/test/hashing.test.ts` (semantic value hashes are defined over
+canonical bytes only, so no storage configuration participates); the
+normalization checks were pinned by the Phase 2 gate suites, and
+`typescript/test/hashing.test.ts` additionally pins that value hashing never
+applies the program normalizer while `jfn:module:v1` identity does.
 
 ## Phase 4A: durable module identity
 

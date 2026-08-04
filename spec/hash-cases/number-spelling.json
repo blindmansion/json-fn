@@ -1,0 +1,107 @@
+{
+  "description": "Canonical number spelling is the ECMAScript number-to-string algorithm applied to the IEEE-754 double: 1.0 encodes as 1, -0 as 0, with JS exponent thresholds at 1e21 and 1e-7",
+  "cases": [
+    {
+      "name": "zero",
+      "value": 0,
+      "canonical": "0",
+      "valueHash": "jfn:value:v1:sha256:5364f8017fb8ca54426282628e9f78f76690b51a7b3b323d56bcdd5f3caf76cd"
+    },
+    {
+      "name": "negative zero encodes as 0",
+      "value": -0,
+      "canonical": "0",
+      "valueHash": "jfn:value:v1:sha256:5364f8017fb8ca54426282628e9f78f76690b51a7b3b323d56bcdd5f3caf76cd"
+    },
+    {
+      "name": "one authored as 1.0 encodes as 1",
+      "value": 1,
+      "canonical": "1",
+      "valueHash": "jfn:value:v1:sha256:b34961db2f764d4033fde470b357f8c66f321b7d465428abd9b8d94dbcd632a4"
+    },
+    {
+      "name": "small negative integer",
+      "value": -42,
+      "canonical": "-42",
+      "valueHash": "jfn:value:v1:sha256:fa3c24e6ad04b77dc74f21c0f4754648513836a40a5e753ca3873014fc156b71"
+    },
+    {
+      "name": "plain fraction",
+      "value": 0.1,
+      "canonical": "0.1",
+      "valueHash": "jfn:value:v1:sha256:5ed3ad4ac773d6fbe820e37ffe0c4bd8e9fdac7a50301afae73d109ef4473f1d"
+    },
+    {
+      "name": "fraction below one with leading zero",
+      "value": 0.5,
+      "canonical": "0.5",
+      "valueHash": "jfn:value:v1:sha256:cc77103af1b8409d1c1f3bcb3bee07cbcf14916eacdfa41fc68d764e2e80bbbb"
+    },
+    {
+      "name": "largest exact integer boundary",
+      "value": 9007199254740992,
+      "canonical": "9007199254740992",
+      "valueHash": "jfn:value:v1:sha256:5b6b8f7c76c97b03d0b5c29aa42ad6dbb4f767c15b4a879fe5c4699414c029cb"
+    },
+    {
+      "name": "max safe integer",
+      "value": 9007199254740991,
+      "canonical": "9007199254740991",
+      "valueHash": "jfn:value:v1:sha256:f2a0b651277913a5c59250c5b167444611c6cfc2a8a2587fc4f4a16bced0d5e0"
+    },
+    {
+      "name": "just below the positive exponent threshold",
+      "value": 100000000000000000000,
+      "canonical": "100000000000000000000",
+      "valueHash": "jfn:value:v1:sha256:e848e133d860e6c34468ee11ebdfc91c9f7e1a69672c5b258d4f38fabb368bcf"
+    },
+    {
+      "name": "positive exponent threshold uses e+ notation",
+      "value": 1e21,
+      "canonical": "1e+21",
+      "valueHash": "jfn:value:v1:sha256:c6e0a3f95943b6012d9dc675f976de85ac1ffdccf5737ca2bd3d6292fea775eb"
+    },
+    {
+      "name": "large double beyond the threshold",
+      "value": 1e23,
+      "canonical": "1e+23",
+      "valueHash": "jfn:value:v1:sha256:f079d07e3a5eb26074b77a83100516f7ef019ecc4e5e75b7b8edc8a8b9815217"
+    },
+    {
+      "name": "just above the negative exponent threshold",
+      "value": 0.000001,
+      "canonical": "0.000001",
+      "valueHash": "jfn:value:v1:sha256:52dfc5da829b4feae591d289e9a6af9fc79003d552a1f2d524b1244719c370a2"
+    },
+    {
+      "name": "negative exponent threshold uses e notation",
+      "value": 1e-7,
+      "canonical": "1e-7",
+      "valueHash": "jfn:value:v1:sha256:da16920d653aef4b47dd4516286f45397ecdcb1a5f34981a6de31b27e1df31d9"
+    },
+    {
+      "name": "precision-limited fraction rounds to shortest form",
+      "value": 333333333.3333333,
+      "canonical": "333333333.3333333",
+      "valueHash": "jfn:value:v1:sha256:762ce799b82b6f6cf2e8d1d6d8afb7fef1e32d6f99c6e118a8ae74431e96fd55"
+    },
+    {
+      "name": "smallest positive double",
+      "value": 5e-324,
+      "canonical": "5e-324",
+      "valueHash": "jfn:value:v1:sha256:f57e1050fa97a2462e82b94a559f1ad3b0624aba2ee37651270d4bc3b7817a24"
+    },
+    {
+      "name": "largest positive double",
+      "value": 1.7976931348623157e308,
+      "canonical": "1.7976931348623157e+308",
+      "valueHash": "jfn:value:v1:sha256:00ea0e98e9f6b1199109f62d2454125e8fbd5a620bdaab5c84ec857c1a0d2115"
+    },
+    {
+      "name": "numbers inside containers",
+      "value": [1, -0, 1e21, 1e-7],
+      "canonical": "[1,0,1e+21,1e-7]",
+      "valueHash": "jfn:value:v1:sha256:941070fe72aff4a1b1645d81c6f4ca32b9123e9e14607da62c8f403a5ade1ef2"
+    }
+  ]
+}

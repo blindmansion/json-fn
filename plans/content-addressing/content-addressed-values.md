@@ -1,6 +1,10 @@
 # Content-addressed value storage (v1: at-rest codec)
 
-Status: proposed. This is the base plan; two follow-ups build on it —
+Status: partially implemented. The "Canonical encoding and hashing" section
+(roadmap Phase 3) has landed in `typescript/src/hashing/` with cross-runtime
+vectors in `spec/hash-cases/` and documentation in `docs/hashing.md`; the
+codec, blob store, chunking, and GC remain gated on the measurement gate
+below. This is the base plan; two follow-ups build on it —
 [`module-identity-pinning.md`](module-identity-pinning.md) (cheap, high value,
 can land with or immediately after v1) and
 [`lazy-refs-and-cas-runtime.md`](lazy-refs-and-cas-runtime.md) (the deep

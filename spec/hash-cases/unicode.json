@@ -1,0 +1,79 @@
+{
+  "description": "Canonical string bytes are UTF-8 with the short JSON escapes and lowercase \\u00xx for other control characters; no Unicode normalization is applied, so NFC and NFD spellings are distinct values with distinct hashes",
+  "cases": [
+    {
+      "name": "ascii",
+      "value": "hello",
+      "canonical": "\"hello\"",
+      "valueHash": "jfn:value:v1:sha256:164a2a6c922036c38f5b2c7c7b9fec891f7bdcd99d5f101614254a9dc511e871"
+    },
+    {
+      "name": "two-byte utf-8",
+      "value": "café",
+      "canonical": "\"café\"",
+      "valueHash": "jfn:value:v1:sha256:a4466afcf897ef867fa950ad947c171044c05a4f839a8f4aafd2a7484f98ee40"
+    },
+    {
+      "name": "three-byte utf-8",
+      "value": "日本語",
+      "canonical": "\"日本語\"",
+      "valueHash": "jfn:value:v1:sha256:ddcbcb6f9448a02334d7fc0a862184ebb5d53bca6775277d55f3f8098a129e66"
+    },
+    {
+      "name": "astral plane emoji",
+      "value": "😀",
+      "canonical": "\"😀\"",
+      "valueHash": "jfn:value:v1:sha256:1e1f2baa2e510b94c91673b6c40a1d724873da608582b8281f6b42d0dff1a102"
+    },
+    {
+      "name": "nfc e-acute",
+      "value": "é",
+      "canonical": "\"é\"",
+      "valueHash": "jfn:value:v1:sha256:017a58fc3a6a326b4f2273d180288bac29c17785b80a33f9ff0fe6856bc557c1"
+    },
+    {
+      "name": "nfd e plus combining acute",
+      "value": "é",
+      "canonical": "\"é\"",
+      "valueHash": "jfn:value:v1:sha256:eec104abbe5a75e5f0c562cb00c2fa01cc21520036508a3751c51e07f7b9d3d3"
+    },
+    {
+      "name": "quote and backslash use short escapes",
+      "value": "quote \" backslash \\",
+      "canonical": "\"quote \\\" backslash \\\\\"",
+      "valueHash": "jfn:value:v1:sha256:f6ead957235f4fdddeb8dd57849b680761e0bb3ec40ca04b430ce2bc4beb309a"
+    },
+    {
+      "name": "named control escapes",
+      "value": "\b\t\n\f\r",
+      "canonical": "\"\\b\\t\\n\\f\\r\"",
+      "valueHash": "jfn:value:v1:sha256:db74449174c42fadf8cdf370f8522b9d83a4904d182d906bc2ce5ccabe194ccd"
+    },
+    {
+      "name": "other control characters use lowercase u00xx",
+      "value": "\u0000\u0007\u001f",
+      "canonical": "\"\\u0000\\u0007\\u001f\"",
+      "valueHash": "jfn:value:v1:sha256:5780811751fd8b1847116047371ef01448d796d3e4bfa6ae29edec722a22ccb4"
+    },
+    {
+      "name": "delete control character is literal",
+      "value": "",
+      "canonical": "\"\"",
+      "valueHash": "jfn:value:v1:sha256:d7fac38f92f60409e19d05d4e3dfbd745a4209930d898470378eb4555eba4345"
+    },
+    {
+      "name": "escaped and literal spellings are one value",
+      "value": "é日",
+      "canonical": "\"é日\"",
+      "valueHash": "jfn:value:v1:sha256:a88c563efbc39e9f80256b7bb0c4f66e7c67898d77077f688760df6f0dd67eaf"
+    },
+    {
+      "name": "unicode inside keys and arrays",
+      "value": {
+        "😀": ["é", "é"]
+      },
+      "canonical": "{\"😀\":[\"é\",\"é\"]}",
+      "valueHash": "jfn:value:v1:sha256:da8aac5907dd7b9b07fb7b01aee7aa261528866f3849b4fb8d2b2ba94626036f"
+    }
+  ]
+}

@@ -12,9 +12,10 @@
     "fix": "bun run fix:typescript && bun run format:spec-cases",
     "fix:typescript": "bunx tsc --noEmit && oxlint --fix && oxfmt",
     "generate:builtins-doc": "bun run scripts/generate-builtin-doc.ts",
+    "generate:hash-cases": "bun run scripts/generate-hash-cases.ts && bun run format:spec-cases",
     "instrument:durable": "bun run scripts/instrument-durable.ts",
-    "format:spec-cases": "cd .. && ./typescript/node_modules/.bin/oxfmt 'spec/cases/*.json' 'spec/parse-cases/*.json' 'spec/validation-cases/*.json'",
-    "format:spec-cases:check": "cd .. && ./typescript/node_modules/.bin/oxfmt --check 'spec/cases/*.json' 'spec/parse-cases/*.json' 'spec/validation-cases/*.json'"
+    "format:spec-cases": "cd .. && ./typescript/node_modules/.bin/oxfmt 'spec/cases/*.json' 'spec/parse-cases/*.json' 'spec/validation-cases/*.json' 'spec/hash-cases/*.json'",
+    "format:spec-cases:check": "cd .. && ./typescript/node_modules/.bin/oxfmt --check 'spec/cases/*.json' 'spec/parse-cases/*.json' 'spec/validation-cases/*.json' 'spec/hash-cases/*.json'"
   },
   "devDependencies": {
     "@types/bun": "latest",
