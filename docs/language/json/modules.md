@@ -1,4 +1,6 @@
-# Module Scope
+# Module Scope and Scoping Rules
+
+## Module scope
 
 A whole program module is a distinct **object mapping names to expressions**.
 When a host links such an object and chooses an entry point, module entries form
@@ -43,4 +45,16 @@ entries and may additionally own `$types`. Consequences:
 - **Lisp-2 asymmetry (by syntax, not runtime type).** Only a binding whose value is _literally_ a function body (has a `$return` key) becomes callable in `$call` position. So a module _constant_ named `map` shadows `$var map` but **not** a `$call` to `map` (which still resolves the stdlib `map`), even if that constant happens to evaluate to a function; a module _function_ named `map` shadows **both**.
 
 This is a single outermost frame, not a module _system_: there is no `import` / `export`, no multiple modules, and no re-exports.
+
+## Scoping rules
+
+- Function parameters and runtime `$captures` create the function invocation
+  scope.
+- `$let` creates an expression-local recursive scope. Its names shadow function
+  parameters, captures, outer lets, and module bindings in variable lookup.
+  Literal function-body bindings additionally shadow callable registry entries.
+- Variables resolve from the innermost binder outward. Parameter defaults are
+  in the function invocation scope and can see captures, all parameter
+  bindings/defaults, and outer/module scope, but not a `$let` nested later
+  inside `$return`.
 

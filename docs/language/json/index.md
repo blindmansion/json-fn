@@ -5,17 +5,22 @@ json-fn is a JSON-structured expression language. Programs are JSON values evalu
 
 ## Contents
 
-- [Expression Types](expressions.md)
-- [Flow Narrowing](narrowing.md)
-- [Function Bodies](functions.md)
+### Core semantics
+
+- [Expression Types](expressions.md) — expression forms, dynamic dispatch, and
+  structural constraints.
+- [Function Bodies](functions.md) — parameters, local bindings, and recursion.
 - [Closures](closures.md)
-- [Scoping Rules](scoping.md)
-- [Recursion](recursion.md)
-- [Module Scope](modules.md)
-- [Dynamic Dispatch](dynamic-dispatch.md)
+- [Module Scope and Scoping Rules](modules.md)
+- [Flow Narrowing](narrowing.md)
+
+### Effects and runtime
+
 - [Tasks & Effects](tasks-and-effects.md)
-- [Standard Library](standard-library.md)
-- [HOF Argument Order](higher-order-functions.md)
-- [Patterns](patterns.md)
 - [Execution Limits](execution-limits.md)
-- [Constraints](constraints.md)
+
+### Library and usage
+
+- [Standard Library](standard-library.md) — builtin semantic notes, including
+  higher-order function conventions.
+- [Patterns](patterns.md)

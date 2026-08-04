@@ -40,6 +40,20 @@ Zero-argument calls use an empty `$args` array:
 { "$call": "myFunction", "$args": [] }
 ```
 
+### Dynamic dispatch
+
+The callee `$call` can be a `$var` reference or any expression that evaluates
+to a function name or body.
+
+```json
+{
+  "$params": ["fnName"],
+  "$return": { "$call": { "$var": "fnName" }, "$args": [3, 4] }
+}
+```
+
+Called with `["add"]` this returns `7`; called with `["mul"]` it returns `12`.
+
 ## Function Reference — `{ $fn }`
 
 `$fn` evaluates its value and returns the result (a string name or function body) without calling it. Used to pass functions as values to higher-order functions. `$fn` is never an array — an array `$fn` is a pre-split artifact and is rejected.
@@ -359,4 +373,25 @@ Rules:
 - In plain data objects, `$comment` is stripped from the output. To preserve a literal `$comment` key in data, wrap with `$raw`.
 - Inside `$raw`, the entire value is returned verbatim — `$comment` is preserved.
 - Closures preserve `$comment` when a function body is returned as a value.
+
+## Constraints
+
+- `$var` must be the sole key; its value is a plain variable name (no path notation, no `$get` sibling).
+- `$let`/`$in` must be the only two keys; both are required, and `$let` must be
+  a non-empty object of bindings.
+- `$get`/`$from` must be the only two keys; both are required. This is the only property-access form.
+- `$if`/`$then`/`$else` must all be present, exactly three keys.
+- `$cond` may have only `$cond` and optional `$else`; each entry must be a two-element array.
+- `$match` must have `$match`, `$cases`, and `$else`; `$match` and case values must evaluate to scalar JSON values.
+- `$and` must be the sole key; value must be an array of expressions.
+- `$or` must be the sole key; value must be an array of expressions.
+- `$raw` must be the sole key.
+- A function call has exactly `$call` (the callee) and `$args` (an array of arguments) and no other keys.
+- A function reference has `$fn` as its sole key; `$fn` is never an array.
+- `$return` cannot coexist with `$call` or `$fn`.
+- A source function body has `$return` and only optional `$params`, `$sig`, and
+  string-valued `$comment`; `$captures` and `$runtimeContract` are reserved
+  runtime fields, and `$types` is module-only.
+- `$comment` (with a string value) is allowed as a sibling key in any expression form and does not count toward "sole key" / "exactly N keys" constraints. In plain data objects it is stripped from the output.
+- Truthiness: `0`, `""`, `null`, `false` are falsy; everything else is truthy.
 

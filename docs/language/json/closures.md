@@ -31,7 +31,7 @@ The returned body is a valid function body that can be called subsequently.
 ## Escaping closures carry the local functions they call
 
 Capture also keeps an escaping closure **self-contained** when it calls an
-enclosing [local function](recursion.md#local-recursive-functions) by name. Names in call
+enclosing [local function](functions.md#local-recursive-functions) by name. Names in call
 position that resolve to a local function stay literal (so recursion and mutual
 recursion keep dispatching by name), and capture serializes the required
 closed-over definitions under the returned body's `$captures` field. A closure

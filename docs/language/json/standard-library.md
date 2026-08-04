@@ -42,6 +42,11 @@ Match results are objects with `match` (full matched text), `index` (start posit
 
 ## Higher-Order Functions
 
+Higher-order functions take **callback first, data second**. This is consistent
+across all HOFs: `map(callback, arr)`, `filter(callback, arr)`,
+`partition(callback, arr)`, `countBy(callback, arr)`,
+`reduce(callback, init, arr)`, `scan(callback, init, arr)`, and so on.
+
 Higher-order functions can invoke json-fn callbacks. The callback argument can be a function reference (`{ "$fn": "name" }`), an inline function body, or a string name.
 
 At runtime, a callback may be an inline function, a function reference, or a
