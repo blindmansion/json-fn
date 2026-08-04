@@ -28,7 +28,7 @@ The portable operator-owned artifacts are the
 [environment contract](deployment/environment-contract.md) and
 [deployment profile](deployment/deployment-profile.md). Runtime behavior is
 covered by [execution limits](runtime/execution-limits.md),
-[canonical encoding and hashing](runtime/hashing.md), and the TypeScript
+[canonical encoding and hashing](runtime/hashing.md), and the
 [durable host guide](runtime/durable-host.md).
 
 ## Catalog
@@ -53,7 +53,7 @@ covered by [execution limits](runtime/execution-limits.md),
 - [Builtins](builtins/builtins.md) — generated signature and description
   catalog sourced from `spec/builtins.json`.
 - [Builtin type signatures](builtins/builtin-signatures.md) — shared registry
-  dialect, polymorphism, and implementation rules.
+  dialect, polymorphism, and semantic rules.
 
 ### Runtime
 
@@ -61,7 +61,7 @@ covered by [execution limits](runtime/execution-limits.md),
   size, cancellation, and fixed structural limits.
 - [Canonical encoding and hashing](runtime/hashing.md) — canonical guest-value
   bytes and domain-separated identity hashes.
-- [Durable task hosting](runtime/durable-host.md) — TypeScript persistence,
+- [Durable task hosting](runtime/durable-host.md) — persistence,
   delivery, recovery, and failure semantics.
 
 ### Deployment

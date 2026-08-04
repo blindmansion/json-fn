@@ -1,128 +1,122 @@
 # Canonical encoding and hashing
 
-json-fn defines one canonical byte encoding for accepted guest values and a
-family of domain-separated, versioned hashes built on it. This layer is the
-shared foundation for durable module-identity pinning and (if measurements
-justify it) content-addressed value storage. It is host-layer functionality:
-nothing here changes evaluation, fuel, errors, or the conformance semantics of
-the language.
+json-fn defines one canonical byte encoding for accepted JSON values and
+versioned, domain-separated SHA-256 addresses over those bytes.
 
-The TypeScript implementation lives in `typescript/src/hashing/`.
-Cross-runtime test vectors live in `spec/hash-cases/`.
+## Canonical JSON
 
-## 1. Canonical JSON encoding
+Canonical encoding follows RFC 8785:
 
-The canonical encoding of an accepted JSON value follows RFC 8785 (JSON
-Canonicalization Scheme):
+- Object keys are sorted by UTF-16 code units. This is not Unicode code-point
+  order.
+- Numbers use the ECMAScript number-to-string form for an IEEE-754 double.
+  `1.0` encodes as `1`, `-0` as `0`, and exponent notation begins at `1e21`
+  and below `1e-7`.
+- Strings encode as UTF-8. JSON short escapes are used for `"`, `\`, backspace,
+  tab, newline, form feed, and carriage return. Other control characters use
+  lowercase `\u00xx`; all other characters are literal.
+- Unicode normalization is not applied. NFC and NFD strings remain distinct.
+- No insignificant whitespace is emitted.
 
-- **Object keys are sorted by UTF-16 code units** (the ECMAScript default
-  string sort). Structural `eq` ignores object key order, so structurally
-  equal values must — and do — produce identical canonical bytes. Note that
-  UTF-16 code-unit order is not code-point order: a key spelled with a
-  surrogate pair can sort before a key whose single code unit is larger than
-  the high surrogate.
-- **Numbers use the ECMAScript number-to-string algorithm** applied to the
-  IEEE-754 double: `1.0` encodes as `1`, `-0` as `0`, and exponent notation
-  begins at `1e21` and below `1e-7` (`1e+21`, `1e-7`). The authored spelling
-  of a number is irrelevant; only the double it denotes matters.
-- **Strings encode as UTF-8** with the short JSON escapes (`\"`, `\\`, `\b`,
-  `\t`, `\n`, `\f`, `\r`) and lowercase `\u00xx` for other control
-  characters; every other character is literal. No Unicode normalization is
-  applied: NFC and NFD spellings are distinct values with distinct hashes.
-- **No insignificant whitespace.**
+Object key order is not part of structural equality, so structurally equal
+objects produce the same canonical bytes.
 
-### Boundary validation
+### Accepted values
 
-The encoder owns the persistence/hash boundary: it deterministically rejects,
-rather than silently coercing or dropping,
+The encoding boundary rejects values instead of coercing or omitting them:
 
-- cyclic values (`CYCLIC_VALUE`);
-- strings containing unpaired surrogates, in values or keys
-  (`MALFORMED_STRING`) — it never relies on a host UTF-8 encoder's
-  replacement behavior; and
-- non-finite numbers, `undefined`, functions, symbols, bigints, non-plain
-  host objects (`Date`, `Map`, class instances), symbol-keyed properties, and
-  arrays with holes or named properties (`UNSUPPORTED_VALUE`).
+- cyclic values: `CYCLIC_VALUE`;
+- unpaired UTF-16 surrogates in strings or keys: `MALFORMED_STRING`;
+- non-finite numbers, undefined values, functions, symbols, big integers,
+  non-plain host objects, symbol-keyed properties, sparse arrays, and arrays
+  with named properties: `UNSUPPORTED_VALUE`.
 
-The walk enforces the portable structural-depth contract with the shared
-counting rule and limit error (see `docs/runtime/execution-limits.md` section 4).
+The shared [structural-depth limit](execution-limits.md#structural-depth) also
+applies.
 
-### Values, not programs
+Canonical encoding operates on values, not programs. Expression-shaped guest
+data is encoded exactly as data. Program normalization is applied only by the
+normalized module hash defined below.
 
-The canonical encoder operates on arbitrary JSON **values**. It never applies
-program normalization: guest data may legitimately contain `$raw`-shaped,
-`$var`-shaped, or otherwise expression-shaped objects, and value hashing
-preserves the exact structural value it receives. Program normalization
-participates in hashing only through the module-identity helpers below, where
-the input is known to be program syntax.
+## Hash framing
 
-## 2. Hash domains
+For a domain string `D` and payload bytes `P`, the digest input is:
 
-Every hash occupies exactly one versioned domain. The domain string is part of
-the digest input (equal bytes hash differently under different domains) and
-part of the rendered address, so addresses are self-describing:
-
+```text
+UTF8(D) || 0x0a || P
 ```
+
+The address is:
+
+```text
+D:sha256:<lowercase hexadecimal digest>
+```
+
+For example:
+
+```text
 jfn:value:v1:sha256:9f2c...
 ```
 
-SHA-256 is the v1 digest for every domain; it is available in the standard
-library of every implementation, which the shared test vectors rely on.
-Changing the digest or the encoding rules is a new domain version, never a
-silent reinterpretation of existing addresses.
+The domain participates in both the digest and rendered address. Equal payload
+bytes in different domains therefore have different addresses. A change to
+the digest or encoding rules requires a new domain version.
 
-| Domain                   | Meaning                                                                 |
-| ------------------------ | ----------------------------------------------------------------------- |
-| `jfn:value:v1`           | Semantic identity of one complete accepted guest value                  |
-| `jfn:blob:v1`            | Address of one physical blob payload (at-rest codec; future work)       |
-| `jfn:module:v1`          | Normalized semantic module identity (after program normalization)       |
-| `jfn:module-artifact:v1` | Exact reviewed authored artifact (before program normalization)         |
-| `jfn:contract:v1`        | Portable environment-contract document                                  |
-| `jfn:builtins:v1`        | Full builtin signature table plus engine/stdlib semantic version        |
-| `jfn:profile:v1`         | Deployment-profile semantic projection                                  |
-| `jfn:deployment:v1`      | Aggregate executable-world identity over the component hashes           |
+## Domains
 
-In the TypeScript implementation each domain is a distinct branded type
-(`ValueHash`, `BlobHash`, `ModuleHash`, ...), so a hash cannot be substituted
-across domains merely because the digest algorithms match.
+- `jfn:value:v1` identifies one complete accepted guest value. Its payload is
+  canonical JSON.
+- `jfn:blob:v1` identifies one physical blob payload. Its payload is the
+  versioned blob bytes, including any codec or layout framing.
+- `jfn:module:v1` identifies a module after program normalization, including
+  `$types` and before contract-derived effect bindings are added.
+- `jfn:module-artifact:v1` identifies the canonical module as parsed, before
+  program normalization.
+- `jfn:contract:v1` identifies the complete environment-contract document.
+- `jfn:builtins:v1` identifies the record
+  `{"engineVersion": string, "signatureTable": value}`. The engine version
+  covers builtin behavior not represented by signatures.
+- `jfn:profile:v1` identifies the deployment profile's semantic projection:
+  mode, selected effects and durable classifications, and portable limits.
+- `jfn:deployment:v1` identifies the executable deployment components.
 
-Semantic value hashes are independent of physical storage by construction:
-chunk thresholds, codec framing, and blob layout never participate in a
-`ValueHash` input.
+A semantic value address is independent of physical storage. Chunk thresholds,
+blob codecs, and layout do not participate in `jfn:value:v1`.
 
-## 3. Module and deployment identity hashes
+## Module identity
 
-Two module hashes with two settled roles
-(`plans/content-addressing/module-identity-pinning.md`):
+The two module domains have separate roles:
 
-- **`jfn:module-artifact:v1`** digests the canonical-JSON module exactly as
-  reviewed — after shorthand parsing, before program normalization. It is
-  provenance and diagnostic metadata ("is production running byte-for-byte
-  what was approved?") and is never an enforcement input.
-- **`jfn:module:v1`** digests the module after the context-sensitive program
-  normalizer, so semantically neutral respellings (redundant-`$raw` removal,
-  boundary hoisting) cannot create distinct identities. Identity enforcement
-  keys on this hash only.
+- `jfn:module-artifact:v1` records the parsed artifact before semantic
+  normalization. It is provenance and diagnostic metadata.
+- `jfn:module:v1` records the normalized program. Semantically neutral syntax
+  differences normalize to one identity, so this is the module component used
+  for enforcement.
 
-The aggregate `jfn:deployment:v1` hash covers the normalized module,
-contract, builtin-table, and profile component hashes. The artifact hash is
-deliberately excluded from the aggregate — otherwise a reformatting would
-reject in-flight workflows — and is carried beside it in identity manifests.
+Program normalization never applies to arbitrary guest values, contracts, or
+profile projections.
 
-Wiring these helpers into deployment preparation, workflow records, and
-drift enforcement is owned by the module-identity-pinning plan.
+## Deployment identity
 
-## 4. Test vectors
+The deployment address hashes the canonical JSON encoding of this component
+record:
 
-`spec/hash-cases/*.json` contains cross-runtime-independent vectors: each case
-records an input value, its canonical text, and its `jfn:value:v1` address,
-covering key ordering, number spelling, Unicode, special keys (`__proto__`,
-`$`- and `@`-prefixed names), and expression-shaped data. Every
-implementation's encoder and value hash must reproduce them exactly.
-Rejection behavior (unpaired surrogates, cycles, non-JSON host values) is not
-JSON-representable and is pinned in implementation tests
-(`typescript/test/hashing.test.ts`).
+```json
+{
+  "module": "jfn:module:v1:sha256:...",
+  "contract": "jfn:contract:v1:sha256:...",
+  "builtins": "jfn:builtins:v1:sha256:...",
+  "profile": "jfn:profile:v1:sha256:..."
+}
+```
 
-The TypeScript vectors are generated by
-`bun run generate:hash-cases` (from `typescript/`); regenerate after any
-deliberate, domain-versioned encoding change.
+The module-artifact address is carried separately as provenance and is not an
+input to deployment identity. Component addresses allow a mismatch report to
+identify the changed layer.
+
+## Conformance vectors
+
+`spec/hash-cases/*.json` pins canonical text and `jfn:value:v1` addresses for
+key ordering, numbers, Unicode, special keys, and expression-shaped data.
+Equivalent encoders must reproduce those vectors and the rejection
+classifications above.

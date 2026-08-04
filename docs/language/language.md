@@ -959,9 +959,7 @@ checker. Portable `maxCallDepth`, `maxFuel`, and `maxValueSize` limits belong in
 the profile; the optional third argument is only for host-local cancellation,
 timeout, and instrumentation.
 
-For task entries that must persist across process boundaries, the TypeScript
-implementation provides
-`createDurableDriver({deployment: preparedDurableDeployment, store})`. See
+Task entries may persist across process boundaries under a durable profile. See
 [Deployment profile](../deployment/deployment-profile.md) for durable selection and
 runtime-adapter binding, then [Durable task hosting](../runtime/durable-host.md) for store consistency,
 delivery, recovery, and at-least-once execution semantics.
@@ -1233,12 +1231,12 @@ exceeded` at every parsing, checking, evaluation, printing, validation, and
 hydration boundary), and combined expression-plus-invocation nesting during
 evaluation is bounded at 4,096 (erroring with `Maximum evaluation nesting of
 4096 exceeded`). See
-[Execution limits § Fixed structural limits](../runtime/execution-limits.md#4-fixed-structural-limits).
+[Execution limits § Fixed structural limits](../runtime/execution-limits.md#fixed-structural-limits).
 
 Portable deployment limits are supplied through a
 [deployment profile](../deployment/deployment-profile.md); host entry and runtime-adapter boundaries
 are described by the [environment contract](../deployment/environment-contract.md), with
-persistent TypeScript behavior in [Durable task hosting](../runtime/durable-host.md). For
+persistent behavior in [Durable task hosting](../runtime/durable-host.md). For
 the normative cost model, see [Execution limits](../runtime/execution-limits.md). The
 TypeScript CLI's `eval` command accepts `--max-call-depth`, `--max-fuel`, and
 `--max-value-size` to set these limits for an individual run.

@@ -899,7 +899,7 @@ registry and chooses a named entry point (as with `pipeline.jfn` and
 `dungeon.jfn`). Standalone expressions are a separate parser/CLI mode and are
 not `.jfn` file syntax.
 See [Environment contract](../deployment/environment-contract.md) for portable entry linking
-and [Durable task hosting](../runtime/durable-host.md) for the TypeScript persistent host.
+and [Durable task hosting](../runtime/durable-host.md) for persistent execution.
 The shorthand only guarantees the JSON it produces.
 
 > **Future direction (not specified):** module-level `import` / `export` may

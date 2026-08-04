@@ -1,385 +1,211 @@
-# Builtin type signatures
+# Builtin signature registry
 
-Status: **implemented in the canonical TypeScript checker.** The other
-implementations may lag while the language is still evolving.
+`spec/builtins.json` is the type registry for json-fn builtins. It defines
+portable callable signatures and names the semantic rules needed when a result
+cannot be expressed by those signatures alone.
 
-## Why this exists
+This document specifies the registry dialect and the behavior that the JSON
+structure cannot express.
 
-The builtin registry (`stdlib.ts` and its ports) is reimplemented in every
-language. Their *types* are needed by every static checker (see
-`plans/type-sketch.md` §5.3). Writing those types four times guarantees drift.
-
-So the canonical builtin signatures live in **one** language-agnostic file,
-`spec/builtins.json`, exactly like the conformance cases in `spec/cases/`. Each
-implementation reads (or, later, bundles / codegens) that file and feeds it to
-its checker's builtin layer.
-
-The goal is only to **shrink the shared surface area**. Where a signature is
-impossible or unwise to express in the agnostic dialect, the table punts to a
-per-implementation escape hatch (see [Escape hatch](#escape-hatch)) rather than
-contorting the format.
-
-## Why not just one schema per builtin
-
-Monomorphic signatures would launder everything to `any`: `setAt(board, i, p)`
-typed as `(any[], integer, any) -> any[]` silently disables checking for the
-whole downstream dataflow. The load-bearing builtins (`map`, `filter`, `setAt`,
-`concat`, …) are exactly the polymorphic ones. So the table speaks a small
-dialect **on top of** the user-facing schema fragment (`docs/language/language.md` /
-`plans/type-sketch.md` §2). These extensions are **builtin-only** — they never
-appear in user-written types or in the schemas the checker infers; the checker
-*instantiates* them away at each call site.
-
-## File shape
+## Registry shape
 
 ```json
 {
-  "$defs": { "Match": { "...": "shared builtin-owned named types" } },
+  "description": "optional registry description",
+  "$defs": {
+    "Name": { "type": "object" }
+  },
   "builtins": {
-    "add": { "signatures": [ /* overload signatures */ ] },
-    "pipe": {
+    "name": {
+      "description": "optional builtin description",
+      "category": "optional catalog category",
       "signatures": [
-        { "required": [{ "type": "array" }, true], "optional": [], "returns": true }
+        {
+          "typeParams": ["T"],
+          "required": [{ "$tvar": "T" }],
+          "optional": [],
+          "rest": { "$tvar": "T" },
+          "returns": { "$tvar": "T" }
+        }
       ],
-      "rule": "core.pipe"
+      "rule": "namespace.rule"
     }
   }
 }
 ```
 
-- **`$defs`** — named types owned by builtins (e.g. the regex `Match` record),
-  referenced with ordinary `{"$ref": "#/$defs/Name"}`. Merged into the module's
-  `$types` pool by the checker (module types win on a name clash).
-- **`builtins`** — a map from builtin name to a callable contract containing a
-  non-empty portable fallback **`signatures`** set and, optionally, a
-  namespaced host-language **`rule`**.
+- `description` and `category` are descriptive metadata.
+- `$defs`, when present, contains registry-owned named schemas. References use
+  `{"$ref": "#/$defs/Name"}`.
+- `builtins` maps each builtin name to one or more signatures.
+- `rule` names an additional type rule.
 
-### Load-time validation
+Registry, contract, and module definitions share one namespace during checking.
+Duplicate names across those sources are invalid.
 
-The TypeScript loader validates the table before exposing it to the checker.
-Malformed roots, entries, signatures, schema nodes, type-variable declarations,
-and references fail with a path-bearing `BuiltinTableValidationError` rather
-than becoming trusted data through a type assertion. `validateBuiltinTable`
-provides the same validation for an already parsed value.
-
-References are checked against the table's `$defs`. Type variables must be
-declared by the containing signature, declarations must be unique and used, and
-only the tractable schema fragment described below is accepted. The current
-format requires every callable — including rule-backed callables — to provide at
-least one fallback signature. Rule identifiers are namespaced strings such as
-`core.merge` or `operator.groupLatest`; legacy overload arrays and rule-only
-entries are rejected.
+The root, builtin entries, signatures, and schema nodes are closed structures:
+unknown fields are invalid. `builtins` is required. Builtin names are
+non-empty. Builtin descriptions and categories, when present, are non-empty.
+Every builtin has at least one signature. References must resolve within
+`$defs`, and rule names have at least two dot-separated identifier segments.
 
 ## Signatures
 
-A signature reuses the `$fnType` inner shape plus an optional `typeParams`:
+A signature has the same parameter shape as `$fnType`, with an optional
+`typeParams` field:
 
-```json
-{ "typeParams": ["T", "U"], "required": [ /* Schema */ ], "optional": [], "rest": { }, "returns": { } }
-```
+- `required` lists fixed required parameters.
+- `optional` lists trailing omittable parameters.
+- `rest`, when present, is the element schema for the variadic tail.
+- `returns` is the result schema.
+- `typeParams` declares the type variables bound by the signature.
 
-- `required` — schemas for fixed required parameters.
-- `optional` — schemas for trailing omittable parameters, in positional order
-  after `required`. It is mandatory, but canonical producers currently emit
-  `[]`; optional syntax and omission-aware checking land in a later stage.
-- `rest` — optional; the element schema of a variadic tail (as in `$fnType`).
-- `returns` — the result schema.
-- `typeParams` — the type variables this signature binds (see below).
-
-### Overload sets
-
-Each callable contract contains a non-empty **array** of fallback signatures,
-tried in order; the first whose concrete (non-lambda) arguments fit is chosen.
-Overloads express both ad-hoc polymorphism and type-directed refinement:
-
-```json
-"add": { "signatures": [
-  { "required": [{ "type": "integer" }, { "type": "integer" }], "optional": [], "returns": { "type": "integer" } },
-  { "required": [{ "type": "number" },  { "type": "number" }], "optional": [], "returns": { "type": "number" } }
-] },
-"length": { "signatures": [
-  { "required": [{ "type": "array" }],  "optional": [], "returns": { "type": "integer" } },
-  { "required": [{ "type": "string" }], "optional": [], "returns": { "type": "integer" } }
-] }
-```
-
-`add` preserves `integer` when both arguments are integers and widens to
-`number` otherwise; `length` accepts arrays or strings. No special-case code —
-just ordered overloads.
+All fields except `rest` and `typeParams` are required. Parameter and result
+schemas use the schema dialect defined by the
+[environment contract](../deployment/environment-contract.md#schema-dialect),
+plus builtin type variables.
 
 ### Type variables
 
-A type variable is the node `{"$tvar": "T"}` (distinct from `$ref`, which points
-into `$defs`). Variables named in `typeParams` are bound per call site by
-matching the template against the concrete argument schemas, then substituted
-into `returns`:
+`{"$tvar": "T"}` refers to a variable declared by the containing signature's
+`typeParams`. Declarations are unique, and every declared variable is used.
+Variables are bound independently at each call and do not escape into the
+resulting schema.
 
-```json
-"map": { "signatures": [{
-  "typeParams": ["T", "U"],
-  "required": [
-    { "$fnType": { "required": [{ "$tvar": "T" }], "optional": [], "returns": { "$tvar": "U" } } },
-    { "type": "array", "items": { "$tvar": "T" } }
-  ],
-  "optional": [],
-  "returns": { "type": "array", "items": { "$tvar": "U" } }
-}] }
-```
+Matching follows variables through:
 
-`T` is inferred from the array argument; the instantiated parameter type
-`(T) -> U` is then pushed into the inline callback (contextual typing, §4.3),
-and `U` is inferred from the callback's synthesized return. `mapIndexed` has
-the same polymorphic result but contextually types its callback as
-`(T, integer) -> U`.
+- homogeneous array items;
+- tuple positions and tuple rest items;
+- object properties and schema-valued additional properties;
+- function returns.
 
-#### Contextual lambdas and concrete functions
+Function parameters constrain compatibility but do not infer bindings.
+Repeated occurrences of a variable contribute a normalized union. Union
+arguments are matched arm by arm and their contributions are joined.
 
-Only a bare inline body with no `$sig` is contextually typed. Its declared
-parameters receive the callback argument schemas supplied by the builtin. It
-must declare the exact callback shape: required, optional, and rest parameter
-counts are compared independently.
+For an object map template, concrete properties not named by the template
+contribute to its additional-properties variable. A closed record contributes
+the union of those property types, a typed map contributes its value type, and
+an open object contributes `any`.
 
-The ordinary array HOFs contextually type item-only callbacks; `reduce` types an
-`(accumulator, item)` callback. Their `*Indexed` counterparts append the integer
-index. This split is intentionally breaking: remove an unused index parameter
-when calling an ordinary HOF, or rename the call to `*Indexed` when the callback
-uses it. If an indexed callback does not use its supplied index, keep the exact
-shape with an ignored name such as `_index`.
+Structural inference is followed by the ordinary schema compatibility check.
+It does not relax tuple lengths, required properties, or open-object rules.
 
-When a callback return widens a type variable that also occurs in its parameter
-types, the checker validates the callback again under the final joined type.
-This matters for `reduce`: if the callback expands accumulator `U`, its body
-must be valid for every accumulator type a later iteration may receive. The
-validation pass does not widen the inferred bindings further.
+### Overload resolution
 
-An annotated inline body or referenced/named function is instead a concrete
-function value. Its declared signature is preserved, its body is checked
-against its declared return, and the complete function type is validated after
-all call-site type-variable bindings are final. Function parameters remain
-contravariant: a callback may accept a broader input type than the builtin
-passes, but not a narrower one.
+Signatures form an ordered overload set.
 
-#### Structural matching
+1. Remove signatures that cannot accept the call's arity or statically known
+   non-lambda arguments.
+2. Treat `any` as unknown evidence: it neither rejects an overload nor binds a
+   type variable.
+3. When known evidence establishes an overload, preserve declaration order.
+   When `any` leaves several overloads possible, retain every possible result
+   and report degraded type coverage.
+4. Infer type variables, instantiate parameter schemas, and contextually check
+   an inline lambda when its expected function type is unambiguous.
+5. Infer variables from the lambda's return, instantiate each possible result,
+   and return their normalized union.
 
-Template matching follows type variables through the tractable container
-shapes, rather than binding only a whole argument:
+For example, the ordered integer and number overloads of `add` preserve
+`integer` for two integer arguments. `add(any, 1)` returns `number`, the union
+of its possible overload results, while `length(any)` returns `integer`.
 
-- homogeneous array `items`;
-- tuple `prefixItems` positionally and tuple `items` as the rest element;
-- object `properties` by key and schema-valued `additionalProperties`;
-- function returns (parameters are compatibility constraints, not inference
-  sources).
+### Contextual callbacks
 
-Repeated occurrences join with a union. Concrete union arms are all matched,
-also joining their bindings. For an object map template, concrete fields not
-named by the template contribute to its `additionalProperties` variable; a
-closed record therefore infers the union of those field types, while an open
-object contributes `any`. Matching still ends with the ordinary subschema
-check, so structural inference does not loosen tuple lengths, required fields,
-or open/closed-object compatibility.
+A bare inline lambda without `$sig` receives the function schema expected at
+its argument position. Its required, optional, and rest parameter counts must
+match that schema exactly.
 
-#### `mapValues`
+Variables produced by a callback return join with bindings from other
+arguments. If that join widens a variable also used by the callback's
+parameters, the callback is checked again under the final joined type. This
+ensures, for example, that a `reduce` callback accepts every accumulator type
+that a later iteration can produce.
 
-`mapValues` uses the same `T`/`U` machinery over object values:
+A `$sig`-annotated lambda or function reference is a concrete function value.
+Its declared signature is preserved and checked after call-site variables are
+resolved. Function parameters are contravariant: a callback may accept a
+broader input than the builtin supplies, but not a narrower one.
 
-```json
-"mapValues": { "signatures": [{
-  "typeParams": ["T", "U"],
-  "required": [
-    { "$fnType": { "required": [{ "$tvar": "T" }, { "type": "string" }], "optional": [], "returns": { "$tvar": "U" } } },
-    { "type": "object", "additionalProperties": { "$tvar": "T" } }
-  ],
-  "optional": [],
-  "returns": { "type": "object", "additionalProperties": { "$tvar": "U" } }
-}] }
-```
+The ordinary array higher-order builtins use item-only callbacks.
+Their `*Indexed` forms append an integer index. `reduce` uses
+`(accumulator, item)` and `reduceIndexed` appends the index.
 
-For a closed input record, `T` is the union of its value schemas; for a typed
-map, it is the map's value schema; and an open object contributes `any`. The
-callback receives `(value: T, key: string)` and determines `U`. The shared
-result is the honest map floor `{ [string]: U }`: `mapValues` preserves the
-input's exact keys at runtime, but exact key preservation requires an
-argument-dependent code computation and is intentionally not represented by
-this data template.
+## Semantic rules
 
-#### `flatMap`
+Some builtin types depend on argument structure, callback results, effect
+contracts, or function composition. Their entries contain both portable
+`signatures` and a namespaced `rule`.
 
-`flatMap` and `flatMapIndexed` accept callbacks returning either a scalar or an
-array. Array results contribute their item type, scalar results contribute
-themselves, and union returns distribute across both cases. The result is always
-an array of that one-level flattened element type, so a nested array remains an
-array element.
+The signatures always establish arity, broad argument compatibility,
+contextual callback types, and a portable result. The named rule may add
+diagnostics and return a more precise result. Its result must be a subtype of
+the selected signature's result.
 
-The portable fallbacks contextually type the callbacks as `(T) -> any` and
-`(T, integer) -> any`, respectively, and return `any[]`. The `core.flatMap` and
-`core.flatMapIndexed` rules supply the same precise one-level result inference
-for their respective callback shapes. Without the corresponding host-language
-rule, checking retains the fallback and reports a type-coverage degradation.
+A rule may own specified contextual argument positions. An owned position is
+checked once under the rule's context; all other fallback checks remain in
+force. Ownership may cover a top-level bare lambda or a composite value
+containing contextual lambdas. It does not cover function references or
+`$sig`-annotated lambdas unless the rule explicitly handles those concrete
+values.
 
-#### `groupBy`
+A semantic-rule registry contains at most one definition for each identifier.
+If a named rule is unavailable, the portable signatures remain authoritative
+and the call reports degraded type coverage.
 
-`groupBy` accepts a key callback returning `string | number`. Numeric keys are
-stringified at runtime because JSON object keys are strings, so its result is
-the honest map floor `{ [string]: T[] }`; exact group keys are not preserved
-statically.
+### `core.flatMap` and `core.flatMapIndexed`
 
-#### Intentional static/runtime boundaries
+The callback may return a scalar, an array, or a union of both. Scalar returns
+contribute their own type; array returns contribute their item type. The result
+is an array of the joined contributions after one level of flattening. A nested
+array therefore remains an array element.
 
-- Runtime higher-order functions accept plain string callback names, but the
-  checker does not resolve those names. Inline lambdas and typed function
-  references are the canonical checked forms.
-- `reReplaceWith` callbacks statically return `string`; the runtime
-  defensively applies `String()` to other values.
-- `filter` and `find` do not derive type predicates from callback logic.
-- Bare contextual lambdas, referenced functions, and `$sig`-annotated callbacks
-  all retain exact required/optional/rest shape checking. An explicit wrapper
-  may adapt a function with a different public shape by declaring the complete
-  callback shape and forwarding only the arguments that function accepts; it
-  does not bypass shape checking.
+`flatMap` supplies `(T) -> any` as the callback floor.
+`flatMapIndexed` supplies `(T, integer) -> any`.
 
-The CLI's type-coverage summary measures degradation to `any`, not the absence
-of type errors or maximal inferred precision. `Type coverage: complete` means
-that every expression stayed on a statically represented path; type errors are
-reported independently. `--require-full-coverage` exits nonzero when an
-information-level dynamic degradation is present.
+### `core.merge`
 
-Coverage and assignability are independent. A degraded `any` does not prove
-that a value satisfies a concrete expected type, so a constrained position
-also reports a hard assignability error. The diagnostic identifies the type as
-`any` and points to `checked as T` when an intentional runtime-checked boundary is
-appropriate. The degradation remains visible, and `--require-full-coverage`
-also rejects programs that use such a boundary or otherwise have incomplete
-coverage but no type errors.
+`merge(a, b)` returns the structural object spread `{ ...a, ...b }`, with `b`
+winning conflicts.
 
-### Variadic `rest`
+For each property, `b` supplies the type when it guarantees that property.
+Otherwise the result joins contributions from `a` and `b`, and the property is
+required only when `a` guarantees it. Additional properties follow these
+rules:
 
-```json
-"concat": { "signatures": [{
-  "typeParams": ["T"],
-  "required": [],
-  "optional": [],
-  "rest": { "type": "array", "items": { "$tvar": "T" } },
-  "returns": { "type": "array", "items": { "$tvar": "T" } }
-}] }
-```
+- an open `b` makes the result open;
+- a map-shaped `b` joins its value type with contributions from `a`;
+- a closed `b` inherits the additional-properties behavior of `a`.
 
-## Host-language type rules
+Object unions distribute across their arms. An `any` or non-object operand
+reduces precision to `any` or the bare `object` floor as applicable.
 
-Some builtins can't be captured by a data template (`pipe`, `apply`, the
-effects/`Task` constructors — arity threading, heterogeneous returns, etc.).
-Their callable contract still carries a portable fallback, plus an optional
-namespaced rule for precision that only host-language code can provide:
+### Task rules
 
-```json
-"pipe": {
-  "signatures": [
-    { "required": [{ "type": "array" }, true], "optional": [], "returns": true }
-  ],
-  "rule": "core.pipe"
-}
-```
+The `$defs.Task` schema is the portable task-record floor. Task-aware rules
+also track an erased completion type:
 
-The fallback always runs first to select an overload and compute its portable
-result. It normally owns arity, broad argument checks, and contextual callback
-typing. An available rule may add diagnostics and return a narrower result.
-That result must remain inside the fallback type; otherwise the rule
-implementation and its portable contract disagree.
+- `pure(A)` returns `Task<A>`;
+- `bind(Task<A>, (A) -> Task<B>)` returns `Task<B>`;
+- `raise(value)` returns `Task<never>`;
+- `perform` uses the declared effect result when one is available.
 
-A rule definition may declare `contextualArguments`: zero-based argument
-positions it checks under a more precise context. This may be a top-level
-unannotated callback or a composite argument such as `handle`'s record of clause
-lambdas. Fallback diagnostics are discarded and fallback validation is rerun
-without each position the rule actually owns. Arity and non-owned argument
-diagnostics are retained, while each owned argument is diagnosed exactly once
-under the rule's context. The checker rejects duplicate ownership and attempts
-to contextually type undeclared positions.
+Guest signatures may use `Task<A>` to preserve the completion type across
+function boundaries. Bare `Task` means `Task<any>`. The completion type does
+not change the runtime task record.
 
-For rules that own only unannotated top-level callbacks, ownership does not
-apply to referenced or `$sig`-annotated callbacks: they are concrete function
-values and retain normal fallback checking. If a declared rule implementation
-is unavailable, no arguments are owned and the complete portable
-fallback—including its contextual diagnostics—remains active. Diagnostic
-ownership is implemented by rerunning validation rather than filtering paths
-because lazy locals may report at binding-relative paths outside the argument's
-path prefix.
+## Static boundaries
 
-Rule implementations are supplied through an explicit registry. A declared rule
-that is unavailable leaves the fallback active and emits an information-level
-coverage degradation, so `--require-full-coverage` can reject the loss of
-precision without pretending a concrete fallback became `any`. Registry
-composition rejects duplicate identifiers rather than choosing precedence.
+- String callback names accepted at runtime are not resolved as typed function
+  references. Checked callbacks use inline lambdas or typed references.
+- `filter` and `find` do not infer type predicates from callback bodies.
+- `groupBy` returns `{ [string]: T[] }`; numeric callback keys are represented
+  as strings, and exact group keys are not tracked.
+- `mapValues` returns `{ [string]: U }`; exact input keys are not preserved by
+  its portable type.
+- `reReplaceWith` requires its callback to return `string`.
 
-### Core fallback signatures
-
-The core contracts pin the arity, result, and broad argument shapes that are
-portable. An `any`-typed argument remains exempt from a shape mismatch (a strict
-`any ⊄ array` would hard-error on dynamically typed values these callables
-legitimately accept):
-
-| rule      | arity | argument shapes            | returns |
-| --------- | ----- | -------------------------- | ------- |
-| `core.pipe`    | 2     | arg 0: `array`             | `any`   |
-| `core.apply`   | 2     | arg 1: `array`             | `any`   |
-| `core.flatMap` | 2     | arg 1: `T[]`                | `any[]` |
-| `core.flatMapIndexed` | 2 | arg 1: `T[]`              | `any[]` |
-| `core.handle`  | 2 or 3 | —                         | `any`   |
-| `core.perform` | 2     | arg 0: `string`, 1:`array` | `Task`  |
-| `core.pure`    | 1     | —                          | `Task`  |
-| `core.bind`    | 2     | arg 0: `Task`, 1: `(any) -> Task` | `Task`  |
-| `core.raise`   | 1     | —                          | `Task`  |
-
-`Task` is the portable effect-node floor, defined in `$defs` as the tagged
-record shape `{ "@task": string, ... }` (see the kernel in the language
-reference). The TypeScript checker refines that floor internally with an erased
-completion index: `pure(A)` produces `Task<A>`, `bind` passes `A` to its
-continuation and returns the continuation's `Task<B>`, `raise` produces
-`Task<never>`, and a configured effect manifest gives `perform` its result
-type. Guest signatures can write `Task<A>` to preserve that completion type
-through helper boundaries; bare `Task` means `Task<any>`. The index is erased,
-so the runtime task record is unchanged.
-
-## What each implementation must provide
-
-The JSON is pure data. Reading it back into working checks needs a small,
-per-implementation **instantiation engine** (the algorithm, not the data):
-
-1. Filter overloads by arity and statically known argument schemas. An
-   `any`-typed argument is non-evidence: it neither proves nor disproves a
-   match, and it does not bind a type variable.
-2. Preserve declaration order once known evidence guarantees an arm. If
-   `any` leaves multiple arms possible, retain all of them and report degraded
-   type coverage.
-3. Infer type variables from known argument schemas.
-4. Instantiate parameter types and push an unambiguous function-typed
-   parameter into an inline-lambda argument; infer output variables from its
-   return.
-5. Instantiate the possible result schemas and return their normalized union.
-   Thus `length(any)` remains `integer`, while `add(any, 1)` is `number`
-   rather than whichever overload happens to appear first.
-
-In TypeScript the fallback engine lives in
-`typescript/src/check/builtin-rules.ts`; the controlled V1 rule API and core
-registry live in `typescript/src/check/callable-rules.ts`. `checkModule` and
-`checkExpr` install the core registry by default or accept an explicitly
-composed registry. Other implementations may bundle or codegen the table and
-may lack a particular rule, in which case they retain fallback checking.
-
-### Arg-dependent returns (structural `merge`)
-
-A few builtins keep an ordinary overload signature (good enough for argument
-checking) but have a **result that depends structurally on the argument types**,
-which no data template can express. After the ordinary fallback runs (so the
-argument and arity diagnostics still fire), `core.merge` computes a refined
-return.
-
-`merge(a, b)` is the canonical case: its declared `object` return is replaced by
-the **structural spread** of its two operands — `{ ...a, ...b }` at the type
-level, RHS wins on conflict. For each key, `b` decides it if it guarantees the
-key; otherwise the value is the union of `b`'s and `a`'s contributions, required
-only if `a` guarantees a fallback. Extra keys follow the combined
-additional-properties rule (`b` open ⇒ open, `b` map joins with `a`'s, `b`
-closed ⇒ inherit `a`'s). Unions distribute per arm; a non-object or `any`
-operand degrades to `any` / a bare `object` floor. This lets the pervasive
-copy-with-one-field-changed update (`merge(rec, { field: v })`) satisfy a
-declared record return. In TypeScript this is `mergeSchemas` (`check/schema.ts`),
-registered under `core.merge` rather than dispatched by builtin name.
+Type coverage records loss of static precision separately from type errors.
+An `any` result does not satisfy a concrete expected type by itself; a
+constrained use still requires an explicit checked boundary.

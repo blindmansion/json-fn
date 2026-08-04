@@ -1,14 +1,11 @@
 # Environment contract
 
-An environment contract is the portable, operator-owned boundary between a
-json-fn module and its host. It declares the named schemas, direct host
-functions, effects, and production entry that the module may use. It contains no
-executable host code and is independent of a particular deployment.
+An environment contract is the operator-owned boundary between a json-fn
+module and its host. It declares boundary schemas, direct functions, effects,
+and the production entry. The contract is portable JSON and contains no
+executable host code. Contract files conventionally use `.contract.json`.
 
-The TypeScript API calls this value `EnvironmentContract`; files conventionally use the
-`.contract.json` suffix.
-
-## Version 1 JSON shape
+## Version 1 shape
 
 ```json
 {
@@ -22,12 +19,7 @@ The TypeScript API calls this value `EnvironmentContract`; files conventionally 
         {
           "required": [{ "$ref": "#/$defs/UserId" }],
           "optional": [],
-          "returns": {
-            "type": "object",
-            "properties": { "name": { "type": "string" } },
-            "required": ["name"],
-            "additionalProperties": false
-          }
+          "returns": { "type": "string" }
         }
       ]
     }
@@ -47,167 +39,127 @@ The TypeScript API calls this value `EnvironmentContract`; files conventionally 
 }
 ```
 
-The top-level object is closed: only `version`, `$defs`, `functions`, `effects`,
-and `entry` are supported. `version` and `entry` are required. `$defs`,
-`functions`, and `effects` may be omitted and then behave as empty objects.
-Version 1 is the only supported version.
+The top-level object is closed. `version` and `entry` are required. `$defs`,
+`functions`, and `effects` are optional and default to empty objects. Version 1
+is the only valid version.
 
-### Ownership
+### `$defs`
 
-- **`$defs`** contains boundary schemas owned by the operator. EnvironmentContract
-  function, effect, and entry schemas may refer to them with
-  `{"$ref":"#/$defs/Name"}`.
-- **`functions`** declares direct host callables. Each callable uses the same
-  signature shape as the builtin table: one or more `signatures`, each with
-  `required`, `optional`, optional `rest`, and `returns`; polymorphic signatures
-  may also declare `typeParams`. Optional descriptive metadata is supported by
-  callable entries.
-- **`effects`** declares task effects. Each effect has exactly `params` and
-  `returns`. Effects do not have optional or rest parameters.
-- **`entry`** selects one module function as the production boundary.
-  `required` and `optional` are both mandatory arrays. `returns: A` declares a
-  direct result; `returns: {"task": A}` declares a task whose eventual
-  completion value is `A`.
+`$defs` contains schemas owned by the contract. Contract schemas refer to them
+with `{"$ref": "#/$defs/Name"}`.
 
-The contract owns the entry boundary even when the module also carries an
-inline `$sig`. Linking and checking require the module entry to satisfy the
-contract; the module cannot replace the operator's argument or result contract.
+Builtin, contract, and module definitions share one namespace. Duplicate names
+across those sources are invalid. `Task` is reserved for the built-in
+`Task<A>` type constructor.
 
-## Direct functions and task effects
+### `functions`
 
-A contract function is called synchronously from guest evaluation. The runtime adapter
-implementation is installed in the function registry, and tractable
-arguments/results are checked at that call boundary. It cannot suspend and
-should be used only for direct computations the host is willing to expose as a
-function.
+`functions` declares synchronous host callables. Each entry uses the callable
+shape defined by the
+[builtin signature registry](../builtins/builtin-signatures.md): descriptive
+metadata, one or more signatures, and an optional semantic rule.
 
-An effect call such as `effects.log.write(message)` is different: it purely
-constructs `Task<Result>`. The host capability runs only when `runTask` or the
-durable driver reaches that pending effect. The contract describes the effect;
-a [deployment profile](deployment-profile.md) decides whether and how that
-effect crosses a particular host boundary.
+A direct function call checks its arguments before entering the host and checks
+its result before returning to the module. It cannot suspend.
 
-Qualification is intentional: a direct function named `log` and an effect
-named `log` have distinct guest syntax and execution semantics.
+Contract function names must not duplicate builtin names.
+
+### `effects`
+
+`effects` declares capabilities that produce tasks. Each entry is a closed
+object with:
+
+- `params`: a required array of positional parameter schemas;
+- `returns`: the effect's result schema.
+
+Effects have no optional or rest parameters. Calling
+`effects.log.write(message)` constructs `Task<Result>`; the host capability
+runs only when task execution reaches that effect.
+
+Effect names are non-empty. Dot-separated names form the injected `effects`
+namespace, so no effect name may be a prefix of another. For example, `sensor`
+and `sensor.read` cannot coexist. `raise` is intrinsic and cannot be declared.
+
+### `entry`
+
+`entry` is a closed object with:
+
+- `name`: the non-empty name of a module function;
+- `required`: required argument schemas;
+- `optional`: trailing omittable argument schemas;
+- `returns`: either a direct result schema `A` or `{"task": A}` for a task
+  whose completion value is `A`.
+
+The contract owns this boundary. The selected module function must satisfy it,
+even when the module has its own `$sig`.
+
+`effects` is a reserved top-level binding in a linked module and cannot be the
+entry name. The binding is generated from the contract's effect declarations.
 
 ## Schema dialect
 
-Contract schemas (in `$defs`, `functions`, `effects`, and `entry`) use a
-restricted JSON-Schema-like dialect. Every field set is closed — unsupported
-JSON Schema keywords are structural errors, not ignored extensions.
+All contract schemas use a closed, JSON-Schema-like dialect. Unsupported
+keywords are invalid.
 
-A schema fragment is `true` (any), `false` (never), or an object with
-**exactly one** head keyword:
+A schema is `true` (`any`), `false` (`never`), or an object with exactly one
+head keyword:
 
-- `{"$ref": "#/$defs/Name"}` — reference a named definition. Only the
-  `#/$defs/Name` form is accepted, and the definition must exist.
-- `{"const": v}` — exactly one JSON value.
-- `{"enum": [v, …]}` — one of a non-empty list of JSON values.
-- `{"anyOf": [schema, …]}` — a non-empty union.
-- `{"$fnType": {"required": […], "optional": […], "rest"?, "returns": …}}` —
-  a function-typed value.
-- `{"$tvar": "T"}` — a type variable; allowed only inside polymorphic
-  contract-`functions` signatures that declare it in `typeParams`, never in
-  `$defs`, effects, or the entry.
-- `{"type": …}` — see below.
+- `{"$ref": "#/$defs/Name"}` references an existing definition.
+- `{"const": value}` accepts one JSON value.
+- `{"enum": [value, ...]}` accepts one of a non-empty set of JSON values.
+- `{"anyOf": [schema, ...]}` is a non-empty union.
+- `{"$fnType": {...}}` describes a function value using `required`, `optional`,
+  optional `rest`, and `returns`.
+- `{"$tvar": "T"}` refers to a declared type variable. It is allowed only in
+  polymorphic `functions` signatures, never in `$defs`, effects, or the entry.
+- `{"type": ...}` describes a primitive or container.
 
-`type` forms:
+Primitive types are `null`, `boolean`, `number`, `integer`, and `string`.
+`type` may also be an array of distinct primitive names, with no refinements.
 
-- A primitive name — `"null"`, `"boolean"`, `"number"`, `"integer"`,
-  `"string"` — optionally refined: numbers take `minimum` / `maximum` /
-  `exclusiveMinimum` / `exclusiveMaximum` / `multipleOf`; strings take
-  `minLength` / `maxLength` / `pattern` / `format`.
-- An array of distinct primitive names (`{"type": ["string", "null"]}`) — a
-  bare primitive union; no refinement keywords may accompany it.
-- `"array"` — with `items` (uniform element schema), `prefixItems` (tuple
-  positions), `minItems` / `maxItems`, and `uniqueItems: true`.
-- `"object"` — with `properties`, `required` (each listed name must appear in
-  `properties`), and `additionalProperties`: `false` closes the object, a
-  schema makes the non-listed keys a map (so a shorthand map type
-  `{ [string]: string }` is
-  `{"type": "object", "additionalProperties": {"type": "string"}}`), and
-  omitted or `true` leaves it open.
+Number schemas may use `minimum`, `maximum`, `exclusiveMinimum`,
+`exclusiveMaximum`, and `multipleOf`. String schemas may use `minLength`,
+`maxLength`, `pattern`, and `format`.
 
-Note the default: an object schema without `additionalProperties` is **open**,
-the opposite of shorthand object types, which are closed by default. To match
-a closed shorthand object, write `"additionalProperties": false` explicitly
-(as the shorthand printer does).
+Array schemas may use:
 
-## Pure modules
+- `items` for homogeneous elements;
+- `prefixItems` for tuple positions;
+- `minItems`, `maxItems`, and `uniqueItems: true`.
 
-A module that performs no effects deploys through the same artifacts. Declare
-`"functions": {}` and `"effects": {}`, give the entry a direct (non-task)
-`returns`, select a live profile with an empty `effects` array, and pass an
-empty runtime adapter (`{ functions: {}, effects: {} }`). `runTask` returns
-the direct entry result. Durable mode is unavailable to direct entries — it
-requires `returns: {"task": …}`. See `examples/spreadsheet.contract.json` /
-`examples/spreadsheet.profile.json` for a complete pure deployment.
+Object schemas may use:
 
-## Reserved and collision rules
+- `properties`;
+- `required`, whose names must appear in `properties`;
+- `additionalProperties`.
 
-- `Task` is the built-in task type constructor. Neither contract `$defs` nor
-  module `$types` may define it.
-- `effects` is reserved in contract-linked modules. The linker injects this
-  top-level binding from the effect manifest, so the module and the contract
-  entry may not use that name as their top-level entry binding.
-- `raise` is intrinsic. It is not selected in deployment profiles and is
-  handled separately from declared host effects.
-- An effect name must be non-empty. Dot-separated names form the injected
-  namespace, so one effect name cannot be a prefix of another (`sensor` and
-  `sensor.read` conflict).
-- EnvironmentContract function names may not duplicate core builtin callable names.
-- Named schemas never shadow across ownership layers. A name duplicated between
-  builtin `$defs`, contract `$defs`, or module `$types` is a link error rather
-  than an override. All three sources feed one definition pool used by the
-  checker and runtime.
+`additionalProperties: false` closes an object. A schema value describes
+unlisted properties as a typed map. Omitted or `true` leaves the object open.
+This differs from shorthand object types, which are closed by default.
 
-Module value/function bindings still follow normal lexical shadowing rules.
-That is separate from the no-shadowing rule for schema definition names.
+## Linking and enforcement
 
-## Structural and behavioral parity
+Linking a contract to a module:
 
-The JSON artifact is portable only if runtimes agree on its **structural
-parity**: accepted fields and versions, schema-fragment validation, reserved
-names, collision rules, reference resolution, and stable error code/path
-classification. The vectors in `spec/validation-cases/` target that layer.
+- combines builtin, contract, and module schema definitions without shadowing;
+- combines builtin and contract function declarations without name collisions;
+- verifies the entry exists and satisfies the contract;
+- reserves and constructs the `effects` binding.
 
-**Behavioral parity** is broader: a `RuntimeAdapter` host must enforce entry,
-direct-function, effect-argument, effect-result, and completion contracts at the
-same moments and must agree on task dispatch and failures. Those behaviors
-require executable runtime adapters and are not established merely because the JSON
-artifact validates. Cross-runtime behavioral runtime-adapter vectors are future
-conformance work.
+At execution boundaries, the host must enforce:
 
-## Validation and linking APIs
+- entry arguments and direct results;
+- direct-function arguments and results;
+- effect arguments and results;
+- task completion values.
 
-The TypeScript package exports:
+A direct entry supports a pure deployment. A durable deployment requires a
+task entry.
 
-```ts
-validateEnvironmentContract(value);
-const contract = loadEnvironmentContract(path);
-const linked = linkModule({ module, contract });
-```
+Contract validation covers JSON structure, schemas, references, names, and
+collisions visible without a module. Linking adds module-level entry, binding,
+and collision checks. Stable validation classifications use the failing
+artifact path so equivalent hosts can report the same boundary failure.
 
-`validateEnvironmentContract` checks one contract and throws `EnvironmentContractValidationError`
-(`code: "INVALID_CONTRACT"`, with a `path`) on structural failure, or
-`DuplicateCallableContractError` (`code: "DUPLICATE_CALLABLE"`) for a contract
-function that collides with an engine builtin.
-`loadEnvironmentContract` parses JSON and performs the same validation. All three APIs use
-the engine builtin callable and definition table by default, so builtin
-references and collisions are checked even for standalone callers. `linkModule`
-adds module-level collision, entry, and reserved-binding checks and builds the
-injected `effects` namespace.
-
-CLI validation uses the canonical builtin definitions automatically:
-
-```sh
-cd typescript
-bun run src/cli.ts validate-contract --file ../examples/dungeon.contract.json
-bun run src/cli.ts check --contract ../examples/dungeon.contract.json \
-  --file ../examples/dungeon.jfn
-```
-
-`validate-contract` validates the artifact alone. `check --contract` also links
-it to the module and checks the contract-owned entry boundary. For deployment
-selection and runtime-adapter binding, continue with
-[Deployment profiles](deployment-profile.md).
+See [Deployment profile](deployment-profile.md) for capability selection and
+live or durable hosting policy.

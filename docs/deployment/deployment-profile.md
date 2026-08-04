@@ -1,12 +1,27 @@
 # Deployment profile
 
-A deployment profile is portable JSON policy that selects how an
-[environment contract](environment-contract.md) is hosted. It contains no
-functions, credentials, queues, stores, abort signals, or timeouts. Executable
-bindings and other process-local concerns belong to the runtime adapter.
+A deployment profile is portable policy for hosting an
+[environment contract](environment-contract.md). It selects live or durable
+execution, exposes a subset of the contract's effects, and sets portable
+execution limits. It contains no executable bindings, credentials, stores,
+queues, cancellation signals, or timeouts. Profile files conventionally use
+`.profile.json`.
 
-Files conventionally use the `.profile.json` suffix. Version 1 supports live and
-durable profiles.
+## Common rules
+
+Every profile is a closed object with:
+
+- `version`: the integer `1`;
+- `mode`: `"live"` or `"durable"`;
+- `effects`: the selected contract effects;
+- `limits`: optional portable execution limits.
+
+Selected effect names are non-empty and unique. When a profile is validated
+with a contract, every selected effect must be declared by that contract.
+`raise` is intrinsic and is never selected.
+
+Selection is a subset, not a coverage claim. A contract effect may be omitted
+when the module does not use it or handles it entirely in-language.
 
 ## Live profile
 
@@ -23,38 +38,12 @@ durable profiles.
 }
 ```
 
-`effects` is a required array of unique, non-empty effect names. When validated
-with a contract, every name must be declared by `contract.effects`. The array is
-a selected **subset**, not a coverage claim: declared effects may be omitted.
-A pure module uses an empty array (and an empty adapter) — see
-`examples/spreadsheet.profile.json`.
+`effects` is an array. Each selected effect executes directly through its host
+binding when task evaluation reaches it. The host owns execution until a
+direct entry returns or a task entry completes.
 
-`prepareDeployment` requires the live runtime adapter's `effects` object to contain
-exactly the selected names—no missing or extra implementations. `runTask` owns
-the invocation until a direct entry returns or a task entry completes:
-
-```ts
-const deployment = prepareDeployment({
-  module,
-  contract,
-  profile,
-  adapter: {
-    functions: { lookupUser },
-    effects: {
-      "clock.now": () => Date.now(),
-      "log.write": (message) => {
-        console.log(message);
-        return null;
-      },
-    },
-  },
-});
-
-const result = await runTask(deployment, args, {
-  signal,
-  timeoutMs: 30_000,
-});
-```
+A live deployment may use either a direct or task entry. A pure deployment uses
+a direct entry and an empty effect selection.
 
 ## Durable profile
 
@@ -73,145 +62,83 @@ const result = await runTask(deployment, args, {
 }
 ```
 
-`deploymentId` is required and non-empty. Every selected effect is classified:
+`deploymentId` is a required non-empty string. `effects` maps each selected
+effect to one execution class:
 
-- **`inline`** runs inside a driver invocation. Its runtime-adapter capability receives
-  `{workflowId, effectId}` before the guest arguments and may return a value or
-  promise. Inline effects are at-least-once and must use `effectId` for
-  idempotency when repetition is not naturally safe.
-- **`suspending`** is persisted as pending work. It has no function in
-  `adapter.effects`; application code observes the suspended outcome and later
-  calls `deliverCompletion` or `deliverFailure`.
+- `"inline"` executes within a workflow-driver invocation. Its host binding
+  receives `workflowId` and `effectId` metadata in addition to the guest
+  arguments. Delivery is at-least-once, so `effectId` is the idempotency key.
+- `"suspending"` is persisted as pending work. It has no direct effect binding.
+  The application observes the suspension and later delivers a completion or
+  failure.
 
-Durable entries must use `entry.returns: {"task": A}`. Preparation rejects a
-direct entry. The driver API consumes the prepared deployment:
+A durable deployment requires an entry with `returns: {"task": A}`. See
+[Durable task hosting](../runtime/durable-host.md) for persistence, delivery,
+recovery, and failure semantics.
 
-```ts
-const driver = createDurableDriver({
-  deployment: prepareDeployment({
-    module,
-    contract,
-    profile,
-    adapter: {
-      functions: { lookupUser },
-      effects: {
-        "cache.get": ({ workflowId, effectId }, key) => cacheGet(key),
-      },
-    },
-  }),
-  store,
-});
-```
+## Executable bindings
 
-See [Durable task hosting](../runtime/durable-host.md) for storage, delivery, recovery, and
-failure semantics.
+Executable host bindings are supplied separately from the profile. Their shape
+is exact:
 
-## Exact runtime-adapter bindings
+- every contract function has one function binding;
+- a live deployment has one effect binding for every selected effect;
+- a durable deployment has one effect binding for every selected `"inline"`
+  effect;
+- omitted and `"suspending"` effects have no effect binding;
+- no undeclared or unselected binding is present.
 
-For both modes, `prepareDeployment` validates and links all four layers:
+Every binding value is callable. These checks apply to the full contract and
+profile, independent of which paths the module appears to execute.
 
-- `adapter` may contain only `functions` and `effects`;
-- `adapter.functions` must implement **exactly every** contract `functions`
-  name, regardless of which module paths happen to call it;
-- live `adapter.effects` must implement exactly the names in the live
-  `profile.effects` array;
-- durable `adapter.effects` must implement exactly the names classified
-  `"inline"`; a function for a `"suspending"` or omitted effect is extra and is
-  rejected;
-- every implementation value must be a function.
+## Omitted effects
 
-Mismatches throw `AdapterLinkError` with a stable code and path. Profile
-structure errors throw `DeploymentProfileValidationError`
-(`code: "INVALID_DEPLOYMENT_PROFILE"`).
+Omitting an effect attenuates the host capability set. Profile validation does
+not prove that every runtime path handles omitted effects.
 
-## Omitted effects and guest handlers
+If an omitted declared effect reaches the host boundary, live execution fails
+as an unhandled effect and durable execution records a terminal
+`"unknown-effect"` failure. An effect absent from the contract fails contract
+resolution before dispatch.
 
-Omitting a contract effect deliberately attenuates the host capability set. A
-module may still mention that effect when an in-language `handle` always
-discharges it before it reaches the host. The profile validator does not require
-full effect coverage and deployment analysis is conservative; neither proves
-that a guest handler catches every runtime path.
+An unhandled intrinsic `raise` fails live task execution or records a durable
+`"raise"` failure.
 
-If an omitted declared effect reaches a live host boundary, `runTask` throws
-`UnhandledEffectError`. In durable execution the same condition becomes a
-terminal workflow failure with code `"unknown-effect"`. An effect absent from
-the contract fails earlier as a runtime contract error when task stepping tries
-to resolve its effect contract.
+## Portable limits
 
-The intrinsic `raise` effect is never listed in a profile. An unhandled `raise`
-becomes `TaskRaiseError` in live execution or a durable `"raise"` failure.
+`limits` is a closed object containing any of:
 
-## Portable limits and host-local options
+- `maxCallDepth`;
+- `maxFuel`;
+- `maxValueSize`.
 
-The optional profile `limits` object is closed and supports non-negative integer
-values for:
+Each value is a non-negative integer. These limits are part of portable
+deployment policy. Cancellation, timeout, performance, and usage collection
+are host-local controls and do not belong in the profile.
 
-- `maxCallDepth`
-- `maxFuel`
-- `maxValueSize`
+Each live run starts with fresh limits. In durable mode, limits restart for
+each start, recovery, and delivery invocation. Accumulated fuel usage is
+observability data, not a cross-invocation budget.
 
-These are portable execution policy and must be placed in the profile.
-`runTask`'s third argument is only for host-local controls and instrumentation:
+## Capability analysis
 
-```ts
-type HostLocalRunOptions = {
-  signal?: AbortSignal;
-  timeoutMs?: number;
-  perf?: PerfStats;
-  usage?: ExecutionUsage;
-};
-```
+Static capability analysis is conservative and non-fatal. It reports:
 
-Unknown run-option keys are rejected, including attempts to pass portable limits
-there. Every prepared deployment exposes `createTaskSession(runOptions?)` and
-returns a fresh session on each call. `runTask` and the durable driver use this
-prepared-deployment method. The durable driver applies profile limits afresh on every start,
-recovery, or delivery invocation. Its accumulated `fuelUsed` is observability,
-not a cross-invocation budget. The public durable driver API currently accepts
-no host-local timeout or abort options.
+- literal task-effect names;
+- literal `perform` names;
+- statically recoverable `effects.foo.bar` paths;
+- whether dynamic effect access exists;
+- selected profile bindings;
+- possible effects not selected by the profile.
 
-## Deployment analysis
+`raise` is excluded from capability reports. Dynamic access conservatively
+marks every omitted contract effect as potentially uncovered. Analysis does
+not prove control-flow reachability or subtract effects handled in-language.
+It may inform admission policy, but does not change subset selection semantics.
 
-`analyzeDeploymentCapabilities({module, contract, profile})` returns:
+## Validation and preparation
 
-```ts
-{
-  possibleNames: string[];
-  dynamic: boolean;
-  profileBindings: string[];
-  uncovered: string[];
-}
-```
-
-It scans the canonical module for literal task effects, literal `perform`
-calls, `raise`, and statically recoverable `effects.foo.bar` paths. `raise` is
-removed from the report. Dynamic effect access sets `dynamic: true`; in that
-case every contract effect omitted from the profile is conservatively
-uncovered.
-
-Analysis is non-fatal and intentionally over-approximates. It does not perform
-control-flow reachability or subtract effects handled in-language. Operators
-may use `uncovered` as an admission warning or enforce their own rejection
-policy, but `prepareDeployment` itself preserves subset semantics.
-
-## Validation API and CLI
-
-The TypeScript package exports:
-
-```ts
-validateDeploymentProfile(value, contract);
-const profile = loadDeploymentProfile(path, contract);
-```
-
-Supplying the contract checks that selected effects are declared. The CLI
-requires it:
-
-```sh
-cd typescript
-bun run src/cli.ts validate-profile \
-  --contract ../examples/dungeon.contract.json \
-  --file ../examples/dungeon.profile.json
-```
-
-Profile validation is structural. `prepareDeployment` is the separate linking
-step that checks the module, contract, profile, and executable runtime adapter together.
+Profile validation checks the profile's structure and, when given a contract,
+checks selected effect names. Deployment preparation separately combines the
+module, contract, profile, and executable bindings. It enforces entry-mode
+compatibility and the exact binding rules above.

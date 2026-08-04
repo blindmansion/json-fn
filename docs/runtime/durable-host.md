@@ -1,337 +1,179 @@
 # Durable task hosting
 
-The TypeScript implementation can persist and resume task-mode contract entries
-through `createDurableDriver`. Unlike `runTask`, which owns a live task
-until it completes, the durable driver stores every continuation needed to
-cross a process boundary.
+A durable host persists every continuation needed to suspend a task, discard
+all in-memory execution state, and resume in another process from a JSON
+workflow record. Durability does not provide exactly-once host effects.
 
-The portable inputs are defined in [Environment contract](../deployment/environment-contract.md)
-and [Deployment profile](../deployment/deployment-profile.md). This document begins after
-`prepareDeployment({module, contract, profile, adapter})` has linked those
-artifacts to executable host bindings.
+Portable inputs are defined by the
+[environment contract](../deployment/environment-contract.md) and
+[deployment profile](../deployment/deployment-profile.md). Durable execution
+requires:
 
-Durability here means that a workflow can suspend, lose all in-memory runtime
-objects, and resume in a newly prepared runtime from its stored JSON record.
-It does not mean exactly-once execution of host side effects.
+- a contract entry returning `Task<A>`;
+- a durable profile with a non-empty `deploymentId`;
+- each selected effect classified as `"inline"` or `"suspending"`;
+- bindings for every direct contract function and exactly the selected inline
+  effects;
+- no profile entry for the intrinsic `raise` effect.
 
-## 1. Creating a driver
+Contract effects may be omitted from the profile. If an omitted effect reaches
+the host, the workflow fails with `"unknown-effect"`.
 
-The driver combines deployment inputs with a workflow store:
+## Workflow lifecycle
 
-```typescript
-import {
-  InMemoryWorkflowStore,
-  createDurableDriver,
-  loadEnvironmentContract,
-  loadDeploymentProfile,
-  prepareDeployment,
-} from "json-fn";
+A stored workflow has one state:
 
-const contract = loadEnvironmentContract("orders.contract.json");
-const profile = loadDeploymentProfile("orders.profile.json", contract);
-if (profile.mode !== "durable") throw new Error("durable profile required");
+- `running`: recomputable from a persisted start or resume basis;
+- `suspended`: a pending effect and its private continuation;
+- `completed`: a terminal, validated entry result;
+- `failed`: a terminal structured failure.
 
-const store = new InMemoryWorkflowStore();
-const driver = createDurableDriver({
-  deployment: prepareDeployment({
-    module,
-    contract,
-    profile,
-    adapter: {
-      functions: {},
-      effects: {
-        log: ({ workflowId, effectId }, message) => {
-          console.log(workflowId, effectId, message);
-          return null;
-        },
-      },
-    },
-  }),
-  store,
-});
+Starting a workflow validates entry arguments before reserving its workflow ID.
+Invalid arguments leave no record.
+
+A start, recovery, or claimed delivery advances until it completes, fails, or
+suspends. No live execution object is retained between host invocations.
+
+## Effects
+
+### Inline effects
+
+An inline effect executes during the current host invocation. Its binding
+receives this durable context in addition to the guest arguments:
+
+```text
+{ workflowId, effectId }
 ```
 
-The contract entry must return `Task<A>`. Deployment preparation also requires:
+The host awaits the result, validates it against the effect contract, applies
+the continuation, and keeps advancing. A thrown or rejected host call produces
+a terminal `"host"` failure.
 
-- every effect selected by the durable profile to be classified as `"inline"`
-  or `"suspending"`;
-- the runtime adapter to implement exactly the selected inline effects;
-- the runtime adapter to implement exactly every direct contract function;
-- a non-empty `deploymentId`; and
-- the intrinsic `raise` effect to be absent from the profile.
+Inline effects are at-least-once. A process may perform an effect and fail
+before its record transition commits; recovery then performs it again. For one
+`effectId`, the binding must return the same logical result on every
+invocation. External side effects must use that ID for deduplication or be
+naturally idempotent.
 
-Invalid profiles throw `DeploymentProfileValidationError`; runtime-adapter/profile
-mismatches throw `AdapterLinkError`. EnvironmentContract effects may be omitted from the
-profile when guest handlers are expected to discharge them. If one reaches the
-driver anyway, the workflow fails with code `"unknown-effect"`.
+Inline results are not journaled separately, so the store protocol does not
+provide exactly-once execution.
 
-`start(workflowId, args)` validates entry arguments before creating the
-workflow. Invalid start arguments throw `RuntimeContractError` and do not
-reserve the workflow ID.
+### Suspending effects
 
-## 2. Inline and suspending effects
+A suspending effect has no executable binding. Before exposing pending work,
+the host persists a `suspended` record containing the continuation. The public
+outcome contains only:
 
-An **inline** effect runs inside the current driver invocation. Its capability
-receives a durable context followed by the guest arguments:
-
-```typescript
-type DurableEffectContext = {
-  workflowId: string;
-  effectId: string;
-};
+```text
+{ status: "suspended", pending: { effectId, name, args } }
 ```
 
-The driver awaits the capability, validates its result against the contract
-effect contract, applies the stored continuation, and keeps advancing. If the
-capability throws or rejects, the workflow becomes terminal with failure code
-`"host"`.
+Queue publication, transactional outboxes, webhooks, and joins belong to the
+application. Dispatch is safe only after the suspended outcome exists, because
+the continuation is then durable.
 
-A **suspending** effect has no capability in the driver configuration. The
-driver first transitions the workflow to a durable `suspended` record, then
-returns:
+A completion delivery atomically claims the exact current suspension and then
+validates the delivered result. An invalid result produces a terminal
+`"contract"` failure. A duplicate delivery after the claim is stale.
 
-```typescript
-{
-  status: "suspended",
-  pending: { effectId, name, args },
-}
-```
+When external work cannot produce a result, a failure delivery terminates the
+workflow with code `"external"`. Guest-visible failures belong in the effect's
+declared result type and should be delivered as ordinary completion values.
 
-The continuation is intentionally omitted from this public outcome. An
-application runtime adapter may dispatch the pending work only after receiving the
-outcome, because the corresponding continuation is already durable. Queue
-publication, transactional outboxes, webhooks, and join aggregation remain
-application responsibilities.
-
-When external work finishes, deliver its result:
-
-```typescript
-const outcome = await driver.deliverCompletion(workflowId, effectId, effectResult);
-```
-
-The result is validated after the suspension is claimed. An invalid result
-therefore produces a terminal `"contract"` failure; retrying the same effect ID
-with a different value is stale.
-
-If the external work itself cannot produce a result, terminate the workflow
-explicitly:
-
-```typescript
-await driver.deliverFailure(workflowId, effectId, {
-  message: "payment worker exhausted its retries",
-  payload: { providerRequestId },
-});
-```
-
-This produces failure code `"external"`. Guest-visible failures should instead
-be represented in the effect's declared result type and delivered in-band with
-`deliverCompletion`.
-
-## 3. The at-least-once inline obligation
-
-Inline capabilities may run more than once. A process can execute one or more
-inline effects and crash before its compare-and-set transition reaches the
-store. `recover` then recomputes from the persisted running basis and executes
-those effects again.
-
-This is the central host obligation:
-
-> For a given `effectId`, an inline capability must return the same logical
-> result every time it is invoked.
-
-If an inline capability causes an external side effect, it must also make
-repetition safe. Typical approaches are:
-
-- pass `effectId` as the idempotency key to the external service;
-- record completed effect IDs in an application-owned deduplication table; or
-- make the operation naturally idempotent.
-
-Do not use an ordinary non-idempotent operation and assume the driver will
-journal its result. Version 1 deliberately has no per-effect inline result
-journal and does not provide exactly-once execution.
-
-## 4. Stable effect IDs
+## Effect IDs
 
 Effect IDs have the form:
 
 ```text
-${workflowId}:${sequence}
+<workflowId>:<sequence>
 ```
 
-The sequence begins at zero and advances once for every stepped effect, inline
-or suspending. A running record stores the sequence from which its basis must
-replay. Deterministic guest execution therefore assigns the same IDs to the
-same effects whenever that basis is recovered.
+The sequence starts at zero and advances for every stepped effect, inline or
+suspending. A running basis stores the sequence from which replay begins.
+Deterministic replay therefore assigns the same IDs to the same effects.
 
-Effect IDs are stable replay identities, not globally ordered event IDs. Hosts
-should treat the complete string as opaque except when displaying it for
-diagnostics.
+The full effect ID is an opaque replay identity, not a globally ordered event
+ID.
 
-## 5. Store consistency contract
+## Store contract
 
-A production `WorkflowStore` must provide these operations with the stated
-atomicity:
+A workflow store provides these atomic operations:
 
-- `create(record)` inserts only if `workflowId` is absent.
-- `transition(expectedRevision, record)` is a compare-and-set. It writes only
-  when the current revision equals `expectedRevision` and otherwise throws
-  `WorkflowRevisionConflictError`.
-- `claim(workflowId, effectId, result)` atomically checks that the workflow is
-  suspended on exactly that effect ID and changes it to a running resume basis
-  with revision incremented by one. Any missing, running, terminal, or
-  differently suspended record returns `{ stale: true }` without modification.
-- `read(workflowId)` returns the current record, if any.
-- `listNonterminal()` returns IDs for running and suspended workflows so an
-  operator can perform recovery scans.
+- `create(record)` inserts only when the workflow ID is absent.
+- `transition(expectedRevision, record)` writes only when the current revision
+  equals `expectedRevision`.
+- `claim(workflowId, effectId, result)` changes the matching suspended record
+  into a running resume basis and increments its revision. A missing, running,
+  terminal, or differently suspended record returns stale without mutation.
+- `read(workflowId)` returns the current record, if present.
+- `listNonterminal()` returns running and suspended workflow IDs for recovery
+  scans.
 
-Revision compare-and-set prevents competing workers from both publishing a
-computed state transition. The losing worker discards its computed transition,
-although inline capabilities it already called may have run; this is another
-reason the at-least-once obligation is mandatory.
+Compare-and-set prevents competing workers from both committing a transition.
+The losing worker discards its computed transition, though its inline effects
+may already have run.
 
-Store boundaries must preserve the complete `WorkflowRecord` as JSON. Use
-`serializeWorkflowRecord` and `hydrateWorkflowRecord` when persisting text.
-Both directions validate the complete record, including every `@task`-tagged
-shape embedded in guest values: malformed or unknown tagged shapes are
-rejected at persist time and again at recovery, before evaluation ever sees
-them. Hydration then restores the interpreter's runtime-value marks — but only
-to the validated task nodes and continuation closures. Do not parse a stored
-record with plain `JSON.parse` and pass it directly to the driver.
+Storage must preserve the complete workflow record as JSON. Serialization and
+hydration validate the entire record, including embedded `@task` shapes,
+continuations, and the fixed structural-depth limit. Malformed or unknown task
+shapes are rejected before evaluation. Hydration reconstructs executable task
+and continuation values only after validation.
 
-`InMemoryWorkflowStore` is a reference implementation for tests and examples.
-It deliberately serializes and hydrates every access, but it is not a
-production database.
+## Recovery and deployment identity
 
-## 6. Recovery and deployment pinning
-
-A running record is a durable replay basis, not a transient lock:
+A running record is a replay basis:
 
 - a start basis contains validated entry arguments;
 - a resume basis contains the claimed pending effect, its continuation, and
-  the delivered result.
+  delivered result.
 
-Call `recover(workflowId)` when the host decides a running workflow should be
-replayed. The driver calls the prepared deployment's `createTaskSession` method
-to create a fresh task runtime from its module, contract, runtime-adapter
-registry, and profile limits. It keeps no live runtime object between API calls.
+Recovery starts a fresh execution session from that basis and the configured
+module, contract, bindings, and profile limits.
 
-Every record stores the configured `deploymentId`. Before recovery or delivery,
-the driver compares that value with the current host configuration. A mismatch
-throws `DeploymentMismatchError` and leaves the record untouched. The string is
-opaque to the driver; use a version, build ID, Git commit, or content hash that
-identifies compatible module and host inputs.
+Every workflow record stores its `deploymentId`. Recovery and delivery require
+an exact match with the active deployment. A mismatch leaves the record
+untouched. The identifier is opaque and must identify mutually compatible
+module and host inputs; workflow migration is an operator-controlled operation.
 
-Migration is an operator concern. Do not change `deploymentId` merely to force
-an old continuation through new code.
+## Duplicate and stale delivery
 
-## 7. Duplicate and stale delivery
-
-`deliverCompletion` and `deliverFailure` claim only the exact current
-suspension. They return `{ status: "stale" }` for:
+A completion or failure delivery claims only the current matching suspension.
+It returns a normal stale outcome for:
 
 - an unknown workflow;
-- a wrong effect ID;
-- a workflow that is running;
-- a terminal workflow; or
-- a duplicate delivery whose first copy already claimed the suspension.
+- the wrong effect ID;
+- a running workflow;
+- a terminal workflow;
+- a duplicate delivery already claimed by another worker.
 
-Stale delivery is an expected idempotency outcome, not an exception. It never
-runs the continuation. This also makes joins and races straightforward:
-application code may complete one workflow-level suspension when its join
-condition is met, while duplicate queue messages or late `awaitAny` losers
-become stale.
+A stale delivery never runs the continuation. This makes duplicate messages,
+late race losers, and repeated join completion attempts idempotent.
 
-## 8. Workflow states and outcomes
+## Failure codes
 
-A stored workflow is one of:
+Terminal failures use these codes:
 
-- `running`: recomputable from its start or resume basis;
-- `suspended`: durable pending effect plus private continuation;
-- `completed`: terminal validated entry result; or
-- `failed`: terminal structured failure.
+- `"raise"`: unhandled guest `raise`; the raised value is the payload.
+- `"contract"`: effect arguments, effect results, or workflow completion fail
+  their contract.
+- `"unknown-effect"`: an effect is absent from the contract or durable profile.
+- `"malformed-task"`: the task cannot be stepped.
+- `"limit"`: fuel, call depth, value size, structural depth, or evaluation
+  nesting is exhausted.
+- `"host"`: an inline effect or direct host function throws or rejects.
+- `"external"`: external work reports failure for a suspended effect.
 
-`start`, `recover`, and a successfully claimed delivery return a completed,
-failed, or suspended outcome. `read` exposes the complete stored record for
-inspection. The record codec is the supported serialization boundary; there is
-no separate public durable-continuation codec.
+Failures found while advancing are persisted as terminal records. Errors that
+occur outside advancement do not create terminal failures: invalid start
+arguments precede record creation, deployment mismatches precede mutation, and
+store I/O or consistency failures propagate to the host. Stale delivery remains
+a normal outcome.
 
-## 9. Failure codes
+## Limits
 
-Terminal failures use one of these codes:
+Portable `maxCallDepth`, `maxFuel`, and `maxValueSize` limits apply afresh to
+each start, recovery, and delivery invocation. A workflow record may accumulate
+fuel usage for observation, but that total is not a cross-invocation budget.
 
-- `"raise"` — an unhandled guest `raise`; `payload` contains the raised value.
-- `"contract"` — a contract failed while advancing a durable basis, including
-  effect arguments, effect results, or workflow completion.
-- `"unknown-effect"` — the task performed an effect absent from the contract or
-  not selected by the durable profile.
-- `"malformed-task"` — task structure could not be stepped.
-- `"limit"` — fuel, call depth, value size, structural depth, or evaluation
-  nesting stopped evaluation (see
-  [Execution limits § Fixed structural limits](execution-limits.md#4-fixed-structural-limits)).
-- `"host"` — an inline capability or direct runtime-adapter function threw or rejected.
-- `"external"` — the host called `deliverFailure` for suspended work.
-
-Failures detected while advancing are persisted as terminal records. Host API
-exceptions are deliberately separate: invalid `start` arguments throw before a
-record is created; a deployment pin mismatch throws
-`DeploymentMismatchError` before recovery or either delivery mutates the
-record; runtime-adapter/profile/linking errors throw during preparation; and workflow
-store I/O or consistency errors propagate to the caller. Stale delivery remains
-a normal `{status: "stale"}` outcome rather than an exception.
-
-## 10. Limits and fuel
-
-Portable profile `limits` (`maxCallDepth`, `maxFuel`, and `maxValueSize`) apply
-fresh limits to each driver invocation. Suspension and a later delivery
-therefore use separate per-invocation budgets. The record's `fuelUsed` field
-accumulates consumed fuel across persisted hops for observability only; it is
-not a cross-hop budget. Host-local `timeoutMs`, abort signals, and instrumentation
-are accepted by live `runTask`, not by the current public durable-driver API.
-
-See [Execution limits](execution-limits.md) for the interpreter's fuel, depth,
-size, cancellation, and timeout model.
-
-## 11. Measurement instrumentation
-
-`createDurableInstrumentation` and `instrumentWorkflowStore` provide opt-in,
-observation-only measurement of persisted workflow records. Wrapping a store
-observes every persisted revision (create, transition, and successful claim)
-without changing driver behavior:
-
-```ts
-const instrumentation = createDurableInstrumentation();
-const store = instrumentWorkflowStore(new InMemoryWorkflowStore(), instrumentation);
-// ... run workflows through a driver backed by `store` ...
-const report = instrumentation.report();
-```
-
-The report is plain JSON containing only counts, byte sizes, durations, and
-ratios — never workflow IDs, effect names, or guest values:
-
-- serialized record sizes by workflow state;
-- repeated-subtree duplication and continuation (closure-substitution) size;
-- byte growth and reuse between consecutive suspensions of a workflow;
-- hydration time and approximate memory; and
-- estimated read/write amplification if subtrees above candidate byte
-  thresholds were stored as content-addressed blobs.
-
-`bun run instrument:durable` (in `typescript/`) prints these measurements for
-representative synthetic workloads; pass `--json` for the full reports.
-
-## 12. Complete example
-
-`typescript/examples/durable-orchestration/` contains a commented, runnable
-example with:
-
-- a typed guest workflow;
-- an in-language deterministic mock;
-- an in-memory durable runtime adapter;
-- sequential and fan-out/fan-in orchestration;
-- empty joins and in-band subagent failure; and
-- duplicate and late-straggler stale deliveries.
-
-Run it from the repository root:
-
-```sh
-bun run typescript/examples/durable-orchestration/run.ts
-```
+See [Execution limits](execution-limits.md) for the complete cost and limit
+model.

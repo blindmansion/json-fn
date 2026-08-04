@@ -1,157 +1,133 @@
 # Execution limits
 
-json-fn hosts can bound evaluation with call depth, deterministic fuel, and
-produced-value size limits. Hosts may also provide cancellation and a wall-clock
-timeout as non-deterministic safety backstops. The language additionally fixes
-two non-configurable structural limits (section 4) so that deeply nested data
-fails deterministically on every host.
+json-fn defines portable limits for call depth, deterministic fuel, produced
+value size, structural depth, and evaluation nesting. Cancellation and
+wall-clock timeout are host-local safety controls.
 
-## 1. Shared budget
+## Budget scope
 
-One evaluation uses one shared limit state. Nested function calls, callbacks
-invoked by higher-order builtins, and task continuations all consume the same
-fuel budget and call-depth allowance. Suspending and resuming a task does not
-reset that state.
+One evaluation invocation uses one shared budget. Nested function calls,
+higher-order callbacks, and task continuations consume the same fuel and call
+depth. A durable suspension ends the invocation; recovery or delivery starts a
+new invocation with fresh configured limits.
 
-An omitted fuel or value-size limit is unlimited. Call depth has an
-implementation-defined default when the host does not provide one.
+An omitted `maxFuel` or `maxValueSize` is unlimited. The default call-depth
+limit is unspecified; portable deployments set `maxCallDepth` explicitly.
 
-## 2. Fuel model
+## Fuel
 
 Fuel is deterministic and additive:
 
 - evaluating an expression node costs 1;
 - entering a function invocation costs 1;
-- native builtins charge for input-sized work that does not re-enter the
-  interpreter;
-- every array or string returned by a host function or builtin costs its
-  top-level length; and
-- callback invocations accrue their ordinary call, expression, and builtin
-  costs separately.
+- a native builtin charges for input-sized work that does not evaluate
+  json-fn expressions;
+- each array or string returned by a builtin or host function costs its
+  top-level length;
+- callback invocations accrue their normal invocation, expression, and builtin
+  costs.
 
-Fuel is a **stable virtual cost**: a pure function of the program, its inputs,
-and recorded effect results, independent of parser metadata, caches,
-serialization, and ingestion route. Quotation, runtime values, and caches
-refine the expression-node rule without breaking that property:
+Fuel is a virtual cost determined only by the program, its inputs, and recorded
+effect results. Parser metadata, caching, serialization, and ingestion route do
+not change it.
 
-- a `$raw` boundary charges the complete static-literal cost of its payload —
-  one unit per produced value node (object keys are not separately charged) —
-  which is exactly what evaluating the equivalent plain constant literal
-  charges. The payload is never interpreted as syntax, and the runtime may
-  charge from cached cost metadata instead of walking it. Where quotation and
-  literal syntax produce different values (literal `$comment` entries, which
-  literals strip and `$raw` preserves), each form charges the node count of
-  the value it actually produces;
-- re-entering an already-produced runtime value costs 1 for the value itself,
-  with no descendant charges — it was accounted for at its original
-  boundary; and
-- a discovered or preseeded constant program subtree skips repeated
-  interpreter work but charges the same complete node count as its first
-  evaluation. Losing that metadata (for example through JSON serialization)
-  changes host preparation work only — never fuel, results, or errors.
+The expression-node rule has these consequences:
 
-Examples of explicitly metered native work include traversing numeric
-aggregates, collection higher-order functions, structural equality and
-membership, object construction, string scans, sorting comparisons, and regex
-input.
+- `$raw` charges one unit for each value node in its payload; object keys do
+  not add a charge. The payload remains data and is never evaluated as syntax.
+  Fuel follows the value produced, so preserved `$comment` fields count in
+  `$raw` data and stripped literal comments do not.
+- Re-entering an existing runtime value costs 1 for the value itself. Its
+  descendants were charged when the value was produced.
+- A cached constant program subtree charges the same complete node count as an
+  uncached evaluation.
 
-Evaluation fails as soon as accumulated fuel exceeds `maxFuel`.
+Native work that requires explicit metering includes numeric aggregation,
+collection traversal, structural equality and membership, object construction,
+string scanning, sorting comparisons, and regex input.
 
-## 3. Other limits
+Evaluation fails as soon as consumed fuel exceeds `maxFuel`. Usage reporting
+may expose consumed fuel without imposing a finite limit and does not otherwise
+change evaluation.
 
-### 3.1 Produced value size
+## Produced value size
 
-`maxValueSize` bounds the top-level item count of each array and the Unicode
-code-point count of each string produced by a host function or builtin.
-Size-growing builtins may check the bound before allocation, and all builtin
-return values pass through the shared result accounting chokepoint.
+`maxValueSize` bounds:
 
-The limit is per produced value, not a recursive byte-size total for an entire
-object graph.
+- the top-level item count of each array produced by a builtin or host
+  function;
+- the Unicode code-point count of each string produced by a builtin or host
+  function.
 
-### 3.2 Call depth
+The limit applies to each produced value independently. It is not a recursive
+byte-size limit for an object graph. Size-growing operations may reject a
+result before allocating it.
 
-`maxCallDepth` bounds nested json-fn function invocations. Exceeding it fails
-evaluation. The default is host-implementation-specific; supply an explicit
-value when identical host behavior matters.
+## Call depth
 
-### 3.3 Usage reporting
+`maxCallDepth` bounds nested json-fn function invocations. It does not count
+expression nesting.
 
-Hosts may request the consumed fuel count even when they do not impose a finite
-fuel limit. Usage reporting does not otherwise change evaluation behavior.
+## Host-local interruption
 
-### 3.4 Cancellation and timeout
+Cancellation and wall-clock timeout checks occur at expression and invocation
+boundaries. A native higher-order operation remains interruptible when it calls
+guest callbacks. A callback-free native operation is not interrupted midway.
 
-Cancellation and wall-clock timeout checks run at expression and invocation
-chokepoints. Native higher-order loops remain interruptible when they invoke
-their callbacks; a single callback-free native operation is not interrupted
-mid-call. These checks are host safety mechanisms, not deterministic language
-semantics, and are therefore outside conformance expectations.
+Cancellation and timeout are non-deterministic host controls and are outside
+portable evaluation semantics.
 
-## 4. Fixed structural limits
+## Fixed structural limits
 
-Implementations traverse JSON trees recursively (parsing, checking,
-evaluating, printing, validating, hydrating). Without a portable bound, the
-depth at which a traversal fails would depend on the host's stack size. Two
-fixed language constants make those failures deterministic. Neither is
-host-configurable, and both fire consistently before any host stack is at
-risk.
+Two limits are fixed language constants. They are not configurable.
 
-### 4.1 Structural depth
+### Structural depth
 
-Every JSON tree an implementation accepts or produces is limited to a
-**structural depth of 512**. Depth counts nested container levels along the
-deepest path: scalars have depth 0, and an array or object has depth
-`1 + max(depth of children)`. Exceeding the limit fails with:
+Every accepted or produced JSON tree has a maximum structural depth of 512.
+Scalars have depth 0. An array or object has:
 
+```text
+1 + maximum child depth
 ```
+
+Exceeding the limit fails with:
+
+```text
 Maximum structural depth of 512 exceeded
 ```
 
-One counting rule is shared by every traversal, so an artifact cannot pass one
-phase and fail a later one on depth alone. The limit is enforced:
+The same counting rule applies at:
 
-- at ingestion boundaries — shorthand parsing (source-level nesting,
-  including grouping parentheses, counts against the same limit), canonical
-  JSON inputs, program bodies and arguments, schema fragments and definition
-  tables, environment contracts, effect manifests, deployment profiles,
-  builtin tables, and task/workflow-record hydration;
-- during evaluation — values crossing the host boundary in either direction,
-  including results (guest programs can build values level by level, so
-  over-deep runtime-built values are caught when they cross back out), cloned
-  values, and closure capture (embedding a captured value that pushes the
-  closure past the limit fails the same way); and
-- at output boundaries — printing and task/workflow-record serialization.
+- ingestion of shorthand, canonical JSON, programs, arguments, schemas,
+  contracts, profiles, builtin tables, tasks, and workflow records;
+- host boundaries in either direction, including results, clones, and closure
+  captures;
+- printing and task or workflow-record serialization.
 
-Boundary checks run before the phase begins, so a rejected input is never
-partially processed and no fuel is charged for it.
+Grouping parentheses count toward source-level shorthand nesting. Boundary
+validation occurs before processing begins, so rejected input consumes no
+fuel.
 
-### 4.2 Evaluation nesting
+### Evaluation nesting
 
-The structural limit bounds each individual tree, but evaluation nesting
-compounds across guest call frames: every call site buried under nested
-containers adds its expression depth to the frames already open. A separate
-dynamic counter caps combined nested expression evaluations and function
-invocations at **4,096**. Exceeding it fails with:
+Combined nested expression evaluations and function invocations are limited to
+4,096. This dynamic limit accounts for expression depth accumulated across
+open call frames.
 
-```
+Exceeding the limit fails with:
+
+```text
 Maximum evaluation nesting of 4096 exceeded
 ```
 
-The counter increments at the same chokepoints that charge fuel; the node's
-fuel is charged first, so when the fuel budget and the nesting cap are
-exhausted at the same node, the fuel error is reported. Unlike `maxCallDepth`
-(which counts only function invocations), evaluation nesting also counts
-expression nesting, so deep recursion whose call sites are buried under deep
-literals exhausts it sooner than plain recursion. Recursion that is
-sequential rather than nested — for example a fold whose callback returns
-before the next one starts — does not accumulate against the cap.
+The counter increments where expression and invocation fuel is charged. Fuel
+is charged first, so fuel exhaustion wins when both limits fail at the same
+node.
 
-Both errors are deterministic limit failures: the durable host classifies
-them alongside fuel, call-depth, and value-size exhaustion, and conformance
-suites pin acceptance at the limits and the exact errors just past them
-(`spec/cases/structural-depth.json`, `spec/parse-cases/structural-depth.json`).
+Evaluation nesting differs from `maxCallDepth`: it includes expression nesting
+as well as function calls. Sequential callbacks that return before the next
+callback starts do not accumulate against it.
 
-Raising either constant — or removing the structural limit by making every
-traversal iterative — is a backwards-compatible change; no accepted program
-ever breaks when the bound moves up.
+Structural-depth and evaluation-nesting failures are deterministic limit
+failures. Acceptance at each boundary and the exact first failure beyond it are
+part of conformance.
