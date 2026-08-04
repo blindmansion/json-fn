@@ -170,6 +170,8 @@ The honest counterargument is agent authorship: order-independence means generat
 
 **Post-review update (2026-08-04).** This already has an owning plan: roadmap Phase 5, `plans/strict-reads.md`, whose gates include "every runtime absence behavior is derivable from canonical syntax" and explicit, ergonomic nullable/defaulting absence. This proposal should merge into that plan rather than run on its own track. The adjacent soundness hole (required-key validation for names like `constructor` passing vacuously) was already fixed by the own-property work.
 
+**Merged (2026-08-04, later).** `strict-reads.md` was revised to own this fully, and resolved it by redesigning the canonical node rather than adding builtins: the `$get` key domain narrows to a single string or integer (the array-path form is removed; static paths lower to nested `$get`s, eliminating the evaluator's dispatch-on-key-shape — a Proposal 7-class asymmetry), and an optional lazy `$else` arm carries the absence policy at the access site (`?? null` subsumes the once-proposed `lookup` builtin). The sibling-arm choice deliberately accepts the same gensym-avoidance trade this document weighs for Proposal 5. Bare-miss becomes an immediate error; `$else` fires on absence only, never on present `null`, preserving the distinction this proposal asked for.
+
 ---
 
 ## Suggested sequencing

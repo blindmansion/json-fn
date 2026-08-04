@@ -405,25 +405,35 @@ design is ready. It is listed here before lazy refs because property access is
 a primary lazy-forcing chokepoint; settling read semantics first avoids
 designing forcing around behavior that will immediately change.
 
-Implement the selected canonical/runtime model as one semantic change:
+The owning plan (revised 2026-08-04) redesigns the canonical access node
+itself rather than adding builtins: the `$get` key domain narrows to a single
+string or integer (static paths lower to nested `$get`s; the array-path form
+is removed), and an optional lazy `$else` arm carries the absence policy at
+the access site. Implement it as one semantic change:
 
-- checker projection;
+- the `$get` key-domain change and the `$else` arm;
 - evaluator property access;
-- nullable/defaulting access operations;
-- builtin signatures and implementation;
-- shorthand/canonical lowering if a new operation is selected;
+- checker projection, `$else` typing, the optional-field access rule, and
+  `hasKey` narrowing;
+- shorthand lowering, printer folding, and the defaulting surface form;
 - docs and authoring guidance; and
-- conformance and example migration.
+- conformance and example migration, including the fuel cases affected by
+  path unfolding (fuel-visible under the settled strong-determinism
+  decision).
 
-Do not split runtime strictness from checker typing across releases.
+Do not split runtime strictness from checker typing or lowering across
+releases. There is no hard dependency on the function-value/capture proposals
+in `later/simplification-proposals.md` (Proposals 1–3), but both alter pinned
+canonical and conformance surface; prefer landing accepted format breaks in
+the same pre-consumer window.
 
 ### Gate
 
-- Every runtime absence behavior is derivable from canonical syntax and
-  information actually available to the evaluator.
+- Every runtime absence behavior is derivable from canonical syntax alone;
+  the evaluator never dispatches on the shape of an evaluated key.
 - Static types and runtime behavior agree for required, optional, map, array,
   tuple, computed-object, and explicitly scoped string reads.
-- Nullable/defaulting absence is explicit and ergonomic.
+- Absence-as-a-case is explicit at the access site, lazy, and ergonomic.
 
 ## Phase 6: lazy refs and runtime CAS
 
