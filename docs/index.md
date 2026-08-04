@@ -10,14 +10,14 @@ language, authoring syntax, and portable hosting boundary.
 Start with [Writing json-fn](guides/writing-jfn.md), then use the generated
 [builtins catalog](builtins/builtins.md) as a lookup reference. For exact
 syntax and type rules, consult the
-[shorthand specification](language/shorthand/shorthand-spec.md) and
+[shorthand specification](language/shorthand/index.md) and
 [type syntax specification](language/shorthand/type-syntax-spec.md).
 
 ### Understand or implement the language
 
 The [JSON language reference](language/json/index.md) is the canonical semantics
 reference. The remaining references cover
-[shorthand syntax](language/shorthand/shorthand-spec.md),
+[shorthand syntax](language/shorthand/index.md),
 [type syntax](language/shorthand/type-syntax-spec.md),
 [flow narrowing](language/json/narrowing.md), and
 [builtin type signatures](builtins/builtin-signatures.md).
@@ -42,7 +42,7 @@ covered by [execution limits](runtime/execution-limits.md),
 
 - [JSON language reference](language/json/index.md) — canonical JSON forms and
   evaluation semantics.
-- [Shorthand specification](language/shorthand/shorthand-spec.md) — `.jfn` surface
+- [Shorthand specification](language/shorthand/index.md) — `.jfn` surface
   syntax and lowering rules.
 - [Type syntax specification](language/shorthand/type-syntax-spec.md) — type notation
   and schema lowering.

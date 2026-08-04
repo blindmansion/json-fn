@@ -69,7 +69,7 @@ annotated-handle diagnostic asks for a "static result-type schema", the
 `docs/builtins/builtins.md` regenerated), stale "raw"/"inert" wording in
 `src/check/narrowing.ts`, `src/stdlib.ts`, and test names was replaced with
 runtime-value terminology, and the docs were rewritten around inference:
-`docs/language/shorthand/shorthand-spec.md` (quoted-data section, states table,
+`docs/language/shorthand/literals-and-data.md` (quoted-data section, states table,
 `parse(print(node)) = normalize(node)` contract, grammar and
 contextual-keyword updates, `$raw`-quoted annotated-handle lowering),
 `docs/guides/writing-jfn.md` (quoted `$`-keys in static data, computed keys in
@@ -796,7 +796,7 @@ Primary files:
 - `typescript/src/check/callable-rules.ts`
 - `typescript/src/task.ts`
 - `docs/language/json/expressions.md`
-- `docs/language/shorthand/shorthand-spec.md`
+- `docs/language/shorthand/index.md`
 - `docs/runtime/execution-limits.md`
 - `examples/dungeon.jfn`
 - `spec/cases/`

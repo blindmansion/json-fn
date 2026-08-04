@@ -576,7 +576,7 @@ excluded keywords are treated as opaque by the checker.
 
 ## 11. Grammar (informal EBNF)
 
-Extends [`docs/language/shorthand/shorthand-spec.md`](shorthand-spec.md) §10. New/changed rules:
+Extends the shorthand [informal grammar](grammar.md). New/changed rules:
 
 ```
 module      := ( moduleEntry (moduleSep moduleEntry)* )?         // whole .jfn file

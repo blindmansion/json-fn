@@ -175,8 +175,9 @@ case → `?? default`._
 ## Implementation steps
 
 1. **Spec first:** `language.md` (§ Property Access, § Constraints, the
-   `$comment` sibling list), `docs/language/shorthand/shorthand-spec.md` §5 lowering rules (§4 callee
-   lowering follows), `writing-jfn.md` guidance, and the trip-up list.
+   `$comment` sibling list),
+   `docs/language/shorthand/variables-and-property-access.md` lowering rules
+   (callee lowering follows), `writing-jfn.md` guidance, and the trip-up list.
 2. **Parser/normalizer/printer:** nested lowering for static paths, the `??`
    surface form, printback folding, and normalize-stability for the new
    shapes.

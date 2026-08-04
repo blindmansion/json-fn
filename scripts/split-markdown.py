@@ -158,6 +158,11 @@ def main() -> None:
         metavar="HEADING=FILENAME",
         help="manually choose a filename for a split section",
     )
+    parser.add_argument(
+        "--existing-output",
+        action="store_true",
+        help="write into an existing output directory without overwriting files",
+    )
     parser.add_argument("--remove-source", action="store_true")
     args = parser.parse_args()
 
@@ -178,7 +183,11 @@ def main() -> None:
         raise ValueError("section filenames must be unique")
 
     destinations = heading_destinations(preamble, sections, filenames)
-    output.mkdir(parents=True, exist_ok=False)
+    output.mkdir(parents=True, exist_ok=args.existing_output)
+    output_files = [output / "index.md", *(output / name for name in filenames.values())]
+    collisions = [path for path in output_files if path.exists()]
+    if collisions:
+        raise FileExistsError(f"refusing to overwrite: {', '.join(map(str, collisions))}")
 
     contents = ["\n", "## Contents\n", "\n"]
     contents.extend(f"- [{title}]({filenames[title]})\n" for title, _ in sections)
