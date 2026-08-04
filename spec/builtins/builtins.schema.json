@@ -1,0 +1,333 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "json-fn builtin signature registry",
+  "description": "Describes the portable builtin signature registry and its schema-node dialect. Semantic constraints such as reference resolution and type-variable use are enforced by the implementation validators.",
+  "type": "object",
+  "required": ["builtins"],
+  "properties": {
+    "$schema": {
+      "const": "./builtins.schema.json"
+    },
+    "description": {
+      "type": "string",
+      "description": "Optional registry documentation."
+    },
+    "$defs": {
+      "type": "object",
+      "description": "Named schema nodes shared by builtin signatures.",
+      "propertyNames": {
+        "minLength": 1,
+        "pattern": "^[^/]+$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/schemaNode"
+      }
+    },
+    "builtins": {
+      "type": "object",
+      "description": "Builtin names mapped to their portable callable definitions.",
+      "propertyNames": {
+        "minLength": 1
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/builtin"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "builtin": {
+      "type": "object",
+      "required": ["signatures"],
+      "properties": {
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-readable builtin documentation."
+        },
+        "category": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Documentation category."
+        },
+        "signatures": {
+          "type": "array",
+          "minItems": 1,
+          "description": "Ordered portable fallback signatures.",
+          "items": {
+            "$ref": "#/$defs/signature"
+          }
+        },
+        "rule": {
+          "type": "string",
+          "description": "An implementation-owned precision rule.",
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]*(\\.[A-Za-z][A-Za-z0-9_-]*)+$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "signature": {
+      "type": "object",
+      "required": ["required", "optional", "returns"],
+      "properties": {
+        "typeParams": {
+          "type": "array",
+          "description": "Type variables scoped to this signature.",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+          },
+          "uniqueItems": true
+        },
+        "required": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/schemaNode"
+          }
+        },
+        "optional": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/schemaNode"
+          }
+        },
+        "rest": {
+          "$ref": "#/$defs/schemaNode"
+        },
+        "returns": {
+          "$ref": "#/$defs/schemaNode"
+        }
+      },
+      "additionalProperties": false
+    },
+    "functionShape": {
+      "type": "object",
+      "required": ["required", "optional", "returns"],
+      "properties": {
+        "required": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/schemaNode"
+          }
+        },
+        "optional": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/schemaNode"
+          }
+        },
+        "rest": {
+          "$ref": "#/$defs/schemaNode"
+        },
+        "returns": {
+          "$ref": "#/$defs/schemaNode"
+        }
+      },
+      "additionalProperties": false
+    },
+    "schemaNode": {
+      "description": "A node in the portable schema fragment, extended with builtin type variables.",
+      "oneOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "object",
+          "required": ["$tvar"],
+          "properties": {
+            "$tvar": {
+              "type": "string",
+              "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["$ref"],
+          "properties": {
+            "$ref": {
+              "type": "string",
+              "pattern": "^#/\\$defs/[^/]+$"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["$fnType"],
+          "properties": {
+            "$fnType": {
+              "$ref": "#/$defs/functionShape"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["const"],
+          "properties": {
+            "const": true
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["enum"],
+          "properties": {
+            "enum": {
+              "type": "array",
+              "minItems": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["anyOf"],
+          "properties": {
+            "anyOf": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/schemaNode"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["type"],
+          "properties": {
+            "type": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "enum": ["null", "boolean", "number", "integer", "string"]
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["type"],
+          "properties": {
+            "type": {
+              "enum": ["null", "boolean"]
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["type"],
+          "properties": {
+            "type": {
+              "enum": ["number", "integer"]
+            },
+            "minimum": {
+              "type": "number"
+            },
+            "maximum": {
+              "type": "number"
+            },
+            "exclusiveMinimum": {
+              "type": "number"
+            },
+            "exclusiveMaximum": {
+              "type": "number"
+            },
+            "multipleOf": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["type"],
+          "properties": {
+            "type": {
+              "const": "string"
+            },
+            "minLength": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "maxLength": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "pattern": {
+              "type": "string"
+            },
+            "format": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["type"],
+          "properties": {
+            "type": {
+              "const": "array"
+            },
+            "items": {
+              "$ref": "#/$defs/schemaNode"
+            },
+            "prefixItems": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/schemaNode"
+              }
+            },
+            "minItems": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "maxItems": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "uniqueItems": {
+              "const": true
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["type"],
+          "properties": {
+            "type": {
+              "const": "object"
+            },
+            "properties": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/$defs/schemaNode"
+              }
+            },
+            "required": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "uniqueItems": true
+            },
+            "additionalProperties": {
+              "$ref": "#/$defs/schemaNode"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

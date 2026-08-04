@@ -31,7 +31,7 @@ const S: Schema = { type: "string" };
 const B: Schema = { type: "boolean" };
 
 // ---------------------------------------------------------------------------
-// Section F — builtin signatures (the spec/builtins.json dialect, end to end)
+// Section F — builtin signatures (the spec/builtins/builtins.json dialect, end to end)
 // ---------------------------------------------------------------------------
 
 describe("Section F — builtin signatures", () => {

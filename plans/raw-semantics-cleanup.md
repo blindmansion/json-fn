@@ -65,7 +65,7 @@ ingestion-route fuel equivalence are tested in
 spelling.
 Workstream G (docs, checker wording, remaining terminology) has landed: the
 annotated-handle diagnostic asks for a "static result-type schema", the
-`handle` builtin description in `spec/builtins.json` matches (with
+`handle` builtin description in `spec/builtins/builtins.json` matches (with
 `docs/builtins/builtins.md` regenerated), stale "raw"/"inert" wording in
 `src/check/narrowing.ts`, `src/stdlib.ts`, and test names was replaced with
 runtime-value terminology, and the docs were rewritten around inference:

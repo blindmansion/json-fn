@@ -1,16 +1,22 @@
 # Builtin signature registry
 
-`spec/builtins.json` is the type registry for json-fn builtins. It defines
+`spec/builtins/builtins.json` is the type registry for json-fn builtins. It defines
 portable callable signatures and names the semantic rules needed when a result
 cannot be expressed by those signatures alone.
 
 This document specifies the registry dialect and the behavior that the JSON
 structure cannot express.
 
+`spec/builtins/builtins.schema.json` describes the registry's JSON shape for
+editors and other JSON Schema tooling. The implementation validator remains
+authoritative for semantic constraints such as reference resolution and
+type-variable scope and use.
+
 ## Registry shape
 
 ```json
 {
+  "$schema": "./builtins.schema.json",
   "description": "optional registry description",
   "$defs": {
     "Name": { "type": "object" }
@@ -37,6 +43,7 @@ structure cannot express.
 - `description` and `category` are descriptive metadata.
 - `$defs`, when present, contains registry-owned named schemas. References use
   `{"$ref": "#/$defs/Name"}`.
+- `$schema` associates the registry with its colocated JSON Schema.
 - `builtins` maps each builtin name to one or more signatures.
 - `rule` names an additional type rule.
 

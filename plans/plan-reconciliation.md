@@ -207,7 +207,7 @@ Update it as follows:
   the linked module with injected effects. Avoid counting the same contract
   change as both module and contract drift without intending to.
 - Add an explicit engine/stdlib semantic version. Hashing
-  `spec/builtins.json` alone does not detect implementation behavior changes,
+  `spec/builtins/builtins.json` alone does not detect implementation behavior changes,
   while hashing prose creates irrelevant drift.
 - Specify the exact profile projection, including whether limits that alter
   durable outcomes are part of identity.

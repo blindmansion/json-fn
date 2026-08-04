@@ -47,7 +47,7 @@ type CheckContext = {
   diagnostics: Diagnostic[];
   // Current location, for messages.
   path: string[];
-  // The polymorphic builtin layer (§5.3), loaded from `spec/builtins.json`.
+  // The polymorphic builtin layer (§5.3), loaded from `spec/builtins/builtins.json`.
   // Absent → a literal name not found in the lexical scope is unknown.
   callables?: Record<string, CallableEntry>;
   // The builtin dispatcher (Section F), injected at the entry points so the

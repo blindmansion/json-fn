@@ -12,7 +12,11 @@ type CallableEntry = {
   signatures: CallableSignature[];
   rule?: string;
 };
-type CallableTable = { $defs?: Defs; builtins: Record<string, CallableEntry> };
+type CallableTable = {
+  $schema?: "./builtins.schema.json";
+  $defs?: Defs;
+  builtins: Record<string, CallableEntry>;
+};
 
 // A per-call-site type-variable environment (T, U, … → their inferred schema).
 type Bindings = Record<string, Schema>;

@@ -103,7 +103,7 @@ check options:
       --json-diagnostics
                       Emit diagnostics as a JSON array (path/message/severity/
                       expected/actual) instead of prose
-      --no-builtins   Don't load the builtin signature table (spec/builtins.json)
+      --no-builtins   Don't load the builtin signature table (spec/builtins/builtins.json)
       --contract <path>
                       Load an operator-owned portable contract JSON file
       --allow-untyped-functions

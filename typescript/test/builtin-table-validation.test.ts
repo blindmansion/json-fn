@@ -47,6 +47,7 @@ describe("builtin table validation", () => {
 
   test("accepts normalized signature-only and rule-backed entries", () => {
     const value: unknown = {
+      $schema: "./builtins.schema.json",
       description: "test table",
       builtins: {
         declarative: { signatures: [signature] },
@@ -63,6 +64,9 @@ describe("builtin table validation", () => {
   });
 
   test("rejects malformed table and entry shapes", () => {
+    expect(validationError({ $schema: "./other.schema.json", builtins: {} }).path).toBe(
+      "table.$schema",
+    );
     expect(validationError({}).path).toBe("table.builtins");
     expect(validationError({ builtins: { example: [] } }).path).toBe("table.builtins.example");
     expect(validationError(tableWith([])).path).toBe("table.builtins.example.signatures");

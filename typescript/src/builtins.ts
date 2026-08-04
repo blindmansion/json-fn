@@ -1,5 +1,5 @@
 // Loader for the canonical, language-agnostic builtin signature table
-// (`spec/builtins.json`). The table is the shared source of truth for builtin
+// (`spec/builtins/builtins.json`). The table is the shared source of truth for builtin
 // types across implementations; the TypeScript checker's Section F reads it via
 // `CheckContext.builtins`. See docs/builtins/builtin-signatures.md for the format.
 //
@@ -17,7 +17,7 @@ import {
 } from "./schema/validation";
 import { assertStructuralDepth } from "./structural-depth";
 
-const DEFAULT_PATH = join(import.meta.dir, "../../spec/builtins.json");
+const DEFAULT_PATH = join(import.meta.dir, "../../spec/builtins/builtins.json");
 
 export class CallableTableValidationError extends Error {
   constructor(
@@ -58,7 +58,10 @@ function validateSchemaErrors(validate: () => void): void {
 export function validateCallableTable(value: unknown): asserts value is CallableTable {
   assertStructuralDepth(value);
   const table = assertObject(value, "table");
-  assertOnlyKeys(table, new Set(["description", "$defs", "builtins"]), "table");
+  assertOnlyKeys(table, new Set(["$schema", "description", "$defs", "builtins"]), "table");
+  if ("$schema" in table && table.$schema !== "./builtins.schema.json") {
+    fail("table.$schema", 'expected "./builtins.schema.json"');
+  }
   if ("description" in table && typeof table.description !== "string") {
     fail("table.description", "expected a string");
   }

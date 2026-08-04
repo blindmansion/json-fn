@@ -55,7 +55,7 @@ executable world. Executable adapter code is also outside automatic identity
 and remains an operator responsibility.
 
 These inputs use the canonical-bytes + domain-separated hash foundation from
-the base plan. Hashing `spec/builtins.json` alone is insufficient because an
+the base plan. Hashing `spec/builtins/builtins.json` alone is insufficient because an
 implementation can change behavior without changing signatures; hashing prose
 would create irrelevant drift. The explicit engine/stdlib semantic version is
 the reviewed signal for those behavior changes.
