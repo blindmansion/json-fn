@@ -1,5 +1,5 @@
 /**
- * One-shot generator for `spec/hash-cases/` (roadmap Phase 3). Values are
+ * One-shot generator for `spec/cases/hash/` (roadmap Phase 3). Values are
  * authored here; `canonical` and `valueHash` are computed by the TypeScript
  * implementation and reviewed against RFC 8785 before the vectors are
  * committed. Other implementations consume the committed JSON files.
@@ -151,8 +151,8 @@ const files: Record<string, { description: string; cases: VectorCase[] }> = {
   },
 };
 
-const outDir = join(import.meta.dir, "../../spec/hash-cases");
+const outDir = join(import.meta.dir, "../../spec/cases/hash");
 for (const [name, { description, cases }] of Object.entries(files)) {
   await Bun.write(join(outDir, name), buildFile(description, cases));
-  console.log(`wrote spec/hash-cases/${name} (${cases.length} cases)`);
+  console.log(`wrote spec/cases/hash/${name} (${cases.length} cases)`);
 }

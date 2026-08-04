@@ -24,7 +24,7 @@ type ValidationCase = {
 };
 type ValidationFile = { description: string; cases: ValidationCase[] };
 
-const casesDirectory = join(import.meta.dir, "../../spec/validation-cases");
+const casesDirectory = join(import.meta.dir, "../../spec/cases/deployment");
 for (const path of new Bun.Glob("*.json").scanSync(casesDirectory)) {
   const suite = (await Bun.file(join(casesDirectory, path)).json()) as ValidationFile;
   describe(suite.description, () => {

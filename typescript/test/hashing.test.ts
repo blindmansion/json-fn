@@ -23,10 +23,10 @@ type VectorFile = { description: string; cases: VectorCase[] };
 
 // Phase 3 gate: cross-runtime-independent vectors for key ordering, number
 // spelling, Unicode, special keys, and expression-shaped data.
-const casesDirectory = join(import.meta.dir, "../../spec/hash-cases");
+const casesDirectory = join(import.meta.dir, "../../spec/cases/hash");
 for (const path of new Bun.Glob("*.json").scanSync(casesDirectory)) {
   const suite = (await Bun.file(join(casesDirectory, path)).json()) as VectorFile;
-  describe(`hash-cases/${path}: ${suite.description}`, () => {
+  describe(`cases/hash/${path}: ${suite.description}`, () => {
     for (const item of suite.cases) {
       test(item.name, () => {
         expect(canonicalJsonText(item.value)).toBe(item.canonical);

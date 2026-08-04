@@ -116,7 +116,7 @@ identify the changed layer.
 
 ## Conformance vectors
 
-`spec/hash-cases/*.json` pins canonical text and `jfn:value:v1` addresses for
+`spec/cases/hash/*.json` pins canonical text and `jfn:value:v1` addresses for
 key ordering, numbers, Unicode, special keys, and expression-shaped data.
 Equivalent encoders must reproduce those vectors and the rejection
 classifications above.

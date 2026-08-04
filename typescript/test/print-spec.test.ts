@@ -35,7 +35,7 @@ interface ParseSuite {
   cases: ParseCase[];
 }
 
-const CASES_DIR = join(import.meta.dir, "../../spec/parse-cases");
+const CASES_DIR = join(import.meta.dir, "../../spec/cases/parse");
 const EXAMPLES_DIR = join(import.meta.dir, "../../examples");
 
 function roundTrips(json: JSONType): void {

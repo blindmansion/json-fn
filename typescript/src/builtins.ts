@@ -4,7 +4,7 @@
 // `CheckContext.builtins`. See docs/builtins/builtin-signatures.md for the format.
 //
 // For now this reads the JSON off disk at runtime, mirroring how the spec-case
-// harness loads `spec/cases`. Bundling / codegen is a later concern.
+// harness loads `spec/cases/eval`. Bundling / codegen is a later concern.
 
 import { readFileSync } from "fs";
 import { join } from "path";

@@ -25,7 +25,7 @@
  *
  * SHA-256 is the v1 digest for every domain: it exists in the standard
  * library of all four implementations, which the cross-runtime test vectors
- * in `spec/hash-cases/` rely on. A future algorithm change is a new domain
+ * in `spec/cases/hash/` rely on. A future algorithm change is a new domain
  * version, never a silent re-interpretation of existing addresses.
  */
 

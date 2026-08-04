@@ -7,8 +7,8 @@ import type { JSONType } from "../src/types";
 // Guest-object invariant: every JSON key — including "__proto__" and names
 // that collide with Object.prototype members — is an own, enumerable,
 // writable data property, and no path may observe inherited members instead.
-// The evaluator-facing coverage lives in spec/cases/special-object-keys.json
-// and spec/parse-cases/special-object-keys.json; this file covers the
+// The evaluator-facing coverage lives in spec/cases/eval/special-object-keys.json
+// and spec/cases/parse/special-object-keys.json; this file covers the
 // checker/validation surfaces and the shared helper itself.
 
 const json = (text: string): JSONType => JSON.parse(text) as JSONType;

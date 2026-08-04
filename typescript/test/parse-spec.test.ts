@@ -4,7 +4,7 @@ import { join } from "path";
 import { parseExpression as parse, parseModule } from "../src/shorthand";
 import type { JSONType } from "../src/types";
 
-runAllParseCases(join(import.meta.dir, "../../spec/parse-cases"));
+runAllParseCases(join(import.meta.dir, "../../spec/cases/parse"));
 
 test("module source is implicit and rejects an outer object wrapper", () => {
   expect(parseModule("main: () => 42")).toEqual({
