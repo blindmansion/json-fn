@@ -841,7 +841,7 @@ function shortCircuitType(exprs: JSONType[], isAnd: boolean, ctx: CheckContext):
 // (which pushes the expected type into each arm). A single visitor per branch
 // construct emits the control-flow lints exactly once and threads the same
 // per-arm narrowing facts (§5.5; the frozen fact set is documented in
-// `docs/language/narrowing.md`), then hands each arm's result expression and its
+// `docs/language/json/narrowing.md`), then hands each arm's result expression and its
 // narrowed context to `onArm`. Keeping this in one place is what lets check-mode
 // push expectations into branches without re-implementing (and drifting from)
 // the exhaustiveness / dead-case / narrowing logic.

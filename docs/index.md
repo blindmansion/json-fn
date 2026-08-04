@@ -19,7 +19,7 @@ The [JSON language reference](language/json/index.md) is the canonical semantics
 reference. The remaining references cover
 [shorthand syntax](language/shorthand-spec.md),
 [type syntax](language/type-syntax-spec.md),
-[flow narrowing](language/narrowing.md), and
+[flow narrowing](language/json/narrowing.md), and
 [builtin type signatures](builtins/builtin-signatures.md).
 
 ### Deploy or host a module
@@ -46,7 +46,7 @@ covered by [execution limits](runtime/execution-limits.md),
   syntax and lowering rules.
 - [Type syntax specification](language/type-syntax-spec.md) — type notation
   and schema lowering.
-- [Flow narrowing](language/narrowing.md) — frozen checker narrowing rules.
+- [Flow narrowing](language/json/narrowing.md) — frozen checker narrowing rules.
 
 ### Builtins
 

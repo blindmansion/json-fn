@@ -6,6 +6,7 @@ json-fn is a JSON-structured expression language. Programs are JSON values evalu
 ## Contents
 
 - [Expression Types](expressions.md)
+- [Flow Narrowing](narrowing.md)
 - [Function Bodies](functions.md)
 - [Closures](closures.md)
 - [Scoping Rules](scoping.md)
