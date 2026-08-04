@@ -1,4 +1,4 @@
-# 13. Effects: `do` and `handle`
+# Effects: `do` and `handle`
 
 Two surface forms lower to the effects kernel (`perform` / `pure` / `bind` /
 `handle`; see the [Tasks & Effects](../json/tasks-and-effects.md) section of the

@@ -1,4 +1,4 @@
-# 8. Function literals and local bindings
+# Function literals and local bindings
 
 `(params) => body`. The body is a single expression, optionally followed by a
 `where { … }` clause introducing **lazy local bindings**.

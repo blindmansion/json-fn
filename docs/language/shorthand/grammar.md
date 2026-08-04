@@ -1,4 +1,4 @@
-# 10. Grammar (informal EBNF)
+# Grammar (informal EBNF)
 
 ```
 program     := (moduleEntry (moduleSep moduleEntry)*)?

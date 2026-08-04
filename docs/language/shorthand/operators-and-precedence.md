@@ -1,4 +1,4 @@
-# 6. Operators and precedence
+# Operators and precedence
 
 A closed set of operators. Precedence from highest to lowest:
 

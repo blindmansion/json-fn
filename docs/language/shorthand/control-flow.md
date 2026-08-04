@@ -1,4 +1,4 @@
-# 7. Control flow
+# Control flow
 
 ## `if / then / else` → `$if`
 
@@ -63,6 +63,12 @@ match cmd {
 The surrounding control-flow form distinguishes arm colons from colons in
 nested object expressions. `cond` is distinguished from `match` purely by the
 absence of a subject after the keyword.
+
+## Truthiness
+
+Unchanged from the language: `0`, `""`, `null`, and `false` are falsy;
+everything else is truthy. Truthiness controls `if`, `cond`, `&&`, `||`, and
+`!`. A `match` subject is compared against its case values instead.
 
 ---
 

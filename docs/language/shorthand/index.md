@@ -13,27 +13,50 @@ pretty-prints back to shorthand.
 - **Bijective (by normal form).** One canonical shorthand per normalized JSON
   node and vice versa: `parse(print(node)) = normalize(node)`. Byte-exact
   round-tripping of arbitrary hand-written JSON is _not_ guaranteed — JSON is
-  normalized to canonical form first (e.g. [property-access spellings](variables-and-property-access.md);
+  normalized to canonical form first (e.g. [property-access spellings](function-calls-and-references.md#variables-and-property-access);
   redundant [`$raw` wrappers](literals-and-data.md)).
 
 File extension: `.jfn`.
 
 ---
 
+## Surface model
+
+Every construct is an expression. The surface syntax distinguishes three value
+states:
+
+| State | Surface | JSON |
+| --- | --- | --- |
+| Evaluated expression | bare code | `$call` / `$fn` / `$var` / forms |
+| Plain data (values evaluated) | `[...]` / `{k: v}` | array / object |
+| Inert (verbatim, un-evaluated) | static JSON with quoted `$`-keys — _inferred_ | `{ "$raw": <json> }` |
 
 ## Contents
 
-- [1. Lexical structure](lexical-structure.md)
-- [2. Expressions overview](expressions.md)
-- [3. Literals and data](literals-and-data.md)
-- [4. Function calls and references](function-calls-and-references.md)
-- [5. Variables and property access](variables-and-property-access.md)
-- [6. Operators and precedence](operators-and-precedence.md)
-- [7. Control flow](control-flow.md)
-- [8. Function literals and local bindings](function-literals-and-local-bindings.md)
-- [9. Files and program shape](files-and-program-shape.md)
-- [10. Grammar (informal EBNF)](grammar.md)
-- [11. Truthiness](truthiness.md)
-- [12. Open decisions (tracked)](open-decisions.md)
-- [13. Effects: `do` and `handle`](effects.md)
+### Core syntax
+
+- [Source files and lexical structure](files-and-program-shape.md)
+- [Literals and data](literals-and-data.md)
+- [Variables, property access, calls, and references](function-calls-and-references.md)
+- [Operators and precedence](operators-and-precedence.md)
+- [Control flow](control-flow.md)
+- [Function literals and local bindings](function-literals-and-local-bindings.md)
+- [Effects: `do` and `handle`](effects.md)
+
+### Formal references
+
+- [Grammar (informal EBNF)](grammar.md)
 - [Type syntax](type-syntax-spec.md)
+
+## Open decisions
+
+- 🔴 **TODO(comments)** — [Lexical structure](files-and-program-shape.md#lexical-structure):
+  how `//` comments attach and lower to `$comment`, including group/section
+  comments and comments on non-object targets.
+- 🟡 **Printer polish for method/chained callees** —
+  [Function calls and references](function-calls-and-references.md#method-calls-and-chained-application):
+  the pretty-printer parenthesizes access-headed and call-headed callees
+  (`(caps.db.query)(sql)`). Parsing and evaluation of the bare form already
+  work and round-trip; only canonical printback is deferred.
+
+Everything else in this specification is resolved and implementable.

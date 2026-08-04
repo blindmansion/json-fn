@@ -1,4 +1,4 @@
-# 3. Literals and data
+# Literals and data
 
 ## Scalars
 

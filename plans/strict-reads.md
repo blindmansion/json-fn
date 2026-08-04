@@ -176,7 +176,7 @@ case → `?? default`._
 
 1. **Spec first:** `language.md` (§ Property Access, § Constraints, the
    `$comment` sibling list),
-   `docs/language/shorthand/variables-and-property-access.md` lowering rules
+   `docs/language/shorthand/function-calls-and-references.md` property-access lowering rules
    (callee lowering follows), `writing-jfn.md` guidance, and the trip-up list.
 2. **Parser/normalizer/printer:** nested lowering for static paths, the `??`
    surface form, printback folding, and normalize-stability for the new
