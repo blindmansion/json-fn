@@ -1,0 +1,41 @@
+{
+  "description": "closure escape: n lambdas capture their index and escape the map callback, then each is applied; stresses capture extraction",
+  "body": {
+    "$params": ["n"],
+    "$return": {
+      "$let": {
+        "fns": {
+          "$call": "map",
+          "$args": [
+            {
+              "$params": ["i"],
+              "$return": {
+                "$params": ["x"],
+                "$return": { "$call": "add", "$args": [{ "$var": "i" }, { "$var": "x" }] }
+              }
+            },
+            { "$call": "range", "$args": [{ "$var": "n" }] }
+          ]
+        }
+      },
+      "$in": {
+        "$call": "sum",
+        "$args": [
+          {
+            "$call": "map",
+            "$args": [
+              {
+                "$params": ["f"],
+                "$return": { "$call": "apply", "$args": [{ "$var": "f" }, [1]] }
+              },
+              { "$var": "fns" }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "args": [10000],
+  "limits": { "maxFuel": 1000000000, "maxValueSize": 100000000, "maxCallDepth": 1000 },
+  "expected": 50005000
+}

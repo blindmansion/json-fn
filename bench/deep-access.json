@@ -1,0 +1,34 @@
+{
+  "description": "deep access: repeated long $get paths into a nested literal stress path traversal and structural sharing",
+  "body": {
+    "$params": ["n"],
+    "$return": {
+      "$let": {
+        "data": {
+          "a": { "b": { "c": { "d": { "e": { "f": { "g": { "h": { "i": { "j": { "k": { "leaf": 7 } } } } } } } } } } }
+        }
+      },
+      "$in": {
+        "$call": "sum",
+        "$args": [
+          {
+            "$call": "map",
+            "$args": [
+              {
+                "$params": ["_i"],
+                "$return": {
+                  "$get": ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "leaf"],
+                  "$from": { "$var": "data" }
+                }
+              },
+              { "$call": "range", "$args": [{ "$var": "n" }] }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "args": [20000],
+  "limits": { "maxFuel": 1000000000, "maxValueSize": 100000000, "maxCallDepth": 1000 },
+  "expected": 140000
+}

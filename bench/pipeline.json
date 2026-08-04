@@ -1,0 +1,39 @@
+{
+  "description": "collection pipeline: map -> filter -> sum over range(n) stresses intermediate array allocation and closure invocation from builtins",
+  "body": {
+    "$params": ["n"],
+    "$return": {
+      "$call": "sum",
+      "$args": [
+        {
+          "$call": "filter",
+          "$args": [
+            {
+              "$params": ["v"],
+              "$return": {
+                "$call": "eq",
+                "$args": [{ "$call": "mod", "$args": [{ "$var": "v" }, 2] }, 0]
+              }
+            },
+            {
+              "$call": "map",
+              "$args": [
+                {
+                  "$params": ["x"],
+                  "$return": {
+                    "$call": "add",
+                    "$args": [{ "$call": "mul", "$args": [{ "$var": "x" }, 3] }, 1]
+                  }
+                },
+                { "$call": "range", "$args": [{ "$var": "n" }] }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "args": [20000],
+  "limits": { "maxFuel": 1000000000, "maxValueSize": 100000000, "maxCallDepth": 1000 },
+  "expected": 300010000
+}

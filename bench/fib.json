@@ -1,0 +1,26 @@
+{
+  "description": "call overhead: naive recursive fib(n) stresses function invocation, environment creation, and arity checks",
+  "functions": {
+    "fib": {
+      "$params": ["n"],
+      "$return": {
+        "$if": { "$call": "lt", "$args": [{ "$var": "n" }, 2] },
+        "$then": { "$var": "n" },
+        "$else": {
+          "$call": "add",
+          "$args": [
+            { "$call": "fib", "$args": [{ "$call": "sub", "$args": [{ "$var": "n" }, 1] }] },
+            { "$call": "fib", "$args": [{ "$call": "sub", "$args": [{ "$var": "n" }, 2] }] }
+          ]
+        }
+      }
+    }
+  },
+  "body": {
+    "$params": ["n"],
+    "$return": { "$call": "fib", "$args": [{ "$var": "n" }] }
+  },
+  "args": [22],
+  "limits": { "maxFuel": 1000000000, "maxValueSize": 100000000, "maxCallDepth": 1000 },
+  "expected": 17711
+}

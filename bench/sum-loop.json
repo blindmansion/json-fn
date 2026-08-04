@@ -1,0 +1,20 @@
+{
+  "description": "dispatch floor: tight reduce over range(n) with a trivial two-arg lambda measures per-step eval overhead",
+  "body": {
+    "$params": ["n"],
+    "$return": {
+      "$call": "reduce",
+      "$args": [
+        {
+          "$params": ["acc", "x"],
+          "$return": { "$call": "add", "$args": [{ "$var": "acc" }, { "$var": "x" }] }
+        },
+        0,
+        { "$call": "range", "$args": [{ "$var": "n" }] }
+      ]
+    }
+  },
+  "args": [100000],
+  "limits": { "maxFuel": 1000000000, "maxValueSize": 100000000, "maxCallDepth": 1000 },
+  "expected": 4999950000
+}

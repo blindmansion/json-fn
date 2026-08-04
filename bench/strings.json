@@ -1,0 +1,35 @@
+{
+  "description": "string work: join n numbers, split them back, case-map and replace over the big string; stresses string allocation and code-point handling",
+  "body": {
+    "$params": ["n"],
+    "$return": {
+      "$let": {
+        "joined": {
+          "$call": "join",
+          "$args": [
+            { "$call": "map", "$args": ["str", { "$call": "range", "$args": [{ "$var": "n" }] }] },
+            ","
+          ]
+        }
+      },
+      "$in": {
+        "chars": { "$call": "length", "$args": [{ "$var": "joined" }] },
+        "parts": {
+          "$call": "length",
+          "$args": [{ "$call": "split", "$args": [{ "$var": "joined" }, ","] }]
+        },
+        "upperChars": {
+          "$call": "length",
+          "$args": [{ "$call": "upper", "$args": [{ "$var": "joined" }] }]
+        },
+        "replacedChars": {
+          "$call": "length",
+          "$args": [{ "$call": "replace", "$args": [{ "$var": "joined" }, "9", "#"] }]
+        }
+      }
+    }
+  },
+  "args": [20000],
+  "limits": { "maxFuel": 1000000000, "maxValueSize": 100000000, "maxCallDepth": 1000 },
+  "expected": { "chars": 108889, "parts": 20000, "upperChars": 108889, "replacedChars": 108889 }
+}

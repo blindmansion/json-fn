@@ -1,0 +1,53 @@
+{
+  "description": "object churn: build n small objects, groupBy a key, mapValues to counts; stresses ordered-map construction and value-size accounting",
+  "body": {
+    "$params": ["n"],
+    "$return": {
+      "$let": {
+        "items": {
+          "$call": "map",
+          "$args": [
+            {
+              "$params": ["i"],
+              "$return": {
+                "id": { "$var": "i" },
+                "bucket": {
+                  "$call": "str",
+                  "$args": [{ "$call": "mod", "$args": [{ "$var": "i" }, 10] }]
+                },
+                "sq": { "$call": "mul", "$args": [{ "$var": "i" }, { "$var": "i" }] }
+              }
+            },
+            { "$call": "range", "$args": [{ "$var": "n" }] }
+          ]
+        },
+        "groups": {
+          "$call": "groupBy",
+          "$args": [
+            {
+              "$params": ["it"],
+              "$return": { "$get": "bucket", "$from": { "$var": "it" } }
+            },
+            { "$var": "items" }
+          ]
+        }
+      },
+      "$in": {
+        "$call": "mapValues",
+        "$args": [
+          {
+            "$params": ["g", "_key"],
+            "$return": { "$call": "length", "$args": [{ "$var": "g" }] }
+          },
+          { "$var": "groups" }
+        ]
+      }
+    }
+  },
+  "args": [10000],
+  "limits": { "maxFuel": 1000000000, "maxValueSize": 100000000, "maxCallDepth": 1000 },
+  "expected": {
+    "0": 1000, "1": 1000, "2": 1000, "3": 1000, "4": 1000,
+    "5": 1000, "6": 1000, "7": 1000, "8": 1000, "9": 1000
+  }
+}
