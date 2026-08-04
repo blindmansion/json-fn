@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { mkdtempSync, rmSync, writeFileSync } from "fs";
+import { tmpdir } from "os";
 import { join } from "path";
 import {
   EffectManifestValidationError,
@@ -18,8 +20,32 @@ function validationError(value: unknown): EffectManifestValidationError {
 
 describe("effect manifest validation", () => {
   test("loads the language-agnostic example manifest", () => {
-    const manifest = loadEffectManifest(join(import.meta.dir, "../../spec/effects.example.json"));
-    expect(Object.keys(manifest)).toEqual(["example.lookup", "example.log"]);
+    const dir = mkdtempSync(join(tmpdir(), "json-fn-effects-"));
+    const path = join(dir, "effects.json");
+    try {
+      writeFileSync(
+        path,
+        JSON.stringify({
+          "example.lookup": {
+            params: [{ type: "integer" }],
+            returns: {
+              type: "object",
+              properties: { name: { type: "string" } },
+              required: ["name"],
+              additionalProperties: false,
+            },
+          },
+          "example.log": {
+            params: [{ type: "string" }],
+            returns: { type: "null" },
+          },
+        }),
+      );
+      const manifest = loadEffectManifest(path);
+      expect(Object.keys(manifest)).toEqual(["example.lookup", "example.log"]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   test("accepts positional argument and result contracts", () => {
