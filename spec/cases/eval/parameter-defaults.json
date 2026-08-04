@@ -4,12 +4,7 @@
     {
       "description": "computed positional defaults use builtins",
       "body": {
-        "$params": [
-          {
-            "$param": "value",
-            "$default": { "$call": "add", "$args": [2, 3] }
-          }
-        ],
+        "$params": [{ "$param": "value", "$default": { "$call": "add", "$args": [2, 3] } }],
         "$return": { "$var": "value" }
       },
       "expected": 5
@@ -47,12 +42,7 @@
     {
       "description": "an unused positional default remains lazy",
       "body": {
-        "$params": [
-          {
-            "$param": "unused",
-            "$default": { "$var": "doesNotExist" }
-          }
-        ],
+        "$params": [{ "$param": "unused", "$default": { "$var": "doesNotExist" } }],
         "$return": "ok"
       },
       "expected": "ok"
@@ -79,16 +69,10 @@
           "$in": {
             "$call": {
               "$params": [
-                {
-                  "$param": "fromValue",
-                  "$default": { "$var": "fallbackValue" }
-                },
+                { "$param": "fromValue", "$default": { "$var": "fallbackValue" } },
                 {
                   "$param": "fromFunction",
-                  "$default": {
-                    "$call": "fallbackFunction",
-                    "$args": []
-                  }
+                  "$default": { "$call": "fallbackFunction", "$args": [] }
                 }
               ],
               "$return": [{ "$var": "fromValue" }, { "$var": "fromFunction" }]
@@ -120,9 +104,7 @@
               "$raw": {
                 "$params": [
                   "required",
-                  {
-                    "$fields": ["field", { "$field": "optionalField", "$optional": true }]
-                  },
+                  { "$fields": ["field", { "$field": "optionalField", "$optional": true }] },
                   { "$param": "optional", "$optional": true },
                   { "$param": "defaulted", "$default": 1 },
                   "...rest"
@@ -140,14 +122,7 @@
       "body": {
         "$return": {
           "$call": "arity",
-          "$args": [
-            {
-              "$raw": {
-                "$params": [{ "$param": "value" }],
-                "$return": null
-              }
-            }
-          ]
+          "$args": [{ "$raw": { "$params": [{ "$param": "value" }], "$return": null } }]
         }
       },
       "error": "$params[0]: A defaulted parameter must contain exactly"
@@ -190,20 +165,12 @@
       "body": {
         "$return": {
           "$call": {
-            "$let": {
-              "fallback": { "$return": 13 }
-            },
+            "$let": { "fallback": { "$return": 13 } },
             "$in": {
               "$params": [
                 {
                   "$fields": [
-                    {
-                      "$field": "value",
-                      "$default": {
-                        "$call": "fallback",
-                        "$args": []
-                      }
-                    }
+                    { "$field": "value", "$default": { "$call": "fallback", "$args": [] } }
                   ]
                 }
               ],
@@ -220,16 +187,9 @@
       "body": {
         "$return": {
           "$call": {
-            "$let": {
-              "fallback": 7
-            },
+            "$let": { "fallback": 7 },
             "$in": {
-              "$params": [
-                {
-                  "$param": "value",
-                  "$default": { "$var": "fallback" }
-                }
-              ],
+              "$params": [{ "$param": "value", "$default": { "$var": "fallback" } }],
               "$return": { "$var": "value" }
             }
           },
@@ -243,16 +203,11 @@
       "body": {
         "$return": {
           "$call": {
-            "$let": {
-              "value": 99
-            },
+            "$let": { "value": 99 },
             "$in": {
               "$params": [
                 { "$param": "value", "$default": 1 },
-                {
-                  "$param": "copy",
-                  "$default": { "$var": "value" }
-                }
+                { "$param": "copy", "$default": { "$var": "value" } }
               ],
               "$return": { "$var": "copy" }
             }
@@ -283,10 +238,7 @@
                   "$fields": [
                     "fieldRequired",
                     { "$field": "fieldOptional", "$optional": true },
-                    {
-                      "$field": "fieldDefaulted",
-                      "$default": "field default"
-                    }
+                    { "$field": "fieldDefaulted", "$default": "field default" }
                   ]
                 },
                 { "$param": "optional", "$optional": true },
@@ -319,12 +271,7 @@
     },
     {
       "description": "malformed nested parameters fail while creating a closure",
-      "body": {
-        "$return": {
-          "$params": [{ "$param": "value" }],
-          "$return": null
-        }
-      },
+      "body": { "$return": { "$params": [{ "$param": "value" }], "$return": null } },
       "error": "$params[0]: A defaulted parameter must contain exactly"
     },
     {
@@ -334,32 +281,22 @@
           "$let": {
             "requiredFirst": {
               "$params": [
-                {
-                  "$fields": ["required", { "$field": "fallback", "$default": 2 }]
-                },
+                { "$fields": ["required", { "$field": "fallback", "$default": 2 }] },
                 { "$param": "suffix", "$default": 3 }
               ],
               "$return": [{ "$var": "required" }, { "$var": "fallback" }, { "$var": "suffix" }]
             },
             "defaultedFirst": {
               "$params": [
-                {
-                  "$fields": [{ "$field": "fallback", "$default": 2 }, "required"]
-                },
+                { "$fields": [{ "$field": "fallback", "$default": 2 }, "required"] },
                 { "$param": "suffix", "$default": 3 }
               ],
               "$return": [{ "$var": "required" }, { "$var": "fallback" }, { "$var": "suffix" }]
             }
           },
           "$in": [
-            {
-              "$call": "requiredFirst",
-              "$args": [{ "required": 1 }]
-            },
-            {
-              "$call": "defaultedFirst",
-              "$args": [{ "required": 1 }]
-            }
+            { "$call": "requiredFirst", "$args": [{ "required": 1 }] },
+            { "$call": "defaultedFirst", "$args": [{ "required": 1 }] }
           ]
         }
       },
@@ -370,42 +307,27 @@
     },
     {
       "description": "defaulted parameter descriptors require a default or optional marker",
-      "body": {
-        "$params": [{ "$param": "x" }],
-        "$return": null
-      },
+      "body": { "$params": [{ "$param": "x" }], "$return": null },
       "error": "Invalid JSON expression"
     },
     {
       "description": "defaulted parameter descriptors reject extra properties",
-      "body": {
-        "$params": [{ "$param": "x", "$default": 1, "extra": true }],
-        "$return": null
-      },
+      "body": { "$params": [{ "$param": "x", "$default": 1, "extra": true }], "$return": null },
       "error": "Invalid JSON expression"
     },
     {
       "description": "defaulted parameter descriptors cannot use rest names",
-      "body": {
-        "$params": [{ "$param": "...xs", "$default": [] }],
-        "$return": null
-      },
+      "body": { "$params": [{ "$param": "...xs", "$default": [] }], "$return": null },
       "error": "Invalid JSON expression"
     },
     {
       "description": "rest parameters must be final",
-      "body": {
-        "$params": ["...xs", "later"],
-        "$return": null
-      },
+      "body": { "$params": ["...xs", "later"], "$return": null },
       "error": "A rest parameter must have a name and be the final $params entry"
     },
     {
       "description": "named parameter bindings cannot be duplicated",
-      "body": {
-        "$params": ["x", { "$param": "x", "$default": 1 }],
-        "$return": null
-      },
+      "body": { "$params": ["x", { "$param": "x", "$default": 1 }], "$return": null },
       "error": "Duplicate parameter binding \"x\""
     },
     {
@@ -418,44 +340,26 @@
     },
     {
       "description": "field descriptors require a default or optional marker",
-      "body": {
-        "$params": [{ "$fields": [{ "$field": "x" }] }],
-        "$return": null
-      },
+      "body": { "$params": [{ "$fields": [{ "$field": "x" }] }], "$return": null },
       "error": "Invalid JSON expression"
     },
     {
       "description": "field descriptors reject extra properties",
       "body": {
-        "$params": [
-          {
-            "$fields": [{ "$field": "x", "$default": 1, "extra": true }]
-          }
-        ],
+        "$params": [{ "$fields": [{ "$field": "x", "$default": 1, "extra": true }] }],
         "$return": null
       },
       "error": "Invalid JSON expression"
     },
     {
       "description": "object patterns reject parameter descriptors as fields",
-      "body": {
-        "$params": [
-          {
-            "$fields": [{ "$param": "x", "$default": 1 }]
-          }
-        ],
-        "$return": null
-      },
+      "body": { "$params": [{ "$fields": [{ "$param": "x", "$default": 1 }] }], "$return": null },
       "error": "Invalid JSON expression"
     },
     {
       "description": "object-pattern field bindings cannot be duplicated",
       "body": {
-        "$params": [
-          {
-            "$fields": ["x", { "$field": "x", "$default": 1 }]
-          }
-        ],
+        "$params": [{ "$fields": ["x", { "$field": "x", "$default": 1 }] }],
         "$return": null
       },
       "error": "Duplicate parameter binding \"x\""
@@ -470,10 +374,7 @@
     },
     {
       "description": "specific duplicate errors survive a preceding default",
-      "body": {
-        "$params": [{ "$param": "same", "$default": 1 }, "same"],
-        "$return": null
-      },
+      "body": { "$params": [{ "$param": "same", "$default": 1 }, "same"], "$return": null },
       "args": [1, 2],
       "error": "Duplicate parameter binding \"same\""
     },

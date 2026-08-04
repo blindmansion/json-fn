@@ -4,45 +4,31 @@
     {
       "description": "named type",
       "source": "value checked as Count",
-      "expected": {
-        "$as": { "$var": "value" },
-        "$type": { "$ref": "#/$defs/Count" }
-      }
+      "expected": { "$as": { "$var": "value" }, "$type": { "$ref": "#/$defs/Count" } }
     },
     {
       "description": "checked ascription binds less tightly than logical or",
       "source": "cached || fallback checked as Count",
       "expected": {
-        "$as": {
-          "$or": [{ "$var": "cached" }, { "$var": "fallback" }]
-        },
+        "$as": { "$or": [{ "$var": "cached" }, { "$var": "fallback" }] },
         "$type": { "$ref": "#/$defs/Count" }
       }
     },
     {
       "description": "a variable named checked can be explicitly ascribed",
       "source": "(checked) checked as Count",
-      "expected": {
-        "$as": { "$var": "checked" },
-        "$type": { "$ref": "#/$defs/Count" }
-      }
+      "expected": { "$as": { "$var": "checked" }, "$type": { "$ref": "#/$defs/Count" } }
     },
     {
       "description": "checked remains an ordinary call name",
       "source": "checked(value)",
-      "expected": {
-        "$call": "checked",
-        "$args": [{ "$var": "value" }]
-      }
+      "expected": { "$call": "checked", "$args": [{ "$var": "value" }] }
     },
     {
       "description": "ascription binds less tightly than arithmetic",
       "source": "a + b checked as Cents",
       "expected": {
-        "$as": {
-          "$call": "add",
-          "$args": [{ "$var": "a" }, { "$var": "b" }]
-        },
+        "$as": { "$call": "add", "$args": [{ "$var": "a" }, { "$var": "b" }] },
         "$type": { "$ref": "#/$defs/Cents" }
       }
     },
@@ -51,13 +37,7 @@
       "source": "a + (b checked as Cents)",
       "expected": {
         "$call": "add",
-        "$args": [
-          { "$var": "a" },
-          {
-            "$as": { "$var": "b" },
-            "$type": { "$ref": "#/$defs/Cents" }
-          }
-        ]
+        "$args": [{ "$var": "a" }, { "$as": { "$var": "b" }, "$type": { "$ref": "#/$defs/Cents" } }]
       }
     },
     {
@@ -72,20 +52,14 @@
       "description": "parenthesized ascription can be asserted non-null",
       "source": "(value checked as Count)!",
       "expected": {
-        "$nonnull": {
-          "$as": { "$var": "value" },
-          "$type": { "$ref": "#/$defs/Count" }
-        }
+        "$nonnull": { "$as": { "$var": "value" }, "$type": { "$ref": "#/$defs/Count" } }
       }
     },
     {
       "description": "parenthesized ascriptions can be repeated",
       "source": "(value checked as Count) checked as number",
       "expected": {
-        "$as": {
-          "$as": { "$var": "value" },
-          "$type": { "$ref": "#/$defs/Count" }
-        },
+        "$as": { "$as": { "$var": "value" }, "$type": { "$ref": "#/$defs/Count" } },
         "$type": { "type": "number" }
       }
     },
@@ -106,10 +80,7 @@
         "$as": { "$var": "value" },
         "$type": {
           "type": "object",
-          "properties": {
-            "id": { "type": "integer" },
-            "name": { "type": "string" }
-          },
+          "properties": { "id": { "type": "integer" }, "name": { "type": "string" } },
           "required": ["id", "name"],
           "additionalProperties": false
         }
@@ -118,10 +89,7 @@
     {
       "description": "inline primitive union",
       "source": "value checked as integer | string",
-      "expected": {
-        "$as": { "$var": "value" },
-        "$type": { "type": ["integer", "string"] }
-      }
+      "expected": { "$as": { "$var": "value" }, "$type": { "type": ["integer", "string"] } }
     },
     {
       "description": "inline array type",
@@ -147,10 +115,7 @@
     {
       "description": "inline refined type",
       "source": "value checked as integer & min(0)",
-      "expected": {
-        "$as": { "$var": "value" },
-        "$type": { "type": "integer", "minimum": 0 }
-      }
+      "expected": { "$as": { "$var": "value" }, "$type": { "type": "integer", "minimum": 0 } }
     },
     {
       "description": "inline function type",

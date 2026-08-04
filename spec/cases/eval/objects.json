@@ -3,18 +3,7 @@
   "cases": [
     {
       "description": "entries: returns key-value pairs",
-      "body": {
-        "$return": {
-          "$call": "entries",
-          "$args": [
-            {
-              "a": 1,
-              "b": 2,
-              "c": 3
-            }
-          ]
-        }
-      },
+      "body": { "$return": { "$call": "entries", "$args": [{ "a": 1, "b": 2, "c": 3 }] } },
       "expected": [
         ["a", 1],
         ["b", 2],
@@ -23,12 +12,7 @@
     },
     {
       "description": "entries: empty object returns empty array",
-      "body": {
-        "$return": {
-          "$call": "entries",
-          "$args": [{}]
-        }
-      },
+      "body": { "$return": { "$call": "entries", "$args": [{}] } },
       "expected": []
     },
     {
@@ -44,100 +28,42 @@
           ]
         }
       },
-      "expected": {
-        "x": 10,
-        "y": 20
-      }
+      "expected": { "x": 10, "y": 20 }
     },
     {
       "description": "fromEntries: empty pairs returns empty object",
-      "body": {
-        "$return": {
-          "$call": "fromEntries",
-          "$args": [[]]
-        }
-      },
+      "body": { "$return": { "$call": "fromEntries", "$args": [[]] } },
       "expected": {}
     },
     {
       "description": "fromEntries: rejects a non-array argument",
-      "body": {
-        "$return": {
-          "$call": "fromEntries",
-          "$args": [{}]
-        }
-      },
+      "body": { "$return": { "$call": "fromEntries", "$args": [{}] } },
       "error": "fromEntries: argument must be an array"
     },
     {
       "description": "fromEntries: rejects malformed entries",
-      "body": {
-        "$return": {
-          "$call": "fromEntries",
-          "$args": [[["key"]]]
-        }
-      },
+      "body": { "$return": { "$call": "fromEntries", "$args": [[["key"]]] } },
       "error": "fromEntries: each entry must be a [key, value] pair"
     },
     {
       "description": "fromEntries: rejects non-string keys",
-      "body": {
-        "$return": {
-          "$call": "fromEntries",
-          "$args": [[[1, "value"]]]
-        }
-      },
+      "body": { "$return": { "$call": "fromEntries", "$args": [[[1, "value"]]] } },
       "error": "fromEntries: keys must be strings"
     },
     {
       "description": "entries → fromEntries roundtrip",
       "body": {
         "$return": {
-          "$let": {
-            "pairs": {
-              "$call": "entries",
-              "$args": [
-                {
-                  "name": "alice",
-                  "age": 30
-                }
-              ]
-            }
-          },
-          "$in": {
-            "$call": "fromEntries",
-            "$args": [
-              {
-                "$var": "pairs"
-              }
-            ]
-          }
+          "$let": { "pairs": { "$call": "entries", "$args": [{ "name": "alice", "age": 30 }] } },
+          "$in": { "$call": "fromEntries", "$args": [{ "$var": "pairs" }] }
         }
       },
-      "expected": {
-        "name": "alice",
-        "age": 30
-      }
+      "expected": { "name": "alice", "age": 30 }
     },
     {
       "description": "merge: merges two objects",
-      "body": {
-        "$return": {
-          "$call": "merge",
-          "$args": [
-            {
-              "a": 1
-            },
-            {
-              "b": 2
-            }
-          ]
-        }
-      },
-      "expected": {
-        "a": 1,
-        "b": 2
-      }
+      "body": { "$return": { "$call": "merge", "$args": [{ "a": 1 }, { "b": 2 }] } },
+      "expected": { "a": 1, "b": 2 }
     },
     {
       "description": "merge: second object wins on key conflict",
@@ -145,266 +71,96 @@
         "$return": {
           "$call": "merge",
           "$args": [
-            {
-              "a": 1,
-              "b": 2
-            },
-            {
-              "b": 99,
-              "c": 3
-            }
+            { "a": 1, "b": 2 },
+            { "b": 99, "c": 3 }
           ]
         }
       },
-      "expected": {
-        "a": 1,
-        "b": 99,
-        "c": 3
-      }
+      "expected": { "a": 1, "b": 99, "c": 3 }
     },
     {
       "description": "merge: merging with empty object is identity",
-      "body": {
-        "$return": {
-          "$call": "merge",
-          "$args": [
-            {
-              "a": 1
-            },
-            {}
-          ]
-        }
-      },
-      "expected": {
-        "a": 1
-      }
+      "body": { "$return": { "$call": "merge", "$args": [{ "a": 1 }, {}] } },
+      "expected": { "a": 1 }
     },
     {
       "description": "hasKey: returns true for existing key",
-      "body": {
-        "$return": {
-          "$call": "hasKey",
-          "$args": [
-            {
-              "x": 1,
-              "y": 2
-            },
-            "x"
-          ]
-        }
-      },
+      "body": { "$return": { "$call": "hasKey", "$args": [{ "x": 1, "y": 2 }, "x"] } },
       "expected": true
     },
     {
       "description": "hasKey: returns false for missing key",
-      "body": {
-        "$return": {
-          "$call": "hasKey",
-          "$args": [
-            {
-              "x": 1
-            },
-            "z"
-          ]
-        }
-      },
+      "body": { "$return": { "$call": "hasKey", "$args": [{ "x": 1 }, "z"] } },
       "expected": false
     },
     {
       "description": "hasKey: detects key with null value",
-      "body": {
-        "$return": {
-          "$call": "hasKey",
-          "$args": [
-            {
-              "a": null
-            },
-            "a"
-          ]
-        }
-      },
+      "body": { "$return": { "$call": "hasKey", "$args": [{ "a": null }, "a"] } },
       "expected": true
     },
     {
       "description": "isObject: true for plain objects",
-      "body": {
-        "$return": {
-          "$call": "isObject",
-          "$args": [
-            {
-              "a": 1
-            }
-          ]
-        }
-      },
+      "body": { "$return": { "$call": "isObject", "$args": [{ "a": 1 }] } },
       "expected": true
     },
     {
       "description": "isObject: true for empty object",
-      "body": {
-        "$return": {
-          "$call": "isObject",
-          "$args": [{}]
-        }
-      },
+      "body": { "$return": { "$call": "isObject", "$args": [{}] } },
       "expected": true
     },
     {
       "description": "isObject: false for arrays",
-      "body": {
-        "$return": {
-          "$call": "isObject",
-          "$args": [[1, 2]]
-        }
-      },
+      "body": { "$return": { "$call": "isObject", "$args": [[1, 2]] } },
       "expected": false
     },
     {
       "description": "isObject: false for null",
-      "body": {
-        "$return": {
-          "$call": "isObject",
-          "$args": [null]
-        }
-      },
+      "body": { "$return": { "$call": "isObject", "$args": [null] } },
       "expected": false
     },
     {
       "description": "isObject: false for number",
-      "body": {
-        "$return": {
-          "$call": "isObject",
-          "$args": [42]
-        }
-      },
+      "body": { "$return": { "$call": "isObject", "$args": [42] } },
       "expected": false
     },
     {
       "description": "isObject: false for string",
-      "body": {
-        "$return": {
-          "$call": "isObject",
-          "$args": ["hello"]
-        }
-      },
+      "body": { "$return": { "$call": "isObject", "$args": ["hello"] } },
       "expected": false
     },
     {
       "description": "isObject: false for boolean",
-      "body": {
-        "$return": {
-          "$call": "isObject",
-          "$args": [true]
-        }
-      },
+      "body": { "$return": { "$call": "isObject", "$args": [true] } },
       "expected": false
     },
     {
       "description": "pick: selects specified keys",
-      "body": {
-        "$return": {
-          "$call": "pick",
-          "$args": [
-            {
-              "a": 1,
-              "b": 2,
-              "c": 3
-            },
-            ["a", "c"]
-          ]
-        }
-      },
-      "expected": {
-        "a": 1,
-        "c": 3
-      }
+      "body": { "$return": { "$call": "pick", "$args": [{ "a": 1, "b": 2, "c": 3 }, ["a", "c"]] } },
+      "expected": { "a": 1, "c": 3 }
     },
     {
       "description": "pick: ignores keys not present in the object",
-      "body": {
-        "$return": {
-          "$call": "pick",
-          "$args": [
-            {
-              "a": 1
-            },
-            ["a", "z"]
-          ]
-        }
-      },
-      "expected": {
-        "a": 1
-      }
+      "body": { "$return": { "$call": "pick", "$args": [{ "a": 1 }, ["a", "z"]] } },
+      "expected": { "a": 1 }
     },
     {
       "description": "pick: empty key list returns empty object",
-      "body": {
-        "$return": {
-          "$call": "pick",
-          "$args": [
-            {
-              "a": 1,
-              "b": 2
-            },
-            []
-          ]
-        }
-      },
+      "body": { "$return": { "$call": "pick", "$args": [{ "a": 1, "b": 2 }, []] } },
       "expected": {}
     },
     {
       "description": "omit: excludes specified keys",
-      "body": {
-        "$return": {
-          "$call": "omit",
-          "$args": [
-            {
-              "a": 1,
-              "b": 2,
-              "c": 3
-            },
-            ["b"]
-          ]
-        }
-      },
-      "expected": {
-        "a": 1,
-        "c": 3
-      }
+      "body": { "$return": { "$call": "omit", "$args": [{ "a": 1, "b": 2, "c": 3 }, ["b"]] } },
+      "expected": { "a": 1, "c": 3 }
     },
     {
       "description": "omit: ignores keys not present in the object",
-      "body": {
-        "$return": {
-          "$call": "omit",
-          "$args": [
-            {
-              "a": 1,
-              "b": 2
-            },
-            ["z"]
-          ]
-        }
-      },
-      "expected": {
-        "a": 1,
-        "b": 2
-      }
+      "body": { "$return": { "$call": "omit", "$args": [{ "a": 1, "b": 2 }, ["z"]] } },
+      "expected": { "a": 1, "b": 2 }
     },
     {
       "description": "omit: omitting all keys returns empty object",
-      "body": {
-        "$return": {
-          "$call": "omit",
-          "$args": [
-            {
-              "a": 1,
-              "b": 2
-            },
-            ["a", "b"]
-          ]
-        }
-      },
+      "body": { "$return": { "$call": "omit", "$args": [{ "a": 1, "b": 2 }, ["a", "b"]] } },
       "expected": {}
     },
     {
@@ -415,29 +171,13 @@
           "$args": [
             {
               "$params": ["v", "_key"],
-              "$return": {
-                "$call": "mul",
-                "$args": [
-                  {
-                    "$var": "v"
-                  },
-                  2
-                ]
-              }
+              "$return": { "$call": "mul", "$args": [{ "$var": "v" }, 2] }
             },
-            {
-              "x": 1,
-              "y": 2,
-              "z": 3
-            }
+            { "x": 1, "y": 2, "z": 3 }
           ]
         }
       },
-      "expected": {
-        "x": 2,
-        "y": 4,
-        "z": 6
-      }
+      "expected": { "x": 2, "y": 4, "z": 6 }
     },
     {
       "description": "mapValues: callback receives key as second argument",
@@ -445,72 +185,32 @@
         "$return": {
           "$call": "mapValues",
           "$args": [
-            {
-              "$params": ["v", "k"],
-              "$return": {
-                "$var": "k"
-              }
-            },
-            {
-              "a": 1,
-              "b": 2
-            }
+            { "$params": ["v", "k"], "$return": { "$var": "k" } },
+            { "a": 1, "b": 2 }
           ]
         }
       },
-      "expected": {
-        "a": "a",
-        "b": "b"
-      }
+      "expected": { "a": "a", "b": "b" }
     },
     {
       "description": "mapValues: works with named function",
       "body": {
-        "$return": {
-          "$call": "mapValues",
-          "$args": [
-            {
-              "$fn": "negate"
-            },
-            {
-              "a": 1,
-              "b": -2
-            }
-          ]
-        }
+        "$return": { "$call": "mapValues", "$args": [{ "$fn": "negate" }, { "a": 1, "b": -2 }] }
       },
       "functions": {
         "negate": {
           "$params": ["n", "_key"],
-          "$return": {
-            "$call": "neg",
-            "$args": [
-              {
-                "$var": "n"
-              }
-            ]
-          }
+          "$return": { "$call": "neg", "$args": [{ "$var": "n" }] }
         }
       },
-      "expected": {
-        "a": -1,
-        "b": 2
-      }
+      "expected": { "a": -1, "b": 2 }
     },
     {
       "description": "mapValues: empty object returns empty object",
       "body": {
         "$return": {
           "$call": "mapValues",
-          "$args": [
-            {
-              "$params": ["v", "_key"],
-              "$return": {
-                "$var": "v"
-              }
-            },
-            {}
-          ]
+          "$args": [{ "$params": ["v", "_key"], "$return": { "$var": "v" } }, {}]
         }
       },
       "expected": {}
@@ -520,77 +220,32 @@
       "body": {
         "$return": {
           "$let": {
-            "pairs": {
-              "$call": "entries",
-              "$args": [
-                {
-                  "a": 1,
-                  "b": 5,
-                  "c": 2,
-                  "d": 8
-                }
-              ]
-            },
+            "pairs": { "$call": "entries", "$args": [{ "a": 1, "b": 5, "c": 2, "d": 8 }] },
             "big": {
               "$call": "filter",
               "$args": [
                 {
                   "$params": ["pair"],
                   "$return": {
-                    "$let": {
-                      "value": {
-                        "$get": 1,
-                        "$from": {
-                          "$var": "pair"
-                        }
-                      }
-                    },
-                    "$in": {
-                      "$call": "gt",
-                      "$args": [
-                        {
-                          "$var": "value"
-                        },
-                        3
-                      ]
-                    }
+                    "$let": { "value": { "$get": 1, "$from": { "$var": "pair" } } },
+                    "$in": { "$call": "gt", "$args": [{ "$var": "value" }, 3] }
                   }
                 },
-                {
-                  "$var": "pairs"
-                }
+                { "$var": "pairs" }
               ]
             }
           },
-          "$in": {
-            "$call": "fromEntries",
-            "$args": [
-              {
-                "$var": "big"
-              }
-            ]
-          }
+          "$in": { "$call": "fromEntries", "$args": [{ "$var": "big" }] }
         }
       },
-      "expected": {
-        "b": 5,
-        "d": 8
-      }
+      "expected": { "b": 5, "d": 8 }
     },
     {
       "description": "entries → map → fromEntries (transform keys)",
       "body": {
         "$return": {
           "$let": {
-            "pairs": {
-              "$call": "entries",
-              "$args": [
-                {
-                  "hello": 1,
-                  "world": 2
-                }
-              ]
-            },
+            "pairs": { "$call": "entries", "$args": [{ "hello": 1, "world": 2 }] },
             "uppered": {
               "$call": "map",
               "$args": [
@@ -600,83 +255,31 @@
                     "$let": {
                       "k": {
                         "$call": "upper",
-                        "$args": [
-                          {
-                            "$get": 0,
-                            "$from": {
-                              "$var": "pair"
-                            }
-                          }
-                        ]
+                        "$args": [{ "$get": 0, "$from": { "$var": "pair" } }]
                       },
-                      "v": {
-                        "$get": 1,
-                        "$from": {
-                          "$var": "pair"
-                        }
-                      }
+                      "v": { "$get": 1, "$from": { "$var": "pair" } }
                     },
-                    "$in": [
-                      {
-                        "$var": "k"
-                      },
-                      {
-                        "$var": "v"
-                      }
-                    ]
+                    "$in": [{ "$var": "k" }, { "$var": "v" }]
                   }
                 },
-                {
-                  "$var": "pairs"
-                }
+                { "$var": "pairs" }
               ]
             }
           },
-          "$in": {
-            "$call": "fromEntries",
-            "$args": [
-              {
-                "$var": "uppered"
-              }
-            ]
-          }
+          "$in": { "$call": "fromEntries", "$args": [{ "$var": "uppered" }] }
         }
       },
-      "expected": {
-        "HELLO": 1,
-        "WORLD": 2
-      }
+      "expected": { "HELLO": 1, "WORLD": 2 }
     },
     {
       "description": "merge chain for state update",
       "body": {
         "$return": {
-          "$let": {
-            "state": {
-              "score": 0,
-              "lives": 3,
-              "level": 1
-            }
-          },
-          "$in": {
-            "$call": "merge",
-            "$args": [
-              {
-                "$var": "state"
-              },
-              {
-                "score": 100,
-                "level": 2
-              }
-            ]
-          }
+          "$let": { "state": { "score": 0, "lives": 3, "level": 1 } },
+          "$in": { "$call": "merge", "$args": [{ "$var": "state" }, { "score": 100, "level": 2 }] }
         }
       },
-      "expected": {
-        "score": 100,
-        "lives": 3,
-        "level": 2
-      }
+      "expected": { "score": 100, "lives": 3, "level": 2 }
     }
   ]
 }

@@ -5,16 +5,11 @@
   "type": "object",
   "required": ["description", "cases"],
   "properties": {
-    "description": {
-      "type": "string",
-      "description": "A description of the vector suite."
-    },
+    "description": { "type": "string", "description": "A description of the vector suite." },
     "cases": {
       "type": "array",
       "description": "The hash vectors in this suite.",
-      "items": {
-        "$ref": "#/$defs/case"
-      }
+      "items": { "$ref": "#/$defs/case" }
     }
   },
   "additionalProperties": false,
@@ -23,17 +18,9 @@
       "type": "object",
       "required": ["name", "value", "canonical", "valueHash"],
       "properties": {
-        "name": {
-          "type": "string",
-          "description": "A name used as the test name."
-        },
-        "value": {
-          "description": "The JSON value to canonicalize and hash."
-        },
-        "canonical": {
-          "type": "string",
-          "description": "The expected canonical JSON encoding."
-        },
+        "name": { "type": "string", "description": "A name used as the test name." },
+        "value": { "description": "The JSON value to canonicalize and hash." },
+        "canonical": { "type": "string", "description": "The expected canonical JSON encoding." },
         "valueHash": {
           "type": "string",
           "description": "The expected versioned SHA-256 value address.",

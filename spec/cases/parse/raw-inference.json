@@ -19,9 +19,7 @@
     {
       "description": "raw bubbles maximally through static objects",
       "source": "{ envelope: { payload: { \"$call\": \"not code\", \"$args\": [] } } }",
-      "expected": {
-        "$raw": { "envelope": { "payload": { "$call": "not code", "$args": [] } } }
-      }
+      "expected": { "$raw": { "envelope": { "payload": { "$call": "not code", "$args": [] } } } }
     },
     {
       "description": "raw bubbles maximally through static arrays",
@@ -59,16 +57,9 @@
     {
       "description": "computed $-key with a dynamic value is accepted",
       "source": "{ [\"$status\"]: status }",
-      "expected": {
-        "$call": "fromEntries",
-        "$args": [[["$status", { "$var": "status" }]]]
-      }
+      "expected": { "$call": "fromEntries", "$args": [[["$status", { "$var": "status" }]]] }
     },
-    {
-      "description": "bare $-key remains invalid",
-      "source": "{ $status: 1 }",
-      "error": true
-    },
+    { "description": "bare $-key remains invalid", "source": "{ $status: 1 }", "error": true },
     {
       "description": "module bindings must not start with $",
       "mode": "module",

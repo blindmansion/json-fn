@@ -6,49 +6,24 @@
       "validator": "contract",
       "value": {
         "version": 1,
-        "entry": {
-          "name": "main",
-          "required": [],
-          "optional": [],
-          "returns": true
-        }
+        "entry": { "name": "main", "required": [], "optional": [], "returns": true }
       },
       "expected": { "valid": true }
     },
     {
       "name": "requires a contract version",
       "validator": "contract",
-      "value": {
-        "entry": {
-          "name": "main",
-          "required": [],
-          "optional": [],
-          "returns": true
-        }
-      },
-      "expected": {
-        "valid": false,
-        "code": "INVALID_CONTRACT",
-        "path": "contract.version"
-      }
+      "value": { "entry": { "name": "main", "required": [], "optional": [], "returns": true } },
+      "expected": { "valid": false, "code": "INVALID_CONTRACT", "path": "contract.version" }
     },
     {
       "name": "rejects unsupported contract versions",
       "validator": "contract",
       "value": {
         "version": 2,
-        "entry": {
-          "name": "main",
-          "required": [],
-          "optional": [],
-          "returns": true
-        }
+        "entry": { "name": "main", "required": [], "optional": [], "returns": true }
       },
-      "expected": {
-        "valid": false,
-        "code": "INVALID_CONTRACT",
-        "path": "contract.version"
-      }
+      "expected": { "valid": false, "code": "INVALID_CONTRACT", "path": "contract.version" }
     },
     {
       "name": "rejects builtin callable collisions",
@@ -56,17 +31,11 @@
       "value": {
         "version": 1,
         "functions": {
-          "map": {
-            "signatures": [{ "required": [], "optional": [], "returns": true }]
-          }
+          "map": { "signatures": [{ "required": [], "optional": [], "returns": true }] }
         },
         "entry": { "name": "main", "required": [], "optional": [], "returns": true }
       },
-      "expected": {
-        "valid": false,
-        "code": "DUPLICATE_CALLABLE",
-        "path": "contract.functions.map"
-      }
+      "expected": { "valid": false, "code": "DUPLICATE_CALLABLE", "path": "contract.functions.map" }
     },
     {
       "name": "rejects builtin definition collisions",
@@ -76,11 +45,7 @@
         "$defs": { "Match": { "type": "string" } },
         "entry": { "name": "main", "required": [], "optional": [], "returns": true }
       },
-      "expected": {
-        "valid": false,
-        "code": "INVALID_CONTRACT",
-        "path": "contract.$defs.Match"
-      }
+      "expected": { "valid": false, "code": "INVALID_CONTRACT", "path": "contract.$defs.Match" }
     },
     {
       "name": "rejects effect namespace prefix conflicts",
@@ -107,11 +72,7 @@
         "effects": { "raise": { "params": [], "returns": true } },
         "entry": { "name": "main", "required": [], "optional": [], "returns": true }
       },
-      "expected": {
-        "valid": false,
-        "code": "INVALID_CONTRACT",
-        "path": "contract.effects.raise"
-      }
+      "expected": { "valid": false, "code": "INVALID_CONTRACT", "path": "contract.effects.raise" }
     },
     {
       "name": "rejects the reserved effects entry",
@@ -120,11 +81,7 @@
         "version": 1,
         "entry": { "name": "effects", "required": [], "optional": [], "returns": true }
       },
-      "expected": {
-        "valid": false,
-        "code": "INVALID_CONTRACT",
-        "path": "contract.entry.name"
-      }
+      "expected": { "valid": false, "code": "INVALID_CONTRACT", "path": "contract.entry.name" }
     },
     {
       "name": "rejects reserved Task definitions",
@@ -134,11 +91,7 @@
         "$defs": { "Task": true },
         "entry": { "name": "main", "required": [], "optional": [], "returns": true }
       },
-      "expected": {
-        "valid": false,
-        "code": "INVALID_CONTRACT",
-        "path": "contract.$defs.Task"
-      }
+      "expected": { "valid": false, "code": "INVALID_CONTRACT", "path": "contract.$defs.Task" }
     },
     {
       "name": "rejects unsupported contract fields",
@@ -148,11 +101,7 @@
         "unknown": true,
         "entry": { "name": "main", "required": [], "optional": [], "returns": true }
       },
-      "expected": {
-        "valid": false,
-        "code": "INVALID_CONTRACT",
-        "path": "contract.unknown"
-      }
+      "expected": { "valid": false, "code": "INVALID_CONTRACT", "path": "contract.unknown" }
     }
   ]
 }

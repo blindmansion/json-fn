@@ -5,16 +5,11 @@
   "type": "object",
   "required": ["description", "cases"],
   "properties": {
-    "description": {
-      "type": "string",
-      "description": "A description of the test suite."
-    },
+    "description": { "type": "string", "description": "A description of the test suite." },
     "cases": {
       "type": "array",
       "description": "The validation cases in this suite.",
-      "items": {
-        "$ref": "#/$defs/case"
-      }
+      "items": { "$ref": "#/$defs/case" }
     }
   },
   "additionalProperties": false,
@@ -23,10 +18,7 @@
       "type": "object",
       "required": ["name", "validator", "expected"],
       "properties": {
-        "name": {
-          "type": "string",
-          "description": "A name used as the test name."
-        },
+        "name": { "type": "string", "description": "A name used as the test name." },
         "validator": {
           "type": "string",
           "description": "The validation operation exercised by this case.",
@@ -49,47 +41,29 @@
         "adapterFunctions": {
           "type": "array",
           "description": "Names of host functions supplied by the mock runtime adapter.",
-          "items": {
-            "type": "string"
-          }
+          "items": { "type": "string" }
         },
         "adapterEffects": {
           "type": "array",
           "description": "Names of effects supplied by the mock runtime adapter.",
-          "items": {
-            "type": "string"
-          }
+          "items": { "type": "string" }
         },
-        "expected": {
-          "$ref": "#/$defs/expected"
-        }
+        "expected": { "$ref": "#/$defs/expected" }
       },
       "allOf": [
         {
           "if": {
-            "properties": {
-              "validator": {
-                "enum": ["schema", "contract", "profile"]
-              }
-            },
+            "properties": { "validator": { "enum": ["schema", "contract", "profile"] } },
             "required": ["validator"]
           },
-          "then": {
-            "required": ["value"]
-          }
+          "then": { "required": ["value"] }
         },
         {
           "if": {
-            "properties": {
-              "validator": {
-                "const": "deployment"
-              }
-            },
+            "properties": { "validator": { "const": "deployment" } },
             "required": ["validator"]
           },
-          "then": {
-            "required": ["contract", "profile"]
-          }
+          "then": { "required": ["contract", "profile"] }
         }
       ],
       "additionalProperties": false
@@ -100,28 +74,16 @@
         {
           "type": "object",
           "required": ["valid"],
-          "properties": {
-            "valid": {
-              "const": true
-            }
-          },
+          "properties": { "valid": { "const": true } },
           "additionalProperties": false
         },
         {
           "type": "object",
           "required": ["valid", "code", "path"],
           "properties": {
-            "valid": {
-              "const": false
-            },
-            "code": {
-              "type": "string",
-              "description": "The expected structured diagnostic code."
-            },
-            "path": {
-              "type": "string",
-              "description": "The expected structured diagnostic path."
-            }
+            "valid": { "const": false },
+            "code": { "type": "string", "description": "The expected structured diagnostic code." },
+            "path": { "type": "string", "description": "The expected structured diagnostic path." }
           },
           "additionalProperties": false
         }

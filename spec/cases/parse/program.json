@@ -24,24 +24,14 @@
       "description": "blank lines and comments separate multiline declarations",
       "source": "answer: if true\n  then 42\n  else 0\n\n// The next declaration starts here.\nnext: answer + 1",
       "expected": {
-        "answer": {
-          "$if": true,
-          "$then": 42,
-          "$else": 0
-        },
-        "next": {
-          "$call": "add",
-          "$args": [{ "$var": "answer" }, 1]
-        }
+        "answer": { "$if": true, "$then": 42, "$else": 0 },
+        "next": { "$call": "add", "$args": [{ "$var": "answer" }, 1] }
       }
     },
     {
       "description": "separator follows the ending line of a multiline token",
       "source": "first: `line one\nline two`\nsecond: 2",
-      "expected": {
-        "first": "line one\nline two",
-        "second": 2
-      }
+      "expected": { "first": "line one\nline two", "second": 2 }
     },
     {
       "description": "a multiline token does not separate a declaration on its ending line",

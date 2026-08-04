@@ -108,10 +108,7 @@
         "$return": {
           "$call": "filter",
           "$args": [
-            {
-              "$params": ["x"],
-              "$return": { "$call": "neq", "$args": [{ "$var": "x" }, 0] }
-            },
+            { "$params": ["x"], "$return": { "$call": "neq", "$args": [{ "$var": "x" }, 0] } },
             [0, 1, 0, 2, 0, 3]
           ]
         }
@@ -269,10 +266,7 @@
         "$return": {
           "$and": [
             { "$call": "neq", "$args": [{ "x": 1 }, { "x": 2 }] },
-            {
-              "$call": "not",
-              "$args": [{ "$call": "neq", "$args": [{ "x": [1] }, { "x": [1] }] }]
-            }
+            { "$call": "not", "$args": [{ "$call": "neq", "$args": [{ "x": [1] }, { "x": [1] }] }] }
           ]
         }
       },

@@ -3,83 +3,49 @@
   "cases": [
     {
       "name": "already sorted",
-      "value": {
-        "a": 1,
-        "b": 2,
-        "c": 3
-      },
+      "value": { "a": 1, "b": 2, "c": 3 },
       "canonical": "{\"a\":1,\"b\":2,\"c\":3}",
       "valueHash": "jfn:value:v1:sha256:32d109c96a3b17190b87cf02fe8c6a6d4f1af2b74e697158c9c3aee36f87c1c2"
     },
     {
       "name": "reverse authored order",
-      "value": {
-        "c": 3,
-        "b": 2,
-        "a": 1
-      },
+      "value": { "c": 3, "b": 2, "a": 1 },
       "canonical": "{\"a\":1,\"b\":2,\"c\":3}",
       "valueHash": "jfn:value:v1:sha256:32d109c96a3b17190b87cf02fe8c6a6d4f1af2b74e697158c9c3aee36f87c1c2"
     },
     {
       "name": "interleaved authored order",
-      "value": {
-        "b": 2,
-        "a": 1,
-        "c": 3
-      },
+      "value": { "b": 2, "a": 1, "c": 3 },
       "canonical": "{\"a\":1,\"b\":2,\"c\":3}",
       "valueHash": "jfn:value:v1:sha256:32d109c96a3b17190b87cf02fe8c6a6d4f1af2b74e697158c9c3aee36f87c1c2"
     },
     {
       "name": "nested objects sort at every level",
-      "value": {
-        "outer": {
-          "z": 1,
-          "a": {
-            "m": 2,
-            "b": 3
-          }
-        },
-        "first": true
-      },
+      "value": { "outer": { "z": 1, "a": { "m": 2, "b": 3 } }, "first": true },
       "canonical": "{\"first\":true,\"outer\":{\"a\":{\"b\":3,\"m\":2},\"z\":1}}",
       "valueHash": "jfn:value:v1:sha256:a428b56cf0119a7f2d4ae73dcd644fba098176bc194a55c43292187a84ba3c2f"
     },
     {
       "name": "empty-string key sorts first",
-      "value": {
-        "": 0,
-        "a": 1
-      },
+      "value": { "": 0, "a": 1 },
       "canonical": "{\"\":0,\"a\":1}",
       "valueHash": "jfn:value:v1:sha256:420668d2f7d9a16056df7edfa973e8a1d71676c05c6c9d03d64efdd3596bd88e"
     },
     {
       "name": "digits sort before uppercase before lowercase",
-      "value": {
-        "1": 0,
-        "b": 2,
-        "A": 1
-      },
+      "value": { "1": 0, "b": 2, "A": 1 },
       "canonical": "{\"1\":0,\"A\":1,\"b\":2}",
       "valueHash": "jfn:value:v1:sha256:e628680c3befff18cdaa189836e6140a082ea7f49575982ab07162361d024f79"
     },
     {
       "name": "utf-16 code-unit order, not code-point order: surrogate pair sorts before U+FFFD",
-      "value": {
-        "�": "replacement",
-        "𝟘": "mathematical double-struck zero"
-      },
+      "value": { "�": "replacement", "𝟘": "mathematical double-struck zero" },
       "canonical": "{\"𝟘\":\"mathematical double-struck zero\",\"�\":\"replacement\"}",
       "valueHash": "jfn:value:v1:sha256:469d6bda55daf6c38b2a99626068760fcf0425cc5ef22e62e203dfb9c309f22d"
     },
     {
       "name": "accented key sorts after ascii by code unit",
-      "value": {
-        "é": "e-acute",
-        "z": "z"
-      },
+      "value": { "é": "e-acute", "z": "z" },
       "canonical": "{\"z\":\"z\",\"é\":\"e-acute\"}",
       "valueHash": "jfn:value:v1:sha256:e8c8d3fb9a5f8c10b2fff368fee9cdb7f6ed43d7f35607c7d3a8afa6006b9ade"
     }

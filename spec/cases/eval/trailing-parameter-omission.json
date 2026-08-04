@@ -38,10 +38,7 @@
     },
     {
       "description": "required parameter after a default is rejected",
-      "body": {
-        "$params": [{ "$param": "fallback", "$default": 2 }, "required"],
-        "$return": null
-      },
+      "body": { "$params": [{ "$param": "fallback", "$default": 2 }, "required"], "$return": null },
       "args": [1, 2],
       "error": "Required positional parameters must precede defaulted parameters"
     },

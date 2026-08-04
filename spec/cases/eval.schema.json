@@ -5,23 +5,13 @@
   "type": "object",
   "required": ["description", "cases"],
   "properties": {
-    "description": {
-      "type": "string",
-      "description": "A description of the test suite."
-    },
-    "comment": {
-      "type": "string",
-      "description": "Optional documentation about the suite."
-    },
-    "functions": {
-      "$ref": "#/$defs/functions"
-    },
+    "description": { "type": "string", "description": "A description of the test suite." },
+    "comment": { "type": "string", "description": "Optional documentation about the suite." },
+    "functions": { "$ref": "#/$defs/functions" },
     "cases": {
       "type": "array",
       "description": "The evaluation cases in this suite.",
-      "items": {
-        "$ref": "#/$defs/case"
-      }
+      "items": { "$ref": "#/$defs/case" }
     }
   },
   "additionalProperties": false,
@@ -30,14 +20,8 @@
       "type": "object",
       "required": ["description", "body"],
       "properties": {
-        "description": {
-          "type": "string",
-          "description": "A description used as the test name."
-        },
-        "comment": {
-          "type": "string",
-          "description": "Optional documentation about the case."
-        },
+        "description": { "type": "string", "description": "A description used as the test name." },
+        "comment": { "type": "string", "description": "Optional documentation about the case." },
         "body": {
           "$ref": "#/$defs/functionBody",
           "description": "The json-fn function body to evaluate."
@@ -45,17 +29,13 @@
         "args": {
           "type": "array",
           "description": "Arguments supplied to the function body. Defaults to an empty array.",
-          "items": {
-            "$ref": "#/$defs/jsonValue"
-          }
+          "items": { "$ref": "#/$defs/jsonValue" }
         },
         "functions": {
           "$ref": "#/$defs/functions",
           "description": "Functions available only to this case, overriding suite functions with the same name."
         },
-        "limits": {
-          "$ref": "#/$defs/limits"
-        },
+        "limits": { "$ref": "#/$defs/limits" },
         "expected": {
           "$ref": "#/$defs/jsonValue",
           "description": "The expected evaluation result. Mutually exclusive with error."
@@ -66,18 +46,8 @@
         }
       },
       "oneOf": [
-        {
-          "required": ["expected"],
-          "not": {
-            "required": ["error"]
-          }
-        },
-        {
-          "required": ["error"],
-          "not": {
-            "required": ["expected"]
-          }
-        }
+        { "required": ["expected"], "not": { "required": ["error"] } },
+        { "required": ["error"], "not": { "required": ["expected"] } }
       ],
       "additionalProperties": false
     },
@@ -89,9 +59,7 @@
     "functions": {
       "type": "object",
       "description": "Named json-fn functions added to the evaluator registry.",
-      "additionalProperties": {
-        "$ref": "#/$defs/functionBody"
-      }
+      "additionalProperties": { "$ref": "#/$defs/functionBody" }
     },
     "limits": {
       "type": "object",
@@ -115,8 +83,6 @@
       },
       "additionalProperties": false
     },
-    "jsonValue": {
-      "description": "Any JSON value."
-    }
+    "jsonValue": { "description": "Any JSON value." }
   }
 }

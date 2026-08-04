@@ -1,58 +1,19 @@
 {
   "description": "higher-order functions",
   "functions": {
-    "double": {
-      "$params": ["x"],
-      "$return": {
-        "$call": "mul",
-        "$args": [
-          {
-            "$var": "x"
-          },
-          2
-        ]
-      }
-    },
+    "double": { "$params": ["x"], "$return": { "$call": "mul", "$args": [{ "$var": "x" }, 2] } },
     "isEven": {
       "$params": ["n"],
       "$return": {
-        "$let": {
-          "remainder": {
-            "$call": "mod",
-            "$args": [
-              {
-                "$var": "n"
-              },
-              2
-            ]
-          }
-        },
-        "$in": {
-          "$call": "eq",
-          "$args": [
-            {
-              "$var": "remainder"
-            },
-            0
-          ]
-        }
+        "$let": { "remainder": { "$call": "mod", "$args": [{ "$var": "n" }, 2] } },
+        "$in": { "$call": "eq", "$args": [{ "$var": "remainder" }, 0] }
       }
     }
   },
   "cases": [
     {
       "description": "map with a named function (double)",
-      "body": {
-        "$return": {
-          "$call": "map",
-          "$args": [
-            {
-              "$fn": "double"
-            },
-            [1, 2, 3, 4]
-          ]
-        }
-      },
+      "body": { "$return": { "$call": "map", "$args": [{ "$fn": "double" }, [1, 2, 3, 4]] } },
       "expected": [2, 4, 6, 8]
     },
     {
@@ -63,17 +24,7 @@
           "$args": [
             {
               "$params": ["x"],
-              "$return": {
-                "$call": "mul",
-                "$args": [
-                  {
-                    "$var": "x"
-                  },
-                  {
-                    "$var": "x"
-                  }
-                ]
-              }
+              "$return": { "$call": "mul", "$args": [{ "$var": "x" }, { "$var": "x" }] }
             },
             [1, 2, 3, 4, 5]
           ]
@@ -83,17 +34,7 @@
     },
     {
       "description": "map with a named JSON function (isEven)",
-      "body": {
-        "$return": {
-          "$call": "map",
-          "$args": [
-            {
-              "$fn": "isEven"
-            },
-            [1, 2, 3, 4]
-          ]
-        }
-      },
+      "body": { "$return": { "$call": "map", "$args": [{ "$fn": "isEven" }, [1, 2, 3, 4]] } },
       "expected": [false, true, false, true]
     },
     {
@@ -104,17 +45,7 @@
           "$args": [
             {
               "$params": ["item", "idx"],
-              "$return": {
-                "$call": "add",
-                "$args": [
-                  {
-                    "$var": "item"
-                  },
-                  {
-                    "$var": "idx"
-                  }
-                ]
-              }
+              "$return": { "$call": "add", "$args": [{ "$var": "item" }, { "$var": "idx" }] }
             },
             [10, 20, 30]
           ]
@@ -125,15 +56,7 @@
     {
       "description": "filter with a named JSON function (isEven)",
       "body": {
-        "$return": {
-          "$call": "filter",
-          "$args": [
-            {
-              "$fn": "isEven"
-            },
-            [1, 2, 3, 4, 5, 6]
-          ]
-        }
+        "$return": { "$call": "filter", "$args": [{ "$fn": "isEven" }, [1, 2, 3, 4, 5, 6]] }
       },
       "expected": [2, 4, 6]
     },
@@ -143,18 +66,7 @@
         "$return": {
           "$call": "filter",
           "$args": [
-            {
-              "$params": ["x"],
-              "$return": {
-                "$call": "gt",
-                "$args": [
-                  {
-                    "$var": "x"
-                  },
-                  3
-                ]
-              }
-            },
+            { "$params": ["x"], "$return": { "$call": "gt", "$args": [{ "$var": "x" }, 3] } },
             [1, 2, 3, 4, 5, 6]
           ]
         }
@@ -163,18 +75,7 @@
     },
     {
       "description": "reduce with a named external function (add)",
-      "body": {
-        "$return": {
-          "$call": "reduce",
-          "$args": [
-            {
-              "$fn": "add"
-            },
-            0,
-            [1, 2, 3, 4]
-          ]
-        }
-      },
+      "body": { "$return": { "$call": "reduce", "$args": [{ "$fn": "add" }, 0, [1, 2, 3, 4]] } },
       "expected": 10
     },
     {
@@ -188,20 +89,8 @@
               "$return": {
                 "$call": "add",
                 "$args": [
-                  {
-                    "$var": "acc"
-                  },
-                  {
-                    "$call": "mul",
-                    "$args": [
-                      {
-                        "$var": "item"
-                      },
-                      {
-                        "$var": "item"
-                      }
-                    ]
-                  }
+                  { "$var": "acc" },
+                  { "$call": "mul", "$args": [{ "$var": "item" }, { "$var": "item" }] }
                 ]
               }
             },
@@ -217,27 +106,9 @@
       "body": {
         "$return": {
           "$let": {
-            "evens": {
-              "$call": "filter",
-              "$args": [
-                {
-                  "$fn": "isEven"
-                },
-                [1, 2, 3, 4, 5, 6]
-              ]
-            }
+            "evens": { "$call": "filter", "$args": [{ "$fn": "isEven" }, [1, 2, 3, 4, 5, 6]] }
           },
-          "$in": {
-            "$call": "map",
-            "$args": [
-              {
-                "$fn": "double"
-              },
-              {
-                "$var": "evens"
-              }
-            ]
-          }
+          "$in": { "$call": "map", "$args": [{ "$fn": "double" }, { "$var": "evens" }] }
         }
       },
       "expected": [4, 8, 12]
@@ -252,34 +123,13 @@
               "$args": [
                 {
                   "$params": ["x"],
-                  "$return": {
-                    "$call": "mul",
-                    "$args": [
-                      {
-                        "$var": "x"
-                      },
-                      {
-                        "$var": "x"
-                      }
-                    ]
-                  }
+                  "$return": { "$call": "mul", "$args": [{ "$var": "x" }, { "$var": "x" }] }
                 },
                 [1, 2, 3]
               ]
             }
           },
-          "$in": {
-            "$call": "reduce",
-            "$args": [
-              {
-                "$fn": "add"
-              },
-              0,
-              {
-                "$var": "squares"
-              }
-            ]
-          }
+          "$in": { "$call": "reduce", "$args": [{ "$fn": "add" }, 0, { "$var": "squares" }] }
         }
       },
       "expected": 14
@@ -290,41 +140,10 @@
         "$return": {
           "$let": {
             "nums": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-            "evens": {
-              "$call": "filter",
-              "$args": [
-                {
-                  "$fn": "isEven"
-                },
-                {
-                  "$var": "nums"
-                }
-              ]
-            },
-            "doubled": {
-              "$call": "map",
-              "$args": [
-                {
-                  "$fn": "double"
-                },
-                {
-                  "$var": "evens"
-                }
-              ]
-            }
+            "evens": { "$call": "filter", "$args": [{ "$fn": "isEven" }, { "$var": "nums" }] },
+            "doubled": { "$call": "map", "$args": [{ "$fn": "double" }, { "$var": "evens" }] }
           },
-          "$in": {
-            "$call": "reduce",
-            "$args": [
-              {
-                "$fn": "add"
-              },
-              0,
-              {
-                "$var": "doubled"
-              }
-            ]
-          }
+          "$in": { "$call": "reduce", "$args": [{ "$fn": "add" }, 0, { "$var": "doubled" }] }
         }
       },
       "expected": 60

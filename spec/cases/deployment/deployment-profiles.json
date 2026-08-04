@@ -10,12 +10,7 @@
           "clock.now": { "params": [], "returns": { "type": "integer" } },
           "log.write": { "params": [{ "type": "string" }], "returns": true }
         },
-        "entry": {
-          "name": "main",
-          "required": [],
-          "optional": [],
-          "returns": true
-        }
+        "entry": { "name": "main", "required": [], "optional": [], "returns": true }
       },
       "value": {
         "version": 1,
@@ -32,10 +27,7 @@
         "version": 1,
         "mode": "durable",
         "deploymentId": "orders-v1",
-        "effects": {
-          "cache.get": "inline",
-          "approval.wait": "suspending"
-        }
+        "effects": { "cache.get": "inline", "approval.wait": "suspending" }
       },
       "expected": { "valid": true }
     },
@@ -45,18 +37,9 @@
       "contract": {
         "version": 1,
         "effects": {},
-        "entry": {
-          "name": "main",
-          "required": [],
-          "optional": [],
-          "returns": true
-        }
+        "entry": { "name": "main", "required": [], "optional": [], "returns": true }
       },
-      "value": {
-        "version": 1,
-        "mode": "live",
-        "effects": ["missing"]
-      },
+      "value": { "version": 1, "mode": "live", "effects": ["missing"] },
       "expected": {
         "valid": false,
         "code": "INVALID_DEPLOYMENT_PROFILE",
@@ -66,11 +49,7 @@
     {
       "name": "rejects duplicate live effects",
       "validator": "profile",
-      "value": {
-        "version": 1,
-        "mode": "live",
-        "effects": ["clock.now", "clock.now"]
-      },
+      "value": { "version": 1, "mode": "live", "effects": ["clock.now", "clock.now"] },
       "expected": {
         "valid": false,
         "code": "INVALID_DEPLOYMENT_PROFILE",
@@ -115,12 +94,7 @@
     {
       "name": "rejects unsupported profile fields",
       "validator": "profile",
-      "value": {
-        "version": 1,
-        "mode": "live",
-        "effects": [],
-        "unknown": true
-      },
+      "value": { "version": 1, "mode": "live", "effects": [], "unknown": true },
       "expected": {
         "valid": false,
         "code": "INVALID_DEPLOYMENT_PROFILE",

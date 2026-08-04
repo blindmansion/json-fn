@@ -3,35 +3,15 @@
   "cases": [
     {
       "description": "detects self-referential variable",
-      "body": {
-        "$return": {
-          "$let": {
-            "x": {
-              "$var": "x"
-            }
-          },
-          "$in": {
-            "$var": "x"
-          }
-        }
-      },
+      "body": { "$return": { "$let": { "x": { "$var": "x" } }, "$in": { "$var": "x" } } },
       "error": "Circular variable dependency detected: x -> x"
     },
     {
       "description": "detects mutual variable cycle (a -> b -> a)",
       "body": {
         "$return": {
-          "$let": {
-            "a": {
-              "$var": "b"
-            },
-            "b": {
-              "$var": "a"
-            }
-          },
-          "$in": {
-            "$var": "a"
-          }
+          "$let": { "a": { "$var": "b" }, "b": { "$var": "a" } },
+          "$in": { "$var": "a" }
         }
       },
       "error": "Circular variable dependency detected: a -> b -> a"
@@ -40,20 +20,8 @@
       "description": "detects longer variable cycle (a -> b -> c -> a)",
       "body": {
         "$return": {
-          "$let": {
-            "a": {
-              "$var": "b"
-            },
-            "b": {
-              "$var": "c"
-            },
-            "c": {
-              "$var": "a"
-            }
-          },
-          "$in": {
-            "$var": "a"
-          }
+          "$let": { "a": { "$var": "b" }, "b": { "$var": "c" }, "c": { "$var": "a" } },
+          "$in": { "$var": "a" }
         }
       },
       "error": "Circular variable dependency detected: a -> b -> c -> a"
@@ -64,215 +32,98 @@
         "$return": {
           "$let": {
             "x": 10,
-            "a": {
-              "$call": "add",
-              "$args": [
-                {
-                  "$var": "x"
-                },
-                {
-                  "$var": "b"
-                }
-              ]
-            },
-            "b": {
-              "$var": "c"
-            },
-            "c": {
-              "$var": "b"
-            }
+            "a": { "$call": "add", "$args": [{ "$var": "x" }, { "$var": "b" }] },
+            "b": { "$var": "c" },
+            "c": { "$var": "b" }
           },
-          "$in": {
-            "$var": "a"
-          }
+          "$in": { "$var": "a" }
         }
       },
       "error": "Circular variable dependency detected: b -> c -> b"
     },
     {
       "description": "enforces maximum call depth",
-      "body": {
-        "$return": {
-          "$call": "loop",
-          "$args": []
-        }
-      },
-      "functions": {
-        "loop": {
-          "$return": {
-            "$call": "loop",
-            "$args": []
-          }
-        }
-      },
-      "limits": {
-        "maxCallDepth": 10
-      },
+      "body": { "$return": { "$call": "loop", "$args": [] } },
+      "functions": { "loop": { "$return": { "$call": "loop", "$args": [] } } },
+      "limits": { "maxCallDepth": 10 },
       "error": "Maximum call depth of 10 exceeded"
     },
     {
       "description": "enforces maximum call depth with mutual recursion",
-      "body": {
-        "$return": {
-          "$call": "ping",
-          "$args": []
-        }
-      },
+      "body": { "$return": { "$call": "ping", "$args": [] } },
       "functions": {
-        "ping": {
-          "$return": {
-            "$call": "pong",
-            "$args": []
-          }
-        },
-        "pong": {
-          "$return": {
-            "$call": "ping",
-            "$args": []
-          }
-        }
+        "ping": { "$return": { "$call": "pong", "$args": [] } },
+        "pong": { "$return": { "$call": "ping", "$args": [] } }
       },
-      "limits": {
-        "maxCallDepth": 10
-      },
+      "limits": { "maxCallDepth": 10 },
       "error": "Maximum call depth of 10 exceeded"
     },
     {
       "description": "nested lets do not consume call depth",
       "body": {
         "$return": {
-          "$let": {
-            "first": 1
-          },
+          "$let": { "first": 1 },
           "$in": {
-            "$let": {
-              "second": {
-                "$var": "first"
-              }
-            },
-            "$in": {
-              "$let": {
-                "third": {
-                  "$var": "second"
-                }
-              },
-              "$in": {
-                "$var": "third"
-              }
-            }
+            "$let": { "second": { "$var": "first" } },
+            "$in": { "$let": { "third": { "$var": "second" } }, "$in": { "$var": "third" } }
           }
         }
       },
-      "limits": {
-        "maxCallDepth": 1
-      },
+      "limits": { "maxCallDepth": 1 },
       "expected": 1
     },
     {
       "description": "a genuine zero-argument IIFE consumes call depth",
-      "body": {
-        "$return": {
-          "$call": {
-            "$return": 1
-          },
-          "$args": []
-        }
-      },
-      "limits": {
-        "maxCallDepth": 1
-      },
+      "body": { "$return": { "$call": { "$return": 1 }, "$args": [] } },
+      "limits": { "maxCallDepth": 1 },
       "error": "Maximum call depth of 1 exceeded"
     },
     {
       "description": "allows recursion within configured limits",
-      "body": {
-        "$return": {
-          "$call": "sum_to",
-          "$args": [5]
-        }
-      },
+      "body": { "$return": { "$call": "sum_to", "$args": [5] } },
       "functions": {
         "sum_to": {
           "$params": ["n"],
           "$return": {
-            "$if": {
-              "$call": "lte",
-              "$args": [
-                {
-                  "$var": "n"
-                },
-                0
-              ]
-            },
+            "$if": { "$call": "lte", "$args": [{ "$var": "n" }, 0] },
             "$then": 0,
             "$else": {
               "$call": "add",
               "$args": [
-                {
-                  "$var": "n"
-                },
-                {
-                  "$call": "sum_to",
-                  "$args": [
-                    {
-                      "$call": "sub",
-                      "$args": [
-                        {
-                          "$var": "n"
-                        },
-                        1
-                      ]
-                    }
-                  ]
-                }
+                { "$var": "n" },
+                { "$call": "sum_to", "$args": [{ "$call": "sub", "$args": [{ "$var": "n" }, 1] }] }
               ]
             }
           }
         }
       },
-      "limits": {
-        "maxCallDepth": 100
-      },
+      "limits": { "maxCallDepth": 100 },
       "expected": 15
     },
     {
       "description": "deep recursion fits a tight configured call-depth budget",
       "body": {
         "$params": ["start"],
-        "$return": {
-          "$call": "go",
-          "$args": [{ "$var": "start" }, 0]
-        }
+        "$return": { "$call": "go", "$args": [{ "$var": "start" }, 0] }
       },
       "args": [1000],
       "functions": {
         "go": {
           "$params": ["n", "acc"],
           "$return": {
-            "$if": {
-              "$call": "lte",
-              "$args": [{ "$var": "n" }, 0]
-            },
+            "$if": { "$call": "lte", "$args": [{ "$var": "n" }, 0] },
             "$then": { "$var": "acc" },
             "$else": {
               "$call": "go",
               "$args": [
-                {
-                  "$call": "sub",
-                  "$args": [{ "$var": "n" }, 1]
-                },
-                {
-                  "$call": "add",
-                  "$args": [{ "$var": "acc" }, { "$var": "n" }]
-                }
+                { "$call": "sub", "$args": [{ "$var": "n" }, 1] },
+                { "$call": "add", "$args": [{ "$var": "acc" }, { "$var": "n" }] }
               ]
             }
           }
         }
       },
-      "limits": {
-        "maxCallDepth": 1200
-      },
+      "limits": { "maxCallDepth": 1200 },
       "expected": 500500
     },
     {
@@ -281,114 +132,40 @@
         "$return": {
           "$let": {
             "a": 1,
-            "b": {
-              "$call": "add",
-              "$args": [
-                {
-                  "$var": "a"
-                },
-                2
-              ]
-            },
-            "c": {
-              "$call": "add",
-              "$args": [
-                {
-                  "$var": "b"
-                },
-                3
-              ]
-            }
+            "b": { "$call": "add", "$args": [{ "$var": "a" }, 2] },
+            "c": { "$call": "add", "$args": [{ "$var": "b" }, 3] }
           },
-          "$in": {
-            "$var": "c"
-          }
+          "$in": { "$var": "c" }
         }
       },
       "expected": 6
     },
     {
       "description": "enforces maximum fuel limit",
-      "body": {
-        "$return": {
-          "$call": "fib",
-          "$args": [10]
-        }
-      },
+      "body": { "$return": { "$call": "fib", "$args": [10] } },
       "functions": {
         "fib": {
           "$params": ["n"],
           "$return": {
-            "$if": {
-              "$call": "lte",
-              "$args": [
-                {
-                  "$var": "n"
-                },
-                1
-              ]
-            },
-            "$then": {
-              "$var": "n"
-            },
+            "$if": { "$call": "lte", "$args": [{ "$var": "n" }, 1] },
+            "$then": { "$var": "n" },
             "$else": {
               "$call": "add",
               "$args": [
-                {
-                  "$call": "fib",
-                  "$args": [
-                    {
-                      "$call": "sub",
-                      "$args": [
-                        {
-                          "$var": "n"
-                        },
-                        1
-                      ]
-                    }
-                  ]
-                },
-                {
-                  "$call": "fib",
-                  "$args": [
-                    {
-                      "$call": "sub",
-                      "$args": [
-                        {
-                          "$var": "n"
-                        },
-                        2
-                      ]
-                    }
-                  ]
-                }
+                { "$call": "fib", "$args": [{ "$call": "sub", "$args": [{ "$var": "n" }, 1] }] },
+                { "$call": "fib", "$args": [{ "$call": "sub", "$args": [{ "$var": "n" }, 2] }] }
               ]
             }
           }
         }
       },
-      "limits": {
-        "maxFuel": 50
-      },
+      "limits": { "maxFuel": 50 },
       "error": "Maximum fuel limit of 50 exceeded"
     },
     {
       "description": "allows execution within fuel limit",
-      "body": {
-        "$return": {
-          "$call": "add",
-          "$args": [
-            {
-              "$call": "mul",
-              "$args": [3, 4]
-            },
-            5
-          ]
-        }
-      },
-      "limits": {
-        "maxFuel": 100
-      },
+      "body": { "$return": { "$call": "add", "$args": [{ "$call": "mul", "$args": [3, 4] }, 5] } },
+      "limits": { "maxFuel": 100 },
       "expected": 17
     },
     {
@@ -404,30 +181,15 @@
               "$args": [
                 {
                   "$params": ["x"],
-                  "$return": {
-                    "$call": "mul",
-                    "$args": [
-                      {
-                        "$var": "x"
-                      },
-                      {
-                        "$var": "x"
-                      }
-                    ]
-                  }
+                  "$return": { "$call": "mul", "$args": [{ "$var": "x" }, { "$var": "x" }] }
                 },
-                {
-                  "$call": "range",
-                  "$args": [100]
-                }
+                { "$call": "range", "$args": [100] }
               ]
             }
           ]
         }
       },
-      "limits": {
-        "maxFuel": 50
-      },
+      "limits": { "maxFuel": 50 },
       "error": "Maximum fuel limit of 50 exceeded"
     }
   ]

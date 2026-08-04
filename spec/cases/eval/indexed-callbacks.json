@@ -299,10 +299,7 @@
           {
             "$call": "sortBy",
             "$args": [
-              {
-                "$params": ["item"],
-                "$return": { "$call": "abs", "$args": [{ "$var": "item" }] }
-              },
+              { "$params": ["item"], "$return": { "$call": "abs", "$args": [{ "$var": "item" }] } },
               [-3, 1, -2]
             ]
           },

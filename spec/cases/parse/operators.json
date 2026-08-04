@@ -60,9 +60,7 @@
       "description": "a nontrivial middle comparison operand is evaluated through a lazy memo",
       "source": "0 <= value() < 100",
       "expected": {
-        "$let": {
-          "__jfn_cmp_0": { "$call": "value", "$args": [] }
-        },
+        "$let": { "__jfn_cmp_0": { "$call": "value", "$args": [] } },
         "$in": {
           "$and": [
             { "$call": "lte", "$args": [0, { "$var": "__jfn_cmp_0" }] },
@@ -86,12 +84,7 @@
       "description": "synthetic comparison bindings avoid operand names",
       "source": "0 < choose(__jfn_cmp_0) < 10",
       "expected": {
-        "$let": {
-          "__jfn_cmp_1": {
-            "$call": "choose",
-            "$args": [{ "$var": "__jfn_cmp_0" }]
-          }
-        },
+        "$let": { "__jfn_cmp_1": { "$call": "choose", "$args": [{ "$var": "__jfn_cmp_0" }] } },
         "$in": {
           "$and": [
             { "$call": "lt", "$args": [0, { "$var": "__jfn_cmp_1" }] },
@@ -164,10 +157,7 @@
     {
       "description": "postfix assertion binds before prefix not",
       "source": "!value!",
-      "expected": {
-        "$call": "not",
-        "$args": [{ "$nonnull": { "$var": "value" } }]
-      }
+      "expected": { "$call": "not", "$args": [{ "$nonnull": { "$var": "value" } }] }
     }
   ]
 }

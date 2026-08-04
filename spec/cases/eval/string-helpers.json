@@ -3,474 +3,236 @@
   "cases": [
     {
       "description": "strcat: concatenates two strings",
-      "body": {
-        "$return": {
-          "$call": "strcat",
-          "$args": ["foo", "bar"]
-        }
-      },
+      "body": { "$return": { "$call": "strcat", "$args": ["foo", "bar"] } },
       "expected": "foobar"
     },
     {
       "description": "strcat: concatenates three strings",
-      "body": {
-        "$return": {
-          "$call": "strcat",
-          "$args": ["a", "b", "c"]
-        }
-      },
+      "body": { "$return": { "$call": "strcat", "$args": ["a", "b", "c"] } },
       "expected": "abc"
     },
     {
       "description": "strcat: concatenates many strings",
-      "body": {
-        "$return": {
-          "$call": "strcat",
-          "$args": ["a", "b", "c", "d", "e"]
-        }
-      },
+      "body": { "$return": { "$call": "strcat", "$args": ["a", "b", "c", "d", "e"] } },
       "expected": "abcde"
     },
     {
       "description": "strcat: single argument returns that string",
-      "body": {
-        "$return": {
-          "$call": "strcat",
-          "$args": ["solo"]
-        }
-      },
+      "body": { "$return": { "$call": "strcat", "$args": ["solo"] } },
       "expected": "solo"
     },
     {
       "description": "strcat: no arguments returns empty string",
-      "body": {
-        "$return": {
-          "$call": "strcat",
-          "$args": []
-        }
-      },
+      "body": { "$return": { "$call": "strcat", "$args": [] } },
       "expected": ""
     },
     {
       "description": "strcat: empty string arguments contribute nothing",
-      "body": {
-        "$return": {
-          "$call": "strcat",
-          "$args": ["a", "", "b", ""]
-        }
-      },
+      "body": { "$return": { "$call": "strcat", "$args": ["a", "", "b", ""] } },
       "expected": "ab"
     },
     {
       "description": "strcat: preserves internal whitespace across parts",
-      "body": {
-        "$return": {
-          "$call": "strcat",
-          "$args": ["hello", " ", "world"]
-        }
-      },
+      "body": { "$return": { "$call": "strcat", "$args": ["hello", " ", "world"] } },
       "expected": "hello world"
     },
     {
       "description": "strcat: composes with variables",
       "body": {
         "$params": ["first", "last"],
-        "$return": {
-          "$call": "strcat",
-          "$args": [
-            {
-              "$var": "first"
-            },
-            " ",
-            {
-              "$var": "last"
-            }
-          ]
-        }
+        "$return": { "$call": "strcat", "$args": [{ "$var": "first" }, " ", { "$var": "last" }] }
       },
       "args": ["Ada", "Lovelace"],
       "expected": "Ada Lovelace"
     },
     {
       "description": "strcat: rejects a non-string argument",
-      "body": {
-        "$return": {
-          "$call": "strcat",
-          "$args": ["a", 1]
-        }
-      },
+      "body": { "$return": { "$call": "strcat", "$args": ["a", 1] } },
       "error": "must be strings"
     },
     {
       "description": "strcat: rejects a non-string argument in a later variadic position",
-      "body": {
-        "$return": {
-          "$call": "strcat",
-          "$args": ["a", "b", true]
-        }
-      },
+      "body": { "$return": { "$call": "strcat", "$args": ["a", "b", true] } },
       "error": "must be strings"
     },
     {
       "description": "lower: converts uppercase letters",
-      "body": {
-        "$return": {
-          "$call": "lower",
-          "$args": ["JSON-Fn"]
-        }
-      },
+      "body": { "$return": { "$call": "lower", "$args": ["JSON-Fn"] } },
       "expected": "json-fn"
     },
     {
       "description": "lower: leaves an already lowercase string unchanged",
-      "body": {
-        "$return": {
-          "$call": "lower",
-          "$args": ["already lowercase"]
-        }
-      },
+      "body": { "$return": { "$call": "lower", "$args": ["already lowercase"] } },
       "expected": "already lowercase"
     },
     {
       "description": "trim: removes leading and trailing spaces",
-      "body": {
-        "$return": {
-          "$call": "trim",
-          "$args": ["  hello  "]
-        }
-      },
+      "body": { "$return": { "$call": "trim", "$args": ["  hello  "] } },
       "expected": "hello"
     },
     {
       "description": "trim: removes tabs and newlines",
-      "body": {
-        "$return": {
-          "$call": "trim",
-          "$args": ["\t hello \n"]
-        }
-      },
+      "body": { "$return": { "$call": "trim", "$args": ["\t hello \n"] } },
       "expected": "hello"
     },
     {
       "description": "trim: no-op on already trimmed string",
-      "body": {
-        "$return": {
-          "$call": "trim",
-          "$args": ["hello"]
-        }
-      },
+      "body": { "$return": { "$call": "trim", "$args": ["hello"] } },
       "expected": "hello"
     },
     {
       "description": "trim: empty string stays empty",
-      "body": {
-        "$return": {
-          "$call": "trim",
-          "$args": [""]
-        }
-      },
+      "body": { "$return": { "$call": "trim", "$args": [""] } },
       "expected": ""
     },
     {
       "description": "trim: all whitespace becomes empty",
-      "body": {
-        "$return": {
-          "$call": "trim",
-          "$args": ["   "]
-        }
-      },
+      "body": { "$return": { "$call": "trim", "$args": ["   "] } },
       "expected": ""
     },
     {
       "description": "trim: preserves internal whitespace",
-      "body": {
-        "$return": {
-          "$call": "trim",
-          "$args": ["  hello world  "]
-        }
-      },
+      "body": { "$return": { "$call": "trim", "$args": ["  hello world  "] } },
       "expected": "hello world"
     },
     {
       "description": "join: joins strings with separator",
-      "body": {
-        "$return": {
-          "$call": "join",
-          "$args": [["a", "b", "c"], ", "]
-        }
-      },
+      "body": { "$return": { "$call": "join", "$args": [["a", "b", "c"], ", "] } },
       "expected": "a, b, c"
     },
     {
       "description": "join: empty separator concatenates",
-      "body": {
-        "$return": {
-          "$call": "join",
-          "$args": [["x", "y", "z"], ""]
-        }
-      },
+      "body": { "$return": { "$call": "join", "$args": [["x", "y", "z"], ""] } },
       "expected": "xyz"
     },
     {
       "description": "join: single element array",
-      "body": {
-        "$return": {
-          "$call": "join",
-          "$args": [["hello"], "-"]
-        }
-      },
+      "body": { "$return": { "$call": "join", "$args": [["hello"], "-"] } },
       "expected": "hello"
     },
     {
       "description": "join: empty array returns empty string",
-      "body": {
-        "$return": {
-          "$call": "join",
-          "$args": [[], ","]
-        }
-      },
+      "body": { "$return": { "$call": "join", "$args": [[], ","] } },
       "expected": ""
     },
     {
       "description": "split and join roundtrip",
       "body": {
         "$return": {
-          "$let": {
-            "parts": {
-              "$call": "split",
-              "$args": ["hello world foo", " "]
-            }
-          },
-          "$in": {
-            "$call": "join",
-            "$args": [
-              {
-                "$var": "parts"
-              },
-              "-"
-            ]
-          }
+          "$let": { "parts": { "$call": "split", "$args": ["hello world foo", " "] } },
+          "$in": { "$call": "join", "$args": [{ "$var": "parts" }, "-"] }
         }
       },
       "expected": "hello-world-foo"
     },
     {
       "description": "split: empty separator splits Unicode code points",
-      "body": {
-        "$return": {
-          "$call": "split",
-          "$args": ["a😀b", ""]
-        }
-      },
+      "body": { "$return": { "$call": "split", "$args": ["a😀b", ""] } },
       "expected": ["a", "😀", "b"]
     },
     {
       "description": "trim then split pipeline",
       "body": {
         "$return": {
-          "$let": {
-            "trimmed": {
-              "$call": "trim",
-              "$args": ["  one two three  "]
-            }
-          },
-          "$in": {
-            "$call": "split",
-            "$args": [
-              {
-                "$var": "trimmed"
-              },
-              " "
-            ]
-          }
+          "$let": { "trimmed": { "$call": "trim", "$args": ["  one two three  "] } },
+          "$in": { "$call": "split", "$args": [{ "$var": "trimmed" }, " "] }
         }
       },
       "expected": ["one", "two", "three"]
     },
     {
       "description": "startsWith: identifies a matching prefix",
-      "body": {
-        "$return": {
-          "$call": "startsWith",
-          "$args": ["json-fn", "json"]
-        }
-      },
+      "body": { "$return": { "$call": "startsWith", "$args": ["json-fn", "json"] } },
       "expected": true
     },
     {
       "description": "startsWith: rejects a non-prefix substring",
-      "body": {
-        "$return": {
-          "$call": "startsWith",
-          "$args": ["json-fn", "fn"]
-        }
-      },
+      "body": { "$return": { "$call": "startsWith", "$args": ["json-fn", "fn"] } },
       "expected": false
     },
     {
       "description": "endsWith: identifies a matching suffix",
-      "body": {
-        "$return": {
-          "$call": "endsWith",
-          "$args": ["json-fn", "fn"]
-        }
-      },
+      "body": { "$return": { "$call": "endsWith", "$args": ["json-fn", "fn"] } },
       "expected": true
     },
     {
       "description": "endsWith: rejects a non-suffix substring",
-      "body": {
-        "$return": {
-          "$call": "endsWith",
-          "$args": ["json-fn", "json"]
-        }
-      },
+      "body": { "$return": { "$call": "endsWith", "$args": ["json-fn", "json"] } },
       "expected": false
     },
     {
       "description": "startsWith and endsWith: every string has an empty boundary",
       "body": {
         "$return": [
-          {
-            "$call": "startsWith",
-            "$args": ["json-fn", ""]
-          },
-          {
-            "$call": "endsWith",
-            "$args": ["json-fn", ""]
-          }
+          { "$call": "startsWith", "$args": ["json-fn", ""] },
+          { "$call": "endsWith", "$args": ["json-fn", ""] }
         ]
       },
       "expected": [true, true]
     },
     {
       "description": "replace: replaces every literal occurrence",
-      "body": {
-        "$return": {
-          "$call": "replace",
-          "$args": ["banana", "an", "X"]
-        }
-      },
+      "body": { "$return": { "$call": "replace", "$args": ["banana", "an", "X"] } },
       "expected": "bXXa"
     },
     {
       "description": "replace: treats the search string literally",
-      "body": {
-        "$return": {
-          "$call": "replace",
-          "$args": ["a.b.a", ".", "-"]
-        }
-      },
+      "body": { "$return": { "$call": "replace", "$args": ["a.b.a", ".", "-"] } },
       "expected": "a-b-a"
     },
     {
       "description": "replace: leaves a string without matches unchanged",
-      "body": {
-        "$return": {
-          "$call": "replace",
-          "$args": ["json-fn", "xml", "yaml"]
-        }
-      },
+      "body": { "$return": { "$call": "replace", "$args": ["json-fn", "xml", "yaml"] } },
       "expected": "json-fn"
     },
     {
       "description": "replace: supports an empty replacement",
-      "body": {
-        "$return": {
-          "$call": "replace",
-          "$args": ["a-b-c", "-", ""]
-        }
-      },
+      "body": { "$return": { "$call": "replace", "$args": ["a-b-c", "-", ""] } },
       "expected": "abc"
     },
     {
       "description": "replace: rejects an empty search string",
-      "body": {
-        "$return": {
-          "$call": "replace",
-          "$args": ["abc", "", "-"]
-        }
-      },
+      "body": { "$return": { "$call": "replace", "$args": ["abc", "", "-"] } },
       "error": "search string must not be empty"
     },
     {
       "description": "padStart: pads to the requested length",
-      "body": {
-        "$return": {
-          "$call": "padStart",
-          "$args": ["7", 3, "0"]
-        }
-      },
+      "body": { "$return": { "$call": "padStart", "$args": ["7", 3, "0"] } },
       "expected": "007"
     },
     {
       "description": "padStart: defaults to a space fill",
-      "body": {
-        "$return": {
-          "$call": "padStart",
-          "$args": ["x", 3]
-        }
-      },
+      "body": { "$return": { "$call": "padStart", "$args": ["x", 3] } },
       "expected": "  x"
     },
     {
       "description": "padStart: truncates a multi-character fill",
-      "body": {
-        "$return": {
-          "$call": "padStart",
-          "$args": ["x", 4, "ab"]
-        }
-      },
+      "body": { "$return": { "$call": "padStart", "$args": ["x", 4, "ab"] } },
       "expected": "abax"
     },
     {
       "description": "padStart: measures Unicode code points",
-      "body": {
-        "$return": {
-          "$call": "padStart",
-          "$args": ["🙂", 3, "ab"]
-        }
-      },
+      "body": { "$return": { "$call": "padStart", "$args": ["🙂", 3, "ab"] } },
       "expected": "ab🙂"
     },
     {
       "description": "padStart: rejects a negative target length",
-      "body": {
-        "$return": {
-          "$call": "padStart",
-          "$args": ["x", -1]
-        }
-      },
+      "body": { "$return": { "$call": "padStart", "$args": ["x", -1] } },
       "error": "target length must be a non-negative integer"
     },
     {
       "description": "repeat: repeats a string",
-      "body": {
-        "$return": {
-          "$call": "repeat",
-          "$args": ["ab", 3]
-        }
-      },
+      "body": { "$return": { "$call": "repeat", "$args": ["ab", 3] } },
       "expected": "ababab"
     },
     {
       "description": "repeat: zero repetitions returns an empty string",
-      "body": {
-        "$return": {
-          "$call": "repeat",
-          "$args": ["ab", 0]
-        }
-      },
+      "body": { "$return": { "$call": "repeat", "$args": ["ab", 0] } },
       "expected": ""
     },
     {
       "description": "repeat: rejects a fractional count",
-      "body": {
-        "$return": {
-          "$call": "repeat",
-          "$args": ["ab", 1.5]
-        }
-      },
+      "body": { "$return": { "$call": "repeat", "$args": ["ab", 1.5] } },
       "error": "count must be a non-negative integer"
     }
   ]

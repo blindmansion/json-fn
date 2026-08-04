@@ -58,26 +58,17 @@
     {
       "description": "computed key alone lowers to fromEntries",
       "source": "{ [key]: value }",
-      "expected": {
-        "$call": "fromEntries",
-        "$args": [[[{ "$var": "key" }, { "$var": "value" }]]]
-      }
+      "expected": { "$call": "fromEntries", "$args": [[[{ "$var": "key" }, { "$var": "value" }]]] }
     },
     {
       "description": "computed literal key remains dynamic and may start with dollar",
       "source": "{ [\"$fn\"]: value }",
-      "expected": {
-        "$call": "fromEntries",
-        "$args": [[["$fn", { "$var": "value" }]]]
-      }
+      "expected": { "$call": "fromEntries", "$args": [[["$fn", { "$var": "value" }]]] }
     },
     {
       "description": "bare named call with sole spread uses a named function reference",
       "source": "f(...args)",
-      "expected": {
-        "$call": "apply",
-        "$args": [{ "$fn": "f" }, { "$var": "args" }]
-      }
+      "expected": { "$call": "apply", "$args": [{ "$fn": "f" }, { "$var": "args" }] }
     },
     {
       "description": "mixed call arguments lower through concat and apply",
@@ -101,10 +92,7 @@
     {
       "description": "parenthesized callee spread remains an evaluated variable",
       "source": "(fn)(...args)",
-      "expected": {
-        "$call": "apply",
-        "$args": [{ "$var": "fn" }, { "$var": "args" }]
-      }
+      "expected": { "$call": "apply", "$args": [{ "$var": "fn" }, { "$var": "args" }] }
     },
     {
       "description": "method callee spread remains an evaluated access",
@@ -114,11 +102,7 @@
         "$args": [{ "$get": "run", "$from": { "$var": "caps" } }, { "$var": "args" }]
       }
     },
-    {
-      "description": "spread requires an expression",
-      "source": "[..., value]",
-      "error": true
-    },
+    { "description": "spread requires an expression", "source": "[..., value]", "error": true },
     {
       "description": "computed object key requires a colon",
       "source": "{ [key], value: 1 }",

@@ -61,20 +61,14 @@
     {
       "description": "partition: empty input returns two empty groups",
       "body": {
-        "$return": {
-          "$call": "partition",
-          "$args": [{ "$params": ["x"], "$return": true }, []]
-        }
+        "$return": { "$call": "partition", "$args": [{ "$params": ["x"], "$return": true }, []] }
       },
       "expected": [[], []]
     },
     {
       "description": "partition: rejects a non-array input",
       "body": {
-        "$return": {
-          "$call": "partition",
-          "$args": [{ "$params": ["x"], "$return": true }, "abc"]
-        }
+        "$return": { "$call": "partition", "$args": [{ "$params": ["x"], "$return": true }, "abc"] }
       },
       "error": "second argument must be an array"
     },

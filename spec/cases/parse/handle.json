@@ -65,10 +65,7 @@
           {
             "return": {
               "$params": ["value"],
-              "$return": {
-                "$params": ["state"],
-                "$return": { "$var": "value" }
-              }
+              "$return": { "$params": ["state"], "$return": { "$var": "value" } }
             }
           },
           {
@@ -89,38 +86,22 @@
       "expected": {
         "$call": "handle",
         "$args": [
-          {
-            "$as": { "$var": "task" },
-            "$type": { "$taskType": { "$ref": "#/$defs/Report" } }
-          },
+          { "$as": { "$var": "task" }, "$type": { "$taskType": { "$ref": "#/$defs/Report" } } },
           {},
-          {
-            "$raw": { "$ref": "#/$defs/Report" }
-          }
+          { "$raw": { "$ref": "#/$defs/Report" } }
         ]
       }
     },
     {
       "description": "returns remains an ordinary handler task name",
       "source": "handle returns with {}",
-      "expected": {
-        "$call": "handle",
-        "$args": [{ "$var": "returns" }, {}]
-      }
+      "expected": { "$call": "handle", "$args": [{ "$var": "returns" }, {}] }
     },
     {
       "description": "an unannotated handle remains usable as a cond guard",
       "source": "cond {\n  handle task with {}: true,\n  else: false\n}",
       "expected": {
-        "$cond": [
-          [
-            {
-              "$call": "handle",
-              "$args": [{ "$var": "task" }, {}]
-            },
-            true
-          ]
-        ],
+        "$cond": [[{ "$call": "handle", "$args": [{ "$var": "task" }, {}] }, true]],
         "$else": false
       }
     },

@@ -14,19 +14,13 @@
     },
     {
       "description": "explicit null is a supplied positional value",
-      "body": {
-        "$params": [{ "$param": "value", "$default": 4 }],
-        "$return": { "$var": "value" }
-      },
+      "body": { "$params": [{ "$param": "value", "$default": 4 }], "$return": { "$var": "value" } },
       "args": [null],
       "expected": null
     },
     {
       "description": "omitted defaulted positional parameter uses its default",
-      "body": {
-        "$params": [{ "$param": "value", "$default": 4 }],
-        "$return": { "$var": "value" }
-      },
+      "body": { "$params": [{ "$param": "value", "$default": 4 }], "$return": { "$var": "value" } },
       "expected": 4
     },
     {
@@ -91,10 +85,7 @@
           { "$fields": [{ "$field": "field", "$optional": true }] },
           { "$param": "value", "$optional": true }
         ],
-        "$return": {
-          "field": { "$var": "field" },
-          "value": { "$var": "value" }
-        }
+        "$return": { "field": { "$var": "field" }, "value": { "$var": "value" } }
       },
       "args": [{}],
       "expected": { "field": null, "value": null }
@@ -106,10 +97,7 @@
           { "$fields": [{ "$field": "field", "$optional": true }] },
           { "$param": "value", "$optional": true }
         ],
-        "$return": {
-          "field": { "$var": "field" },
-          "value": { "$var": "value" }
-        }
+        "$return": { "field": { "$var": "field" }, "value": { "$var": "value" } }
       },
       "args": [{ "field": 1 }, 2],
       "expected": { "field": 1, "value": 2 }

@@ -69,9 +69,7 @@
     },
     {
       "name": "unicode inside keys and arrays",
-      "value": {
-        "😀": ["é", "é"]
-      },
+      "value": { "😀": ["é", "é"] },
       "canonical": "{\"😀\":[\"é\",\"é\"]}",
       "valueHash": "jfn:value:v1:sha256:da8aac5907dd7b9b07fb7b01aee7aa261528866f3849b4fb8d2b2ba94626036f"
     }

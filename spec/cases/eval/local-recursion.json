@@ -10,49 +10,22 @@
             "fact": {
               "$params": ["x"],
               "$return": {
-                "$if": {
-                  "$call": "lte",
-                  "$args": [
-                    {
-                      "$var": "x"
-                    },
-                    1
-                  ]
-                },
+                "$if": { "$call": "lte", "$args": [{ "$var": "x" }, 1] },
                 "$then": 1,
                 "$else": {
                   "$call": "mul",
                   "$args": [
-                    {
-                      "$var": "x"
-                    },
+                    { "$var": "x" },
                     {
                       "$call": "fact",
-                      "$args": [
-                        {
-                          "$call": "sub",
-                          "$args": [
-                            {
-                              "$var": "x"
-                            },
-                            1
-                          ]
-                        }
-                      ]
+                      "$args": [{ "$call": "sub", "$args": [{ "$var": "x" }, 1] }]
                     }
                   ]
                 }
               }
             }
           },
-          "$in": {
-            "$call": "fact",
-            "$args": [
-              {
-                "$var": "n"
-              }
-            ]
-          }
+          "$in": { "$call": "fact", "$args": [{ "$var": "n" }] }
         }
       },
       "args": [5],
@@ -67,62 +40,22 @@
             "fib": {
               "$params": ["x"],
               "$return": {
-                "$if": {
-                  "$call": "lte",
-                  "$args": [
-                    {
-                      "$var": "x"
-                    },
-                    1
-                  ]
-                },
-                "$then": {
-                  "$var": "x"
-                },
+                "$if": { "$call": "lte", "$args": [{ "$var": "x" }, 1] },
+                "$then": { "$var": "x" },
                 "$else": {
                   "$call": "add",
                   "$args": [
                     {
                       "$call": "fib",
-                      "$args": [
-                        {
-                          "$call": "sub",
-                          "$args": [
-                            {
-                              "$var": "x"
-                            },
-                            1
-                          ]
-                        }
-                      ]
+                      "$args": [{ "$call": "sub", "$args": [{ "$var": "x" }, 1] }]
                     },
-                    {
-                      "$call": "fib",
-                      "$args": [
-                        {
-                          "$call": "sub",
-                          "$args": [
-                            {
-                              "$var": "x"
-                            },
-                            2
-                          ]
-                        }
-                      ]
-                    }
+                    { "$call": "fib", "$args": [{ "$call": "sub", "$args": [{ "$var": "x" }, 2] }] }
                   ]
                 }
               }
             }
           },
-          "$in": {
-            "$call": "fib",
-            "$args": [
-              {
-                "$var": "n"
-              }
-            ]
-          }
+          "$in": { "$call": "fib", "$args": [{ "$var": "n" }] }
         }
       },
       "args": [10],
@@ -136,45 +69,22 @@
             "fact": {
               "$params": ["n"],
               "$return": {
-                "$if": {
-                  "$call": "lte",
-                  "$args": [
-                    {
-                      "$var": "n"
-                    },
-                    1
-                  ]
-                },
+                "$if": { "$call": "lte", "$args": [{ "$var": "n" }, 1] },
                 "$then": 1,
                 "$else": {
                   "$call": "mul",
                   "$args": [
-                    {
-                      "$var": "n"
-                    },
+                    { "$var": "n" },
                     {
                       "$call": "fact",
-                      "$args": [
-                        {
-                          "$call": "sub",
-                          "$args": [
-                            {
-                              "$var": "n"
-                            },
-                            1
-                          ]
-                        }
-                      ]
+                      "$args": [{ "$call": "sub", "$args": [{ "$var": "n" }, 1] }]
                     }
                   ]
                 }
               }
             }
           },
-          "$in": {
-            "$call": "fact",
-            "$args": [0]
-          }
+          "$in": { "$call": "fact", "$args": [0] }
         }
       },
       "expected": 1
@@ -188,79 +98,29 @@
             "myIsEven": {
               "$params": ["x"],
               "$return": {
-                "$if": {
-                  "$call": "eq",
-                  "$args": [
-                    {
-                      "$var": "x"
-                    },
-                    0
-                  ]
-                },
+                "$if": { "$call": "eq", "$args": [{ "$var": "x" }, 0] },
                 "$then": true,
                 "$else": {
                   "$call": "myIsOdd",
-                  "$args": [
-                    {
-                      "$call": "sub",
-                      "$args": [
-                        {
-                          "$var": "x"
-                        },
-                        1
-                      ]
-                    }
-                  ]
+                  "$args": [{ "$call": "sub", "$args": [{ "$var": "x" }, 1] }]
                 }
               }
             },
             "myIsOdd": {
               "$params": ["x"],
               "$return": {
-                "$if": {
-                  "$call": "eq",
-                  "$args": [
-                    {
-                      "$var": "x"
-                    },
-                    0
-                  ]
-                },
+                "$if": { "$call": "eq", "$args": [{ "$var": "x" }, 0] },
                 "$then": false,
                 "$else": {
                   "$call": "myIsEven",
-                  "$args": [
-                    {
-                      "$call": "sub",
-                      "$args": [
-                        {
-                          "$var": "x"
-                        },
-                        1
-                      ]
-                    }
-                  ]
+                  "$args": [{ "$call": "sub", "$args": [{ "$var": "x" }, 1] }]
                 }
               }
             }
           },
           "$in": [
-            {
-              "$call": "myIsEven",
-              "$args": [
-                {
-                  "$var": "n"
-                }
-              ]
-            },
-            {
-              "$call": "myIsOdd",
-              "$args": [
-                {
-                  "$var": "n"
-                }
-              ]
-            }
+            { "$call": "myIsEven", "$args": [{ "$var": "n" }] },
+            { "$call": "myIsOdd", "$args": [{ "$var": "n" }] }
           ]
         }
       },
@@ -276,79 +136,29 @@
             "myIsEven": {
               "$params": ["x"],
               "$return": {
-                "$if": {
-                  "$call": "eq",
-                  "$args": [
-                    {
-                      "$var": "x"
-                    },
-                    0
-                  ]
-                },
+                "$if": { "$call": "eq", "$args": [{ "$var": "x" }, 0] },
                 "$then": true,
                 "$else": {
                   "$call": "myIsOdd",
-                  "$args": [
-                    {
-                      "$call": "sub",
-                      "$args": [
-                        {
-                          "$var": "x"
-                        },
-                        1
-                      ]
-                    }
-                  ]
+                  "$args": [{ "$call": "sub", "$args": [{ "$var": "x" }, 1] }]
                 }
               }
             },
             "myIsOdd": {
               "$params": ["x"],
               "$return": {
-                "$if": {
-                  "$call": "eq",
-                  "$args": [
-                    {
-                      "$var": "x"
-                    },
-                    0
-                  ]
-                },
+                "$if": { "$call": "eq", "$args": [{ "$var": "x" }, 0] },
                 "$then": false,
                 "$else": {
                   "$call": "myIsEven",
-                  "$args": [
-                    {
-                      "$call": "sub",
-                      "$args": [
-                        {
-                          "$var": "x"
-                        },
-                        1
-                      ]
-                    }
-                  ]
+                  "$args": [{ "$call": "sub", "$args": [{ "$var": "x" }, 1] }]
                 }
               }
             }
           },
           "$in": [
-            {
-              "$call": "myIsEven",
-              "$args": [
-                {
-                  "$var": "n"
-                }
-              ]
-            },
-            {
-              "$call": "myIsOdd",
-              "$args": [
-                {
-                  "$var": "n"
-                }
-              ]
-            }
+            { "$call": "myIsEven", "$args": [{ "$var": "n" }] },
+            { "$call": "myIsOdd", "$args": [{ "$var": "n" }] }
           ]
         }
       },
@@ -363,45 +173,22 @@
             "sumTo": {
               "$params": ["n"],
               "$return": {
-                "$if": {
-                  "$call": "lte",
-                  "$args": [
-                    {
-                      "$var": "n"
-                    },
-                    0
-                  ]
-                },
+                "$if": { "$call": "lte", "$args": [{ "$var": "n" }, 0] },
                 "$then": 0,
                 "$else": {
                   "$call": "add",
                   "$args": [
-                    {
-                      "$var": "n"
-                    },
+                    { "$var": "n" },
                     {
                       "$call": "sumTo",
-                      "$args": [
-                        {
-                          "$call": "sub",
-                          "$args": [
-                            {
-                              "$var": "n"
-                            },
-                            1
-                          ]
-                        }
-                      ]
+                      "$args": [{ "$call": "sub", "$args": [{ "$var": "n" }, 1] }]
                     }
                   ]
                 }
               }
             }
           },
-          "$in": {
-            "$call": "sumTo",
-            "$args": [10]
-          }
+          "$in": { "$call": "sumTo", "$args": [10] }
         }
       },
       "expected": 55
@@ -416,51 +203,22 @@
             "fact": {
               "$params": ["x"],
               "$return": {
-                "$if": {
-                  "$call": "lte",
-                  "$args": [
-                    {
-                      "$var": "x"
-                    },
-                    {
-                      "$var": "threshold"
-                    }
-                  ]
-                },
+                "$if": { "$call": "lte", "$args": [{ "$var": "x" }, { "$var": "threshold" }] },
                 "$then": 1,
                 "$else": {
                   "$call": "mul",
                   "$args": [
-                    {
-                      "$var": "x"
-                    },
+                    { "$var": "x" },
                     {
                       "$call": "fact",
-                      "$args": [
-                        {
-                          "$call": "sub",
-                          "$args": [
-                            {
-                              "$var": "x"
-                            },
-                            1
-                          ]
-                        }
-                      ]
+                      "$args": [{ "$call": "sub", "$args": [{ "$var": "x" }, 1] }]
                     }
                   ]
                 }
               }
             }
           },
-          "$in": {
-            "$call": "fact",
-            "$args": [
-              {
-                "$var": "n"
-              }
-            ]
-          }
+          "$in": { "$call": "fact", "$args": [{ "$var": "n" }] }
         }
       },
       "args": [5],
@@ -474,54 +232,23 @@
             "fact": {
               "$params": ["n"],
               "$return": {
-                "$if": {
-                  "$call": "lte",
-                  "$args": [
-                    {
-                      "$var": "n"
-                    },
-                    1
-                  ]
-                },
+                "$if": { "$call": "lte", "$args": [{ "$var": "n" }, 1] },
                 "$then": 1,
                 "$else": {
                   "$call": "mul",
                   "$args": [
-                    {
-                      "$var": "n"
-                    },
+                    { "$var": "n" },
                     {
                       "$call": "fact",
-                      "$args": [
-                        {
-                          "$call": "sub",
-                          "$args": [
-                            {
-                              "$var": "n"
-                            },
-                            1
-                          ]
-                        }
-                      ]
+                      "$args": [{ "$call": "sub", "$args": [{ "$var": "n" }, 1] }]
                     }
                   ]
                 }
               }
             },
-            "doubleFactorial": {
-              "$call": "mul",
-              "$args": [
-                {
-                  "$call": "fact",
-                  "$args": [5]
-                },
-                2
-              ]
-            }
+            "doubleFactorial": { "$call": "mul", "$args": [{ "$call": "fact", "$args": [5] }, 2] }
           },
-          "$in": {
-            "$var": "doubleFactorial"
-          }
+          "$in": { "$var": "doubleFactorial" }
         }
       },
       "expected": 240
@@ -533,36 +260,14 @@
           "$let": {
             "double": {
               "$params": ["x"],
-              "$return": {
-                "$call": "mul",
-                "$args": [
-                  {
-                    "$var": "x"
-                  },
-                  3
-                ]
-              }
+              "$return": { "$call": "mul", "$args": [{ "$var": "x" }, 3] }
             }
           },
-          "$in": {
-            "$call": "double",
-            "$args": [5]
-          }
+          "$in": { "$call": "double", "$args": [5] }
         }
       },
       "functions": {
-        "double": {
-          "$params": ["x"],
-          "$return": {
-            "$call": "mul",
-            "$args": [
-              {
-                "$var": "x"
-              },
-              2
-            ]
-          }
-        }
+        "double": { "$params": ["x"], "$return": { "$call": "mul", "$args": [{ "$var": "x" }, 2] } }
       },
       "expected": 15
     },
@@ -574,50 +279,22 @@
             "fact": {
               "$params": ["n", "..._ignored"],
               "$return": {
-                "$if": {
-                  "$call": "lte",
-                  "$args": [
-                    {
-                      "$var": "n"
-                    },
-                    1
-                  ]
-                },
+                "$if": { "$call": "lte", "$args": [{ "$var": "n" }, 1] },
                 "$then": 1,
                 "$else": {
                   "$call": "mul",
                   "$args": [
-                    {
-                      "$var": "n"
-                    },
+                    { "$var": "n" },
                     {
                       "$call": "fact",
-                      "$args": [
-                        {
-                          "$call": "sub",
-                          "$args": [
-                            {
-                              "$var": "n"
-                            },
-                            1
-                          ]
-                        }
-                      ]
+                      "$args": [{ "$call": "sub", "$args": [{ "$var": "n" }, 1] }]
                     }
                   ]
                 }
               }
             }
           },
-          "$in": {
-            "$call": "map",
-            "$args": [
-              {
-                "$fn": "fact"
-              },
-              [1, 2, 3, 4, 5]
-            ]
-          }
+          "$in": { "$call": "map", "$args": [{ "$fn": "fact" }, [1, 2, 3, 4, 5]] }
         }
       },
       "expected": [1, 2, 6, 24, 120]
@@ -630,45 +307,22 @@
             "fact": {
               "$params": ["n"],
               "$return": {
-                "$if": {
-                  "$call": "lte",
-                  "$args": [
-                    {
-                      "$var": "n"
-                    },
-                    1
-                  ]
-                },
+                "$if": { "$call": "lte", "$args": [{ "$var": "n" }, 1] },
                 "$then": 1,
                 "$else": {
                   "$call": "mul",
                   "$args": [
-                    {
-                      "$var": "n"
-                    },
+                    { "$var": "n" },
                     {
                       "$call": "fact",
-                      "$args": [
-                        {
-                          "$call": "sub",
-                          "$args": [
-                            {
-                              "$var": "n"
-                            },
-                            1
-                          ]
-                        }
-                      ]
+                      "$args": [{ "$call": "sub", "$args": [{ "$var": "n" }, 1] }]
                     }
                   ]
                 }
               }
             }
           },
-          "$in": {
-            "$call": "fact",
-            "$args": [6]
-          }
+          "$in": { "$call": "fact", "$args": [6] }
         }
       },
       "expected": 720
@@ -683,45 +337,20 @@
               "$return": {
                 "$if": {
                   "$call": "eq",
-                  "$args": [
-                    {
-                      "$call": "length",
-                      "$args": [
-                        {
-                          "$var": "rest"
-                        }
-                      ]
-                    },
-                    0
-                  ]
+                  "$args": [{ "$call": "length", "$args": [{ "$var": "rest" }] }, 0]
                 },
-                "$then": {
-                  "$var": "first"
-                },
+                "$then": { "$var": "first" },
                 "$else": {
                   "$call": "add",
                   "$args": [
-                    {
-                      "$var": "first"
-                    },
-                    {
-                      "$call": "apply",
-                      "$args": [
-                        "sumAll",
-                        {
-                          "$var": "rest"
-                        }
-                      ]
-                    }
+                    { "$var": "first" },
+                    { "$call": "apply", "$args": ["sumAll", { "$var": "rest" }] }
                   ]
                 }
               }
             }
           },
-          "$in": {
-            "$call": "sumAll",
-            "$args": [1, 2, 3, 4, 5]
-          }
+          "$in": { "$call": "sumAll", "$args": [1, 2, 3, 4, 5] }
         }
       },
       "expected": 15
@@ -735,49 +364,22 @@
             "fact": {
               "$params": ["x"],
               "$return": {
-                "$if": {
-                  "$call": "lte",
-                  "$args": [
-                    {
-                      "$var": "x"
-                    },
-                    1
-                  ]
-                },
+                "$if": { "$call": "lte", "$args": [{ "$var": "x" }, 1] },
                 "$then": 1,
                 "$else": {
                   "$call": "mul",
                   "$args": [
-                    {
-                      "$var": "x"
-                    },
+                    { "$var": "x" },
                     {
                       "$call": "fact",
-                      "$args": [
-                        {
-                          "$call": "sub",
-                          "$args": [
-                            {
-                              "$var": "x"
-                            },
-                            1
-                          ]
-                        }
-                      ]
+                      "$args": [{ "$call": "sub", "$args": [{ "$var": "x" }, 1] }]
                     }
                   ]
                 }
               }
             }
           },
-          "$in": {
-            "$call": "fact",
-            "$args": [
-              {
-                "$var": "n"
-              }
-            ]
-          }
+          "$in": { "$call": "fact", "$args": [{ "$var": "n" }] }
         }
       },
       "args": [6],
@@ -794,52 +396,26 @@
                   "fact": {
                     "$params": ["n"],
                     "$return": {
-                      "$if": {
-                        "$call": "lte",
-                        "$args": [
-                          {
-                            "$var": "n"
-                          },
-                          1
-                        ]
-                      },
+                      "$if": { "$call": "lte", "$args": [{ "$var": "n" }, 1] },
                       "$then": 1,
                       "$else": {
                         "$call": "mul",
                         "$args": [
-                          {
-                            "$var": "n"
-                          },
+                          { "$var": "n" },
                           {
                             "$call": "fact",
-                            "$args": [
-                              {
-                                "$call": "sub",
-                                "$args": [
-                                  {
-                                    "$var": "n"
-                                  },
-                                  1
-                                ]
-                              }
-                            ]
+                            "$args": [{ "$call": "sub", "$args": [{ "$var": "n" }, 1] }]
                           }
                         ]
                       }
                     }
                   }
                 },
-                "$in": {
-                  "$call": "fact",
-                  "$args": [5]
-                }
+                "$in": { "$call": "fact", "$args": [5] }
               }
             }
           },
-          "$in": {
-            "$call": "fact",
-            "$args": [3]
-          }
+          "$in": { "$call": "fact", "$args": [3] }
         }
       },
       "error": "Function fact not found"
@@ -853,36 +429,16 @@
               "$let": {
                 "helper": {
                   "$params": ["x"],
-                  "$return": {
-                    "$call": "mul",
-                    "$args": [
-                      {
-                        "$var": "x"
-                      },
-                      2
-                    ]
-                  }
+                  "$return": { "$call": "mul", "$args": [{ "$var": "x" }, 2] }
                 }
               },
               "$in": {
                 "$params": ["y"],
-                "$return": {
-                  "$call": "helper",
-                  "$args": [
-                    {
-                      "$var": "y"
-                    }
-                  ]
-                }
+                "$return": { "$call": "helper", "$args": [{ "$var": "y" }] }
               }
             }
           },
-          "$in": {
-            "$call": {
-              "$var": "closure"
-            },
-            "$args": [5]
-          }
+          "$in": { "$call": { "$var": "closure" }, "$args": [5] }
         }
       },
       "expected": 10

@@ -103,33 +103,25 @@
     },
     {
       "description": "constructing and measuring a 100-element range fits the aggregate test budget",
-      "body": {
-        "$return": { "$call": "length", "$args": [{ "$call": "range", "$args": [100] }] }
-      },
+      "body": { "$return": { "$call": "length", "$args": [{ "$call": "range", "$args": [100] }] } },
       "limits": { "maxFuel": 150 },
       "expected": 100
     },
     {
       "description": "sum charges fuel for traversing its input",
-      "body": {
-        "$return": { "$call": "sum", "$args": [{ "$call": "range", "$args": [100] }] }
-      },
+      "body": { "$return": { "$call": "sum", "$args": [{ "$call": "range", "$args": [100] }] } },
       "limits": { "maxFuel": 150 },
       "error": "Maximum fuel"
     },
     {
       "description": "max charges fuel for traversing its input",
-      "body": {
-        "$return": { "$call": "max", "$args": [{ "$call": "range", "$args": [100] }] }
-      },
+      "body": { "$return": { "$call": "max", "$args": [{ "$call": "range", "$args": [100] }] } },
       "limits": { "maxFuel": 150 },
       "error": "Maximum fuel"
     },
     {
       "description": "min charges fuel for traversing its input",
-      "body": {
-        "$return": { "$call": "min", "$args": [{ "$call": "range", "$args": [100] }] }
-      },
+      "body": { "$return": { "$call": "min", "$args": [{ "$call": "range", "$args": [100] }] } },
       "limits": { "maxFuel": 150 },
       "error": "Maximum fuel"
     },
@@ -158,10 +150,7 @@
     {
       "description": "join charges fuel for traversing inputs that produce an empty string",
       "body": {
-        "$return": {
-          "$call": "join",
-          "$args": [{ "$call": "repeat", "$args": [[""], 100] }, ""]
-        }
+        "$return": { "$call": "join", "$args": [{ "$call": "repeat", "$args": [[""], 100] }, ""] }
       },
       "limits": { "maxFuel": 150 },
       "error": "Maximum fuel"
@@ -169,10 +158,7 @@
     {
       "description": "trim charges fuel when a long input produces an empty string",
       "body": {
-        "$return": {
-          "$call": "trim",
-          "$args": [{ "$call": "repeat", "$args": [" ", 100] }]
-        }
+        "$return": { "$call": "trim", "$args": [{ "$call": "repeat", "$args": [" ", 100] }] }
       },
       "limits": { "maxFuel": 150 },
       "error": "Maximum fuel"
@@ -199,10 +185,7 @@
     {
       "description": "constructing and measuring 100 empty arrays fits the flatten test budget",
       "body": {
-        "$return": {
-          "$call": "length",
-          "$args": [{ "$call": "repeat", "$args": [[[]], 100] }]
-        }
+        "$return": { "$call": "length", "$args": [{ "$call": "repeat", "$args": [[[]], 100] }] }
       },
       "limits": { "maxFuel": 150 },
       "expected": 100
@@ -212,12 +195,7 @@
       "body": {
         "$return": {
           "$call": "length",
-          "$args": [
-            {
-              "$call": "flatten",
-              "$args": [{ "$call": "repeat", "$args": [[[]], 100] }]
-            }
-          ]
+          "$args": [{ "$call": "flatten", "$args": [{ "$call": "repeat", "$args": [[[]], 100] }] }]
         }
       },
       "limits": { "maxFuel": 150 },
@@ -251,10 +229,7 @@
     {
       "description": "scan charges native traversal and callback invocation fuel",
       "body": {
-        "$return": {
-          "$call": "scan",
-          "$args": ["add", 0, { "$call": "range", "$args": [100] }]
-        }
+        "$return": { "$call": "scan", "$args": ["add", 0, { "$call": "range", "$args": [100] }] }
       },
       "limits": { "maxFuel": 250 },
       "error": "Maximum fuel"
@@ -390,9 +365,7 @@
     {
       "description": "invoking a constant-bodied function charges its complete node count",
       "comment": "Anchors the per-invocation cost of 12 used by the repeated-evaluation cases below.",
-      "functions": {
-        "constants": { "$return": [{ "id": 1, "nested": [1, 2, 3] }, { "id": 2 }] }
-      },
+      "functions": { "constants": { "$return": [{ "id": 1, "nested": [1, 2, 3] }, { "id": 2 }] } },
       "body": { "$return": { "$call": "constants", "$args": [] } },
       "limits": { "maxFuel": 12 },
       "expected": [{ "id": 1, "nested": [1, 2, 3] }, { "id": 2 }]
@@ -400,9 +373,7 @@
     {
       "description": "re-evaluating a cached constant subtree charges its full cost each time",
       "comment": "The second invocation may reuse discovered constant metadata to skip traversal, but it must charge the same complete cost again: 2 * 12 = 24, never a discounted runtime-value re-entry.",
-      "functions": {
-        "constants": { "$return": [{ "id": 1, "nested": [1, 2, 3] }, { "id": 2 }] }
-      },
+      "functions": { "constants": { "$return": [{ "id": 1, "nested": [1, 2, 3] }, { "id": 2 }] } },
       "body": {
         "$return": [
           { "$call": "constants", "$args": [] },
@@ -418,9 +389,7 @@
     {
       "description": "the repeated constant evaluation one unit under its doubled cost fails",
       "comment": "Guards against a constant cache discounting the second invocation: an implementation charging the cheap re-entry rate would finish well under this budget and fail to error.",
-      "functions": {
-        "constants": { "$return": [{ "id": 1, "nested": [1, 2, 3] }, { "id": 2 }] }
-      },
+      "functions": { "constants": { "$return": [{ "id": 1, "nested": [1, 2, 3] }, { "id": 2 }] } },
       "body": {
         "$return": [
           { "$call": "constants", "$args": [] },
@@ -436,10 +405,7 @@
         "$return": {
           "$call": "length",
           "$args": [
-            {
-              "$call": "flattenDepth",
-              "$args": [{ "$call": "repeat", "$args": [[[]], 100] }, 2]
-            }
+            { "$call": "flattenDepth", "$args": [{ "$call": "repeat", "$args": [[[]], 100] }, 2] }
           ]
         }
       },

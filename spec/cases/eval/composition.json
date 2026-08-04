@@ -4,36 +4,13 @@
     "fact": {
       "$params": ["n"],
       "$return": {
-        "$if": {
-          "$call": "lte",
-          "$args": [
-            {
-              "$var": "n"
-            },
-            1
-          ]
-        },
+        "$if": { "$call": "lte", "$args": [{ "$var": "n" }, 1] },
         "$then": 1,
         "$else": {
           "$call": "mul",
           "$args": [
-            {
-              "$var": "n"
-            },
-            {
-              "$call": "fact",
-              "$args": [
-                {
-                  "$call": "sub",
-                  "$args": [
-                    {
-                      "$var": "n"
-                    },
-                    1
-                  ]
-                }
-              ]
-            }
+            { "$var": "n" },
+            { "$call": "fact", "$args": [{ "$call": "sub", "$args": [{ "$var": "n" }, 1] }] }
           ]
         }
       }
@@ -41,26 +18,8 @@
     "isEven": {
       "$params": ["n"],
       "$return": {
-        "$let": {
-          "remainder": {
-            "$call": "mod",
-            "$args": [
-              {
-                "$var": "n"
-              },
-              2
-            ]
-          }
-        },
-        "$in": {
-          "$call": "eq",
-          "$args": [
-            {
-              "$var": "remainder"
-            },
-            0
-          ]
-        }
+        "$let": { "remainder": { "$call": "mod", "$args": [{ "$var": "n" }, 2] } },
+        "$in": { "$call": "eq", "$args": [{ "$var": "remainder" }, 0] }
       }
     }
   },
@@ -70,31 +29,13 @@
       "body": {
         "$return": {
           "$let": {
-            "result": {
-              "$call": "fact",
-              "$args": [6]
-            },
-            "check": {
-              "$call": "isEven",
-              "$args": [
-                {
-                  "$var": "result"
-                }
-              ]
-            }
+            "result": { "$call": "fact", "$args": [6] },
+            "check": { "$call": "isEven", "$args": [{ "$var": "result" }] }
           },
           "$in": {
-            "$if": {
-              "$var": "check"
-            },
-            "$then": {
-              "$call": "strcat",
-              "$args": ["720 is ", "even"]
-            },
-            "$else": {
-              "$call": "strcat",
-              "$args": ["720 is ", "odd"]
-            }
+            "$if": { "$var": "check" },
+            "$then": { "$call": "strcat", "$args": ["720 is ", "even"] },
+            "$else": { "$call": "strcat", "$args": ["720 is ", "odd"] }
           }
         }
       },
@@ -109,30 +50,12 @@
             "full": {
               "$call": "strcat",
               "$args": [
-                {
-                  "$var": "first"
-                },
-                {
-                  "$call": "strcat",
-                  "$args": [
-                    " ",
-                    {
-                      "$var": "last"
-                    }
-                  ]
-                }
+                { "$var": "first" },
+                { "$call": "strcat", "$args": [" ", { "$var": "last" }] }
               ]
             }
           },
-          "$in": {
-            "$call": "strcat",
-            "$args": [
-              "Hello, ",
-              {
-                "$var": "full"
-              }
-            ]
-          }
+          "$in": { "$call": "strcat", "$args": ["Hello, ", { "$var": "full" }] }
         }
       },
       "args": ["Ada", "Lovelace"],

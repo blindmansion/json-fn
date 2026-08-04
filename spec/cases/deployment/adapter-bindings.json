@@ -7,9 +7,7 @@
       "contract": {
         "version": 1,
         "functions": {
-          "host.lookup": {
-            "signatures": [{ "required": [], "optional": [], "returns": true }]
-          }
+          "host.lookup": { "signatures": [{ "required": [], "optional": [], "returns": true }] }
         },
         "entry": { "name": "main", "required": [], "optional": [], "returns": true }
       },

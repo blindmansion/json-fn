@@ -5,10 +5,7 @@
   "type": "object",
   "required": ["description", "cases"],
   "properties": {
-    "description": {
-      "type": "string",
-      "description": "A description of the test suite."
-    },
+    "description": { "type": "string", "description": "A description of the test suite." },
     "mode": {
       "$ref": "#/$defs/mode",
       "description": "The default parser mode for cases in this suite. Defaults to expression."
@@ -16,29 +13,18 @@
     "cases": {
       "type": "array",
       "description": "The parser cases in this suite.",
-      "items": {
-        "$ref": "#/$defs/case"
-      }
+      "items": { "$ref": "#/$defs/case" }
     }
   },
   "additionalProperties": false,
   "$defs": {
-    "mode": {
-      "type": "string",
-      "enum": ["expression", "module"]
-    },
+    "mode": { "type": "string", "enum": ["expression", "module"] },
     "case": {
       "type": "object",
       "required": ["description", "source"],
       "properties": {
-        "description": {
-          "type": "string",
-          "description": "A description used as the test name."
-        },
-        "source": {
-          "type": "string",
-          "description": "The shorthand source text to parse."
-        },
+        "description": { "type": "string", "description": "A description used as the test name." },
+        "source": { "type": "string", "description": "The shorthand source text to parse." },
         "mode": {
           "$ref": "#/$defs/mode",
           "description": "Overrides the suite parser mode for this case."
@@ -50,9 +36,7 @@
           "description": "Marks a case that must fail. A string must occur in the error message; any other JSON value only requires an error."
         }
       },
-      "not": {
-        "required": ["expected", "error"]
-      },
+      "not": { "required": ["expected", "error"] },
       "additionalProperties": false
     }
   }

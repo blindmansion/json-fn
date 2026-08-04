@@ -3,9 +3,7 @@
   "cases": [
     {
       "name": "raw-wrapped scalar is a distinct structure",
-      "value": {
-        "$raw": 42
-      },
+      "value": { "$raw": 42 },
       "canonical": "{\"$raw\":42}",
       "valueHash": "jfn:value:v1:sha256:2f5921f2444e7188885400678a6f21a7d19bb88fe3b808236985507cf7dc830c"
     },
@@ -17,63 +15,37 @@
     },
     {
       "name": "redundant raw wrapper around static data is preserved",
-      "value": {
-        "$raw": {
-          "config": [1, 2, 3]
-        }
-      },
+      "value": { "$raw": { "config": [1, 2, 3] } },
       "canonical": "{\"$raw\":{\"config\":[1,2,3]}}",
       "valueHash": "jfn:value:v1:sha256:b180d771af0783938ff0a67c4461a20316027b84af4b19172d851018f2c77286"
     },
     {
       "name": "the unwrapped static data",
-      "value": {
-        "config": [1, 2, 3]
-      },
+      "value": { "config": [1, 2, 3] },
       "canonical": "{\"config\":[1,2,3]}",
       "valueHash": "jfn:value:v1:sha256:140f682aafd97e859aa4ae27b3cc5842e750c8a03d5a9c0ce67904da8c8adef6"
     },
     {
       "name": "var-shaped object",
-      "value": {
-        "$var": "x"
-      },
+      "value": { "$var": "x" },
       "canonical": "{\"$var\":\"x\"}",
       "valueHash": "jfn:value:v1:sha256:78382f870fbdbd60710e0d5027cfe0dfbe49fe7a7519537a60b6d6d43b90c090"
     },
     {
       "name": "call-shaped object",
-      "value": {
-        "$call": "add",
-        "$args": [
-          {
-            "$var": "x"
-          },
-          1
-        ]
-      },
+      "value": { "$call": "add", "$args": [{ "$var": "x" }, 1] },
       "canonical": "{\"$args\":[{\"$var\":\"x\"},1],\"$call\":\"add\"}",
       "valueHash": "jfn:value:v1:sha256:111390d401ba99dca97bbe3b0c4d33ce66643cbed8abdf02f92c91c1ee75b29d"
     },
     {
       "name": "raw payload containing expression-shaped data",
-      "value": {
-        "$raw": {
-          "$call": "add",
-          "$args": [1, 2]
-        }
-      },
+      "value": { "$raw": { "$call": "add", "$args": [1, 2] } },
       "canonical": "{\"$raw\":{\"$args\":[1,2],\"$call\":\"add\"}}",
       "valueHash": "jfn:value:v1:sha256:1b4d8177af394ccfbac05031688d4f0f6e8b6ee79f0f0acd709a6884c0f281af"
     },
     {
       "name": "function-body-shaped object",
-      "value": {
-        "$return": {
-          "$var": "n"
-        },
-        "$params": ["n"]
-      },
+      "value": { "$return": { "$var": "n" }, "$params": ["n"] },
       "canonical": "{\"$params\":[\"n\"],\"$return\":{\"$var\":\"n\"}}",
       "valueHash": "jfn:value:v1:sha256:d4d0a2f8e20c16fd5e65f27b7dae8faf5b5b5b86d576570b0cd7486619bb57f1"
     }

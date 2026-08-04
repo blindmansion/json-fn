@@ -16,21 +16,13 @@
       "name": "rejects inverted string bounds",
       "validator": "schema",
       "value": { "type": "string", "minLength": 3, "maxLength": 2 },
-      "expected": {
-        "valid": false,
-        "code": "INVALID_SCHEMA_FRAGMENT",
-        "path": "schema"
-      }
+      "expected": { "valid": false, "code": "INVALID_SCHEMA_FRAGMENT", "path": "schema" }
     },
     {
       "name": "rejects undefined references",
       "validator": "schema",
       "value": { "$ref": "#/$defs/Missing" },
-      "expected": {
-        "valid": false,
-        "code": "INVALID_SCHEMA_FRAGMENT",
-        "path": "schema.$ref"
-      }
+      "expected": { "valid": false, "code": "INVALID_SCHEMA_FRAGMENT", "path": "schema.$ref" }
     }
   ]
 }

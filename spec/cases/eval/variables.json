@@ -8,30 +8,10 @@
           "$let": {
             "a": 5,
             "b": 10,
-            "sum": {
-              "$call": "add",
-              "$args": [
-                {
-                  "$var": "a"
-                },
-                {
-                  "$var": "b"
-                }
-              ]
-            },
-            "doubled": {
-              "$call": "mul",
-              "$args": [
-                {
-                  "$var": "sum"
-                },
-                2
-              ]
-            }
+            "sum": { "$call": "add", "$args": [{ "$var": "a" }, { "$var": "b" }] },
+            "doubled": { "$call": "mul", "$args": [{ "$var": "sum" }, 2] }
           },
-          "$in": {
-            "$var": "doubled"
-          }
+          "$in": { "$var": "doubled" }
         }
       },
       "expected": 30
@@ -41,22 +21,8 @@
       "body": {
         "$params": ["x", "y"],
         "$return": {
-          "$let": {
-            "product": {
-              "$call": "mul",
-              "$args": [
-                {
-                  "$var": "x"
-                },
-                {
-                  "$var": "y"
-                }
-              ]
-            }
-          },
-          "$in": {
-            "$var": "product"
-          }
+          "$let": { "product": { "$call": "mul", "$args": [{ "$var": "x" }, { "$var": "y" }] } },
+          "$in": { "$var": "product" }
         }
       },
       "args": [7, 8],

@@ -14,7 +14,7 @@
     "generate:builtins-doc": "bun run scripts/generate-builtin-doc.ts",
     "generate:hash-cases": "bun run scripts/generate-hash-cases.ts && bun run format:spec-cases",
     "instrument:durable": "bun run scripts/instrument-durable.ts",
-    "format:spec-cases": "cd .. && ./typescript/node_modules/.bin/oxfmt 'spec/cases/**/*.json'",
+    "format:spec-cases": "cd .. && bun run typescript/scripts/collapse-json-whitespace.ts 'spec/cases/**/*.json' && ./typescript/node_modules/.bin/oxfmt 'spec/cases/**/*.json'",
     "format:spec-cases:check": "cd .. && ./typescript/node_modules/.bin/oxfmt --check 'spec/cases/**/*.json'"
   },
   "devDependencies": {

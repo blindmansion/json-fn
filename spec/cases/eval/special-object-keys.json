@@ -1,10 +1,7 @@
 {
   "description": "special object keys: __proto__ and other Object.prototype names survive every construction route",
   "functions": {
-    "__proto__": {
-      "$params": ["n"],
-      "$return": { "$call": "add", "$args": [{ "$var": "n" }, 1] }
-    }
+    "__proto__": { "$params": ["n"], "$return": { "$call": "add", "$args": [{ "$var": "n" }, 1] } }
   },
   "cases": [
     {
@@ -14,18 +11,13 @@
     },
     {
       "description": "dynamic object literal keeps an own __proto__ key",
-      "body": {
-        "$params": ["x"],
-        "$return": { "__proto__": { "$var": "x" }, "b": 2 }
-      },
+      "body": { "$params": ["x"], "$return": { "__proto__": { "$var": "x" }, "b": 2 } },
       "args": [1],
       "expected": { "__proto__": 1, "b": 2 }
     },
     {
       "description": "comment stripping rebuilds the object without losing __proto__",
-      "body": {
-        "$return": { "__proto__": 1, "$comment": "stripped", "b": 2 }
-      },
+      "body": { "$return": { "__proto__": 1, "$comment": "stripped", "b": 2 } },
       "expected": { "__proto__": 1, "b": 2 }
     },
     {
@@ -91,10 +83,7 @@
     {
       "description": "omit keeps a remaining __proto__ key",
       "body": {
-        "$return": {
-          "$call": "omit",
-          "$args": [{ "$raw": { "__proto__": 1, "b": 2 } }, ["b"]]
-        }
+        "$return": { "$call": "omit", "$args": [{ "$raw": { "__proto__": 1, "b": 2 } }, ["b"]] }
       },
       "expected": { "__proto__": 1 }
     },

@@ -28,31 +28,18 @@
     },
     {
       "description": "checked ascription enforces a numeric refinement",
-      "body": {
-        "$return": {
-          "$as": 3,
-          "$type": { "type": "integer", "minimum": 0 }
-        }
-      },
+      "body": { "$return": { "$as": 3, "$type": { "type": "integer", "minimum": 0 } } },
       "expected": 3
     },
     {
       "description": "checked ascription rejects a failed numeric refinement",
-      "body": {
-        "$return": {
-          "$as": -1,
-          "$type": { "type": "integer", "minimum": 0 }
-        }
-      },
+      "body": { "$return": { "$as": -1, "$type": { "type": "integer", "minimum": 0 } } },
       "error": "checked ascription contract failed"
     },
     {
       "description": "checked ascription measures string lengths in Unicode code points",
       "body": {
-        "$return": {
-          "$as": "😀",
-          "$type": { "type": "string", "minLength": 1, "maxLength": 1 }
-        }
+        "$return": { "$as": "😀", "$type": { "type": "string", "minLength": 1, "maxLength": 1 } }
       },
       "expected": "😀"
     },
@@ -101,22 +88,14 @@
       "body": {
         "$return": {
           "$as": { "left": 1, "right": 2 },
-          "$type": {
-            "type": "object",
-            "additionalProperties": { "type": "integer" }
-          }
+          "$type": { "type": "object", "additionalProperties": { "type": "integer" } }
         }
       },
       "expected": { "left": 1, "right": 2 }
     },
     {
       "description": "checked ascription validates unions",
-      "body": {
-        "$return": {
-          "$as": "ok",
-          "$type": { "type": ["integer", "string"] }
-        }
-      },
+      "body": { "$return": { "$as": "ok", "$type": { "type": ["integer", "string"] } } },
       "expected": "ok"
     },
     {
@@ -131,13 +110,7 @@
     },
     {
       "description": "checked ascription rejects additional properties",
-      "body": {
-        "$return": {
-          "$as": 1,
-          "$type": { "type": "integer" },
-          "extra": true
-        }
-      },
+      "body": { "$return": { "$as": 1, "$type": { "type": "integer" }, "extra": true } },
       "error": "Checked ascriptions cannot have other properties"
     },
     {
@@ -150,10 +123,7 @@
       "body": {
         "$return": {
           "$call": {
-            "$as": {
-              "$params": ["value"],
-              "$return": { "$var": "value" }
-            },
+            "$as": { "$params": ["value"], "$return": { "$var": "value" } },
             "$type": {
               "$fnType": {
                 "required": [{ "type": "integer" }],
@@ -172,10 +142,7 @@
       "body": {
         "$return": {
           "$call": {
-            "$as": {
-              "$params": ["value"],
-              "$return": { "$var": "value" }
-            },
+            "$as": { "$params": ["value"], "$return": { "$var": "value" } },
             "$type": {
               "$fnType": {
                 "required": [{ "type": "integer" }],
@@ -194,10 +161,7 @@
       "body": {
         "$return": {
           "$call": {
-            "$as": {
-              "$params": ["value"],
-              "$return": "wrong"
-            },
+            "$as": { "$params": ["value"], "$return": "wrong" },
             "$type": {
               "$fnType": {
                 "required": [{ "type": "integer" }],
@@ -213,12 +177,7 @@
     },
     {
       "description": "checked ascription rejects schemas outside the runtime fragment",
-      "body": {
-        "$return": {
-          "$as": 1,
-          "$type": { "$taskType": { "type": "integer" } }
-        }
-      },
+      "body": { "$return": { "$as": 1, "$type": { "$taskType": { "type": "integer" } } } },
       "error": "checked ascription contract failed: unsupported schema"
     }
   ]

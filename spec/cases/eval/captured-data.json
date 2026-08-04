@@ -3,10 +3,7 @@
   "functions": {
     "capture": {
       "$params": ["value"],
-      "$return": {
-        "$params": [],
-        "$return": { "$var": "value" }
-      }
+      "$return": { "$params": [], "$return": { "$var": "value" } }
     }
   },
   "cases": [
@@ -15,10 +12,7 @@
       "body": {
         "$params": ["payload"],
         "$return": {
-          "$call": {
-            "$call": "capture",
-            "$args": [{ "$var": "payload" }]
-          },
+          "$call": { "$call": "capture", "$args": [{ "$var": "payload" }] },
           "$args": []
         }
       },
@@ -30,10 +24,7 @@
       "body": {
         "$params": ["payload"],
         "$return": {
-          "$call": {
-            "$call": "capture",
-            "$args": [{ "$var": "payload" }]
-          },
+          "$call": { "$call": "capture", "$args": [{ "$var": "payload" }] },
           "$args": []
         }
       },

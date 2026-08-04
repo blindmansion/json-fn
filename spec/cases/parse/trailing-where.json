@@ -116,10 +116,7 @@
         "$cases": [["go", 1]],
         "$else": {
           "$let": { "n": 0 },
-          "$in": {
-            "$cond": [[{ "$var": "p" }, 2]],
-            "$else": { "$var": "n" }
-          }
+          "$in": { "$cond": [[{ "$var": "p" }, 2]], "$else": { "$var": "n" } }
         }
       }
     },
@@ -150,9 +147,7 @@
       "expected": {
         "$params": ["s"],
         "$return": {
-          "$let": {
-            "len": { "$call": "length", "$args": [{ "$var": "s" }] }
-          },
+          "$let": { "len": { "$call": "length", "$args": [{ "$var": "s" }] } },
           "$in": {
             "$if": { "$call": "eq", "$args": [{ "$var": "len" }, 2] },
             "$then": { "$var": "len" },
@@ -170,11 +165,7 @@
           "$let": { "x": 1 },
           "$in": {
             "$if": { "$var": "a" },
-            "$then": {
-              "$if": { "$var": "b" },
-              "$then": { "$var": "x" },
-              "$else": 0
-            },
+            "$then": { "$if": { "$var": "b" }, "$then": { "$var": "x" }, "$else": 0 },
             "$else": -1
           }
         }
@@ -207,17 +198,7 @@
     {
       "description": "a nested where scope may shadow an outer binding",
       "source": "(x where { x: 2 }) where { x: 1 }",
-      "expected": {
-        "$let": {
-          "x": 1
-        },
-        "$in": {
-          "$let": {
-            "x": 2
-          },
-          "$in": { "$var": "x" }
-        }
-      }
+      "expected": { "$let": { "x": 1 }, "$in": { "$let": { "x": 2 }, "$in": { "$var": "x" } } }
     }
   ]
 }

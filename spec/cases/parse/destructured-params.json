@@ -62,9 +62,7 @@
       "expected": {
         "$params": [{ "$fields": ["n"] }],
         "$return": {
-          "$let": {
-            "doubled": { "$call": "mul", "$args": [{ "$var": "n" }, 2] }
-          },
+          "$let": { "doubled": { "$call": "mul", "$args": [{ "$var": "n" }, 2] } },
           "$in": { "$var": "doubled" }
         }
       }

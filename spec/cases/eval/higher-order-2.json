@@ -145,10 +145,7 @@
         "$return": {
           "$call": "flatMap",
           "$args": [
-            {
-              "$params": ["x"],
-              "$return": { "$call": "mul", "$args": [{ "$var": "x" }, 10] }
-            },
+            { "$params": ["x"], "$return": { "$call": "mul", "$args": [{ "$var": "x" }, 10] } },
             [1, 2, 3]
           ]
         }
@@ -201,10 +198,7 @@
         "$return": {
           "$call": "groupBy",
           "$args": [
-            {
-              "$params": ["item"],
-              "$return": { "$get": "role", "$from": { "$var": "item" } }
-            },
+            { "$params": ["item"], "$return": { "$get": "role", "$from": { "$var": "item" } } },
             [
               { "name": "alice", "role": "admin" },
               { "name": "bob", "role": "user" },
@@ -231,10 +225,7 @@
         "$return": {
           "$call": "groupBy",
           "$args": [
-            {
-              "$params": ["n"],
-              "$return": { "$call": "mod", "$args": [{ "$var": "n" }, 2] }
-            },
+            { "$params": ["n"], "$return": { "$call": "mod", "$args": [{ "$var": "n" }, 2] } },
             [1, 2, 3, 4, 5, 6]
           ]
         }
@@ -262,10 +253,7 @@
     {
       "description": "groupBy: empty array returns empty object",
       "body": {
-        "$return": {
-          "$call": "groupBy",
-          "$args": [{ "$params": ["x"], "$return": "a" }, []]
-        }
+        "$return": { "$call": "groupBy", "$args": [{ "$params": ["x"], "$return": "a" }, []] }
       },
       "expected": {}
     },
@@ -275,10 +263,7 @@
         "$return": {
           "$call": "sortBy",
           "$args": [
-            {
-              "$params": ["s"],
-              "$return": { "$call": "length", "$args": [{ "$var": "s" }] }
-            },
+            { "$params": ["s"], "$return": { "$call": "length", "$args": [{ "$var": "s" }] } },
             ["bbb", "a", "cccc", "dd"]
           ]
         }
@@ -291,10 +276,7 @@
         "$return": {
           "$call": "sortBy",
           "$args": [
-            {
-              "$params": ["item"],
-              "$return": { "$get": "name", "$from": { "$var": "item" } }
-            },
+            { "$params": ["item"], "$return": { "$get": "name", "$from": { "$var": "item" } } },
             [
               { "name": "charlie", "age": 30 },
               { "name": "alice", "age": 25 },
@@ -315,10 +297,7 @@
         "$return": {
           "$call": "sortBy",
           "$args": [
-            {
-              "$params": ["item"],
-              "$return": { "$get": "age", "$from": { "$var": "item" } }
-            },
+            { "$params": ["item"], "$return": { "$get": "age", "$from": { "$var": "item" } } },
             [
               { "name": "alice", "age": 30 },
               { "name": "bob", "age": 20 },
@@ -339,10 +318,7 @@
         "$return": {
           "$call": "sortBy",
           "$args": [
-            {
-              "$params": ["item"],
-              "$return": { "$get": "group", "$from": { "$var": "item" } }
-            },
+            { "$params": ["item"], "$return": { "$get": "group", "$from": { "$var": "item" } } },
             [
               { "name": "alice", "group": 1 },
               { "name": "bob", "group": 2 },
@@ -380,10 +356,7 @@
     {
       "description": "sortBy: rejects an unsupported key type",
       "body": {
-        "$return": {
-          "$call": "sortBy",
-          "$args": [{ "$params": ["x"], "$return": true }, [1, 2]]
-        }
+        "$return": { "$call": "sortBy", "$args": [{ "$params": ["x"], "$return": true }, [1, 2]] }
       },
       "error": "must return a finite number or string"
     },

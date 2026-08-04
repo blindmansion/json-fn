@@ -22,9 +22,7 @@
           {
             "$params": ["name"],
             "$return": {
-              "$let": {
-                "upper": { "$call": "upper", "$args": [{ "$var": "name" }] }
-              },
+              "$let": { "upper": { "$call": "upper", "$args": [{ "$var": "name" }] } },
               "$in": {
                 "$call": "bind",
                 "$args": [
@@ -44,9 +42,7 @@
       "description": "a pure binding before the first effect wraps the chain in $let",
       "source": "do {\n  x: 1,\n  y <- eff(),\n  pure(add(x, y))\n}",
       "expected": {
-        "$let": {
-          "x": 1
-        },
+        "$let": { "x": 1 },
         "$in": {
           "$call": "bind",
           "$args": [
@@ -105,9 +101,7 @@
           {
             "$params": ["name"],
             "$return": {
-              "$let": {
-                "upper": { "$call": "upper", "$args": [{ "$var": "name" }] }
-              },
+              "$let": { "upper": { "$call": "upper", "$args": [{ "$var": "name" }] } },
               "$in": {
                 "$call": "bind",
                 "$args": [
@@ -150,18 +144,14 @@
       "description": "a pure run after a discard may shadow an earlier pure binding",
       "source": "do {\n  x: 1,\n  step(),\n  x: 2,\n  pure(x)\n}",
       "expected": {
-        "$let": {
-          "x": 1
-        },
+        "$let": { "x": 1 },
         "$in": {
           "$call": "bind",
           "$args": [
             { "$call": "step", "$args": [] },
             {
               "$return": {
-                "$let": {
-                  "x": 2
-                },
+                "$let": { "x": 2 },
                 "$in": { "$call": "pure", "$args": [{ "$var": "x" }] }
               }
             }
