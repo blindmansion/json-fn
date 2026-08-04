@@ -1,5 +1,5 @@
 // A tiny typed pipeline: fold a stream of transforms over a list of numbers.
-// Exercises the .jfn type syntax (docs/language/type-syntax-spec.md) — a discriminated
+// Exercises the .jfn type syntax — a discriminated
 // union, refinements, array + function types, and curried / rest / object-
 // pattern signatures — next to the language's lambdas, `if`/`cond`/`match`,
 // `where`, and template strings.

@@ -313,7 +313,7 @@ a JSON value, not json-fn syntax. Use `$raw` to preserve data that would
 otherwise be interpreted as expression syntax (keys such as `$fn`, `$var`, or
 `$call`) or to keep a literal `$comment` entry. Shorthand has no keyword for
 it: the parser infers the boundary around static JSON containing quoted
-`$`-prefixed keys (see the [shorthand spec](../shorthand-spec.md)). Quotation is
+`$`-prefixed keys (see the [shorthand spec](../shorthand/shorthand-spec.md)). Quotation is
 not a fuel escape hatch: a `$raw` payload charges the same deterministic fuel
 as evaluating the equivalent plain constant literal (see
 [Execution limits](../../runtime/execution-limits.md)).

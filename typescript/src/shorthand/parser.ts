@@ -2,7 +2,6 @@
  * Recursive-descent + precedence-climbing parser that lowers `.jfn` shorthand
  * directly to canonical json-fn JSON. There is no separate shorthand AST: the
  * canonical JSON *is* the tree, and the lowering rules from
- * `docs/language/shorthand-spec.md` are applied inline.
  */
 
 import type { FieldPattern, FunctionBody, JSONType, Param } from "../types";
@@ -247,7 +246,7 @@ class Parser extends TokenCursor {
   private parseCmp(): { value: JSONType; chainParts?: JSONType[] } {
     const operands = [this.parseAdd()];
     const names: string[] = [];
-    for (;;) {
+    for (; ;) {
       const name = COMPARISON_OPS[this.peekType() as TokPunct];
       if (name === undefined) break;
       this.advance();
@@ -288,7 +287,7 @@ class Parser extends TokenCursor {
     // Tracks whether `left` is a `strcat` node produced by `++` at this level,
     // so a run of `++` flattens into one variadic call.
     let leftIsConcat = false;
-    for (;;) {
+    for (; ;) {
       const type = this.peekType();
       if (type === "plus") {
         this.advance();
@@ -315,7 +314,7 @@ class Parser extends TokenCursor {
 
   private parseMul(): JSONType {
     let left = this.parseUnary();
-    for (;;) {
+    for (; ;) {
       const type = this.peekType();
       let name: string;
       if (type === "star") name = "mul";
@@ -356,7 +355,7 @@ class Parser extends TokenCursor {
 
   private parsePostfixInner(): JSONType {
     let { value: val, name } = this.parsePrimary();
-    for (;;) {
+    for (; ;) {
       const type = this.peekType();
       if (type === "lparen") {
         // Bare identifier in call position is a literal function name; anything
@@ -394,7 +393,7 @@ class Parser extends TokenCursor {
   /** Consume a maximal run of `.name` / `[...]` access segments. */
   private gatherAccess(): Seg[] {
     const segs: Seg[] = [];
-    for (;;) {
+    for (; ;) {
       const type = this.peekType();
       if (type === "dot") {
         this.advance();
@@ -673,7 +672,7 @@ class Parser extends TokenCursor {
       this.advance();
       return mode === "data" ? this.finishObjectLiteral(map, null) : map;
     }
-    for (;;) {
+    for (; ;) {
       if (this.peekType() === "dotdotdot") {
         hasDynamicEntry = true;
         map = flushObjectMap(map, chunks);
@@ -779,7 +778,7 @@ class Parser extends TokenCursor {
     const map: Record<string, JSONType> = {};
     const types: Record<string, Schema> = {};
     if (this.peekType() === "eof") return map;
-    for (;;) {
+    for (; ;) {
       // `type` is a contextual keyword only when followed by an identifier (the
       // type name); `type: expr` and the `{ type }` pun stay data entries.
       if (this.isKeyword("type") && this.peek2().type === "ident") {
@@ -836,7 +835,7 @@ class Parser extends TokenCursor {
   private looksLikeFuncLit(): boolean {
     let depth = 0;
     let i = this.pos;
-    for (;;) {
+    for (; ;) {
       const t = this.tokens[i]?.tok;
       if (t === undefined || t.type === "eof") return false;
       if (t.type === "lparen") {
@@ -995,7 +994,7 @@ class Parser extends TokenCursor {
       this.advance();
       return { params, slotSchemas };
     }
-    for (;;) {
+    for (; ;) {
       let isRest = false;
       let param: Param;
       if (this.peekType() === "dotdotdot") {
@@ -1067,7 +1066,7 @@ class Parser extends TokenCursor {
       throw this.err("empty object pattern '{}' is not supported");
     }
     const fields: FieldPattern["$fields"] = [];
-    for (;;) {
+    for (; ;) {
       const name = this.expectIdent("field name in object pattern");
       if (this.peekType() === "colon") {
         throw this.err("field rename/nesting in object patterns is not supported");
@@ -1107,7 +1106,7 @@ class Parser extends TokenCursor {
     if (this.peekType() === "rbrace") {
       throw this.err("empty 'where' block: at least one binding is required");
     }
-    for (;;) {
+    for (; ;) {
       const name = this.expectIdent("binding name");
       if (names.has(name)) {
         throw this.err(`duplicate 'where' binding ${JSON.stringify(name)}`);
@@ -1179,7 +1178,7 @@ class Parser extends TokenCursor {
       this.advance();
       return [arms, elseVal];
     }
-    for (;;) {
+    for (; ;) {
       if (this.eatKeyword("else")) {
         this.expect("colon", "':' after 'else'");
         elseVal = this.parseBody();
@@ -1220,7 +1219,7 @@ class Parser extends TokenCursor {
     }
     const entries: DoEntry[] = [];
     const pureNames = new Set<string>();
-    for (;;) {
+    for (; ;) {
       const entry = this.parseDoEntry();
       if (entry.kind === "pure") {
         if (pureNames.has(entry.name)) {
@@ -1391,7 +1390,7 @@ class Parser extends TokenCursor {
       this.advance();
       return { parts, hasSpread };
     }
-    for (;;) {
+    for (; ;) {
       if (this.peekType() === "dotdotdot") {
         hasSpread = true;
         if (plain.length > 0) {

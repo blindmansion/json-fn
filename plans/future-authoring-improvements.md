@@ -40,7 +40,7 @@ typechecking than the existing `pipe([functions], value)` builtin.
 ## Type syntax
 
 The current type syntax is specified in
-[`docs/language/type-syntax-spec.md`](../docs/language/type-syntax-spec.md).
+[`docs/language/shorthand/type-syntax-spec.md`](../docs/language/shorthand/type-syntax-spec.md).
 
 ### Local type declarations
 

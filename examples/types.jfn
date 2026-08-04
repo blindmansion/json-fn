@@ -1,4 +1,4 @@
-// Showcase of the .jfn type syntax (docs/language/type-syntax-spec.md). Exercises every
+// Showcase of the .jfn type syntax. Exercises every
 // type-position construct so editor highlighting has something to chew on.
 // Named types populate the module `$types` pool.
 type UserId = string & pattern("^u_")

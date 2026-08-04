@@ -1,7 +1,5 @@
 //! Recursive-descent + precedence-climbing parser that lowers `.jfn` shorthand
 //! directly to canonical json-fn JSON (`serde_json::Value`). There is no
-//! separate shorthand AST: the canonical JSON *is* the tree, and the lowering
-//! rules from `docs/language/shorthand-spec.md` are applied inline.
 
 use serde_json::{Map, Number, Value};
 
