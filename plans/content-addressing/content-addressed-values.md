@@ -2,7 +2,7 @@
 
 Status: partially implemented. The "Canonical encoding and hashing" section
 (roadmap Phase 3) has landed in `typescript/src/hashing/` with cross-runtime
-vectors in `spec/hash-cases/` and documentation in `docs/hashing.md`; the
+vectors in `spec/hash-cases/` and documentation in `docs/runtime/hashing.md`; the
 codec, blob store, chunking, and GC remain gated on the measurement gate
 below. This is the base plan; two follow-ups build on it —
 [`module-identity-pinning.md`](module-identity-pinning.md) (cheap, high value,

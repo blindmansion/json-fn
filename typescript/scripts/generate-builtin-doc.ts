@@ -12,7 +12,7 @@ type BuiltinDocEntry = {
 
 const root = fileURLToPath(new URL("../..", import.meta.url));
 const inputPath = join(root, "spec/builtins.json");
-const outputPath = join(root, "docs/builtins.md");
+const outputPath = join(root, "docs/builtins/builtins.md");
 const categoryTitles: Record<string, string> = {
   "type-checking": "Type Checking",
   coercion: "Type Coercion",
@@ -110,7 +110,7 @@ const document = `# Builtins
 
 This reference is generated from the descriptions, categories, and portable type
 signatures in
-[\`spec/builtins.json\`](../spec/builtins.json).
+[\`spec/builtins.json\`](../../spec/builtins.json).
 
 Signatures use \`T?\` for optional parameters and \`...T[]\` for variadic
 parameters. Builtins backed by implementation-specific type rules may be checked

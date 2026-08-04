@@ -21,12 +21,12 @@ contract. Do not change the current linker behavior.
 
 This contract-scoped behavior is intentional and already described correctly
 in
-[`docs/environment-contract.md`](../docs/environment-contract.md) and
-[`docs/language.md`](../docs/language.md).
+[`docs/deployment/environment-contract.md`](../docs/deployment/environment-contract.md) and
+[`docs/language/language.md`](../docs/language/language.md).
 
 ## Documentation issue
 
-[`docs/writing-jfn.md`](../docs/writing-jfn.md) §3 correctly qualifies
+[`docs/guides/writing-jfn.md`](../docs/guides/writing-jfn.md) §3 correctly qualifies
 injected names with "if the module is linked against an environment contract."
 The effects introduction and trip-up checklist later describe `effects` as
 reserved without consistently repeating that condition. This can be read as a
@@ -34,7 +34,7 @@ global parser rule like the reservation of `Task`, which it is not.
 
 ## Changes
 
-1. In `docs/writing-jfn.md` §12, qualify the effect-namespace explanation:
+1. In `docs/guides/writing-jfn.md` §12, qualify the effect-namespace explanation:
 
    > In a contract-linked module, the environment injects `effects`, so the
    > module may not declare that name as a top-level binding.
@@ -45,7 +45,7 @@ global parser rule like the reservation of `Task`, which it is not.
    > `Task` is reserved as a type name. In a contract-linked module, `effects`
    > is injected by the linker and may not be declared as a top-level binding.
 
-3. Audit every occurrence in `docs/writing-jfn.md` that groups `effects` with
+3. Audit every occurrence in `docs/guides/writing-jfn.md` that groups `effects` with
    unconditional injected or reserved names, including the introduction, §3,
    §12, §13, and their cross-references. Qualify the top-level binding rule
    with “in a contract-linked module,” while distinguishing the injected

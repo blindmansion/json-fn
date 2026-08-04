@@ -64,7 +64,7 @@ func CallFunction(fn any, args []any, functions FunctionRegistry, limits *Execut
 // higher-order loops over pure builtins — which never re-enter
 // evaluateExpression — can still be cancelled/timed out. The deadline is
 // intentionally non-deterministic and therefore not part of the conformance
-// spec (see docs/execution-limits.md §3.4).
+// spec (see docs/runtime/execution-limits.md §3.4).
 func checkInterrupt(ctx *evaluationContext) error {
 	if ctx.limits.ctx == nil {
 		return nil

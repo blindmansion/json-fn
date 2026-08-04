@@ -25,7 +25,7 @@ Monomorphic signatures would launder everything to `any`: `setAt(board, i, p)`
 typed as `(any[], integer, any) -> any[]` silently disables checking for the
 whole downstream dataflow. The load-bearing builtins (`map`, `filter`, `setAt`,
 `concat`, …) are exactly the polymorphic ones. So the table speaks a small
-dialect **on top of** the user-facing schema fragment (`docs/language.md` /
+dialect **on top of** the user-facing schema fragment (`docs/language/language.md` /
 `plans/type-sketch.md` §2). These extensions are **builtin-only** — they never
 appear in user-written types or in the schemas the checker infers; the checker
 *instantiates* them away at each call site.

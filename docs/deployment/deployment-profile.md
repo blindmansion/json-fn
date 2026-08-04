@@ -103,7 +103,7 @@ const driver = createDurableDriver({
 });
 ```
 
-See [Durable task hosting](durable-host.md) for storage, delivery, recovery, and
+See [Durable task hosting](../runtime/durable-host.md) for storage, delivery, recovery, and
 failure semantics.
 
 ## Exact runtime-adapter bindings

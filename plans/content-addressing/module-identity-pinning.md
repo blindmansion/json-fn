@@ -6,7 +6,7 @@ canonical-encoding + hashing layer from
 [`content-addressed-values.md`](content-addressed-values.md) — not on the blob
 store. That layer is now implemented (roadmap Phase 3:
 `typescript/src/hashing/`, including the component and aggregate identity
-hash helpers this plan consumes; see `docs/hashing.md`), so this plan is
+hash helpers this plan consumes; see `docs/runtime/hashing.md`), so this plan is
 unblocked. Can land with v1 or independently before it.
 
 ## Summary
@@ -14,7 +14,7 @@ unblocked. Can land with v1 or independently before it.
 A serialized continuation is deliberately **not** self-contained with respect
 to the module: escaping-closure capture attaches `where`-locals and nested
 locals, but module-level (registry) functions resolve **by name at call time**
-on whatever host resumes the task. `docs/language.md` states the contract
+on whatever host resumes the task. `docs/language/language.md` states the contract
 plainly: a shipped closure "still relies on the target host providing the
 registry (module + stdlib) — exactly as it already relies on `add`, `map`, and
 friends being present."
@@ -92,7 +92,7 @@ genuinely unhashable residue to the operator as a named obligation:
   adapter code stays outside automatic identity. Keeping a `deploymentId` is
   an operator assertion that the current `adapter.functions` and inline
   `adapter.effects` are behaviorally compatible — in the behavioral-parity
-  sense of `docs/environment-contract.md` — with every in-flight workflow
+  sense of `docs/deployment/environment-contract.md` — with every in-flight workflow
   under that id. A behaviorally incompatible adapter change requires a new
   `deploymentId`, which the existing non-mutating deployment-mismatch path
   already enforces. `deploymentId` is not an input to `identityHash`; it is

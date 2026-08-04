@@ -28,7 +28,7 @@ program = {
 assert call_function(program, [2, 3], stdlib) == 5
 ```
 
-See [`docs/language.md`](../docs/language.md) for the full language reference.
+See [`docs/language/language.md`](../docs/language/language.md) for the full language reference.
 
 ## Public API
 

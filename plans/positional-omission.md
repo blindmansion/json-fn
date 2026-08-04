@@ -37,7 +37,7 @@ escapes it with keyword arguments. json-fn has neither, on purpose.
   `typescript/src/check/checker.ts`; test in
   `typescript/test/check/checker.test.ts` ("explicit null for an omittable
   slot…").
-- **Authoring guideline** in `docs/writing-jfn.md` (§6 and the trip-up
+- **Authoring guideline** in `docs/guides/writing-jfn.md` (§6 and the trip-up
   checklist): at most one trailing omittable positional parameter; a function
   with several independent optional knobs should take one object-pattern
   argument, whose fields omit independently.

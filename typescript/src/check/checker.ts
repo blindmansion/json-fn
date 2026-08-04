@@ -810,7 +810,7 @@ function checkArity(sig: Sig, argc: number, ctx: CheckContext): boolean {
   return false;
 }
 
-// Result type of a short-circuit `$and`/`$or` (docs/language.md): these are
+// Result type of a short-circuit `$and`/`$or` (docs/language/language.md): these are
 // value-returning special forms, not boolean operators — the result is *an
 // operand*. A non-final operand reaches the result only when it stops the chain
 // (falsy for `$and`, truthy for `$or`), so it contributes just that slice of
@@ -843,7 +843,7 @@ function shortCircuitType(exprs: JSONType[], isAnd: boolean, ctx: CheckContext):
 // (which pushes the expected type into each arm). A single visitor per branch
 // construct emits the control-flow lints exactly once and threads the same
 // per-arm narrowing facts (§5.5; the frozen fact set is documented in
-// `docs/narrowing.md`), then hands each arm's result expression and its
+// `docs/language/narrowing.md`), then hands each arm's result expression and its
 // narrowed context to `onArm`. Keeping this in one place is what lets check-mode
 // push expectations into branches without re-implementing (and drifting from)
 // the exhaustiveness / dead-case / narrowing logic.
@@ -1102,7 +1102,7 @@ function synth(expr: JSONType, ctx: CheckContext): Schema {
           // A literal null supplied to an omittable fixed slot whose schema
           // does not admit null is almost always an attempt to "skip" the
           // slot JS-style. Explain the omission model instead of emitting the
-          // bare assignability error (docs/language.md: explicit null is
+          // bare assignability error (docs/language/language.md: explicit null is
           // supplied data and suppresses omission/default behavior).
           a === null &&
           i >= sig.required.length &&

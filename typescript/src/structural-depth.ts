@@ -1,5 +1,5 @@
 /**
- * Portable structural-depth limit (see `docs/execution-limits.md` and
+ * Portable structural-depth limit (see `docs/runtime/execution-limits.md` and
  * `plans/runtime-representation-gaps.md` section 2).
  *
  * One counting rule is shared by every traversal: the structural depth of a

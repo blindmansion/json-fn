@@ -2,17 +2,17 @@
 
 json-fn is built for agents that write programs rather than issuing one tool call at a time — but instead of sandboxing a general-purpose language after the fact, it makes agent-written code safe by construction: pure JSON programs with no I/O and no capability beyond what an operator-owned contract explicitly declares. Because the program is inert data, it's an auditable artifact — typecheckable against its contract, hashable, diffable, and human-readable — so operators can review exactly what an agent's automation can do before embedding it in their application. And because continuations are JSON too, agent-written workflows suspend, persist, and resume across process restarts natively, giving durable orchestration without replay machinery.
 
-json-fn is a pure-JSON functional expression language evaluated by a tree-walking interpreter. See `docs/language.md` for the full reference; `docs/` is the source of truth for language details. (There is no root `README.md` right now — it will be rewritten once the project stabilizes.)
+json-fn is a pure-JSON functional expression language evaluated by a tree-walking interpreter. See `docs/index.md` for the documentation map and `docs/language/language.md` for the full reference; `docs/` is the source of truth for language details. (There is no root `README.md` right now — it will be rewritten once the project stabilizes.)
 
 ## Reference docs & working notes
 
-- `docs/` — language reference documentation.
- - `docs/language.md` — full language reference.
- - `docs/writing-jfn.md` — concise agent-facing guide to authoring `.jfn` modules (shorthand only, no host/tooling).
- - `docs/shorthand-spec.md` — the `.jfn` shorthand syntax spec.
-  - `docs/environment-contract.md` — portable operator-owned boundary contract.
-  - `docs/deployment-profile.md` — portable live/durable deployment selection.
-  - `docs/durable-host.md` — TypeScript durable task-host configuration, persistence, recovery, and failure semantics.
+- `docs/` — language, authoring, deployment, and runtime documentation.
+  - `docs/index.md` — documentation map and recommended reading paths.
+  - `docs/guides/` — authoring guides.
+  - `docs/language/` — language, shorthand, type syntax, and narrowing references.
+  - `docs/builtins/` — generated builtin catalog and signature-registry specification.
+  - `docs/runtime/` — execution limits, hashing, and durable host behavior.
+  - `docs/deployment/` — portable environment contract and deployment profile.
 - `plans/` — design plans and sketches for in-progress / proposed language work (e.g. `module-scope.md`, `effects-sketch.md`, `type-sketch.md`).
 - `todo/` — outstanding work items and tracking notes (e.g. `conformance-tests.md`, `impl-feature-parity.md`, `new-features.md`).
 - `examples/` — sample `.jfn` programs with portable environment contracts and deployment profiles (e.g. `dungeon`, `thermostat`, `orbital-traffic`, `parcel-sorter`).
@@ -47,7 +47,7 @@ Uses **Bun** (not node/npm). Common commands, run inside `typescript/`:
 - `bun run check` — `tsc --noEmit`, oxlint, oxfmt --check, spec-case format check.
 - `bun run fix` — typecheck, lint --fix, format (TS + spec-case JSON).
 - `bun test` — run the test suite.
-- `bun run generate:builtins-doc` — regenerate `docs/builtins.md`; run whenever `spec/builtins.json` is updated.
+- `bun run generate:builtins-doc` — regenerate `docs/builtins/builtins.md`; run whenever `spec/builtins.json` is updated.
 
 ### The `jfn` CLI
 

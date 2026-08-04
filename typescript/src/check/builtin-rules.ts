@@ -1,5 +1,5 @@
 // The polymorphic layer. Builtin signatures live in a language-agnostic table
-// (`spec/builtins.json`, see docs/builtin-signatures.md) so all implementations
+// (`spec/builtins.json`, see docs/builtins/builtin-signatures.md) so all implementations
 // share one source of truth and don't drift. That table speaks a small
 // *builtin-only* dialect on top of the user-facing schema fragment:
 //

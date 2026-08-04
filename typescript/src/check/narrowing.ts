@@ -196,7 +196,7 @@ function excludeLiteral(s: Schema, v: JSONType, defs: Defs): Schema {
   }
 }
 
-// Truthiness (docs/language.md): `false`, `null`, `0`, and `""` are falsy;
+// Truthiness (docs/language/language.md): `false`, `null`, `0`, and `""` are falsy;
 // every other value — including all arrays/objects, any non-zero number, and
 // any non-empty string — is truthy.
 function isFalsyValue(v: JSONType): boolean {

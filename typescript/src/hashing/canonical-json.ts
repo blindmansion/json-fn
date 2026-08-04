@@ -27,7 +27,7 @@
  *
  * Depth policy: the walk enforces the portable structural-depth contract with
  * the shared counting rule and limit error from `src/structural-depth.ts`
- * (`docs/execution-limits.md`). Depth is checked before every descent, so the
+ * (`docs/runtime/execution-limits.md`). Depth is checked before every descent, so the
  * bounded recursion can never reach the host stack limit; cycles are detected
  * by identity on the current path and fail before any depth unrolling.
  */

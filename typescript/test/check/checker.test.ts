@@ -2150,7 +2150,7 @@ describe("synth: control-flow unions", () => {
   test("$cond: an arm's negated condition narrows the else arm", () => {
     // `cond { isNull(x): "d", else: x }` with `x: string | null`: the else arm
     // inherits the negation of the isNull guard, so `x` is plain string there
-    // and the whole cond joins to string (docs/narrowing.md, control-flow
+    // and the whole cond joins to string (docs/language/narrowing.md, control-flow
     // wiring for $cond).
     const nctx: CheckContext = {
       defs: {},

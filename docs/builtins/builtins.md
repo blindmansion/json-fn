@@ -4,7 +4,7 @@
 
 This reference is generated from the descriptions, categories, and portable type
 signatures in
-[`spec/builtins.json`](../spec/builtins.json).
+[`spec/builtins.json`](../../spec/builtins.json).
 
 Signatures use `T?` for optional parameters and `...T[]` for variadic
 parameters. Builtins backed by implementation-specific type rules may be checked

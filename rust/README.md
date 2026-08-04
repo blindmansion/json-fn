@@ -20,7 +20,7 @@ let result = call_function(&program, &[json!(2), json!(3)], &stdlib, None).unwra
 assert_eq!(result, json!(5));
 ```
 
-See [`docs/language.md`](../docs/language.md) for the full language reference.
+See [`docs/language/language.md`](../docs/language/language.md) for the full language reference.
 
 ## Public API
 

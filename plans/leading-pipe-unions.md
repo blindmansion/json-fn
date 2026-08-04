@@ -32,7 +32,7 @@ language-specific prohibition.
 ## Syntax and scope
 
 Change the type grammar in
-[`docs/type-syntax-spec.md`](../docs/type-syntax-spec.md) from:
+[`docs/language/type-syntax-spec.md`](../docs/language/type-syntax-spec.md) from:
 
 ```text
 union := refined ( "|" refined )*
@@ -103,8 +103,8 @@ and the shorthand parser/printer tests under
 
 ## Documentation
 
-- Update the grammar and union examples in `docs/type-syntax-spec.md`.
-- Mention in `docs/writing-jfn.md` §10 that a leading pipe is accepted for
+- Update the grammar and union examples in `docs/language/type-syntax-spec.md`.
+- Mention in `docs/guides/writing-jfn.md` §10 that a leading pipe is accepted for
   multiline unions but omitted by canonical printing.
 - Add a parse case if the shared shorthand parse corpus covers accepted type
   syntax.

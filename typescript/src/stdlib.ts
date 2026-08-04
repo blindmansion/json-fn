@@ -848,7 +848,7 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
     // Higher-order builtins (interpreter-aware — can invoke JSON callbacks).
     // Each charges fuel proportional to the number of elements it iterates over;
     // the per-callback cost is charged separately by the interpreter's call
-    // chokepoint. See docs/execution-limits.md.
+    // chokepoint. See docs/runtime/execution-limits.md.
     map: arrayMapBuiltin("map", false),
     mapIndexed: arrayMapBuiltin("mapIndexed", true),
     filter: arrayFilterBuiltin("filter", false),
@@ -1014,7 +1014,7 @@ export function createStdlib(options: StdlibOptions = {}): FunctionRegistry {
       return parts.join("");
     }, 3),
 
-    // Tasks & effects (see src/task.ts and docs/language.md "Tasks & Effects").
+    // Tasks & effects (see src/task.ts and docs/language/language.md "Tasks & Effects").
     // Constructors build runtime-value-marked tagged records; `handle` interprets
     // them in-language. `pure` the registry key coexists with the `pure` marker
     // helper imported above — one is an object key, the other an identifier.

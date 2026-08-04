@@ -1,5 +1,5 @@
 {
-  "description": "Canonical type signatures for json-fn builtins. Shared across implementations to reduce drift. See docs/builtin-signatures.md for the dialect.",
+  "description": "Canonical type signatures for json-fn builtins. Shared across implementations to reduce drift. See docs/builtins/builtin-signatures.md for the dialect.",
   "$defs": {
     "Task": {
       "type": "object",

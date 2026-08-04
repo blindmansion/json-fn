@@ -40,7 +40,7 @@ typechecking than the existing `pipe([functions], value)` builtin.
 ## Type syntax
 
 The current type syntax is specified in
-[`docs/type-syntax-spec.md`](../docs/type-syntax-spec.md).
+[`docs/language/type-syntax-spec.md`](../docs/language/type-syntax-spec.md).
 
 ### Local type declarations
 
@@ -106,5 +106,5 @@ and lists of small records.
 
 The main language reference already documents that numeric `groupBy` and
 `countBy` callback results become JSON object string keys. The only possible
-follow-up is a concise reminder in `docs/writing-jfn.md`; this is not a
+follow-up is a concise reminder in `docs/guides/writing-jfn.md`; this is not a
 language change.

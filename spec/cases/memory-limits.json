@@ -1,6 +1,6 @@
 {
   "description": "Memory limits (maxValueSize)",
-  "comment": "maxValueSize bounds arrays and strings returned by pure functions and interpreter-aware builtins; see docs/execution-limits.md.",
+  "comment": "maxValueSize bounds arrays and strings returned by pure functions and interpreter-aware builtins; see docs/runtime/execution-limits.md.",
   "cases": [
     {
       "description": "range exceeding maxValueSize is rejected",

@@ -1,6 +1,6 @@
 {
   "description": "Fuel limits (metered work budget)",
-  "comment": "Fuel is charged at expression, function-invocation, result-size, and size-sensitive builtin chokepoints; see docs/execution-limits.md.",
+  "comment": "Fuel is charged at expression, function-invocation, result-size, and size-sensitive builtin chokepoints; see docs/runtime/execution-limits.md.",
   "cases": [
     {
       "description": "op-bomb via map + pure-builtin callback is rejected at a tight budget",

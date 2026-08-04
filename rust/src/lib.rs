@@ -1,6 +1,6 @@
 //! json-fn: a tree-walking interpreter for the json-fn JSON expression language.
 //!
-//! See the project README and `docs/language.md` for the language reference.
+//! See the project README and `docs/language/language.md` for the language reference.
 //! This crate mirrors the Go and TypeScript reference implementations and
 //! passes the shared conformance suite under `spec/cases/`.
 

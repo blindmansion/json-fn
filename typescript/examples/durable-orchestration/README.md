@@ -15,9 +15,9 @@ The automated test suite keeps a deterministic in-language handler under
 `typescript/test/examples/` and compares its report with this durable run. That
 oracle is test support rather than part of the public guest module.
 
-See [`docs/environment-contract.md`](../../../docs/environment-contract.md),
-[`docs/deployment-profile.md`](../../../docs/deployment-profile.md), and
-[`docs/durable-host.md`](../../../docs/durable-host.md) for the artifact and
+See [`docs/deployment/environment-contract.md`](../../../docs/deployment/environment-contract.md),
+[`docs/deployment/deployment-profile.md`](../../../docs/deployment/deployment-profile.md), and
+[`docs/runtime/durable-host.md`](../../../docs/runtime/durable-host.md) for the artifact and
 driver contracts used here.
 
 Run it from the repository root:

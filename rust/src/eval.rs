@@ -34,7 +34,7 @@ impl ExecutionUsage {
 
 /// Caller-supplied evaluation limits.
 ///
-/// See `docs/execution-limits.md` for the fuel/size model. Fuel is charged per
+/// See `docs/runtime/execution-limits.md` for the fuel/size model. Fuel is charged per
 /// AST node, per function invocation, and proportionally to the work done by
 /// size-sensitive builtins; `max_value_size` bounds produced array/string
 /// lengths.

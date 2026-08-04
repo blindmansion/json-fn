@@ -71,7 +71,7 @@ type CallFunc func(fn any, args []any) (any, error)
 
 // Meter lets a builtin account for work and allocation that its native loops
 // perform off the per-node/per-call fuel chokepoints (e.g. iterating an input
-// array or allocating a large result). See docs/execution-limits.md.
+// array or allocating a large result). See docs/runtime/execution-limits.md.
 //
 // Both methods return an error when a limit is exceeded; builtins must
 // propagate it rather than continuing.
@@ -102,7 +102,7 @@ type PureFunc struct {
 // BuiltinFunc is a native Go function that receives the interpreter's call
 // mechanism so it can invoke json-fn callbacks (e.g. map, filter, reduce). It
 // also receives a Meter so it can account for input-size- and output-size-
-// proportional work (see docs/execution-limits.md).
+// proportional work (see docs/runtime/execution-limits.md).
 type BuiltinFunc struct {
 	Fn    func(args []any, call CallFunc, fns FunctionRegistry, meter *Meter) (any, error)
 	Arity int
@@ -138,7 +138,7 @@ type ExecutionLimits struct {
 	// higher-order loops are covered): a cancelled context aborts with
 	// "Execution aborted" and an exceeded deadline with "Execution timed out".
 	// The deadline is non-deterministic and is not part of the conformance
-	// spec (see docs/execution-limits.md §3.4).
+	// spec (see docs/runtime/execution-limits.md §3.4).
 	Ctx context.Context
 	// Usage, if non-nil, has its Fuel field set to the fuel consumed by the run.
 	Usage *ExecutionUsage

@@ -3,7 +3,7 @@
 Status: active; reconciliation pre-step, Phase 0 (gate audited 2026-08-03;
 see [`phase0-gate-audit.md`](phase0-gate-audit.md)), Phase 2
 ([`raw-semantics-cleanup.md`](raw-semantics-cleanup.md)), and Phase 3
-(canonical encoding and hashing; see `docs/hashing.md`) completed
+(canonical encoding and hashing; see `docs/runtime/hashing.md`) completed
 
 ## Summary
 
@@ -151,7 +151,7 @@ The following Phase 0 decisions are settled:
   requirements are specified in
   [`runtime-representation-gaps.md`](runtime-representation-gaps.md), and the
   TypeScript implementation enforces it (with a companion evaluation-nesting
-  cap of 4,096) per `docs/execution-limits.md`. Raising the limit later — or
+  cap of 4,096) per `docs/runtime/execution-limits.md`. Raising the limit later — or
   lifting it via iterative walks — remains backwards compatible.
 - **Authored-artifact versus normalized program identity (decided: retain
   both).** Durable identity manifests retain both an exact hash of the
@@ -185,7 +185,7 @@ instrumentation for:
 
 This instrumentation is implemented in the TypeScript durable host
 (`createDurableInstrumentation` / `instrumentWorkflowStore`; see the
-measurement-instrumentation section of `../docs/durable-host.md`), with an
+measurement-instrumentation section of `../docs/runtime/durable-host.md`), with an
 observation-only store decorator and a representative-workload report script
 (`bun run instrument:durable`). Reports contain only counts, sizes, durations,
 and ratios — no workflow IDs, effect names, or guest values.
@@ -228,7 +228,7 @@ stack failures. **Done in TypeScript:** `MAX_STRUCTURAL_DEPTH = 512` and the
 `MAX_EVALUATION_NESTING = 4096` evaluator cap are enforced across parsing,
 checking, evaluation (entry and exit), printing, validation,
 serialization/hydration, and artifact loading, with conformance suites
-pinning the 512/513 boundary and docs in `docs/execution-limits.md`
+pinning the 512/513 boundary and docs in `docs/runtime/execution-limits.md`
 (see the resolution subsection of
 [`runtime-representation-gaps.md`](runtime-representation-gaps.md) section 2).
 
@@ -298,7 +298,7 @@ Program-normalization input:
 **Completed.** The shared hashing layer is implemented in
 `typescript/src/hashing/` (canonical JCS-style encoder with boundary
 validation, domain-separated SHA-256 hashes, and component/aggregate
-deployment identity helpers), documented in `docs/hashing.md`, with
+deployment identity helpers), documented in `docs/runtime/hashing.md`, with
 cross-runtime vectors in `spec/hash-cases/`. No blob store or durable-host
 integration was included; those remain Phases 4A/4B.
 

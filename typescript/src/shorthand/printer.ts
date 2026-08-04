@@ -15,7 +15,7 @@
  * Module and expression source have explicit entry points because canonical
  * objects do not retain whether they originated as a module or a data value.
  *
- * Not yet handled (tracked as open in `docs/shorthand-spec.md` §12): `$comment`
+ * Not yet handled (tracked as open in `docs/language/shorthand-spec.md` §12): `$comment`
  * attachment. Comments have no canonical surface form, so any `$comment` sibling
  * key is dropped.
  */

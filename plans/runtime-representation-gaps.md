@@ -257,7 +257,7 @@ The source comments explicitly note that the `evaluateExpression` JavaScript
 frame size affects the maximum evaluable nesting depth.
 
 `maxCallDepth` does not measure this recursion. It is incremented in
-`callFunctionInternal` and, as documented in `docs/execution-limits.md`, bounds
+`callFunctionInternal` and, as documented in `docs/runtime/execution-limits.md`, bounds
 nested json-fn function invocations. A deeply nested literal may remain at a
 guest call depth of one while consuming thousands of JavaScript frames.
 
@@ -362,7 +362,7 @@ The contract's requirements:
   show shorthand parsing failing near depth 2,900 while evaluation survived
   past 10,000). A value in the low hundreds (for example 256 or 512) covers
   realistic programs and data with large margin; the exact value is chosen at
-  implementation time and documented in `docs/execution-limits.md` and the
+  implementation time and documented in `docs/runtime/execution-limits.md` and the
   conformance suite.
 - **Conformance coverage at the boundary.** Cases must pin acceptance at the
   limit and the exact error just past it, across the covered traversals.
@@ -410,8 +410,8 @@ nesting-cap error) and `spec/parse-cases/structural-depth.json` (source
 nesting at the 512/513 boundary for arrays, objects, and grouping
 parentheses). Helper, boundary, checker, printer, validation, hydration, and
 closure-growth coverage: `typescript/test/structural-depth.test.ts`. Docs:
-`docs/execution-limits.md` section 4, cross-referenced from
-`docs/language.md` and `docs/durable-host.md`.
+`docs/runtime/execution-limits.md` section 4, cross-referenced from
+`docs/language/language.md` and `docs/runtime/durable-host.md`.
 
 ## 3. Unicode string representation
 
@@ -478,7 +478,7 @@ cannot be encoded as well-formed UTF-8 without replacement or rejection.
 
 ### Why this matters
 
-`docs/language.md` describes integer string indexing as reading a "character."
+`docs/language/language.md` describes integer string indexing as reading a "character."
 That term could mean:
 
 - a UTF-16 code unit;

@@ -284,7 +284,7 @@ double separators and a missing type before `=>`.
 Keep this as a documentation-only correction.
 
 Expand the documentation audit to include every location in
-`docs/writing-jfn.md` that groups `effects` with unconditional injected or
+`docs/guides/writing-jfn.md` that groups `effects` with unconditional injected or
 reserved names, not only the two sections currently highlighted. Preserve
 linker behavior and add a focused unlinked-module regression only if existing
 coverage does not prove that a top-level `effects` binding is legal without a

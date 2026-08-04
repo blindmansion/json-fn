@@ -19,7 +19,7 @@ lowers deterministically to that schema, and the schema pretty-prints back.
 
 Remaining deferred features (local types, bodyless signatures, and annotated
 locals) are tracked in
-[`plans/future-authoring-improvements.md`](../plans/future-authoring-improvements.md#type-syntax).
+[`plans/future-authoring-improvements.md`](../../plans/future-authoring-improvements.md#type-syntax).
 
 ---
 
@@ -470,7 +470,7 @@ contract-linked module resolves references across three ownership layers:
 2. operator-owned contract `$defs`;
 3. guest-owned module `$types`.
 
-The [environment contract](environment-contract.md) owns schemas used at the
+The [environment contract](../deployment/environment-contract.md) owns schemas used at the
 host boundary: direct-function signatures, effect parameters/results, and entry
 arguments/completion. The guest owns schemas that are internal to the module.
 Both may refer to contract definitions, but a module declaration does not
@@ -576,7 +576,7 @@ excluded keywords are treated as opaque by the checker.
 
 ## 11. Grammar (informal EBNF)
 
-Extends [`docs/shorthand-spec.md`](./shorthand-spec.md) §10. New/changed rules:
+Extends [`docs/language/shorthand-spec.md`](./shorthand-spec.md) §10. New/changed rules:
 
 ```
 module      := ( moduleEntry (moduleSep moduleEntry)* )?         // whole .jfn file

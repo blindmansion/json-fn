@@ -41,7 +41,7 @@ split the old `rawSkips` into `rawBoundaries`, `runtimeValueSkips`,
 `preseededStaticSkips`, and `discoveredStaticSkips`. Ingestion-route fuel
 equivalence under exact limits is tested in `test/runtime-values.test.ts`
 and pinned portably in `spec/cases/fuel-limits.json`;
-`docs/execution-limits.md` documents the stable virtual-cost rules.
+`docs/runtime/execution-limits.md` documents the stable virtual-cost rules.
 Workstreams F1/F2 (shorthand inference + printer normalization) have landed
 as one atomic change: the parser tracks static-literal provenance and cost
 from literal grammar paths (`staticCosts`/`rawWrappers`/`pendingPreseeds` in
@@ -66,14 +66,14 @@ spelling.
 Workstream G (docs, checker wording, remaining terminology) has landed: the
 annotated-handle diagnostic asks for a "static result-type schema", the
 `handle` builtin description in `spec/builtins.json` matches (with
-`docs/builtins.md` regenerated), stale "raw"/"inert" wording in
+`docs/builtins/builtins.md` regenerated), stale "raw"/"inert" wording in
 `src/check/narrowing.ts`, `src/stdlib.ts`, and test names was replaced with
 runtime-value terminology, and the docs were rewritten around inference:
-`docs/shorthand-spec.md` (quoted-data section, states table,
+`docs/language/shorthand-spec.md` (quoted-data section, states table,
 `parse(print(node)) = normalize(node)` contract, grammar and
 contextual-keyword updates, `$raw`-quoted annotated-handle lowering),
-`docs/writing-jfn.md` (quoted `$`-keys in static data, computed keys in
-dynamic objects), and `docs/language.md` (shorthand-inference note under
+`docs/guides/writing-jfn.md` (quoted `$`-keys in static data, computed keys in
+dynamic objects), and `docs/language/language.md` (shorthand-inference note under
 `$raw`, canonical annotated-handle spelling). The only bare `raw` left in
 docs is the statement that `raw` is an ordinary identifier; shared spec
 cases needed no further changes.
@@ -380,7 +380,7 @@ preserves deterministic limits across durable suspension and hydration even
 when actual preparation work differs: caches, skipped traversals, and lost
 metadata may change host preparation time only, never fuel, results, or
 errors. Wall-clock timeout and cancellation remain the host's protection
-against actual-work divergence, as `docs/execution-limits.md` already
+against actual-work divergence, as `docs/runtime/execution-limits.md` already
 documents.
 
 Under this model, quoting a static value does not reduce deterministic fuel.
@@ -774,7 +774,7 @@ Primary files:
 - `typescript/src/eval/execution.ts`
 - `typescript/src/expression-metadata.ts`
 - `typescript/src/types.ts`
-- `docs/execution-limits.md`
+- `docs/runtime/execution-limits.md`
 
 ### Workstream G: Migrate task, checker, specs, and examples
 
@@ -795,9 +795,9 @@ Primary files:
 - `typescript/src/check/module.ts`
 - `typescript/src/check/callable-rules.ts`
 - `typescript/src/task.ts`
-- `docs/language.md`
-- `docs/shorthand-spec.md`
-- `docs/execution-limits.md`
+- `docs/language/language.md`
+- `docs/language/shorthand-spec.md`
+- `docs/runtime/execution-limits.md`
 - `examples/dungeon.jfn`
 - `spec/cases/`
 - `spec/parse-cases/`

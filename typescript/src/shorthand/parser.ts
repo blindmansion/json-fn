@@ -2,7 +2,7 @@
  * Recursive-descent + precedence-climbing parser that lowers `.jfn` shorthand
  * directly to canonical json-fn JSON. There is no separate shorthand AST: the
  * canonical JSON *is* the tree, and the lowering rules from
- * `docs/shorthand-spec.md` are applied inline.
+ * `docs/language/shorthand-spec.md` are applied inline.
  */
 
 import type { FieldPattern, FunctionBody, JSONType, Param } from "../types";

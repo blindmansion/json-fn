@@ -210,7 +210,7 @@ Quotation is a semantic boundary, not a performance hint: plain constant data
 (e.g. `[1, 2, 3]`) stays plain canonical JSON, and quoting does not change
 deterministic fuel — a `$raw` payload charges the same cost as evaluating the
 equivalent plain constant literal (see
-[Execution limits](./execution-limits.md)).
+[Execution limits](../runtime/execution-limits.md)).
 
 Printing mirrors inference: a generic `$raw` payload prints as ordinary strict
 JSON, redundant wrappers (around scalars and collision-free static JSON)
@@ -898,8 +898,8 @@ host treats the resulting object as the outermost scope over the stdlib
 registry and chooses a named entry point (as with `pipeline.jfn` and
 `dungeon.jfn`). Standalone expressions are a separate parser/CLI mode and are
 not `.jfn` file syntax.
-See [Environment contract](environment-contract.md) for portable entry linking
-and [Durable task hosting](durable-host.md) for the TypeScript persistent host.
+See [Environment contract](../deployment/environment-contract.md) for portable entry linking
+and [Durable task hosting](../runtime/durable-host.md) for the TypeScript persistent host.
 The shorthand only guarantees the JSON it produces.
 
 > **Future direction (not specified):** module-level `import` / `export` may

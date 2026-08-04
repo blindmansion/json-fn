@@ -105,7 +105,7 @@ const ARITY_MARKER = Symbol("arity");
 
 // Passed to builtins so they can account for work/size proportional to their
 // inputs (native loops and allocations that don't otherwise flow through the
-// per-node/per-call fuel chokepoints). See docs/execution-limits.md.
+// per-node/per-call fuel chokepoints). See docs/runtime/execution-limits.md.
 type Meter = {
   charge: (amount: number) => void;
   guardSize: (size: number) => void;

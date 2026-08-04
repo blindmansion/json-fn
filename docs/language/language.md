@@ -320,7 +320,7 @@ it: the parser infers the boundary around static JSON containing quoted
 `$`-prefixed keys (see the [shorthand spec](shorthand-spec.md)). Quotation is
 not a fuel escape hatch: a `$raw` payload charges the same deterministic fuel
 as evaluating the equivalent plain constant literal (see
-[Execution limits](execution-limits.md)).
+[Execution limits](../runtime/execution-limits.md)).
 
 ```json
 {
@@ -869,9 +869,9 @@ executable runtime-adapter bindings:
 
 The two portable artifacts are specified separately:
 
-- the [environment contract](environment-contract.md) owns boundary schemas,
+- the [environment contract](../deployment/environment-contract.md) owns boundary schemas,
   direct functions, effects, and the production entry;
-- the [deployment profile](deployment-profile.md) selects a live or durable
+- the [deployment profile](../deployment/deployment-profile.md) selects a live or durable
   hosting mode, an effect subset, and portable execution limits.
 
 ```ts
@@ -933,8 +933,8 @@ implementations. `prepareDeployment({module, contract, profile, adapter})`
 validates and links them once. The `RuntimeAdapter` must bind exactly all contract
 functions and exactly the effects executed inline by that profile; profile
 effect selection is allowed to be a subset of the contract. See
-[Environment contract](environment-contract.md) and
-[Deployment profile](deployment-profile.md) for the complete JSON shapes,
+[Environment contract](../deployment/environment-contract.md) and
+[Deployment profile](../deployment/deployment-profile.md) for the complete JSON shapes,
 collision rules, validation APIs, and runtime-adapter requirements.
 
 Entry calls accept every argument count from the required length through the
@@ -962,8 +962,8 @@ timeout, and instrumentation.
 For task entries that must persist across process boundaries, the TypeScript
 implementation provides
 `createDurableDriver({deployment: preparedDurableDeployment, store})`. See
-[Deployment profile](deployment-profile.md) for durable selection and
-runtime-adapter binding, then [Durable task hosting](durable-host.md) for store consistency,
+[Deployment profile](../deployment/deployment-profile.md) for durable selection and
+runtime-adapter binding, then [Durable task hosting](../runtime/durable-host.md) for store consistency,
 delivery, recovery, and at-least-once execution semantics.
 
 `jfn check --contract <path>` loads the same artifact, preloads its named
@@ -1000,7 +1000,7 @@ by an in-language `handle`.
 ## Standard Library
 
 All standard-library functions, signatures, and descriptions are listed in the
-generated [Builtins reference](builtins.md).
+generated [Builtins reference](../builtins/builtins.md).
 
 ### Arithmetic
 
@@ -1233,13 +1233,13 @@ exceeded` at every parsing, checking, evaluation, printing, validation, and
 hydration boundary), and combined expression-plus-invocation nesting during
 evaluation is bounded at 4,096 (erroring with `Maximum evaluation nesting of
 4096 exceeded`). See
-[Execution limits § Fixed structural limits](execution-limits.md#4-fixed-structural-limits).
+[Execution limits § Fixed structural limits](../runtime/execution-limits.md#4-fixed-structural-limits).
 
 Portable deployment limits are supplied through a
-[deployment profile](deployment-profile.md); host entry and runtime-adapter boundaries
-are described by the [environment contract](environment-contract.md), with
-persistent TypeScript behavior in [Durable task hosting](durable-host.md). For
-the normative cost model, see [Execution limits](execution-limits.md). The
+[deployment profile](../deployment/deployment-profile.md); host entry and runtime-adapter boundaries
+are described by the [environment contract](../deployment/environment-contract.md), with
+persistent TypeScript behavior in [Durable task hosting](../runtime/durable-host.md). For
+the normative cost model, see [Execution limits](../runtime/execution-limits.md). The
 TypeScript CLI's `eval` command accepts `--max-call-depth`, `--max-fuel`, and
 `--max-value-size` to set these limits for an individual run.
 

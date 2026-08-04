@@ -5,8 +5,8 @@ through `createDurableDriver`. Unlike `runTask`, which owns a live task
 until it completes, the durable driver stores every continuation needed to
 cross a process boundary.
 
-The portable inputs are defined in [Environment contract](environment-contract.md)
-and [Deployment profile](deployment-profile.md). This document begins after
+The portable inputs are defined in [Environment contract](../deployment/environment-contract.md)
+and [Deployment profile](../deployment/deployment-profile.md). This document begins after
 `prepareDeployment({module, contract, profile, adapter})` has linked those
 artifacts to executable host bindings.
 

@@ -45,7 +45,7 @@ rather than silently coercing or dropping,
   arrays with holes or named properties (`UNSUPPORTED_VALUE`).
 
 The walk enforces the portable structural-depth contract with the shared
-counting rule and limit error (see `docs/execution-limits.md` section 4).
+counting rule and limit error (see `docs/runtime/execution-limits.md` section 4).
 
 ### Values, not programs
 
