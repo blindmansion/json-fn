@@ -1,6 +1,6 @@
 # Operators and precedence
 
-A closed set of operators. Precedence from highest to lowest:
+Precedence is highest to lowest:
 
 | Prec | Operators             | Assoc   | Lowers to                                        |
 | ---- | --------------------- | ------- | ------------------------------------------------ |
@@ -31,34 +31,30 @@ balance + delta checked as Cents
 { "$as": { "$call": "add", "$args": [{ "$var": "balance" }, { "$var": "delta" }] }, "$type": { "$ref": "#/$defs/Cents" } }
 ```
 
-Rules and rationale:
+Arithmetic, `++`, comparisons, prefix `!`, and unary `-` lower to the named
+calls shown above. The call spellings remain valid input, but canonical
+rendering uses operators. A leading `-` on a numeric literal is part of that
+literal rather than a `neg` call.
 
-- **Arithmetic, `++`, comparisons, prefix `!`, and unary `-`** lower to
-  **stdlib `$call` calls** (`add`, `strcat`, `eq`, `not`, `neg`, …).
-  `&&`, `||`, postfix `!`, and `checked as` lower to dedicated language
-  `$`-forms.
-- `&&`/`||` **flatten**: `a && b && c` → one variadic `$and`. They map to the
-  short-circuit language forms, **never** the eager stdlib `and`/`or` (call those
-  by name: `and(a, b)`).
+`&&` and `||` lower to the short-circuit `$and` and `$or` forms and flatten
+consecutive operands into one variadic form. Named `and(...)` and `or(...)`
+calls remain eager.
+
+Additional rules:
+
 - Ordered comparisons may be chained: `a < b <= c` means
   `a < b && b <= c`. Mixed ordered operators are allowed. Equality operators
   cannot participate in a chain: `a == b < c` and `a < b != c` are errors.
-  `==` is `eq`, which is **structural** (deep) equality — the only equality
-  json-fn has; on scalars it is ordinary strict equality.
+  Equality is structural; scalar equality is strict.
 - Chained operands evaluate from left to right, at most once, and stop after
-  the first false comparison. Primitive literals and plain variable reads can
-  be repeated in the canonical `$and`. Every nontrivial interior operand is
-  instead stored in a hygienic, lazy `$let` binding, whose memoized value is
-  used by both adjacent comparisons. For example, `0 < value() < 10` lowers to
-  the equivalent of `tmp > 0 && tmp < 10 where { tmp: value() }`; the synthetic
-  binding name is an implementation detail, and the printer reconstructs the
-  chained surface form.
+  the first false comparison. A nontrivial interior operand is stored in a
+  lazy `$let` binding and reused by its adjacent comparisons.
 - Postfix `x!` is a runtime-checked non-null assertion. It removes `null` from
-  the checker's inferred type, returns every non-null value unchanged, and
-  raises an evaluation error on `null`.
+  the inferred type, returns every non-null value unchanged, and raises an
+  evaluation error on `null`.
 - `expression checked as Type` evaluates the expression once, validates the
-  result against the type's runtime contract, and gives the expression that
-  declared type. It binds less tightly than `||`, so
+  result against the type, and gives the result that type. It binds less
+  tightly than `||`, so
   `a + b checked as Cents` means `(a + b) checked as Cents`. It is
   non-associative; repeat checks as `(x checked as A) checked as B`. Postfix
   assertion still binds tightly (`x! checked as T`), while asserting an
@@ -66,16 +62,10 @@ Rules and rationale:
   an ordinary identifier outside this two-token operator position:
   `checked(value)` is a call, while ascribing a variable with that name is
   written `(checked) checked as T`.
-- Only operators with a single unambiguous meaning and universal precedence are
-  elevated. Everything else stays a named call.
-- The call form (`add(a, b)`) remains legal and parses identically, but the
-  **operator form is canonical** on pretty-print.
-
 ## Template strings
 
-Backtick strings with `${expr}` holes are sugar for string building. Literal
-spans and hole expressions lower to a **flat variadic `strcat(...)`** — the same
-node as `++`.
+Backtick strings with `${expr}` holes lower to a flat variadic `strcat` call,
+the same form as `++`.
 
 ```jfn
 `Illegal move: ${moveDesc}`
@@ -87,18 +77,15 @@ node as `++`.
 { "$call": "strcat", "$args": [{ "$var": "firstName" }, " ", { "$var": "lastName" }] }
 ```
 
-Rules:
+Interpolation rules:
 
-- **Interpolation is strict — no coercion.** `${expr}` requires `expr` to be a
+- `${expr}` requires `expr` to be a
   string; wrap non-strings explicitly (`${str(n)}`), consistent with `strcat`.
-- **Escaping:** `` \` `` for a literal backtick, `\${` for a literal
+- Use `` \` `` for a literal backtick, `\${` for a literal
   dollar-brace, `\\` for a backslash. Other JSON escapes (`\n`, `\u2654`) apply
   inside literal spans.
-- **Canonical printback:** a `strcat` node with any string-literal segment prints
-  as a template; a node of pure expressions prints as `++`; `strcat(...)` stays
-  legal input but is not canonical output.
-- **Degenerate forms normalize:** `` `${x}` `` → `x` (single arg); `` `hello` ``
+- A canonical `strcat` with a string-literal segment renders as a template; one
+  containing only expressions renders with `++`.
+- Degenerate forms normalize: `` `${x}` `` → `x`; `` `hello` ``
   (no holes) → `"hello"`.
-
----
 

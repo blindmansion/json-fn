@@ -1,35 +1,28 @@
 # Effects: `do` and `handle`
 
-Two surface forms lower to the effects kernel (`perform` / `pure` / `bind` /
-`handle`; see the [Tasks & Effects](../json/tasks-and-effects.md) section of the
-language reference for the runtime semantics). Both are **parser-only sugar**.
-`handle` lowers to a call, while `do` lowers to a `bind` call spine plus
-canonical `$let` nodes for pure bindings. The printer folds those exact shapes
-back.
+`do` and `handle` lower to the `perform`, `pure`, `bind`, and `handle` task
+operations. See [Tasks and effects](../json/tasks-and-effects.md) for their
+runtime semantics.
 
-`do` and `handle` are **contextual keywords**: in primary position they
-introduce these forms, so — unlike ordinary identifiers — they can no longer be
-used as bare variable or call names there (a breaking change, alongside
-`if`/`cond`/`match`). A property key or a `.field` access named `do`/`handle`
-is unaffected.
+`do` and `handle` are contextual keywords in primary-expression position.
+They remain valid property names and access segments.
 
 ## `do { … }` — sequencing effects
 
-A `do` block is a comma-separated list of entries; each is one of:
+A `do` block is a comma-separated list of:
 
 - **effect binding** — `name <- expr`: run the task `expr`, bind its result to
   `name` for the rest of the block;
 - **pure binding** — `name : expr`: a lazy local (like a `where` binding; the
   value parses as a `body`, so a trailing `where` works);
-- **bare expression** — a *discard* if non-final (run for its effect, result
-  dropped, like Haskell's `e >> rest`), or the block's **result** if final.
+- **bare expression** — a discard if non-final, or the block result if final.
 
 A `do` block **must end with a result expression**, never a binding.
 
-Desugar: each effect binding and each discard starts a nested `bind(expr, k)`.
+Each effect binding and discard starts a nested `bind(expr, k)`.
 The continuation `k` binds the effect result to `name` (effect binding) or takes
-**no parameter** (discard — a distinct JSON shape from `_ <- expr`, which binds
-`_`, so both surface forms round-trip). Pure bindings since the previous
+no parameter (discard). `_ <- expr` instead binds the name `_`. Pure bindings
+since the previous
 effect/discard wrap the continuation's `$return` in `$let`; pure bindings
 *before* the first effect wrap the whole bind chain in `$let`. No synthetic
 zero-argument call is introduced.
@@ -113,25 +106,24 @@ do {
 }
 ```
 
-### The `<-` adjacency rule
+### `<-` adjacency
 
-`<-` is **not a lexer token** — tokenizing it as one would break `x < -1`.
-Instead, only in do-binding position, the parser recognizes a `<` token
-immediately followed by an **adjacent** `-` token (same line, next column).
-Everywhere else `< -` is an ordinary comparison against a negated operand, so a
-`do` result like `r < -1` is unaffected.
+In a `do` binding, `<-` requires adjacent `<` and `-` characters on the same
+line. Elsewhere, `< -` is a comparison against a negated operand.
 
 ## `handle … (returns Type)? with { … }` — in-language effect interpreter
 
 `handle <task> with { "name": clause, … }` lowers to
 `handle(task, { …clauses… })`. The clause record follows **data-object key
-rules** for [data objects](literals-and-data.md#data-objects--key-value), so dotted effect names (`io.readLine`), the `"*"` wildcard, and the
-`"return"` clause must be quoted. Clause semantics — named clauses, `"*"`,
+rules** for [data objects](literals-and-data.md#data-objects--key-value), so dotted effect names (`io.readLine`) and the `"*"` wildcard must be
+quoted. `return` may be bare. Literal clause names cannot start with `$`; use a
+computed key for such a name.
+Clause semantics — named clauses, `"*"`,
 `"return"`, bubbling, and multi-shot `resume` — are specified in the language
 reference.
 
-The total annotated form `handle <task> returns <type> with { … }` lowers the type
-schema as a `$raw`-quoted third argument:
+The total form `handle <task> returns <type> with { … }` lowers the type schema
+as a `$raw`-quoted third argument:
 `handle(task, { …clauses… }, { "$raw": <result-schema> })`. The annotation precedes
 `with` and names the handler's immediate result contract explicitly. `returns`
 is contextual: `handle returns with { … }` still handles a task variable named
@@ -159,12 +151,10 @@ handle greet(io) with {
 }
 ```
 
-## Canonical printback
+## Canonical rendering
 
-The printer folds **only exact desugar images**, preserving the
-bijective-by-normal-form guarantee (`parse(print(x)) = normalize(x)`, and exact
-identity for these already-normal forms): a `bind` call whose
-continuation is a structural function literal prints as `do { … }`. A leading
+Only exact lowering shapes render with this syntax. A `bind` call whose
+continuation is a structural function literal renders as `do { … }`. A leading
 `$let` around the bind spine reconstructs leading pure entries; a `$let` in a
 continuation's `$return` reconstructs the consecutive pure entries after that
 effect/discard. A `handle` call with a literal clause object prints as

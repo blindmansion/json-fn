@@ -48,12 +48,10 @@ bare identifiers or quoted strings.
 { "name": "ada", "score": { "$call": "add", "$args": [{ "$var": "x" }, 1] } }
 ```
 
-**Bare `$`-prefixed keys are forbidden** in a data object (they would collide
-with a magic key on lowering). A **quoted** `$`-prefixed key is accepted only
-when the whole containing literal is static JSON data; the parser then quotes
-the maximal static literal under a canonical `$raw` boundary (see "Quoted
-data" below). To give a dynamic object a literal `$`-prefixed key, use a
-computed key: `{ ["$status"]: status }`.
+Bare `$`-prefixed keys are invalid because they collide with canonical forms.
+A quoted `$`-prefixed key is valid only within static JSON data; lowering wraps
+the maximal static literal in `$raw`. To give a dynamic object a
+`$`-prefixed key, use a computed key: `{ ["$status"]: status }`.
 
 **Shorthand-property punning.** A bare identifier key with no `: value` puns to
 a same-named variable read — `{ year }` means `{ year: year }`. It mirrors the
@@ -75,8 +73,8 @@ equals the variable name (a value with a `$get` path — `{ year: year.start }` 
 is not a pun and prints in full).
 
 Object entries may be spreads (`...object`) or computed keys (`[key]: value`).
-They lower in source order using the existing `merge` and `fromEntries`
-builtins; `merge` is shallow and its right-hand object wins conflicts.
+They lower in source order using `merge` and `fromEntries`. `merge` is shallow,
+and its right-hand object wins conflicts.
 
 ```jfn
 { ...defaults, name: requestedName, [extraKey]: extraValue }
@@ -107,11 +105,9 @@ that validation. Computed keys follow `fromEntries`' string-key contract.
 
 ## Quoted data — inferred `$raw`
 
-There is no quoting keyword. Ordinary static JSON is already a value and lowers
-to itself; when a static literal contains a **quoted `$`-prefixed key** — which
-would otherwise collide with the canonical encoding — the parser quotes the
-**maximal static literal** around it under a canonical `$raw` boundary: a
-verbatim JSON island in which nothing is evaluated.
+There is no quoting keyword. Static JSON lowers to itself unless it contains a
+quoted `$`-prefixed key. In that case, the maximal static literal around the key
+lowers under `$raw` and is not evaluated.
 
 ```jfn
 { "$var": "this is data" }
@@ -152,23 +148,18 @@ entry follows the same rule, which is how a `$comment` key is preserved as
 data (`{ "$comment": "note", a: 1 }` quotes; plain literal syntax strips
 `$comment`).
 
-Quotation is a semantic boundary, not a performance hint: plain constant data
-(e.g. `[1, 2, 3]`) stays plain canonical JSON, and quoting does not change
-deterministic fuel — a `$raw` payload charges the same cost as evaluating the
-equivalent plain constant literal (see
+Plain constant data such as `[1, 2, 3]` stays plain canonical JSON. A `$raw`
+payload charges the same deterministic fuel as the equivalent plain constant
+literal (see
 [Execution limits](../../runtime/execution-limits.md)).
 
-Printing mirrors inference: a generic `$raw` payload prints as ordinary strict
-JSON, redundant wrappers (around scalars and collision-free static JSON)
-normalize away, and boundaries re-hoist to the maximal static literal on
-reparse — the round-trip contract is `parse(print(node)) = normalize(node)`.
-Wrappers that a boundary genuinely protects (expression-shaped or reserved-key
-payloads, literal `$comment` entries, generated code embedded as data, and the
-annotated-`handle` [result schema](effects.md)) are always retained.
+Canonical rendering writes a generic `$raw` payload as strict JSON. Redundant
+wrappers around scalars and collision-free static JSON normalize away.
+Boundaries protecting expression-shaped or reserved-key payloads, literal
+`$comment` entries, generated code used as data, and an annotated handler's
+[result schema](effects.md) are retained.
 
-Module bindings and `handle` clause records are explicit no-inference
-contexts: a module root stays a module and an empty clause record stays a
-handler record. `raw` is an ordinary identifier, not a keyword.
-
----
+Module bindings and `handle` clause records do not infer `$raw`: a module root
+stays a module and an empty clause record stays a handler record. `raw` is an
+ordinary identifier.
 

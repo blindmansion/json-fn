@@ -1,260 +1,273 @@
-# json-fn Type Syntax Specification
+# Type syntax
 
-A TypeScript-flavored surface syntax for **types** in `.jfn` shorthand. Types
-annotate function signatures and are declared at module level; the **canonical
-form is JSON Schema** (the fragment in `typescript/src/check/`). Type syntax
-lowers deterministically to that schema, and the schema pretty-prints back.
+Type expressions describe JSON values and lower deterministically to a closed
+JSON-Schema-like dialect. They support static checking and, except for
+static-only task completion types, runtime validation.
 
-- **Types describe JSON values.** The value universe is JSON, so the type
-  universe is null / boolean / number / integer / string / arrays / objects,
-  plus unions, literals, and refinements over them.
-- **Types live only in checked positions.** They appear in declarations,
-  function signatures, total-handler result contracts, and checked value
-  ascriptions. There are no unchecked standalone value annotations.
-- **Every type is also a runtime validator.** The same schema that types a call
-  statically validates an `any` value at a function boundary.
-- **The shorthand is a gate.** It can only emit a tractable fragment of JSON
-  Schema (§10); the static subschema checker never faces `not`, `if/then/else`,
-  general `allOf`, etc.
+## Type positions
 
-Remaining deferred features (local types, bodyless signatures, and annotated
-locals) are tracked in
-[`plans/future-authoring-improvements.md`](../../../plans/future-authoring-improvements.md#type-syntax).
+Types appear in exactly four positions:
 
----
+- module declarations: `type Name = Type`;
+- function parameters and returns: `(value: Type) -> Result => ...`;
+- total handler results: `handle task returns Type with { ... }`;
+- checked value ascriptions: `value checked as Type`.
 
-## 1. Where types appear
+Declarations are module-level entries. Type expressions may occur in any of the
+four positions, including nested function signatures, handlers, and
+ascriptions.
 
-Exactly four positions:
+A total handler annotation lowers to a `$raw`-quoted third argument:
+`handle(task, clauses, {"$raw": schema})`. It contracts the handler's immediate
+result.
 
-1. **Module-level type declarations** — `type Name = <type>` entries in the
-   file's implicit module body, lowering to the reserved `$types` sibling (§8).
-2. **Function signatures** — inline param annotations `name: <type>` and a return
-   type `-> <type>` on a function literal header (§7).
-3. **Total effect handlers** — `handle task returns <type> with { … }` declares the
-   immediate result contract of the handler.
-4. **Checked value ascriptions** — `expression checked as <type>` validates the
-   expression at runtime and gives the successful result that type.
+## Schema forms
 
-Type _declarations_ are module-top-level only. Type _expressions_ (the `<type>`
-grammar, §2–§6) appear in all four positions, so they can occur inside nested
-function headers, handler expressions, and value ascriptions too.
+The schema dialect contains:
 
----
+- `true` and `false`;
+- `$ref`, `const`, `enum`, and `anyOf`;
+- `type` with primitive, array, and object schemas;
+- numeric keywords `minimum`, `maximum`, `exclusiveMinimum`,
+  `exclusiveMaximum`, and `multipleOf`;
+- string keywords `minLength`, `maxLength`, `pattern`, and `format`;
+- array keywords `items`, `prefixItems`, `minItems`, `maxItems`, and
+  `uniqueItems: true`;
+- object keywords `properties`, `required`, and `additionalProperties`;
+- `$fnType` for function types;
+- `$taskType` for the static completion type of a task.
 
-## 2. Primitives, `any`, `never`
+Type syntax does not emit `not`, `if`/`then`/`else`, `oneOf`, general `allOf`,
+`patternProperties`, `propertyNames`, `dependent*`, `contains`,
+`unevaluated*`, or object refinements.
 
-```
-null          →  {"type": "null"}
-boolean       →  {"type": "boolean"}
-number        →  {"type": "number"}
-integer       →  {"type": "integer"}
-string        →  {"type": "string"}
-any           →  true
-never         →  false
-```
+## Primitive and literal types
 
-`integer` is a distinct primitive. `any`/`never` emit as boolean schemas
-`true`/`false`.
+```text
+null      → {"type":"null"}
+boolean   → {"type":"boolean"}
+number    → {"type":"number"}
+integer   → {"type":"integer"}
+string    → {"type":"string"}
+any       → true
+never     → false
 
-For overload resolution, an `any`-typed argument supplies no evidence: it
-neither selects nor rejects an arm and does not bind type variables. If known
-arguments leave multiple arms possible, the checker returns the normalized
-union of their results and reports degraded type coverage.
-
----
-
-## 3. Literals
-
-```
-"active"      →  {"const": "active"}
-42            →  {"const": 42}
-true          →  {"const": true}
-null          →  {"type": "null"}       // canonical; never {"const": null}
+"active"  → {"const":"active"}
+42        → {"const":42}
+true      → {"const":true}
+false     → {"const":false}
+null      → {"type":"null"}
 ```
 
----
+`integer` is distinct from `number`. `null` always uses the primitive schema,
+not `{"const":null}`.
 
-## 4. Unions — `A | B | C`
+An `any` argument supplies no overload evidence: it neither selects nor rejects
+an overload and does not bind type variables. If the known arguments leave
+several overloads possible, the result is the normalized union of their result
+types and type coverage is degraded.
 
-Left-to-right, flattened; a **three-rule normalization cascade** picks one
-canonical schema:
+## Unions
 
-1. **All arms literals → `enum`** (`null` joins the enum):
+`A | B | C` is a flattened, left-to-right union. `|` has the lowest type
+precedence. Duplicate arms are removed while source order is preserved.
 
-   ```
-   "a" | "b" | "c"        →  {"enum": ["a", "b", "c"]}
-   "on" | "off" | 0 | 1   →  {"enum": ["on", "off", 0, 1]}
-   "a" | null             →  {"enum": ["a", null]}
-   ```
+Literal-only unions lower to `enum`; `null` may join the enum:
 
-2. **All arms bare primitives → `type` array:**
-
-   ```
-   number | null          →  {"type": ["number", "null"]}
-   ```
-
-3. **Otherwise → `anyOf`**, with adjacent literal arms pre-merged into one enum
-   arm, bare-primitive arms merged into one type-array arm, nested unions
-   flattened, duplicates removed, source order preserved:
-
-   ```
-   "auto" | "none" | number
-   →  {"anyOf": [{"enum": ["auto", "none"]}, {"type": "number"}]}
-   ```
-
-`|` is the lowest-precedence type operator. To put a function type in a union,
-parenthesize it (§6).
-
----
-
-## 5. Composites
-
-### 5.1 Arrays and tuples
-
-```
-string[]              →  {"type": "array", "items": {"type": "string"}}
-any[]                 →  {"type": "array"}                        // items omitted
-(string | null)[]     →  {"type": "array", "items": {"type": ["string", "null"]}}
-
-[number, number]      →  {"type": "array",
-                          "prefixItems": [{"type": "number"}, {"type": "number"}],
-                          "items": false, "minItems": 2}
-
-[string, ...number[]] →  {"type": "array",
-                          "prefixItems": [{"type": "string"}],
-                          "items": {"type": "number"}, "minItems": 1}
+```text
+"a" | "b" | "c"       → {"enum":["a","b","c"]}
+"on" | "off" | 0 | 1  → {"enum":["on","off",0,1]}
+"a" | null            → {"enum":["a",null]}
 ```
 
-The `[]` suffix is postfix and repeatable (`number[][]`). Fixed tuples emit
-`minItems: n` + `items: false` (no `maxItems`).
+Bare-primitive unions lower to a `type` array:
 
-### 5.2 Objects
-
-**Closed by default** — `additionalProperties: false` unless opened with `...`.
-(This differs from standard JSON Schema's open default.)
-
+```text
+number | null → {"type":["number","null"]}
 ```
+
+Mixed unions lower to `anyOf`. Consecutive literal arms become one `enum` arm,
+and consecutive bare primitives become one `type` arm:
+
+```text
+"auto" | "none" | number
+→ {"anyOf":[{"enum":["auto","none"]},{"type":"number"}]}
+```
+
+## Arrays and tuples
+
+The postfix `[]` operator is repeatable and binds more tightly than `&` and
+`|`.
+
+```text
+string[]          → {"type":"array","items":{"type":"string"}}
+any[]             → {"type":"array"}
+(string | null)[] → {"type":"array","items":{"type":["string","null"]}}
+number[][]        → an array of arrays of numbers
+```
+
+A fixed tuple emits `prefixItems`, `items: false`, and its exact length as
+`minItems`. It does not emit `maxItems`.
+
+```text
+[number, number]
+→ {"type":"array",
+   "prefixItems":[{"type":"number"},{"type":"number"}],
+   "items":false,
+   "minItems":2}
+```
+
+A final spread supplies the schema for all remaining items:
+
+```text
+[string, ...number[]]
+→ {"type":"array",
+   "prefixItems":[{"type":"string"}],
+   "items":{"type":"number"},
+   "minItems":1}
+```
+
+## Objects
+
+Object types are closed unless they end with `...`.
+
+```text
 {name: string, age?: integer}
-→ {"type": "object",
-   "properties": {"name": {"type": "string"}, "age": {"type": "integer"}},
-   "required": ["name"], "additionalProperties": false}
+→ {"type":"object",
+   "properties":{"name":{"type":"string"},"age":{"type":"integer"}},
+   "required":["name"],
+   "additionalProperties":false}
 ```
 
-`?` marks an optional key (omitted from `required`). `required` is always emitted
-(even when empty), in source order.
+`?` makes a property optional. When an object has fixed fields, `required` is
+always emitted in source order, including when it is empty.
 
-**Open** object (`...`) omits `additionalProperties`:
+An open object omits `additionalProperties`:
 
-```
+```text
 {name: string, ...}
-→ {"type": "object", "properties": {"name": {"type": "string"}}, "required": ["name"]}
+→ {"type":"object",
+   "properties":{"name":{"type":"string"}},
+   "required":["name"]}
 ```
 
-**Map**, and fixed keys + map for the rest:
+A string-keyed map uses `additionalProperties`. Fixed fields may accompany one
+map entry.
 
-```
+```text
 {[string]: number}
-→ {"type": "object", "additionalProperties": {"type": "number"}}
+→ {"type":"object","additionalProperties":{"type":"number"}}
 
 {id: string, [string]: number}
-→ {"type": "object", "properties": {"id": {"type": "string"}},
-   "required": ["id"], "additionalProperties": {"type": "number"}}
+→ {"type":"object",
+   "properties":{"id":{"type":"string"}},
+   "required":["id"],
+   "additionalProperties":{"type":"number"}}
 ```
 
-Empty forms:
+The empty forms are:
 
+```text
+{}    → {"type":"object","required":[],"additionalProperties":false}
+{...} → {"type":"object"}
 ```
-{}     →  {"type": "object", "required": [], "additionalProperties": false}
-{...}  →  {"type": "object"}
-```
 
-### 5.3 Refinements — `&`
+## Refinements
 
-`&` is **not intersection** — it is a refinement operator attaching validation
-keywords to a base type, with a fixed compatibility matrix. Incompatible
-combinations are never `allOf`; they are rejected. When the base is a **primitive
-keyword** (`string & min(0)`) this is a **parse error**; when the base is a
-**named type** (`UserId & min(0)`) the parser cannot see the underlying type, so
-the mismatch is a **checker error** instead.
+`&` attaches validation keywords to a base type; it is not a general
+intersection. It binds more tightly than `|` and less tightly than `[]`.
 
-| Refinement                    | Valid on        | Keyword                                 |
-| ----------------------------- | --------------- | --------------------------------------- |
-| `min(n)` / `max(n)`           | number, integer | `minimum` / `maximum`                   |
-| `xmin(n)` / `xmax(n)`         | number, integer | `exclusiveMinimum` / `exclusiveMaximum` |
-| `multipleOf(n)`               | number, integer | `multipleOf`                            |
-| `minLen(n)` / `maxLen(n)`     | string          | `minLength` / `maxLength`               |
-| `pattern(re)`                 | string          | `pattern`                               |
-| `format(name)`                | string          | `format`                                |
-| `minItems(n)` / `maxItems(n)` | array           | `minItems` / `maxItems`                 |
-| `unique`                      | array           | `uniqueItems: true`                     |
+- `min(n)` and `max(n)` apply to numbers and integers and emit `minimum` and
+  `maximum`.
+- `xmin(n)` and `xmax(n)` apply to numbers and integers and emit
+  `exclusiveMinimum` and `exclusiveMaximum`.
+- `multipleOf(n)` applies to numbers and integers.
+- `minLen(n)`, `maxLen(n)`, `pattern(re)`, and `format(name)` apply to strings
+  and emit `minLength`, `maxLength`, `pattern`, and `format`.
+- `minItems(n)`, `maxItems(n)`, and `unique` apply to arrays and emit
+  `minItems`, `maxItems`, and `uniqueItems: true`.
 
-```
-integer & min(0) & max(63)   →  {"type": "integer", "minimum": 0, "maximum": 63}
-string & pattern("^u_")      →  {"type": "string", "pattern": "^u_"}
+```text
+integer & min(0) & max(63)
+→ {"type":"integer","minimum":0,"maximum":63}
+
+string & pattern("^u_")
+→ {"type":"string","pattern":"^u_"}
+
 Cell[] & minItems(64) & maxItems(64)
 ```
 
-`&` binds tighter than `|` and looser than the `[]` suffix. No object
-refinements in v1.
+An incompatible refinement is invalid rather than lowering to `allOf`.
+Compatibility is checked immediately for a structural base and after
+resolution for a named base. Function types, `Task`, enums, and objects cannot
+be refined.
 
----
+## Function types
 
-## 6. Function types — `(A, B) -> R`
+Function types lower to `$fnType`, whose parameter and result leaves are
+schemas.
 
-JSON Schema has no function types; they lower to the distinguished `$fnType`
-node whose leaves are schemas.
-
-```
+```text
 (Cell) -> boolean
-→ {"$fnType": {"required": [{"$ref": "#/$defs/Cell"}], "optional": [], "returns": {"type": "boolean"}}}
-
-() -> State
-→ {"$fnType": {"required": [], "optional": [], "returns": {"$ref": "#/$defs/State"}}}
-
-(string, ...number[]) -> string
-→ {"$fnType": {"required": [{"type": "string"}], "optional": [], "rest": {"type": "number"},
-               "returns": {"type": "string"}}}
+→ {"$fnType":{
+     "required":[{"$ref":"#/$defs/Cell"}],
+     "optional":[],
+     "returns":{"type":"boolean"}}}
 
 (string, integer?) -> boolean
-→ {"$fnType": {"required": [{"type": "string"}], "optional": [{"type": "integer"}],
-               "returns": {"type": "boolean"}}}
+→ {"$fnType":{
+     "required":[{"type":"string"}],
+     "optional":[{"type":"integer"}],
+     "returns":{"type":"boolean"}}}
+
+(string, ...number[]) -> string
+→ {"$fnType":{
+     "required":[{"type":"string"}],
+     "optional":[],
+     "rest":{"type":"number"},
+     "returns":{"type":"string"}}}
 ```
 
-- A `?` after a parameter type marks that callable slot as optional. It applies
-  to the complete preceding type: `(string, (number | null)?) -> boolean` has
-  one required slot and one optional slot whose supplied-value schema is
-  `number | null`.
-- Optionality is not nullability. `(A?) -> R` accepts zero or one arguments;
-  `(A | null) -> R` requires one argument whose value may be `null`.
-- Required slots precede optional slots, followed only by an optional rest
-  type. For example, `(A, B?, C?, ...D[]) -> R` is valid and
-  `(A?, B) -> R` is not.
-- A callable accepts at least its `required.length` arguments and, without
-  rest, at most `required.length + optional.length`. Rest removes only the
-  upper bound.
-- Function types do not record whether an optional slot is plain optional or
-  defaulted. That distinction belongs to a function body's `$params`;
-  `$fnType.optional` records only the callable omission contract.
-- Function compatibility first requires equal required counts, equal optional
-  counts, and matching rest presence. Within that shape, parameter schemas are
-  contravariant and the return schema is covariant.
-- The return type extends as far right as possible (lowest precedence within a
-  function type), so `(A) -> B | C` returns `B | C`.
-- To use a function type as a union arm or array element, parenthesize:
-  `((Event) -> Result) | null`, `((number) -> number)[]`.
-- Function types compose everywhere except inside refinements and enums.
+Required slots precede optional slots, followed only by an optional rest slot.
+`(A, B?, C?, ...D[]) -> R` is valid; `(A?, B) -> R` is not.
 
----
+`?` applies to the complete preceding type. `A?` is an omittable slot whose
+supplied value has type `A`. It is not the same as `A | null`: `(A?) -> R`
+accepts zero or one argument, while
+`(A | null) -> R` requires one argument.
 
-## 7. Function signatures
+A function accepts at least its number of required arguments. Without rest, it
+accepts at most the combined number of required and optional arguments. Rest
+removes that upper bound.
 
-A signature is inline param annotations plus a return type on a function
-literal, lowering to a `$sig` sibling on the body:
+Function compatibility requires equal required counts, equal optional counts,
+and matching rest presence. Within that shape, parameters are contravariant and
+the return type is covariant.
+
+The return type extends as far right as possible, so `(A) -> B | C` returns
+`B | C`. Parentheses are required when a function type is a union arm or array
+element:
 
 ```jfn
-otherColor: (color: Color) -> Color => if color == "w" then "b" else "w"
+((Event) -> Result) | null
+((number) -> number)[]
 ```
+
+Function types do not distinguish plain optional parameters from defaulted
+parameters. Both occupy `$fnType.optional`. Function types compose in every
+type position except refinements and literal enums.
+
+## Function signatures
+
+A fully typed function literal annotates every parameter and includes a return
+type:
+
+```jfn
+otherColor: (color: Color) -> Color =>
+  if color == "w" then "b" else "w"
+```
+
+It lowers the annotations to `$sig` beside `$params` and `$return`:
 
 ```json
 {
@@ -264,50 +277,35 @@ otherColor: (color: Color) -> Color => if color == "w" then "b" else "w"
     "returns": { "$ref": "#/$defs/Color" }
   },
   "$params": ["color"],
-  "$return": {
-    "$if": { "$call": "eq", "$args": [{ "$var": "color" }, "w"] },
-    "$then": "b",
-    "$else": "w"
-  }
+  "$return": "..."
 }
 ```
 
-Rules:
+A function literal is either fully typed or bare. Partial signatures are
+invalid. Named module and local functions must be fully typed. Bare inline
+lambdas are allowed when a higher-order call supplies their signature
+contextually. Every reachable named function body is checked against its
+signature.
 
-- **All-or-nothing.** A function literal is either **fully typed** (every param
-  annotated _and_ a `-> Ret` return type) or **bare** (no annotations, no `$sig`).
-  A partial signature (some params typed, or params typed without a return type)
-  is a **parse error**.
-- **Named functions must be fully typed.** A module binding or local
-  (`where`/`$let`) function binding without a signature is a checker error.
-  `--allow-untyped-functions` is the migration escape hatch and reports lost
-  coverage instead. Inline lambdas may be bare when a higher-order call site
-  supplies their signature contextually. A reachable named function's body is
-  checked against its signature.
-- **Every local binding must be reachable.** Reachability starts at `$in` and
-  follows lexical references transitively. Reachable value bindings are checked
-  where referenced. An unreachable binding produces one unused-binding error;
-  its contents are not checked, avoiding cascading diagnostics.
-- **Fixed signature schemas align with normalized `$params` slots.**
-  `$sig.required` aligns with the leading required positional slots, including
-  object patterns. `$sig.optional` then aligns with the trailing omittable
-  slots—both `{ "$param": name, "$optional": true }` and
-  `{ "$param": name, "$default": expression }`—in source order. Object fields
-  do not consume additional signature positions.
-- **Rest aligns separately.** `$sig.rest`, when present, is the element schema
-  for the final `"...rest"` slot and is not part of either fixed array.
-- **Omittable annotations are supplied-value schemas.** In `name?: T` and
-  `name: T = expr`, `T` is the schema checked when the caller supplies that
-  argument. The local type of a plain optional binding is `T | null`; the local
-  type of a defaulted binding is `T`.
+Local-binding reachability starts at `$in` and follows lexical references
+transitively. Reachable value bindings are checked where referenced. An
+unreachable binding produces one unused-binding error, and its contents are not
+checked.
 
-### 7.1 Optional and defaulted parameters
+### Parameter alignment
 
-The binding marker determines the canonical `$params` descriptor and whether
-the aligned annotation enters `$sig.required` or `$sig.optional`:
+`$sig.required` aligns with leading required `$params` slots.
+`$sig.optional` then aligns with optional and defaulted slots in source order.
+An object pattern consumes one slot. Its fields do not consume signature
+positions. A final rest parameter aligns separately with `$sig.rest`, which is
+the element schema rather than an array schema.
 
 ```jfn
-greet: (name: string, title?: string, punctuation: string = "!") -> string => ...
+greet: (
+  name: string,
+  title?: string,
+  punctuation: string = "!"
+) -> string => ...
 ```
 
 ```json
@@ -325,50 +323,27 @@ greet: (name: string, title?: string, punctuation: string = "!") -> string => ..
 }
 ```
 
-The marker precedes a type annotation for `?` (`name?: T`) and the default
-follows a complete type annotation (`name: T = expr`), matching
-TypeScript-style parameter spelling. Bare functions use the same binding forms
-without annotations: `(name, title?, punctuation = "!") => …`.
+In `name?: T` and `name: T = expression`, `T` validates a supplied argument.
+The local type of a plain optional parameter is `T | null`; the local type of a
+defaulted parameter is `T`.
 
-`?` and `=` are mutually exclusive on one parameter. Both make the slot
-omittable, so every required parameter must precede them and a rest parameter
-may only follow them. The default expression is checked against `T` even when
-unused, but it is not represented in `$sig`: callable types preserve omission,
-not the implementation's fallback expression.
+`?` and `=` are mutually exclusive. Either makes a slot omittable, so required
+parameters must come first and only rest may follow. A default expression is
+checked against `T` even if unused. Defaults are lazy and use the complete
+recursive function-body scope. Omission of a plain optional parameter binds
+`null`; explicit `null` is supplied data, must be admitted by `T`, and never
+activates a default.
 
-The runtime meaning differs from JavaScript/TypeScript:
-
-- omission of `name?: T` produces `null`, not `undefined`;
-- explicit `null` is a supplied value and is accepted only when `T` permits it;
-- explicit `null` never activates a default;
-- defaults are lazy and use the complete recursive body scope rather than a
-  left-to-right parameter-initialization scope.
-
-### 7.2 Rest parameters
-
-Written with the array suffix (matching how the args arrive), lowering the
-element type to `$sig.rest`:
+Rest syntax carries an array type, but `$sig.rest` stores its element type:
 
 ```jfn
 concatAll: (first: string, ...rest: string[]) -> string => ...
 ```
 
-```json
-{
-  "$sig": {
-    "required": [{ "type": "string" }],
-    "optional": [],
-    "rest": { "type": "string" },
-    "returns": { "type": "string" }
-  },
-  "$params": ["first", "...rest"]
-}
-```
+### Object-pattern contracts
 
-### 7.3 Object-pattern parameters
-
-The annotation attaches to the whole pattern (which consumes one object
-argument); the object type becomes that param's schema:
+An object-pattern annotation describes the one object argument consumed by the
+pattern:
 
 ```jfn
 daysInMonth: ({ year, month }: Date) -> integer => ...
@@ -385,50 +360,44 @@ daysInMonth: ({ year, month }: Date) -> integer => ...
 }
 ```
 
-An inline object type works too: `({ from, to }: { from: integer, to: integer })`.
-
-Optional and defaulted pattern fields use `field?` and `field = expr`. Their
-binding behavior and their containing input contract remain distinct:
+Inline object types are also allowed:
 
 ```jfn
-normalize: (
-  { required, label?, count = 0 }:
-  { required: string, label?: string, count?: integer }
-) -> integer => ...
+({ from, to }: {from: integer, to: integer}) -> integer => ...
 ```
 
-The pattern lowers `label` and `count` to optional/defaulted `$fields`
-descriptors. Independently, the object annotation omits both properties from
-its JSON Schema `required` array. A required pattern field must correspond to a
-required input property; an optional or defaulted pattern field must correspond
-to an optional input property. In particular, annotating `count` as required
-would make its default unreachable and is a checker error.
+Pattern-field omission and object-property omission must align:
 
-The object-pattern slot itself remains required and contributes one schema to
-`$sig.required`, even when every field is omittable. There is no optional or
-defaulted whole-pattern form.
+- a required pattern field corresponds to a required input property;
+- an optional or defaulted pattern field corresponds to an optional input
+  property.
 
-### 7.4 Returned / curried functions
+Thus a required property cannot back a defaulted field, because the default
+would be unreachable. `field?` lowers to
+`{"$field":"field","$optional":true}`, and `field = expression` lowers to
+`{"$field":"field","$default":expression}` independently of the object schema.
 
-The return type may itself be a function type; the inner lambda is contextually
-typed (no inner annotations) and the resolved `$sig` is stamped onto it:
+The pattern slot remains required and contributes one schema to
+`$sig.required`, even when all its fields are omittable. Whole-pattern optional
+and defaulted forms, renamed fields, and nested patterns are invalid.
+
+### Returned functions
+
+A return type may itself be a function type. A returned bare lambda receives
+that type contextually:
 
 ```jfn
 makeAdder: (x: number) -> (number) -> number => (y) => x + y
 ```
 
----
+## Named module types
 
-## 8. Named types & the module `$types` pool
-
-`type Name = <type>` entries in the implicit module body populate the reserved
-`$types` sibling. Named references resolve to `$ref`:
+`type Name = Type` adds an entry to the module's `$types` object. A type
+identifier lowers to a definition reference:
 
 ```jfn
 type UserId = string & pattern("^u_")
-type User   = { id: UserId, name: string }
-
-makeUser: (id: UserId, name: string) -> User => { id, name }
+type User = {id: UserId, name: string}
 ```
 
 ```json
@@ -437,207 +406,189 @@ makeUser: (id: UserId, name: string) -> User => { id, name }
     "UserId": { "type": "string", "pattern": "^u_" },
     "User": {
       "type": "object",
-      "properties": { "id": { "$ref": "#/$defs/UserId" }, "name": { "type": "string" } },
+      "properties": {
+        "id": { "$ref": "#/$defs/UserId" },
+        "name": { "type": "string" }
+      },
       "required": ["id", "name"],
       "additionalProperties": false
     }
-  },
-  "makeUser": {
-    "$sig": {
-      "required": [{ "$ref": "#/$defs/UserId" }, { "type": "string" }],
-      "optional": [],
-      "returns": { "$ref": "#/$defs/User" }
-    },
-    "$params": ["id", "name"],
-    "$return": { "id": { "$var": "id" }, "name": { "$var": "name" } }
   }
 }
 ```
 
-- Any non-keyword identifier in a type position is a named reference (`$ref`);
-  the parser does not resolve it (that is the checker's job), so forward and
-  mutually recursive references parse fine.
-- **Disambiguation from data keys.** In the module body, `type` is a
-  contextual keyword only when followed by an identifier (`type Color = …`).
-  `type: expr` (a data entry) and `{ type }` (punning) are unaffected.
+Any non-keyword identifier in a type position is a named reference. Forward
+and mutually recursive references are allowed. In a module body, `type` starts
+a declaration only when followed by an identifier; `type: expression` and
+`{type}` remain data syntax.
 
-### 8.1 Definition sources and ownership
+Named schemas come from three ownership layers:
 
-Module `$types` are one source in the effective named-schema pool. A
-contract-linked module resolves references across three ownership layers:
-
-1. core builtin `$defs`;
-2. operator-owned contract `$defs`;
+1. core builtin definitions;
+2. operator-owned contract definitions;
 3. guest-owned module `$types`.
 
-The [environment contract](../../deployment/environment-contract.md) owns schemas used at the
-host boundary: direct-function signatures, effect parameters/results, and entry
-arguments/completion. The guest owns schemas that are internal to the module.
-Both may refer to contract definitions, but a module declaration does not
+The [environment contract](../../deployment/environment-contract.md) owns
+schemas used at host boundaries: direct-function signatures, effect parameters
+and results, and entry arguments and completion. A module owns its internal
+schemas. Both may refer to contract definitions; a module declaration cannot
 replace or refine a contract-owned boundary definition.
 
-Definition names do not use value-level lexical shadowing. A duplicate name
-across any two sources is a `DUPLICATE_DEFINITION` link error, including
-builtin/contract, builtin/module, and contract/module collisions. The sources
-are merged only after proving their names disjoint, so the checker and runtime
-resolve every `$ref` identically. `Task` is reserved by the built-in task type
-constructor and may not appear in contract `$defs` or module `$types`.
+Definition names do not shadow. A name present in more than one layer is a
+`DUPLICATE_DEFINITION` link error. The layers are combined only after their
+names are proven disjoint, so every `$ref` has one meaning. This rule does not
+change lexical shadowing of ordinary module bindings.
 
-This cross-source rule is distinct from ordinary module bindings, where lexical
-shadowing remains part of the language.
-
-### 8.2 Recursion
-
-Legal when **contractive** (recursion passes through an array or object
-constructor):
+Recursive declarations must be contractive: every cycle passes through an
+array or object constructor.
 
 ```jfn
-type Json = null | boolean | number | string | Json[] | { [string]: Json }
-type Tree = { value: number, children: Tree[] }
+type Json = null | boolean | number | string | Json[] | {[string]: Json}
+type Tree = {value: number, children: Tree[]}
 ```
 
-Non-contractive declarations are errors:
+Direct recursive aliases are invalid:
 
+```jfn
+type A = A
+type B = B | null
 ```
-type A = A            // ERROR: non-contractive
-type B = B | null     // ERROR: union arm refers directly to self
-```
 
-### 8.3 Discriminated unions
-
-No special syntax — a union of closed objects sharing a `const` field:
+A discriminated union needs no special syntax:
 
 ```jfn
 type Event =
-    { tag: "move", from: integer, to: integer }
-  | { tag: "reset" }
-  | { tag: "quit", code: integer }
+    {tag: "move", from: integer, to: integer}
+  | {tag: "reset"}
+  | {tag: "quit", code: integer}
 ```
 
----
+## Task types
 
-## 9. Checked assertion operators
+`Task<A>` describes a task whose eventual completion value has type `A`:
 
-### 9.1 Non-null assertion
+```text
+Task<Result> → {"$taskType":{"$ref":"#/$defs/Result"}}
+Task         → {"$taskType":true}
+```
 
-`x!` narrows away `null` when a value is known to be non-null at its use site:
+The completion type is static only: it is not stored in task records and is not
+a runtime contract. `Task` is the only type constructor; other identifiers
+cannot take type arguments. The name `Task` is reserved and cannot appear in
+contract definitions or module `$types`.
+
+## Assertions
+
+Postfix `!` asserts that a value is non-null:
 
 ```jfn
-legal: isLegalMove(state.board, move!.from, move!.to, state.turn)   // move! : Move
+move!.from
 ```
 
-The operator lowers to `{ "$nonnull": x }`. Evaluation returns a non-null
-operand unchanged and raises an evaluation error when the operand is `null`, so
-the assertion remains sound at runtime.
+It lowers to `{"$nonnull": value}`. Evaluation returns a non-null operand
+unchanged and raises an evaluation error for `null`. Its result type is the
+operand type with `null` removed.
 
-### 9.2 Checked value ascription
-
-`expression checked as Type` validates a value against an explicit type and gives the
-successful expression exactly that type:
+`expression checked as Type` validates a value and gives a successful result
+exactly that type:
 
 ```jfn
 balance + delta checked as Cents
-parse(input) checked as { id: integer, name: string }
+parse(input) checked as {id: integer, name: string}
 callback checked as (integer) -> string
 ```
 
-It lowers to a canonical expression containing the value and the type's schema:
-
 ```json
 {
-  "$as": { "$call": "add", "$args": [{ "$var": "balance" }, { "$var": "delta" }] },
+  "$as": {
+    "$call": "add",
+    "$args": [{ "$var": "balance" }, { "$var": "delta" }]
+  },
   "$type": { "$ref": "#/$defs/Cents" }
 }
 ```
 
-The operand need not already be a static subtype of the target: the runtime
-contract is the evidence for the result type. Evaluation performs no
-conversion, and a failed contract raises `RuntimeContractError`. Function types
-install a wrapper that checks eventual arguments and return values.
+The operand need not already be a static subtype. Validation performs no
+conversion and raises `RuntimeContractError` on failure. A function ascription
+installs a wrapper that validates later arguments and results.
 
-`checked as` has lower precedence than all logical and arithmetic operators and
-is non-associative. Write `(x checked as A) checked as B` for repeated checks.
-It is a contextual two-token operator: `checked(value)` remains an ordinary
-call, and a variable named `checked` is ascribed as
+`checked as` has lower precedence than logical and arithmetic operators and is
+non-associative. Repeated checks require parentheses:
+`(x checked as A) checked as B`. It is a contextual two-token operator;
+`checked(value)` remains a call, and a variable with that name is ascribed as
 `(checked) checked as Type`.
 
----
+## Rejected syntax
 
-## 10. Deliberately inexpressible
+The following forms are invalid:
 
-The type syntax cannot emit `not`, `if`/`then`/`else`, `oneOf`, general `allOf`,
-`patternProperties`, `propertyNames`, `dependent*`, `contains`,
-`unevaluated*`, or object refinements. General user-facing generics are
-excluded (builtins are internally polymorphic); the sole type constructor is
-the erased built-in `Task<A>` completion index. Hand-written schemas using
-excluded keywords are treated as opaque by the checker.
+- partial function signatures;
+- a required function slot after an optional slot;
+- a slot after a rest parameter;
+- incompatible or object refinements;
+- general intersections;
+- generic applications other than `Task<A>`;
+- whole-pattern optional or defaulted parameters;
+- renamed or nested object patterns;
 
----
+Canonical schemas containing unsupported keywords cannot be expressed with
+this syntax and are opaque to static subschema reasoning.
 
-## 11. Grammar (informal EBNF)
+## Informal grammar
 
-Extends the shorthand [informal grammar](grammar.md). New/changed rules:
+This extends the shorthand [grammar](grammar.md):
 
-```
-module      := ( moduleEntry (moduleSep moduleEntry)* )?         // whole .jfn file
-moduleSep   := physical line break after a complete moduleEntry
-moduleEntry := "type" ident "=" type                           // type declaration
-             | dataEntry                                        // binding / constant / pun
+```ebnf
+module       := (moduleEntry (moduleSep moduleEntry)*)?
+moduleSep    := physical line break after a complete moduleEntry
+moduleEntry  := "type" ident "=" type
+              | (ident | string) ":" expr
 
-funcLit     := "(" params ")" ( "->" type )? "=>" body         // return type optional*
-ascription  := orExpr ( "checked" "as" type )?                 // non-assoc
-handleExpr  := "handle" expr ( "returns" type )? "with"
-               "{" (dataEntry ("," dataEntry)*)? "}"
-param       := ident                                            // untyped required
-             | ident ":" type                                   // typed required
-             | ident "?" (":" type)?                            // optional
-             | ident (":" type)? "=" expr                       // defaulted
-             | "..." ident (":" type)?                         // rest (array-suffixed type)
-             | objectPattern (":" type)?                       // pattern annotation
+funcLit      := "(" params ")" ("->" type)? "=>" body
+ascription   := orExpr ("checked" "as" type)?
+handleExpr   := "handle" expr ("returns" type)? "with"
+                "{" (objectEntry ("," objectEntry)*)? "}"
+
+param        := ident
+              | ident ":" type
+              | ident "?" (":" type)?
+              | ident (":" type)? "=" expr
+              | "..." ident (":" type)?
+              | objectPattern (":" type)?
 objectPattern := "{" fieldBinding ("," fieldBinding)* ","? "}"
-fieldBinding  := ident ( "?" | "=" expr )?
-  // *within one funcLit, annotations are all-or-nothing (§7)
+fieldBinding := ident ("?" | "=" expr)?
 
-type        := union
-union       := refined ( "|" refined )*
-refined     := postfix ( "&" refinement )*
-postfix     := atom ( "[" "]" )*                               // array suffix
-atom        := "null" | "boolean" | "number" | "integer" | "string"
-             | "any" | "never"
-             | "Task" ("<" type ">")?                         // bare Task = Task<any>
-             | string | number | "true" | "false"             // literals
-             | ident                                           // named type ($ref)
-             | objectType
-             | "[" ( type ("," type)* ("," "..." type "[" "]")? )? "]"   // tuple
-             | fnType
-             | "(" type ")"
-fnType      := "(" fnTypeParams? ")" "->" type
-fnTypeParams := fnSlot ("," fnSlot)* ("," restType)?
-              | restType
-fnSlot      := type "?"?
-restType    := "..." type "[" "]"
-objectType  := "{" ( objField ("," objField)* )? ("," "...")? "}"
-             | "{" "..." "}"
-             | "{" "[" "string" "]" ":" type ("," "...")? "}"          // map (+ open)
-objField    := (ident | string) "?"? ":" type
-refinement  := ident ( "(" (number | string) ")" )?           // e.g. min(0), unique, pattern("^u_")
+type         := union
+union        := refined ("|" refined)*
+refined      := postfix ("&" refinement)*
+postfix      := atom ("[" "]")*
+atom         := "null" | "boolean" | "number" | "integer" | "string"
+              | "any" | "never"
+              | "Task" ("<" type ">")?
+              | string | number | "true" | "false"
+              | ident
+              | objectType
+              | "[" (type ("," type)* ("," "..." type "[" "]")?)? "]"
+              | fnType
+              | "(" type ")"
+
+fnType       := "(" fnTypeParams? ")" "->" type
+fnTypeParams := fnSlot ("," fnSlot)* ("," restType)? | restType
+fnSlot       := type "?"
+              | type
+restType     := "..." type "[" "]"
+
+objectType   := "{" "}"
+              | "{" "..." "}"
+              | "{" objectTypeEntry ("," objectTypeEntry)*
+                    ("," "...")? "}"
+objectTypeEntry := objField | "[" "string" "]" ":" type
+objField     := (ident | string) "?"? ":" type
+
+refinement   := ident ("(" (number | string) ")")?
 ```
 
-`?` is a contextual omission marker: after an object-type key it makes the
-property optional; after a function binding or object-pattern field it selects
-the optional canonical descriptor; after a function-type slot it places that
-schema in `$fnType.optional`. These positions are grammatically distinct.
-Optional tuple elements remain unresolved below.
-
----
-
-## 12. Open decisions (tracked)
-
-- 🔴 **Optional tuple elements** — `[string, number?]`: allow (→ `minItems`) or
-  disallow? The resolved `(string, number?) -> R` function-slot syntax does not
-  imply an answer for tuples.
-- 🔴 **`integer | number` collapse** — normalize to `number` at parse time or
-  leave to the checker?
-- 🔴 **Named-type inlining** — does `Piece | null` (named enum `Piece`) normalize
-  to one enum-with-null (loses the name) or stay `anyOf[$ref, null]`?
-Everything else here is resolved and implementable.
+Within one function literal, annotations are all-or-nothing. In a rest
+parameter annotation, the written type must have an array suffix. `?` is
+contextual: it marks an object property, a function parameter or pattern field,
+or a function-type slot according to its grammatical position.

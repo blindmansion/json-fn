@@ -4,9 +4,7 @@
 program     := (moduleEntry (moduleSep moduleEntry)*)?
 moduleSep   := physical line break after a complete moduleEntry
 moduleEntry := "type" ident "=" type
-             | dataEntry
-
-// Used only by an explicit standalone-expression parser mode.
+             | (ident | string) ":" expr
 expressionInput := body
 
 expr        := ascription
@@ -23,19 +21,21 @@ postfix     := primary ( "." ident
                        | "[" expr "]"                // computed
                        | "(" args ")"
                        | "!" )*                      // non-null assertion
+args        := (arg ("," arg)*)?
+arg         := expr | "..." expr
 primary     := number | string | template | "true" | "false" | "null"
              | ident                                 // variable, or fn name if called
              | "&" ident | "&" "(" expr ")"          // function reference
              | "(" body ")"
              | funcLit
-             | "[" (expr ("," expr)*)? "]"           // array
-             | "{" (dataEntry ("," dataEntry)*)? "}" // data object
+             | "[" (arrayEntry ("," arrayEntry)*)? "]"
+             | "{" (objectEntry ("," objectEntry)*)? "}"
              | "if" expr "then" expr "else" expr
              | "cond" "{" arm ("," arm)* "}"
              | "match" expr "{" arm ("," arm)* "}"
-             | "do" "{" doEntry ("," doEntry)* "}"   // effects (effects.md)
+             | "do" "{" doEntry ("," doEntry)* "}"
              | "handle" expr ( "returns" type )? "with"
-                        "{" (dataEntry ("," dataEntry)*)? "}"     // effects.md
+                        "{" (objectEntry ("," objectEntry)*)? "}"
 
 funcLit     := "(" params ")" "=>" body
 body        := expr ( "where" "{" binding ("," binding)* "}" )?
@@ -46,9 +46,12 @@ param       := ident ( "?" | "=" expr )?
              | objectPattern
 objectPattern := "{" fieldBinding ("," fieldBinding)* ","? "}"
 fieldBinding  := ident ( "?" | "=" expr )?
-dataEntry   := (ident | string) ":" expr
-             | ident                                 // punned: { x } == { x: x }
-doEntry     := ident "<-" expr                       // effect binding (effects.md)
+arrayEntry  := expr | "..." expr
+objectEntry := (ident | string) ":" expr
+             | ident                                 // punned
+             | "..." expr
+             | "[" expr "]" ":" expr
+doEntry     := ident "<-" expr                       // effect binding
              | ident ":" body                        // pure (lazy-local) binding
              | body                                  // discard (non-final) / result (final)
 arm         := (expr | "else") ":" body
@@ -61,8 +64,6 @@ positional parameters; a rest parameter, when present, is final. These ordering
 rules apply to `param` entries, not to `fieldBinding` entries within one
 required object pattern.
 
-Canonical printing uses newline-and-indent for `where`, `cond`, `match`, and long
-argument/element lists; single-line for short forms. Parsers accept either.
-
----
+See [Type syntax](type-syntax-spec.md#informal-grammar) for typed function
+parameters, return annotations, type expressions, and type declarations.
 

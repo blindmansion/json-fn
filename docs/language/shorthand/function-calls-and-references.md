@@ -6,12 +6,10 @@ A bare identifier is a variable (`{"$var":"x"}`). Any access on it lowers to a
 `$get`/`$from` chain rooted at that `$var`; access on a non-variable expression
 lowers to a `$get`/`$from` chain rooted at that expression.
 
-A bare identifier that is **not** a lexical binding but **is** a registered
-function resolves to that function _reference_ (i.e. `&`-free; see
-[Function calls and references](#function-calls-and-references)). The fallback
-only applies to a plain name: a name with a trailing path (`length.foo`) that
-has no lexical binding is an error rather than resolving the reference and
-then walking into it.
+A bare identifier resolves to a lexical binding, or to a function reference
+when no lexical binding exists and the name is callable. Function-reference
+fallback applies only to a plain name; property access always lowers through
+`$var` and `$get`.
 
 ```jfn
 x                         // {"$var":"x"}
@@ -33,9 +31,8 @@ Lowering rules:
   `$from`: `a.b[i]` →
   `{"$get":{"$var":"i"},"$from":{"$get":"b","$from":{"$var":"a"}}}`.
 
-Canonical JSON is always the `$get`/`$from` form. There is no `$var` + `$get`
-pairing and no dotted `$var` path-string form: `$var` is a bare variable name,
-and every property access is a `$get`/`$from` pair.
+Canonical JSON always uses `$get` with `$from`. `$var` contains only a bare
+variable name.
 
 An access chain **in call position** is a method call: the chain evaluates to a
 function value that is then applied (`caps.db.query(sql)`). See
@@ -46,16 +43,14 @@ function value that is then applied (`caps.db.query(sql)`). See
 In **call position**, a bare identifier is a literal function _name_; a
 parenthesized expression is an _evaluated_ callee.
 
-**Name resolution is lexical-first, registry-second — uniformly.** A name in
-call position (a direct call `f(x)`, an operator that desugars to a named call
-like `+`→`add`, or a bare reference used as a value) resolves against the
-enclosing lexical scope chain first. If it resolves to a _function declaration_
+A name in call position, an operator that lowers to a named call, and a bare
+function reference all use the same resolution. The lexical scope chain is
+searched first. If it resolves to a function declaration
 — a parameter, a `where`-local, or a module binding whose value is a function —
-that binding is used, **shadowing** any same-named stdlib/host builtin. If the
-lexical binding is _not_ a function (e.g. `add: 5`), or there is no lexical
-binding, resolution falls through to the function registry (scoped local
-functions + stdlib/host). Only if both miss is it an error. This makes operator
-desugaring, direct calls, and bare references agree on shadowing.
+that binding shadows an outer callable with the same name. Otherwise resolution
+continues through builtins and environment functions. A non-function lexical
+binding shadows `$var` reads but not named-call resolution. A name absent from
+both scopes is an error.
 
 ```jfn
 add(3, 4)                 // named call
@@ -94,29 +89,16 @@ f(first, ...middle, last)
 }
 ```
 
-A sole spread avoids the unnecessary `concat`: `f(...args)` lowers to
-`apply(&f, args)`. The `$fn` wrapper preserves the lexical-first,
-registry-second behavior of an ordinary named call. Evaluated callees use their
-ordinary expression value instead. Spread operands must evaluate to arrays.
-The current `core.apply` checker rule is intentionally imprecise, so a spread
-call's result type degrades to `any` even when the callee has a known signature;
-this is a checker limitation, not a new canonical JSON form. Because `any`
-does not prove assignability to a concrete return type, use a checked
-ascription (`f(...args) checked as T`) when the runtime boundary is intentional. Use
-`--require-full-coverage` when the remaining spread-call imprecision must also
-be rejected.
+A sole spread lowers directly: `f(...args)` becomes `apply(&f, args)`.
+Evaluated callees use their expression value instead of a `$fn` reference.
+Every spread operand must evaluate to an array.
 
 ## Method calls and chained application
 
-The callee slot is a full postfix expression, so anything that produces a
-function value can sit in call position. In particular, a **property-access
-chain** or a **preceding call** in call position is an evaluated callee — the
-access/call is performed first and its result is applied. This is the
-"method-call" surface: it dispatches through a record of closures (the pattern
-capabilities use — see `plans/effects-implementation.md`), with no distinct
-`$` form. A bare name is still the only thing that means a literal function
-_name_ (`f(x)` → `{ "$call": "f", "$args": [ … ] }`); the moment a `.`, `[…]`, or a prior
-`(…)` intervenes, the callee is evaluated.
+Any postfix expression that produces a function may appear in call position.
+An access chain or preceding call is evaluated before its result is applied.
+A bare name alone denotes a literal function name; adding `.`, `[…]`, or a
+preceding call makes the callee an expression.
 
 ```jfn
 caps.db.query(sql)        // call the closure held at caps.db.query
@@ -134,18 +116,8 @@ makeCountdown(42)(3)      // chained application (call the returned closure)
 { "$call": { "$call": "makeCountdown", "$args": [42] }, "$args": [3] }
 ```
 
-The callee lowering is exactly the [property-access lowering](#variables-and-property-access) (a `$get`/`$from`
-chain rooted at a variable or an arbitrary expression), placed in the `$call`
-position of the call node.
-
-> **Printer note (deferred).** These forms parse and evaluate today, but the
-> canonical pretty-printer currently wraps the callee in parentheses
-> (`(caps.db.query)(sql)`, `(makeCountdown(42))(3)`). That still round-trips —
-> `parse(print(x))` is `x` — so the bijective-by-normal-form guarantee holds; it
-> is only less pretty than the bare source. Tightening the printer to emit the
-> bare form for access-headed and call-headed callees (while keeping the parens
-> on a bare `$var` callee, since `f(x)` would otherwise collide with a
-> literal-name call) is tracked under [open decisions](index.md#open-decisions).
+The resulting `$get`/`$from` or nested `$call` expression occupies the canonical
+`$call` callee position.
 
 ## Function reference — `&`
 
@@ -154,7 +126,7 @@ Passes a function as a value (the language's `$fn` reference).
 ```jfn
 &double                   // by name
 map(&double, nums)
-&(expr)                   // evaluated reference (rare)
+&(expr)                   // evaluated reference
 ```
 
 ```json
@@ -163,12 +135,8 @@ map(&double, nums)
 { "$fn": <expr> }
 ```
 
-**`&` is optional for a bare name.** Because a bare identifier in value position
-falls through to the [registry](#variables-and-property-access), a registered function name resolves to its
-reference without `&`: `map(length, xs)` == `map(&length, xs)`. Use `&` when you
-want to be explicit, and reserve it for the computed `&(expr)` form, which has no
-bare equivalent. A lexical binding still wins over the registry, so a local named
-`length` shadows the builtin in value position too.
-
----
+`&` is optional for a callable bare name:
+`map(length, xs)` and `map(&length, xs)` are equivalent. The computed
+`&(expr)` form has no bare equivalent. A lexical binding still takes
+precedence in value position.
 
