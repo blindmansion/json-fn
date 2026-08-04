@@ -67,42 +67,21 @@ function titleCase(value: string): string {
     .join(" ");
 }
 
-function escapeCell(value: string): string {
-  return value.replaceAll("|", "\\|").replaceAll("\n", " ");
-}
-
-function renderTable(entries: BuiltinDocEntry[]): string {
-  const rows = entries.map(({ name, description, signatures }) => [
-    `\`${escapeCell(name)}\``,
-    signatures
-      .map((signature) => `\`${escapeCell(renderBuiltinSignature(signature))}\``)
-      .join("<br>"),
-    escapeCell(description),
-  ]);
-  const functionWidth = Math.max("Function".length, ...rows.map(([name]) => name!.length));
-  const signatureWidth = Math.max(
-    "Signature".length,
-    ...rows.map(([, signature]) => signature!.length),
-  );
-  const descriptionWidth = Math.max(
-    "Description".length,
-    ...rows.map(([, , description]) => description!.length),
-  );
-
-  return [
-    `| ${"Function".padEnd(functionWidth)} | ${"Signature".padEnd(signatureWidth)} | ${"Description".padEnd(descriptionWidth)} |`,
-    `| ${"-".repeat(functionWidth)} | ${"-".repeat(signatureWidth)} | ${"-".repeat(descriptionWidth)} |`,
-    ...rows.map(
-      ([name, signature, description]) =>
-        `| ${name!.padEnd(functionWidth)} | ${signature!.padEnd(signatureWidth)} | ${description!.padEnd(descriptionWidth)} |`,
-    ),
-  ].join("\n");
+function renderEntries(entries: BuiltinDocEntry[]): string {
+  return entries
+    .map(
+      ({ name, description, signatures }) =>
+        `### \`${name}\`\n\n${signatures
+          .map((signature) => `\`${renderBuiltinSignature(signature)}\``)
+          .join("\n")}\n\n${description}`,
+    )
+    .join("\n\n");
 }
 
 const source = JSON.parse(await readFile(inputPath, "utf8")) as unknown;
 const categories = readMetadata(source);
 const sections = [...categories].map(
-  ([category, entries]) => `## ${titleCase(category)}\n\n${renderTable(entries)}`,
+  ([category, entries]) => `## ${titleCase(category)}\n\n${renderEntries(entries)}`,
 );
 const document = `# Builtins
 

@@ -12,196 +12,838 @@ more precisely than their portable signatures indicate.
 
 ## Arithmetic
 
-| Function  | Signature                                                     | Description                                                                                                   |
-| --------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `add`     | `(integer, integer) → integer`<br>`(number, number) → number` | Add two numbers.                                                                                              |
-| `sub`     | `(integer, integer) → integer`<br>`(number, number) → number` | Subtract the second number from the first.                                                                    |
-| `mul`     | `(integer, integer) → integer`<br>`(number, number) → number` | Multiply two numbers.                                                                                         |
-| `mod`     | `(integer, integer) → integer`<br>`(number, number) → number` | Return the remainder after division; throws when the divisor is zero.                                         |
-| `div`     | `(number, number) → number`                                   | Divide two numbers; throws when the divisor is zero.                                                          |
-| `neg`     | `(integer) → integer`<br>`(number) → number`                  | Negate a number.                                                                                              |
-| `abs`     | `(integer) → integer`<br>`(number) → number`                  | Return the absolute value of a number.                                                                        |
-| `floor`   | `(number) → integer`                                          | Round a number down to the nearest integer.                                                                   |
-| `ceil`    | `(number) → integer`                                          | Round a number up to the nearest integer.                                                                     |
-| `round`   | `(number) → integer`                                          | Round a number to the nearest integer.                                                                        |
-| `trunc`   | `(number) → integer`                                          | Discard the fractional part of a number, rounding toward zero.                                                |
-| `sign`    | `(number) → integer`                                          | Return -1, 0, or 1 according to the sign of a number.                                                         |
-| `clamp`   | `(number, number, number) → number`                           | Constrain a number to an inclusive minimum and maximum; throws when the minimum exceeds the maximum.          |
-| `max`     | `(integer[]) → integer`<br>`(number[]) → number`              | Return the largest number in a non-empty array; throws if the result is not finite.                           |
-| `min`     | `(integer[]) → integer`<br>`(number[]) → number`              | Return the smallest number in a non-empty array; throws if the result is not finite.                          |
-| `sum`     | `(integer[]) → integer`<br>`(number[]) → number`              | Sum an array of numbers, returning zero for an empty array; throws if the result is not finite.               |
-| `mean`    | `(number[]) → number`                                         | Return the arithmetic mean of a non-empty array of numbers.                                                   |
-| `product` | `(integer[]) → integer`<br>`(number[]) → number`              | Multiply an array of numbers, returning one for an empty array; throws if the result is not finite.           |
-| `argmin`  | `(number[]) → integer \| null`                                | Return the index of the first smallest number, or null for an empty array.                                    |
-| `argmax`  | `(number[]) → integer \| null`                                | Return the index of the first largest number, or null for an empty array.                                     |
-| `sqrt`    | `(number) → number`                                           | Return the square root of a number; throws if the result is not finite.                                       |
-| `pow`     | `(number, number) → number`                                   | Raise a base to an exponent; throws if the result is not finite.                                              |
-| `exp`     | `(number) → number`                                           | Raise Euler's number to a power; throws if the result is not finite.                                          |
-| `log`     | `(number) → number`                                           | Return the natural logarithm of a number; throws if the result is not finite.                                 |
-| `log10`   | `(number) → number`                                           | Return the base-10 logarithm of a number; throws if the result is not finite.                                 |
-| `sin`     | `(number) → number`                                           | Return the sine of an angle in radians; throws if the result is not finite.                                   |
-| `cos`     | `(number) → number`                                           | Return the cosine of an angle in radians; throws if the result is not finite.                                 |
-| `tan`     | `(number) → number`                                           | Return the tangent of an angle in radians; throws if the result is not finite.                                |
-| `atan2`   | `(number, number) → number`                                   | Return the angle in radians from the positive x-axis to the point (x, y); throws if the result is not finite. |
+### `add`
+
+`(integer, integer) → integer`
+`(number, number) → number`
+
+Add two numbers.
+
+### `sub`
+
+`(integer, integer) → integer`
+`(number, number) → number`
+
+Subtract the second number from the first.
+
+### `mul`
+
+`(integer, integer) → integer`
+`(number, number) → number`
+
+Multiply two numbers.
+
+### `mod`
+
+`(integer, integer) → integer`
+`(number, number) → number`
+
+Return the remainder after division; throws when the divisor is zero.
+
+### `div`
+
+`(number, number) → number`
+
+Divide two numbers; throws when the divisor is zero.
+
+### `neg`
+
+`(integer) → integer`
+`(number) → number`
+
+Negate a number.
+
+### `abs`
+
+`(integer) → integer`
+`(number) → number`
+
+Return the absolute value of a number.
+
+### `floor`
+
+`(number) → integer`
+
+Round a number down to the nearest integer.
+
+### `ceil`
+
+`(number) → integer`
+
+Round a number up to the nearest integer.
+
+### `round`
+
+`(number) → integer`
+
+Round a number to the nearest integer.
+
+### `trunc`
+
+`(number) → integer`
+
+Discard the fractional part of a number, rounding toward zero.
+
+### `sign`
+
+`(number) → integer`
+
+Return -1, 0, or 1 according to the sign of a number.
+
+### `clamp`
+
+`(number, number, number) → number`
+
+Constrain a number to an inclusive minimum and maximum; throws when the minimum exceeds the maximum.
+
+### `max`
+
+`(integer[]) → integer`
+`(number[]) → number`
+
+Return the largest number in a non-empty array; throws if the result is not finite.
+
+### `min`
+
+`(integer[]) → integer`
+`(number[]) → number`
+
+Return the smallest number in a non-empty array; throws if the result is not finite.
+
+### `sum`
+
+`(integer[]) → integer`
+`(number[]) → number`
+
+Sum an array of numbers, returning zero for an empty array; throws if the result is not finite.
+
+### `mean`
+
+`(number[]) → number`
+
+Return the arithmetic mean of a non-empty array of numbers.
+
+### `product`
+
+`(integer[]) → integer`
+`(number[]) → number`
+
+Multiply an array of numbers, returning one for an empty array; throws if the result is not finite.
+
+### `argmin`
+
+`(number[]) → integer | null`
+
+Return the index of the first smallest number, or null for an empty array.
+
+### `argmax`
+
+`(number[]) → integer | null`
+
+Return the index of the first largest number, or null for an empty array.
+
+### `sqrt`
+
+`(number) → number`
+
+Return the square root of a number; throws if the result is not finite.
+
+### `pow`
+
+`(number, number) → number`
+
+Raise a base to an exponent; throws if the result is not finite.
+
+### `exp`
+
+`(number) → number`
+
+Raise Euler's number to a power; throws if the result is not finite.
+
+### `log`
+
+`(number) → number`
+
+Return the natural logarithm of a number; throws if the result is not finite.
+
+### `log10`
+
+`(number) → number`
+
+Return the base-10 logarithm of a number; throws if the result is not finite.
+
+### `sin`
+
+`(number) → number`
+
+Return the sine of an angle in radians; throws if the result is not finite.
+
+### `cos`
+
+`(number) → number`
+
+Return the cosine of an angle in radians; throws if the result is not finite.
+
+### `tan`
+
+`(number) → number`
+
+Return the tangent of an angle in radians; throws if the result is not finite.
+
+### `atan2`
+
+`(number, number) → number`
+
+Return the angle in radians from the positive x-axis to the point (x, y); throws if the result is not finite.
 
 ## Comparison
 
-| Function | Signature                    | Description                                                           |
-| -------- | ---------------------------- | --------------------------------------------------------------------- |
-| `eq`     | `(any, any) → boolean`       | Test two values for structural equality.                              |
-| `neq`    | `(any, any) → boolean`       | Test two values for structural inequality.                            |
-| `lt`     | `(number, number) → boolean` | Test whether the first number is less than the second.                |
-| `lte`    | `(number, number) → boolean` | Test whether the first number is less than or equal to the second.    |
-| `gt`     | `(number, number) → boolean` | Test whether the first number is greater than the second.             |
-| `gte`    | `(number, number) → boolean` | Test whether the first number is greater than or equal to the second. |
+### `eq`
+
+`(any, any) → boolean`
+
+Test two values for structural equality.
+
+### `neq`
+
+`(any, any) → boolean`
+
+Test two values for structural inequality.
+
+### `lt`
+
+`(number, number) → boolean`
+
+Test whether the first number is less than the second.
+
+### `lte`
+
+`(number, number) → boolean`
+
+Test whether the first number is less than or equal to the second.
+
+### `gt`
+
+`(number, number) → boolean`
+
+Test whether the first number is greater than the second.
+
+### `gte`
+
+`(number, number) → boolean`
+
+Test whether the first number is greater than or equal to the second.
 
 ## Logic
 
-| Function | Signature                      | Description                                           |
-| -------- | ------------------------------ | ----------------------------------------------------- |
-| `not`    | `(boolean) → boolean`          | Return the logical negation of a boolean.             |
-| `and`    | `(boolean, boolean) → boolean` | Return the eager logical conjunction of two booleans. |
-| `or`     | `(boolean, boolean) → boolean` | Return the eager logical disjunction of two booleans. |
+### `not`
+
+`(boolean) → boolean`
+
+Return the logical negation of a boolean.
+
+### `and`
+
+`(boolean, boolean) → boolean`
+
+Return the eager logical conjunction of two booleans.
+
+### `or`
+
+`(boolean, boolean) → boolean`
+
+Return the eager logical disjunction of two booleans.
 
 ## Type Checking
 
-| Function    | Signature         | Description                                                              |
-| ----------- | ----------------- | ------------------------------------------------------------------------ |
-| `isNull`    | `(any) → boolean` | Test whether a value is null.                                            |
-| `isBool`    | `(any) → boolean` | Test whether a value is a boolean.                                       |
-| `isNumber`  | `(any) → boolean` | Test whether a value is a number.                                        |
-| `isInteger` | `(any) → boolean` | Test whether a value is an integer.                                      |
-| `isString`  | `(any) → boolean` | Test whether a value is a string.                                        |
-| `isArray`   | `(any) → boolean` | Test whether a value is an array.                                        |
-| `isObject`  | `(any) → boolean` | Test whether a value is a plain object, excluding arrays and null.       |
-| `isTask`    | `(any) → boolean` | Test whether a value is a plain object with a string-valued `@task` tag. |
+### `isNull`
+
+`(any) → boolean`
+
+Test whether a value is null.
+
+### `isBool`
+
+`(any) → boolean`
+
+Test whether a value is a boolean.
+
+### `isNumber`
+
+`(any) → boolean`
+
+Test whether a value is a number.
+
+### `isInteger`
+
+`(any) → boolean`
+
+Test whether a value is an integer.
+
+### `isString`
+
+`(any) → boolean`
+
+Test whether a value is a string.
+
+### `isArray`
+
+`(any) → boolean`
+
+Test whether a value is an array.
+
+### `isObject`
+
+`(any) → boolean`
+
+Test whether a value is a plain object, excluding arrays and null.
+
+### `isTask`
+
+`(any) → boolean`
+
+Test whether a value is a plain object with a string-valued `@task` tag.
 
 ## Type Coercion
 
-| Function | Signature        | Description                                                 |
-| -------- | ---------------- | ----------------------------------------------------------- |
-| `str`    | `(any) → string` | Convert a value to a string, serializing non-string values. |
-| `num`    | `(any) → number` | Convert a value to a number; throws when conversion fails.  |
+### `str`
+
+`(any) → string`
+
+Convert a value to a string, serializing non-string values.
+
+### `num`
+
+`(any) → number`
+
+Convert a value to a number; throws when conversion fails.
 
 ## Strings
 
-| Function     | Signature                                                            | Description                                                                                       |
-| ------------ | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `upper`      | `(string) → string`                                                  | Convert a string to uppercase.                                                                    |
-| `lower`      | `(string) → string`                                                  | Convert a string to lowercase.                                                                    |
-| `trim`       | `(string) → string`                                                  | Remove whitespace from both ends of a string.                                                     |
-| `strcat`     | `(...string[]) → string`                                             | Concatenate any number of strings.                                                                |
-| `split`      | `(string, string) → string[]`                                        | Split a string on a separator; an empty separator splits it into Unicode code points.             |
-| `join`       | `(any[], string) → string`                                           | Join an array's elements with a separator.                                                        |
-| `startsWith` | `(string, string) → boolean`                                         | Test whether a string starts with a prefix.                                                       |
-| `endsWith`   | `(string, string) → boolean`                                         | Test whether a string ends with a suffix.                                                         |
-| `replace`    | `(string, string, string) → string`                                  | Replace all literal, non-overlapping occurrences of a non-empty search string.                    |
-| `padStart`   | `(string, integer) → string`<br>`(string, integer, string) → string` | Left-pad a string to a Unicode code-point length, using a space when no fill string is supplied.  |
-| `padEnd`     | `(string, integer) → string`<br>`(string, integer, string) → string` | Right-pad a string to a Unicode code-point length, using a space when no fill string is supplied. |
+### `upper`
+
+`(string) → string`
+
+Convert a string to uppercase.
+
+### `lower`
+
+`(string) → string`
+
+Convert a string to lowercase.
+
+### `trim`
+
+`(string) → string`
+
+Remove whitespace from both ends of a string.
+
+### `strcat`
+
+`(...string[]) → string`
+
+Concatenate any number of strings.
+
+### `split`
+
+`(string, string) → string[]`
+
+Split a string on a separator; an empty separator splits it into Unicode code points.
+
+### `join`
+
+`(any[], string) → string`
+
+Join an array's elements with a separator.
+
+### `startsWith`
+
+`(string, string) → boolean`
+
+Test whether a string starts with a prefix.
+
+### `endsWith`
+
+`(string, string) → boolean`
+
+Test whether a string ends with a suffix.
+
+### `replace`
+
+`(string, string, string) → string`
+
+Replace all literal, non-overlapping occurrences of a non-empty search string.
+
+### `padStart`
+
+`(string, integer) → string`
+`(string, integer, string) → string`
+
+Left-pad a string to a Unicode code-point length, using a space when no fill string is supplied.
+
+### `padEnd`
+
+`(string, integer) → string`
+`(string, integer, string) → string`
+
+Right-pad a string to a Unicode code-point length, using a space when no fill string is supplied.
 
 ## Arrays
 
-| Function       | Signature                                                                                                                                | Description                                                                                                                     |
-| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `length`       | `(any[]) → integer`<br>`(string) → integer`                                                                                              | Return an array's item count or a string's Unicode code-point count.                                                            |
-| `head`         | `<T>(T[]) → T`<br>`<T>(T[]) → T \| null`                                                                                                 | Return the first element of an array, or null when empty.                                                                       |
-| `last`         | `<T>(T[]) → T`<br>`<T>(T[]) → T \| null`                                                                                                 | Return the last element of an array, or null when empty.                                                                        |
-| `tail`         | `<T>(T[]) → T[]`                                                                                                                         | Return all but the first element of an array.                                                                                   |
-| `reverse`      | `<T>(T[]) → T[]`                                                                                                                         | Return a reversed copy of an array.                                                                                             |
-| `take`         | `<T>(T[], integer) → T[]`                                                                                                                | Return the first requested number of array elements, or an empty array when the count is non-positive.                          |
-| `drop`         | `<T>(T[], integer) → T[]`                                                                                                                | Return an array without its first requested number of elements, or a copy when the count is non-positive.                       |
-| `zip`          | `<T, U>(T[], U[]) → Array<[T, U]>`                                                                                                       | Pair corresponding elements, stopping at the shorter array.                                                                     |
-| `unique`       | `<T>(T[]) → T[]`                                                                                                                         | Keep the first occurrence of each structurally distinct array value.                                                            |
-| `repeat`       | `(string, integer) → string`<br>`<T>(T[], integer) → T[]`                                                                                | Repeat an array or string a non-negative number of times.                                                                       |
-| `flatten`      | `<T>(Array<T[]>) → T[]`                                                                                                                  | Flatten an array by one level.                                                                                                  |
-| `flattenDepth` | `(any[], integer) → any[]`                                                                                                               | Flatten an array by a non-negative number of levels.                                                                            |
-| `chunk`        | `<T>(T[], integer) → Array<T[]>`                                                                                                         | Split an array into consecutive chunks of a positive size.                                                                      |
-| `frequencies`  | `(Array<null \| boolean \| number \| string>) → Record<string, integer>`                                                                 | Count occurrences of scalar values after converting each value to an object key.                                                |
-| `concat`       | `<T>(...T[][]) → T[]`                                                                                                                    | Concatenate any number of arrays.                                                                                               |
-| `range`        | `(integer) → integer[]`                                                                                                                  | Create an array of integers from zero up to, but excluding, an endpoint.                                                        |
-| `rangeFrom`    | `(integer, integer) → integer[]`                                                                                                         | Create a half-open ascending range of integers between two endpoints.                                                           |
-| `rangeBy`      | `(integer, integer, integer) → integer[]`                                                                                                | Create a half-open range of integers using a non-zero step.                                                                     |
-| `slice`        | `<T>(T[], integer) → T[]`<br>`<T>(T[], integer, integer) → T[]`<br>`(string, integer) → string`<br>`(string, integer, integer) → string` | Return a slice of an array or string; string offsets count Unicode code points.                                                 |
-| `includes`     | `<T>(T[], T) → boolean`<br>`(string, string) → boolean`                                                                                  | Test an array for a structurally equal value, or a string for a substring.                                                      |
-| `indexOf`      | `<T>(T[], T) → integer \| null`<br>`(string, string) → integer \| null`                                                                  | Find a structurally equal array value or string substring, returning its item or Unicode code-point index, or null when absent. |
-| `setAt`        | `<T>(T[], integer, T) → T[]`                                                                                                             | Return an array with one element replaced.                                                                                      |
+### `length`
+
+`(any[]) → integer`
+`(string) → integer`
+
+Return an array's item count or a string's Unicode code-point count.
+
+### `head`
+
+`<T>(T[]) → T`
+`<T>(T[]) → T | null`
+
+Return the first element of an array, or null when empty.
+
+### `last`
+
+`<T>(T[]) → T`
+`<T>(T[]) → T | null`
+
+Return the last element of an array, or null when empty.
+
+### `tail`
+
+`<T>(T[]) → T[]`
+
+Return all but the first element of an array.
+
+### `reverse`
+
+`<T>(T[]) → T[]`
+
+Return a reversed copy of an array.
+
+### `take`
+
+`<T>(T[], integer) → T[]`
+
+Return the first requested number of array elements, or an empty array when the count is non-positive.
+
+### `drop`
+
+`<T>(T[], integer) → T[]`
+
+Return an array without its first requested number of elements, or a copy when the count is non-positive.
+
+### `zip`
+
+`<T, U>(T[], U[]) → Array<[T, U]>`
+
+Pair corresponding elements, stopping at the shorter array.
+
+### `unique`
+
+`<T>(T[]) → T[]`
+
+Keep the first occurrence of each structurally distinct array value.
+
+### `repeat`
+
+`(string, integer) → string`
+`<T>(T[], integer) → T[]`
+
+Repeat an array or string a non-negative number of times.
+
+### `flatten`
+
+`<T>(Array<T[]>) → T[]`
+
+Flatten an array by one level.
+
+### `flattenDepth`
+
+`(any[], integer) → any[]`
+
+Flatten an array by a non-negative number of levels.
+
+### `chunk`
+
+`<T>(T[], integer) → Array<T[]>`
+
+Split an array into consecutive chunks of a positive size.
+
+### `frequencies`
+
+`(Array<null | boolean | number | string>) → Record<string, integer>`
+
+Count occurrences of scalar values after converting each value to an object key.
+
+### `concat`
+
+`<T>(...T[][]) → T[]`
+
+Concatenate any number of arrays.
+
+### `range`
+
+`(integer) → integer[]`
+
+Create an array of integers from zero up to, but excluding, an endpoint.
+
+### `rangeFrom`
+
+`(integer, integer) → integer[]`
+
+Create a half-open ascending range of integers between two endpoints.
+
+### `rangeBy`
+
+`(integer, integer, integer) → integer[]`
+
+Create a half-open range of integers using a non-zero step.
+
+### `slice`
+
+`<T>(T[], integer) → T[]`
+`<T>(T[], integer, integer) → T[]`
+`(string, integer) → string`
+`(string, integer, integer) → string`
+
+Return a slice of an array or string; string offsets count Unicode code points.
+
+### `includes`
+
+`<T>(T[], T) → boolean`
+`(string, string) → boolean`
+
+Test an array for a structurally equal value, or a string for a substring.
+
+### `indexOf`
+
+`<T>(T[], T) → integer | null`
+`(string, string) → integer | null`
+
+Find a structurally equal array value or string substring, returning its item or Unicode code-point index, or null when absent.
+
+### `setAt`
+
+`<T>(T[], integer, T) → T[]`
+
+Return an array with one element replaced.
 
 ## Objects
 
-| Function      | Signature                                     | Description                                                                     |
-| ------------- | --------------------------------------------- | ------------------------------------------------------------------------------- |
-| `keys`        | `(object) → string[]`                         | Return an object's keys.                                                        |
-| `values`      | `<V>(Record<string, V>) → V[]`                | Return an object's values.                                                      |
-| `entries`     | `<V>(Record<string, V>) → Array<[string, V]>` | Return an object's key-value pairs.                                             |
-| `fromEntries` | `<V>(Array<[string, V]>) → Record<string, V>` | Create an object from key-value pairs.                                          |
-| `merge`       | `(object, object) → object`                   | Shallowly merge two objects, with the second object's values winning conflicts. |
-| `hasKey`      | `(object, string) → boolean`                  | Test whether an object contains a key.                                          |
-| `pick`        | `(object, string[]) → object`                 | Return an object containing selected keys.                                      |
-| `omit`        | `(object, string[]) → object`                 | Return an object excluding selected keys.                                       |
+### `keys`
+
+`(object) → string[]`
+
+Return an object's keys.
+
+### `values`
+
+`<V>(Record<string, V>) → V[]`
+
+Return an object's values.
+
+### `entries`
+
+`<V>(Record<string, V>) → Array<[string, V]>`
+
+Return an object's key-value pairs.
+
+### `fromEntries`
+
+`<V>(Array<[string, V]>) → Record<string, V>`
+
+Create an object from key-value pairs.
+
+### `merge`
+
+`(object, object) → object`
+
+Shallowly merge two objects, with the second object's values winning conflicts.
+
+### `hasKey`
+
+`(object, string) → boolean`
+
+Test whether an object contains a key.
+
+### `pick`
+
+`(object, string[]) → object`
+
+Return an object containing selected keys.
+
+### `omit`
+
+`(object, string[]) → object`
+
+Return an object excluding selected keys.
 
 ## Higher-Order Functions
 
-| Function           | Signature                                                                                                            | Description                                                                                                                                                     |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `map`              | `<T, U>((T) → U, T[]) → U[]`                                                                                         | Transform each array element with a callback.                                                                                                                   |
-| `mapIndexed`       | `<T, U>((T, integer) → U, T[]) → U[]`                                                                                | Transform each array element with a callback that also receives its index.                                                                                      |
-| `filter`           | `<T>((T) → boolean, T[]) → T[]`                                                                                      | Keep array elements for which a callback returns true.                                                                                                          |
-| `filterIndexed`    | `<T>((T, integer) → boolean, T[]) → T[]`                                                                             | Keep array elements using a callback that also receives each index.                                                                                             |
-| `reduce`           | `<T, U>((U, T) → U, U, T[]) → U`                                                                                     | Fold an array into an accumulator.                                                                                                                              |
-| `reduceIndexed`    | `<T, U>((U, T, integer) → U, U, T[]) → U`                                                                            | Fold an array with a callback that also receives each index.                                                                                                    |
-| `partition`        | `<T>((T) → boolean, T[]) → [T[], T[]]`                                                                               | Split an array into matching and non-matching elements after one predicate call per element.                                                                    |
-| `scan`             | `<T, U>((U, T) → U, U, T[]) → U[]`                                                                                   | Return each post-callback accumulator produced while folding an array.                                                                                          |
-| `find`             | `<T>((T) → boolean, T[]) → T \| null`                                                                                | Return the first array element matching a callback, or null.                                                                                                    |
-| `findIndexed`      | `<T>((T, integer) → boolean, T[]) → T \| null`                                                                       | Find an array element with a callback that also receives each index.                                                                                            |
-| `findIndex`        | `<T>((T) → boolean, T[]) → integer \| null`                                                                          | Return the index of the first callback match, or null.                                                                                                          |
-| `findIndexIndexed` | `<T>((T, integer) → boolean, T[]) → integer \| null`                                                                 | Find a matching index with a callback that also receives each index.                                                                                            |
-| `some`             | `<T>((T) → boolean, T[]) → boolean`                                                                                  | Test whether any array element matches a callback.                                                                                                              |
-| `someIndexed`      | `<T>((T, integer) → boolean, T[]) → boolean`                                                                         | Test for a match with a callback that also receives each index.                                                                                                 |
-| `every`            | `<T>((T) → boolean, T[]) → boolean`                                                                                  | Test whether every array element matches a callback.                                                                                                            |
-| `everyIndexed`     | `<T>((T, integer) → boolean, T[]) → boolean`                                                                         | Test every element with a callback that also receives each index.                                                                                               |
-| `count`            | `<T>((T) → boolean, T[]) → integer`                                                                                  | Count array elements matching a callback.                                                                                                                       |
-| `countIndexed`     | `<T>((T, integer) → boolean, T[]) → integer`                                                                         | Count matches with a callback that also receives each index.                                                                                                    |
-| `countBy`          | `<T>((T) → string \| number, T[]) → Record<string, integer>`                                                         | Count elements by callback key; output contains only observed keys, with numbers stringified.                                                                   |
-| `sort`             | `(integer[]) → integer[]`<br>`(number[]) → number[]`<br>`(string[]) → string[]`<br>`<T>((T, T) → number, T[]) → T[]` | Return a sorted copy of an array, optionally using a comparator; the default orders homogeneous numbers ascending or homogeneous strings by Unicode code point. |
-| `sortBy`           | `<T>((T) → string \| number, T[]) → T[]`                                                                             | Return an array sorted by callback-produced keys.                                                                                                               |
-| `sortByIndexed`    | `<T>((T, integer) → string \| number, T[]) → T[]`                                                                    | Sort by keys from a callback that also receives each index.                                                                                                     |
-| `groupBy`          | `<T>((T) → string \| number, T[]) → Record<string, T[]>`                                                             | Group array elements by callback-produced keys.                                                                                                                 |
-| `groupByIndexed`   | `<T>((T, integer) → string \| number, T[]) → Record<string, T[]>`                                                    | Group by keys from a callback that also receives each index.                                                                                                    |
-| `flatMap`          | `<T>((T) → any, T[]) → any[]`                                                                                        | Transform array elements, flattening array results by one level and retaining scalar results.                                                                   |
-| `flatMapIndexed`   | `<T>((T, integer) → any, T[]) → any[]`                                                                               | Flat-map while retaining scalar results, with a callback that also receives each index.                                                                         |
-| `mapValues`        | `<T, U>((T, string) → U, Record<string, T>) → Record<string, U>`                                                     | Transform an object's values with a callback.                                                                                                                   |
-| `apply`            | `(any, any[]) → any`                                                                                                 | Call a function with an array of positional arguments.                                                                                                          |
-| `pipe`             | `(any[], any) → any`                                                                                                 | Pass a value through an array of functions from left to right.                                                                                                  |
-| `reReplaceWith`    | `(string, (Match) → string, string) → string`                                                                        | Replace all regex matches using a callback that receives a match object.                                                                                        |
+### `map`
+
+`<T, U>((T) → U, T[]) → U[]`
+
+Transform each array element with a callback.
+
+### `mapIndexed`
+
+`<T, U>((T, integer) → U, T[]) → U[]`
+
+Transform each array element with a callback that also receives its index.
+
+### `filter`
+
+`<T>((T) → boolean, T[]) → T[]`
+
+Keep array elements for which a callback returns true.
+
+### `filterIndexed`
+
+`<T>((T, integer) → boolean, T[]) → T[]`
+
+Keep array elements using a callback that also receives each index.
+
+### `reduce`
+
+`<T, U>((U, T) → U, U, T[]) → U`
+
+Fold an array into an accumulator.
+
+### `reduceIndexed`
+
+`<T, U>((U, T, integer) → U, U, T[]) → U`
+
+Fold an array with a callback that also receives each index.
+
+### `partition`
+
+`<T>((T) → boolean, T[]) → [T[], T[]]`
+
+Split an array into matching and non-matching elements after one predicate call per element.
+
+### `scan`
+
+`<T, U>((U, T) → U, U, T[]) → U[]`
+
+Return each post-callback accumulator produced while folding an array.
+
+### `find`
+
+`<T>((T) → boolean, T[]) → T | null`
+
+Return the first array element matching a callback, or null.
+
+### `findIndexed`
+
+`<T>((T, integer) → boolean, T[]) → T | null`
+
+Find an array element with a callback that also receives each index.
+
+### `findIndex`
+
+`<T>((T) → boolean, T[]) → integer | null`
+
+Return the index of the first callback match, or null.
+
+### `findIndexIndexed`
+
+`<T>((T, integer) → boolean, T[]) → integer | null`
+
+Find a matching index with a callback that also receives each index.
+
+### `some`
+
+`<T>((T) → boolean, T[]) → boolean`
+
+Test whether any array element matches a callback.
+
+### `someIndexed`
+
+`<T>((T, integer) → boolean, T[]) → boolean`
+
+Test for a match with a callback that also receives each index.
+
+### `every`
+
+`<T>((T) → boolean, T[]) → boolean`
+
+Test whether every array element matches a callback.
+
+### `everyIndexed`
+
+`<T>((T, integer) → boolean, T[]) → boolean`
+
+Test every element with a callback that also receives each index.
+
+### `count`
+
+`<T>((T) → boolean, T[]) → integer`
+
+Count array elements matching a callback.
+
+### `countIndexed`
+
+`<T>((T, integer) → boolean, T[]) → integer`
+
+Count matches with a callback that also receives each index.
+
+### `countBy`
+
+`<T>((T) → string | number, T[]) → Record<string, integer>`
+
+Count elements by callback key; output contains only observed keys, with numbers stringified.
+
+### `sort`
+
+`(integer[]) → integer[]`
+`(number[]) → number[]`
+`(string[]) → string[]`
+`<T>((T, T) → number, T[]) → T[]`
+
+Return a sorted copy of an array, optionally using a comparator; the default orders homogeneous numbers ascending or homogeneous strings by Unicode code point.
+
+### `sortBy`
+
+`<T>((T) → string | number, T[]) → T[]`
+
+Return an array sorted by callback-produced keys.
+
+### `sortByIndexed`
+
+`<T>((T, integer) → string | number, T[]) → T[]`
+
+Sort by keys from a callback that also receives each index.
+
+### `groupBy`
+
+`<T>((T) → string | number, T[]) → Record<string, T[]>`
+
+Group array elements by callback-produced keys.
+
+### `groupByIndexed`
+
+`<T>((T, integer) → string | number, T[]) → Record<string, T[]>`
+
+Group by keys from a callback that also receives each index.
+
+### `flatMap`
+
+`<T>((T) → any, T[]) → any[]`
+
+Transform array elements, flattening array results by one level and retaining scalar results.
+
+### `flatMapIndexed`
+
+`<T>((T, integer) → any, T[]) → any[]`
+
+Flat-map while retaining scalar results, with a callback that also receives each index.
+
+### `mapValues`
+
+`<T, U>((T, string) → U, Record<string, T>) → Record<string, U>`
+
+Transform an object's values with a callback.
+
+### `apply`
+
+`(any, any[]) → any`
+
+Call a function with an array of positional arguments.
+
+### `pipe`
+
+`(any[], any) → any`
+
+Pass a value through an array of functions from left to right.
+
+### `reReplaceWith`
+
+`(string, (Match) → string, string) → string`
+
+Replace all regex matches using a callback that receives a match object.
 
 ## Regex
 
-| Function     | Signature                           | Description                                                                                                                      |
-| ------------ | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `reTest`     | `(string, string) → boolean`        | Test whether a regex pattern matches anywhere in a string.                                                                       |
-| `reMatch`    | `(string, string) → Match \| null`  | Return the first regex match object, or null.                                                                                    |
-| `reMatchAll` | `(string, string) → Match[]`        | Return all non-overlapping regex match objects.                                                                                  |
-| `reReplace`  | `(string, string, string) → string` | Replace all regex matches using a replacement string, where `$&` is the full match and `$1`, `$2`, and so on are capture groups. |
-| `reSplit`    | `(string, string) → string[]`       | Split a string using a regex pattern.                                                                                            |
+### `reTest`
+
+`(string, string) → boolean`
+
+Test whether a regex pattern matches anywhere in a string.
+
+### `reMatch`
+
+`(string, string) → Match | null`
+
+Return the first regex match object, or null.
+
+### `reMatchAll`
+
+`(string, string) → Match[]`
+
+Return all non-overlapping regex match objects.
+
+### `reReplace`
+
+`(string, string, string) → string`
+
+Replace all regex matches using a replacement string, where `$&` is the full match and `$1`, `$2`, and so on are capture groups.
+
+### `reSplit`
+
+`(string, string) → string[]`
+
+Split a string using a regex pattern.
 
 ## Tasks & Effects
 
-| Function  | Signature                                     | Description                                                                                                                      |
-| --------- | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `perform` | `(string, any[]) → Task`                      | Build a task requesting a named effect with arguments.                                                                           |
-| `pure`    | `(any) → Task`                                | Build a completed task carrying a value.                                                                                         |
-| `bind`    | `(Task, (any) → Task) → Task`                 | Sequence a task into a continuation that returns the next task.                                                                  |
-| `raise`   | `(any) → Task`                                | Build a task requesting the raise effect, equivalent to `perform("raise", [value])`.                                             |
-| `handle`  | `(any, any) → any`<br>`(any, any, any) → any` | Interpret a task's effects with handler clauses; an optional static result schema makes the handler total and runtime-validated. |
+### `perform`
+
+`(string, any[]) → Task`
+
+Build a task requesting a named effect with arguments.
+
+### `pure`
+
+`(any) → Task`
+
+Build a completed task carrying a value.
+
+### `bind`
+
+`(Task, (any) → Task) → Task`
+
+Sequence a task into a continuation that returns the next task.
+
+### `raise`
+
+`(any) → Task`
+
+Build a task requesting the raise effect, equivalent to `perform("raise", [value])`.
+
+### `handle`
+
+`(any, any) → any`
+`(any, any, any) → any`
+
+Interpret a task's effects with handler clauses; an optional static result schema makes the handler total and runtime-validated.
 
 ## Introspection
 
-| Function | Signature                 | Description                                                                                                            |
-| -------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `arity`  | `(any) → integer \| null` | Return a function name or body's fixed positional parameter count, excluding its rest parameter, or null when unknown. |
+### `arity`
+
+`(any) → integer | null`
+
+Return a function name or body's fixed positional parameter count, excluding its rest parameter, or null when unknown.
 
 ## Debugging
 
-| Function | Signature                            | Description                                                                                   |
-| -------- | ------------------------------------ | --------------------------------------------------------------------------------------------- |
-| `tap`    | `<T>(T) → T`<br>`<T>(T, string) → T` | Pass a value and optional label to the host-configured logger and return the value unchanged. |
+### `tap`
+
+`<T>(T) → T`
+`<T>(T, string) → T`
+
+Pass a value and optional label to the host-configured logger and return the value unchanged.
