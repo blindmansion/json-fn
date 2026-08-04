@@ -1,26 +1,19 @@
-# json-fn Language Reference
+# JSON language reference
 
-json-fn is a JSON-structured expression language. Programs are JSON values evaluated by a tree-walking interpreter. All expressions are valid JSON.
-
+json-fn programs are JSON values. This reference defines their forms,
+evaluation, scope, static checking, effects, and limits.
 
 ## Contents
 
-### Core semantics
-
-- [Expression Types](expressions.md) — expression forms, dynamic dispatch, and
-  structural constraints.
-- [Function Bodies](functions.md) — parameters, local bindings, and recursion.
-- [Closures](closures.md)
-- [Module Scope and Scoping Rules](modules.md)
-- [Flow Narrowing](narrowing.md)
-
-### Effects and runtime
-
-- [Tasks & Effects](tasks-and-effects.md)
-- [Execution Limits](execution-limits.md)
-
-### Library and usage
-
-- [Standard Library](standard-library.md) — builtin semantic notes, including
-  higher-order function conventions.
-- [Patterns](patterns.md)
+- [Expressions](expressions.md) — values, calls, bindings, access, control flow,
+  and structural rules.
+- [Functions](functions.md) — parameters, signatures, local bindings, and
+  recursion.
+- [Closures](closures.md) — captured values and local functions.
+- [Modules and scope](modules.md) — module bindings and name resolution.
+- [Flow narrowing](narrowing.md) — branch-sensitive type refinement.
+- [Tasks and effects](tasks-and-effects.md) — pure effect descriptions,
+  handlers, and suspension.
+- [Execution limits](execution-limits.md) — cycles and resource limits.
+- [Standard library](standard-library.md) — semantic rules shared by builtin
+  groups.

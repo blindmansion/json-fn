@@ -1,11 +1,13 @@
 # Closures
 
-When a function body is returned as a value (not called), outer variables are
-captured by substitution. The interpreter walks the returned body and replaces
-`$var` references with their current values, respecting scope boundaries.
-Inner `$params`, `$captures`, and `$let` names shadow outer names. A `$let`
-masks its names recursively in both its binding expressions and its `$in`,
-while unrelated outer references inside either part are still substituted.
+When a function-body expression is evaluated, outer variables are captured by
+substituting their current values for `$var` references. This also occurs when
+the body is used directly as a call's callee. Substitution respects scope:
+
+- `$params` and `$captures` shadow outer names;
+- `$let` names shadow outer names recursively in both their binding expressions
+  and `$in`;
+- unrelated outer references within those scopes are still captured.
 
 ```json
 {
@@ -26,17 +28,15 @@ Called with `[10]`, returns:
 }
 ```
 
-The returned body is a valid function body that can be called subsequently.
+The returned value remains callable as a function body.
 
-## Escaping closures carry the local functions they call
+## Captured local functions
 
-Capture also keeps an escaping closure **self-contained** when it calls an
-enclosing [local function](functions.md#local-recursive-functions) by name. Names in call
-position that resolve to a local function stay literal (so recursion and mutual
-recursion keep dispatching by name), and capture serializes the required
-closed-over definitions under the returned body's `$captures` field. A closure
-that recurses—or calls a sibling local function—therefore remains callable
-after it leaves the `$let` scope that defined those functions.
+If a closure refers to an enclosing
+[local function](functions.md#local-recursive-functions), that function is
+stored under the closure's `$captures` field. Names in call position remain
+names, preserving recursion and mutual recursion after the closure leaves the
+defining `$let`.
 
 ```json
 {
@@ -57,8 +57,7 @@ after it leaves the `$let` scope that defined those functions.
 }
 ```
 
-Called with `[42]`, this returns a body whose `$captures` carries `go` so it
-still recurses when invoked later:
+Called with `[42]`, this returns:
 
 ```json
 {
@@ -81,14 +80,10 @@ still recurses when invoked later:
 }
 ```
 
-Only the local functions actually referenced (transitively) are captured. A
-name shadowed by the returned body's own `$params`, `$captures`, or nested
-`$let` is not captured from outside—the inner binder wins.
+Only transitively referenced local functions are captured. A name shadowed by
+the returned body's `$params`, `$captures`, or nested `$let` is not captured
+from an outer scope.
 
-**Module-level (registry) functions are not captured.** `$captures` applies only
-to functions defined by an enclosing expression scope that disappears when the
-closure escapes it. A top-level module function persists in the program
-registry and resolves by name at call time like a stdlib builtin. A closure
-serialized outside the program therefore carries required `$let` functions,
-but still relies on the target host providing the module and stdlib registry.
+Module functions and builtins are not captured. They resolve by name when the
+closure is called.
 
