@@ -111,13 +111,15 @@ function parameterShapeMatches(layout: ParameterLayout, sig: Sig): boolean {
 }
 
 function describeParameterLayout(layout: ParameterLayout): string {
-  return `${layout.requiredCount} required parameter(s), ${layout.omittableCount} optional parameter(s), and ${layout.rest === null ? "no rest parameter" : "a rest parameter"
-    }`;
+  return `${layout.requiredCount} required parameter(s), ${layout.omittableCount} optional parameter(s), and ${
+    layout.rest === null ? "no rest parameter" : "a rest parameter"
+  }`;
 }
 
 function describeSigShape(sig: Sig): string {
-  return `${sig.required.length} required parameter(s), ${sig.optional.length} optional parameter(s), and ${sig.rest === undefined ? "no rest parameter" : "a rest parameter"
-    }`;
+  return `${sig.required.length} required parameter(s), ${sig.optional.length} optional parameter(s), and ${
+    sig.rest === undefined ? "no rest parameter" : "a rest parameter"
+  }`;
 }
 
 function acceptsArgumentCount(sig: Sig, argc: number): boolean {

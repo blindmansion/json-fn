@@ -16,7 +16,7 @@ export type StdlibOptions = {
   logger?: LoggerFn;
 };
 
-const noopLogger: LoggerFn = () => { };
+const noopLogger: LoggerFn = () => {};
 
 const INLINE_FLAGS_RE = /^\(\?([imsu]*)\)/;
 const VALID_FLAGS = new Set(["i", "m", "s", "u"]);
