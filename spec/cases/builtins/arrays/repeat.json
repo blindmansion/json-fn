@@ -1,0 +1,22 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "repeat",
+  "description": "Repeat arrays a non-negative number of times.",
+  "cases": [
+    {
+      "description": "repeats an array",
+      "args": [[1, 2], 3],
+      "outcome": { "returns": [1, 2, 1, 2, 1, 2] }
+    },
+    {
+      "description": "returns an empty array for zero repetitions",
+      "args": [[1, 2], 0],
+      "outcome": { "returns": [] }
+    },
+    {
+      "description": "rejects a negative count",
+      "args": [[1, 2], -1],
+      "outcome": { "throws": { "messageIncludes": "count must be a non-negative integer" } }
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "head",
+  "description": "Return the first array element or null when empty.",
+  "cases": [
+    {
+      "description": "returns the first element",
+      "args": [[10, 20, 30]],
+      "outcome": { "returns": 10 }
+    },
+    {
+      "description": "returns null for an empty array",
+      "args": [[]],
+      "outcome": { "returns": null }
+    },
+    {
+      "description": "returns the element of a single-element array",
+      "args": [[42]],
+      "outcome": { "returns": 42 }
+    },
+    {
+      "description": "works with mixed element types",
+      "args": [["hello", 2, true]],
+      "outcome": { "returns": "hello" }
+    },
+    {
+      "description": "rejects a non-array argument",
+      "args": ["abc"],
+      "outcome": { "throws": { "messageIncludes": "argument must be an array" } }
+    }
+  ]
+}

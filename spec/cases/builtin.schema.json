@@ -39,6 +39,7 @@
       "oneOf": [
         { "$ref": "#/$defs/callbackInput" },
         { "$ref": "#/$defs/builtinInput" },
+        { "$ref": "#/$defs/functionInput" },
         { "$ref": "#/$defs/literalInput" },
         {
           "description": "An ordinary JSON argument without a reserved fixture key.",
@@ -49,6 +50,7 @@
                 "anyOf": [
                   { "required": ["$callback"] },
                   { "required": ["$builtin"] },
+                  { "required": ["$function"] },
                   { "required": ["$literal"] }
                 ]
               }
@@ -83,6 +85,22 @@
           "type": "string",
           "minLength": 1,
           "description": "A builtin exposed as a callback value."
+        }
+      },
+      "additionalProperties": false
+    },
+    "functionInput": {
+      "type": "object",
+      "required": ["$function"],
+      "properties": {
+        "$function": {
+          "type": "object",
+          "required": ["name", "body"],
+          "properties": {
+            "name": { "type": "string", "minLength": 1 },
+            "body": { "type": "object" }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false

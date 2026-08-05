@@ -1,0 +1,36 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "zip",
+  "description": "Pair corresponding array elements.",
+  "cases": [
+    {
+      "description": "pairs corresponding elements",
+      "args": [
+        [1, 2, 3],
+        ["a", "b", "c"]
+      ],
+      "outcome": {
+        "returns": [
+          [1, "a"],
+          [2, "b"],
+          [3, "c"]
+        ]
+      }
+    },
+    {
+      "description": "truncates to the shorter array",
+      "args": [[1, 2, 3], ["a"]],
+      "outcome": { "returns": [[1, "a"]] }
+    },
+    {
+      "description": "returns an empty array when an input is empty",
+      "args": [[], [1, 2]],
+      "outcome": { "returns": [] }
+    },
+    {
+      "description": "rejects non-array arguments",
+      "args": [[1, 2], "ab"],
+      "outcome": { "throws": { "messageIncludes": "arguments must be arrays" } }
+    }
+  ]
+}

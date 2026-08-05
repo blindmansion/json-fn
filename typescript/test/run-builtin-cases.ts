@@ -24,11 +24,18 @@ type BuiltinInput = {
   $builtin: string;
 };
 
+type FunctionInput = {
+  $function: {
+    name: string;
+    body: Record<string, JSONType>;
+  };
+};
+
 type LiteralInput = {
   $literal: JSONType;
 };
 
-type CaseInput = JSONType | CallbackInput | BuiltinInput | LiteralInput;
+type CaseInput = JSONType | CallbackInput | BuiltinInput | FunctionInput | LiteralInput;
 
 type LogObservation = {
   value: JSONType;
@@ -158,6 +165,15 @@ class DirectBuiltinHarness {
       const token = {};
       this.builtinReferences.set(token, record.$builtin);
       return token;
+    }
+
+    if (hasOnlyKeys(record, ["$function"]) && isRecord(record.$function)) {
+      const { name, body } = record.$function;
+      if (typeof name !== "string" || name.length === 0 || !isRecord(body)) {
+        throw new Error("Function fixture requires a non-empty name and function body");
+      }
+      this.functions[name] = body as FunctionRegistry[string];
+      return name;
     }
 
     if (hasOnlyKeys(record, ["$callback"]) && isRecord(record.$callback)) {

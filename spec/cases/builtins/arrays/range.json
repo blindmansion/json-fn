@@ -1,0 +1,27 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "range",
+  "description": "Create zero-based half-open integer ranges.",
+  "cases": [
+    {
+      "description": "creates a zero-based half-open range",
+      "args": [4],
+      "outcome": { "returns": [0, 1, 2, 3] }
+    },
+    {
+      "description": "returns an empty range for zero",
+      "args": [0],
+      "outcome": { "returns": [] }
+    },
+    {
+      "description": "returns an empty range for a negative endpoint",
+      "args": [-2],
+      "outcome": { "returns": [] }
+    },
+    {
+      "description": "rejects a non-integer endpoint",
+      "args": [2.5],
+      "outcome": { "throws": { "messageIncludes": "argument must be an integer" } }
+    }
+  ]
+}

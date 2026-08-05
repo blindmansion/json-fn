@@ -1,0 +1,47 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "indexOf",
+  "description": "Find structurally equal array values or string substrings.",
+  "cases": [
+    {
+      "description": "returns the index of an array element",
+      "args": [[10, 20, 30, 40], 30],
+      "outcome": { "returns": 2 }
+    },
+    {
+      "description": "returns null when an array element is absent",
+      "args": [[10, 20, 30], 99],
+      "outcome": { "returns": null }
+    },
+    {
+      "description": "returns the first occurrence",
+      "args": [[1, 2, 3, 2, 1], 2],
+      "outcome": { "returns": 1 }
+    },
+    {
+      "description": "uses structural equality for arrays",
+      "args": [[[1]], [1]],
+      "outcome": { "returns": 0 }
+    },
+    {
+      "description": "uses structural equality for objects",
+      "args": [[{ "x": 1 }], { "x": 1 }],
+      "outcome": { "returns": 0 }
+    },
+    {
+      "description": "returns the index of a string substring",
+      "args": ["hello world", "world"],
+      "outcome": { "returns": 6 }
+    },
+    {
+      "description": "returns null when a string substring is absent",
+      "args": ["hello", "xyz"],
+      "outcome": { "returns": null }
+    },
+    {
+      "description": "returns a Unicode code-point string index",
+      "args": ["a😀bc", "b"],
+      "outcome": { "returns": 2 }
+    }
+  ]
+}

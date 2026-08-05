@@ -17,55 +17,60 @@ The baseline is fixed. Do not reduce the candidate count when cases are migrated
 
 ## Current progress
 
-The initial direct suite contains 14 cases:
+The direct suite contains 101 cases:
 
 - `spec/cases/builtins/arithmetic/floor.json`: 3
 - `spec/cases/builtins/arithmetic/max.json`: 4
+- `spec/cases/builtins/arrays/*.json`: 77 across 17 builtin suites
 - `spec/cases/builtins/higher-order/mapIndexed.json`: 5
+- `spec/cases/builtins/introspection/arity.json`: 10
 - `spec/cases/builtins/debugging/tap.json`: 2
 
-These establish direct coverage but no eval cases have been removed yet. Direct case counts are not expected to map one-to-one to eval cases: one direct case may replace part of a combined eval case, while direct callback and observation cases may add coverage that did not previously exist.
+These establish direct coverage, and the corresponding duplicate eval cases have been removed. Direct case counts are not expected to map one-to-one to eval cases: one direct case may replace part of a combined eval case, while direct callback and observation cases may add coverage that did not previously exist.
 
 Migration status:
 
-- Direct builtin cases added: 14
-- Candidate eval cases removed or reclassified: 0 / 538
-- Fully migrated source files: 0 / 19
-- Partially covered source files: `numeric.json`, `indexed-callbacks.json`, `tap.json`
+- Direct builtin cases added: 101
+- Candidate eval cases removed: 92 / 538
+- Candidate eval cases reclassified as integration coverage: 3 / 538
+- Fully migrated source files: 3 / 19
+- Partially covered source files: `numeric.json`, `indexed-callbacks.json`
 
 ## Candidate inventory
 
-| Source eval file            | Candidate cases | Direct coverage                    | Eval candidates removed | Status                  |
-| --------------------------- | --------------: | ---------------------------------- | ----------------------: | ----------------------- |
-| `arity.json`                |              10 | —                                  |                       0 | Not started             |
-| `array-accessors.json`      |              73 | —                                  |                       0 | Not started             |
-| `coercion.json`             |              11 | —                                  |                       0 | Not started             |
-| `collection-ops.json`       |              20 | —                                  |                       0 | Not started             |
-| `comparison-logic.json`     |        35 of 36 | —                                  |                       0 | Not started             |
-| `effects-constructors.json` |              14 | —                                  |                       0 | Not started             |
-| `effects-handle.json`       |        27 of 28 | —                                  |                       0 | Not started             |
-| `higher-order-2.json`       |              43 | —                                  |                       0 | Not started             |
-| `indexed-callbacks.json`    |              15 | `mapIndexed.json` (5 direct cases) |                       0 | Partial direct coverage |
-| `numeric.json`              |              55 | `floor.json` (3), `max.json` (4)   |                       0 | Partial direct coverage |
-| `object-helpers.json`       |              28 | —                                  |                       0 | Not started             |
-| `objects.json`              |        32 of 34 | —                                  |                       0 | Not started             |
-| `regex.json`                |        33 of 35 | —                                  |                       0 | Not started             |
-| `search-quantify.json`      |              32 | —                                  |                       0 | Not started             |
-| `smaller-conveniences.json` |              19 | —                                  |                       0 | Not started             |
-| `standard-math.json`        |              16 | —                                  |                       0 | Not started             |
-| `string-helpers.json`       |        42 of 43 | —                                  |                       0 | Not started             |
-| `tap.json`                  |               5 | `tap.json` (2 direct cases)        |                       0 | Partial direct coverage |
-| `type-predicates.json`      |              28 | —                                  |                       0 | Not started             |
-| **Total**                   |         **538** | **14 direct cases**                |                   **0** |                         |
+| Source eval file            | Candidate cases | Direct coverage                    | Eval candidates removed | Status                                       |
+| --------------------------- | --------------: | ---------------------------------- | ----------------------: | -------------------------------------------- |
+| `arity.json`                |              10 | `arity.json` (10 direct cases)     |                      10 | Fully migrated                               |
+| `array-accessors.json`      |              73 | 17 array suites (77 direct cases)  |                      71 | Fully migrated; 2 integration cases retained |
+| `coercion.json`             |              11 | —                                  |                       0 | Not started                                  |
+| `collection-ops.json`       |              20 | —                                  |                       0 | Not started                                  |
+| `comparison-logic.json`     |        35 of 36 | —                                  |                       0 | Not started                                  |
+| `effects-constructors.json` |              14 | —                                  |                       0 | Not started                                  |
+| `effects-handle.json`       |        27 of 28 | —                                  |                       0 | Not started                                  |
+| `higher-order-2.json`       |              43 | —                                  |                       0 | Not started                                  |
+| `indexed-callbacks.json`    |              15 | `mapIndexed.json` (5 direct cases) |                       0 | Partial direct coverage                      |
+| `numeric.json`              |              55 | `floor.json` (3), `max.json` (4)   |                       7 | Partial direct coverage                      |
+| `object-helpers.json`       |              28 | —                                  |                       0 | Not started                                  |
+| `objects.json`              |        32 of 34 | —                                  |                       0 | Not started                                  |
+| `regex.json`                |        33 of 35 | —                                  |                       0 | Not started                                  |
+| `search-quantify.json`      |              32 | —                                  |                       0 | Not started                                  |
+| `smaller-conveniences.json` |              19 | —                                  |                       0 | Not started                                  |
+| `standard-math.json`        |              16 | —                                  |                       0 | Not started                                  |
+| `string-helpers.json`       |        42 of 43 | —                                  |                       0 | Not started                                  |
+| `tap.json`                  |               5 | `tap.json` (2 direct cases)        |                       4 | Fully migrated; 1 integration case retained  |
+| `type-predicates.json`      |              28 | —                                  |                       0 | Not started                                  |
+| **Total**                   |         **538** | **101 direct cases**               |                  **92** |                                              |
 
-### Initial direct coverage details
+### Direct coverage details
+
+`arity.json` has been fully migrated. Its direct cases cover registered builtins, named and inline language functions, zero and rest parameters, unknown names, and `arity` itself. The direct harness now has a portable named-function fixture for cases that need to add a language function to the registry.
 
 `numeric.json` has direct coverage for these builtin dimensions:
 
 - `floor`: positive decimal, negative decimal, and unchanged integer
 - `max`: largest result, negative/decimal values, empty-array rejection, and non-number rejection
 
-The remaining `floor` and `max` dimensions in the eval suite should be reviewed before removal, including zero, a single-element array, and non-array rejection. Joint `floor`/`ceil` and `max`/`min` cases are integration cases and may remain in eval even after the individual builtins are fully covered directly.
+The directly covered `floor` and `max` cases have been removed from the eval suite. The remaining dimensions are zero, a single-element array, and non-array rejection. Joint `floor`/`ceil` and `max`/`min` cases remain as integration coverage.
 
 `indexed-callbacks.json` has partial direct coverage for `mapIndexed`:
 
@@ -83,7 +88,11 @@ Its original `map and mapIndexed use unary and indexed callbacks` case combines 
 - unlabeled logging and identity
 - labeled logging and identity
 
-The direct cases additionally assert logger observations, which the existing eval cases do not. The higher-order callback case should remain until callback integration is covered elsewhere or deliberately retained as an evaluator smoke test.
+The direct cases additionally assert logger observations, which the removed eval cases did not. The higher-order callback case is deliberately retained as evaluator integration coverage.
+
+`array-accessors.json` has been fully migrated into one direct suite for each represented array builtin: `head`, `last`, `tail`, `slice`, `reverse`, `indexOf`, `includes`, `length`, `concat`, `range`, `take`, `drop`, `zip`, `unique`, `repeat`, `rangeFrom`, and `rangeBy`. Its 77 direct cases preserve the source's results, validation failures, Unicode behavior, and structural-equality behavior. Six source cases bundled multiple invocations; splitting those invocations accounts for the direct count exceeding the 71 removed eval cases.
+
+Two cases remain in `array-accessors.json` as evaluator integration coverage: `head` and `last` composed through bindings and arithmetic, and `range` passed by name as a `map` callback.
 
 ## Excluded eval files
 

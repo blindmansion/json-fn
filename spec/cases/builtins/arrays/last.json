@@ -1,0 +1,27 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "last",
+  "description": "Return the last array element or null when empty.",
+  "cases": [
+    {
+      "description": "returns the last element",
+      "args": [[10, 20, 30]],
+      "outcome": { "returns": 30 }
+    },
+    {
+      "description": "returns null for an empty array",
+      "args": [[]],
+      "outcome": { "returns": null }
+    },
+    {
+      "description": "returns the element of a single-element array",
+      "args": [[42]],
+      "outcome": { "returns": 42 }
+    },
+    {
+      "description": "rejects a non-array argument",
+      "args": ["abc"],
+      "outcome": { "throws": { "messageIncludes": "argument must be an array" } }
+    }
+  ]
+}

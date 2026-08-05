@@ -27,21 +27,6 @@
       "error": "division by zero"
     },
     {
-      "description": "floor: rounds down positive decimal",
-      "body": { "$return": { "$call": "floor", "$args": [3.7] } },
-      "expected": 3
-    },
-    {
-      "description": "floor: rounds down negative decimal",
-      "body": { "$return": { "$call": "floor", "$args": [-2.3] } },
-      "expected": -3
-    },
-    {
-      "description": "floor: integer unchanged",
-      "body": { "$return": { "$call": "floor", "$args": [5] } },
-      "expected": 5
-    },
-    {
       "description": "floor: zero unchanged",
       "body": { "$return": { "$call": "floor", "$args": [0] } },
       "expected": 0
@@ -92,34 +77,14 @@
       "expected": -2
     },
     {
-      "description": "max: returns largest element",
-      "body": { "$return": { "$call": "max", "$args": [[3, 1, 4, 1, 5, 9, 2, 6]] } },
-      "expected": 9
-    },
-    {
       "description": "max: single element",
       "body": { "$return": { "$call": "max", "$args": [[42]] } },
       "expected": 42
     },
     {
-      "description": "max: works with negative numbers",
-      "body": { "$return": { "$call": "max", "$args": [[-3, -1, -4, -1, -5]] } },
-      "expected": -1
-    },
-    {
       "description": "max: non-array argument throws",
       "body": { "$return": { "$call": "max", "$args": [42] } },
       "error": "must be an array"
-    },
-    {
-      "description": "max: rejects an empty array",
-      "body": { "$return": { "$call": "max", "$args": [[]] } },
-      "error": "must not be empty"
-    },
-    {
-      "description": "max: rejects a non-number element",
-      "body": { "$return": { "$call": "max", "$args": [[1, "9", 3]] } },
-      "error": "elements must be numbers"
     },
     {
       "description": "min: returns smallest element",

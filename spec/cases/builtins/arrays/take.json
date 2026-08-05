@@ -1,0 +1,32 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "take",
+  "description": "Return a requested array prefix.",
+  "cases": [
+    {
+      "description": "returns the requested prefix",
+      "args": [[1, 2, 3, 4], 2],
+      "outcome": { "returns": [1, 2] }
+    },
+    {
+      "description": "returns the whole array when the count exceeds its length",
+      "args": [[1, 2, 3], 10],
+      "outcome": { "returns": [1, 2, 3] }
+    },
+    {
+      "description": "returns an empty array for a zero count",
+      "args": [[1, 2, 3], 0],
+      "outcome": { "returns": [] }
+    },
+    {
+      "description": "returns an empty array for a negative count",
+      "args": [[1, 2, 3], -2],
+      "outcome": { "returns": [] }
+    },
+    {
+      "description": "rejects a non-integer count",
+      "args": [[1, 2, 3], 1.5],
+      "outcome": { "throws": { "messageIncludes": "must be an integer" } }
+    }
+  ]
+}

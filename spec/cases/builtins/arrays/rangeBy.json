@@ -1,0 +1,37 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "rangeBy",
+  "description": "Create half-open integer ranges with non-zero steps.",
+  "cases": [
+    {
+      "description": "supports a positive step",
+      "args": [1, 8, 3],
+      "outcome": { "returns": [1, 4, 7] }
+    },
+    {
+      "description": "supports a negative step",
+      "args": [7, 0, -3],
+      "outcome": { "returns": [7, 4, 1] }
+    },
+    {
+      "description": "returns an empty ascending range for a negative step",
+      "args": [0, 5, -1],
+      "outcome": { "returns": [] }
+    },
+    {
+      "description": "returns an empty descending range for a positive step",
+      "args": [5, 0, 1],
+      "outcome": { "returns": [] }
+    },
+    {
+      "description": "rejects a zero step",
+      "args": [0, 5, 0],
+      "outcome": { "throws": { "messageIncludes": "step must not be zero" } }
+    },
+    {
+      "description": "rejects a non-integer step",
+      "args": [0, 5, 1.5],
+      "outcome": { "throws": { "messageIncludes": "third argument must be an integer" } }
+    }
+  ]
+}

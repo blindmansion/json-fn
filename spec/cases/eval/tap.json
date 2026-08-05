@@ -2,26 +2,6 @@
   "description": "debug tap",
   "cases": [
     {
-      "description": "tap returns a number unchanged",
-      "body": { "$return": { "$call": "tap", "$args": [42] } },
-      "expected": 42
-    },
-    {
-      "description": "tap returns a string unchanged with a label",
-      "body": { "$return": { "$call": "tap", "$args": ["hello", "greeting"] } },
-      "expected": "hello"
-    },
-    {
-      "description": "tap returns an object unchanged with a label",
-      "body": { "$return": { "$call": "tap", "$args": [{ "answer": 42, "ok": true }, "debug"] } },
-      "expected": { "answer": 42, "ok": true }
-    },
-    {
-      "description": "tap returns an array unchanged",
-      "body": { "$return": { "$call": "tap", "$args": [[1, { "two": 2 }, null]] } },
-      "expected": [1, { "two": 2 }, null]
-    },
-    {
       "description": "tap works inside higher-order callbacks",
       "body": {
         "$return": {
