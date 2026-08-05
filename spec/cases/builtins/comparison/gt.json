@@ -1,0 +1,12 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "gt",
+  "description": "Test whether one number is greater than another.",
+  "cases": [
+    {
+      "description": "returns true when the first number is larger",
+      "args": [3, 2],
+      "outcome": { "returns": true }
+    }
+  ]
+}

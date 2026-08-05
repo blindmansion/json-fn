@@ -1,0 +1,43 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "chunk",
+  "description": "Split arrays into consecutive chunks of a positive size.",
+  "cases": [
+    {
+      "description": "creates fixed-size chunks with a shorter remainder",
+      "args": [[1, 2, 3, 4, 5], 2],
+      "outcome": { "returns": [[1, 2], [3, 4], [5]] },
+      "observations": { "meter": { "charged": 5 } }
+    },
+    {
+      "description": "returns an empty array for empty input",
+      "args": [[], 3],
+      "outcome": { "returns": [] }
+    },
+    {
+      "description": "creates one chunk when the size exceeds the input length",
+      "args": [[1, 2], 10],
+      "outcome": { "returns": [[1, 2]] }
+    },
+    {
+      "description": "rejects a non-array input",
+      "args": ["abc", 2],
+      "outcome": { "throws": { "messageIncludes": "first argument must be an array" } }
+    },
+    {
+      "description": "rejects a zero size",
+      "args": [[1, 2], 0],
+      "outcome": { "throws": { "messageIncludes": "size must be a positive integer" } }
+    },
+    {
+      "description": "rejects a negative size",
+      "args": [[1, 2], -1],
+      "outcome": { "throws": { "messageIncludes": "size must be a positive integer" } }
+    },
+    {
+      "description": "rejects a non-integer size",
+      "args": [[1, 2], 1.5],
+      "outcome": { "throws": { "messageIncludes": "size must be a positive integer" } }
+    }
+  ]
+}

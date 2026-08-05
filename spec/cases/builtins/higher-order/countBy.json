@@ -1,0 +1,55 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "countBy",
+  "description": "Count array elements by string or numeric callback keys.",
+  "cases": [
+    {
+      "description": "counts string and numeric keys with normalized collisions",
+      "args": [
+        {
+          "$callback": {
+            "steps": [
+              { "args": [{ "key": 1 }], "outcome": { "returns": 1 } },
+              { "args": [{ "key": "1" }], "outcome": { "returns": "1" } },
+              { "args": [{ "key": 2 }], "outcome": { "returns": 2 } },
+              { "args": [{ "key": 1 }], "outcome": { "returns": 1 } }
+            ]
+          }
+        },
+        [{ "key": 1 }, { "key": "1" }, { "key": 2 }, { "key": 1 }]
+      ],
+      "outcome": { "returns": { "1": 3, "2": 1 } },
+      "observations": { "meter": { "charged": 4 } }
+    },
+    {
+      "description": "safely counts special object keys",
+      "args": [
+        {
+          "$callback": {
+            "steps": [
+              { "args": ["__proto__"], "outcome": { "returns": "__proto__" } },
+              { "args": ["constructor"], "outcome": { "returns": "constructor" } },
+              { "args": ["__proto__"], "outcome": { "returns": "__proto__" } }
+            ]
+          }
+        },
+        ["__proto__", "constructor", "__proto__"]
+      ],
+      "outcome": { "returns": { "__proto__": 2, "constructor": 1 } }
+    },
+    {
+      "description": "rejects an unsupported callback key",
+      "args": [
+        {
+          "$callback": {
+            "steps": [{ "args": [1], "outcome": { "returns": [1] } }]
+          }
+        },
+        [1]
+      ],
+      "outcome": {
+        "throws": { "messageIncludes": "key function must return a string or number" }
+      }
+    }
+  ]
+}

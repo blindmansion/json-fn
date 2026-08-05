@@ -1,0 +1,41 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "partition",
+  "description": "Split arrays into values that match a predicate and values that do not.",
+  "cases": [
+    {
+      "description": "preserves order in matching and non-matching groups",
+      "args": [
+        {
+          "$callback": {
+            "steps": [
+              { "args": [1], "outcome": { "returns": false } },
+              { "args": [2], "outcome": { "returns": true } },
+              { "args": [3], "outcome": { "returns": false } },
+              { "args": [4], "outcome": { "returns": true } },
+              { "args": [5], "outcome": { "returns": false } }
+            ]
+          }
+        },
+        [1, 2, 3, 4, 5]
+      ],
+      "outcome": {
+        "returns": [
+          [2, 4],
+          [1, 3, 5]
+        ]
+      },
+      "observations": { "meter": { "charged": 5 } }
+    },
+    {
+      "description": "returns two empty groups for empty input",
+      "args": [{ "$callback": { "steps": [] } }, []],
+      "outcome": { "returns": [[], []] }
+    },
+    {
+      "description": "rejects a non-array input before calling the predicate",
+      "args": [{ "$callback": { "steps": [] } }, "abc"],
+      "outcome": { "throws": { "messageIncludes": "second argument must be an array" } }
+    }
+  ]
+}

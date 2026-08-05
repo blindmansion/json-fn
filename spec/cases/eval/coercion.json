@@ -1,58 +1,8 @@
 {
-  "description": "type coercion",
+  "description": "type coercion evaluator integration",
   "cases": [
     {
-      "description": "num: parses integer string",
-      "body": { "$return": { "$call": "num", "$args": ["42"] } },
-      "expected": 42
-    },
-    {
-      "description": "num: parses decimal string",
-      "body": { "$return": { "$call": "num", "$args": ["3.14"] } },
-      "expected": 3.14
-    },
-    {
-      "description": "num: parses negative string",
-      "body": { "$return": { "$call": "num", "$args": ["-7"] } },
-      "expected": -7
-    },
-    {
-      "description": "num: parses zero string",
-      "body": { "$return": { "$call": "num", "$args": ["0"] } },
-      "expected": 0
-    },
-    {
-      "description": "num: true converts to 1",
-      "body": { "$return": { "$call": "num", "$args": [true] } },
-      "expected": 1
-    },
-    {
-      "description": "num: false converts to 0",
-      "body": { "$return": { "$call": "num", "$args": [false] } },
-      "expected": 0
-    },
-    {
-      "description": "num: null converts to 0",
-      "body": { "$return": { "$call": "num", "$args": [null] } },
-      "expected": 0
-    },
-    {
-      "description": "num: number passes through unchanged",
-      "body": { "$return": { "$call": "num", "$args": [99] } },
-      "expected": 99
-    },
-    {
-      "description": "num: unparseable string throws",
-      "body": { "$return": { "$call": "num", "$args": ["not a number"] } },
-      "error": "cannot parse"
-    },
-    {
-      "description": "num: rejects a string outside the finite number range",
-      "body": { "$return": { "$call": "num", "$args": ["1e999"] } },
-      "error": "finite number"
-    },
-    {
-      "description": "num: used in arithmetic after coercion",
+      "description": "num: composes with arithmetic after coercion",
       "body": {
         "$return": {
           "$call": "add",

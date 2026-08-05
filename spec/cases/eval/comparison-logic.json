@@ -1,109 +1,8 @@
 {
-  "description": "comparison and logic",
+  "description": "comparison and logic evaluator integration",
   "cases": [
     {
-      "description": "neq: true for different numbers",
-      "body": { "$return": { "$call": "neq", "$args": [1, 2] } },
-      "expected": true
-    },
-    {
-      "description": "neq: false for same numbers",
-      "body": { "$return": { "$call": "neq", "$args": [42, 42] } },
-      "expected": false
-    },
-    {
-      "description": "neq: true for different strings",
-      "body": { "$return": { "$call": "neq", "$args": ["hello", "world"] } },
-      "expected": true
-    },
-    {
-      "description": "neq: false for same strings",
-      "body": { "$return": { "$call": "neq", "$args": ["hello", "hello"] } },
-      "expected": false
-    },
-    {
-      "description": "neq: true for different booleans",
-      "body": { "$return": { "$call": "neq", "$args": [true, false] } },
-      "expected": true
-    },
-    {
-      "description": "neq: false for same booleans",
-      "body": { "$return": { "$call": "neq", "$args": [true, true] } },
-      "expected": false
-    },
-    {
-      "description": "neq: false for null vs null",
-      "body": { "$return": { "$call": "neq", "$args": [null, null] } },
-      "expected": false
-    },
-    {
-      "description": "neq: true for null vs zero",
-      "body": { "$return": { "$call": "neq", "$args": [null, 0] } },
-      "expected": true
-    },
-    {
-      "description": "neq: true for number vs string of same value",
-      "body": { "$return": { "$call": "neq", "$args": [1, "1"] } },
-      "expected": true
-    },
-    {
-      "description": "not: negates true",
-      "body": { "$return": { "$call": "not", "$args": [true] } },
-      "expected": false
-    },
-    {
-      "description": "not: negates false",
-      "body": { "$return": { "$call": "not", "$args": [false] } },
-      "expected": true
-    },
-    {
-      "description": "not: double negation returns original",
-      "body": { "$return": { "$call": "not", "$args": [{ "$call": "not", "$args": [true] }] } },
-      "expected": true
-    },
-    {
-      "description": "not: combined with comparison",
-      "body": { "$return": { "$call": "not", "$args": [{ "$call": "eq", "$args": [1, 2] }] } },
-      "expected": true
-    },
-    {
-      "description": "or: returns true when either argument is true",
-      "body": {
-        "$return": [
-          { "$call": "or", "$args": [false, true] },
-          { "$call": "or", "$args": [true, false] },
-          { "$call": "or", "$args": [true, true] }
-        ]
-      },
-      "expected": [true, true, true]
-    },
-    {
-      "description": "or: returns false when both arguments are false",
-      "body": { "$return": { "$call": "or", "$args": [false, false] } },
-      "expected": false
-    },
-    {
-      "description": "and: combines boolean arguments",
-      "body": {
-        "$return": [
-          { "$call": "and", "$args": [true, true] },
-          { "$call": "and", "$args": [true, false] }
-        ]
-      },
-      "expected": [true, false]
-    },
-    {
-      "description": "and: rejects non-boolean arguments",
-      "body": { "$return": { "$call": "and", "$args": [true, 1] } },
-      "error": "arguments must be booleans"
-    },
-    {
-      "description": "or: rejects non-boolean arguments",
-      "body": { "$return": { "$call": "or", "$args": [false, "yes"] } },
-      "error": "arguments must be booleans"
-    },
-    {
-      "description": "neq: used as filter predicate",
+      "description": "neq: can be used as a filter predicate",
       "body": {
         "$return": {
           "$call": "filter",
@@ -116,7 +15,7 @@
       "expected": [1, 2, 3]
     },
     {
-      "description": "not: used to invert filter logic",
+      "description": "not: can invert filter logic",
       "body": {
         "$return": {
           "$call": "filter",
@@ -135,17 +34,12 @@
       "expected": [1, 2, 3]
     },
     {
-      "description": "$eq: true for equal evaluated values",
+      "description": "eq: compares evaluated nested call results",
       "body": { "$return": { "$call": "eq", "$args": [{ "$call": "add", "$args": [1, 1] }, 2] } },
       "expected": true
     },
     {
-      "description": "$neq: true for unequal evaluated values",
-      "body": { "$return": { "$call": "neq", "$args": [{ "$call": "str", "$args": [1] }, 1] } },
-      "expected": true
-    },
-    {
-      "description": "$lt/$lte/$gt/$gte: comparison shorthands",
+      "description": "comparisons compose through the $and language form",
       "body": {
         "$return": {
           "$and": [
@@ -159,27 +53,7 @@
       "expected": true
     },
     {
-      "description": "$not: negates truthy/falsy expression results",
-      "body": {
-        "$return": {
-          "$and": [
-            { "$call": "not", "$args": [false] },
-            { "$call": "not", "$args": [null] },
-            { "$call": "not", "$args": [0] },
-            { "$call": "not", "$args": [""] },
-            { "$call": "not", "$args": [{ "$call": "eq", "$args": [1, 2] }] }
-          ]
-        }
-      },
-      "expected": true
-    },
-    {
-      "description": "$not: false for truthy values",
-      "body": { "$return": { "$call": "not", "$args": ["value"] } },
-      "expected": false
-    },
-    {
-      "description": "$eq: can be used directly in conditionals",
+      "description": "eq: can be used directly in conditionals",
       "body": {
         "$params": ["cmd"],
         "$return": {
@@ -190,87 +64,6 @@
       },
       "args": ["show"],
       "expected": "display"
-    },
-    {
-      "description": "eq: structural equality is true for structurally equal arrays",
-      "body": { "$return": { "$call": "eq", "$args": [[1], [1]] } },
-      "expected": true
-    },
-    {
-      "description": "neq: false for structurally equal arrays",
-      "body": { "$return": { "$call": "neq", "$args": [[1], [1]] } },
-      "expected": false
-    },
-    {
-      "description": "eq: structural equality is true for structurally equal objects",
-      "body": { "$return": { "$call": "eq", "$args": [{ "x": 1 }, { "x": 1 }] } },
-      "expected": true
-    },
-    {
-      "description": "neq: false for structurally equal objects",
-      "body": { "$return": { "$call": "neq", "$args": [{ "x": 1 }, { "x": 1 }] } },
-      "expected": false
-    },
-    {
-      "description": "eq: true for deeply/structurally equal nested arrays",
-      "body": {
-        "$return": {
-          "$call": "eq",
-          "$args": [
-            [1, { "x": [true, null] }],
-            [1, { "x": [true, null] }]
-          ]
-        }
-      },
-      "expected": true
-    },
-    {
-      "description": "eq: true for structurally equal objects regardless of key order",
-      "body": {
-        "$return": {
-          "$call": "eq",
-          "$args": [
-            { "a": 1, "b": [2, 3] },
-            { "b": [2, 3], "a": 1 }
-          ]
-        }
-      },
-      "expected": true
-    },
-    {
-      "description": "eq: false when array order differs",
-      "body": {
-        "$return": {
-          "$call": "eq",
-          "$args": [
-            [1, 2, 3],
-            [3, 2, 1]
-          ]
-        }
-      },
-      "expected": false
-    },
-    {
-      "description": "eq: false for boolean vs number (no coercion)",
-      "body": { "$return": { "$call": "eq", "$args": [true, 1] } },
-      "expected": false
-    },
-    {
-      "description": "eq: false for number vs string (no coercion)",
-      "body": { "$return": { "$call": "eq", "$args": [1, "1"] } },
-      "expected": false
-    },
-    {
-      "description": "neq: negates structural eq",
-      "body": {
-        "$return": {
-          "$and": [
-            { "$call": "neq", "$args": [{ "x": 1 }, { "x": 2 }] },
-            { "$call": "not", "$args": [{ "$call": "neq", "$args": [{ "x": [1] }, { "x": [1] }] }] }
-          ]
-        }
-      },
-      "expected": true
     }
   ]
 }

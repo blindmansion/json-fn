@@ -1,0 +1,22 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "and",
+  "description": "Return the eager logical conjunction of two booleans.",
+  "cases": [
+    {
+      "description": "returns true when both arguments are true",
+      "args": [true, true],
+      "outcome": { "returns": true }
+    },
+    {
+      "description": "returns false when either argument is false",
+      "args": [true, false],
+      "outcome": { "returns": false }
+    },
+    {
+      "description": "rejects non-boolean arguments",
+      "args": [true, 1],
+      "outcome": { "throws": { "messageIncludes": "arguments must be booleans" } }
+    }
+  ]
+}

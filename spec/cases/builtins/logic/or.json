@@ -1,0 +1,32 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "or",
+  "description": "Return the eager logical disjunction of two booleans.",
+  "cases": [
+    {
+      "description": "returns true when only the second argument is true",
+      "args": [false, true],
+      "outcome": { "returns": true }
+    },
+    {
+      "description": "returns true when only the first argument is true",
+      "args": [true, false],
+      "outcome": { "returns": true }
+    },
+    {
+      "description": "returns true when both arguments are true",
+      "args": [true, true],
+      "outcome": { "returns": true }
+    },
+    {
+      "description": "returns false when both arguments are false",
+      "args": [false, false],
+      "outcome": { "returns": false }
+    },
+    {
+      "description": "rejects non-boolean arguments",
+      "args": [false, "yes"],
+      "outcome": { "throws": { "messageIncludes": "arguments must be booleans" } }
+    }
+  ]
+}

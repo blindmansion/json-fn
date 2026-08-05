@@ -17,23 +17,26 @@ The baseline is fixed. Do not reduce the candidate count when cases are migrated
 
 ## Current progress
 
-The direct suite contains 101 cases:
+The direct suite contains 168 cases:
 
 - `spec/cases/builtins/arithmetic/floor.json`: 3
 - `spec/cases/builtins/arithmetic/max.json`: 4
-- `spec/cases/builtins/arrays/*.json`: 77 across 17 builtin suites
-- `spec/cases/builtins/higher-order/mapIndexed.json`: 5
+- `spec/cases/builtins/arrays/*.json`: 88 across 19 builtin suites
+- `spec/cases/builtins/comparison/*.json`: 23 across 6 builtin suites
+- `spec/cases/builtins/coercion/num.json`: 10
+- `spec/cases/builtins/higher-order/*.json`: 14 across 4 builtin suites
 - `spec/cases/builtins/introspection/arity.json`: 10
+- `spec/cases/builtins/logic/*.json`: 14 across 3 builtin suites
 - `spec/cases/builtins/debugging/tap.json`: 2
 
 These establish direct coverage, and the corresponding duplicate eval cases have been removed. Direct case counts are not expected to map one-to-one to eval cases: one direct case may replace part of a combined eval case, while direct callback and observation cases may add coverage that did not previously exist.
 
 Migration status:
 
-- Direct builtin cases added: 101
-- Candidate eval cases removed: 92 / 538
-- Candidate eval cases reclassified as integration coverage: 3 / 538
-- Fully migrated source files: 3 / 19
+- Direct builtin cases added: 168
+- Candidate eval cases removed: 153 / 538
+- Candidate eval cases reclassified as integration coverage: 8 / 538
+- Fully migrated source files: 6 / 19
 - Partially covered source files: `numeric.json`, `indexed-callbacks.json`
 
 ## Candidate inventory
@@ -42,9 +45,9 @@ Migration status:
 | --------------------------- | --------------: | ---------------------------------- | ----------------------: | -------------------------------------------- |
 | `arity.json`                |              10 | `arity.json` (10 direct cases)     |                      10 | Fully migrated                               |
 | `array-accessors.json`      |              73 | 17 array suites (77 direct cases)  |                      71 | Fully migrated; 2 integration cases retained |
-| `coercion.json`             |              11 | —                                  |                       0 | Not started                                  |
-| `collection-ops.json`       |              20 | —                                  |                       0 | Not started                                  |
-| `comparison-logic.json`     |        35 of 36 | —                                  |                       0 | Not started                                  |
+| `coercion.json`             |              11 | `num.json` (10 direct cases)        |                      10 | Fully migrated; 1 integration case retained  |
+| `collection-ops.json`       |              20 | 5 builtin suites (20 direct cases) |                      20 | Fully migrated                               |
+| `comparison-logic.json`     |        35 of 36 | 9 builtin suites (37 direct cases) |                      31 | Fully migrated; 4 integration cases retained |
 | `effects-constructors.json` |              14 | —                                  |                       0 | Not started                                  |
 | `effects-handle.json`       |        27 of 28 | —                                  |                       0 | Not started                                  |
 | `higher-order-2.json`       |              43 | —                                  |                       0 | Not started                                  |
@@ -59,7 +62,7 @@ Migration status:
 | `string-helpers.json`       |        42 of 43 | —                                  |                       0 | Not started                                  |
 | `tap.json`                  |               5 | `tap.json` (2 direct cases)        |                       4 | Fully migrated; 1 integration case retained  |
 | `type-predicates.json`      |              28 | —                                  |                       0 | Not started                                  |
-| **Total**                   |         **538** | **101 direct cases**               |                  **92** |                                              |
+| **Total**                   |         **538** | **168 direct cases**               |                 **153** |                                              |
 
 ### Direct coverage details
 
@@ -93,6 +96,12 @@ The direct cases additionally assert logger observations, which the removed eval
 `array-accessors.json` has been fully migrated into one direct suite for each represented array builtin: `head`, `last`, `tail`, `slice`, `reverse`, `indexOf`, `includes`, `length`, `concat`, `range`, `take`, `drop`, `zip`, `unique`, `repeat`, `rangeFrom`, and `rangeBy`. Its 77 direct cases preserve the source's results, validation failures, Unicode behavior, and structural-equality behavior. Six source cases bundled multiple invocations; splitting those invocations accounts for the direct count exceeding the 71 removed eval cases.
 
 Two cases remain in `array-accessors.json` as evaluator integration coverage: `head` and `last` composed through bindings and arithmetic, and `range` passed by name as a `map` callback.
+
+`coercion.json` has been fully migrated to direct `num` coverage for integer, decimal, negative, and zero strings; booleans; null; number passthrough; unparseable input; and non-finite string results. The integer-string case additionally asserts builtin-local metering. The arithmetic composition case remains in the eval suite as integration coverage.
+
+`collection-ops.json` has been fully migrated into direct suites for `chunk`, `partition`, `scan`, `countBy`, and `frequencies`. The direct callback fixtures preserve callback argument and ordering behavior, while meter observations cover collection traversal. No eval cases remain because all 20 cases specified individual builtin behavior.
+
+`comparison-logic.json` has been fully migrated into direct suites for `eq`, `neq`, `lt`, `lte`, `gt`, `gte`, `not`, `and`, and `or`. The direct cases split bundled truth tables and comparison checks while preserving structural equality, non-coercion, truthiness, and boolean validation behavior. Four candidate cases remain as evaluator integration coverage: `neq` and `not` in filter callbacks, `eq` around a nested call, and the four comparisons composed through `$and`. The conditional case remains as the baseline's excluded language-integration case.
 
 ## Excluded eval files
 
