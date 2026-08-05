@@ -23,7 +23,7 @@ The TypeScript implementation (`typescript/`) is the canonical interpreter and s
 
 - `typescript/` — **canonical.** All new language work lands here first.
 
-The shared, language-agnostic conformance suites live in `spec/cases/` (and `spec/parse-cases/`).
+The shared, language-agnostic conformance suites live in `spec/cases/`.
 
 ## TypeScript project (`typescript/`)
 

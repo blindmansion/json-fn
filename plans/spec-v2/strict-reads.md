@@ -189,8 +189,8 @@ case → `?? default`._
 5. **Conformance migration:** replace every null-on-miss property/path case
    and migrate the array-path forms (currently:
    `spec/cases/property-access.json` ×13, `spec/cases/regex.json` ×2,
-   `spec/cases/method-calls.json` ×1, `spec/parse-cases/property-access.json`
-   ×2, `spec/parse-cases/calls-references.json` ×1). Cover in-range access;
+   `spec/cases/method-calls.json` ×1, `spec/cases/parse/property-access.json`
+   ×2, `spec/cases/parse/calls-references.json` ×1). Cover in-range access;
    array, string, object, map, tuple, closed-object, and optional-field
    misses; `$else` laziness (arm not evaluated on hit) and exact fuel;
    `?? null`; computed keys; a non-string/non-integer evaluated key erroring;

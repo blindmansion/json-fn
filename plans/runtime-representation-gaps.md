@@ -187,7 +187,7 @@ now use own-property access.
 
 Conformance coverage: `spec/cases/special-object-keys.json` (evaluation,
 stdlib, bindings named `__proto__`, inherited names not callable) and
-`spec/parse-cases/special-object-keys.json` (shorthand and `raw` parsing;
+`spec/cases/parse/special-object-keys.json` (shorthand and `raw` parsing;
 the printer round-trip corpus consumes the same cases). Checker, validation,
 and helper coverage: `typescript/test/special-object-keys.test.ts`.
 
@@ -404,9 +404,9 @@ near-limit shapes all succeed. Node's default ~1 MB stack overflows near ~400
 units, so Node hosts need a larger stack (e.g. `--stack-size`); the limits are
 guaranteed on Bun.
 
-Conformance coverage: `spec/cases/structural-depth.json` (runtime-built
+Conformance coverage: `spec/cases/eval/structural-depth.json` (runtime-built
 values accepted at 512 and rejected at 513, depth-guarded deep equality, the
-nesting-cap error) and `spec/parse-cases/structural-depth.json` (source
+nesting-cap error) and `spec/cases/parse/structural-depth.json` (source
 nesting at the 512/513 boundary for arrays, objects, and grouping
 parentheses). Helper, boundary, checker, printer, validation, hydration, and
 closure-growth coverage: `typescript/test/structural-depth.test.ts`. Docs:

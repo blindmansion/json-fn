@@ -58,7 +58,7 @@ non-canonical reserved-key objects, retains contextual annotated-handle
 printing, and its round-trip property is `parse(print(node)) =
 normalize(node)` with the canonical normalizer formalized in
 `src/shorthand/normalize.ts` (redundant wrapper removal + maximal hoisting).
-Parser cases live in `spec/parse-cases/raw-inference.json` (plus updated
+Parser cases live in `spec/cases/parse/raw-inference.json` (plus updated
 `literals.json`, `handle.json`, `special-object-keys.json`); preseeding and
 ingestion-route fuel equivalence are tested in
 `test/expression-metadata.test.ts`; `examples/dungeon/dungeon.jfn` dropped its `raw`
@@ -709,8 +709,8 @@ Primary files:
 - `typescript/src/shorthand/lexer.ts` if keyword assumptions require changes
 - `typescript/src/shorthand/cursor.ts` if parser provenance needs shared cursor
   support
-- `spec/parse-cases/literals.json`
-- `spec/parse-cases/handle.json`
+- `spec/cases/parse/literals.json`
+- `spec/cases/parse/handle.json`
 
 Required parser cases:
 
@@ -800,7 +800,7 @@ Primary files:
 - `docs/runtime/execution-limits.md`
 - `examples/dungeon/dungeon.jfn`
 - `spec/cases/`
-- `spec/parse-cases/`
+- `spec/cases/parse/`
 
 ### Workstream H: Verification and cleanup
 

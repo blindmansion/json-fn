@@ -312,8 +312,8 @@ Exit criteria:
 
 ### Phase 4: Documentation and cleanup
 
-1. Update active references that still name the obsolete
-   `spec/parse-cases/` path.
+1. Update active references that still name the former standalone parse-case
+   path.
 2. Document the parse-case format and source-position coordinate convention.
 3. Record printer conformance as a separate follow-up rather than expanding the
    parse format.
