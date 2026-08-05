@@ -1,0 +1,68 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "reMatch",
+  "description": "Return the first regex match object, or null.",
+  "cases": [
+    {
+      "description": "returns the first match with capture groups",
+      "args": ["(\\w+)@(\\w+)", "user@host.com"],
+      "outcome": {
+        "returns": {
+          "match": "user@host",
+          "index": 0,
+          "groups": ["user", "host"],
+          "named": {}
+        }
+      }
+    },
+    {
+      "description": "returns null when there is no match",
+      "args": ["\\d+", "abcdef"],
+      "outcome": { "returns": null }
+    },
+    {
+      "description": "returns an empty groups array when there are no captures",
+      "args": ["\\d+", "abc123def"],
+      "outcome": { "returns": { "match": "123", "index": 3, "groups": [], "named": {} } }
+    },
+    {
+      "description": "returns named capture groups",
+      "args": ["(?<year>\\d{4})-(?<month>\\d{2})", "date: 2024-07-15"],
+      "outcome": {
+        "returns": {
+          "match": "2024-07",
+          "index": 6,
+          "groups": ["2024", "07"],
+          "named": { "year": "2024", "month": "07" }
+        }
+      },
+      "observations": { "meter": { "charged": 46 } }
+    },
+    {
+      "description": "uses null for an unmatched optional group",
+      "args": ["(a)(b)?(c)", "ac"],
+      "outcome": {
+        "returns": { "match": "ac", "index": 0, "groups": ["a", null, "c"], "named": {} }
+      }
+    },
+    {
+      "description": "supports case-insensitive matching",
+      "args": ["(?i)(hello) (world)", "Hello World"],
+      "outcome": {
+        "returns": {
+          "match": "Hello World",
+          "index": 0,
+          "groups": ["Hello", "World"],
+          "named": {}
+        }
+      }
+    },
+    {
+      "description": "combines case-insensitive and multiline flags",
+      "args": ["(?im)^hello", "first\nHELLO world"],
+      "outcome": {
+        "returns": { "match": "HELLO", "index": 6, "groups": [], "named": {} }
+      }
+    }
+  ]
+}

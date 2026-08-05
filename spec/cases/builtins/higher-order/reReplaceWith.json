@@ -1,0 +1,75 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "reReplaceWith",
+  "description": "Replace regex matches using a match-object callback.",
+  "cases": [
+    {
+      "description": "replaces every word through the callback",
+      "args": [
+        "\\w+",
+        {
+          "$callback": {
+            "steps": [
+              {
+                "args": [{ "match": "hello", "index": 0, "groups": [], "named": {} }],
+                "outcome": { "returns": "HELLO" }
+              },
+              {
+                "args": [{ "match": "world", "index": 6, "groups": [], "named": {} }],
+                "outcome": { "returns": "WORLD" }
+              }
+            ]
+          }
+        },
+        "hello world"
+      ],
+      "outcome": { "returns": "HELLO WORLD" },
+      "observations": { "meter": { "charged": 14 } }
+    },
+    {
+      "description": "passes capture groups in each match object",
+      "args": [
+        "(\\w+)=(\\w+)",
+        {
+          "$callback": {
+            "steps": [
+              {
+                "args": [{ "match": "a=1", "index": 0, "groups": ["a", "1"], "named": {} }],
+                "outcome": { "returns": "1=a" }
+              },
+              {
+                "args": [{ "match": "b=2", "index": 4, "groups": ["b", "2"], "named": {} }],
+                "outcome": { "returns": "2=b" }
+              }
+            ]
+          }
+        },
+        "a=1 b=2"
+      ],
+      "outcome": { "returns": "1=a 2=b" }
+    },
+    {
+      "description": "does not call the callback when there is no match",
+      "args": ["\\d+", { "$callback": { "steps": [] } }, "abcdef"],
+      "outcome": { "returns": "abcdef" }
+    },
+    {
+      "description": "rejects a non-string callback result",
+      "args": [
+        "\\d+",
+        {
+          "$callback": {
+            "steps": [
+              {
+                "args": [{ "match": "1", "index": 1, "groups": [], "named": {} }],
+                "outcome": { "returns": 0 }
+              }
+            ]
+          }
+        },
+        "a1"
+      ],
+      "outcome": { "throws": { "messageIncludes": "callback must return a string" } }
+    }
+  ]
+}
