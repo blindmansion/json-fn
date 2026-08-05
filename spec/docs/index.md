@@ -32,6 +32,11 @@ covered by [execution limits](runtime/execution-limits.md),
 [canonical encoding and hashing](runtime/hashing.md), and the
 [durable host guide](runtime/durable-host.md).
 
+### Implement json-fn
+
+Use the [builtin conformance guide](conformance/builtins.md) to run the shared
+direct-builtin cases against an implementation.
+
 ## Catalog
 
 ### Guides
@@ -55,6 +60,11 @@ covered by [execution limits](runtime/execution-limits.md),
 - [Builtins](builtins/builtins.md) — signature and description catalog.
 - [Builtin type signatures](builtins/builtin-signatures.md) — shared registry
   dialect, polymorphism, and semantic rules.
+
+### Conformance
+
+- [Builtin conformance](conformance/builtins.md) — requirements for direct
+  builtin test adapters and result checking.
 
 ### Runtime
 
