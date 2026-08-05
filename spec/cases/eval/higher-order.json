@@ -147,6 +147,170 @@
         }
       },
       "expected": 60
+    },
+    {
+      "description": "flatten: can be passed directly as a unary callback",
+      "body": {
+        "$return": {
+          "$call": "map",
+          "$args": [
+            "flatten",
+            [
+              [[1], [2, 3]],
+              [[4, 5], [6]]
+            ]
+          ]
+        }
+      },
+      "expected": [
+        [1, 2, 3],
+        [4, 5, 6]
+      ]
+    },
+    {
+      "description": "range: can be passed directly as a unary map callback",
+      "body": { "$return": { "$call": "map", "$args": ["range", [0, 2, 3]] } },
+      "expected": [[], [0, 1], [0, 1, 2]]
+    },
+    {
+      "description": "setAt: nested calls replace multiple positions",
+      "body": {
+        "$return": {
+          "$call": "setAt",
+          "$args": [{ "$call": "setAt", "$args": [[0, 0, 0, 0, 0], 1, "X"] }, 3, "Y"]
+        }
+      },
+      "expected": [0, "X", 0, "Y", 0]
+    },
+    {
+      "description": "groupBy: works with named function",
+      "body": { "$return": { "$call": "groupBy", "$args": [{ "$fn": "parity" }, [1, 2, 3, 4]] } },
+      "functions": {
+        "parity": {
+          "$params": ["n"],
+          "$return": {
+            "$if": {
+              "$call": "eq",
+              "$args": [{ "$call": "mod", "$args": [{ "$var": "n" }, 2] }, 0]
+            },
+            "$then": "even",
+            "$else": "odd"
+          }
+        }
+      },
+      "expected": { "odd": [1, 3], "even": [2, 4] }
+    },
+    {
+      "description": "pipe: works with inline functions",
+      "body": {
+        "$return": {
+          "$call": "pipe",
+          "$args": [
+            [
+              { "$params": ["x"], "$return": { "$call": "mul", "$args": [{ "$var": "x" }, 2] } },
+              { "$params": ["x"], "$return": { "$call": "add", "$args": [{ "$var": "x" }, 1] } }
+            ],
+            5
+          ]
+        }
+      },
+      "expected": 11
+    },
+    {
+      "description": "pipe: works with named functions",
+      "body": {
+        "$return": { "$call": "pipe", "$args": [[{ "$fn": "double" }, { "$fn": "addTen" }], 3] }
+      },
+      "functions": {
+        "double": {
+          "$params": ["x"],
+          "$return": { "$call": "mul", "$args": [{ "$var": "x" }, 2] }
+        },
+        "addTen": {
+          "$params": ["x"],
+          "$return": { "$call": "add", "$args": [{ "$var": "x" }, 10] }
+        }
+      },
+      "expected": 16
+    },
+    {
+      "description": "pipe: mixes named and inline functions",
+      "body": {
+        "$return": {
+          "$call": "pipe",
+          "$args": [
+            [
+              { "$fn": "neg" },
+              {
+                "$params": ["x"],
+                "$return": { "$call": "mul", "$args": [{ "$var": "x" }, { "$var": "x" }] }
+              },
+              { "$fn": "str" }
+            ],
+            3
+          ]
+        }
+      },
+      "expected": "9"
+    },
+    {
+      "description": "pipe: composes string splitting and array length",
+      "body": {
+        "$return": {
+          "$call": "pipe",
+          "$args": [
+            [
+              {
+                "$params": ["s"],
+                "$return": { "$call": "split", "$args": [{ "$var": "s" }, " "] }
+              },
+              { "$fn": "length" }
+            ],
+            "hello world foo"
+          ]
+        }
+      },
+      "expected": 3
+    },
+    {
+      "description": "ordinary callbacks reject the old indexed shape",
+      "body": {
+        "$return": {
+          "$call": "map",
+          "$args": [{ "$params": ["item", "index"], "$return": { "$var": "item" } }, [1]]
+        }
+      },
+      "error": "Missing required argument at parameter position 2"
+    },
+    {
+      "description": "indexed callbacks reject the ordinary shape",
+      "body": {
+        "$return": {
+          "$call": "mapIndexed",
+          "$args": [{ "$params": ["item"], "$return": { "$var": "item" } }, [1]]
+        }
+      },
+      "error": "Expected exactly 1 argument, received 2"
+    },
+    {
+      "description": "ordinary reduce rejects the old indexed shape",
+      "body": {
+        "$return": {
+          "$call": "reduce",
+          "$args": [{ "$params": ["acc", "item", "index"], "$return": { "$var": "acc" } }, 0, [1]]
+        }
+      },
+      "error": "Missing required argument at parameter position 3"
+    },
+    {
+      "description": "reduceIndexed rejects the ordinary shape",
+      "body": {
+        "$return": {
+          "$call": "reduceIndexed",
+          "$args": [{ "$params": ["acc", "item"], "$return": { "$var": "acc" } }, 0, [1]]
+        }
+      },
+      "error": "Expected exactly 2 arguments, received 3"
     }
   ]
 }
