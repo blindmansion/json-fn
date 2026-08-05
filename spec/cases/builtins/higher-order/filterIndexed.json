@@ -1,0 +1,24 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "filterIndexed",
+  "description": "Keep array elements using callbacks that also receive each index.",
+  "cases": [
+    {
+      "description": "passes each value and index",
+      "args": [
+        {
+          "$callback": {
+            "steps": [
+              { "args": [1, 0], "outcome": { "returns": false } },
+              { "args": [2, 1], "outcome": { "returns": true } },
+              { "args": [3, 2], "outcome": { "returns": true } }
+            ]
+          }
+        },
+        [1, 2, 3]
+      ],
+      "outcome": { "returns": [2, 3] },
+      "observations": { "meter": { "charged": 3 } }
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "findIndexIndexed",
+  "description": "Find an array index using callbacks that also receive each index.",
+  "cases": [
+    {
+      "description": "passes values and indices and short-circuits after a match",
+      "args": [
+        {
+          "$callback": {
+            "steps": [
+              { "args": [10, 0], "outcome": { "returns": false } },
+              { "args": [20, 1], "outcome": { "returns": true } }
+            ]
+          }
+        },
+        [10, 20, 30]
+      ],
+      "outcome": { "returns": 1 },
+      "observations": { "meter": { "charged": 3 } }
+    }
+  ]
+}

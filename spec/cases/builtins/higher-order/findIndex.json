@@ -1,0 +1,24 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "findIndex",
+  "description": "Find the first array index selected by a unary callback.",
+  "cases": [
+    {
+      "description": "returns the first matching index and short-circuits",
+      "args": [
+        {
+          "$callback": {
+            "steps": [
+              { "args": [1], "outcome": { "returns": false } },
+              { "args": [2], "outcome": { "returns": false } },
+              { "args": [3], "outcome": { "returns": true } }
+            ]
+          }
+        },
+        [1, 2, 3, 4]
+      ],
+      "outcome": { "returns": 2 },
+      "observations": { "meter": { "charged": 4 } }
+    }
+  ]
+}

@@ -17,14 +17,14 @@ The baseline is fixed. Do not reduce the candidate count when cases are migrated
 
 ## Current progress
 
-The direct suite contains 200 cases:
+The direct suite contains 258 cases:
 
 - `spec/cases/builtins/arithmetic/floor.json`: 3
 - `spec/cases/builtins/arithmetic/max.json`: 4
-- `spec/cases/builtins/arrays/*.json`: 88 across 19 builtin suites
+- `spec/cases/builtins/arrays/*.json`: 106 across 22 builtin suites
 - `spec/cases/builtins/comparison/*.json`: 23 across 6 builtin suites
 - `spec/cases/builtins/coercion/num.json`: 10
-- `spec/cases/builtins/higher-order/*.json`: 14 across 4 builtin suites
+- `spec/cases/builtins/higher-order/*.json`: 54 across 26 builtin suites
 - `spec/cases/builtins/introspection/arity.json`: 10
 - `spec/cases/builtins/logic/*.json`: 14 across 3 builtin suites
 - `spec/cases/builtins/tasks-effects/*.json`: 28 across 5 builtin suites
@@ -35,11 +35,11 @@ These establish direct coverage, and the corresponding duplicate eval cases have
 
 Migration status:
 
-- Direct builtin cases added: 200
-- Candidate eval cases removed: 183 / 538
-- Candidate eval cases reclassified as integration coverage: 19 / 538
-- Fully migrated source files: 8 / 19
-- Partially covered source files: `numeric.json`, `indexed-callbacks.json`
+- Direct builtin cases added: 258
+- Candidate eval cases removed: 230 / 538
+- Candidate eval cases reclassified as integration coverage: 30 / 538
+- Fully migrated source files: 10 / 19
+- Partially covered source files: `numeric.json`
 
 ## Candidate inventory
 
@@ -52,8 +52,8 @@ Migration status:
 | `comparison-logic.json`     |        35 of 36 | 9 builtin suites (37 direct cases) |                      31 | Fully migrated; 4 integration cases retained |
 | `effects-constructors.json` |              14 | 5 builtin suites (12 direct cases) |                      10 | Fully migrated; 4 integration cases retained |
 | `effects-handle.json`       |        27 of 28 | `handle.json` (20 direct cases)    |                      20 | Fully migrated; 7 integration cases retained |
-| `higher-order-2.json`       |              43 | —                                  |                       0 | Not started                                  |
-| `indexed-callbacks.json`    |              15 | `mapIndexed.json` (5 direct cases) |                       0 | Partial direct coverage                      |
+| `higher-order-2.json`       |              43 | 8 builtin suites (41 direct cases) |                      36 | Fully migrated; 7 integration cases retained |
+| `indexed-callbacks.json`    |              15 | 22 builtin suites (40 direct cases) |                     11 | Fully migrated; 4 integration cases retained |
 | `numeric.json`              |              55 | `floor.json` (3), `max.json` (4)   |                       7 | Partial direct coverage                      |
 | `object-helpers.json`       |              28 | —                                  |                       0 | Not started                                  |
 | `objects.json`              |        32 of 34 | —                                  |                       0 | Not started                                  |
@@ -64,7 +64,7 @@ Migration status:
 | `string-helpers.json`       |        42 of 43 | —                                  |                       0 | Not started                                  |
 | `tap.json`                  |               5 | `tap.json` (2 direct cases)        |                       4 | Fully migrated; 1 integration case retained  |
 | `type-predicates.json`      |              28 | —                                  |                       0 | Not started                                  |
-| **Total**                   |         **538** | **200 direct cases**               |                 **183** |                                              |
+| **Total**                   |         **538** | **258 direct cases**               |                 **230** |                                              |
 
 ### Direct coverage details
 
@@ -77,16 +77,7 @@ Migration status:
 
 The directly covered `floor` and `max` cases have been removed from the eval suite. The remaining dimensions are zero, a single-element array, and non-array rejection. Joint `floor`/`ceil` and `max`/`min` cases remain as integration coverage.
 
-`indexed-callbacks.json` has partial direct coverage for `mapIndexed`:
-
-- exact value/index callback arguments
-- callback dispatch to another builtin
-- empty-input callback suppression
-- callback error propagation
-- non-array validation
-- builtin-local meter charging
-
-Its original `map and mapIndexed use unary and indexed callbacks` case combines two builtins, so it is not considered migrated until `map` also has direct coverage and the combined eval case is either removed or explicitly retained as integration coverage.
+`indexed-callbacks.json` has been fully migrated into paired direct suites for the ordinary and indexed forms of `map`, `filter`, `reduce`, `find`, `findIndex`, `some`, `every`, `count`, `flatMap`, `groupBy`, and `sortBy`. Scripted callback traces directly distinguish unary callbacks from value/index callbacks and accumulator/value callbacks from accumulator/value/index callbacks; the direct cases also preserve short-circuit behavior, stable results, and builtin-local metering. The four callback-arity rejection cases remain as evaluator integration coverage because their errors come from invoking language function declarations with the wrong number of arguments rather than from the builtins themselves.
 
 `tap.json` has direct coverage for:
 
@@ -108,6 +99,8 @@ Two cases remain in `array-accessors.json` as evaluator integration coverage: `h
 `effects-constructors.json` has been fully migrated into direct suites for `perform`, `pure`, `bind`, `raise`, and `isTask`. The direct cases preserve constructor shapes, accepted values, continuation storage, task recognition, and argument validation. Four cases remain as evaluator integration coverage because they specify runtime-value behavior across evaluator constructs: inert array and object storage, lazy local suppression, and returning a constructed task through a closure.
 
 `effects-handle.json` has been fully migrated to direct `handle` coverage for pure completion, named and wildcard dispatch, resume argument flow, chained binds, return clauses, short-circuiting, raise, multi-shot resume, result annotations, zero-parameter continuations, malformed tasks, and non-task rejection. The direct harness now dispatches language callback functions through the implementation's call adapter; a temporary callback fault caused 13 direct cases to fail. Seven candidate cases remain as evaluator integration coverage for nested bubbling, the state-handler program, function-valued result contracts at their eventual call sites, and recursive escaping closures. The fuel-limit case remains as the baseline's excluded runtime-limit case.
+
+`higher-order-2.json` has been fully migrated into direct suites for `flatten`, `flattenDepth`, `setAt`, `flatMap`, `flatMapIndexed`, `groupBy`, `sortBy`, and `pipe`. The direct cases preserve flattening depth, replacement validation, callback arguments and result flattening, grouping keys, stable sorting, Unicode ordering, pipeline threading, and builtin-local meter observations. The direct harness now decodes callback and builtin fixtures nested inside arrays so `pipe` can receive a fixture pipeline; without recursive decoding, its three callback-dispatch cases failed. Seven cases remain as evaluator integration coverage for a builtin passed through `map`, nested `setAt` calls, named-function grouping, and pipelines containing inline or named language functions.
 
 ## Excluded eval files
 

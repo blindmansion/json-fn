@@ -1,0 +1,24 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "filter",
+  "description": "Keep array elements selected by unary callbacks.",
+  "cases": [
+    {
+      "description": "passes each value without an index",
+      "args": [
+        {
+          "$callback": {
+            "steps": [
+              { "args": [1], "outcome": { "returns": false } },
+              { "args": [2], "outcome": { "returns": true } },
+              { "args": [3], "outcome": { "returns": true } }
+            ]
+          }
+        },
+        [1, 2, 3]
+      ],
+      "outcome": { "returns": [2, 3] },
+      "observations": { "meter": { "charged": 3 } }
+    }
+  ]
+}

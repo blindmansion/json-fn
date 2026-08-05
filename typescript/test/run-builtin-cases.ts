@@ -160,6 +160,9 @@ class DirectBuiltinHarness {
   };
 
   private decodeInput(input: CaseInput): JSONType {
+    if (Array.isArray(input)) {
+      return input.map((item) => this.decodeInput(item as CaseInput));
+    }
     if (!isRecord(input)) return input as JSONType;
     const record = input as Record<string, unknown>;
 
