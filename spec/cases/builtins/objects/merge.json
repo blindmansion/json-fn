@@ -4,6 +4,25 @@
   "description": "Shallowly merge two objects.",
   "cases": [
     {
+      "description": "merges disjoint objects",
+      "args": [{ "a": 1 }, { "b": 2 }],
+      "outcome": { "returns": { "a": 1, "b": 2 } }
+    },
+    {
+      "description": "uses the second object's value on key conflicts",
+      "args": [
+        { "a": 1, "b": 2 },
+        { "b": 99, "c": 3 }
+      ],
+      "outcome": { "returns": { "a": 1, "b": 99, "c": 3 } },
+      "observations": { "meter": { "charged": 4 } }
+    },
+    {
+      "description": "treats an empty second object as identity",
+      "args": [{ "a": 1 }, {}],
+      "outcome": { "returns": { "a": 1 } }
+    },
+    {
       "description": "rejects a non-object argument",
       "args": [{ "a": 1 }, [2]],
       "outcome": { "throws": { "messageIncludes": "arguments must be objects" } }

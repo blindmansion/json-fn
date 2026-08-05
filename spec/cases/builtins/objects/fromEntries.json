@@ -1,0 +1,40 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "fromEntries",
+  "description": "Create an object from key-value pairs.",
+  "cases": [
+    {
+      "description": "builds an object from pairs",
+      "args": [
+        [
+          ["x", 10],
+          ["y", 20]
+        ]
+      ],
+      "outcome": { "returns": { "x": 10, "y": 20 } },
+      "observations": { "meter": { "charged": 2 } }
+    },
+    {
+      "description": "returns an empty object for empty pairs",
+      "args": [[]],
+      "outcome": { "returns": {} }
+    },
+    {
+      "description": "rejects a non-array argument",
+      "args": [{}],
+      "outcome": { "throws": { "messageIncludes": "argument must be an array" } }
+    },
+    {
+      "description": "rejects malformed entries",
+      "args": [[["key"]]],
+      "outcome": {
+        "throws": { "messageIncludes": "each entry must be a [key, value] pair" }
+      }
+    },
+    {
+      "description": "rejects non-string keys",
+      "args": [[[1, "value"]]],
+      "outcome": { "throws": { "messageIncludes": "keys must be strings" } }
+    }
+  ]
+}

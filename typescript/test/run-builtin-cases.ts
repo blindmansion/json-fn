@@ -89,6 +89,7 @@ class DirectBuiltinHarness {
   private readonly functions: FunctionRegistry;
   private readonly callbacks = new Map<object, CallbackState>();
   private readonly builtinReferences = new Map<object, string>();
+  private readonly languageFunctionReferences = new Set<string>();
 
   constructor() {
     this.functions = createStdlib({
@@ -138,6 +139,13 @@ class DirectBuiltinHarness {
   };
 
   private readonly call = (fn: JSONType, args: JSONType[]): JSONType => {
+    if (typeof fn === "string" && this.languageFunctionReferences.has(fn)) {
+      const functionBody = this.functions[fn];
+      if (isRecord(functionBody) && "$return" in functionBody) {
+        return callFunction(functionBody as FunctionDeclaration, args, this.functions);
+      }
+    }
+
     if (isRecord(fn)) {
       const callback = this.callbacks.get(fn);
       if (callback !== undefined) {
@@ -180,6 +188,7 @@ class DirectBuiltinHarness {
         throw new Error("Function fixture requires a non-empty name and function body");
       }
       this.functions[name] = body as FunctionRegistry[string];
+      this.languageFunctionReferences.add(name);
       return name;
     }
 

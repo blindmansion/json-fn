@@ -1,0 +1,60 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "mapValues",
+  "description": "Transform an object's values with a value-and-key callback.",
+  "cases": [
+    {
+      "description": "transforms each value while preserving keys",
+      "args": [
+        {
+          "$callback": {
+            "steps": [
+              { "args": [1, "x"], "outcome": { "returns": 2 } },
+              { "args": [2, "y"], "outcome": { "returns": 4 } },
+              { "args": [3, "z"], "outcome": { "returns": 6 } }
+            ]
+          }
+        },
+        { "x": 1, "y": 2, "z": 3 }
+      ],
+      "outcome": { "returns": { "x": 2, "y": 4, "z": 6 } },
+      "observations": { "meter": { "charged": 3 } }
+    },
+    {
+      "description": "passes each key as the callback's second argument",
+      "args": [
+        {
+          "$callback": {
+            "steps": [
+              { "args": [1, "a"], "outcome": { "returns": "a" } },
+              { "args": [2, "b"], "outcome": { "returns": "b" } }
+            ]
+          }
+        },
+        { "a": 1, "b": 2 }
+      ],
+      "outcome": { "returns": { "a": "a", "b": "b" } }
+    },
+    {
+      "description": "dispatches a named language function",
+      "args": [
+        {
+          "$function": {
+            "name": "negate",
+            "body": {
+              "$params": ["n", "_key"],
+              "$return": { "$call": "neg", "$args": [{ "$var": "n" }] }
+            }
+          }
+        },
+        { "a": 1, "b": -2 }
+      ],
+      "outcome": { "returns": { "a": -1, "b": 2 } }
+    },
+    {
+      "description": "does not call the callback for an empty object",
+      "args": [{ "$callback": { "steps": [] } }, {}],
+      "outcome": { "returns": {} }
+    }
+  ]
+}

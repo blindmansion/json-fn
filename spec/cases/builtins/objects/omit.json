@@ -4,6 +4,21 @@
   "description": "Return an object excluding selected keys.",
   "cases": [
     {
+      "description": "excludes specified keys",
+      "args": [{ "a": 1, "b": 2, "c": 3 }, ["b"]],
+      "outcome": { "returns": { "a": 1, "c": 3 } }
+    },
+    {
+      "description": "ignores keys absent from the object",
+      "args": [{ "a": 1, "b": 2 }, ["z"]],
+      "outcome": { "returns": { "a": 1, "b": 2 } }
+    },
+    {
+      "description": "returns an empty object when all keys are omitted",
+      "args": [{ "a": 1, "b": 2 }, ["a", "b"]],
+      "outcome": { "returns": {} }
+    },
+    {
       "description": "rejects a non-object first argument",
       "args": [[1, 2], ["0"]],
       "outcome": { "throws": { "messageIncludes": "first argument must be an object" } }

@@ -17,28 +17,28 @@ The baseline is fixed. Do not reduce the candidate count when cases are migrated
 
 ## Current progress
 
-The direct suite contains 327 cases:
+The direct suite contains 357 cases:
 
 - `spec/cases/builtins/arithmetic/*.json`: 56 across 16 builtin suites
 - `spec/cases/builtins/arrays/*.json`: 106 across 22 builtin suites
 - `spec/cases/builtins/comparison/*.json`: 23 across 6 builtin suites
 - `spec/cases/builtins/coercion/num.json`: 10
-- `spec/cases/builtins/higher-order/*.json`: 54 across 26 builtin suites
+- `spec/cases/builtins/higher-order/*.json`: 58 across 27 builtin suites
 - `spec/cases/builtins/introspection/arity.json`: 10
 - `spec/cases/builtins/logic/*.json`: 14 across 3 builtin suites
-- `spec/cases/builtins/objects/*.json`: 20 across 7 builtin suites
+- `spec/cases/builtins/objects/*.json`: 39 across 8 builtin suites
 - `spec/cases/builtins/tasks-effects/*.json`: 28 across 5 builtin suites
-- `spec/cases/builtins/type-checking/isTask.json`: 4
+- `spec/cases/builtins/type-checking/*.json`: 11 across 2 builtin suites
 - `spec/cases/builtins/debugging/tap.json`: 2
 
 These establish direct coverage, and the corresponding duplicate eval cases have been removed. Direct case counts are not expected to map one-to-one to eval cases: one direct case may replace part of a combined eval case, while direct callback and observation cases may add coverage that did not previously exist.
 
 Migration status:
 
-- Direct builtin cases added: 327
-- Candidate eval cases removed: 296 / 538
-- Candidate eval cases reclassified as integration coverage: 40 / 538
-- Fully migrated source files: 12 / 19
+- Direct builtin cases added: 357
+- Candidate eval cases removed: 326 / 538
+- Candidate eval cases reclassified as integration coverage: 42 / 538
+- Fully migrated source files: 13 / 19
 - Partially covered source files: none
 
 ## Candidate inventory
@@ -56,7 +56,7 @@ Migration status:
 | `indexed-callbacks.json`    |              15 | 22 builtin suites (40 direct cases) |                     11 | Fully migrated; 4 integration cases retained |
 | `numeric.json`              |              55 | 16 builtin suites (56 direct cases) |                     53 | Fully migrated; 2 integration cases retained |
 | `object-helpers.json`       |              28 | 7 builtin suites (20 direct cases) |                      20 | Fully migrated; 8 integration cases retained |
-| `objects.json`              |        32 of 34 | —                                  |                       0 | Not started                                  |
+| `objects.json`              |        32 of 34 | 8 builtin suites (30 direct cases) |                      30 | Fully migrated; 2 integration cases retained |
 | `regex.json`                |        33 of 35 | —                                  |                       0 | Not started                                  |
 | `search-quantify.json`      |              32 | —                                  |                       0 | Not started                                  |
 | `smaller-conveniences.json` |              19 | —                                  |                       0 | Not started                                  |
@@ -64,7 +64,7 @@ Migration status:
 | `string-helpers.json`       |        42 of 43 | —                                  |                       0 | Not started                                  |
 | `tap.json`                  |               5 | `tap.json` (2 direct cases)        |                       4 | Fully migrated; 1 integration case retained  |
 | `type-predicates.json`      |              28 | —                                  |                       0 | Not started                                  |
-| **Total**                   |         **538** | **327 direct cases**                |                 **296** |                                              |
+| **Total**                   |         **538** | **357 direct cases**                |                 **326** |                                              |
 
 ### Direct coverage details
 
@@ -73,6 +73,8 @@ Migration status:
 `numeric.json` has been fully migrated into direct suites for `add`, `sub`, `mul`, `div`, `mod`, `floor`, `ceil`, `round`, `max`, `min`, `sum`, `sqrt`, `pow`, `product`, `argmin`, and `argmax`. The direct cases preserve finite-result validation, division-by-zero behavior, rounding boundaries, array validation and identities, extrema tie-breaking, and empty-array behavior. The joint `floor`/`ceil` bracket and `max`/`min` range cases remain as evaluator integration coverage.
 
 `object-helpers.json` has been fully migrated into direct suites for `keys`, `values`, `entries`, `merge`, `hasKey`, `pick`, and `omit`. The direct cases preserve empty and single-entry results, argument validation, own-property checks, and safe handling of `__proto__`, `constructor`, and inherited property names. Eight cases remain as evaluator integration coverage for sorting or counting helper results, composing keys and values with other builtins, and explicitly coercing numeric keys with `str`.
+
+`objects.json` has been fully migrated into direct suites for `entries`, `fromEntries`, `merge`, `hasKey`, `isObject`, `pick`, `omit`, and `mapValues`. The direct cases preserve object-order results, pair and key validation, merge precedence, plain-object recognition, key selection, callback value/key arguments, named-function dispatch, empty-input behavior, and builtin-local metering. The `entries`/`fromEntries` roundtrip and merge-through-binding cases remain as candidate integration coverage. The two entries/filter/map/fromEntries recipes remain as the baseline's excluded pipeline integration cases.
 
 `indexed-callbacks.json` has been fully migrated into paired direct suites for the ordinary and indexed forms of `map`, `filter`, `reduce`, `find`, `findIndex`, `some`, `every`, `count`, `flatMap`, `groupBy`, and `sortBy`. Scripted callback traces directly distinguish unary callbacks from value/index callbacks and accumulator/value callbacks from accumulator/value/index callbacks; the direct cases also preserve short-circuit behavior, stable results, and builtin-local metering. The four callback-arity rejection cases remain as evaluator integration coverage because their errors come from invoking language function declarations with the wrong number of arguments rather than from the builtins themselves.
 

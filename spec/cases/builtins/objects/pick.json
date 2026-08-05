@@ -4,6 +4,21 @@
   "description": "Return an object containing selected keys.",
   "cases": [
     {
+      "description": "selects specified keys",
+      "args": [{ "a": 1, "b": 2, "c": 3 }, ["a", "c"]],
+      "outcome": { "returns": { "a": 1, "c": 3 } }
+    },
+    {
+      "description": "ignores keys absent from the object",
+      "args": [{ "a": 1 }, ["a", "z"]],
+      "outcome": { "returns": { "a": 1 } }
+    },
+    {
+      "description": "returns an empty object for an empty key list",
+      "args": [{ "a": 1, "b": 2 }, []],
+      "outcome": { "returns": {} }
+    },
+    {
       "description": "rejects a non-object first argument",
       "args": [[1, 2], ["0"]],
       "outcome": { "throws": { "messageIncludes": "first argument must be an object" } }
