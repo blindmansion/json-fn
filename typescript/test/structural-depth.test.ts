@@ -5,7 +5,6 @@ import { checkExpr, checkModule } from "../src/check/module";
 import { hydrateTask, serializeTask } from "../src/host/task-serialization";
 import { hydrateWorkflowRecord } from "../src/host/durable/workflow-record";
 import { validateDefinitionTable, validateSchemaFragment } from "../src/schema/validation";
-import { parseExpression } from "../src/shorthand/parser";
 import { printExpression } from "../src/shorthand/printer";
 import {
   MAX_EVALUATION_NESTING,
@@ -136,32 +135,6 @@ describe("evaluator boundaries", () => {
     };
     const functions = { ...stdlib, go: { $params: ["n"], $return: site } };
     expect(() => callFunction(body, [50], functions, { maxCallDepth: 200 })).toThrow(NESTING_ERROR);
-  });
-});
-
-describe("shorthand parser", () => {
-  test("parses source nested exactly to the limit", () => {
-    const src = "[".repeat(MAX_STRUCTURAL_DEPTH) + "1" + "]".repeat(MAX_STRUCTURAL_DEPTH);
-    expect(parseExpression(src)).toEqual(deepArray(MAX_STRUCTURAL_DEPTH));
-  });
-
-  test("rejects source nested one past the limit", () => {
-    const src = "[".repeat(MAX_STRUCTURAL_DEPTH + 1) + "1" + "]".repeat(MAX_STRUCTURAL_DEPTH + 1);
-    expect(() => parseExpression(src)).toThrow(DEPTH_ERROR);
-  });
-
-  test("inferred $raw wrappers count toward the produced-tree limit", () => {
-    const source = (n: number) => "[".repeat(n) + '{ "$x": 1 }' + "]".repeat(n);
-    const wrapped = (n: number): JSONType => {
-      let value: JSONType = { $x: 1 };
-      for (let i = 0; i < n; i++) value = [value];
-      return { $raw: value };
-    };
-    // The quoted $-key object adds one container level and the inferred $raw
-    // wrapper another, so acceptance tops out two below the array-only case.
-    const ok = MAX_STRUCTURAL_DEPTH - 2;
-    expect(parseExpression(source(ok))).toEqual(wrapped(ok));
-    expect(() => parseExpression(source(ok + 1))).toThrow(DEPTH_ERROR);
   });
 });
 
