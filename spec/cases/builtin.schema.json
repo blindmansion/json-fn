@@ -41,23 +41,32 @@
         { "$ref": "#/$defs/builtinInput" },
         { "$ref": "#/$defs/functionInput" },
         { "$ref": "#/$defs/literalInput" },
-        {
-          "description": "An ordinary JSON argument without a reserved fixture key.",
-          "not": {
-            "allOf": [
-              { "type": "object" },
-              {
-                "anyOf": [
-                  { "required": ["$callback"] },
-                  { "required": ["$builtin"] },
-                  { "required": ["$function"] },
-                  { "required": ["$literal"] }
-                ]
-              }
+        { "$ref": "#/$defs/inputArray" },
+        { "$ref": "#/$defs/ordinaryObjectInput" },
+        { "type": ["null", "boolean", "number", "string"] }
+      ]
+    },
+    "inputArray": {
+      "type": "array",
+      "description": "Arrays are recursively decoded for fixture wrappers.",
+      "items": { "$ref": "#/$defs/input" }
+    },
+    "ordinaryObjectInput": {
+      "type": "object",
+      "description": "An ordinary JSON object. Its contents are literal and are not recursively decoded.",
+      "not": {
+        "allOf": [
+          { "minProperties": 1, "maxProperties": 1 },
+          {
+            "anyOf": [
+              { "required": ["$callback"] },
+              { "required": ["$builtin"] },
+              { "required": ["$function"] },
+              { "required": ["$literal"] }
             ]
           }
-        }
-      ]
+        ]
+      }
     },
     "callbackInput": {
       "type": "object",
@@ -69,6 +78,7 @@
           "properties": {
             "steps": {
               "type": "array",
+              "description": "Ordered, exhaustive callback invocations. Every step must be consumed exactly once.",
               "items": { "$ref": "#/$defs/callbackStep" }
             }
           },
@@ -84,7 +94,7 @@
         "$builtin": {
           "type": "string",
           "minLength": 1,
-          "description": "A builtin exposed as a callback value."
+          "description": "A builtin exposed as an opaque callback value."
         }
       },
       "additionalProperties": false
@@ -110,7 +120,7 @@
       "required": ["$literal"],
       "properties": {
         "$literal": {
-          "description": "A literal JSON argument whose object shape would otherwise be interpreted as a fixture."
+          "description": "A literal JSON argument whose exact single-key object shape would otherwise be interpreted as a fixture."
         }
       },
       "additionalProperties": false
@@ -159,6 +169,7 @@
       "properties": {
         "logs": {
           "type": "array",
+          "description": "The exact ordered sequence of logger calls.",
           "items": {
             "type": "object",
             "required": ["value"],
@@ -175,6 +186,7 @@
             "charged": { "type": "integer", "minimum": 0 },
             "guardedSizes": {
               "type": "array",
+              "description": "The exact ordered sequence of guarded sizes.",
               "items": { "type": "integer", "minimum": 0 }
             }
           },

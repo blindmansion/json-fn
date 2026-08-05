@@ -24,6 +24,21 @@
       "outcome": { "returns": "hello" }
     },
     {
+      "description": "decodes a literal fixture nested in an array",
+      "args": [[{ "$literal": { "$builtin": "add" } }]],
+      "outcome": { "returns": { "$builtin": "add" } }
+    },
+    {
+      "description": "does not decode fixtures inside ordinary objects",
+      "args": [[{ "nested": { "$builtin": "add" } }]],
+      "outcome": { "returns": { "nested": { "$builtin": "add" } } }
+    },
+    {
+      "description": "treats reserved-looking objects with extra keys as literals",
+      "args": [[{ "$builtin": "add", "metadata": true }]],
+      "outcome": { "returns": { "$builtin": "add", "metadata": true } }
+    },
+    {
       "description": "rejects a non-array argument",
       "args": ["abc"],
       "outcome": { "throws": { "messageIncludes": "argument must be an array" } }

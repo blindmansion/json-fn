@@ -35,7 +35,19 @@ type LiteralInput = {
   $literal: JSONType;
 };
 
-type CaseInput = JSONType | CallbackInput | BuiltinInput | FunctionInput | LiteralInput;
+type JSONScalar = null | boolean | number | string;
+type OrdinaryObjectInput = Record<string, JSONType>;
+
+// Arrays are the only ordinary containers recursively decoded for fixtures.
+// Objects remain opaque unless their exact single key identifies a fixture.
+type CaseInput =
+  | JSONScalar
+  | OrdinaryObjectInput
+  | CaseInput[]
+  | CallbackInput
+  | BuiltinInput
+  | FunctionInput
+  | LiteralInput;
 
 type LogObservation = {
   value: JSONType;
@@ -70,11 +82,6 @@ type CallbackState = {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function hasOnlyKeys(value: Record<string, unknown>, keys: string[]): boolean {
-  const actual = Object.keys(value);
-  return actual.length === keys.length && keys.every((key) => Object.hasOwn(value, key));
 }
 
 function errorMessage(error: unknown): string {
@@ -169,40 +176,55 @@ class DirectBuiltinHarness {
 
   private decodeInput(input: CaseInput): JSONType {
     if (Array.isArray(input)) {
-      return input.map((item) => this.decodeInput(item as CaseInput));
+      return input.map((item) => this.decodeInput(item));
     }
     if (!isRecord(input)) return input as JSONType;
     const record = input as Record<string, unknown>;
 
-    if (hasOnlyKeys(record, ["$literal"])) return record.$literal as JSONType;
+    const keys = Object.keys(record);
+    if (keys.length === 1) {
+      switch (keys[0]) {
+        case "$literal":
+          return record.$literal as JSONType;
 
-    if (hasOnlyKeys(record, ["$builtin"]) && typeof record.$builtin === "string") {
-      const token = {};
-      this.builtinReferences.set(token, record.$builtin);
-      return token;
-    }
+        case "$builtin": {
+          if (typeof record.$builtin !== "string" || record.$builtin.length === 0) {
+            throw new Error("Builtin fixture requires a non-empty builtin name");
+          }
+          const token = {};
+          this.builtinReferences.set(token, record.$builtin);
+          return token;
+        }
 
-    if (hasOnlyKeys(record, ["$function"]) && isRecord(record.$function)) {
-      const { name, body } = record.$function;
-      if (typeof name !== "string" || name.length === 0 || !isRecord(body)) {
-        throw new Error("Function fixture requires a non-empty name and function body");
+        case "$function": {
+          if (!isRecord(record.$function)) {
+            throw new Error("Function fixture requires a non-empty name and function body");
+          }
+          const { name, body } = record.$function;
+          if (typeof name !== "string" || name.length === 0 || !isRecord(body)) {
+            throw new Error("Function fixture requires a non-empty name and function body");
+          }
+          this.functions[name] = body as FunctionRegistry[string];
+          this.languageFunctionReferences.add(name);
+          return name;
+        }
+
+        case "$callback": {
+          if (!isRecord(record.$callback) || !Array.isArray(record.$callback.steps)) {
+            throw new Error("Callback fixture requires a steps array");
+          }
+          const token = {};
+          this.callbacks.set(token, {
+            steps: record.$callback.steps as CallbackStep[],
+            nextStep: 0,
+          });
+          return token;
+        }
       }
-      this.functions[name] = body as FunctionRegistry[string];
-      this.languageFunctionReferences.add(name);
-      return name;
     }
 
-    if (hasOnlyKeys(record, ["$callback"]) && isRecord(record.$callback)) {
-      const steps = record.$callback.steps;
-      if (!Array.isArray(steps)) throw new Error("Callback fixture requires a steps array");
-      const token = {};
-      this.callbacks.set(token, {
-        steps: steps as CallbackStep[],
-        nextStep: 0,
-      });
-      return token;
-    }
-
+    // Ordinary objects are literal values. Reserved-looking properties with
+    // siblings, and fixtures nested inside an object, are not interpreted.
     return input as JSONType;
   }
 }
