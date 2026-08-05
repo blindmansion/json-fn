@@ -1,4 +1,5 @@
 {
+  "$schema": "../parse.schema.json",
   "description": "raw inference: static JSON needs no keyword; quoted $-keys infer a maximal canonical $raw boundary (shorthand spec section 3)",
   "cases": [
     {

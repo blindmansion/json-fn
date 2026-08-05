@@ -1,4 +1,5 @@
 {
+  "$schema": "../parse.schema.json",
   "description": "control flow (shorthand spec section 7)",
   "cases": [
     {

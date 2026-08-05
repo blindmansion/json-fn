@@ -1,4 +1,5 @@
 {
+  "$schema": "../parse.schema.json",
   "description": "trailing `where` in body positions (shorthand spec section 8)",
   "cases": [
     {

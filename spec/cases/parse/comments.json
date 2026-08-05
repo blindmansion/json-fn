@@ -1,4 +1,5 @@
 {
+  "$schema": "../parse.schema.json",
   "description": "comments are skipped (shorthand spec sections 1 & 12)",
   "cases": [
     {

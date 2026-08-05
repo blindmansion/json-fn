@@ -1,4 +1,5 @@
 {
+  "$schema": "../parse.schema.json",
   "description": "variables and property access (shorthand spec section 5)",
   "cases": [
     { "description": "bare variable", "source": "x", "expected": { "$var": "x" } },

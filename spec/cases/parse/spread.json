@@ -1,4 +1,5 @@
 {
+  "$schema": "../parse.schema.json",
   "description": "array, object, computed-key, and call spread sugar (shorthand spec sections 3 & 4)",
   "cases": [
     {

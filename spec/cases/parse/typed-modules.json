@@ -1,4 +1,5 @@
 {
+  "$schema": "../parse.schema.json",
   "description": "typed modules (type syntax spec section 8)",
   "mode": "module",
   "cases": [

@@ -1,4 +1,5 @@
 {
+  "$schema": "../parse.schema.json",
   "description": "destructured (object-pattern) parameters — $fields (plans/destructured-params.md)",
   "cases": [
     {

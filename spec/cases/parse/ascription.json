@@ -1,4 +1,5 @@
 {
+  "$schema": "../parse.schema.json",
   "description": "checked value ascription",
   "cases": [
     {

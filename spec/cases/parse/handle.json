@@ -1,4 +1,5 @@
 {
+  "$schema": "../parse.schema.json",
   "description": "handle ... with { ... } surface sugar over the handle builtin (shorthand-spec §13)",
   "cases": [
     {

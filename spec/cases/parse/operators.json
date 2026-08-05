@@ -1,4 +1,5 @@
 {
+  "$schema": "../parse.schema.json",
   "description": "operators and precedence (shorthand spec section 6)",
   "cases": [
     {

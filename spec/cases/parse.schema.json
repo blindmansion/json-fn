@@ -3,9 +3,14 @@
   "title": "json-fn shorthand parse test suite",
   "description": "Documents the shorthand parser test-suite format consumed from spec/cases/parse.",
   "type": "object",
-  "required": ["description", "cases"],
+  "required": ["$schema", "description", "cases"],
   "properties": {
+    "$schema": {
+      "const": "../parse.schema.json",
+      "description": "Identifies the parse-case schema relative to a suite in spec/cases/parse."
+    },
     "description": { "type": "string", "description": "A description of the test suite." },
+    "comment": { "type": "string", "description": "Optional rationale or maintenance context." },
     "mode": {
       "$ref": "#/$defs/mode",
       "description": "The default parser mode for cases in this suite. Defaults to expression."
@@ -24,19 +29,46 @@
       "required": ["description", "source"],
       "properties": {
         "description": { "type": "string", "description": "A description used as the test name." },
+        "comment": {
+          "type": "string",
+          "description": "Optional rationale or maintenance context."
+        },
         "source": { "type": "string", "description": "The shorthand source text to parse." },
         "mode": {
           "$ref": "#/$defs/mode",
           "description": "Overrides the suite parser mode for this case."
         },
         "expected": {
-          "description": "The expected canonical JSON result. When omitted from a non-error case, the harness expects null."
+          "description": "The exact expected canonical JSON result, including an explicit null."
         },
         "error": {
-          "description": "Marks a case that must fail. A string must occur in the error message; any other JSON value only requires an error."
+          "description": "Requires parsing to fail, optionally with portable message and source-position assertions.",
+          "oneOf": [{ "const": true }, { "type": "string" }, { "$ref": "#/$defs/error" }]
         }
       },
-      "not": { "required": ["expected", "error"] },
+      "oneOf": [{ "required": ["expected"] }, { "required": ["error"] }],
+      "additionalProperties": false
+    },
+    "error": {
+      "type": "object",
+      "properties": {
+        "messageIncludes": {
+          "type": "string",
+          "description": "A substring that must occur in the parse error message."
+        },
+        "at": { "$ref": "#/$defs/position" }
+      },
+      "anyOf": [{ "required": ["messageIncludes"] }, { "required": ["at"] }],
+      "additionalProperties": false
+    },
+    "position": {
+      "type": "object",
+      "description": "A one-based Unicode code-point source position.",
+      "required": ["line", "column"],
+      "properties": {
+        "line": { "type": "integer", "minimum": 1 },
+        "column": { "type": "integer", "minimum": 1 }
+      },
       "additionalProperties": false
     }
   }

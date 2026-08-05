@@ -1,4 +1,5 @@
 {
+  "$schema": "../parse.schema.json",
   "description": "function literals and local bindings (shorthand spec section 8)",
   "cases": [
     {

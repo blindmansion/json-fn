@@ -1,4 +1,5 @@
 {
+  "$schema": "../parse.schema.json",
   "description": "special object keys: __proto__ survives shorthand parsing",
   "cases": [
     {

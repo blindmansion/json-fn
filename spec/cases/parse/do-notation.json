@@ -1,4 +1,5 @@
 {
+  "$schema": "../parse.schema.json",
   "description": "do-notation: effect bindings (`<-`), pure bindings (`:`), and a final result expression, desugaring to a bind spine (shorthand-spec §13)",
   "cases": [
     {

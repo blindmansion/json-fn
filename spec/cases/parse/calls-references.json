@@ -1,4 +1,5 @@
 {
+  "$schema": "../parse.schema.json",
   "description": "calls and references (shorthand spec section 4)",
   "cases": [
     {

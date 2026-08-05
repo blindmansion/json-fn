@@ -1,4 +1,5 @@
 {
+  "$schema": "../parse.schema.json",
   "description": "literals and data (shorthand spec section 3)",
   "cases": [
     { "description": "scalar: integer", "source": "42", "expected": 42 },

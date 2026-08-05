@@ -10,8 +10,9 @@ import {
 import { printType } from "../src/shorthand/type-printer";
 import type { JSONType } from "../src/types";
 import { analyzeParameters } from "../src/params";
-import { readdirSync, readFileSync } from "fs";
+import { readFileSync } from "fs";
 import { join } from "path";
+import { loadParseSuites } from "./parse-case-fixtures";
 
 // The core guarantee of the printer is "bijective by normal form": for any
 // canonical JSON, lowering the printed shorthand must reproduce that JSON
@@ -20,20 +21,6 @@ import { join } from "path";
 // static literal; every other accepted tree round-trips exactly. The
 // `expected` values in the parse-case fixtures are canonical JSON, so they
 // double as a printer round-trip corpus.
-
-interface ParseCase {
-  description: string;
-  source: string;
-  mode?: "expression" | "module";
-  expected?: JSONType;
-  error?: JSONType;
-}
-
-interface ParseSuite {
-  description: string;
-  mode?: "expression" | "module";
-  cases: ParseCase[];
-}
 
 const CASES_DIR = join(import.meta.dir, "../../spec/cases/parse");
 const EXAMPLES_DIR = join(import.meta.dir, "../../examples");
@@ -58,21 +45,17 @@ function expectParsedParameterLayouts(node: JSONType): void {
 }
 
 describe("printer round-trips canonical JSON (parse ∘ print = id)", () => {
-  const files = readdirSync(CASES_DIR)
-    .filter((f) => f.endsWith(".json"))
-    .sort();
-  for (const file of files) {
-    const suite: ParseSuite = JSON.parse(readFileSync(join(CASES_DIR, file), "utf-8"));
+  for (const suite of loadParseSuites(CASES_DIR)) {
     describe(suite.description, () => {
       for (const tc of suite.cases) {
         // Skip cases that assert a parse *failure* — there is no canonical JSON.
         if (tc.error !== undefined) continue;
         test(tc.description, () => {
           if ((tc.mode ?? suite.mode) === "module") {
-            const json = tc.expected ?? {};
+            const json = tc.expected;
             expect(parseModule(printModule(json))).toEqual(normalizeModule(json));
           } else {
-            roundTrips(tc.expected ?? null);
+            roundTrips(tc.expected);
           }
         });
       }
