@@ -1,18 +1,8 @@
 {
-  "description": "object helpers",
+  "description": "object helper evaluator integration",
   "cases": [
     {
-      "description": "keys: empty object returns empty array",
-      "body": { "$return": { "$call": "keys", "$args": [{}] } },
-      "expected": []
-    },
-    {
-      "description": "keys: single-key object",
-      "body": { "$return": { "$call": "keys", "$args": [{ "name": "alice" }] } },
-      "expected": ["name"]
-    },
-    {
-      "description": "keys: multiple keys (sorted for determinism)",
+      "description": "keys: multiple keys sorted for deterministic comparison",
       "body": {
         "$return": {
           "$let": { "ks": { "$call": "keys", "$args": [{ "c": 3, "a": 1, "b": 2 }] } },
@@ -35,17 +25,7 @@
       "expected": 3
     },
     {
-      "description": "values: empty object returns empty array",
-      "body": { "$return": { "$call": "values", "$args": [{}] } },
-      "expected": []
-    },
-    {
-      "description": "values: single-key object",
-      "body": { "$return": { "$call": "values", "$args": [{ "a": 42 }] } },
-      "expected": [42]
-    },
-    {
-      "description": "values: multiple values (sorted for determinism)",
+      "description": "values: multiple values sorted for deterministic comparison",
       "body": {
         "$return": {
           "$let": { "vs": { "$call": "values", "$args": [{ "a": 30, "b": 10, "c": 20 }] } },
@@ -88,66 +68,6 @@
       "expected": true
     },
     {
-      "description": "keys: rejects an array",
-      "body": { "$return": { "$call": "keys", "$args": [[1, 2]] } },
-      "error": "argument must be an object"
-    },
-    {
-      "description": "values: rejects an array",
-      "body": { "$return": { "$call": "values", "$args": [[1, 2]] } },
-      "error": "argument must be an object"
-    },
-    {
-      "description": "entries: rejects an array",
-      "body": { "$return": { "$call": "entries", "$args": [[1, 2]] } },
-      "error": "argument must be an object"
-    },
-    {
-      "description": "merge: rejects non-object arguments",
-      "body": { "$return": { "$call": "merge", "$args": [{ "a": 1 }, [2]] } },
-      "error": "arguments must be objects"
-    },
-    {
-      "description": "hasKey: rejects a non-object first argument",
-      "body": { "$return": { "$call": "hasKey", "$args": [[1, 2], "0"] } },
-      "error": "first argument must be an object"
-    },
-    {
-      "description": "pick: rejects a non-object first argument",
-      "body": { "$return": { "$call": "pick", "$args": [[1, 2], ["0"]] } },
-      "error": "first argument must be an object"
-    },
-    {
-      "description": "omit: rejects a non-object first argument",
-      "body": { "$return": { "$call": "omit", "$args": [[1, 2], ["0"]] } },
-      "error": "first argument must be an object"
-    },
-    {
-      "description": "hasKey: rejects a numeric key",
-      "body": { "$return": { "$call": "hasKey", "$args": [{ "1": "one" }, 1] } },
-      "error": "second argument must be a string"
-    },
-    {
-      "description": "pick: rejects a non-array key list",
-      "body": { "$return": { "$call": "pick", "$args": [{ "a": 1 }, "a"] } },
-      "error": "second argument must be an array"
-    },
-    {
-      "description": "omit: rejects a non-array key list",
-      "body": { "$return": { "$call": "omit", "$args": [{ "a": 1 }, "a"] } },
-      "error": "second argument must be an array"
-    },
-    {
-      "description": "pick: rejects a non-string key-list member",
-      "body": { "$return": { "$call": "pick", "$args": [{ "1": "one" }, [1]] } },
-      "error": "keys must be strings"
-    },
-    {
-      "description": "omit: rejects a non-string key-list member",
-      "body": { "$return": { "$call": "omit", "$args": [{ "1": "one" }, [1]] } },
-      "error": "keys must be strings"
-    },
-    {
       "description": "hasKey: accepts an explicitly stringified numeric key",
       "body": {
         "$return": {
@@ -176,47 +96,6 @@
         }
       },
       "expected": { "2": "two" }
-    },
-    {
-      "description": "hasKey: ignores inherited properties",
-      "body": { "$return": { "$call": "hasKey", "$args": [{ "$raw": {} }, "toString"] } },
-      "expected": false
-    },
-    {
-      "description": "hasKey: recognizes an own __proto__ property",
-      "body": {
-        "$return": {
-          "$call": "hasKey",
-          "$args": [{ "$raw": { "__proto__": "data" } }, "__proto__"]
-        }
-      },
-      "expected": true
-    },
-    {
-      "description": "pick: copies only own object-special properties",
-      "body": {
-        "$return": {
-          "$call": "pick",
-          "$args": [
-            { "$raw": { "__proto__": "proto", "constructor": "constructor", "keep": true } },
-            ["__proto__", "constructor", "toString"]
-          ]
-        }
-      },
-      "expected": { "__proto__": "proto", "constructor": "constructor" }
-    },
-    {
-      "description": "omit: preserves own object-special properties",
-      "body": {
-        "$return": {
-          "$call": "omit",
-          "$args": [
-            { "$raw": { "__proto__": "proto", "constructor": "constructor", "drop": true } },
-            ["drop"]
-          ]
-        }
-      },
-      "expected": { "__proto__": "proto", "constructor": "constructor" }
     }
   ]
 }

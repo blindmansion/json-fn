@@ -1,0 +1,12 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "sub",
+  "description": "Subtract the second number from the first.",
+  "cases": [
+    {
+      "description": "rejects a non-finite result",
+      "args": [1e308, -1e308],
+      "outcome": { "throws": { "messageIncludes": "result must be a finite number" } }
+    }
+  ]
+}

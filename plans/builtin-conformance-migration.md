@@ -17,16 +17,16 @@ The baseline is fixed. Do not reduce the candidate count when cases are migrated
 
 ## Current progress
 
-The direct suite contains 258 cases:
+The direct suite contains 327 cases:
 
-- `spec/cases/builtins/arithmetic/floor.json`: 3
-- `spec/cases/builtins/arithmetic/max.json`: 4
+- `spec/cases/builtins/arithmetic/*.json`: 56 across 16 builtin suites
 - `spec/cases/builtins/arrays/*.json`: 106 across 22 builtin suites
 - `spec/cases/builtins/comparison/*.json`: 23 across 6 builtin suites
 - `spec/cases/builtins/coercion/num.json`: 10
 - `spec/cases/builtins/higher-order/*.json`: 54 across 26 builtin suites
 - `spec/cases/builtins/introspection/arity.json`: 10
 - `spec/cases/builtins/logic/*.json`: 14 across 3 builtin suites
+- `spec/cases/builtins/objects/*.json`: 20 across 7 builtin suites
 - `spec/cases/builtins/tasks-effects/*.json`: 28 across 5 builtin suites
 - `spec/cases/builtins/type-checking/isTask.json`: 4
 - `spec/cases/builtins/debugging/tap.json`: 2
@@ -35,11 +35,11 @@ These establish direct coverage, and the corresponding duplicate eval cases have
 
 Migration status:
 
-- Direct builtin cases added: 258
-- Candidate eval cases removed: 230 / 538
-- Candidate eval cases reclassified as integration coverage: 30 / 538
-- Fully migrated source files: 10 / 19
-- Partially covered source files: `numeric.json`
+- Direct builtin cases added: 327
+- Candidate eval cases removed: 296 / 538
+- Candidate eval cases reclassified as integration coverage: 40 / 538
+- Fully migrated source files: 12 / 19
+- Partially covered source files: none
 
 ## Candidate inventory
 
@@ -54,8 +54,8 @@ Migration status:
 | `effects-handle.json`       |        27 of 28 | `handle.json` (20 direct cases)    |                      20 | Fully migrated; 7 integration cases retained |
 | `higher-order-2.json`       |              43 | 8 builtin suites (41 direct cases) |                      36 | Fully migrated; 7 integration cases retained |
 | `indexed-callbacks.json`    |              15 | 22 builtin suites (40 direct cases) |                     11 | Fully migrated; 4 integration cases retained |
-| `numeric.json`              |              55 | `floor.json` (3), `max.json` (4)   |                       7 | Partial direct coverage                      |
-| `object-helpers.json`       |              28 | —                                  |                       0 | Not started                                  |
+| `numeric.json`              |              55 | 16 builtin suites (56 direct cases) |                     53 | Fully migrated; 2 integration cases retained |
+| `object-helpers.json`       |              28 | 7 builtin suites (20 direct cases) |                      20 | Fully migrated; 8 integration cases retained |
 | `objects.json`              |        32 of 34 | —                                  |                       0 | Not started                                  |
 | `regex.json`                |        33 of 35 | —                                  |                       0 | Not started                                  |
 | `search-quantify.json`      |              32 | —                                  |                       0 | Not started                                  |
@@ -64,18 +64,15 @@ Migration status:
 | `string-helpers.json`       |        42 of 43 | —                                  |                       0 | Not started                                  |
 | `tap.json`                  |               5 | `tap.json` (2 direct cases)        |                       4 | Fully migrated; 1 integration case retained  |
 | `type-predicates.json`      |              28 | —                                  |                       0 | Not started                                  |
-| **Total**                   |         **538** | **258 direct cases**               |                 **230** |                                              |
+| **Total**                   |         **538** | **327 direct cases**                |                 **296** |                                              |
 
 ### Direct coverage details
 
 `arity.json` has been fully migrated. Its direct cases cover registered builtins, named and inline language functions, zero and rest parameters, unknown names, and `arity` itself. The direct harness now has a portable named-function fixture for cases that need to add a language function to the registry.
 
-`numeric.json` has direct coverage for these builtin dimensions:
+`numeric.json` has been fully migrated into direct suites for `add`, `sub`, `mul`, `div`, `mod`, `floor`, `ceil`, `round`, `max`, `min`, `sum`, `sqrt`, `pow`, `product`, `argmin`, and `argmax`. The direct cases preserve finite-result validation, division-by-zero behavior, rounding boundaries, array validation and identities, extrema tie-breaking, and empty-array behavior. The joint `floor`/`ceil` bracket and `max`/`min` range cases remain as evaluator integration coverage.
 
-- `floor`: positive decimal, negative decimal, and unchanged integer
-- `max`: largest result, negative/decimal values, empty-array rejection, and non-number rejection
-
-The directly covered `floor` and `max` cases have been removed from the eval suite. The remaining dimensions are zero, a single-element array, and non-array rejection. Joint `floor`/`ceil` and `max`/`min` cases remain as integration coverage.
+`object-helpers.json` has been fully migrated into direct suites for `keys`, `values`, `entries`, `merge`, `hasKey`, `pick`, and `omit`. The direct cases preserve empty and single-entry results, argument validation, own-property checks, and safe handling of `__proto__`, `constructor`, and inherited property names. Eight cases remain as evaluator integration coverage for sorting or counting helper results, composing keys and values with other builtins, and explicitly coercing numeric keys with `str`.
 
 `indexed-callbacks.json` has been fully migrated into paired direct suites for the ordinary and indexed forms of `map`, `filter`, `reduce`, `find`, `findIndex`, `some`, `every`, `count`, `flatMap`, `groupBy`, and `sortBy`. Scripted callback traces directly distinguish unary callbacks from value/index callbacks and accumulator/value callbacks from accumulator/value/index callbacks; the direct cases also preserve short-circuit behavior, stable results, and builtin-local metering. The four callback-arity rejection cases remain as evaluator integration coverage because their errors come from invoking language function declarations with the wrong number of arguments rather than from the builtins themselves.
 

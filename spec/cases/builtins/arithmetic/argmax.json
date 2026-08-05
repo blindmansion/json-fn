@@ -1,0 +1,27 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "argmax",
+  "description": "Return the index of the first largest number.",
+  "cases": [
+    {
+      "description": "returns the first largest index",
+      "args": [[3, 9, 4, 9]],
+      "outcome": { "returns": 1 }
+    },
+    {
+      "description": "supports decimal and negative values",
+      "args": [[-1.5, -3.25, 0]],
+      "outcome": { "returns": 2 }
+    },
+    {
+      "description": "returns null for an empty array",
+      "args": [[]],
+      "outcome": { "returns": null }
+    },
+    {
+      "description": "rejects a non-number element",
+      "args": [[1, "2"]],
+      "outcome": { "throws": { "messageIncludes": "array elements must be numbers" } }
+    }
+  ]
+}

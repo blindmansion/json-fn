@@ -1,0 +1,12 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "entries",
+  "description": "Return an object's key-value pairs.",
+  "cases": [
+    {
+      "description": "rejects an array",
+      "args": [[1, 2]],
+      "outcome": { "throws": { "messageIncludes": "argument must be an object" } }
+    }
+  ]
+}

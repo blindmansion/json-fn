@@ -1,0 +1,27 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "omit",
+  "description": "Return an object excluding selected keys.",
+  "cases": [
+    {
+      "description": "rejects a non-object first argument",
+      "args": [[1, 2], ["0"]],
+      "outcome": { "throws": { "messageIncludes": "first argument must be an object" } }
+    },
+    {
+      "description": "rejects a non-array key list",
+      "args": [{ "a": 1 }, "a"],
+      "outcome": { "throws": { "messageIncludes": "second argument must be an array" } }
+    },
+    {
+      "description": "rejects a non-string key-list member",
+      "args": [{ "1": "one" }, [1]],
+      "outcome": { "throws": { "messageIncludes": "keys must be strings" } }
+    },
+    {
+      "description": "preserves retained own object-special properties",
+      "args": [{ "__proto__": "proto", "constructor": "constructor", "drop": true }, ["drop"]],
+      "outcome": { "returns": { "__proto__": "proto", "constructor": "constructor" } }
+    }
+  ]
+}

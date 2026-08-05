@@ -1,0 +1,37 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "product",
+  "description": "Multiply an array of numbers.",
+  "cases": [
+    {
+      "description": "multiplies integer elements",
+      "args": [[2, 3, 4]],
+      "outcome": { "returns": 24 }
+    },
+    {
+      "description": "multiplies decimal and negative elements",
+      "args": [[1.5, -2, 3]],
+      "outcome": { "returns": -9 }
+    },
+    {
+      "description": "returns one for an empty array",
+      "args": [[]],
+      "outcome": { "returns": 1 }
+    },
+    {
+      "description": "rejects a non-array argument",
+      "args": [42],
+      "outcome": { "throws": { "messageIncludes": "argument must be an array" } }
+    },
+    {
+      "description": "rejects a non-number element",
+      "args": [[2, "3"]],
+      "outcome": { "throws": { "messageIncludes": "array elements must be numbers" } }
+    },
+    {
+      "description": "rejects a non-finite result",
+      "args": [[1e308, 2]],
+      "outcome": { "throws": { "messageIncludes": "result must be a finite number" } }
+    }
+  ]
+}

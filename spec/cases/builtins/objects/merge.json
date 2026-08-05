@@ -1,0 +1,12 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "merge",
+  "description": "Shallowly merge two objects.",
+  "cases": [
+    {
+      "description": "rejects a non-object argument",
+      "args": [{ "a": 1 }, [2]],
+      "outcome": { "throws": { "messageIncludes": "arguments must be objects" } }
+    }
+  ]
+}
