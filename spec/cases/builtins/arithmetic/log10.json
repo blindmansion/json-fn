@@ -1,0 +1,17 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "log10",
+  "description": "Return a number's base-10 logarithm.",
+  "cases": [
+    {
+      "description": "computes a base-10 logarithm",
+      "args": [1000],
+      "outcome": { "returns": 3 }
+    },
+    {
+      "description": "rejects zero",
+      "args": [0],
+      "outcome": { "throws": { "messageIncludes": "result must be a finite number" } }
+    }
+  ]
+}

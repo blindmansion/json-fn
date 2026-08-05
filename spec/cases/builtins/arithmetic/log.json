@@ -1,0 +1,27 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "log",
+  "description": "Return a number's natural logarithm.",
+  "cases": [
+    {
+      "description": "returns zero for one",
+      "args": [1],
+      "outcome": { "returns": 0 }
+    },
+    {
+      "description": "returns one for Euler's number",
+      "args": [2.718281828459045],
+      "outcome": { "returns": 1 }
+    },
+    {
+      "description": "rejects zero",
+      "args": [0],
+      "outcome": { "throws": { "messageIncludes": "result must be a finite number" } }
+    },
+    {
+      "description": "rejects a negative input",
+      "args": [-1],
+      "outcome": { "throws": { "messageIncludes": "result must be a finite number" } }
+    }
+  ]
+}

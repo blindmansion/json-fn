@@ -1,0 +1,22 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "exp",
+  "description": "Raise Euler's number to a power.",
+  "cases": [
+    {
+      "description": "returns one for zero",
+      "args": [0],
+      "outcome": { "returns": 1 }
+    },
+    {
+      "description": "returns Euler's number for one",
+      "args": [1],
+      "outcome": { "returns": 2.718281828459045 }
+    },
+    {
+      "description": "rejects an overflowing result",
+      "args": [1000],
+      "outcome": { "throws": { "messageIncludes": "result must be a finite number" } }
+    }
+  ]
+}

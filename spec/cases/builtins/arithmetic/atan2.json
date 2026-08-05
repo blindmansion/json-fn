@@ -1,0 +1,17 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "atan2",
+  "description": "Return the angle from the positive x-axis to a point.",
+  "cases": [
+    {
+      "description": "returns zero on the positive x-axis",
+      "args": [0, 1],
+      "outcome": { "returns": 0 }
+    },
+    {
+      "description": "returns pi over two on the positive y-axis",
+      "args": [1, 0],
+      "outcome": { "returns": 1.5707963267948966 }
+    }
+  ]
+}

@@ -1,0 +1,122 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "sort",
+  "description": "Return a sorted copy of an array using default ordering or a comparator.",
+  "cases": [
+    {
+      "description": "defaults to ascending numeric order",
+      "args": [[10, -2, 3.5, 3, 1]],
+      "outcome": { "returns": [-2, 1, 3, 3.5, 10] }
+    },
+    {
+      "description": "defaults to Unicode code-point string order",
+      "args": [["😀", "b", "a", ""]],
+      "outcome": { "returns": ["a", "b", "", "😀"] }
+    },
+    {
+      "description": "accepts an empty array with default ordering",
+      "args": [[]],
+      "outcome": { "returns": [] }
+    },
+    {
+      "description": "rejects mixed element types with default ordering",
+      "args": [[1, "2"]],
+      "outcome": {
+        "throws": { "messageIncludes": "requires all elements to be numbers or all strings" }
+      }
+    },
+    {
+      "description": "rejects unsupported element types with default ordering",
+      "args": [[true, false]],
+      "outcome": {
+        "throws": { "messageIncludes": "requires all elements to be numbers or all strings" }
+      }
+    },
+    {
+      "description": "rejects a comparator result that is not a finite number",
+      "args": [
+        {
+          "$callback": {
+            "steps": [{ "args": [1, 2], "outcome": { "returns": "before" } }]
+          }
+        },
+        [2, 1]
+      ],
+      "outcome": { "throws": { "messageIncludes": "comparator must return a finite number" } }
+    },
+    {
+      "description": "sorts numbers in ascending order with a comparator",
+      "args": [
+        {
+          "$function": {
+            "name": "ascending",
+            "body": {
+              "$params": ["a", "b"],
+              "$return": { "$call": "sub", "$args": [{ "$var": "a" }, { "$var": "b" }] }
+            }
+          }
+        },
+        [3, 1, 4, 1, 5, 9, 2, 6]
+      ],
+      "outcome": { "returns": [1, 1, 2, 3, 4, 5, 6, 9] }
+    },
+    {
+      "description": "sorts numbers in descending order with a comparator",
+      "args": [
+        {
+          "$function": {
+            "name": "descending",
+            "body": {
+              "$params": ["a", "b"],
+              "$return": { "$call": "sub", "$args": [{ "$var": "b" }, { "$var": "a" }] }
+            }
+          }
+        },
+        [3, 1, 4, 1, 5]
+      ],
+      "outcome": { "returns": [5, 4, 3, 1, 1] }
+    },
+    {
+      "description": "does not call a comparator for an empty array",
+      "args": [{ "$callback": { "steps": [] } }, []],
+      "outcome": { "returns": [] }
+    },
+    {
+      "description": "does not call a comparator for a single-element array",
+      "args": [{ "$callback": { "steps": [] } }, [42]],
+      "outcome": { "returns": [42] }
+    },
+    {
+      "description": "preserves the order of elements that compare equal",
+      "args": [
+        {
+          "$function": {
+            "name": "byPriority",
+            "body": {
+              "$params": ["a", "b"],
+              "$return": {
+                "$call": "sub",
+                "$args": [
+                  { "$get": "priority", "$from": { "$var": "a" } },
+                  { "$get": "priority", "$from": { "$var": "b" } }
+                ]
+              }
+            }
+          }
+        },
+        [
+          { "name": "first", "priority": 1 },
+          { "name": "second", "priority": 2 },
+          { "name": "third", "priority": 1 }
+        ]
+      ],
+      "outcome": {
+        "returns": [
+          { "name": "first", "priority": 1 },
+          { "name": "third", "priority": 1 },
+          { "name": "second", "priority": 2 }
+        ]
+      }
+    }
+  ]
+}

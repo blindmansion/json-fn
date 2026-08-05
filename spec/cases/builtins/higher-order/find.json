@@ -19,6 +19,52 @@
       ],
       "outcome": { "returns": 3 },
       "observations": { "meter": { "charged": 4 } }
+    },
+    {
+      "description": "returns null when no element matches",
+      "args": [
+        {
+          "$callback": {
+            "steps": [
+              { "args": [1], "outcome": { "returns": false } },
+              { "args": [2], "outcome": { "returns": false } },
+              { "args": [3], "outcome": { "returns": false } }
+            ]
+          }
+        },
+        [1, 2, 3]
+      ],
+      "outcome": { "returns": null }
+    },
+    {
+      "description": "returns null without calling the callback for an empty array",
+      "args": [{ "$callback": { "steps": [] } }, []],
+      "outcome": { "returns": null }
+    },
+    {
+      "description": "returns the first matching object",
+      "args": [
+        {
+          "$callback": {
+            "steps": [
+              {
+                "args": [{ "name": "alice", "age": 25 }],
+                "outcome": { "returns": false }
+              },
+              {
+                "args": [{ "name": "bob", "age": 35 }],
+                "outcome": { "returns": true }
+              }
+            ]
+          }
+        },
+        [
+          { "name": "alice", "age": 25 },
+          { "name": "bob", "age": 35 },
+          { "name": "carol", "age": 28 }
+        ]
+      ],
+      "outcome": { "returns": { "name": "bob", "age": 35 } }
     }
   ]
 }

@@ -17,29 +17,30 @@ The baseline is fixed. Do not reduce the candidate count when cases are migrated
 
 ## Current progress
 
-The direct suite contains 390 cases:
+The direct suite contains 459 cases:
 
-- `spec/cases/builtins/arithmetic/*.json`: 56 across 16 builtin suites
+- `spec/cases/builtins/arithmetic/*.json`: 90 across 27 builtin suites
 - `spec/cases/builtins/arrays/*.json`: 106 across 22 builtin suites
 - `spec/cases/builtins/comparison/*.json`: 23 across 6 builtin suites
 - `spec/cases/builtins/coercion/num.json`: 10
-- `spec/cases/builtins/higher-order/*.json`: 62 across 28 builtin suites
+- `spec/cases/builtins/higher-order/*.json`: 85 across 29 builtin suites
 - `spec/cases/builtins/introspection/arity.json`: 10
 - `spec/cases/builtins/logic/*.json`: 14 across 3 builtin suites
 - `spec/cases/builtins/objects/*.json`: 39 across 8 builtin suites
 - `spec/cases/builtins/regex/*.json`: 29 across 5 builtin suites
+- `spec/cases/builtins/strings/padEnd.json`: 7
 - `spec/cases/builtins/tasks-effects/*.json`: 28 across 5 builtin suites
-- `spec/cases/builtins/type-checking/*.json`: 11 across 2 builtin suites
+- `spec/cases/builtins/type-checking/*.json`: 16 across 3 builtin suites
 - `spec/cases/builtins/debugging/tap.json`: 2
 
 These establish direct coverage, and the corresponding duplicate eval cases have been removed. Direct case counts are not expected to map one-to-one to eval cases: one direct case may replace part of a combined eval case, while direct callback and observation cases may add coverage that did not previously exist.
 
 Migration status:
 
-- Direct builtin cases added: 390
-- Candidate eval cases removed: 359 / 538
-- Candidate eval cases reclassified as integration coverage: 42 / 538
-- Fully migrated source files: 14 / 19
+- Direct builtin cases added: 459
+- Candidate eval cases removed: 425 / 538
+- Candidate eval cases reclassified as integration coverage: 43 / 538
+- Fully migrated source files: 17 / 19
 - Partially covered source files: none
 
 ## Candidate inventory
@@ -59,13 +60,13 @@ Migration status:
 | `object-helpers.json`       |              28 | 7 builtin suites (20 direct cases) |                      20 | Fully migrated; 8 integration cases retained |
 | `objects.json`              |        32 of 34 | 8 builtin suites (30 direct cases) |                      30 | Fully migrated; 2 integration cases retained |
 | `regex.json`                |        33 of 35 | 6 builtin suites (33 direct cases) |                      33 | Fully migrated; 2 excluded cases retained    |
-| `search-quantify.json`      |              32 | —                                  |                       0 | Not started                                  |
-| `smaller-conveniences.json` |              19 | —                                  |                       0 | Not started                                  |
-| `standard-math.json`        |              16 | —                                  |                       0 | Not started                                  |
+| `search-quantify.json`      |              32 | 8 builtin suites (30 direct cases) |                      31 | Fully migrated; 1 integration case retained  |
+| `smaller-conveniences.json` |              19 | 6 builtin suites (30 direct cases) |                      19 | Fully migrated                               |
+| `standard-math.json`        |              16 | 7 builtin suites (16 direct cases) |                      16 | Fully migrated                               |
 | `string-helpers.json`       |        42 of 43 | —                                  |                       0 | Not started                                  |
 | `tap.json`                  |               5 | `tap.json` (2 direct cases)        |                       4 | Fully migrated; 1 integration case retained  |
 | `type-predicates.json`      |              28 | —                                  |                       0 | Not started                                  |
-| **Total**                   |         **538** | **390 direct cases**                |                 **359** |                                              |
+| **Total**                   |         **538** | **459 direct cases**                |                 **425** |                                              |
 
 ### Direct coverage details
 
@@ -78,6 +79,12 @@ Migration status:
 `objects.json` has been fully migrated into direct suites for `entries`, `fromEntries`, `merge`, `hasKey`, `isObject`, `pick`, `omit`, and `mapValues`. The direct cases preserve object-order results, pair and key validation, merge precedence, plain-object recognition, key selection, callback value/key arguments, named-function dispatch, empty-input behavior, and builtin-local metering. The `entries`/`fromEntries` roundtrip and merge-through-binding cases remain as candidate integration coverage. The two entries/filter/map/fromEntries recipes remain as the baseline's excluded pipeline integration cases.
 
 `regex.json` has been fully migrated into direct suites for `reTest`, `reMatch`, `reMatchAll`, `reReplace`, `reSplit`, and `reReplaceWith`. The direct cases preserve inline flags, anchoring, Unicode code-point behavior, numbered and named captures, unmatched optional groups, global matching and replacement, callback match objects, callback result validation, and builtin-local metering. The property-access and match-extraction pipelines remain as the baseline's two excluded evaluator integration cases.
+
+`search-quantify.json` has been fully migrated into direct suites for `find`, `findIndex`, `findIndexIndexed`, `some`, `every`, `count`, `countIndexed`, and `sort`. The direct cases preserve first-match and no-match behavior, empty-array identities, callback arguments and short-circuiting, object results, default numeric and Unicode string ordering, comparator validation, custom ascending and descending ordering, and sort stability. The joint `find`/`findIndex` consistency case remains as evaluator integration coverage.
+
+`smaller-conveniences.json` has been fully migrated into direct suites for `mean`, `clamp`, `trunc`, `sign`, `isInteger`, and `padEnd`. The direct cases preserve mean validation and numerically stable overflow and underflow behavior, inclusive clamping and reversed-bound validation, rounding toward zero, sign classification, integer recognition without coercion, and Unicode-aware right padding. Bundled eval assertions were split into individual direct cases, and no eval cases remain.
+
+`standard-math.json` has been fully migrated into direct suites for `exp`, `log`, `log10`, `sin`, `cos`, `tan`, and `atan2`. The direct cases preserve exact values at standard reference points and finite-result validation for exponential overflow and logarithms outside their finite domain. No eval cases remain.
 
 `indexed-callbacks.json` has been fully migrated into paired direct suites for the ordinary and indexed forms of `map`, `filter`, `reduce`, `find`, `findIndex`, `some`, `every`, `count`, `flatMap`, `groupBy`, and `sortBy`. Scripted callback traces directly distinguish unary callbacks from value/index callbacks and accumulator/value callbacks from accumulator/value/index callbacks; the direct cases also preserve short-circuit behavior, stable results, and builtin-local metering. The four callback-arity rejection cases remain as evaluator integration coverage because their errors come from invoking language function declarations with the wrong number of arguments rather than from the builtins themselves.
 

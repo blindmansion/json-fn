@@ -1,0 +1,32 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "isInteger",
+  "description": "Test whether a value is an integer number.",
+  "cases": [
+    {
+      "description": "returns true for a positive integer",
+      "args": [3],
+      "outcome": { "returns": true }
+    },
+    {
+      "description": "returns true for a negative integer",
+      "args": [-2],
+      "outcome": { "returns": true }
+    },
+    {
+      "description": "returns false for a decimal number",
+      "args": [3.5],
+      "outcome": { "returns": false }
+    },
+    {
+      "description": "returns false for an integer string",
+      "args": ["3"],
+      "outcome": { "returns": false }
+    },
+    {
+      "description": "returns false for null",
+      "args": [null],
+      "outcome": { "returns": false }
+    }
+  ]
+}

@@ -19,6 +19,26 @@
       ],
       "outcome": { "returns": true },
       "observations": { "meter": { "charged": 3 } }
+    },
+    {
+      "description": "short-circuits after the first non-matching element",
+      "args": [
+        {
+          "$callback": {
+            "steps": [
+              { "args": [1], "outcome": { "returns": true } },
+              { "args": [2], "outcome": { "returns": false } }
+            ]
+          }
+        },
+        [1, 2, 3]
+      ],
+      "outcome": { "returns": false }
+    },
+    {
+      "description": "returns true without calling the callback for an empty array",
+      "args": [{ "$callback": { "steps": [] } }, []],
+      "outcome": { "returns": true }
     }
   ]
 }

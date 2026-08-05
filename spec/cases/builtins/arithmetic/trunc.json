@@ -1,0 +1,22 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "trunc",
+  "description": "Discard a number's fractional part toward zero.",
+  "cases": [
+    {
+      "description": "truncates a positive decimal toward zero",
+      "args": [3.9],
+      "outcome": { "returns": 3 }
+    },
+    {
+      "description": "truncates a negative decimal toward zero",
+      "args": [-3.9],
+      "outcome": { "returns": -3 }
+    },
+    {
+      "description": "leaves an integer unchanged",
+      "args": [4],
+      "outcome": { "returns": 4 }
+    }
+  ]
+}
