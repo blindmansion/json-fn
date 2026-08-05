@@ -533,6 +533,28 @@ describe("jfn eval contract modes", () => {
     expect(Object.keys(JSON.parse(result.stdout))).toEqual(["result", "sum", "report"]);
   });
 
+  test("development-evaluates contract-injected example types", () => {
+    const directory = join(examples, "fulfillment");
+    const result = runEval([
+      "--file",
+      join(directory, "fulfillment.jfn"),
+      "--contract",
+      join(directory, "fulfillment.contract.json"),
+      "--function",
+      "testProcess",
+      "--compact",
+    ]);
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(JSON.parse(result.stdout)).toEqual({
+      totals: [81691, 3998],
+      logLines:
+        "ord_1002: sku_widget x8 filled\nord_1002: sku_gizmo shipped 2, backordered 3\nord_1001: sku_widget shipped 2, backordered 2",
+      backorders: 2,
+    });
+  });
+
   test("--function cannot be combined with expression mode", () => {
     const result = runEval(["--expr", "--function", "demo", "1"]);
 

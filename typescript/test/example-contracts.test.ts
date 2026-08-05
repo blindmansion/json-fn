@@ -39,6 +39,7 @@ describe("typed host-contract examples", () => {
     for (const name of [
       "critical-path",
       "dungeon",
+      "fulfillment",
       "orbital-traffic",
       "parcel-sorter",
       "spreadsheet",

@@ -1,0 +1,155 @@
+{
+  "version": 1,
+  "$defs": {
+    "Sku": {
+      "type": "string",
+      "pattern": "^sku_"
+    },
+    "Qty": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "Cents": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "StockLevel": {
+      "type": "object",
+      "required": ["sku", "onHand", "reserved"],
+      "properties": {
+        "sku": { "$ref": "#/$defs/Sku" },
+        "onHand": { "$ref": "#/$defs/Qty" },
+        "reserved": { "$ref": "#/$defs/Qty" }
+      },
+      "additionalProperties": false
+    },
+    "Inventory": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/StockLevel" }
+    },
+    "Line": {
+      "type": "object",
+      "required": ["sku", "qty", "unitPrice"],
+      "properties": {
+        "sku": { "$ref": "#/$defs/Sku" },
+        "qty": { "$ref": "#/$defs/Qty" },
+        "unitPrice": { "$ref": "#/$defs/Cents" }
+      },
+      "additionalProperties": false
+    },
+    "Priority": {
+      "enum": ["overnight", "express", "standard"]
+    },
+    "Order": {
+      "type": "object",
+      "required": ["id", "customer", "priority", "lines"],
+      "properties": {
+        "id": { "type": "string" },
+        "customer": { "type": "string" },
+        "priority": { "$ref": "#/$defs/Priority" },
+        "lines": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Line" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "Allocation": {
+      "anyOf": [
+        {
+          "type": "object",
+          "required": ["tag", "sku", "qty"],
+          "properties": {
+            "tag": { "const": "filled" },
+            "sku": { "$ref": "#/$defs/Sku" },
+            "qty": { "$ref": "#/$defs/Qty" }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["tag", "sku", "shipped", "backordered"],
+          "properties": {
+            "tag": { "const": "partial" },
+            "sku": { "$ref": "#/$defs/Sku" },
+            "shipped": { "$ref": "#/$defs/Qty" },
+            "backordered": { "$ref": "#/$defs/Qty" }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["tag", "sku", "backordered"],
+          "properties": {
+            "tag": { "const": "none" },
+            "sku": { "$ref": "#/$defs/Sku" },
+            "backordered": { "$ref": "#/$defs/Qty" }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Shipment": {
+      "type": "object",
+      "required": ["orderId", "allocations", "subtotal", "discount", "total"],
+      "properties": {
+        "orderId": { "type": "string" },
+        "allocations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Allocation" }
+        },
+        "subtotal": { "$ref": "#/$defs/Cents" },
+        "discount": { "$ref": "#/$defs/Cents" },
+        "total": { "$ref": "#/$defs/Cents" }
+      },
+      "additionalProperties": false
+    },
+    "BatchResult": {
+      "type": "object",
+      "required": ["inventory", "shipments", "log"],
+      "properties": {
+        "inventory": { "$ref": "#/$defs/Inventory" },
+        "shipments": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Shipment" }
+        },
+        "log": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "functions": {},
+  "effects": {
+    "inventory.snapshot": {
+      "params": [],
+      "returns": { "$ref": "#/$defs/Inventory" }
+    },
+    "payments.charge": {
+      "params": [
+        { "type": "string" },
+        { "$ref": "#/$defs/Cents" }
+      ],
+      "returns": { "type": "null" }
+    },
+    "audit.log": {
+      "params": [{ "type": "string" }],
+      "returns": { "type": "null" }
+    }
+  },
+  "entry": {
+    "name": "processBatch",
+    "required": [
+      {
+        "type": "array",
+        "items": { "$ref": "#/$defs/Order" }
+      }
+    ],
+    "optional": [],
+    "returns": {
+      "task": { "$ref": "#/$defs/BatchResult" }
+    }
+  }
+}

@@ -6,7 +6,11 @@
 // and a human-readable log, then (effectfully) snapshot inventory, charge
 // payments, and audit — with a pure mocked test at the bottom via `handle`.
 //
-// Assumed environment effect vocabulary:
+// Run the pure and handled demos through the bundled environment contract:
+//   bun run typescript/src/cli.ts eval --contract examples/fulfillment/fulfillment.contract.json --file examples/fulfillment/fulfillment.jfn --function demoRun
+//   bun run typescript/src/cli.ts eval --contract examples/fulfillment/fulfillment.contract.json --file examples/fulfillment/fulfillment.jfn --function testProcess
+//
+// Environment effect vocabulary:
 //   effects.inventory.snapshot() -> Task<Inventory>
 //   effects.payments.charge(orderId: string, amount: Cents) -> Task<null>
 //   effects.audit.log(msg: string) -> Task<null>
