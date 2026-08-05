@@ -1,0 +1,29 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "bind",
+  "description": "Build a task sequencing an existing task into a continuation.",
+  "cases": [
+    {
+      "description": "nests a continuation function",
+      "args": [
+        { "@task": "pure", "value": 1 },
+        { "$params": ["x"], "$return": { "$call": "pure", "$args": [{ "$var": "x" }] } }
+      ],
+      "outcome": {
+        "returns": {
+          "@task": "bind",
+          "task": { "@task": "pure", "value": 1 },
+          "then": {
+            "$params": ["x"],
+            "$return": { "$call": "pure", "$args": [{ "$var": "x" }] }
+          }
+        }
+      }
+    },
+    {
+      "description": "requires a function continuation",
+      "args": [{ "@task": "pure", "value": 1 }, 5],
+      "outcome": { "throws": { "messageIncludes": "second argument must be a function" } }
+    }
+  ]
+}

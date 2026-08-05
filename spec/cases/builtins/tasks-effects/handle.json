@@ -1,0 +1,270 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "handle",
+  "description": "Interpret task nodes with named, wildcard, return, and result-contract handlers.",
+  "cases": [
+    {
+      "description": "returns the value of a pure task",
+      "args": [{ "@task": "pure", "value": 5 }, {}],
+      "outcome": { "returns": 5 },
+      "observations": { "meter": { "charged": 1 } }
+    },
+    {
+      "description": "feeds a handled effect result through resume",
+      "args": [
+        { "@task": "effect", "name": "ask", "args": [] },
+        {
+          "ask": {
+            "$params": ["resume"],
+            "$return": { "$call": { "$var": "resume" }, "$args": [10] }
+          }
+        }
+      ],
+      "outcome": { "returns": 10 }
+    },
+    {
+      "description": "spreads effect arguments before resume",
+      "args": [
+        { "@task": "effect", "name": "add1", "args": [5] },
+        {
+          "add1": {
+            "$params": ["x", "resume"],
+            "$return": {
+              "$call": { "$var": "resume" },
+              "$args": [{ "$call": "add", "$args": [{ "$var": "x" }, 1] }]
+            }
+          }
+        }
+      ],
+      "outcome": { "returns": 6 }
+    },
+    {
+      "description": "sequences chained effects through bind continuations",
+      "args": [
+        {
+          "@task": "bind",
+          "task": { "@task": "effect", "name": "io.readLine", "args": [] },
+          "then": {
+            "$params": ["name"],
+            "$return": {
+              "$call": "bind",
+              "$args": [
+                {
+                  "$call": "perform",
+                  "$args": ["io.print", [{ "$var": "name" }]]
+                },
+                {
+                  "$params": ["_"],
+                  "$return": { "$call": "pure", "$args": [{ "$var": "name" }] }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "io.readLine": {
+            "$params": ["resume"],
+            "$return": { "$call": { "$var": "resume" }, "$args": ["world"] }
+          },
+          "io.print": {
+            "$params": ["msg", "resume"],
+            "$return": { "$call": { "$var": "resume" }, "$args": [null] }
+          }
+        }
+      ],
+      "outcome": { "returns": "world" }
+    },
+    {
+      "description": "applies a return clause to a completed value",
+      "args": [
+        { "@task": "pure", "value": 5 },
+        {
+          "return": {
+            "$params": ["value"],
+            "$return": { "$call": "mul", "$args": [{ "$var": "value" }, 2] }
+          }
+        }
+      ],
+      "outcome": { "returns": 10 }
+    },
+    {
+      "description": "does not reinterpret a task returned by a return clause",
+      "args": [
+        { "@task": "pure", "value": 3 },
+        {
+          "return": {
+            "$params": ["value"],
+            "$return": { "$call": "perform", "$args": ["e", [{ "$var": "value" }]] }
+          }
+        }
+      ],
+      "outcome": {
+        "returns": { "@task": "effect", "name": "e", "args": [3] }
+      }
+    },
+    {
+      "description": "allows a clause to short-circuit without resume",
+      "args": [
+        { "@task": "effect", "name": "fail", "args": [] },
+        { "fail": { "$params": ["resume"], "$return": "early" } }
+      ],
+      "outcome": { "returns": "early" }
+    },
+    {
+      "description": "dispatches the distinguished raise effect",
+      "args": [
+        {
+          "@task": "effect",
+          "name": "raise",
+          "args": [{ "tag": "NotFound" }]
+        },
+        {
+          "raise": {
+            "$params": ["error", "resume"],
+            "$return": { "$get": "tag", "$from": { "$var": "error" } }
+          }
+        }
+      ],
+      "outcome": { "returns": "NotFound" }
+    },
+    {
+      "description": "passes an effect descriptor to a wildcard clause",
+      "args": [
+        { "@task": "effect", "name": "trace", "args": [1, 2, 3] },
+        {
+          "*": {
+            "$params": ["effect", "resume"],
+            "$return": { "$get": "args", "$from": { "$var": "effect" } }
+          }
+        }
+      ],
+      "outcome": { "returns": [1, 2, 3] }
+    },
+    {
+      "description": "supports multi-shot resume",
+      "args": [
+        {
+          "@task": "effect",
+          "name": "choose",
+          "args": [[1, 2, 3]]
+        },
+        {
+          "choose": {
+            "$params": ["values", "resume"],
+            "$return": {
+              "$call": "flatMap",
+              "$args": [
+                {
+                  "$params": ["value"],
+                  "$return": {
+                    "$call": { "$var": "resume" },
+                    "$args": [{ "$var": "value" }]
+                  }
+                },
+                { "$var": "values" }
+              ]
+            }
+          },
+          "return": {
+            "$params": ["value"],
+            "$return": [{ "$var": "value" }]
+          }
+        }
+      ],
+      "outcome": { "returns": [1, 2, 3] }
+    },
+    {
+      "description": "validates a matching annotated result",
+      "args": [
+        { "@task": "effect", "name": "ask", "args": [] },
+        {
+          "ask": {
+            "$params": ["resume"],
+            "$return": { "$call": { "$var": "resume" }, "$args": [10] }
+          }
+        },
+        { "type": "integer" }
+      ],
+      "outcome": { "returns": 10 }
+    },
+    {
+      "description": "allows a wildcard clause to make an annotated handle total",
+      "args": [
+        { "@task": "effect", "name": "unknown", "args": [1] },
+        {
+          "*": {
+            "$params": ["effect", "resume"],
+            "$return": { "$get": "name", "$from": { "$var": "effect" } }
+          }
+        },
+        { "type": "string" }
+      ],
+      "outcome": { "returns": "unknown" }
+    },
+    {
+      "description": "validates an annotated return-clause transformation",
+      "args": [
+        { "@task": "pure", "value": 5 },
+        {
+          "return": {
+            "$params": ["value"],
+            "$return": { "$call": "str", "$args": [{ "$var": "value" }] }
+          }
+        },
+        { "type": "string" }
+      ],
+      "outcome": { "returns": "5" }
+    },
+    {
+      "description": "rejects an unmatched effect in annotated mode",
+      "args": [{ "@task": "effect", "name": "missing", "args": [] }, {}, { "type": "string" }],
+      "outcome": { "throws": { "messageIncludes": "unmatched effect \"missing\"" } }
+    },
+    {
+      "description": "rejects a result outside its annotation",
+      "args": [{ "@task": "pure", "value": "wrong" }, {}, { "type": "integer" }],
+      "outcome": { "throws": { "messageIncludes": "handle result contract failed" } }
+    },
+    {
+      "description": "accepts a zero-parameter continuation that discards its value",
+      "args": [
+        {
+          "@task": "bind",
+          "task": { "@task": "pure", "value": 1 },
+          "then": {
+            "$return": { "$call": "pure", "$args": ["ok"] }
+          }
+        },
+        {}
+      ],
+      "outcome": { "returns": "ok" }
+    },
+    {
+      "description": "rejects a forged bind task with a non-function continuation",
+      "args": [
+        {
+          "@task": "bind",
+          "task": { "@task": "pure", "value": 1 },
+          "then": 5
+        },
+        {}
+      ],
+      "outcome": { "throws": { "messageIncludes": "bind `then` must be a function" } }
+    },
+    {
+      "description": "rejects a forged effect task with a non-string name",
+      "args": [{ "@task": "effect", "name": 5, "args": [] }, {}],
+      "outcome": { "throws": { "messageIncludes": "effect `name` must be a string" } }
+    },
+    {
+      "description": "rejects a forged effect task with non-array arguments",
+      "args": [{ "@task": "effect", "name": "e", "args": 7 }, {}],
+      "outcome": { "throws": { "messageIncludes": "effect `args` must be an array" } }
+    },
+    {
+      "description": "rejects a non-task value",
+      "args": [5, {}],
+      "outcome": { "throws": { "messageIncludes": "Task expected" } }
+    }
+  ]
+}

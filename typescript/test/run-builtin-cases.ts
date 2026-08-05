@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { basename, dirname, join, relative, sep } from "path";
 import { readdirSync, readFileSync } from "fs";
-import { createStdlib, loadBuiltinTable } from "../src";
-import type { FunctionRegistry, JSONType, Meter } from "../src";
+import { callFunction, createStdlib, loadBuiltinTable } from "../src";
+import type { FunctionDeclaration, FunctionRegistry, JSONType, Meter } from "../src";
 import { isBuiltin, isMeteredPure, isPure } from "../src/utils";
 
 type ReturnOutcome = { returns: JSONType };
@@ -151,6 +151,10 @@ class DirectBuiltinHarness {
 
       const builtinName = this.builtinReferences.get(fn);
       if (builtinName !== undefined) return this.invoke(builtinName, args);
+
+      if ("$return" in fn) {
+        return callFunction(fn as FunctionDeclaration, args, this.functions);
+      }
     }
     throw new Error("Builtin attempted to call an unknown callback fixture");
   };
