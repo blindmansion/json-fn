@@ -14,7 +14,6 @@
  * stdlib transforms, environment/namespace construction, registries, codecs)
  * must use these helpers or an equivalent own-property operation
  * (`Object.hasOwn`, `Object.fromEntries`, spread, `Object.create(null)`).
- * See plans/runtime-representation-gaps.md §1.
  */
 
 /** Set `key` on `target` as an own enumerable writable data property. */

@@ -1,6 +1,5 @@
 /**
- * Portable structural-depth limit (see `docs/runtime/execution-limits.md` and
- * `plans/runtime-representation-gaps.md` section 2).
+ * Portable structural-depth limit.
  *
  * One counting rule is shared by every traversal: the structural depth of a
  * JSON tree is the number of nested container (array/object) levels along its
