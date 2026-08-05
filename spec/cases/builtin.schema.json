@@ -1,0 +1,170 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "json-fn direct builtin conformance suite",
+  "description": "Documents portable cases that invoke a builtin directly through an implementation-owned conformance adapter.",
+  "type": "object",
+  "required": ["$schema", "builtin", "description", "cases"],
+  "properties": {
+    "$schema": { "const": "../../builtin.schema.json" },
+    "builtin": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The builtin under test. Must match the file name and builtin registry."
+    },
+    "description": { "type": "string", "minLength": 1 },
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/case" }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "case": {
+      "type": "object",
+      "required": ["description", "args", "outcome"],
+      "properties": {
+        "description": { "type": "string", "minLength": 1 },
+        "comment": { "type": "string" },
+        "args": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/input" }
+        },
+        "outcome": { "$ref": "#/$defs/outcome" },
+        "observations": { "$ref": "#/$defs/observations" }
+      },
+      "additionalProperties": false
+    },
+    "input": {
+      "oneOf": [
+        { "$ref": "#/$defs/callbackInput" },
+        { "$ref": "#/$defs/builtinInput" },
+        { "$ref": "#/$defs/literalInput" },
+        {
+          "description": "An ordinary JSON argument without a reserved fixture key.",
+          "not": {
+            "allOf": [
+              { "type": "object" },
+              {
+                "anyOf": [
+                  { "required": ["$callback"] },
+                  { "required": ["$builtin"] },
+                  { "required": ["$literal"] }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "callbackInput": {
+      "type": "object",
+      "required": ["$callback"],
+      "properties": {
+        "$callback": {
+          "type": "object",
+          "required": ["steps"],
+          "properties": {
+            "steps": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/callbackStep" }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "builtinInput": {
+      "type": "object",
+      "required": ["$builtin"],
+      "properties": {
+        "$builtin": {
+          "type": "string",
+          "minLength": 1,
+          "description": "A builtin exposed as a callback value."
+        }
+      },
+      "additionalProperties": false
+    },
+    "literalInput": {
+      "type": "object",
+      "required": ["$literal"],
+      "properties": {
+        "$literal": {
+          "description": "A literal JSON argument whose object shape would otherwise be interpreted as a fixture."
+        }
+      },
+      "additionalProperties": false
+    },
+    "callbackStep": {
+      "type": "object",
+      "required": ["args", "outcome"],
+      "properties": {
+        "args": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/jsonValue" }
+        },
+        "outcome": { "$ref": "#/$defs/outcome" }
+      },
+      "additionalProperties": false
+    },
+    "outcome": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["returns"],
+          "properties": {
+            "returns": { "$ref": "#/$defs/jsonValue" }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["throws"],
+          "properties": {
+            "throws": {
+              "type": "object",
+              "required": ["messageIncludes"],
+              "properties": {
+                "messageIncludes": { "type": "string", "minLength": 1 }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "observations": {
+      "type": "object",
+      "properties": {
+        "logs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["value"],
+            "properties": {
+              "value": { "$ref": "#/$defs/jsonValue" },
+              "label": { "type": "string" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "meter": {
+          "type": "object",
+          "properties": {
+            "charged": { "type": "integer", "minimum": 0 },
+            "guardedSizes": {
+              "type": "array",
+              "items": { "type": "integer", "minimum": 0 }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "jsonValue": { "description": "Any JSON value." }
+  }
+}
