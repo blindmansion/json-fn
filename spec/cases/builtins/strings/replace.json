@@ -1,0 +1,33 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "replace",
+  "description": "Replace all literal, non-overlapping occurrences of a search string.",
+  "cases": [
+    {
+      "description": "replaces every literal occurrence",
+      "args": ["banana", "an", "X"],
+      "outcome": { "returns": "bXXa" },
+      "observations": { "meter": { "charged": 6 } }
+    },
+    {
+      "description": "treats the search string literally",
+      "args": ["a.b.a", ".", "-"],
+      "outcome": { "returns": "a-b-a" }
+    },
+    {
+      "description": "leaves a string without matches unchanged",
+      "args": ["json-fn", "xml", "yaml"],
+      "outcome": { "returns": "json-fn" }
+    },
+    {
+      "description": "supports an empty replacement",
+      "args": ["a-b-c", "-", ""],
+      "outcome": { "returns": "abc" }
+    },
+    {
+      "description": "rejects an empty search string",
+      "args": ["abc", "", "-"],
+      "outcome": { "throws": { "messageIncludes": "search string must not be empty" } }
+    }
+  ]
+}

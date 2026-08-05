@@ -1,0 +1,34 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "padStart",
+  "description": "Left-pad a string to a Unicode code-point length.",
+  "cases": [
+    {
+      "description": "pads with an explicit fill string",
+      "args": ["7", 3, "0"],
+      "outcome": { "returns": "007" }
+    },
+    {
+      "description": "defaults to a space fill",
+      "args": ["x", 3],
+      "outcome": { "returns": "  x" }
+    },
+    {
+      "description": "truncates a multi-character fill",
+      "args": ["x", 4, "ab"],
+      "outcome": { "returns": "abax" }
+    },
+    {
+      "description": "measures Unicode code points",
+      "args": ["🙂", 3, "ab"],
+      "outcome": { "returns": "ab🙂" }
+    },
+    {
+      "description": "rejects a negative target length",
+      "args": ["x", -1],
+      "outcome": {
+        "throws": { "messageIncludes": "target length must be a non-negative integer" }
+      }
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "startsWith",
+  "description": "Test whether a string starts with a prefix.",
+  "cases": [
+    {
+      "description": "identifies a matching prefix",
+      "args": ["json-fn", "json"],
+      "outcome": { "returns": true },
+      "observations": { "meter": { "charged": 4 } }
+    },
+    {
+      "description": "rejects a non-prefix substring",
+      "args": ["json-fn", "fn"],
+      "outcome": { "returns": false }
+    },
+    {
+      "description": "accepts the empty prefix",
+      "args": ["json-fn", ""],
+      "outcome": { "returns": true }
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "lower",
+  "description": "Convert a string to lowercase.",
+  "cases": [
+    {
+      "description": "converts uppercase letters",
+      "args": ["JSON-Fn"],
+      "outcome": { "returns": "json-fn" }
+    },
+    {
+      "description": "leaves an already lowercase string unchanged",
+      "args": ["already lowercase"],
+      "outcome": { "returns": "already lowercase" }
+    }
+  ]
+}

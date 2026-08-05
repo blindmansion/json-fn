@@ -1,0 +1,18 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "split",
+  "description": "Split a string on a separator.",
+  "cases": [
+    {
+      "description": "splits a string on a non-empty separator",
+      "args": ["hello world foo", " "],
+      "outcome": { "returns": ["hello", "world", "foo"] }
+    },
+    {
+      "description": "splits on Unicode code points for an empty separator",
+      "args": ["a😀b", ""],
+      "outcome": { "returns": ["a", "😀", "b"] },
+      "observations": { "meter": { "charged": 3 } }
+    }
+  ]
+}
