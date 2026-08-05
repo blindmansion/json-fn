@@ -31,6 +31,16 @@
       }
     },
     {
+      "description": "a parenthesized cond guard is not parsed as a typed lambda",
+      "source": "cond { (a > b): a, else: b }",
+      "expected": {
+        "$cond": [
+          [{ "$call": "gt", "$args": [{ "$var": "a" }, { "$var": "b" }] }, { "$var": "a" }]
+        ],
+        "$else": { "$var": "b" }
+      }
+    },
+    {
       "description": "match form",
       "source": "match cmd {\n  \"show\":  showResult(state),\n  \"reset\": resetResult(),\n  else:     moveResult(state, argv)\n}",
       "expected": {

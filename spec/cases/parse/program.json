@@ -4,6 +4,16 @@
   "mode": "module",
   "cases": [
     {
+      "description": "module source is implicit without an outer object wrapper",
+      "source": "main: () => 42",
+      "expected": { "main": { "$return": 42 } }
+    },
+    {
+      "description": "an outer object wrapper is rejected in module mode",
+      "source": "{ main: () => 42 }",
+      "error": "expected data-object key, found 'lbrace'"
+    },
+    {
       "description": "registry object of named functions",
       "source": "otherColor: (color) => if color == \"w\" then \"b\" else \"w\"\npieceType:  (piece) => upper(piece)",
       "expected": {

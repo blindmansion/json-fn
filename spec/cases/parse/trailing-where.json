@@ -197,6 +197,11 @@
       "error": "duplicate 'where' binding \"x\""
     },
     {
+      "description": "an empty where block is rejected",
+      "source": "value where {}",
+      "error": "empty 'where' block: at least one binding is required"
+    },
+    {
       "description": "a nested where scope may shadow an outer binding",
       "source": "(x where { x: 2 }) where { x: 1 }",
       "expected": { "$let": { "x": 1 }, "$in": { "$let": { "x": 2 }, "$in": { "$var": "x" } } }

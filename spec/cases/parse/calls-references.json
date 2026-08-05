@@ -40,6 +40,52 @@
       "expected": { "$fn": { "$var": "expr" } }
     },
     {
+      "description": "empty array-literal function reference operand is rejected",
+      "source": "&([])",
+      "error": "function references cannot contain array literals; use a call expression instead"
+    },
+    {
+      "description": "array-literal function reference operand is rejected",
+      "source": "&([1, 2])",
+      "error": "function references cannot contain array literals; use a call expression instead"
+    },
+    {
+      "description": "dynamic array-literal function reference operand is rejected",
+      "source": "&([&upper, value + 1])",
+      "error": "function references cannot contain array literals; use a call expression instead"
+    },
+    {
+      "description": "spread array-literal function reference operand is rejected",
+      "source": "&([...candidates])",
+      "error": "function references cannot contain array literals; use a call expression instead"
+    },
+    {
+      "description": "parenthesized spread array-literal function reference operand is rejected",
+      "source": "&(([...left, ...right]))",
+      "error": "function references cannot contain array literals; use a call expression instead"
+    },
+    {
+      "description": "dynamic conditional function-reference operand is retained",
+      "source": "&(if enabled then primary else fallback)",
+      "expected": {
+        "$fn": {
+          "$if": { "$var": "enabled" },
+          "$then": { "$var": "primary" },
+          "$else": { "$var": "fallback" }
+        }
+      }
+    },
+    {
+      "description": "indexed expression may select a function-reference value from an array",
+      "source": "&([primary, fallback][index])",
+      "expected": {
+        "$fn": {
+          "$get": { "$var": "index" },
+          "$from": [{ "$var": "primary" }, { "$var": "fallback" }]
+        }
+      }
+    },
+    {
       "description": "method call: access chain in call position is a call on the evaluated callee",
       "source": "caps.db.query(sql)",
       "expected": {
