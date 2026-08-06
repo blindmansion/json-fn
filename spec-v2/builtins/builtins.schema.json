@@ -50,6 +50,9 @@
           "minLength": 1,
           "description": "Documentation category."
         },
+        "metering": {
+          "$ref": "#/$defs/metering"
+        },
         "signatures": {
           "type": "array",
           "minItems": 1,
@@ -62,6 +65,35 @@
           "type": "string",
           "description": "An implementation-owned precision rule.",
           "pattern": "^[A-Za-z][A-Za-z0-9_-]*(\\.[A-Za-z][A-Za-z0-9_-]*)+$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "metering": {
+      "type": "object",
+      "required": ["base", "sized"],
+      "description": "Fuel declaration for the builtin-call event: a base constant plus the top-level lengths of the size-metered argument positions.",
+      "properties": {
+        "base": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Base fuel constant charged by every call."
+        },
+        "sized": {
+          "type": "array",
+          "uniqueItems": true,
+          "description": "Size-metered argument positions. An integer indexes the concatenated required and optional parameters; \"rest\" meters every variadic-tail argument.",
+          "items": {
+            "oneOf": [
+              {
+                "type": "integer",
+                "minimum": 0
+              },
+              {
+                "const": "rest"
+              }
+            ]
+          }
         }
       },
       "additionalProperties": false

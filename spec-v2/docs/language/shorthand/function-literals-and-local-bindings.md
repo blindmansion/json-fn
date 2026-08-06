@@ -74,8 +74,9 @@ answer where { answer: 40 + 2 }
 
 The canonical `$let` object has exactly `$let` and `$in`, and its binding map
 must be non-empty. A `$let` is an expression scope, not a function call, so
-entering it consumes no call frame or function-invocation fuel. Expression fuel
-still applies to the `$let` and to each binding that is forced.
+entering it is not an invocation event and consumes no call frame. The `$let`
+counts in its containing region's static cost constant, and each binding
+expression is its own region, charged when the binding is first forced.
 
 Canonical rendering writes `$let` as `<in> where { ...bindings }`, including
 when it occurs directly under a function's `$return`.

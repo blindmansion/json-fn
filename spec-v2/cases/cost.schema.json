@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "json-fn cost vector suite",
+  "description": "Documents the cost vector format consumed from spec/cases/cost. Static vectors pin the region constants that the static cost function derives from a canonical program; fuel vectors pin the deterministic consumed-fuel total of an evaluation or its exhaustion under maxFuel.",
+  "type": "object",
+  "required": ["description", "cases"],
+  "properties": {
+    "description": { "type": "string", "description": "A description of the vector suite." },
+    "comment": { "type": "string", "description": "Optional documentation about the suite." },
+    "cases": {
+      "type": "array",
+      "description": "The cost vectors in this suite.",
+      "items": { "$ref": "#/$defs/case" }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "case": { "oneOf": [{ "$ref": "#/$defs/staticCase" }, { "$ref": "#/$defs/fuelCase" }] },
+    "staticCase": {
+      "type": "object",
+      "required": ["description", "program", "regions"],
+      "properties": {
+        "description": { "type": "string", "description": "A description used as the test name." },
+        "comment": { "type": "string", "description": "Optional documentation about the case." },
+        "program": {
+          "$ref": "#/$defs/jsonValue",
+          "description": "The canonical json-fn program to analyze."
+        },
+        "regions": {
+          "type": "array",
+          "description": "Every straight-line region of the program with its static constant.",
+          "items": { "$ref": "#/$defs/region" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "region": {
+      "type": "object",
+      "required": ["at", "constant"],
+      "properties": {
+        "at": {
+          "type": "string",
+          "description": "JSON Pointer to the region's entry node in the canonical program. The empty pointer is the program's entry region."
+        },
+        "constant": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "The region's static cost constant."
+        }
+      },
+      "additionalProperties": false
+    },
+    "fuelCase": {
+      "type": "object",
+      "required": ["description", "program", "args"],
+      "properties": {
+        "description": { "type": "string", "description": "A description used as the test name." },
+        "comment": {
+          "type": "string",
+          "description": "Optional documentation about the case, conventionally the event-by-event charge derivation."
+        },
+        "program": {
+          "$ref": "#/$defs/jsonValue",
+          "description": "The canonical json-fn function to evaluate and apply."
+        },
+        "args": {
+          "type": "array",
+          "description": "Arguments the function is applied to.",
+          "items": { "$ref": "#/$defs/jsonValue" }
+        },
+        "consumedFuel": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "The exact deterministic fuel consumed by the evaluation. Mutually exclusive with maxFuel and error."
+        },
+        "maxFuel": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "A finite fuel budget the evaluation exhausts. Paired with error."
+        },
+        "error": {
+          "type": "string",
+          "description": "A substring expected in the exhaustion error. Paired with maxFuel."
+        }
+      },
+      "oneOf": [
+        { "required": ["consumedFuel"], "not": { "required": ["maxFuel", "error"] } },
+        { "required": ["maxFuel", "error"], "not": { "required": ["consumedFuel"] } }
+      ],
+      "additionalProperties": false
+    },
+    "jsonValue": { "description": "Any JSON value." }
+  }
+}

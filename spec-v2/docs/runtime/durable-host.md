@@ -158,8 +158,7 @@ Terminal failures use these codes:
   their contract.
 - `"unknown-effect"`: an effect is absent from the contract or durable profile.
 - `"malformed-task"`: the task cannot be stepped.
-- `"limit"`: fuel, call depth, value size, structural depth, or evaluation
-  nesting is exhausted.
+- `"limit"`: fuel, call depth, value size, or structural depth is exhausted.
 - `"host"`: an inline effect or direct host function throws or rejects.
 - `"external"`: external work reports failure for a suspended effect.
 

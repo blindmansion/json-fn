@@ -6,20 +6,23 @@ for the settled items is in [`review.md`](review.md).
 
 ## Decisions blocking plan stages
 
-- **D1 — string length unit** (blocks Stage 1's size table). Code points vs
-  UTF-16 code units as the unit for string sizes in the builtin cost table.
-  Interacts with the open Unicode metering work in
-  `plans/runtime-representation-gaps.md`; whichever is chosen must be stated
-  in the same stage as the cost law or string-builtin fuel diverges across
-  implementations.
-- **D2 — materialization event encoding** (Stage 1). The rule is settled
-  (constructed values charge at their creation event); still open is whether
-  those charges appear in the trace as a distinct event kind or fold into
-  the containing region's static constant. Decide with the capture record as
-  the named vector.
-- **D3 — the evaluation-nesting limit** (Stage 1/2 boundary). Whether the
-  4,096 nesting limit survives under strict bindings and event-granularity
-  checks, or collapses into `maxCallDepth` plus structural depth.
+None open. The three Stage 1 decisions were resolved 2026-08-06 and are
+stated in the Stage 1 spec text:
+
+- **D1 — string length unit: resolved, Unicode code points.** Stated once in
+  the measures section of `spec-v2/docs/runtime/execution-limits.md`;
+  consistent with `maxValueSize` and string indexing. The Unicode metering
+  work in `plans/runtime-representation-gaps.md` must hold this unit.
+- **D2 — materialization event encoding: resolved, fold static
+  materializations into region constants.** Data literals and `$raw`
+  payloads count in the containing region's static constant; the
+  value-production event covers only dynamically sized builtin/host
+  products. The capture record (Stage 2) remains the named conformance
+  vector for the materialization rule.
+- **D3 — the evaluation-nesting limit: resolved, dropped.** Its counting
+  rule was defined in terms of per-node charging, which the event-trace
+  model deletes; `maxCallDepth` plus the fixed structural depth of 512
+  remain.
 
 ## Design work not yet proposal-ready
 
@@ -75,17 +78,17 @@ for the settled items is in [`review.md`](review.md).
   unforgeable ref representation, `ValueHash`-only equality evidence,
   `maxValueSize` boundary audit, transitive purity for memoization,
   builtin/validator forcing-depth audit. All unchanged; the fuel-leak
-  blocker dissolves under Stage 1 (see bookkeeping below).
+  blocker dissolved with Stage 1 (2026-08-06).
 - **Checker-conformance migration**
   (`plans/checker-conformance-migration.md`): run after Stage 3, or priced
   with suite regeneration as part of it.
 
 ## Bookkeeping and cross-plan updates
 
-- Update [`do-target.md`](do-target.md) after Stage 1: its follow-up B
-  blocker list and fuel invariants were written against the pre-event-trace
-  model; the "portable fuel must not leak chunk thresholds or cache warmth"
-  blocker is dissolved by the adopted cost definition.
+- Done (2026-08-06): [`do-target.md`](do-target.md) updated after Stage 1 —
+  its follow-up B blocker list and fuel invariants now reflect the
+  event-trace model, with the "portable fuel must not leak chunk thresholds
+  or cache warmth" blocker recorded as dissolved.
 - Add the dependency note to
   `plans/content-addressing/lazy-refs-and-cas-runtime.md`: partial hydration
   composes with capture records (one lazy ref per record entry), which is

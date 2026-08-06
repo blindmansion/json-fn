@@ -66,28 +66,6 @@
       },
       "limits": { "maxCallDepth": 600 },
       "error": "Maximum structural depth of 512 exceeded"
-    },
-    {
-      "description": "recursion past the evaluation-nesting cap fails deterministically",
-      "body": { "$return": { "$call": "go", "$args": [4000, 0] } },
-      "functions": {
-        "go": {
-          "$params": ["n", "acc"],
-          "$return": {
-            "$if": { "$call": "lte", "$args": [{ "$var": "n" }, 0] },
-            "$then": { "$var": "acc" },
-            "$else": {
-              "$call": "go",
-              "$args": [
-                { "$call": "sub", "$args": [{ "$var": "n" }, 1] },
-                { "$call": "add", "$args": [{ "$var": "acc" }, { "$var": "n" }] }
-              ]
-            }
-          }
-        }
-      },
-      "limits": { "maxCallDepth": 4200 },
-      "error": "Maximum evaluation nesting of 4096 exceeded"
     }
   ]
 }

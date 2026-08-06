@@ -113,8 +113,8 @@ An unhandled intrinsic `raise` fails live task execution or records a durable
 - `maxValueSize`.
 
 Each value is a non-negative integer. These limits are part of portable
-deployment policy. Cancellation, timeout, performance, and usage collection
-are host-local controls and do not belong in the profile.
+deployment policy. Cancellation, timeout, total allocation, performance, and
+usage collection are host-local controls and do not belong in the profile.
 
 Each live run starts with fresh limits. In durable mode, limits restart for
 each start, recovery, and delivery invocation. Accumulated fuel usage is

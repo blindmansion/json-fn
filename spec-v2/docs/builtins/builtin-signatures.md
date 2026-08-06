@@ -25,6 +25,7 @@ type-variable scope and use.
     "name": {
       "description": "optional builtin description",
       "category": "optional catalog category",
+      "metering": { "base": 1, "sized": [0] },
       "signatures": [
         {
           "typeParams": ["T"],
@@ -45,6 +46,7 @@ type-variable scope and use.
   `{"$ref": "#/$defs/Name"}`.
 - `$schema` associates the registry with its colocated JSON Schema.
 - `builtins` maps each builtin name to one or more signatures.
+- `metering` declares the builtin's fuel charge; see [Metering](#metering).
 - `rule` names an additional type rule.
 
 Registry, contract, and module definitions share one namespace during checking.
@@ -53,8 +55,9 @@ Duplicate names across those sources are invalid.
 The root, builtin entries, signatures, and schema nodes are closed structures:
 unknown fields are invalid. `builtins` is required. Builtin names are
 non-empty. Builtin descriptions and categories, when present, are non-empty.
-Every builtin has at least one signature. References must resolve within
-`$defs`, and rule names have at least two dot-separated identifier segments.
+Every builtin has at least one signature and one metering declaration.
+References must resolve within `$defs`, and rule names have at least two
+dot-separated identifier segments.
 
 ## Signatures
 
@@ -138,6 +141,38 @@ broader input than the builtin supplies, but not a narrower one.
 The ordinary array higher-order builtins use item-only callbacks.
 Their `*Indexed` forms append an integer index. `reduce` uses
 `(accumulator, item)` and `reduceIndexed` appends the index.
+
+## Metering
+
+Each builtin entry carries a `metering` declaration, the builtin's row in the
+cost law's size table:
+
+```json
+"metering": { "base": 1, "sized": [0, 1] }
+```
+
+- `base` is the constant charged by every call of the builtin.
+- `sized` lists the size-metered argument positions. An integer indexes the
+  concatenated required and optional parameters; `"rest"` meters every
+  argument bound to the variadic tail.
+
+A builtin-call event charges `base` plus the top-level length of the runtime
+argument at each size-metered position: an array's item count, a string's
+Unicode code-point count, or an object's property count. Any other value at a
+size-metered position measures 1, and a position beyond the call's arity
+contributes nothing.
+
+Declarations are deliberately coarse: top-level lengths only, floors rather
+than measurements. A charge is a termination floor, never a model of the
+builtin's real complexity, and accuracy is a non-goal. Callback costs are not
+declared here; each callback invocation charges its own invocation, region,
+and builtin events, which carry the traversal cost of the higher-order
+builtins.
+
+Every implementation derives identical charges from identical declarations,
+so a metering change is a registry version, with the same friction as a
+signature change. The complete cost law is defined in
+[Runtime execution limits](../runtime/execution-limits.md).
 
 ## Semantic rules
 

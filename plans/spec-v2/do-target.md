@@ -210,12 +210,15 @@ Forcing a ref is a synchronous local SQLite read through the DO storage API.
 No async evaluation, no new suspension mechanism, no separate cache layer
 with its own coherence story.
 
-This does not unblock follow-up B wholesale. The other blockers stand
+This does not unblock follow-up B wholesale. The remaining blockers stand
 unchanged and are restated here so this document cannot be read as a green
 light: unforgeable runtime ref representation; `ValueHash`-only equality
-evidence; portable fuel that does not leak chunk thresholds or cache warmth;
-the `maxValueSize` boundary audit; transitive-purity rules for memoization;
-the builtin/validator forcing-depth audit. The base plan's ordering also
+evidence; the `maxValueSize` boundary audit; transitive-purity rules for
+memoization; the builtin/validator forcing-depth audit. The former fuel
+blocker — portable fuel that does not leak chunk thresholds or cache warmth —
+is dissolved by the Stage 1 event-trace cost model: size-dependent charges
+are computable from blob metadata, so a lazy-ref runtime charges
+inline-equivalent fuel by construction. The base plan's ordering also
 stands: v1 ships and is measured first.
 
 What changes is the _framing and the payoff ranking_. On this target,
@@ -246,10 +249,11 @@ full content-addressed-runtime program in one step.
   exclusion of host-local controls. A per-cell-store deployment may want a
   lower `T` than a networked-store deployment, since read amplification is
   local; that is a host tuning decision with no portable footprint.
-- **Fuel is untouched by v1 and must remain so in any B work.** Local reads
-  make it tempting to treat forcing as free; follow-up B's fuel requirement
-  (virtual inline-equivalent charges, or an explicitly versioned
-  non-portable profile) is unaffected by the reads being fast.
+- **Fuel is settled by the Stage 1 cost model.** Charges that depend on a
+  value's measures (value production, static data, re-entry) are computable
+  from blob metadata without hydration, so local reads change host time
+  only, never fuel. Follow-up B needs no virtual-charge schedule and no
+  non-portable profile.
 - **Hash foundation is shared.** All addresses here use the canonical
   encoding and domain-separated `jfn:*` hash framing from
   `docs/runtime/hashing.md`; this document introduces no new hash domains.

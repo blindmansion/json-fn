@@ -71,8 +71,8 @@ against an implementation.
 
 ### Runtime
 
-- [Execution limits](runtime/execution-limits.md) — fuel, call depth, value
-  size, cancellation, and fixed structural limits.
+- [Execution limits](runtime/execution-limits.md) — the cost model, fuel,
+  call depth, value size, cancellation, and the fixed structural-depth limit.
 - [Canonical encoding and hashing](runtime/hashing.md) — canonical guest-value
   bytes and domain-separated identity hashes.
 - [Durable task hosting](runtime/durable-host.md) — persistence,

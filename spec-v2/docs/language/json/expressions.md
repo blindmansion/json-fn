@@ -297,8 +297,9 @@ a JSON value, not json-fn syntax. Use `$raw` to preserve data that would
 otherwise be interpreted as expression syntax (keys such as `$fn`, `$var`, or
 `$call`) or to keep a literal `$comment` entry. Shorthand infers this boundary
 around static JSON containing quoted `$`-prefixed keys; see
-[Literals and data](../shorthand/literals-and-data.md). A `$raw` payload charges
-the same deterministic fuel as the equivalent constant value.
+[Literals and data](../shorthand/literals-and-data.md). A `$raw` payload counts
+toward its containing region's static cost constant exactly like the
+equivalent constant value.
 
 ```json
 {

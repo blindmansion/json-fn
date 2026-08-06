@@ -122,8 +122,8 @@ handle greet(mockIo()) with {
 }
 ```
 
-Handler clauses use the normal call path, so fuel and call-depth limits apply.
-Task normalization also charges fuel per interpreted node.
+Dispatching a handler clause is an arm-selection event, and the clauses use
+the normal call path, so invocation charges and call-depth limits apply.
 
 ## Host execution
 

@@ -149,8 +149,8 @@ data (`{ "$comment": "note", a: 1 }` quotes; plain literal syntax strips
 `$comment`).
 
 Plain constant data such as `[1, 2, 3]` stays plain canonical JSON. A `$raw`
-payload charges the same deterministic fuel as the equivalent plain constant
-literal (see
+payload counts toward its containing region's static cost constant exactly
+like the equivalent plain constant literal (see
 [Execution limits](../../runtime/execution-limits.md)).
 
 Canonical rendering writes a generic `$raw` payload as strict JSON. Redundant

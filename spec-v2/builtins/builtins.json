@@ -23,6 +23,7 @@
     "add": {
       "description": "Add two numbers.",
       "category": "arithmetic",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       {
         "required": [{ "type": "integer" }, { "type": "integer" }], "optional": [],
@@ -36,6 +37,7 @@
     "sub": {
       "description": "Subtract the second number from the first.",
       "category": "arithmetic",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       {
         "required": [{ "type": "integer" }, { "type": "integer" }], "optional": [],
@@ -49,6 +51,7 @@
     "mul": {
       "description": "Multiply two numbers.",
       "category": "arithmetic",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       {
         "required": [{ "type": "integer" }, { "type": "integer" }], "optional": [],
@@ -62,6 +65,7 @@
     "mod": {
       "description": "Return the remainder after division; throws when the divisor is zero.",
       "category": "arithmetic",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       {
         "required": [{ "type": "integer" }, { "type": "integer" }], "optional": [],
@@ -75,6 +79,7 @@
     "div": {
       "description": "Divide two numbers; throws when the divisor is zero.",
       "category": "arithmetic",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       {
         "required": [{ "type": "number" }, { "type": "number" }], "optional": [],
@@ -84,6 +89,7 @@
     "neg": {
       "description": "Negate a number.",
       "category": "arithmetic",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       { "required": [{ "type": "integer" }], "optional": [], "returns": { "type": "integer" } },
       { "required": [{ "type": "number" }], "optional": [], "returns": { "type": "number" } }
@@ -91,6 +97,7 @@
     "abs": {
       "description": "Return the absolute value of a number.",
       "category": "arithmetic",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       { "required": [{ "type": "integer" }], "optional": [], "returns": { "type": "integer" } },
       { "required": [{ "type": "number" }], "optional": [], "returns": { "type": "number" } }
@@ -98,26 +105,32 @@
     "floor": {
       "description": "Round a number down to the nearest integer.",
       "category": "arithmetic",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [{ "required": [{ "type": "number" }], "optional": [], "returns": { "type": "integer" } }] },
     "ceil": {
       "description": "Round a number up to the nearest integer.",
       "category": "arithmetic",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [{ "required": [{ "type": "number" }], "optional": [], "returns": { "type": "integer" } }] },
     "round": {
       "description": "Round a number to the nearest integer.",
       "category": "arithmetic",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [{ "required": [{ "type": "number" }], "optional": [], "returns": { "type": "integer" } }] },
     "trunc": {
       "description": "Discard the fractional part of a number, rounding toward zero.",
       "category": "arithmetic",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [{ "required": [{ "type": "number" }], "optional": [], "returns": { "type": "integer" } }] },
     "sign": {
       "description": "Return -1, 0, or 1 according to the sign of a number.",
       "category": "arithmetic",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [{ "required": [{ "type": "number" }], "optional": [], "returns": { "type": "integer" } }] },
     "clamp": {
       "description": "Constrain a number to an inclusive minimum and maximum; throws when the minimum exceeds the maximum.",
       "category": "arithmetic",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       {
         "required": [{ "type": "number" }, { "type": "number" }, { "type": "number" }], "optional": [],
@@ -127,6 +140,7 @@
     "max": {
       "description": "Return the largest number in a non-empty array; throws if the result is not finite.",
       "category": "arithmetic",
+      "metering": { "base": 1, "sized": [0] },
       "signatures": [
       {
         "required": [{ "type": "array", "items": { "type": "integer" } }], "optional": [],
@@ -140,6 +154,7 @@
     "min": {
       "description": "Return the smallest number in a non-empty array; throws if the result is not finite.",
       "category": "arithmetic",
+      "metering": { "base": 1, "sized": [0] },
       "signatures": [
       {
         "required": [{ "type": "array", "items": { "type": "integer" } }], "optional": [],
@@ -153,6 +168,7 @@
     "sum": {
       "description": "Sum an array of numbers, returning zero for an empty array; throws if the result is not finite.",
       "category": "arithmetic",
+      "metering": { "base": 1, "sized": [0] },
       "signatures": [
       {
         "required": [{ "type": "array", "items": { "type": "integer" } }], "optional": [],
@@ -166,6 +182,7 @@
     "mean": {
       "description": "Return the arithmetic mean of a non-empty array of numbers.",
       "category": "arithmetic",
+      "metering": { "base": 1, "sized": [0] },
       "signatures": [
       {
         "required": [{ "type": "array", "items": { "type": "number" } }], "optional": [],
@@ -175,6 +192,7 @@
     "product": {
       "description": "Multiply an array of numbers, returning one for an empty array; throws if the result is not finite.",
       "category": "arithmetic",
+      "metering": { "base": 1, "sized": [0] },
       "signatures": [
       {
         "required": [{ "type": "array", "items": { "type": "integer" } }], "optional": [],
@@ -188,6 +206,7 @@
     "argmin": {
       "description": "Return the index of the first smallest number, or null for an empty array.",
       "category": "arithmetic",
+      "metering": { "base": 1, "sized": [0] },
       "signatures": [
       {
         "required": [{ "type": "array", "items": { "type": "number" } }], "optional": [],
@@ -197,6 +216,7 @@
     "argmax": {
       "description": "Return the index of the first largest number, or null for an empty array.",
       "category": "arithmetic",
+      "metering": { "base": 1, "sized": [0] },
       "signatures": [
       {
         "required": [{ "type": "array", "items": { "type": "number" } }], "optional": [],
@@ -206,12 +226,14 @@
     "sqrt": {
       "description": "Return the square root of a number; throws if the result is not finite.",
       "category": "arithmetic",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       { "required": [{ "type": "number" }], "optional": [], "returns": { "type": "number" } }
     ] },
     "pow": {
       "description": "Raise a base to an exponent; throws if the result is not finite.",
       "category": "arithmetic",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       {
         "required": [{ "type": "number" }, { "type": "number" }], "optional": [],
@@ -221,42 +243,49 @@
     "exp": {
       "description": "Raise Euler's number to a power; throws if the result is not finite.",
       "category": "arithmetic",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       { "required": [{ "type": "number" }], "optional": [], "returns": { "type": "number" } }
     ] },
     "log": {
       "description": "Return the natural logarithm of a number; throws if the result is not finite.",
       "category": "arithmetic",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       { "required": [{ "type": "number" }], "optional": [], "returns": { "type": "number" } }
     ] },
     "log10": {
       "description": "Return the base-10 logarithm of a number; throws if the result is not finite.",
       "category": "arithmetic",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       { "required": [{ "type": "number" }], "optional": [], "returns": { "type": "number" } }
     ] },
     "sin": {
       "description": "Return the sine of an angle in radians; throws if the result is not finite.",
       "category": "arithmetic",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       { "required": [{ "type": "number" }], "optional": [], "returns": { "type": "number" } }
     ] },
     "cos": {
       "description": "Return the cosine of an angle in radians; throws if the result is not finite.",
       "category": "arithmetic",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       { "required": [{ "type": "number" }], "optional": [], "returns": { "type": "number" } }
     ] },
     "tan": {
       "description": "Return the tangent of an angle in radians; throws if the result is not finite.",
       "category": "arithmetic",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       { "required": [{ "type": "number" }], "optional": [], "returns": { "type": "number" } }
     ] },
     "atan2": {
       "description": "Return the angle in radians from the positive x-axis to the point (x, y); throws if the result is not finite.",
       "category": "arithmetic",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       {
         "required": [{ "type": "number" }, { "type": "number" }], "optional": [],
@@ -266,110 +295,134 @@
     "eq": {
       "description": "Test two values for structural equality.",
       "category": "comparison",
+      "metering": { "base": 1, "sized": [0, 1] },
       "signatures": [{ "required": [true, true], "optional": [], "returns": { "type": "boolean" } }] },
     "neq": {
       "description": "Test two values for structural inequality.",
       "category": "comparison",
+      "metering": { "base": 1, "sized": [0, 1] },
       "signatures": [{ "required": [true, true], "optional": [], "returns": { "type": "boolean" } }] },
     "lt": {
       "description": "Test whether the first number is less than the second.",
       "category": "comparison",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       { "required": [{ "type": "number" }, { "type": "number" }], "optional": [], "returns": { "type": "boolean" } }
     ] },
     "lte": {
       "description": "Test whether the first number is less than or equal to the second.",
       "category": "comparison",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       { "required": [{ "type": "number" }, { "type": "number" }], "optional": [], "returns": { "type": "boolean" } }
     ] },
     "gt": {
       "description": "Test whether the first number is greater than the second.",
       "category": "comparison",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       { "required": [{ "type": "number" }, { "type": "number" }], "optional": [], "returns": { "type": "boolean" } }
     ] },
     "gte": {
       "description": "Test whether the first number is greater than or equal to the second.",
       "category": "comparison",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       { "required": [{ "type": "number" }, { "type": "number" }], "optional": [], "returns": { "type": "boolean" } }
     ] },
     "not": {
       "description": "Return the logical negation of a boolean.",
       "category": "logic",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [{ "required": [{ "type": "boolean" }], "optional": [], "returns": { "type": "boolean" } }] },
     "and": {
       "description": "Return the eager logical conjunction of two booleans.",
       "category": "logic",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       { "required": [{ "type": "boolean" }, { "type": "boolean" }], "optional": [], "returns": { "type": "boolean" } }
     ] },
     "or": {
       "description": "Return the eager logical disjunction of two booleans.",
       "category": "logic",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       { "required": [{ "type": "boolean" }, { "type": "boolean" }], "optional": [], "returns": { "type": "boolean" } }
     ] },
     "isNull": {
       "description": "Test whether a value is null.",
       "category": "type-checking",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [{ "required": [true], "optional": [], "returns": { "type": "boolean" } }] },
     "isBool": {
       "description": "Test whether a value is a boolean.",
       "category": "type-checking",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [{ "required": [true], "optional": [], "returns": { "type": "boolean" } }] },
     "isNumber": {
       "description": "Test whether a value is a number.",
       "category": "type-checking",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [{ "required": [true], "optional": [], "returns": { "type": "boolean" } }] },
     "isInteger": {
       "description": "Test whether a value is an integer.",
       "category": "type-checking",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [{ "required": [true], "optional": [], "returns": { "type": "boolean" } }] },
     "isString": {
       "description": "Test whether a value is a string.",
       "category": "type-checking",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [{ "required": [true], "optional": [], "returns": { "type": "boolean" } }] },
     "isArray": {
       "description": "Test whether a value is an array.",
       "category": "type-checking",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [{ "required": [true], "optional": [], "returns": { "type": "boolean" } }] },
     "isObject": {
       "description": "Test whether a value is a plain object, excluding arrays and null.",
       "category": "type-checking",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [{ "required": [true], "optional": [], "returns": { "type": "boolean" } }] },
     "isTask": {
       "description": "Test whether a value is a plain object with a string-valued `@task` tag.",
       "category": "type-checking",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [{ "required": [true], "optional": [], "returns": { "type": "boolean" } }] },
     "str": {
       "description": "Convert a value to a string, serializing non-string values.",
       "category": "coercion",
+      "metering": { "base": 1, "sized": [0] },
       "signatures": [{ "required": [true], "optional": [], "returns": { "type": "string" } }] },
     "num": {
       "description": "Convert a value to a number; throws when conversion fails.",
       "category": "coercion",
+      "metering": { "base": 1, "sized": [0] },
       "signatures": [{ "required": [true], "optional": [], "returns": { "type": "number" } }] },
     "upper": {
       "description": "Convert a string to uppercase.",
       "category": "strings",
+      "metering": { "base": 1, "sized": [0] },
       "signatures": [{ "required": [{ "type": "string" }], "optional": [], "returns": { "type": "string" } }] },
     "lower": {
       "description": "Convert a string to lowercase.",
       "category": "strings",
+      "metering": { "base": 1, "sized": [0] },
       "signatures": [{ "required": [{ "type": "string" }], "optional": [], "returns": { "type": "string" } }] },
     "trim": {
       "description": "Remove whitespace from both ends of a string.",
       "category": "strings",
+      "metering": { "base": 1, "sized": [0] },
       "signatures": [{ "required": [{ "type": "string" }], "optional": [], "returns": { "type": "string" } }] },
     "strcat": {
       "description": "Concatenate any number of strings.",
       "category": "strings",
+      "metering": { "base": 1, "sized": ["rest"] },
       "signatures": [{ "required": [], "optional": [], "rest": { "type": "string" }, "returns": { "type": "string" } }] },
     "split": {
       "description": "Split a string on a separator; an empty separator splits it into Unicode code points.",
       "category": "strings",
+      "metering": { "base": 1, "sized": [0, 1] },
       "signatures": [
       {
         "required": [{ "type": "string" }, { "type": "string" }], "optional": [],
@@ -379,6 +432,7 @@
     "join": {
       "description": "Join an array's elements with a separator.",
       "category": "strings",
+      "metering": { "base": 1, "sized": [0, 1] },
       "signatures": [
       {
         "required": [{ "type": "array" }, { "type": "string" }], "optional": [],
@@ -388,6 +442,7 @@
     "startsWith": {
       "description": "Test whether a string starts with a prefix.",
       "category": "strings",
+      "metering": { "base": 1, "sized": [0, 1] },
       "signatures": [
       {
         "required": [{ "type": "string" }, { "type": "string" }], "optional": [],
@@ -397,6 +452,7 @@
     "endsWith": {
       "description": "Test whether a string ends with a suffix.",
       "category": "strings",
+      "metering": { "base": 1, "sized": [0, 1] },
       "signatures": [
       {
         "required": [{ "type": "string" }, { "type": "string" }], "optional": [],
@@ -406,6 +462,7 @@
     "replace": {
       "description": "Replace all literal, non-overlapping occurrences of a non-empty search string.",
       "category": "strings",
+      "metering": { "base": 1, "sized": [0, 1, 2] },
       "signatures": [
       {
         "required": [{ "type": "string" }, { "type": "string" }, { "type": "string" }], "optional": [],
@@ -415,6 +472,7 @@
     "padStart": {
       "description": "Left-pad a string to a Unicode code-point length, using a space when no fill string is supplied.",
       "category": "strings",
+      "metering": { "base": 1, "sized": [0, 2] },
       "signatures": [
       {
         "required": [{ "type": "string" }, { "type": "integer" }], "optional": [],
@@ -428,6 +486,7 @@
     "padEnd": {
       "description": "Right-pad a string to a Unicode code-point length, using a space when no fill string is supplied.",
       "category": "strings",
+      "metering": { "base": 1, "sized": [0, 2] },
       "signatures": [
       {
         "required": [{ "type": "string" }, { "type": "integer" }], "optional": [],
@@ -441,6 +500,7 @@
     "length": {
       "description": "Return an array's item count or a string's Unicode code-point count.",
       "category": "arrays",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       { "required": [{ "type": "array" }], "optional": [], "returns": { "type": "integer" } },
       { "required": [{ "type": "string" }], "optional": [], "returns": { "type": "integer" } }
@@ -448,6 +508,7 @@
     "head": {
       "description": "Return the first element of an array, or null when empty.",
       "category": "arrays",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       {
         "typeParams": ["T"],
@@ -463,6 +524,7 @@
     "last": {
       "description": "Return the last element of an array, or null when empty.",
       "category": "arrays",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       {
         "typeParams": ["T"],
@@ -478,6 +540,7 @@
     "tail": {
       "description": "Return all but the first element of an array.",
       "category": "arrays",
+      "metering": { "base": 1, "sized": [0] },
       "signatures": [
       {
         "typeParams": ["T"],
@@ -488,6 +551,7 @@
     "reverse": {
       "description": "Return a reversed copy of an array.",
       "category": "arrays",
+      "metering": { "base": 1, "sized": [0] },
       "signatures": [
       {
         "typeParams": ["T"],
@@ -498,6 +562,7 @@
     "take": {
       "description": "Return the first requested number of array elements, or an empty array when the count is non-positive.",
       "category": "arrays",
+      "metering": { "base": 1, "sized": [0] },
       "signatures": [
       {
         "typeParams": ["T"],
@@ -512,6 +577,7 @@
     "drop": {
       "description": "Return an array without its first requested number of elements, or a copy when the count is non-positive.",
       "category": "arrays",
+      "metering": { "base": 1, "sized": [0] },
       "signatures": [
       {
         "typeParams": ["T"],
@@ -526,6 +592,7 @@
     "zip": {
       "description": "Pair corresponding elements, stopping at the shorter array.",
       "category": "arrays",
+      "metering": { "base": 1, "sized": [0, 1] },
       "signatures": [
       {
         "typeParams": ["T", "U"],
@@ -548,6 +615,7 @@
     "unique": {
       "description": "Keep the first occurrence of each structurally distinct array value.",
       "category": "arrays",
+      "metering": { "base": 1, "sized": [0] },
       "signatures": [
       {
         "typeParams": ["T"],
@@ -558,6 +626,7 @@
     "repeat": {
       "description": "Repeat an array or string a non-negative number of times.",
       "category": "arrays",
+      "metering": { "base": 1, "sized": [0] },
       "signatures": [
       {
         "required": [{ "type": "string" }, { "type": "integer" }], "optional": [],
@@ -576,6 +645,7 @@
     "flatten": {
       "description": "Flatten an array by one level.",
       "category": "arrays",
+      "metering": { "base": 1, "sized": [0] },
       "signatures": [
       {
         "typeParams": ["T"],
@@ -586,6 +656,7 @@
     "flattenDepth": {
       "description": "Flatten an array by a non-negative number of levels.",
       "category": "arrays",
+      "metering": { "base": 1, "sized": [0] },
       "signatures": [
       {
         "required": [{ "type": "array" }, { "type": "integer" }], "optional": [],
@@ -595,6 +666,7 @@
     "chunk": {
       "description": "Split an array into consecutive chunks of a positive size.",
       "category": "arrays",
+      "metering": { "base": 1, "sized": [0] },
       "signatures": [
       {
         "typeParams": ["T"],
@@ -612,6 +684,7 @@
     "frequencies": {
       "description": "Count occurrences of scalar values after converting each value to an object key.",
       "category": "arrays",
+      "metering": { "base": 1, "sized": [0] },
       "signatures": [
       {
         "required": [
@@ -624,6 +697,7 @@
     "concat": {
       "description": "Concatenate any number of arrays.",
       "category": "arrays",
+      "metering": { "base": 1, "sized": ["rest"] },
       "signatures": [
       {
         "typeParams": ["T"],
@@ -635,6 +709,7 @@
     "range": {
       "description": "Create an array of integers from zero up to, but excluding, an endpoint.",
       "category": "arrays",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       {
         "required": [{ "type": "integer" }], "optional": [],
@@ -644,6 +719,7 @@
     "rangeFrom": {
       "description": "Create a half-open ascending range of integers between two endpoints.",
       "category": "arrays",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       {
         "required": [{ "type": "integer" }, { "type": "integer" }], "optional": [],
@@ -653,6 +729,7 @@
     "rangeBy": {
       "description": "Create a half-open range of integers using a non-zero step.",
       "category": "arrays",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       {
         "required": [{ "type": "integer" }, { "type": "integer" }, { "type": "integer" }], "optional": [],
@@ -662,6 +739,7 @@
     "slice": {
       "description": "Return a slice of an array or string; string offsets count Unicode code points.",
       "category": "arrays",
+      "metering": { "base": 1, "sized": [0] },
       "signatures": [
       {
         "typeParams": ["T"],
@@ -690,6 +768,7 @@
     "includes": {
       "description": "Test an array for a structurally equal value, or a string for a substring.",
       "category": "arrays",
+      "metering": { "base": 1, "sized": [0, 1] },
       "signatures": [
       {
         "typeParams": ["T"],
@@ -704,6 +783,7 @@
     "indexOf": {
       "description": "Find a structurally equal array value or string substring, returning its item or Unicode code-point index, or null when absent.",
       "category": "arrays",
+      "metering": { "base": 1, "sized": [0, 1] },
       "signatures": [
       {
         "typeParams": ["T"],
@@ -718,6 +798,7 @@
     "setAt": {
       "description": "Return an array with one element replaced.",
       "category": "arrays",
+      "metering": { "base": 1, "sized": [0] },
       "signatures": [
       {
         "typeParams": ["T"],
@@ -733,10 +814,12 @@
     "keys": {
       "description": "Return an object's keys.",
       "category": "objects",
+      "metering": { "base": 1, "sized": [0] },
       "signatures": [{ "required": [{ "type": "object" }], "optional": [], "returns": { "type": "array", "items": { "type": "string" } } }] },
     "values": {
       "description": "Return an object's values.",
       "category": "objects",
+      "metering": { "base": 1, "sized": [0] },
       "signatures": [
       {
         "typeParams": ["V"],
@@ -747,6 +830,7 @@
     "entries": {
       "description": "Return an object's key-value pairs.",
       "category": "objects",
+      "metering": { "base": 1, "sized": [0] },
       "signatures": [
       {
         "typeParams": ["V"],
@@ -765,6 +849,7 @@
     "fromEntries": {
       "description": "Create an object from key-value pairs.",
       "category": "objects",
+      "metering": { "base": 1, "sized": [0] },
       "signatures": [
       {
         "typeParams": ["V"],
@@ -786,18 +871,21 @@
     "merge": {
       "description": "Shallowly merge two objects, with the second object's values winning conflicts.",
       "category": "objects",
+      "metering": { "base": 1, "sized": [0, 1] },
       "signatures": [
       { "required": [{ "type": "object" }, { "type": "object" }], "optional": [], "returns": { "type": "object" } }
     ], "rule": "core.merge" },
     "hasKey": {
       "description": "Test whether an object contains a key.",
       "category": "objects",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       { "required": [{ "type": "object" }, { "type": "string" }], "optional": [], "returns": { "type": "boolean" } }
     ] },
     "pick": {
       "description": "Return an object containing selected keys.",
       "category": "objects",
+      "metering": { "base": 1, "sized": [0, 1] },
       "signatures": [
       {
         "required": [{ "type": "object" }, { "type": "array", "items": { "type": "string" } }], "optional": [],
@@ -807,6 +895,7 @@
     "omit": {
       "description": "Return an object excluding selected keys.",
       "category": "objects",
+      "metering": { "base": 1, "sized": [0, 1] },
       "signatures": [
       {
         "required": [{ "type": "object" }, { "type": "array", "items": { "type": "string" } }], "optional": [],
@@ -816,6 +905,7 @@
     "map": {
       "description": "Transform each array element with a callback.",
       "category": "higher-order",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       {
         "typeParams": ["T", "U"],
@@ -835,6 +925,7 @@
     "mapIndexed": {
       "description": "Transform each array element with a callback that also receives its index.",
       "category": "higher-order",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       {
         "typeParams": ["T", "U"],
@@ -854,6 +945,7 @@
     "filter": {
       "description": "Keep array elements for which a callback returns true.",
       "category": "higher-order",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       {
         "typeParams": ["T"],
@@ -873,6 +965,7 @@
     "filterIndexed": {
       "description": "Keep array elements using a callback that also receives each index.",
       "category": "higher-order",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       {
         "typeParams": ["T"],
@@ -892,6 +985,7 @@
     "reduce": {
       "description": "Fold an array into an accumulator.",
       "category": "higher-order",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       {
         "typeParams": ["T", "U"],
@@ -912,6 +1006,7 @@
     "reduceIndexed": {
       "description": "Fold an array with a callback that also receives each index.",
       "category": "higher-order",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       {
         "typeParams": ["T", "U"],
@@ -932,6 +1027,7 @@
     "partition": {
       "description": "Split an array into matching and non-matching elements after one predicate call per element.",
       "category": "higher-order",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       {
         "typeParams": ["T"],
@@ -959,6 +1055,7 @@
     "scan": {
       "description": "Return each post-callback accumulator produced while folding an array.",
       "category": "higher-order",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       {
         "typeParams": ["T", "U"],
@@ -979,6 +1076,7 @@
     "find": {
       "description": "Return the first array element matching a callback, or null.",
       "category": "higher-order",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       {
         "typeParams": ["T"],
@@ -998,6 +1096,7 @@
     "findIndexed": {
       "description": "Find an array element with a callback that also receives each index.",
       "category": "higher-order",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       {
         "typeParams": ["T"],
@@ -1017,6 +1116,7 @@
     "findIndex": {
       "description": "Return the index of the first callback match, or null.",
       "category": "higher-order",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       {
         "typeParams": ["T"],
@@ -1036,6 +1136,7 @@
     "findIndexIndexed": {
       "description": "Find a matching index with a callback that also receives each index.",
       "category": "higher-order",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       {
         "typeParams": ["T"],
@@ -1055,6 +1156,7 @@
     "some": {
       "description": "Test whether any array element matches a callback.",
       "category": "higher-order",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       {
         "typeParams": ["T"],
@@ -1074,6 +1176,7 @@
     "someIndexed": {
       "description": "Test for a match with a callback that also receives each index.",
       "category": "higher-order",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       {
         "typeParams": ["T"],
@@ -1093,6 +1196,7 @@
     "every": {
       "description": "Test whether every array element matches a callback.",
       "category": "higher-order",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       {
         "typeParams": ["T"],
@@ -1112,6 +1216,7 @@
     "everyIndexed": {
       "description": "Test every element with a callback that also receives each index.",
       "category": "higher-order",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       {
         "typeParams": ["T"],
@@ -1131,6 +1236,7 @@
     "count": {
       "description": "Count array elements matching a callback.",
       "category": "higher-order",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       {
         "typeParams": ["T"],
@@ -1150,6 +1256,7 @@
     "countIndexed": {
       "description": "Count matches with a callback that also receives each index.",
       "category": "higher-order",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       {
         "typeParams": ["T"],
@@ -1169,6 +1276,7 @@
     "countBy": {
       "description": "Count elements by callback key; output contains only observed keys, with numbers stringified.",
       "category": "higher-order",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       {
         "typeParams": ["T"],
@@ -1188,6 +1296,7 @@
     "sort": {
       "description": "Return a sorted copy of an array, optionally using a comparator; the default orders homogeneous numbers ascending or homogeneous strings by Unicode code point.",
       "category": "higher-order",
+      "metering": { "base": 1, "sized": [0, 1] },
       "signatures": [
       {
         "required": [{ "type": "array", "items": { "type": "integer" } }], "optional": [],
@@ -1219,6 +1328,7 @@
     "sortBy": {
       "description": "Return an array sorted by callback-produced keys.",
       "category": "higher-order",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       {
         "typeParams": ["T"],
@@ -1238,6 +1348,7 @@
     "sortByIndexed": {
       "description": "Sort by keys from a callback that also receives each index.",
       "category": "higher-order",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       {
         "typeParams": ["T"],
@@ -1257,6 +1368,7 @@
     "groupBy": {
       "description": "Group array elements by callback-produced keys.",
       "category": "higher-order",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       {
         "typeParams": ["T"],
@@ -1279,6 +1391,7 @@
     "groupByIndexed": {
       "description": "Group by keys from a callback that also receives each index.",
       "category": "higher-order",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       {
         "typeParams": ["T"],
@@ -1301,6 +1414,7 @@
     "flatMap": {
       "description": "Transform array elements, flattening array results by one level and retaining scalar results.",
       "category": "higher-order",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
         {
           "typeParams": ["T"],
@@ -1322,6 +1436,7 @@
     "flatMapIndexed": {
       "description": "Flat-map while retaining scalar results, with a callback that also receives each index.",
       "category": "higher-order",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
         {
           "typeParams": ["T"],
@@ -1343,6 +1458,7 @@
     "mapValues": {
       "description": "Transform an object's values with a callback.",
       "category": "higher-order",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       {
         "typeParams": ["T", "U"],
@@ -1362,24 +1478,28 @@
     "apply": {
       "description": "Call a function with an array of positional arguments.",
       "category": "higher-order",
+      "metering": { "base": 1, "sized": [1] },
       "signatures": [{ "required": [true, { "type": "array" }], "optional": [], "returns": true }],
       "rule": "core.apply"
     },
     "pipe": {
       "description": "Pass a value through an array of functions from left to right.",
       "category": "higher-order",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [{ "required": [{ "type": "array" }, true], "optional": [], "returns": true }],
       "rule": "core.pipe"
     },
     "reTest": {
       "description": "Test whether a regex pattern matches anywhere in a string.",
       "category": "regex",
+      "metering": { "base": 1, "sized": [0, 1] },
       "signatures": [
       { "required": [{ "type": "string" }, { "type": "string" }], "optional": [], "returns": { "type": "boolean" } }
     ] },
     "reMatch": {
       "description": "Return the first regex match object, or null.",
       "category": "regex",
+      "metering": { "base": 1, "sized": [0, 1] },
       "signatures": [
       {
         "required": [{ "type": "string" }, { "type": "string" }], "optional": [],
@@ -1389,6 +1509,7 @@
     "reMatchAll": {
       "description": "Return all non-overlapping regex match objects.",
       "category": "regex",
+      "metering": { "base": 1, "sized": [0, 1] },
       "signatures": [
       {
         "required": [{ "type": "string" }, { "type": "string" }], "optional": [],
@@ -1398,6 +1519,7 @@
     "reReplace": {
       "description": "Replace all regex matches using a replacement string, where `$&` is the full match and `$1`, `$2`, and so on are capture groups.",
       "category": "regex",
+      "metering": { "base": 1, "sized": [0, 1, 2] },
       "signatures": [
       {
         "required": [{ "type": "string" }, { "type": "string" }, { "type": "string" }], "optional": [],
@@ -1407,6 +1529,7 @@
     "reSplit": {
       "description": "Split a string using a regex pattern.",
       "category": "regex",
+      "metering": { "base": 1, "sized": [0, 1] },
       "signatures": [
       {
         "required": [{ "type": "string" }, { "type": "string" }], "optional": [],
@@ -1416,6 +1539,7 @@
     "reReplaceWith": {
       "description": "Replace all regex matches using a callback that receives a match object.",
       "category": "higher-order",
+      "metering": { "base": 1, "sized": [0, 2] },
       "signatures": [
       {
         "required": [
@@ -1430,6 +1554,7 @@
     "perform": {
       "description": "Build a task requesting a named effect with arguments.",
       "category": "tasks-effects",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
         {
           "required": [{ "type": "string" }, { "type": "array" }], "optional": [],
@@ -1441,12 +1566,14 @@
     "pure": {
       "description": "Build a completed task carrying a value.",
       "category": "tasks-effects",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [{ "required": [true], "optional": [], "returns": { "$ref": "#/$defs/Task" } }],
       "rule": "core.pure"
     },
     "bind": {
       "description": "Sequence a task into a continuation that returns the next task.",
       "category": "tasks-effects",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
         {
           "required": [
@@ -1467,12 +1594,14 @@
     "raise": {
       "description": "Build a task requesting the raise effect, equivalent to `perform(\"raise\", [value])`.",
       "category": "tasks-effects",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [{ "required": [true], "optional": [], "returns": { "$ref": "#/$defs/Task" } }],
       "rule": "core.raise"
     },
     "handle": {
       "description": "Interpret a task's effects with handler clauses; an optional static result schema makes the handler total and runtime-validated.",
       "category": "tasks-effects",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
         { "required": [true, true], "optional": [], "returns": true },
         { "required": [true, true, true], "optional": [], "returns": true }
@@ -1482,12 +1611,14 @@
     "arity": {
       "description": "Return a function name or body's fixed positional parameter count, excluding its rest parameter, or null when unknown.",
       "category": "introspection",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       { "required": [true], "optional": [], "returns": { "anyOf": [{ "type": "integer" }, { "type": "null" }] } }
     ] },
     "tap": {
       "description": "Pass a value and optional label to the host-configured logger and return the value unchanged.",
       "category": "debugging",
+      "metering": { "base": 1, "sized": [] },
       "signatures": [
       { "typeParams": ["T"], "required": [{ "$tvar": "T" }], "optional": [], "returns": { "$tvar": "T" } },
       {

@@ -19,29 +19,29 @@ The error reports the first cycle reached, even if that cycle does not begin
 with the first binding resolved. Cycle detection is always active and is not
 configurable.
 
-Evaluating a `$let` consumes the ordinary one unit of expression fuel, as does
-each binding expression when it is first forced. Entering a `$let` does not
-invoke a function, consume function-invocation fuel, or increase call depth.
-Calling a function-valued binding later has the ordinary function-call costs.
+A `$let` is an expression scope, not a function call. Entering one is not an
+invocation event and does not increase call depth; the `$let` itself counts in
+its containing region's static constant. Each binding expression is its own
+region, entered by the binding-force event when the binding is first demanded.
+Calling a function-valued binding later has the ordinary invocation costs.
 
 ## Resource limits
 
 Evaluation may set these limits:
 
-- `maxFuel` bounds deterministic metered work.
-- `maxValueSize` bounds each array or string produced by a builtin or host
-  function.
+- `maxFuel` bounds deterministic metered work. Fuel bounds work, not
+  retention.
+- `maxValueSize` bounds the top-level length of each array or string produced
+  by a builtin or host function. It is a per-value bound; hosts bound total
+  allocation with a host-level budget alongside it.
 - `maxCallDepth` bounds nested function calls.
 
 Omitted fuel and value-size limits are unlimited. The default call-depth limit
 is unspecified, so portable deployments set it explicitly.
 
-Two fixed limits always apply:
+One fixed limit always applies: JSON structural depth is at most 512.
 
-- JSON structural depth is at most 512.
-- Combined expression and invocation nesting during evaluation is at most
-  4,096.
-
-Cancellation and wall-clock timeouts are non-deterministic host controls, not
-portable evaluation semantics. Deployment limits are declared in a
+Cancellation, wall-clock timeouts, and the total-allocation bound are
+non-deterministic host controls, not portable evaluation semantics. Deployment
+limits are declared in a
 [deployment profile](../../deployment/deployment-profile.md).
