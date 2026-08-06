@@ -17,7 +17,7 @@ no build step, no runtime — so it works with any color theme.
 - Function calls (`name(...)`) and function references (`&name`)
 - Object keys / `where` bindings and `.property` accessors
 - `// line comments` and `/* block comments */`
-- **Types** (`docs/language/shorthand/type-syntax-spec.md`):
+- **Types** (`spec/docs/language/shorthand/type-syntax-spec.md`):
   - `type Name = <type>` declarations — the name, the `=`, and the whole type
     expression are fully colored (see below)
   - Type primitives (`null boolean number integer string any never`), named

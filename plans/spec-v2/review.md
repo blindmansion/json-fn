@@ -299,13 +299,13 @@ proposals.md` Proposal 3 should be marked resolved _in the
     event-trace redesign and should be adopted into the rewritten
     `execution-limits.md` (or an explicit follow-up) rather than left in a
     resolved proposal's margins.
-12. **Checker-conformance-migration sequencing.** The migration itself is
-    uncontroversial infrastructure, but moving checker behavior into
-    portable `spec/cases/check/` _before_ the coordinated break pins
-    semantics the break changes (narrowing around strict reads, capture
-    lookup tiers, laziness-mirroring reachability). Sequence the migration
-    after the break, or accept regenerating the suite as part of it — the
-    same concrete-pouring dynamic as §5, decided deliberately.
+12. **Checker-conformance regeneration sequencing.** The canonical migration
+    is complete in `spec/cases/check/`. The remaining question is when to
+    create the corresponding `spec-v2/cases/check/`: after the coordinated
+    break, or by accepting suite regeneration as part of it. The break changes
+    narrowing around strict reads, capture lookup tiers, and
+    laziness-mirroring reachability, so copying the current corpus first would
+    create the same concrete-pouring dynamic as §5.
 
 ---
 
@@ -329,7 +329,7 @@ canonical language, or persisted formats.
 | `effects-binding-scope.md`                         | **Yes; independent**                          | Documentation correction, no behavior change.                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `leading-pipe-unions.md`, `module-where-blocks.md` | **Yes; independent**                          | Shorthand parser/printer only; no canonical, checker, or evaluator impact.                                                                                                                                                                                                                                                                                                                                                                       |
 | `future-authoring-improvements.md`                 | **Leave parked**                              | Correctly labeled a parking lot; nothing in it gates the break.                                                                                                                                                                                                                                                                                                                                                                                  |
-| `checker-conformance-migration.md`                 | **Yes, but sequence deliberately**            | See loose-end #12: after the break, or with suite regeneration priced in.                                                                                                                                                                                                                                                                                                                                                                        |
+| `checker-conformance-migration.md`                 | **Done for `spec/`; sequence spec-v2 deliberately** | See loose-end #12: create the spec-v2 corpus after the break, or price its regeneration into the break.                                                                                                                                                                                                                                                                                                                                      |
 | `runtime-representation-gaps.md`                   | **Mostly landed; one promotion**              | The open Unicode metering work becomes a named dependency of the cost release (loose-end #10).                                                                                                                                                                                                                                                                                                                                                   |
 
 ---

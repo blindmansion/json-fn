@@ -4,6 +4,17 @@ This plan defines a language-agnostic conformance format for the json-fn type
 checker and records the migration boundary for the existing TypeScript checker
 tests.
 
+## Status
+
+Completed for the canonical `spec/` language on 2026-08-06. The shared corpus
+lives under `spec/cases/check/`, its adapter contract is documented in
+`spec/docs/conformance/checking.md`, and TypeScript runs it through
+`typescript/test/check-spec.test.ts`. Remaining direct checker calls are
+implementation-unit, parser, runtime-integration, or example-validation tests.
+The separate schema-algorithm decision is recorded in
+`plans/schema-conformance.md`: create a dedicated corpus beginning with
+subsumption, while keeping helper normalization details implementation-local.
+
 The target boundary is:
 
 - observable checking of canonical expressions and modules belongs in shared
@@ -45,9 +56,10 @@ The target boundary is:
 - Do not combine direct schema-algorithm conformance with program-checking cases
   in the first format revision.
 
-## Baseline
+## Historical baseline
 
-The canonical checker is implemented under `typescript/src/check/`.
+Before the migration, the canonical checker was implemented under
+`typescript/src/check/`.
 
 Its public program-checking entry points are:
 
@@ -65,18 +77,18 @@ An `error` is a definite type failure. An `info` records visible loss of type
 coverage, including fallback to `any`. The CLI's full-coverage policy is derived
 from those information diagnostics; it is not a separate checker result.
 
-Most observable checker behavior currently lives in:
+Before migration, most observable checker behavior lived in:
 
 - `typescript/test/check/checker.test.ts`;
 - `typescript/test/check/builtins.test.ts`;
-- `typescript/test/check/chess.test.ts`;
+- `typescript/test/check/chess.test.ts` (removed after migration);
 - `typescript/test/let-check.test.ts`;
 - the `contract checker integration` block in
   `typescript/test/contract.test.ts`;
 - checker-specific portions of `function-body-structure.test.ts`,
   `structural-depth.test.ts`, and `special-object-keys.test.ts`.
 
-There is no shared checker corpus today.
+There was no shared checker corpus at the start of this work.
 
 ## Conformance boundary
 
@@ -340,53 +352,28 @@ The conformance adapter must use public checker and linker entry points. It must
 not import `CheckContext`, direct narrowing helpers, or callable-rule registry
 composition utilities.
 
-## Proposed corpus organization
+## Final corpus organization
 
 Organize by language behavior:
 
 ```text
 spec/cases/check/
-  expressions/
-    literals.json
-    assertions.json
-    objects-and-arrays.json
-    branches.json
-    calls.json
-  functions/
-    signatures.json
-    contextual-lambdas.json
-    returns.json
-  modules/
-    declarations.json
-    references.json
-    recursive-types.json
-  narrowing/
-    truthiness.json
-    predicates.json
-    equality.json
-    match.json
-    lazy-locals.json
-  builtins/
-    concrete.json
-    generics.json
-    higher-order.json
-    objects.json
-    effects.json
-  contracts/
-    entries.json
-    callables.json
-    effects.json
-  limits/
-    structural-depth.json
-  programs/
-    chess.json
+  expressions/*.json
+  functions/*.json
+  modules/*.json
+  locals/*.json
+  narrowing/*.json
+  builtins/*.json
+  contracts/*.json
+  limits/structural-depth.json
+  programs/chess.json
 ```
 
-The runner must recurse, as existing builtin cases already do. Keep suites large
+The runner recurses over this tree. Keep suites large
 enough to express a coherent behavior and small enough that fixture ownership
 is obvious. Do not reproduce the TypeScript test-file layout.
 
-## Migration inventory
+## Migration inventory (historical)
 
 ### `typescript/test/check/checker.test.ts`
 
@@ -449,9 +436,9 @@ If a custom table currently stands in for a generally useful language feature,
 add equivalent coverage through a portable contract or standard builtin rather
 than adding arbitrary table definitions to fixtures.
 
-### `typescript/test/check/chess.test.ts`
+### Former `typescript/test/check/chess.test.ts`
 
-Move all portable chess fragments:
+The migration moved all portable chess fragments:
 
 - coordinate-layer checking;
 - nullability and narrowing;
@@ -459,9 +446,8 @@ Move all portable chess fragments:
 - field-path and discriminant narrowing;
 - match exhaustiveness and dead cases.
 
-Place these under `check/programs/chess.json` or split them into a small number
-of coherent chess suites. Preserve individual case descriptions even when
-common module fragments are expanded in JSON.
+They now live under `check/programs/chess.json`, with individual descriptions
+preserved even where common module fragments are expanded in JSON.
 
 Do not add a fixture macro or inheritance language solely to make these cases
 shorter. Checked-in canonical programs are the conformance artifacts.
@@ -607,7 +593,7 @@ priority than migrating the focused checker suites.
 
 ## Implementation phases
 
-### Phase 1: Define and validate the format
+### Phase 1: Define and validate the format (completed)
 
 1. Add `spec/cases/check.schema.json`.
 2. Add a typed checker-case loader and runtime validator under
@@ -630,7 +616,7 @@ Exit criteria:
   corpus;
 - the adapter surface contains no TypeScript checker internals.
 
-### Phase 2: Add the runner and seed cases
+### Phase 2: Add the runner and seed cases (completed)
 
 1. Add a checker conformance runner and a thin test entry point.
 2. Load standard builtins from the shared registry only when selected.
@@ -651,7 +637,7 @@ Exit criteria:
 - additional, missing, and duplicate diagnostics cause test failures;
 - builtin-free and standard-builtin suites run through the same adapter.
 
-### Phase 3: Migrate core checker and local-scope behavior
+### Phase 3: Migrate core checker and local-scope behavior (completed)
 
 1. Migrate portable blocks from `check/checker.test.ts`.
 2. Migrate portable blocks from `let-check.test.ts`.
@@ -667,7 +653,7 @@ Exit criteria:
 - no removed local assertion lacks a named shared replacement;
 - direct-context and fact-map unit tests remain local and focused.
 
-### Phase 4: Migrate builtins, contracts, and programs
+### Phase 4: Migrate builtins, contracts, and programs (completed)
 
 1. Migrate standard builtin typing by behavior category.
 2. Migrate contract checker integration.
@@ -683,13 +669,15 @@ Exit criteria:
 - chess remains a coherent realistic checker corpus;
 - CLI tests no longer serve as the only coverage for checker semantics.
 
-### Phase 5: Audit and follow-ups
+### Phase 5: Audit and follow-ups (completed)
 
 1. Search TypeScript tests for direct `checkExpr` and `checkModule` calls.
 2. Classify every remaining call as unit, integration, example, or an
    intentionally retained duplicate.
 3. Document the reason beside non-obvious retained tests.
 4. Decide whether to create `spec/cases/schema/`, beginning with subsumption.
+   Decision: yes; scope and migration boundary are recorded in
+   `plans/schema-conformance.md`.
 5. Update documentation maps and obsolete references.
 
 Exit criteria:
@@ -707,7 +695,7 @@ Run from `typescript/`:
 ```bash
 bun test test/check-spec.test.ts
 bun test test/check/checker.test.ts test/check/builtins.test.ts
-bun test test/check/narrowing.test.ts test/check/chess.test.ts
+bun test test/check/narrowing.test.ts
 bun test test/let-check.test.ts test/contract.test.ts
 bun test test/function-body-structure.test.ts test/structural-depth.test.ts
 bun test test/cli-check.test.ts

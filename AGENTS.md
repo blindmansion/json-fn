@@ -2,19 +2,19 @@
 
 json-fn is built for agents that write programs rather than issuing one tool call at a time — but instead of sandboxing a general-purpose language after the fact, it makes agent-written code safe by construction: pure JSON programs with no I/O and no capability beyond what an operator-owned contract explicitly declares. Because the program is inert data, it's an auditable artifact — typecheckable against its contract, hashable, diffable, and human-readable — so operators can review exactly what an agent's automation can do before embedding it in their application. And because continuations are JSON too, agent-written workflows suspend, persist, and resume across process restarts natively, giving durable orchestration without replay machinery.
 
-json-fn is a pure-JSON functional expression language evaluated by a tree-walking interpreter. See `docs/index.md` for the documentation map and `docs/language/json/index.md` for the full reference; `docs/` is the source of truth for language details. (There is no root `README.md` right now — it will be rewritten once the project stabilizes.)
+json-fn is a pure-JSON functional expression language evaluated by a tree-walking interpreter. See `spec/docs/index.md` for the documentation map and `spec/docs/language/json/index.md` for the full reference; `spec/docs/` is the source of truth for language details. (There is no root `README.md` right now — it will be rewritten once the project stabilizes.)
 
 ## Reference docs & working notes
 
-- `docs/` — language, authoring, deployment, and runtime documentation.
-  - `docs/index.md` — documentation map and recommended reading paths.
-  - `docs/guides/` — authoring guides.
-  - `docs/language/` — language, shorthand, type syntax, and narrowing references.
-  - `docs/builtins/` — generated builtin catalog and signature-registry specification.
-  - `docs/runtime/` — execution limits, hashing, and durable host behavior.
-  - `docs/deployment/` — portable environment contract and deployment profile.
-- `plans/` — design plans and sketches for in-progress / proposed language work (e.g. `module-scope.md`, `effects-sketch.md`, `type-sketch.md`).
-- `todo/` — outstanding work items and tracking notes (e.g. `conformance-tests.md`, `impl-feature-parity.md`, `new-features.md`).
+- `spec/docs/` — language, authoring, deployment, runtime, and conformance documentation.
+  - `spec/docs/index.md` — documentation map and recommended reading paths.
+  - `spec/docs/guides/` — authoring guides.
+  - `spec/docs/language/` — language, shorthand, type syntax, and narrowing references.
+  - `spec/docs/builtins/` — generated builtin catalog and signature-registry specification.
+  - `spec/docs/conformance/` — parsing, builtin, and checker adapter requirements.
+  - `spec/docs/runtime/` — execution limits, hashing, and durable host behavior.
+  - `spec/docs/deployment/` — portable environment contract and deployment profile.
+- `plans/` — design plans and sketches for in-progress or proposed language work.
 - `examples/` — sample `.jfn` programs with portable environment contracts and deployment profiles (e.g. `dungeon`, `thermostat`, `orbital-traffic`, `parcel-sorter`).
 
 ## Implementations
@@ -24,6 +24,8 @@ The TypeScript implementation (`typescript/`) is the canonical interpreter and s
 - `typescript/` — **canonical.** All new language work lands here first.
 
 The shared, language-agnostic conformance suites live in `spec/cases/`.
+Checker cases live in `spec/cases/check/`; their adapter contract is documented
+in `spec/docs/conformance/checking.md`.
 
 ## TypeScript project (`typescript/`)
 
@@ -32,8 +34,9 @@ Uses **Bun** (not node/npm). Common commands, run inside `typescript/`:
 - `bun run check` — `tsc --noEmit`, oxlint, oxfmt --check, spec-case format check.
 - `bun run fix` — typecheck, lint --fix, format (TS + spec-case JSON).
 - `bun test` — run the test suite.
-- `bun run generate:builtins-doc` — regenerate `docs/builtins/builtins.md`; run whenever `spec/builtins/builtins.json` is updated.
+- `bun run generate:builtins-doc` — regenerate `spec/docs/builtins/builtins.md`; run whenever `spec/builtins/builtins.json` is updated.
 - `bun run validate:spec-cases <spec-dir>` — validate conformance case files against their suite schemas; `<spec-dir>` is relative to the repo root (e.g. `spec` or `spec-v2`). Run after altering any spec cases.
+- `bun test test/check-spec.test.ts` — run the shared checker conformance corpus.
 
 ### The `jfn` CLI
 

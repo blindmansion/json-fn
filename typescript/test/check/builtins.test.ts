@@ -26,6 +26,8 @@ const body = (
 ): Record<string, JSONType> => ({ $params: params, $sig: sig, $return: ret });
 
 describe("builtin checker implementation internals", () => {
+  // These calls use hand-built callable tables or injected rule registries,
+  // implementation hooks that portable checker fixtures intentionally omit.
   const BT = loadBuiltinTable();
 
   test("single signatures implement required-through-optional ranges", () => {

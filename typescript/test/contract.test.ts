@@ -161,15 +161,14 @@ describe("contract validation and composition", () => {
 });
 
 describe("contract runtime integration", () => {
+  // Remaining checker assertions pair static admission with runtime boundary behavior;
+  // the shared corpus covers checker-only contract semantics.
   test("executes and validates a direct entry without task stepping", async () => {
     const env = contract({
       entry: { name: "main", required: [], optional: [], returns: I },
     });
     const host = { registry: createStdlib(), capabilities: {} };
 
-    expect(checkModule(module("main: () => 42"), loadBuiltinTable(), { contract: env })).toEqual(
-      [],
-    );
     expect(await runTask(module("main: () => 42"), env, [], host)).toBe(42);
     expect(runTask(module('main: () => "wrong"'), env, [], host)).rejects.toThrow(
       RuntimeContractError,

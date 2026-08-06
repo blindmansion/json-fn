@@ -5,6 +5,7 @@ checker on canonical json-fn expressions and modules. Validate each file
 against `spec/cases/check.schema.json` before registering any of its cases;
 malformed fixtures must fail before tests run.
 
+Recursively load and run every `.json` suite under `spec/cases/check/`.
 Suites live directly below `check/` or exactly one directory level deeper. A
 suite's `$schema` must spell the depth-exact relative path to the schema —
 `../check.schema.json` directly below `check/`, `../../check.schema.json` one
