@@ -47,14 +47,8 @@
         {
           "$callback": {
             "steps": [
-              {
-                "args": [{ "name": "alice", "age": 25 }],
-                "outcome": { "returns": false }
-              },
-              {
-                "args": [{ "name": "bob", "age": 35 }],
-                "outcome": { "returns": true }
-              }
+              { "args": [{ "name": "alice", "age": 25 }], "outcome": { "returns": false } },
+              { "args": [{ "name": "bob", "age": 35 }], "outcome": { "returns": true } }
             ]
           }
         },

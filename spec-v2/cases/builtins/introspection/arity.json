@@ -56,10 +56,7 @@
         {
           "$function": {
             "name": "varFn",
-            "body": {
-              "$params": ["first", "second", "...rest"],
-              "$return": { "$var": "first" }
-            }
+            "body": { "$params": ["first", "second", "...rest"], "$return": { "$var": "first" } }
           }
         }
       ],
@@ -70,10 +67,6 @@
       "args": ["nonexistent"],
       "outcome": { "returns": null }
     },
-    {
-      "description": "reports its own arity",
-      "args": ["arity"],
-      "outcome": { "returns": 1 }
-    }
+    { "description": "reports its own arity", "args": ["arity"], "outcome": { "returns": 1 } }
   ]
 }

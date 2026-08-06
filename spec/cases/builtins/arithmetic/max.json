@@ -14,11 +14,7 @@
       "args": [[-7, -2.5, -3]],
       "outcome": { "returns": -2.5 }
     },
-    {
-      "description": "returns the only element",
-      "args": [[42]],
-      "outcome": { "returns": 42 }
-    },
+    { "description": "returns the only element", "args": [[42]], "outcome": { "returns": 42 } },
     {
       "description": "rejects a non-array argument",
       "args": [42],

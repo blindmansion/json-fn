@@ -13,10 +13,7 @@
         "returns": {
           "@task": "bind",
           "task": { "@task": "pure", "value": 1 },
-          "then": {
-            "$params": ["x"],
-            "$return": { "$call": "pure", "$args": [{ "$var": "x" }] }
-          }
+          "then": { "$params": ["x"], "$return": { "$call": "pure", "$args": [{ "$var": "x" }] } }
         }
       }
     },

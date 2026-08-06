@@ -23,10 +23,6 @@
       "args": ["3"],
       "outcome": { "returns": false }
     },
-    {
-      "description": "returns false for null",
-      "args": [null],
-      "outcome": { "returns": false }
-    }
+    { "description": "returns false for null", "args": [null], "outcome": { "returns": false } }
   ]
 }

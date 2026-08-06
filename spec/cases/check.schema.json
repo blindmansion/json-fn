@@ -85,9 +85,7 @@
             {
               "required": ["module"],
               "not": { "anyOf": [{ "required": ["expression"] }, { "required": ["defs"] }] },
-              "properties": {
-                "expected": { "not": { "type": "object", "required": ["type"] } }
-              }
+              "properties": { "expected": { "not": { "type": "object", "required": ["type"] } } }
             }
           ]
         },
@@ -152,9 +150,6 @@
       },
       "additionalProperties": false
     },
-    "schema": {
-      "type": ["boolean", "object"],
-      "description": "A canonical json-fn schema value."
-    }
+    "schema": { "type": ["boolean", "object"], "description": "A canonical json-fn schema value." }
   }
 }

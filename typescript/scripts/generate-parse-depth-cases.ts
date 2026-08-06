@@ -56,7 +56,9 @@ suite.cases.splice(
   },
 );
 
-writeFileSync(fixturePath, `${JSON.stringify(suite)}\n`);
+// No trailing newline: `format:spec-cases` collapses all JSON whitespace
+// outside strings, so generator output must match to keep regeneration clean.
+writeFileSync(fixturePath, JSON.stringify(suite));
 
 function caseIndex(description: string): number {
   const index = suite.cases.findIndex((testCase) => testCase.description === description);

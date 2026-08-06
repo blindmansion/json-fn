@@ -27,9 +27,7 @@
     {
       "description": "rejects malformed entries",
       "args": [[["key"]]],
-      "outcome": {
-        "throws": { "messageIncludes": "each entry must be a [key, value] pair" }
-      }
+      "outcome": { "throws": { "messageIncludes": "each entry must be a [key, value] pair" } }
     },
     {
       "description": "rejects non-string keys",

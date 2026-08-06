@@ -126,26 +126,17 @@
     {
       "description": "missing typed-lambda return type reports the annotation position",
       "source": "(x: number) -> => x",
-      "error": {
-        "messageIncludes": "expected a type",
-        "at": { "line": 1, "column": 16 }
-      }
+      "error": { "messageIncludes": "expected a type", "at": { "line": 1, "column": 16 } }
     },
     {
       "description": "invalid star typed-lambda return type reports the annotation position",
       "source": "(x: number) -> * => x",
-      "error": {
-        "messageIncludes": "expected a type",
-        "at": { "line": 1, "column": 16 }
-      }
+      "error": { "messageIncludes": "expected a type", "at": { "line": 1, "column": 16 } }
     },
     {
       "description": "invalid union typed-lambda return type reports the annotation position",
       "source": "(x: number) -> | => x",
-      "error": {
-        "messageIncludes": "expected a type",
-        "at": { "line": 1, "column": 16 }
-      }
+      "error": { "messageIncludes": "expected a type", "at": { "line": 1, "column": 16 } }
     },
     {
       "description": "bare Task return annotation lowers to an erased task type",

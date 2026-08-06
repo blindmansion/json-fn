@@ -7,11 +7,7 @@
       "description": "builds a raise effect carrying the supplied value",
       "args": [{ "tag": "NotFound" }],
       "outcome": {
-        "returns": {
-          "@task": "effect",
-          "name": "raise",
-          "args": [{ "tag": "NotFound" }]
-        }
+        "returns": { "@task": "effect", "name": "raise", "args": [{ "tag": "NotFound" }] }
       }
     }
   ]

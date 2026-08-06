@@ -8,11 +8,7 @@
       "args": [-8],
       "outcome": { "returns": -1 }
     },
-    {
-      "description": "returns zero for zero",
-      "args": [0],
-      "outcome": { "returns": 0 }
-    },
+    { "description": "returns zero for zero", "args": [0], "outcome": { "returns": 0 } },
     {
       "description": "returns one for a positive number",
       "args": [2.5],

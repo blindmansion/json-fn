@@ -19,11 +19,7 @@
       "args": ["hello"],
       "outcome": { "returns": "hello" }
     },
-    {
-      "description": "leaves an empty string empty",
-      "args": [""],
-      "outcome": { "returns": "" }
-    },
+    { "description": "leaves an empty string empty", "args": [""], "outcome": { "returns": "" } },
     {
       "description": "reduces all-whitespace input to an empty string",
       "args": ["   "],

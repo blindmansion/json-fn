@@ -3,11 +3,7 @@
   "builtin": "sin",
   "description": "Return a number's sine.",
   "cases": [
-    {
-      "description": "returns zero for zero",
-      "args": [0],
-      "outcome": { "returns": 0 }
-    },
+    { "description": "returns zero for zero", "args": [0], "outcome": { "returns": 0 } },
     {
       "description": "returns one for pi over two",
       "args": [1.5707963267948966],

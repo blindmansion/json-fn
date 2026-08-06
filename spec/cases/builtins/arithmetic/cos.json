@@ -3,11 +3,7 @@
   "builtin": "cos",
   "description": "Return a number's cosine.",
   "cases": [
-    {
-      "description": "returns one for zero",
-      "args": [0],
-      "outcome": { "returns": 1 }
-    },
+    { "description": "returns one for zero", "args": [0], "outcome": { "returns": 1 } },
     {
       "description": "returns negative one for pi",
       "args": [3.141592653589793],

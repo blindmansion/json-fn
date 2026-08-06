@@ -3,16 +3,8 @@
   "builtin": "sqrt",
   "description": "Return the square root of a number.",
   "cases": [
-    {
-      "description": "computes a square root",
-      "args": [81],
-      "outcome": { "returns": 9 }
-    },
-    {
-      "description": "accepts a fractional input",
-      "args": [0.25],
-      "outcome": { "returns": 0.5 }
-    },
+    { "description": "computes a square root", "args": [81], "outcome": { "returns": 9 } },
+    { "description": "accepts a fractional input", "args": [0.25], "outcome": { "returns": 0.5 } },
     {
       "description": "rejects a negative input with a non-finite result",
       "args": [-1],

@@ -3,26 +3,10 @@
   "builtin": "round",
   "description": "Round numbers to the nearest integer.",
   "cases": [
-    {
-      "description": "rounds down below one half",
-      "args": [3.3],
-      "outcome": { "returns": 3 }
-    },
-    {
-      "description": "rounds up above one half",
-      "args": [3.7],
-      "outcome": { "returns": 4 }
-    },
-    {
-      "description": "rounds up at one half",
-      "args": [2.5],
-      "outcome": { "returns": 3 }
-    },
-    {
-      "description": "leaves an integer unchanged",
-      "args": [5],
-      "outcome": { "returns": 5 }
-    },
+    { "description": "rounds down below one half", "args": [3.3], "outcome": { "returns": 3 } },
+    { "description": "rounds up above one half", "args": [3.7], "outcome": { "returns": 4 } },
+    { "description": "rounds up at one half", "args": [2.5], "outcome": { "returns": 3 } },
+    { "description": "leaves an integer unchanged", "args": [5], "outcome": { "returns": 5 } },
     {
       "description": "rounds a negative decimal toward zero",
       "args": [-2.3],

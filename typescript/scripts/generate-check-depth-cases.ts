@@ -42,7 +42,9 @@ const suite = {
   ],
 };
 
-writeFileSync(fixturePath, `${JSON.stringify(suite)}\n`);
+// No trailing newline: `format:spec-cases` collapses all JSON whitespace
+// outside strings, so generator output must match to keep regeneration clean.
+writeFileSync(fixturePath, JSON.stringify(suite));
 
 function nestedArray(depth: number, leaf: JSONType = 1): JSONType {
   let value = leaf;

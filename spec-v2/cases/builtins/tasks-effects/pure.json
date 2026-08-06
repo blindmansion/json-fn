@@ -11,9 +11,7 @@
     {
       "description": "wraps an object value",
       "args": [{ "a": 1, "b": [2, 3] }],
-      "outcome": {
-        "returns": { "@task": "pure", "value": { "a": 1, "b": [2, 3] } }
-      }
+      "outcome": { "returns": { "@task": "pure", "value": { "a": 1, "b": [2, 3] } } }
     }
   ]
 }

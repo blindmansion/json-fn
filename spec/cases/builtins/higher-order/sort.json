@@ -35,11 +35,7 @@
     {
       "description": "rejects a comparator result that is not a finite number",
       "args": [
-        {
-          "$callback": {
-            "steps": [{ "args": [1, 2], "outcome": { "returns": "before" } }]
-          }
-        },
+        { "$callback": { "steps": [{ "args": [1, 2], "outcome": { "returns": "before" } }] } },
         [2, 1]
       ],
       "outcome": { "throws": { "messageIncludes": "comparator must return a finite number" } }

@@ -13,11 +13,7 @@
       "args": [[1.5, -2, 3]],
       "outcome": { "returns": -9 }
     },
-    {
-      "description": "returns one for an empty array",
-      "args": [[]],
-      "outcome": { "returns": 1 }
-    },
+    { "description": "returns one for an empty array", "args": [[]], "outcome": { "returns": 1 } },
     {
       "description": "rejects a non-array argument",
       "args": [42],

@@ -49,14 +49,8 @@
             "$return": {
               "$call": "bind",
               "$args": [
-                {
-                  "$call": "perform",
-                  "$args": ["io.print", [{ "$var": "name" }]]
-                },
-                {
-                  "$params": ["_"],
-                  "$return": { "$call": "pure", "$args": [{ "$var": "name" }] }
-                }
+                { "$call": "perform", "$args": ["io.print", [{ "$var": "name" }]] },
+                { "$params": ["_"], "$return": { "$call": "pure", "$args": [{ "$var": "name" }] } }
               ]
             }
           }
@@ -98,9 +92,7 @@
           }
         }
       ],
-      "outcome": {
-        "returns": { "@task": "effect", "name": "e", "args": [3] }
-      }
+      "outcome": { "returns": { "@task": "effect", "name": "e", "args": [3] } }
     },
     {
       "description": "allows a clause to short-circuit without resume",
@@ -113,11 +105,7 @@
     {
       "description": "dispatches the distinguished raise effect",
       "args": [
-        {
-          "@task": "effect",
-          "name": "raise",
-          "args": [{ "tag": "NotFound" }]
-        },
+        { "@task": "effect", "name": "raise", "args": [{ "tag": "NotFound" }] },
         {
           "raise": {
             "$params": ["error", "resume"],
@@ -143,11 +131,7 @@
     {
       "description": "supports multi-shot resume",
       "args": [
-        {
-          "@task": "effect",
-          "name": "choose",
-          "args": [[1, 2, 3]]
-        },
+        { "@task": "effect", "name": "choose", "args": [[1, 2, 3]] },
         {
           "choose": {
             "$params": ["values", "resume"],
@@ -156,19 +140,13 @@
               "$args": [
                 {
                   "$params": ["value"],
-                  "$return": {
-                    "$call": { "$var": "resume" },
-                    "$args": [{ "$var": "value" }]
-                  }
+                  "$return": { "$call": { "$var": "resume" }, "$args": [{ "$var": "value" }] }
                 },
                 { "$var": "values" }
               ]
             }
           },
-          "return": {
-            "$params": ["value"],
-            "$return": [{ "$var": "value" }]
-          }
+          "return": { "$params": ["value"], "$return": [{ "$var": "value" }] }
         }
       ],
       "outcome": { "returns": [1, 2, 3] }
@@ -231,9 +209,7 @@
         {
           "@task": "bind",
           "task": { "@task": "pure", "value": 1 },
-          "then": {
-            "$return": { "$call": "pure", "$args": ["ok"] }
-          }
+          "then": { "$return": { "$call": "pure", "$args": ["ok"] } }
         },
         {}
       ],
@@ -241,14 +217,7 @@
     },
     {
       "description": "rejects a forged bind task with a non-function continuation",
-      "args": [
-        {
-          "@task": "bind",
-          "task": { "@task": "pure", "value": 1 },
-          "then": 5
-        },
-        {}
-      ],
+      "args": [{ "@task": "bind", "task": { "@task": "pure", "value": 1 }, "then": 5 }, {}],
       "outcome": { "throws": { "messageIncludes": "bind `then` must be a function" } }
     },
     {

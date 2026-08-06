@@ -23,16 +23,8 @@
       "args": ["hello"],
       "outcome": { "returns": false }
     },
-    {
-      "description": "returns false for a number",
-      "args": [42],
-      "outcome": { "returns": false }
-    },
-    {
-      "description": "returns false for null",
-      "args": [null],
-      "outcome": { "returns": false }
-    },
+    { "description": "returns false for a number", "args": [42], "outcome": { "returns": false } },
+    { "description": "returns false for null", "args": [null], "outcome": { "returns": false } },
     {
       "description": "returns false for a boolean",
       "args": [true],

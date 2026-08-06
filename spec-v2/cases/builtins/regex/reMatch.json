@@ -7,12 +7,7 @@
       "description": "returns the first match with capture groups",
       "args": ["(\\w+)@(\\w+)", "user@host.com"],
       "outcome": {
-        "returns": {
-          "match": "user@host",
-          "index": 0,
-          "groups": ["user", "host"],
-          "named": {}
-        }
+        "returns": { "match": "user@host", "index": 0, "groups": ["user", "host"], "named": {} }
       }
     },
     {
@@ -49,20 +44,13 @@
       "description": "supports case-insensitive matching",
       "args": ["(?i)(hello) (world)", "Hello World"],
       "outcome": {
-        "returns": {
-          "match": "Hello World",
-          "index": 0,
-          "groups": ["Hello", "World"],
-          "named": {}
-        }
+        "returns": { "match": "Hello World", "index": 0, "groups": ["Hello", "World"], "named": {} }
       }
     },
     {
       "description": "combines case-insensitive and multiline flags",
       "args": ["(?im)^hello", "first\nHELLO world"],
-      "outcome": {
-        "returns": { "match": "HELLO", "index": 6, "groups": [], "named": {} }
-      }
+      "outcome": { "returns": { "match": "HELLO", "index": 6, "groups": [], "named": {} } }
     }
   ]
 }

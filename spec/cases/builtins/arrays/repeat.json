@@ -18,11 +18,7 @@
       "args": [[1, 2], -1],
       "outcome": { "throws": { "messageIncludes": "count must be a non-negative integer" } }
     },
-    {
-      "description": "repeats a string",
-      "args": ["ab", 3],
-      "outcome": { "returns": "ababab" }
-    },
+    { "description": "repeats a string", "args": ["ab", 3], "outcome": { "returns": "ababab" } },
     {
       "description": "returns an empty string for zero repetitions",
       "args": ["ab", 0],

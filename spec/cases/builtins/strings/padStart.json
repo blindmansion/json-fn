@@ -26,9 +26,7 @@
     {
       "description": "rejects a negative target length",
       "args": ["x", -1],
-      "outcome": {
-        "throws": { "messageIncludes": "target length must be a non-negative integer" }
-      }
+      "outcome": { "throws": { "messageIncludes": "target length must be a non-negative integer" } }
     }
   ]
 }

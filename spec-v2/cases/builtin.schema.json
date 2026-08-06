@@ -12,11 +12,7 @@
       "description": "The builtin under test. Must match the file name and builtin registry."
     },
     "description": { "type": "string", "minLength": 1 },
-    "cases": {
-      "type": "array",
-      "minItems": 1,
-      "items": { "$ref": "#/$defs/case" }
-    }
+    "cases": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/case" } }
   },
   "additionalProperties": false,
   "$defs": {
@@ -26,10 +22,7 @@
       "properties": {
         "description": { "type": "string", "minLength": 1 },
         "comment": { "type": "string" },
-        "args": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/input" }
-        },
+        "args": { "type": "array", "items": { "$ref": "#/$defs/input" } },
         "outcome": { "$ref": "#/$defs/outcome" },
         "observations": { "$ref": "#/$defs/observations" }
       },
@@ -129,10 +122,7 @@
       "type": "object",
       "required": ["args", "outcome"],
       "properties": {
-        "args": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/jsonValue" }
-        },
+        "args": { "type": "array", "items": { "$ref": "#/$defs/jsonValue" } },
         "outcome": { "$ref": "#/$defs/outcome" }
       },
       "additionalProperties": false
@@ -142,9 +132,7 @@
         {
           "type": "object",
           "required": ["returns"],
-          "properties": {
-            "returns": { "$ref": "#/$defs/jsonValue" }
-          },
+          "properties": { "returns": { "$ref": "#/$defs/jsonValue" } },
           "additionalProperties": false
         },
         {
@@ -154,9 +142,7 @@
             "throws": {
               "type": "object",
               "required": ["messageIncludes"],
-              "properties": {
-                "messageIncludes": { "type": "string", "minLength": 1 }
-              },
+              "properties": { "messageIncludes": { "type": "string", "minLength": 1 } },
               "additionalProperties": false
             }
           },

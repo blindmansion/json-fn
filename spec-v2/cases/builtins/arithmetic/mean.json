@@ -3,11 +3,7 @@
   "builtin": "mean",
   "description": "Return the arithmetic mean of a non-empty array of numbers.",
   "cases": [
-    {
-      "description": "averages numbers",
-      "args": [[1, 2, 3, 4]],
-      "outcome": { "returns": 2.5 }
-    },
+    { "description": "averages numbers", "args": [[1, 2, 3, 4]], "outcome": { "returns": 2.5 } },
     {
       "description": "supports decimal and negative values",
       "args": [[1.5, -2, 3.5]],

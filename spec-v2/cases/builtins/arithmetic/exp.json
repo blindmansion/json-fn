@@ -3,11 +3,7 @@
   "builtin": "exp",
   "description": "Raise Euler's number to a power.",
   "cases": [
-    {
-      "description": "returns one for zero",
-      "args": [0],
-      "outcome": { "returns": 1 }
-    },
+    { "description": "returns one for zero", "args": [0], "outcome": { "returns": 1 } },
     {
       "description": "returns Euler's number for one",
       "args": [1],

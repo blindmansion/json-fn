@@ -34,9 +34,7 @@
         },
         [{ "name": "charlie" }, { "name": "alice" }, { "name": "bob" }]
       ],
-      "outcome": {
-        "returns": [{ "name": "alice" }, { "name": "bob" }, { "name": "charlie" }]
-      }
+      "outcome": { "returns": [{ "name": "alice" }, { "name": "bob" }, { "name": "charlie" }] }
     },
     {
       "description": "sorts objects by extracted numeric keys",
@@ -104,11 +102,7 @@
     {
       "description": "rejects an unsupported key type",
       "args": [
-        {
-          "$callback": {
-            "steps": [{ "args": [1], "outcome": { "returns": true } }]
-          }
-        },
+        { "$callback": { "steps": [{ "args": [1], "outcome": { "returns": true } }] } },
         [1, 2]
       ],
       "outcome": { "throws": { "messageIncludes": "must return a finite number or string" } }

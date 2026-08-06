@@ -7,11 +7,7 @@
       "description": "builds a tagged effect task",
       "args": ["http.get", ["https://example.com"]],
       "outcome": {
-        "returns": {
-          "@task": "effect",
-          "name": "http.get",
-          "args": ["https://example.com"]
-        }
+        "returns": { "@task": "effect", "name": "http.get", "args": ["https://example.com"] }
       }
     },
     {

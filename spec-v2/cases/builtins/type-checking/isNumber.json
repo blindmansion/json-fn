@@ -3,21 +3,9 @@
   "builtin": "isNumber",
   "description": "Test whether a value is a number.",
   "cases": [
-    {
-      "description": "returns true for an integer",
-      "args": [42],
-      "outcome": { "returns": true }
-    },
-    {
-      "description": "returns true for a decimal",
-      "args": [3.14],
-      "outcome": { "returns": true }
-    },
-    {
-      "description": "returns true for zero",
-      "args": [0],
-      "outcome": { "returns": true }
-    },
+    { "description": "returns true for an integer", "args": [42], "outcome": { "returns": true } },
+    { "description": "returns true for a decimal", "args": [3.14], "outcome": { "returns": true } },
+    { "description": "returns true for zero", "args": [0], "outcome": { "returns": true } },
     {
       "description": "returns true for a negative number",
       "args": [-7],
@@ -33,10 +21,6 @@
       "args": [true],
       "outcome": { "returns": false }
     },
-    {
-      "description": "returns false for null",
-      "args": [null],
-      "outcome": { "returns": false }
-    }
+    { "description": "returns false for null", "args": [null], "outcome": { "returns": false } }
   ]
 }

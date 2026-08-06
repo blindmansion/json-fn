@@ -8,11 +8,7 @@
       "args": [[3, 1, 4, 1, 5, 9, 2, 6]],
       "outcome": { "returns": 1 }
     },
-    {
-      "description": "returns the only element",
-      "args": [[42]],
-      "outcome": { "returns": 42 }
-    },
+    { "description": "returns the only element", "args": [[42]], "outcome": { "returns": 42 } },
     {
       "description": "supports negative values",
       "args": [[-3, -1, -4, -1, -5]],

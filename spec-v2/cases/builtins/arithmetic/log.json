@@ -3,11 +3,7 @@
   "builtin": "log",
   "description": "Return a number's natural logarithm.",
   "cases": [
-    {
-      "description": "returns zero for one",
-      "args": [1],
-      "outcome": { "returns": 0 }
-    },
+    { "description": "returns zero for one", "args": [1], "outcome": { "returns": 0 } },
     {
       "description": "returns one for Euler's number",
       "args": [2.718281828459045],

@@ -13,11 +13,7 @@
       "args": [[1.5, -2, 3.25]],
       "outcome": { "returns": 2.75 }
     },
-    {
-      "description": "returns zero for an empty array",
-      "args": [[]],
-      "outcome": { "returns": 0 }
-    },
+    { "description": "returns zero for an empty array", "args": [[]], "outcome": { "returns": 0 } },
     {
       "description": "rejects a non-array argument",
       "args": [42],

@@ -35,10 +35,7 @@
         {
           "$callback": {
             "steps": [
-              {
-                "args": [1, 0],
-                "outcome": { "throws": { "messageIncludes": "callback failed" } }
-              }
+              { "args": [1, 0], "outcome": { "throws": { "messageIncludes": "callback failed" } } }
             ]
           }
         },

@@ -8,11 +8,7 @@
       "args": [4],
       "outcome": { "returns": [0, 1, 2, 3] }
     },
-    {
-      "description": "returns an empty range for zero",
-      "args": [0],
-      "outcome": { "returns": [] }
-    },
+    { "description": "returns an empty range for zero", "args": [0], "outcome": { "returns": [] } },
     {
       "description": "returns an empty range for a negative endpoint",
       "args": [-2],

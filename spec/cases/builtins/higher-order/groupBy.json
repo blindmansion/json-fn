@@ -49,14 +49,7 @@
     },
     {
       "description": "rejects an unsupported callback key",
-      "args": [
-        {
-          "$callback": {
-            "steps": [{ "args": [1], "outcome": { "returns": [1] } }]
-          }
-        },
-        [1]
-      ],
+      "args": [{ "$callback": { "steps": [{ "args": [1], "outcome": { "returns": [1] } }] } }, [1]],
       "outcome": { "throws": { "messageIncludes": "must return a string or number" } }
     },
     {

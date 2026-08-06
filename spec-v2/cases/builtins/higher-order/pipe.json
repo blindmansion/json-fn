@@ -23,16 +23,8 @@
       "description": "passes each result to the next callback",
       "args": [
         [
-          {
-            "$callback": {
-              "steps": [{ "args": [5], "outcome": { "returns": 10 } }]
-            }
-          },
-          {
-            "$callback": {
-              "steps": [{ "args": [10], "outcome": { "returns": 11 } }]
-            }
-          }
+          { "$callback": { "steps": [{ "args": [5], "outcome": { "returns": 10 } }] } },
+          { "$callback": { "steps": [{ "args": [10], "outcome": { "returns": 11 } }] } }
         ],
         5
       ],

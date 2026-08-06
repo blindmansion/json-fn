@@ -8,11 +8,7 @@
       "args": [{ "@task": "pure", "value": 42 }],
       "outcome": { "returns": true }
     },
-    {
-      "description": "rejects a number",
-      "args": [42],
-      "outcome": { "returns": false }
-    },
+    { "description": "rejects a number", "args": [42], "outcome": { "returns": false } },
     {
       "description": "rejects an array containing a task tag",
       "args": [[{ "@task": "pure" }]],
