@@ -299,13 +299,11 @@ proposals.md` Proposal 3 should be marked resolved _in the
     event-trace redesign and should be adopted into the rewritten
     `execution-limits.md` (or an explicit follow-up) rather than left in a
     resolved proposal's margins.
-12. **Checker-conformance regeneration sequencing.** The canonical migration
-    is complete in `spec/cases/check/`. The remaining question is when to
-    create the corresponding `spec-v2/cases/check/`: after the coordinated
-    break, or by accepting suite regeneration as part of it. The break changes
-    narrowing around strict reads, capture lookup tiers, and
-    laziness-mirroring reachability, so copying the current corpus first would
-    create the same concrete-pouring dynamic as §5.
+12. **Checker-conformance migration sequencing.** The v1 corpus has been
+    copied into `spec-v2/cases/check/`. The v2 copy migrates with Stage 2 for
+    strict reads, capture lookup tiers, and laziness-mirroring reachability,
+    then receives the additional Stage 3 cleanup; `spec/cases/check/` remains
+    unchanged.
 
 ---
 

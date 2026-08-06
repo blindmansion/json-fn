@@ -79,9 +79,9 @@ stated in the Stage 1 spec text:
   `maxValueSize` boundary audit, transitive purity for memoization,
   builtin/validator forcing-depth audit. All unchanged; the fuel-leak
   blocker dissolved with Stage 1 (2026-08-06).
-- **Checker-conformance regeneration for spec-v2.** The canonical `spec/`
-  migration is complete. Regenerate an equivalent `spec-v2/cases/check/`
-  corpus after Stage 3, or price that regeneration into the coordinated break.
+- **Checker-conformance migration for spec-v2.** The v1 corpus has been copied
+  into `spec-v2/cases/check/`. Migrate the affected suites as part of Stage 2,
+  then apply the additional Stage 3 cleanup; the v1 corpus remains unchanged.
 
 ## Bookkeeping and cross-plan updates
 

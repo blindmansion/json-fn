@@ -74,6 +74,10 @@ and `spec-v2/docs/runtime/hashing.md` rules land in the same change.
 4. **Strict reads**: [`strict-reads.md`](strict-reads.md) is absorbed,
    including the `$get` redesign and the absent-vs-null resolution
    (Proposal 10).
+5. **Checker conformance**: migrate the affected
+   `spec-v2/cases/check/` suites for strict bindings, generalized captures,
+   `$fields` lowering, and strict `$get`; add `$else` and `hasKey` narrowing
+   coverage. The v1 corpus remains unchanged.
 
 ## Stage 3 — kernel cleanup
 
