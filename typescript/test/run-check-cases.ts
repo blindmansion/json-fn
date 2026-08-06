@@ -93,7 +93,7 @@ export function diagnosticMismatch(
   }
 
   // matcherFor[j] = index of the matcher consuming actual diagnostic j.
-  const matcherFor = new Array<number>(actual.length).fill(-1);
+  const matcherFor: number[] = Array.from({ length: actual.length }, () => -1);
   const unmatched: number[] = [];
   for (let i = 0; i < matchers.length; i++) {
     if (!assign(i, matchers, actual, matcherFor, new Set())) unmatched.push(i);
