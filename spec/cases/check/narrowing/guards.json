@@ -1,0 +1,84 @@
+{
+  "$schema": "../../check.schema.json",
+  "description": "flow narrowing: named boolean guard bindings",
+  "comment": "End-to-end forms of the named-guard fact-map rows in typescript/test/check/narrowing.test.ts: a bare local bound to a recognized guard expression adopts the binding's facts, aliases are followed, and a binding that yields no fact falls back to the local's own truthiness.",
+  "builtins": "standard",
+  "cases": [
+    {
+      "description": "a boolean guard local adopts its binding's facts",
+      "module": {
+        "f": {
+          "$params": ["target"],
+          "$sig": {
+            "required": [{ "anyOf": [{ "type": "string" }, { "type": "null" }] }],
+            "optional": [],
+            "returns": { "type": "string" }
+          },
+          "$return": {
+            "$let": { "empty": { "$call": "isNull", "$args": [{ "$var": "target" }] } },
+            "$in": { "$if": { "$var": "empty" }, "$then": "", "$else": { "$var": "target" } }
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "a named integer guard adopts its binding's facts",
+      "module": {
+        "f": {
+          "$params": ["target"],
+          "$sig": {
+            "required": [{ "anyOf": [{ "type": "number" }, { "type": "string" }] }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": {
+            "$let": { "integral": { "$call": "isInteger", "$args": [{ "$var": "target" }] } },
+            "$in": { "$if": { "$var": "integral" }, "$then": { "$var": "target" }, "$else": 0 }
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "guard aliases are followed (ok: not(empty), empty: isNull(target))",
+      "module": {
+        "f": {
+          "$params": ["target"],
+          "$sig": {
+            "required": [{ "anyOf": [{ "type": "string" }, { "type": "null" }] }],
+            "optional": [],
+            "returns": { "type": "string" }
+          },
+          "$return": {
+            "$let": {
+              "empty": { "$call": "isNull", "$args": [{ "$var": "target" }] },
+              "ok": { "$call": "not", "$args": [{ "$var": "empty" }] }
+            },
+            "$in": { "$if": { "$var": "ok" }, "$then": { "$var": "target" }, "$else": "" }
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "a guard local whose binding yields no fact falls back to truthiness",
+      "comment": "head(xs) is a plain call, not a recognized guard, so the bare local h narrows by its own truthiness from integer | null to integer in the then-branch.",
+      "module": {
+        "f": {
+          "$params": ["xs"],
+          "$sig": {
+            "required": [{ "type": "array", "items": { "type": "integer" } }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": {
+            "$let": { "h": { "$call": "head", "$args": [{ "$var": "xs" }] } },
+            "$in": { "$if": { "$var": "h" }, "$then": { "$var": "h" }, "$else": 0 }
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    }
+  ]
+}

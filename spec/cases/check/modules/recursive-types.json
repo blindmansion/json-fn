@@ -1,0 +1,94 @@
+{
+  "$schema": "../../check.schema.json",
+  "description": "module checking: recursive type contractivity",
+  "builtins": "none",
+  "cases": [
+    {
+      "description": "rejects a direct recursive alias before checking its uses",
+      "module": {
+        "$types": { "A": { "$ref": "#/$defs/A" } },
+        "f": {
+          "$params": ["x"],
+          "$sig": {
+            "required": [{ "$ref": "#/$defs/A" }],
+            "optional": [],
+            "returns": { "$ref": "#/$defs/A" }
+          },
+          "$return": { "$var": "x" }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["$types", "A"],
+            "severity": "error",
+            "messageIncludes": "type declaration \"A\" is non-contractive"
+          }
+        ]
+      }
+    },
+    {
+      "description": "rejects recursion through a union",
+      "module": {
+        "$types": { "B": { "anyOf": [{ "$ref": "#/$defs/B" }, { "type": "null" }] } },
+        "f": {
+          "$params": ["x"],
+          "$sig": {
+            "required": [{ "anyOf": [{ "$ref": "#/$defs/B" }, { "type": "null" }] }],
+            "optional": [],
+            "returns": { "anyOf": [{ "$ref": "#/$defs/B" }, { "type": "null" }] }
+          },
+          "$return": { "$var": "x" }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          { "path": ["$types", "B"], "severity": "error", "messageIncludes": "non-contractive" }
+        ]
+      }
+    },
+    {
+      "description": "rejects every declaration in an unguarded mutual cycle",
+      "module": {
+        "$types": {
+          "A": { "$ref": "#/$defs/B" },
+          "B": { "$ref": "#/$defs/C" },
+          "C": { "$ref": "#/$defs/A" }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          { "path": ["$types", "A"], "severity": "error", "messageIncludes": "non-contractive" },
+          { "path": ["$types", "B"], "severity": "error", "messageIncludes": "non-contractive" },
+          { "path": ["$types", "C"], "severity": "error", "messageIncludes": "non-contractive" }
+        ]
+      }
+    },
+    {
+      "description": "accepts recursion guarded by arrays or objects",
+      "module": {
+        "$types": {
+          "Json": {
+            "anyOf": [
+              { "type": "null" },
+              { "type": "boolean" },
+              { "type": "number" },
+              { "type": "string" },
+              { "type": "array", "items": { "$ref": "#/$defs/Json" } },
+              { "type": "object", "additionalProperties": { "$ref": "#/$defs/Json" } }
+            ]
+          },
+          "Tree": {
+            "type": "object",
+            "properties": {
+              "value": { "type": "number" },
+              "children": { "type": "array", "items": { "$ref": "#/$defs/Tree" } }
+            },
+            "required": ["value", "children"]
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    }
+  ]
+}

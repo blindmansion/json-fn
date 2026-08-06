@@ -1,0 +1,212 @@
+{
+  "$schema": "../../check.schema.json",
+  "description": "flow narrowing: equality literal pin and exclusion",
+  "comment": "End-to-end forms of the equality fact-map rows in typescript/test/check/narrowing.test.ts: eq/neq against a literal pins the literal on one sense and excludes an exact-const arm on the other, symmetrically in argument order.",
+  "builtins": "standard",
+  "cases": [
+    {
+      "description": "eq(subject, literal) then-branch pins the literal",
+      "module": {
+        "f": {
+          "$params": ["color"],
+          "$sig": {
+            "required": [{ "enum": ["w", "b"] }],
+            "optional": [],
+            "returns": { "const": "w" }
+          },
+          "$return": {
+            "$if": { "$call": "eq", "$args": [{ "$var": "color" }, "w"] },
+            "$then": { "$var": "color" },
+            "$else": "w"
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "eq(subject, literal) else-branch excludes the literal",
+      "module": {
+        "f": {
+          "$params": ["color"],
+          "$sig": {
+            "required": [{ "enum": ["w", "b"] }],
+            "optional": [],
+            "returns": { "const": "b" }
+          },
+          "$return": {
+            "$if": { "$call": "eq", "$args": [{ "$var": "color" }, "w"] },
+            "$then": "b",
+            "$else": { "$var": "color" }
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "argument order is symmetric: eq(literal, subject) pins the literal",
+      "module": {
+        "f": {
+          "$params": ["color"],
+          "$sig": {
+            "required": [{ "enum": ["w", "b"] }],
+            "optional": [],
+            "returns": { "const": "w" }
+          },
+          "$return": {
+            "$if": { "$call": "eq", "$args": ["w", { "$var": "color" }] },
+            "$then": { "$var": "color" },
+            "$else": "w"
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "neq is eq with the sense flipped: the then-branch excludes the literal",
+      "module": {
+        "f": {
+          "$params": ["color"],
+          "$sig": {
+            "required": [{ "enum": ["w", "b"] }],
+            "optional": [],
+            "returns": { "const": "b" }
+          },
+          "$return": {
+            "$if": { "$call": "neq", "$args": [{ "$var": "color" }, "w"] },
+            "$then": { "$var": "color" },
+            "$else": "b"
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "neq(x, null) then-branch removes a primitive null union arm",
+      "module": {
+        "f": {
+          "$params": ["x"],
+          "$sig": {
+            "required": [{ "anyOf": [{ "type": "integer" }, { "type": "null" }] }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": {
+            "$if": { "$call": "neq", "$args": [{ "$var": "x" }, null] },
+            "$then": { "$var": "x" },
+            "$else": 0
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "eq(x, null) else-branch removes a primitive null union arm",
+      "module": {
+        "f": {
+          "$params": ["x"],
+          "$sig": {
+            "required": [{ "anyOf": [{ "type": "integer" }, { "type": "null" }] }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": {
+            "$if": { "$call": "eq", "$args": [{ "$var": "x" }, null] },
+            "$then": 0,
+            "$else": { "$var": "x" }
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "null exclusion is symmetric in argument order",
+      "module": {
+        "f": {
+          "$params": ["x"],
+          "$sig": {
+            "required": [{ "anyOf": [{ "type": "integer" }, { "type": "null" }] }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": {
+            "$if": { "$call": "neq", "$args": [null, { "$var": "x" }] },
+            "$then": { "$var": "x" },
+            "$else": 0
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "eq(x, null) then-branch still pins null",
+      "module": {
+        "f": {
+          "$params": ["x"],
+          "$sig": {
+            "required": [{ "anyOf": [{ "type": "integer" }, { "type": "null" }] }],
+            "optional": [],
+            "returns": { "type": "null" }
+          },
+          "$return": {
+            "$if": { "$call": "eq", "$args": [{ "$var": "x" }, null] },
+            "$then": { "$var": "x" },
+            "$else": null
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "null exclusion handles type-array unions",
+      "module": {
+        "f": {
+          "$params": ["x"],
+          "$sig": {
+            "required": [{ "type": ["integer", "null"] }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": {
+            "$if": { "$call": "neq", "$args": [{ "$var": "x" }, null] },
+            "$then": { "$var": "x" },
+            "$else": 0
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "null exclusion resolves a named nullable type",
+      "module": {
+        "$types": { "MaybeInt": { "anyOf": [{ "type": "integer" }, { "type": "null" }] } },
+        "f": {
+          "$params": ["x"],
+          "$sig": {
+            "required": [{ "$ref": "#/$defs/MaybeInt" }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": {
+            "$if": { "$call": "neq", "$args": [{ "$var": "x" }, null] },
+            "$then": { "$var": "x" },
+            "$else": 0
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "excluding a non-null literal from a broad primitive remains a no-op",
+      "comment": "string minus one literal is not expressible, so the then-arm keeps the full string type and the expression infers exactly string.",
+      "expression": {
+        "$let": { "x": { "$as": "s", "$type": { "type": "string" } } },
+        "$in": {
+          "$if": { "$call": "neq", "$args": [{ "$var": "x" }, "special"] },
+          "$then": { "$var": "x" },
+          "$else": "special"
+        }
+      },
+      "expected": { "type": { "type": "string" }, "diagnostics": [] }
+    }
+  ]
+}

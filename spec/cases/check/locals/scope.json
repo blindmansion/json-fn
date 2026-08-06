@@ -1,0 +1,161 @@
+{
+  "$schema": "../../check.schema.json",
+  "description": "locals: recursive and transitive $let scope",
+  "builtins": "none",
+  "cases": [
+    {
+      "description": "tracks transitive dependencies through variables, named calls, and function refs",
+      "expression": {
+        "$let": {
+          "value": 1,
+          "callTarget": {
+            "$params": ["value"],
+            "$sig": {
+              "required": [{ "type": "integer" }],
+              "optional": [],
+              "returns": { "type": "integer" }
+            },
+            "$return": { "$var": "value" }
+          },
+          "refTarget": {
+            "$params": ["value"],
+            "$sig": {
+              "required": [{ "type": "integer" }],
+              "optional": [],
+              "returns": { "type": "integer" }
+            },
+            "$return": { "$var": "value" }
+          },
+          "transitive": { "$var": "value" }
+        },
+        "$in": [
+          { "$var": "transitive" },
+          { "$call": "callTarget", "$args": [1] },
+          { "$fn": "refTarget" }
+        ]
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "nested bindings and function parameters mask outer binding names",
+      "comment": "The inner $let binding and the helper parameter both shadow the outer `value`, which is therefore unused.",
+      "expression": {
+        "$let": {
+          "value": 1,
+          "helper": {
+            "$params": ["value"],
+            "$sig": {
+              "required": [{ "type": "integer" }],
+              "optional": [],
+              "returns": { "type": "integer" }
+            },
+            "$return": { "$var": "value" }
+          }
+        },
+        "$in": [
+          { "$let": { "value": 2 }, "$in": { "$var": "value" } },
+          { "$call": "helper", "$args": [3] }
+        ]
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["$let", "value"],
+            "severity": "error",
+            "messageIncludes": "unused local binding \"value\""
+          }
+        ]
+      }
+    },
+    {
+      "description": "an unreachable function reports only the unused binding",
+      "expression": {
+        "$let": { "helper": { "$params": [], "$return": { "$var": "missing" } } },
+        "$in": 1
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["$let", "helper"],
+            "severity": "error",
+            "messageIncludes": "unused local binding \"helper\""
+          }
+        ]
+      }
+    },
+    {
+      "description": "an unused function signature does not produce dangling-ref cascades",
+      "module": {
+        "main": {
+          "$params": [],
+          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$return": {
+            "$let": {
+              "helper": {
+                "$params": [],
+                "$sig": {
+                  "required": [],
+                  "optional": [],
+                  "returns": { "$ref": "#/$defs/Missing" }
+                },
+                "$return": 1
+              }
+            },
+            "$in": 1
+          }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["main", "$return", "$let", "helper"],
+            "severity": "error",
+            "messageIncludes": "unused local binding \"helper\""
+          }
+        ]
+      }
+    },
+    {
+      "description": "sees parameters and shadows parameters and nested let bindings",
+      "module": {
+        "f": {
+          "$params": ["value"],
+          "$sig": {
+            "required": [{ "type": "string" }],
+            "optional": [],
+            "returns": {
+              "type": "array",
+              "prefixItems": [{ "type": "string" }, { "const": 2 }, { "type": "string" }],
+              "items": false,
+              "minItems": 3
+            }
+          },
+          "$return": {
+            "$let": { "local": { "$var": "value" }, "value": "shadowed" },
+            "$in": [
+              { "$var": "local" },
+              { "$let": { "value": 2 }, "$in": { "$var": "value" } },
+              { "$var": "value" }
+            ]
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "supports a binding named toString",
+      "expression": { "$let": { "toString": 1 }, "$in": { "$var": "toString" } },
+      "expected": { "type": { "const": 1 }, "diagnostics": [] }
+    },
+    {
+      "description": "supports a binding named constructor",
+      "expression": { "$let": { "constructor": 1 }, "$in": { "$var": "constructor" } },
+      "expected": { "type": { "const": 1 }, "diagnostics": [] }
+    },
+    {
+      "description": "supports a binding named __proto__",
+      "expression": { "$let": { "__proto__": 1 }, "$in": { "$var": "__proto__" } },
+      "expected": { "type": { "const": 1 }, "diagnostics": [] }
+    }
+  ]
+}

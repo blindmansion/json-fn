@@ -9,6 +9,11 @@
       "expected": { "type": { "type": "integer" }, "diagnostics": [] }
     },
     {
+      "description": "a non-null assertion of null synthesizes never",
+      "expression": { "$nonnull": null },
+      "expected": { "type": false, "diagnostics": [] }
+    },
+    {
       "description": "checked ascription returns the declared type without static subsumption",
       "expression": { "$as": -1, "$type": { "type": "integer", "minimum": 0 } },
       "expected": { "type": { "type": "integer", "minimum": 0 }, "diagnostics": [] }
@@ -44,6 +49,77 @@
             "path": ["$as"],
             "severity": "info",
             "messageIncludes": "degraded to `any` because variable \"missing\" is unresolved"
+          }
+        ]
+      }
+    },
+    {
+      "description": "a task ascription type is outside the runtime-contract fragment",
+      "expression": { "$as": 1, "$type": { "$taskType": { "type": "string" } } },
+      "expected": {
+        "type": { "$taskType": { "type": "string" } },
+        "diagnostics": [
+          {
+            "path": ["$type"],
+            "severity": "error",
+            "messageIncludes": "checked ascription type is outside the runtime-contract fragment"
+          }
+        ]
+      }
+    },
+    {
+      "description": "a checked ascription referencing an undefined named type is an error",
+      "expression": { "$as": 1, "$type": { "$ref": "#/$defs/Count" } },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["$type"],
+            "severity": "error",
+            "messageIncludes": "reference to undefined type \"Count\""
+          }
+        ]
+      }
+    },
+    {
+      "description": "a checked ascription satisfies a context expecting the declared type",
+      "module": {
+        "f": {
+          "$params": [],
+          "$sig": { "required": [], "optional": [], "returns": { "type": "string" } },
+          "$return": { "$as": 1, "$type": { "type": "string" } }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "a checked ascription does not narrow later uses of the source variable",
+      "comment": "End-to-end version of the local direct-synth unit test: the second tuple element still sees integer | string.",
+      "module": {
+        "f": {
+          "$params": ["value"],
+          "$sig": {
+            "required": [{ "anyOf": [{ "type": "integer" }, { "type": "string" }] }],
+            "optional": [],
+            "returns": {
+              "type": "array",
+              "prefixItems": [{ "type": "integer" }, { "type": "integer" }],
+              "items": false
+            }
+          },
+          "$return": [
+            { "$as": { "$var": "value" }, "$type": { "type": "integer" } },
+            { "$var": "value" }
+          ]
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return", "[1]"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "integer" },
+            "actual": { "anyOf": [{ "type": "integer" }, { "type": "string" }] }
           }
         ]
       }

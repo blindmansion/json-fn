@@ -1,0 +1,792 @@
+{
+  "$schema": "../../check.schema.json",
+  "description": "bidirectional object and array literals, and field/index projection",
+  "builtins": "none",
+  "cases": [
+    {
+      "description": "a well-typed object literal checks clean",
+      "module": {
+        "f": {
+          "$params": [],
+          "$sig": {
+            "required": [],
+            "optional": [],
+            "returns": {
+              "type": "object",
+              "properties": { "a": { "type": "integer" }, "b": { "type": "string" } },
+              "required": ["a", "b"],
+              "additionalProperties": false
+            }
+          },
+          "$return": { "a": 1, "b": "s" }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "an extra field is reported at the offending key, not as a whole-schema dump",
+      "module": {
+        "f": {
+          "$params": [],
+          "$sig": {
+            "required": [],
+            "optional": [],
+            "returns": {
+              "type": "object",
+              "properties": { "a": { "type": "integer" } },
+              "required": ["a"],
+              "additionalProperties": false
+            }
+          },
+          "$return": { "a": 1, "b": 2 }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          { "path": ["f", "$return", "b"], "severity": "error", "messageIncludes": "not permitted" }
+        ]
+      }
+    },
+    {
+      "description": "a missing required field is reported at the object",
+      "module": {
+        "f": {
+          "$params": [],
+          "$sig": {
+            "required": [],
+            "optional": [],
+            "returns": {
+              "type": "object",
+              "properties": { "a": { "type": "integer" }, "b": { "type": "string" } },
+              "required": ["a", "b"],
+              "additionalProperties": false
+            }
+          },
+          "$return": { "a": 1 }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return"],
+            "severity": "error",
+            "messageIncludes": "Required field \"b\"",
+            "expected": { "type": "string" }
+          }
+        ]
+      }
+    },
+    {
+      "description": "a field type mismatch is pinpointed to that field",
+      "module": {
+        "f": {
+          "$params": [],
+          "$sig": {
+            "required": [],
+            "optional": [],
+            "returns": {
+              "type": "object",
+              "properties": { "a": { "type": "integer" } },
+              "required": ["a"],
+              "additionalProperties": false
+            }
+          },
+          "$return": { "a": "x" }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return", "a"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "integer" },
+            "actual": { "const": "x" }
+          }
+        ]
+      }
+    },
+    {
+      "description": "a nested object mismatch pinpoints the deep field",
+      "module": {
+        "f": {
+          "$params": [],
+          "$sig": {
+            "required": [],
+            "optional": [],
+            "returns": {
+              "type": "object",
+              "properties": {
+                "a": {
+                  "type": "object",
+                  "properties": { "x": { "type": "integer" } },
+                  "required": ["x"],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["a"],
+              "additionalProperties": false
+            }
+          },
+          "$return": { "a": { "x": "y" } }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return", "a", "x"],
+            "severity": "error",
+            "messageIncludes": "not assignable"
+          }
+        ]
+      }
+    },
+    {
+      "description": "a map (additionalProperties) expected pushes the value type into each key: clean",
+      "module": {
+        "f": {
+          "$params": [],
+          "$sig": {
+            "required": [],
+            "optional": [],
+            "returns": { "type": "object", "additionalProperties": { "type": "integer" } }
+          },
+          "$return": { "a": 1, "b": 2 }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "a map (additionalProperties) expected pushes the value type into each key: mismatch",
+      "module": {
+        "f": {
+          "$params": [],
+          "$sig": {
+            "required": [],
+            "optional": [],
+            "returns": { "type": "object", "additionalProperties": { "type": "integer" } }
+          },
+          "$return": { "a": 1, "b": "x" }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return", "b"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "integer" }
+          }
+        ]
+      }
+    },
+    {
+      "description": "an expected object type resolves through a $ref alias",
+      "module": {
+        "$types": {
+          "Rec": {
+            "type": "object",
+            "properties": { "a": { "type": "integer" } },
+            "required": ["a"],
+            "additionalProperties": false
+          }
+        },
+        "f": {
+          "$params": [],
+          "$sig": { "required": [], "optional": [], "returns": { "$ref": "#/$defs/Rec" } },
+          "$return": { "a": "nope" }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return", "a"],
+            "severity": "error",
+            "messageIncludes": "not assignable"
+          }
+        ]
+      }
+    },
+    {
+      "description": "a union or non-object expected falls back to whole-schema subsumption",
+      "module": {
+        "f": {
+          "$params": [],
+          "$sig": {
+            "required": [],
+            "optional": [],
+            "returns": { "anyOf": [{ "type": "integer" }, { "type": "string" }] }
+          },
+          "$return": { "a": 1 }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          { "path": ["f", "$return"], "severity": "error", "messageIncludes": "not assignable" }
+        ]
+      }
+    },
+    {
+      "description": "a well-typed array literal checks clean",
+      "module": {
+        "f": {
+          "$params": [],
+          "$sig": {
+            "required": [],
+            "optional": [],
+            "returns": { "type": "array", "items": { "type": "integer" } }
+          },
+          "$return": [1, 2, 3]
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "an array element mismatch is pinpointed to that index",
+      "module": {
+        "f": {
+          "$params": [],
+          "$sig": {
+            "required": [],
+            "optional": [],
+            "returns": { "type": "array", "items": { "type": "integer" } }
+          },
+          "$return": [1, "x", 3]
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return", "[1]"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "integer" },
+            "actual": { "const": "x" }
+          }
+        ]
+      }
+    },
+    {
+      "description": "a nested object-in-array mismatch pinpoints the deep field",
+      "module": {
+        "f": {
+          "$params": [],
+          "$sig": {
+            "required": [],
+            "optional": [],
+            "returns": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": { "x": { "type": "integer" } },
+                "required": ["x"],
+                "additionalProperties": false
+              }
+            }
+          },
+          "$return": [{ "x": "y" }]
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return", "[0]", "x"],
+            "severity": "error",
+            "messageIncludes": "not assignable"
+          }
+        ]
+      }
+    },
+    {
+      "description": "too few elements is a length error at the array",
+      "module": {
+        "f": {
+          "$params": [],
+          "$sig": {
+            "required": [],
+            "optional": [],
+            "returns": { "type": "array", "items": { "type": "integer" }, "minItems": 3 }
+          },
+          "$return": [1, 2]
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          { "path": ["f", "$return"], "severity": "error", "messageIncludes": "at least 3" }
+        ]
+      }
+    },
+    {
+      "description": "a tuple literal checks positionally and clean",
+      "module": {
+        "f": {
+          "$params": [],
+          "$sig": {
+            "required": [],
+            "optional": [],
+            "returns": {
+              "type": "array",
+              "prefixItems": [{ "type": "integer" }, { "type": "string" }],
+              "items": false
+            }
+          },
+          "$return": [1, "s"]
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "a tuple element mismatch is pinpointed to that index",
+      "module": {
+        "f": {
+          "$params": [],
+          "$sig": {
+            "required": [],
+            "optional": [],
+            "returns": {
+              "type": "array",
+              "prefixItems": [{ "type": "integer" }, { "type": "string" }],
+              "items": false
+            }
+          },
+          "$return": [1, 2]
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return", "[1]"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "string" }
+          }
+        ]
+      }
+    },
+    {
+      "description": "an element past a closed tuple's arity is not permitted",
+      "module": {
+        "f": {
+          "$params": [],
+          "$sig": {
+            "required": [],
+            "optional": [],
+            "returns": { "type": "array", "prefixItems": [{ "type": "integer" }], "items": false }
+          },
+          "$return": [1, 2]
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return", "[1]"],
+            "severity": "error",
+            "messageIncludes": "not permitted"
+          }
+        ]
+      }
+    },
+    {
+      "description": "a missing tuple position is reported at the array",
+      "module": {
+        "f": {
+          "$params": [],
+          "$sig": {
+            "required": [],
+            "optional": [],
+            "returns": {
+              "type": "array",
+              "prefixItems": [{ "type": "integer" }, { "type": "string" }],
+              "items": false
+            }
+          },
+          "$return": [1]
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return"],
+            "severity": "error",
+            "messageIncludes": "element 1 is missing",
+            "expected": { "type": "string" }
+          }
+        ]
+      }
+    },
+    {
+      "description": "a tuple rest element checks trailing items against the rest schema: clean",
+      "module": {
+        "f": {
+          "$params": [],
+          "$sig": {
+            "required": [],
+            "optional": [],
+            "returns": {
+              "type": "array",
+              "prefixItems": [{ "type": "integer" }],
+              "items": { "type": "string" }
+            }
+          },
+          "$return": [1, "a", "b"]
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "a tuple rest element checks trailing items against the rest schema: mismatch",
+      "module": {
+        "f": {
+          "$params": [],
+          "$sig": {
+            "required": [],
+            "optional": [],
+            "returns": {
+              "type": "array",
+              "prefixItems": [{ "type": "integer" }],
+              "items": { "type": "string" }
+            }
+          },
+          "$return": [1, 2]
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return", "[1]"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "string" }
+          }
+        ]
+      }
+    },
+    {
+      "description": "an expected array type resolves through a $ref alias",
+      "module": {
+        "$types": { "Row": { "type": "array", "items": { "type": "integer" } } },
+        "f": {
+          "$params": [],
+          "$sig": { "required": [], "optional": [], "returns": { "$ref": "#/$defs/Row" } },
+          "$return": ["x"]
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return", "[0]"],
+            "severity": "error",
+            "messageIncludes": "not assignable"
+          }
+        ]
+      }
+    },
+    {
+      "description": "a union or non-array expected falls back to whole-schema subsumption",
+      "module": {
+        "f": {
+          "$params": [],
+          "$sig": {
+            "required": [],
+            "optional": [],
+            "returns": {
+              "anyOf": [{ "type": "array", "items": { "type": "string" } }, { "type": "string" }]
+            }
+          },
+          "$return": [1]
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          { "path": ["f", "$return"], "severity": "error", "messageIncludes": "not assignable" }
+        ]
+      }
+    },
+    {
+      "description": "a uniqueItems constraint the literal can't prove falls back to whole-schema",
+      "module": {
+        "f": {
+          "$params": [],
+          "$sig": {
+            "required": [],
+            "optional": [],
+            "returns": { "type": "array", "items": { "type": "integer" }, "uniqueItems": true }
+          },
+          "$return": [1, 2]
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          { "path": ["f", "$return"], "severity": "error", "messageIncludes": "not assignable" }
+        ]
+      }
+    },
+    {
+      "description": "$get projects a declared property type",
+      "module": {
+        "$types": {
+          "Color": { "enum": ["w", "b"] },
+          "State": {
+            "type": "object",
+            "properties": {
+              "board": { "type": "array", "items": { "type": "integer" } },
+              "turn": { "$ref": "#/$defs/Color" }
+            },
+            "required": ["board", "turn"],
+            "additionalProperties": false
+          }
+        },
+        "getTurn": {
+          "$params": ["s"],
+          "$sig": {
+            "required": [{ "$ref": "#/$defs/State" }],
+            "optional": [],
+            "returns": { "$ref": "#/$defs/Color" }
+          },
+          "$return": { "$get": "turn", "$from": { "$var": "s" } }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "$get on an optional field projects `T | null`: fits a nullable return",
+      "module": {
+        "$types": {
+          "User": {
+            "type": "object",
+            "properties": { "id": { "type": "string" }, "score": { "type": "integer" } },
+            "required": ["id"],
+            "additionalProperties": false
+          }
+        },
+        "f": {
+          "$params": ["u"],
+          "$sig": {
+            "required": [{ "$ref": "#/$defs/User" }],
+            "optional": [],
+            "returns": { "type": ["integer", "null"] }
+          },
+          "$return": { "$get": "score", "$from": { "$var": "u" } }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "$get on an optional field projects `T | null`: does not fit a bare return",
+      "module": {
+        "$types": {
+          "User": {
+            "type": "object",
+            "properties": { "id": { "type": "string" }, "score": { "type": "integer" } },
+            "required": ["id"],
+            "additionalProperties": false
+          }
+        },
+        "f": {
+          "$params": ["u"],
+          "$sig": {
+            "required": [{ "$ref": "#/$defs/User" }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": { "$get": "score", "$from": { "$var": "u" } }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "integer" }
+          }
+        ]
+      }
+    },
+    {
+      "description": "$get on a required field keeps its bare type",
+      "module": {
+        "$types": {
+          "User": {
+            "type": "object",
+            "properties": { "id": { "type": "string" }, "score": { "type": "integer" } },
+            "required": ["id"],
+            "additionalProperties": false
+          }
+        },
+        "f": {
+          "$params": ["u"],
+          "$sig": {
+            "required": [{ "$ref": "#/$defs/User" }],
+            "optional": [],
+            "returns": { "type": "string" }
+          },
+          "$return": { "$get": "id", "$from": { "$var": "u" } }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "a shared discriminant projects to the union of its per-arm literals",
+      "comment": "End-to-end version of the local direct-synth field-projection unit tests.",
+      "module": {
+        "$types": {
+          "F": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": { "tag": { "const": "a" }, "n": { "type": "integer" } },
+                "required": ["tag", "n"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": { "tag": { "const": "b" } },
+                "required": ["tag"],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "f": {
+          "$params": ["x"],
+          "$sig": {
+            "required": [{ "$ref": "#/$defs/F" }],
+            "optional": [],
+            "returns": { "anyOf": [{ "const": "a" }, { "const": "b" }] }
+          },
+          "$return": { "$get": "tag", "$from": { "$var": "x" } }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "a field on only some union arms projects to the join, absent arms contributing null",
+      "comment": "End-to-end version of the local direct-synth field-projection unit tests.",
+      "module": {
+        "$types": {
+          "F": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": { "tag": { "const": "a" }, "n": { "type": "integer" } },
+                "required": ["tag", "n"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": { "tag": { "const": "b" } },
+                "required": ["tag"],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "f": {
+          "$params": ["x"],
+          "$sig": {
+            "required": [{ "$ref": "#/$defs/F" }],
+            "optional": [],
+            "returns": { "anyOf": [{ "type": "integer" }, { "type": "null" }] }
+          },
+          "$return": { "$get": "n", "$from": { "$var": "x" } }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "an integer-typed index projects an array's element type",
+      "comment": "End-to-end version of the local direct-synth computed-index unit tests.",
+      "module": {
+        "f": {
+          "$params": ["xs", "i"],
+          "$sig": {
+            "required": [
+              { "type": "array", "items": { "type": "integer" } },
+              { "type": "integer" }
+            ],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": { "$get": { "$var": "i" }, "$from": { "$var": "xs" } }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "a string index into an array is a hard error",
+      "comment": "End-to-end version of the local direct-synth computed-index unit tests.",
+      "module": {
+        "f": {
+          "$params": ["xs", "k"],
+          "$sig": {
+            "required": [{ "type": "array", "items": { "type": "integer" } }, { "type": "string" }],
+            "optional": [],
+            "returns": true
+          },
+          "$return": { "$get": { "$var": "k" }, "$from": { "$var": "xs" } }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return", "$get"],
+            "severity": "error",
+            "messageIncludes": "Index key must be an integer.",
+            "expected": { "type": "integer" },
+            "actual": { "type": "string" }
+          }
+        ]
+      }
+    },
+    {
+      "description": "a literal string key absent from a closed object is a hard error",
+      "comment": "End-to-end version of the local direct-synth missing-closed-field unit tests.",
+      "module": {
+        "f": {
+          "$params": ["o"],
+          "$sig": {
+            "required": [
+              {
+                "type": "object",
+                "properties": { "name": { "type": "string" } },
+                "required": ["name"],
+                "additionalProperties": false
+              }
+            ],
+            "optional": [],
+            "returns": true
+          },
+          "$return": { "$get": "nmae", "$from": { "$var": "o" } }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          { "path": ["f", "$return", "$get"], "severity": "error", "messageIncludes": "nmae" }
+        ]
+      }
+    },
+    {
+      "description": "projection on an open object stays permissive without diagnostics",
+      "comment": "End-to-end version of the local direct-synth missing-closed-field unit tests.",
+      "module": {
+        "f": {
+          "$params": ["o"],
+          "$sig": {
+            "required": [
+              {
+                "type": "object",
+                "properties": { "name": { "type": "string" } },
+                "required": ["name"]
+              }
+            ],
+            "optional": [],
+            "returns": true
+          },
+          "$return": { "$get": "whatever", "$from": { "$var": "o" } }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    }
+  ]
+}

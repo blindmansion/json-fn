@@ -1,0 +1,131 @@
+{
+  "$schema": "../../check.schema.json",
+  "description": "locals: cycles, recursive functions, and unannotated function bindings",
+  "builtins": "none",
+  "cases": [
+    {
+      "description": "reports a direct cycle once with a stable path",
+      "expression": { "$let": { "a": { "$var": "a" } }, "$in": { "$var": "a" } },
+      "expected": {
+        "type": true,
+        "diagnostics": [
+          {
+            "path": ["$let", "a"],
+            "severity": "error",
+            "messageIncludes": "Circular local type dependency: a -> a"
+          }
+        ]
+      }
+    },
+    {
+      "description": "reports an indirect cycle once with a stable path",
+      "expression": {
+        "$let": { "a": { "$var": "b" }, "b": { "$var": "a" } },
+        "$in": { "$var": "a" }
+      },
+      "expected": {
+        "type": true,
+        "diagnostics": [
+          {
+            "path": ["$let", "a"],
+            "severity": "error",
+            "messageIncludes": "Circular local type dependency: a -> b -> a"
+          }
+        ]
+      }
+    },
+    {
+      "description": "registers typed recursive and mutually recursive functions eagerly",
+      "builtins": "standard",
+      "expression": {
+        "$let": {
+          "count": {
+            "$params": ["n"],
+            "$sig": {
+              "required": [{ "type": "integer" }],
+              "optional": [],
+              "returns": { "type": "integer" }
+            },
+            "$return": {
+              "$if": { "$call": "eq", "$args": [{ "$var": "n" }, 0] },
+              "$then": 0,
+              "$else": {
+                "$call": "count",
+                "$args": [{ "$call": "sub", "$args": [{ "$var": "n" }, 1] }]
+              }
+            }
+          },
+          "even": {
+            "$params": ["n"],
+            "$sig": {
+              "required": [{ "type": "integer" }],
+              "optional": [],
+              "returns": { "type": "boolean" }
+            },
+            "$return": {
+              "$call": "odd",
+              "$args": [{ "$call": "sub", "$args": [{ "$var": "n" }, 1] }]
+            }
+          },
+          "odd": {
+            "$params": ["n"],
+            "$sig": {
+              "required": [{ "type": "integer" }],
+              "optional": [],
+              "returns": { "type": "boolean" }
+            },
+            "$return": {
+              "$if": { "$call": "eq", "$args": [{ "$var": "n" }, 0] },
+              "$then": false,
+              "$else": {
+                "$call": "even",
+                "$args": [{ "$call": "sub", "$args": [{ "$var": "n" }, 1] }]
+              }
+            }
+          }
+        },
+        "$in": [
+          { "$call": "count", "$args": [2] },
+          { "$call": { "$fn": "even" }, "$args": [2] },
+          { "$var": "odd" }
+        ]
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "rejects an unannotated named local function at its binding",
+      "expression": {
+        "$let": { "helper": { "$params": [], "$return": 1 } },
+        "$in": { "$var": "helper" }
+      },
+      "expected": {
+        "type": true,
+        "diagnostics": [
+          {
+            "path": ["$let", "helper"],
+            "severity": "error",
+            "messageIncludes": "function binding \"helper\" must declare a signature (typed parameters and return)"
+          }
+        ]
+      }
+    },
+    {
+      "description": "can allow an unannotated named local function for migration",
+      "options": { "allowUntypedFunctions": true },
+      "expression": {
+        "$let": { "helper": { "$params": [], "$return": 1 } },
+        "$in": { "$var": "helper" }
+      },
+      "expected": {
+        "type": true,
+        "diagnostics": [
+          {
+            "path": ["$let", "helper"],
+            "severity": "info",
+            "messageIncludes": "expression degraded to `any` because function binding \"helper\" has no declared signature"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,163 @@
+{
+  "$schema": "../../check.schema.json",
+  "description": "flow narrowing: equality discriminants on a field path",
+  "comment": "End-to-end forms of the discriminant fact-map rows in typescript/test/check/narrowing.test.ts: comparing base.field against a literal refines the base union to matching arms, and drops an arm on the else sense only when its discriminant is an exact const or singleton enum.",
+  "builtins": "standard",
+  "cases": [
+    {
+      "description": "s.tag == literal then-branch keeps the matching arm (refines the base)",
+      "module": {
+        "f": {
+          "$params": ["s"],
+          "$sig": {
+            "required": [
+              {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": { "tag": { "const": "a" }, "r": { "type": "integer" } },
+                    "required": ["tag", "r"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": { "tag": { "const": "b" }, "side": { "type": "string" } },
+                    "required": ["tag", "side"],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            ],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": {
+            "$if": { "$call": "eq", "$args": [{ "$get": "tag", "$from": { "$var": "s" } }, "a"] },
+            "$then": { "$get": "r", "$from": { "$var": "s" } },
+            "$else": 0
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "s.tag == literal else-branch drops the exact-const arm",
+      "module": {
+        "f": {
+          "$params": ["s"],
+          "$sig": {
+            "required": [
+              {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": { "tag": { "const": "a" }, "r": { "type": "integer" } },
+                    "required": ["tag", "r"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": { "tag": { "const": "b" }, "side": { "type": "string" } },
+                    "required": ["tag", "side"],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            ],
+            "optional": [],
+            "returns": { "type": "string" }
+          },
+          "$return": {
+            "$if": { "$call": "eq", "$args": [{ "$get": "tag", "$from": { "$var": "s" } }, "a"] },
+            "$then": "",
+            "$else": { "$get": "side", "$from": { "$var": "s" } }
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "a singleton-enum discriminant counts as exact on the else branch",
+      "module": {
+        "f": {
+          "$params": ["s"],
+          "$sig": {
+            "required": [
+              {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": { "tag": { "enum": ["a"] }, "r": { "type": "integer" } },
+                    "required": ["tag", "r"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": { "tag": { "enum": ["b"] }, "side": { "type": "string" } },
+                    "required": ["tag", "side"],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            ],
+            "optional": [],
+            "returns": { "type": "string" }
+          },
+          "$return": {
+            "$if": { "$call": "eq", "$args": [{ "$get": "tag", "$from": { "$var": "s" } }, "a"] },
+            "$then": "",
+            "$else": { "$get": "side", "$from": { "$var": "s" } }
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "a multi-value enum discriminant is not exact and survives else",
+      "comment": "tag: enum [a, c] can still be \"c\" on the else branch, so the arm is kept, the base is not narrowed, and projecting side from the full union fails.",
+      "module": {
+        "f": {
+          "$params": ["s"],
+          "$sig": {
+            "required": [
+              {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": { "tag": { "enum": ["a", "c"] }, "r": { "type": "integer" } },
+                    "required": ["tag", "r"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": { "tag": { "enum": ["b"] }, "side": { "type": "string" } },
+                    "required": ["tag", "side"],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            ],
+            "optional": [],
+            "returns": { "type": "string" }
+          },
+          "$return": {
+            "$if": { "$call": "eq", "$args": [{ "$get": "tag", "$from": { "$var": "s" } }, "a"] },
+            "$then": "",
+            "$else": { "$get": "side", "$from": { "$var": "s" } }
+          }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return", "$else"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "string" },
+            "actual": { "anyOf": [{ "type": "null" }, { "type": "string" }] }
+          }
+        ]
+      }
+    }
+  ]
+}

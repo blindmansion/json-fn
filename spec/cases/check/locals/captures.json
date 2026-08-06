@@ -1,0 +1,164 @@
+{
+  "$schema": "../../check.schema.json",
+  "description": "locals: function captures in the checker",
+  "builtins": "none",
+  "cases": [
+    {
+      "description": "captures are visible to defaults and $return",
+      "expression": {
+        "$params": [{ "$param": "value", "$default": { "$call": "helper", "$args": [] } }],
+        "$sig": {
+          "required": [],
+          "optional": [{ "type": "integer" }],
+          "returns": { "type": "integer" }
+        },
+        "$captures": {
+          "helper": {
+            "$params": [],
+            "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+            "$return": 7
+          }
+        },
+        "$return": { "$call": "helper", "$args": [] }
+      },
+      "expected": {
+        "type": {
+          "$fnType": {
+            "required": [],
+            "optional": [{ "type": "integer" }],
+            "returns": { "type": "integer" }
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "description": "reports null $captures as malformed",
+      "expression": {
+        "$params": [],
+        "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+        "$captures": null,
+        "$return": 1
+      },
+      "expected": {
+        "type": { "$fnType": { "required": [], "optional": [], "returns": { "type": "integer" } } },
+        "diagnostics": [
+          {
+            "path": ["$captures"],
+            "severity": "error",
+            "messageIncludes": "function $captures must be a non-null object"
+          }
+        ]
+      }
+    },
+    {
+      "description": "reports array $captures as malformed",
+      "expression": {
+        "$params": [],
+        "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+        "$captures": [],
+        "$return": 1
+      },
+      "expected": {
+        "type": { "$fnType": { "required": [], "optional": [], "returns": { "type": "integer" } } },
+        "diagnostics": [
+          {
+            "path": ["$captures"],
+            "severity": "error",
+            "messageIncludes": "function $captures must be a non-null object"
+          }
+        ]
+      }
+    },
+    {
+      "description": "reports scalar $captures as malformed",
+      "expression": {
+        "$params": [],
+        "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+        "$captures": 1,
+        "$return": 1
+      },
+      "expected": {
+        "type": { "$fnType": { "required": [], "optional": [], "returns": { "type": "integer" } } },
+        "diagnostics": [
+          {
+            "path": ["$captures"],
+            "severity": "error",
+            "messageIncludes": "function $captures must be a non-null object"
+          }
+        ]
+      }
+    },
+    {
+      "description": "reports a non-function capture value as malformed",
+      "expression": {
+        "$params": [],
+        "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+        "$captures": { "helper": 1 },
+        "$return": 1
+      },
+      "expected": {
+        "type": { "$fnType": { "required": [], "optional": [], "returns": { "type": "integer" } } },
+        "diagnostics": [
+          {
+            "path": ["$captures", "helper"],
+            "severity": "error",
+            "messageIncludes": "function capture \"helper\" must be a function body"
+          }
+        ]
+      }
+    },
+    {
+      "description": "walks signatures nested under $let and $captures for dangling refs",
+      "comment": "Both nested signatures report the dangling ref; the forced local call additionally fails assignability against the declared integer return.",
+      "module": {
+        "entry": {
+          "$params": [],
+          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$captures": {
+            "captured": {
+              "$params": [],
+              "$sig": { "required": [], "optional": [], "returns": { "$ref": "#/$defs/Missing" } },
+              "$return": 1
+            }
+          },
+          "$return": {
+            "$let": {
+              "local": {
+                "$params": [],
+                "$sig": {
+                  "required": [],
+                  "optional": [],
+                  "returns": { "$ref": "#/$defs/Missing" }
+                },
+                "$return": 1
+              }
+            },
+            "$in": { "$call": "local", "$args": [] }
+          }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["entry", "$captures", "captured", "$sig"],
+            "severity": "error",
+            "messageIncludes": "reference to undefined type \"Missing\""
+          },
+          {
+            "path": ["entry", "$return", "$let", "local", "$sig"],
+            "severity": "error",
+            "messageIncludes": "reference to undefined type \"Missing\""
+          },
+          {
+            "path": ["entry", "$return", "$in"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "integer" },
+            "actual": { "$ref": "#/$defs/Missing" }
+          }
+        ]
+      }
+    }
+  ]
+}

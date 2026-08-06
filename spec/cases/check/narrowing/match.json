@@ -1,0 +1,188 @@
+{
+  "$schema": "../../check.schema.json",
+  "description": "flow narrowing: $match case and else arms",
+  "comment": "End-to-end forms of the $match-subject fact-map rows in typescript/test/check/narrowing.test.ts: a case arm pins the matched literal, the else arm excludes the handled literals, discriminant-path subjects refine the base union, and dynamic subjects derive no fact.",
+  "builtins": "none",
+  "cases": [
+    {
+      "description": "a bare-var case pins the matched literal",
+      "module": {
+        "f": {
+          "$params": ["color"],
+          "$sig": {
+            "required": [{ "enum": ["w", "b"] }],
+            "optional": [],
+            "returns": { "const": "w" }
+          },
+          "$return": {
+            "$match": { "$var": "color" },
+            "$cases": [["w", { "$var": "color" }]],
+            "$else": "w"
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "the else arm excludes the handled case literal",
+      "module": {
+        "f": {
+          "$params": ["color"],
+          "$sig": {
+            "required": [{ "enum": ["w", "b"] }],
+            "optional": [],
+            "returns": { "const": "b" }
+          },
+          "$return": {
+            "$match": { "$var": "color" },
+            "$cases": [["w", "b"]],
+            "$else": { "$var": "color" }
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "a null case pins null in its arm",
+      "module": {
+        "f": {
+          "$params": ["x"],
+          "$sig": {
+            "required": [{ "anyOf": [{ "type": "integer" }, { "type": "null" }] }],
+            "optional": [],
+            "returns": { "type": "null" }
+          },
+          "$return": {
+            "$match": { "$var": "x" },
+            "$cases": [[null, { "$var": "x" }]],
+            "$else": null
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "a null case leaves the non-null arm for else",
+      "module": {
+        "f": {
+          "$params": ["x"],
+          "$sig": {
+            "required": [{ "anyOf": [{ "type": "integer" }, { "type": "null" }] }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": { "$match": { "$var": "x" }, "$cases": [[null, 0]], "$else": { "$var": "x" } }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "a discriminant-path case narrows the base to the matching arm",
+      "module": {
+        "f": {
+          "$params": ["s"],
+          "$sig": {
+            "required": [
+              {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": { "tag": { "const": "a" }, "r": { "type": "integer" } },
+                    "required": ["tag", "r"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": { "tag": { "const": "b" }, "side": { "type": "string" } },
+                    "required": ["tag", "side"],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            ],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": {
+            "$match": { "$get": "tag", "$from": { "$var": "s" } },
+            "$cases": [
+              ["a", { "$get": "r", "$from": { "$var": "s" } }],
+              ["b", 0]
+            ]
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "a discriminant-path else arm drops the matched arm",
+      "module": {
+        "f": {
+          "$params": ["s"],
+          "$sig": {
+            "required": [
+              {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": { "tag": { "const": "a" }, "r": { "type": "integer" } },
+                    "required": ["tag", "r"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": { "tag": { "const": "b" }, "side": { "type": "string" } },
+                    "required": ["tag", "side"],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            ],
+            "optional": [],
+            "returns": { "type": "string" }
+          },
+          "$return": {
+            "$match": { "$get": "tag", "$from": { "$var": "s" } },
+            "$cases": [["a", ""]],
+            "$else": { "$get": "side", "$from": { "$var": "s" } }
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "a dynamic $match subject yields no fact",
+      "comment": "The subject is a call result, so no path narrows: the case arm's nullable parameter keeps its declared union and fails the integer return.",
+      "builtins": "standard",
+      "module": {
+        "f": {
+          "$params": ["x", "xs"],
+          "$sig": {
+            "required": [
+              { "anyOf": [{ "type": "integer" }, { "type": "null" }] },
+              { "type": "array", "items": { "type": "integer" } }
+            ],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": {
+            "$match": { "$call": "length", "$args": [{ "$var": "xs" }] },
+            "$cases": [[0, { "$var": "x" }]],
+            "$else": 0
+          }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return", "$cases[0][1]"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "integer" },
+            "actual": { "anyOf": [{ "type": "integer" }, { "type": "null" }] }
+          }
+        ]
+      }
+    }
+  ]
+}

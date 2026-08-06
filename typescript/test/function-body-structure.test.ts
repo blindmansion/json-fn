@@ -1,7 +1,5 @@
 import { describe, expect, test } from "bun:test";
 import { callFunction, createStdlib } from "../src";
-import type { Diagnostic } from "../src/check/context";
-import { checkExpr, checkModule } from "../src/check/module";
 import {
   FUNCTION_BODY_FIELDS,
   FUNCTION_BODY_RUNTIME_FIELDS,
@@ -9,7 +7,7 @@ import {
   analyzeFunctionBodyStructure,
 } from "../src/function-body-structure";
 import { isFunctionBody } from "../src/function-value";
-import type { FunctionBody, FunctionDeclaration, FunctionRegistry, JSONType } from "../src/types";
+import type { FunctionBody, FunctionDeclaration, FunctionRegistry } from "../src/types";
 
 describe("function body structure", () => {
   test("centralizes source and runtime field vocabulary", () => {
@@ -88,6 +86,10 @@ describe("function body structure", () => {
 });
 
 describe("function body structural boundaries", () => {
+  // Checker-observable structural-boundary cases (stray fields, continued
+  // checking through supported fields, malformed supported fields,
+  // unannotated-body rejection, module-root behavior) live in the shared
+  // conformance suite at `spec/cases/check/functions/body-structure.json`.
   const stdlib = createStdlib();
 
   test("evaluator uses the same stray-field validation for expression and registry functions", () => {
@@ -101,90 +103,5 @@ describe("function body structural boundaries", () => {
     expect(() => callFunction("bad", [], registry)).toThrow(
       'Function body field "local" is not supported.',
     );
-  });
-
-  test("checker reports each stray field once at its exact path", () => {
-    const invalid: Record<string, JSONType> = {
-      $sig: { required: [], optional: [], returns: true },
-      local: { $params: 42, $return: null },
-      $unknown: true,
-      $return: null,
-    };
-
-    expect(checkModule({ invalid })).toEqual([
-      {
-        path: ["invalid", "local"],
-        message: 'function body field "local" is not supported.',
-        severity: "error",
-      },
-      {
-        path: ["invalid", "$unknown"],
-        message: 'function body field "$unknown" is not supported.',
-        severity: "error",
-      },
-    ]);
-  });
-
-  test("checker continues through supported fields without treating stray fields as bindings", () => {
-    const diagnostics = checkModule({
-      invalid: {
-        $sig: { required: [], optional: [], returns: { type: "integer" } },
-        stray: { $params: 42, $return: null },
-        $return: "oops",
-      },
-    });
-
-    expect(diagnostics).toHaveLength(2);
-    expect(diagnostics.map(({ path }) => path)).toEqual([
-      ["invalid", "stray"],
-      ["invalid", "$return"],
-    ]);
-    expect(diagnostics.every(({ path }) => !path.includes("$params"))).toBeTrue();
-  });
-
-  test("checker reports malformed supported fields on unannotated bodies", () => {
-    const errors = checkExpr({
-      $comment: false,
-      $params: 42,
-      $captures: 42,
-      $runtimeContract: {},
-      $return: null,
-    }).diagnostics.filter(({ severity }) => severity === "error");
-
-    expect(errors.map(({ path }) => path)).toEqual([
-      ["$comment"],
-      ["$params"],
-      ["$captures"],
-      ["$runtimeContract"],
-    ]);
-  });
-
-  test("checker rejects stray fields in unannotated value and inline-call bodies", () => {
-    const body = { local: 1, $return: null };
-    const valueErrors = checkExpr(body).diagnostics.filter(({ severity }) => severity === "error");
-    const callErrors = checkExpr({ $call: body, $args: [] }).diagnostics.filter(
-      ({ severity }) => severity === "error",
-    );
-
-    const expected: Diagnostic[] = [
-      {
-        path: ["local"],
-        message: 'function body field "local" is not supported.',
-        severity: "error",
-      },
-    ];
-    expect(valueErrors).toEqual(expected);
-    expect(callErrors).toEqual(expected);
-  });
-
-  test("module roots still allow ordinary named function entries", () => {
-    expect(
-      checkModule({
-        named: {
-          $sig: { required: [], optional: [], returns: true },
-          $return: null,
-        },
-      }),
-    ).toEqual([]);
   });
 });

@@ -1,0 +1,41 @@
+{
+  "$schema": "../../check.schema.json",
+  "description": "locals: structural inline calls",
+  "builtins": "none",
+  "cases": [
+    {
+      "description": "retains contextual typing for a genuine parameterized IIFE",
+      "expression": {
+        "$call": { "$params": ["value"], "$return": { "$var": "value" } },
+        "$args": [4]
+      },
+      "expected": { "type": { "const": 4 }, "diagnostics": [] }
+    },
+    {
+      "description": "contextual builtin callbacks see evaluator captures",
+      "builtins": "standard",
+      "expression": {
+        "$call": "map",
+        "$args": [
+          {
+            "$params": ["value"],
+            "$captures": {
+              "helper": {
+                "$params": ["value"],
+                "$sig": {
+                  "required": [{ "type": "integer" }],
+                  "optional": [],
+                  "returns": { "type": "integer" }
+                },
+                "$return": { "$var": "value" }
+              }
+            },
+            "$return": { "$call": "helper", "$args": [{ "$var": "value" }] }
+          },
+          [1, 2]
+        ]
+      },
+      "expected": { "type": { "type": "array", "items": { "type": "integer" } }, "diagnostics": [] }
+    }
+  ]
+}

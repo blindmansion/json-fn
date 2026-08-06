@@ -14,6 +14,11 @@
       "expected": { "type": { "const": "hi" }, "diagnostics": [] }
     },
     {
+      "description": "a boolean literal synthesizes its const type",
+      "expression": true,
+      "expected": { "type": { "const": true }, "diagnostics": [] }
+    },
+    {
       "description": "null synthesizes the null type",
       "expression": null,
       "expected": { "type": { "type": "null" }, "diagnostics": [] }
@@ -39,6 +44,19 @@
           "type": "object",
           "properties": { "name": { "const": "ada" }, "age": { "const": 36 } },
           "required": ["name", "age"],
+          "additionalProperties": false
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "description": "a $raw payload is typed structurally, not evaluated",
+      "expression": { "$raw": { "$var": "x" } },
+      "expected": {
+        "type": {
+          "type": "object",
+          "properties": { "$var": { "const": "x" } },
+          "required": ["$var"],
           "additionalProperties": false
         },
         "diagnostics": []

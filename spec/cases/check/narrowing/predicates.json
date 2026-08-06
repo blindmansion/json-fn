@@ -1,0 +1,484 @@
+{
+  "$schema": "../../check.schema.json",
+  "description": "flow narrowing: type-predicate conditions",
+  "comment": "End-to-end forms of the type-predicate fact-map rows in typescript/test/check/narrowing.test.ts. isNull/isString/isNumber/isInteger conditions narrow bare variables and field paths; shadowed predicate names must not narrow.",
+  "builtins": "standard",
+  "cases": [
+    {
+      "description": "isNull then-branch narrows to null",
+      "module": {
+        "f": {
+          "$params": ["x"],
+          "$sig": {
+            "required": [{ "anyOf": [{ "type": "string" }, { "type": "null" }] }],
+            "optional": [],
+            "returns": { "type": "null" }
+          },
+          "$return": {
+            "$if": { "$call": "isNull", "$args": [{ "$var": "x" }] },
+            "$then": { "$var": "x" },
+            "$else": null
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "isNull else-branch keeps the non-null arm",
+      "module": {
+        "f": {
+          "$params": ["x"],
+          "$sig": {
+            "required": [{ "anyOf": [{ "type": "string" }, { "type": "null" }] }],
+            "optional": [],
+            "returns": { "type": "string" }
+          },
+          "$return": {
+            "$if": { "$call": "isNull", "$args": [{ "$var": "x" }] },
+            "$then": "",
+            "$else": { "$var": "x" }
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "isString then-branch keeps the string arm",
+      "module": {
+        "f": {
+          "$params": ["x"],
+          "$sig": {
+            "required": [{ "anyOf": [{ "type": "string" }, { "type": "integer" }] }],
+            "optional": [],
+            "returns": { "type": "string" }
+          },
+          "$return": {
+            "$if": { "$call": "isString", "$args": [{ "$var": "x" }] },
+            "$then": { "$var": "x" },
+            "$else": ""
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "isString else-branch drops the string arm",
+      "module": {
+        "f": {
+          "$params": ["x"],
+          "$sig": {
+            "required": [{ "anyOf": [{ "type": "string" }, { "type": "integer" }] }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": {
+            "$if": { "$call": "isString", "$args": [{ "$var": "x" }] },
+            "$then": 0,
+            "$else": { "$var": "x" }
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "isNumber keeps an integer arm (number/integer overlap)",
+      "module": {
+        "f": {
+          "$params": ["x"],
+          "$sig": {
+            "required": [{ "anyOf": [{ "type": "string" }, { "type": "integer" }] }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": {
+            "$if": { "$call": "isNumber", "$args": [{ "$var": "x" }] },
+            "$then": { "$var": "x" },
+            "$else": 0
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "isString intersects any with string",
+      "comment": "Without narrowing the then-arm local stays any and the branch union degrades to any; narrowing makes the whole expression infer string.",
+      "expression": {
+        "$let": { "x": { "$as": "v", "$type": true } },
+        "$in": {
+          "$if": { "$call": "isString", "$args": [{ "$var": "x" }] },
+          "$then": { "$var": "x" },
+          "$else": ""
+        }
+      },
+      "expected": { "type": { "type": "string" }, "diagnostics": [] }
+    },
+    {
+      "description": "isInteger permits an integer-only call from number | string on the true branch",
+      "module": {
+        "f": {
+          "$params": ["value"],
+          "$sig": {
+            "required": [{ "anyOf": [{ "type": "number" }, { "type": "string" }] }],
+            "optional": [],
+            "returns": { "type": "array", "items": { "type": "integer" } }
+          },
+          "$return": {
+            "$if": { "$call": "isInteger", "$args": [{ "$var": "value" }] },
+            "$then": { "$call": "range", "$args": [{ "$var": "value" }] },
+            "$else": []
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "isInteger conservatively retains number on the false branch",
+      "comment": "A bare number is neither provably integer nor provably non-integer on the false branch, so the string-expecting call still fails there.",
+      "module": {
+        "f": {
+          "$params": ["value"],
+          "$sig": {
+            "required": [{ "type": "number" }],
+            "optional": [],
+            "returns": { "type": "string" }
+          },
+          "$return": {
+            "$if": { "$call": "isInteger", "$args": [{ "$var": "value" }] },
+            "$then": "",
+            "$else": { "$call": "upper", "$args": [{ "$var": "value" }] }
+          }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return", "$else", "$args[0]"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "string" },
+            "actual": { "type": "number" }
+          }
+        ]
+      }
+    },
+    {
+      "description": "isInteger intersects integer | string to integer on the true branch",
+      "module": {
+        "f": {
+          "$params": ["x"],
+          "$sig": {
+            "required": [{ "anyOf": [{ "type": "string" }, { "type": "integer" }] }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": {
+            "$if": { "$call": "isInteger", "$args": [{ "$var": "x" }] },
+            "$then": { "$var": "x" },
+            "$else": 0
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "isInteger subtracts integer from integer | string on the false branch",
+      "module": {
+        "f": {
+          "$params": ["x"],
+          "$sig": {
+            "required": [{ "anyOf": [{ "type": "string" }, { "type": "integer" }] }],
+            "optional": [],
+            "returns": { "type": "string" }
+          },
+          "$return": {
+            "$if": { "$call": "isInteger", "$args": [{ "$var": "x" }] },
+            "$then": "",
+            "$else": { "$var": "x" }
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "isInteger cannot exactly subtract integer from number | string",
+      "comment": "number minus integer is not expressible, so the false branch keeps the whole union and the string return fails.",
+      "module": {
+        "f": {
+          "$params": ["x"],
+          "$sig": {
+            "required": [{ "anyOf": [{ "type": "number" }, { "type": "string" }] }],
+            "optional": [],
+            "returns": { "type": "string" }
+          },
+          "$return": {
+            "$if": { "$call": "isInteger", "$args": [{ "$var": "x" }] },
+            "$then": "",
+            "$else": { "$var": "x" }
+          }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return", "$else"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "string" },
+            "actual": { "anyOf": [{ "type": "number" }, { "type": "string" }] }
+          }
+        ]
+      }
+    },
+    {
+      "description": "isInteger filters literal union arms exactly on the true branch",
+      "module": {
+        "f": {
+          "$params": ["x"],
+          "$sig": {
+            "required": [{ "anyOf": [{ "const": 1 }, { "const": 1.5 }, { "type": "string" }] }],
+            "optional": [],
+            "returns": { "const": 1 }
+          },
+          "$return": {
+            "$if": { "$call": "isInteger", "$args": [{ "$var": "x" }] },
+            "$then": { "$var": "x" },
+            "$else": 1
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "isInteger false filters integral literal union arms exactly",
+      "module": {
+        "f": {
+          "$params": ["x"],
+          "$sig": {
+            "required": [{ "anyOf": [{ "const": 1 }, { "const": 1.5 }, { "type": "string" }] }],
+            "optional": [],
+            "returns": { "anyOf": [{ "const": 1.5 }, { "type": "string" }] }
+          },
+          "$return": {
+            "$if": { "$call": "isInteger", "$args": [{ "$var": "x" }] },
+            "$then": 1.5,
+            "$else": { "$var": "x" }
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "isInteger filters a mixed enum on the true branch",
+      "module": {
+        "f": {
+          "$params": ["x"],
+          "$sig": {
+            "required": [{ "enum": [1, 1.5, "one"] }],
+            "optional": [],
+            "returns": { "const": 1 }
+          },
+          "$return": {
+            "$if": { "$call": "isInteger", "$args": [{ "$var": "x" }] },
+            "$then": { "$var": "x" },
+            "$else": 1
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "isInteger filters a mixed enum on the false branch",
+      "module": {
+        "f": {
+          "$params": ["x"],
+          "$sig": {
+            "required": [{ "enum": [1, 1.5, "one"] }],
+            "optional": [],
+            "returns": { "enum": [1.5, "one"] }
+          },
+          "$return": {
+            "$if": { "$call": "isInteger", "$args": [{ "$var": "x" }] },
+            "$then": 1.5,
+            "$else": { "$var": "x" }
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "isInteger intersects any with integer",
+      "expression": {
+        "$let": { "x": { "$as": 1, "$type": true } },
+        "$in": {
+          "$if": { "$call": "isInteger", "$args": [{ "$var": "x" }] },
+          "$then": { "$var": "x" },
+          "$else": 0
+        }
+      },
+      "expected": { "type": { "type": "integer" }, "diagnostics": [] }
+    },
+    {
+      "description": "isInteger leaves any unchanged on the false branch",
+      "comment": "The else-arm local stays any, so the branch union is any rather than an integer type.",
+      "expression": {
+        "$let": { "x": { "$as": 1, "$type": true } },
+        "$in": {
+          "$if": { "$call": "isInteger", "$args": [{ "$var": "x" }] },
+          "$then": 0,
+          "$else": { "$var": "x" }
+        }
+      },
+      "expected": { "type": true, "diagnostics": [] }
+    },
+    {
+      "description": "isInteger preserves numeric refinements when changing the primitive",
+      "module": {
+        "f": {
+          "$params": ["x"],
+          "$sig": {
+            "required": [
+              { "type": "number", "minimum": 0, "exclusiveMaximum": 10, "multipleOf": 0.5 }
+            ],
+            "optional": [],
+            "returns": {
+              "type": "integer",
+              "minimum": 0,
+              "exclusiveMaximum": 10,
+              "multipleOf": 0.5
+            }
+          },
+          "$return": {
+            "$if": { "$call": "isInteger", "$args": [{ "$var": "x" }] },
+            "$then": { "$var": "x" },
+            "$else": 0
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "isInteger on a field path narrows the path",
+      "module": {
+        "f": {
+          "$params": ["m"],
+          "$sig": {
+            "required": [
+              {
+                "type": "object",
+                "properties": {
+                  "value": { "anyOf": [{ "type": "number" }, { "type": "string" }] }
+                },
+                "required": ["value"]
+              }
+            ],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": {
+            "$if": {
+              "$call": "isInteger",
+              "$args": [{ "$get": "value", "$from": { "$var": "m" } }]
+            },
+            "$then": { "$get": "value", "$from": { "$var": "m" } },
+            "$else": 0
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "isNull on a field-path subject narrows the path in the else-branch",
+      "module": {
+        "f": {
+          "$params": ["m"],
+          "$sig": {
+            "required": [
+              {
+                "type": "object",
+                "properties": { "from": { "anyOf": [{ "type": "string" }, { "type": "null" }] } },
+                "required": ["from"]
+              }
+            ],
+            "optional": [],
+            "returns": { "type": "string" }
+          },
+          "$return": {
+            "$if": { "$call": "isNull", "$args": [{ "$get": "from", "$from": { "$var": "m" } }] },
+            "$then": "",
+            "$else": { "$get": "from", "$from": { "$var": "m" } }
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "a shadowed isNull yields no fact",
+      "comment": "isNull is rebound to a function-typed parameter, so the call is well-typed but does not narrow; the else-branch keeps the nullable union.",
+      "module": {
+        "f": {
+          "$params": ["x", "isNull"],
+          "$sig": {
+            "required": [
+              { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+              {
+                "$fnType": { "required": [true], "optional": [], "returns": { "type": "boolean" } }
+              }
+            ],
+            "optional": [],
+            "returns": { "type": "string" }
+          },
+          "$return": {
+            "$if": { "$call": "isNull", "$args": [{ "$var": "x" }] },
+            "$then": "",
+            "$else": { "$var": "x" }
+          }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return", "$else"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "string" },
+            "actual": { "anyOf": [{ "type": "string" }, { "type": "null" }] }
+          }
+        ]
+      }
+    },
+    {
+      "description": "a shadowed isInteger does not authorize an integer-only call",
+      "module": {
+        "f": {
+          "$params": ["value", "isInteger"],
+          "$sig": {
+            "required": [
+              { "anyOf": [{ "type": "number" }, { "type": "string" }] },
+              {
+                "$fnType": { "required": [true], "optional": [], "returns": { "type": "boolean" } }
+              }
+            ],
+            "optional": [],
+            "returns": { "type": "array", "items": { "type": "integer" } }
+          },
+          "$return": {
+            "$if": { "$call": "isInteger", "$args": [{ "$var": "value" }] },
+            "$then": { "$call": "range", "$args": [{ "$var": "value" }] },
+            "$else": []
+          }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return", "$then", "$args[0]"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "integer" },
+            "actual": { "anyOf": [{ "type": "number" }, { "type": "string" }] }
+          }
+        ]
+      }
+    }
+  ]
+}
