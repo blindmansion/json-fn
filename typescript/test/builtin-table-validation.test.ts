@@ -34,6 +34,11 @@ describe("builtin table validation", () => {
     expect(Object.keys(loadBuiltinTable().builtins).length).toBeGreaterThan(0);
   });
 
+  test("the spec-v2 builtin table with metering declarations is valid", () => {
+    const path = join(import.meta.dir, "../../spec-v2/builtins/builtins.json");
+    expect(Object.keys(loadBuiltinTable(path).builtins).length).toBeGreaterThan(0);
+  });
+
   test("the file loader rejects a malformed table before returning it", () => {
     const dir = mkdtempSync(join(tmpdir(), "json-fn-builtins-"));
     const path = join(dir, "builtins.json");
@@ -96,6 +101,26 @@ describe("builtin table validation", () => {
       "table.builtins.example.rule",
     );
     validateCallableTable(tableWith([signature], {}, "operator.handle"));
+  });
+
+  test("validates optional metering declarations", () => {
+    validateCallableTable({
+      builtins: {
+        example: { metering: { base: 1, sized: [0, "rest"] }, signatures: [signature] },
+      },
+    });
+    for (const metering of [
+      { base: 0, sized: [] },
+      { base: 1, sized: [-1] },
+      { base: 1, sized: [0, 0] },
+      { base: 1, sized: ["other"] },
+    ]) {
+      expect(() =>
+        validateCallableTable({
+          builtins: { example: { metering, signatures: [signature] } },
+        }),
+      ).toThrow(CallableTableValidationError);
+    }
   });
 
   test("requires required, optional, and returns", () => {

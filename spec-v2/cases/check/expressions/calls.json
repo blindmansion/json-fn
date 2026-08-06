@@ -1,0 +1,669 @@
+{
+  "$schema": "../../check.schema.json",
+  "description": "user-function call sites, arity, and inline function calls",
+  "builtins": "none",
+  "cases": [
+    {
+      "description": "identity + a caller through the registry sig type-check",
+      "module": {
+        "identity": {
+          "$params": ["n"],
+          "$sig": {
+            "required": [{ "type": "integer" }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": { "$var": "n" }
+        },
+        "caller": {
+          "$params": ["n"],
+          "$sig": {
+            "required": [{ "type": "integer" }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": { "$call": "identity", "$args": [{ "$var": "n" }] }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "required and optional schemas share one positional sequence",
+      "module": {
+        "pickSecond": {
+          "$params": ["number", { "$param": "label", "$default": "" }],
+          "$sig": {
+            "required": [{ "type": "integer" }],
+            "optional": [{ "type": "string" }],
+            "returns": { "type": "string" }
+          },
+          "$return": { "$var": "label" }
+        },
+        "caller": {
+          "$params": [],
+          "$sig": { "required": [], "optional": [], "returns": { "type": "string" } },
+          "$return": { "$call": "pickSecond", "$args": [1, "ok"] }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "explicit null for an omittable slot explains the omission model",
+      "module": {
+        "f": {
+          "$params": ["a", { "$param": "b", "$optional": true }],
+          "$sig": {
+            "required": [{ "type": "integer" }],
+            "optional": [{ "type": "string" }],
+            "returns": { "type": "integer" }
+          },
+          "$return": { "$var": "a" }
+        },
+        "g": {
+          "$params": [],
+          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$return": { "$call": "f", "$args": [1, null] }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["g", "$return", "$args[1]"],
+            "severity": "error",
+            "messageIncludes": "does not omit this optional parameter",
+            "expected": { "type": "string" },
+            "actual": { "type": "null" }
+          }
+        ]
+      }
+    },
+    {
+      "description": "a nullable annotation admits explicit null without the omission hint",
+      "module": {
+        "f": {
+          "$params": ["a", { "$param": "b", "$optional": true }],
+          "$sig": {
+            "required": [{ "type": "integer" }],
+            "optional": [{ "type": ["string", "null"] }],
+            "returns": { "type": "integer" }
+          },
+          "$return": { "$var": "a" }
+        },
+        "g": {
+          "$params": [],
+          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$return": { "$call": "f", "$args": [1, null] }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "a required slot keeps the plain assignability error for explicit null",
+      "module": {
+        "strict": {
+          "$params": ["a"],
+          "$sig": {
+            "required": [{ "type": "string" }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": 1
+        },
+        "h": {
+          "$params": [],
+          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$return": { "$call": "strict", "$args": [null] }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["h", "$return", "$args[0]"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "string" },
+            "actual": { "type": "null" }
+          }
+        ]
+      }
+    },
+    {
+      "description": "argument type mismatch is reported at the arg path",
+      "module": {
+        "wantString": {
+          "$params": ["s"],
+          "$sig": {
+            "required": [{ "type": "string" }],
+            "optional": [],
+            "returns": { "type": "string" }
+          },
+          "$return": { "$var": "s" }
+        },
+        "caller": {
+          "$params": ["n"],
+          "$sig": {
+            "required": [{ "type": "integer" }],
+            "optional": [],
+            "returns": { "type": "string" }
+          },
+          "$return": { "$call": "wantString", "$args": [{ "$var": "n" }] }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["caller", "$return", "$args[0]"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "string" },
+            "actual": { "type": "integer" }
+          }
+        ]
+      }
+    },
+    {
+      "description": "arity mismatch is reported",
+      "module": {
+        "identity": {
+          "$params": ["n"],
+          "$sig": {
+            "required": [{ "type": "integer" }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": { "$var": "n" }
+        },
+        "caller": {
+          "$params": ["n"],
+          "$sig": {
+            "required": [{ "type": "integer" }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": { "$call": "identity", "$args": [{ "$var": "n" }, { "$var": "n" }] }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["caller", "$return"],
+            "severity": "error",
+            "messageIncludes": "Expected exactly 1 argument"
+          }
+        ]
+      }
+    },
+    {
+      "description": "rest params accept extra arguments of the element type",
+      "module": {
+        "variadic": {
+          "$params": ["...xs"],
+          "$sig": {
+            "required": [],
+            "optional": [],
+            "rest": { "type": "integer" },
+            "returns": { "type": "integer" }
+          },
+          "$return": 0
+        },
+        "caller": {
+          "$params": [],
+          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$return": { "$call": "variadic", "$args": [1, 2, 3] }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "optional parameters define an accepted argument-count range",
+      "module": {
+        "flexible": {
+          "$params": ["n", { "$param": "label", "$optional": true }],
+          "$sig": {
+            "required": [{ "type": "integer" }],
+            "optional": [{ "type": "string" }],
+            "returns": { "type": "integer" }
+          },
+          "$return": { "$var": "n" }
+        },
+        "oneArgument": {
+          "$params": [],
+          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$return": { "$call": "flexible", "$args": [1] }
+        },
+        "twoArguments": {
+          "$params": [],
+          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$return": { "$call": "flexible", "$args": [1, "label"] }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "optional-parameter arity diagnostics report the accepted range",
+      "module": {
+        "flexible": {
+          "$params": ["n", { "$param": "label", "$optional": true }],
+          "$sig": {
+            "required": [{ "type": "integer" }],
+            "optional": [{ "type": "string" }],
+            "returns": { "type": "integer" }
+          },
+          "$return": { "$var": "n" }
+        },
+        "tooFew": {
+          "$params": [],
+          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$return": { "$call": "flexible", "$args": [] }
+        },
+        "tooMany": {
+          "$params": [],
+          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$return": { "$call": "flexible", "$args": [1, "label", 2] }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["tooFew", "$return"],
+            "severity": "error",
+            "messageIncludes": "Expected 1 to 2 arguments, got 0."
+          },
+          {
+            "path": ["tooMany", "$return"],
+            "severity": "error",
+            "messageIncludes": "Expected 1 to 2 arguments, got 3."
+          }
+        ]
+      }
+    },
+    {
+      "description": "arity errors still traverse every supplied argument",
+      "module": {
+        "pair": {
+          "$params": ["left", "right"],
+          "$sig": {
+            "required": [{ "type": "integer" }, { "type": "integer" }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": { "$var": "left" }
+        },
+        "tooFew": {
+          "$params": [],
+          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$return": { "$call": "pair", "$args": [{ "$var": "missingFew" }] }
+        },
+        "tooMany": {
+          "$params": [],
+          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$return": { "$call": "pair", "$args": [1, 2, { "$var": "missingExtra" }] }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["tooFew", "$return"],
+            "severity": "error",
+            "messageIncludes": "Expected exactly 2 arguments, got 1."
+          },
+          {
+            "path": ["tooFew", "$return", "$args[0]"],
+            "severity": "info",
+            "messageIncludes": "variable \"missingFew\" is unresolved"
+          },
+          {
+            "path": ["tooFew", "$return", "$args[0]"],
+            "severity": "error",
+            "messageIncludes": "not assignable"
+          },
+          {
+            "path": ["tooMany", "$return"],
+            "severity": "error",
+            "messageIncludes": "Expected exactly 2 arguments, got 3."
+          },
+          {
+            "path": ["tooMany", "$return", "$args[2]"],
+            "severity": "info",
+            "messageIncludes": "variable \"missingExtra\" is unresolved"
+          }
+        ]
+      }
+    },
+    {
+      "description": "wrong user-function arity suppresses contextual lambda cascades",
+      "module": {
+        "consume": {
+          "$params": ["callback", "value"],
+          "$sig": {
+            "required": [
+              {
+                "$fnType": {
+                  "required": [{ "type": "integer" }],
+                  "optional": [],
+                  "returns": { "type": "integer" }
+                }
+              },
+              { "type": "integer" }
+            ],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": { "$var": "value" }
+        },
+        "caller": {
+          "$params": [],
+          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$return": {
+            "$call": "consume",
+            "$args": [{ "$params": ["n"], "$return": { "$var": "missingFromCallback" } }]
+          }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["caller", "$return"],
+            "severity": "error",
+            "messageIncludes": "Expected exactly 2 arguments, got 1."
+          }
+        ]
+      }
+    },
+    {
+      "description": "optional slots are checked before arguments flow into rest",
+      "module": {
+        "flexible": {
+          "$params": [
+            "n",
+            { "$param": "label", "$optional": true },
+            { "$param": "enabled", "$optional": true },
+            "...rest"
+          ],
+          "$sig": {
+            "required": [{ "type": "integer" }],
+            "optional": [{ "type": "string" }, { "type": "boolean" }],
+            "rest": { "type": "integer" },
+            "returns": { "type": "integer" }
+          },
+          "$return": { "$var": "n" }
+        },
+        "caller": {
+          "$params": [],
+          "$sig": { "required": [], "optional": [], "returns": true },
+          "$return": {
+            "$array": [
+              { "$call": "flexible", "$args": [1, null] },
+              { "$call": "flexible", "$args": [1, "label", true, "bad rest"] }
+            ]
+          }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["caller", "$return", "$array", "[0]", "$args[1]"],
+            "severity": "error",
+            "messageIncludes": "does not omit this optional parameter",
+            "expected": { "type": "string" },
+            "actual": { "type": "null" }
+          },
+          {
+            "path": ["caller", "$return", "$array", "[1]", "$args[3]"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "integer" },
+            "actual": { "const": "bad rest" }
+          }
+        ]
+      }
+    },
+    {
+      "description": "a rest arg of the wrong element type is reported",
+      "module": {
+        "variadic": {
+          "$params": ["...xs"],
+          "$sig": {
+            "required": [],
+            "optional": [],
+            "rest": { "type": "integer" },
+            "returns": { "type": "integer" }
+          },
+          "$return": 0
+        },
+        "caller": {
+          "$params": [],
+          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$return": { "$call": "variadic", "$args": [1, "two"] }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["caller", "$return", "$args[1]"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "integer" },
+            "actual": { "const": "two" }
+          }
+        ]
+      }
+    },
+    {
+      "description": "an inline call synthesizes the body's $return type, not `any`",
+      "expression": { "$call": { "$return": 1 }, "$args": [] },
+      "expected": { "type": { "const": 1 }, "diagnostics": [] }
+    },
+    {
+      "description": "inline call params bind to the synthesized argument types",
+      "expression": { "$call": { "$params": ["n"], "$return": { "$var": "n" } }, "$args": [5] },
+      "expected": { "type": { "const": 5 }, "diagnostics": [] }
+    },
+    {
+      "description": "IIFE optional parameters define an accepted range: too few arguments",
+      "expression": {
+        "$call": {
+          "$params": [
+            "required",
+            { "$param": "fallback", "$default": "fallback" },
+            { "$param": "optional", "$optional": true }
+          ],
+          "$return": { "$var": "required" }
+        },
+        "$args": []
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": [],
+            "severity": "error",
+            "messageIncludes": "Expected 1 to 3 arguments, got 0."
+          }
+        ]
+      }
+    },
+    {
+      "description": "IIFE optional parameters define an accepted range: minimum arguments are clean",
+      "expression": {
+        "$call": {
+          "$params": [
+            "required",
+            { "$param": "fallback", "$default": "fallback" },
+            { "$param": "optional", "$optional": true }
+          ],
+          "$return": { "$var": "required" }
+        },
+        "$args": [1]
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "IIFE optional parameters define an accepted range: maximum arguments are clean",
+      "expression": {
+        "$call": {
+          "$params": [
+            "required",
+            { "$param": "fallback", "$default": "fallback" },
+            { "$param": "optional", "$optional": true }
+          ],
+          "$return": { "$var": "required" }
+        },
+        "$args": [1, "fallback", true]
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "IIFE optional parameters define an accepted range: too many arguments",
+      "expression": {
+        "$call": {
+          "$params": [
+            "required",
+            { "$param": "fallback", "$default": "fallback" },
+            { "$param": "optional", "$optional": true }
+          ],
+          "$return": { "$var": "required" }
+        },
+        "$args": [1, "fallback", true, 4]
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": [],
+            "severity": "error",
+            "messageIncludes": "Expected 1 to 3 arguments, got 4."
+          }
+        ]
+      }
+    },
+    {
+      "description": "an omitted IIFE defaulted parameter binds permissively",
+      "expression": {
+        "$call": {
+          "$params": ["required", { "$param": "fallback", "$default": "default" }],
+          "$return": { "$var": "fallback" }
+        },
+        "$args": [1]
+      },
+      "expected": { "type": true, "diagnostics": [] }
+    },
+    {
+      "description": "IIFE optional and rest parameters align with supplied argument positions",
+      "expression": {
+        "$call": {
+          "$params": ["required", { "$param": "fallback", "$default": "supplied" }, "...rest"],
+          "$return": { "fallback": { "$var": "fallback" }, "rest": { "$var": "rest" } }
+        },
+        "$args": [1, "supplied", true, 2]
+      },
+      "expected": {
+        "type": {
+          "type": "object",
+          "properties": {
+            "fallback": { "const": "supplied" },
+            "rest": { "type": "array", "items": { "anyOf": [{ "const": true }, { "const": 2 }] } }
+          },
+          "required": ["fallback", "rest"],
+          "additionalProperties": false
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "description": "checks IIFE defaults under the synthesized function scope",
+      "expression": {
+        "$call": {
+          "$params": [{ "$param": "value", "$default": "bad default" }],
+          "$return": { "$var": "value" }
+        },
+        "$args": [1]
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["$params[0]", "$default"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "const": 1 },
+            "actual": { "const": "bad default" }
+          }
+        ]
+      }
+    },
+    {
+      "description": "a nested error inside an IIFE body is surfaced within the body scope",
+      "expression": { "$call": { "$return": { "$var": "missing" } }, "$args": [] },
+      "expected": {
+        "type": true,
+        "diagnostics": [
+          {
+            "path": ["$return"],
+            "severity": "info",
+            "messageIncludes": "variable \"missing\" is unresolved"
+          }
+        ]
+      }
+    },
+    {
+      "description": "an IIFE arity mismatch is reported at the call",
+      "expression": { "$call": { "$params": ["n"], "$return": { "$var": "n" } }, "$args": [] },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": [],
+            "severity": "error",
+            "messageIncludes": "Expected exactly 1 argument, got 0."
+          }
+        ]
+      }
+    },
+    {
+      "description": "a malformed IIFE reports its parameter issue and skips its body",
+      "expression": {
+        "$call": { "$params": [{ "$param": "value" }], "$return": { "$var": "missing" } },
+        "$args": [1]
+      },
+      "expected": {
+        "type": true,
+        "diagnostics": [
+          {
+            "path": ["$params[0]"],
+            "severity": "error",
+            "messageIncludes": "$params[0]: A defaulted parameter must contain exactly"
+          }
+        ]
+      }
+    },
+    {
+      "description": "the expected type is pushed into the IIFE body's $return (checked position)",
+      "module": {
+        "f": {
+          "$params": [],
+          "$sig": { "required": [], "optional": [], "returns": { "type": "string" } },
+          "$return": { "$call": { "$return": 1 }, "$args": [] }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return", "$return"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "string" },
+            "actual": { "const": 1 }
+          }
+        ]
+      }
+    },
+    {
+      "description": "an IIFE body matching the expected type checks clean",
+      "module": {
+        "f": {
+          "$params": [],
+          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$return": { "$call": { "$return": 1 }, "$args": [] }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    }
+  ]
+}

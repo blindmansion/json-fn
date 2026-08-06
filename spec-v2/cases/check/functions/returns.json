@@ -1,0 +1,93 @@
+{
+  "$schema": "../../check.schema.json",
+  "description": "declared return enforcement outside the module path",
+  "builtins": "none",
+  "cases": [
+    {
+      "description": "a standalone typed lambda checks its body against the declared return",
+      "expression": {
+        "$params": ["n"],
+        "$sig": {
+          "required": [{ "type": "integer" }],
+          "optional": [],
+          "returns": { "type": "string" }
+        },
+        "$return": { "$var": "n" }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["$return"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "string" },
+            "actual": { "type": "integer" }
+          }
+        ]
+      }
+    },
+    {
+      "description": "a well-typed standalone lambda is clean",
+      "expression": {
+        "$params": ["n"],
+        "$sig": {
+          "required": [{ "type": "integer" }],
+          "optional": [],
+          "returns": { "type": "integer" }
+        },
+        "$return": { "$var": "n" }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "an inline typed lambda in a builtin call honors its own declared return",
+      "builtins": "standard",
+      "expression": {
+        "$call": "map",
+        "$args": [
+          {
+            "$params": ["n"],
+            "$sig": {
+              "required": [{ "type": "integer" }],
+              "optional": [],
+              "returns": { "type": "string" }
+            },
+            "$return": { "$var": "n" }
+          },
+          [1, 2, 3]
+        ]
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["$args[0]", "$return"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "string" },
+            "actual": { "type": "integer" }
+          }
+        ]
+      }
+    },
+    {
+      "description": "an inline typed lambda with a matching declared return is clean",
+      "builtins": "standard",
+      "expression": {
+        "$call": "map",
+        "$args": [
+          {
+            "$params": ["n"],
+            "$sig": {
+              "required": [{ "type": "integer" }],
+              "optional": [],
+              "returns": { "type": "integer" }
+            },
+            "$return": { "$var": "n" }
+          },
+          [1, 2, 3]
+        ]
+      },
+      "expected": { "diagnostics": [] }
+    }
+  ]
+}

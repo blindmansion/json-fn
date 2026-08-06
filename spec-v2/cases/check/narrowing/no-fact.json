@@ -1,0 +1,101 @@
+{
+  "$schema": "../../check.schema.json",
+  "description": "flow narrowing: conditions that derive no fact never silently pass",
+  "comment": "End-to-end forms of the no-fact fact-map rows in typescript/test/check/narrowing.test.ts: when a condition is not a recognized guard form, checking must not narrow, so uses that depend on narrowing remain diagnostics.",
+  "builtins": "standard",
+  "cases": [
+    {
+      "description": "a dynamic (call-result) equality subject yields no fact",
+      "comment": "eq over a call result identifies no narrowable path, so the nullable parameter keeps its declared union in the then-branch.",
+      "module": {
+        "f": {
+          "$params": ["x", "xs"],
+          "$sig": {
+            "required": [
+              { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+              { "type": "array", "items": { "type": "string" } }
+            ],
+            "optional": [],
+            "returns": { "type": "string" }
+          },
+          "$return": {
+            "$if": {
+              "$call": "eq",
+              "$args": [{ "$call": "length", "$args": [{ "$var": "xs" }] }, 1]
+            },
+            "$then": { "$var": "x" },
+            "$else": ""
+          }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return", "$then"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "string" },
+            "actual": { "anyOf": [{ "type": "string" }, { "type": "null" }] }
+          }
+        ]
+      }
+    },
+    {
+      "description": "an unrecognized guard form yields no fact",
+      "comment": "gt is not a recognized guard, so the nullable parameter does not narrow: the condition's own argument mismatch and the un-narrowed then-branch are both reported.",
+      "module": {
+        "f": {
+          "$params": ["x"],
+          "$sig": {
+            "required": [{ "anyOf": [{ "type": "integer" }, { "type": "null" }] }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": {
+            "$if": { "$call": "gt", "$args": [{ "$var": "x" }, 3] },
+            "$then": { "$var": "x" },
+            "$else": 0
+          }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return", "$if", "$args[0]"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "number" },
+            "actual": { "anyOf": [{ "type": "integer" }, { "type": "null" }] }
+          },
+          {
+            "path": ["f", "$return", "$then"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "integer" },
+            "actual": { "anyOf": [{ "type": "integer" }, { "type": "null" }] }
+          }
+        ]
+      }
+    },
+    {
+      "description": "an unbound variable condition yields no fact",
+      "comment": "The unresolved condition records visible degradation, and the local it might have narrowed keeps its full nullable union in the inferred type.",
+      "expression": {
+        "$let": {
+          "x": { "$as": null, "$type": { "anyOf": [{ "type": "string" }, { "type": "null" }] } }
+        },
+        "$in": { "$if": { "$var": "q" }, "$then": { "$var": "x" }, "$else": "" }
+      },
+      "expected": {
+        "type": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+        "diagnostics": [
+          {
+            "path": ["$in", "$if"],
+            "severity": "info",
+            "messageIncludes": "degraded to `any` because variable \"q\" is unresolved"
+          }
+        ]
+      }
+    }
+  ]
+}

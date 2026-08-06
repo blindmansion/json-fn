@@ -55,6 +55,26 @@ function validateSchemaErrors(validate: () => void): void {
   }
 }
 
+function validateMetering(value: unknown, path: string): void {
+  const metering = assertObject(value, path);
+  assertOnlyKeys(metering, new Set(["base", "sized"]), path);
+  if (!Number.isInteger(metering.base) || (metering.base as number) < 1) {
+    fail(`${path}.base`, "expected a positive integer");
+  }
+  if (!Array.isArray(metering.sized)) fail(`${path}.sized`, "expected an array");
+  const seen = new Set<number | "rest">();
+  for (let i = 0; i < metering.sized.length; i++) {
+    const position = metering.sized[i];
+    if (position !== "rest" && (!Number.isInteger(position) || (position as number) < 0)) {
+      fail(`${path}.sized[${i}]`, 'expected a non-negative integer or "rest"');
+    }
+    if (seen.has(position as number | "rest")) {
+      fail(`${path}.sized[${i}]`, "duplicate metered argument position");
+    }
+    seen.add(position as number | "rest");
+  }
+}
+
 export function validateCallableTable(value: unknown): asserts value is CallableTable {
   assertStructuralDepth(value);
   const table = assertObject(value, "table");
@@ -75,7 +95,11 @@ export function validateCallableTable(value: unknown): asserts value is Callable
     const path = `table.builtins.${name}`;
     if (name.length === 0) fail(path, "builtin name cannot be empty");
     const contract = assertObject(entry, path);
-    assertOnlyKeys(contract, new Set(["description", "category", "signatures", "rule"]), path);
+    assertOnlyKeys(
+      contract,
+      new Set(["description", "category", "metering", "signatures", "rule"]),
+      path,
+    );
     for (const field of ["description", "category"] as const) {
       if (
         field in contract &&
@@ -85,6 +109,7 @@ export function validateCallableTable(value: unknown): asserts value is Callable
       }
     }
     if (!Array.isArray(contract.signatures)) fail(`${path}.signatures`, "expected an array");
+    if ("metering" in contract) validateMetering(contract.metering, `${path}.metering`);
     const signatures = contract.signatures;
     if (signatures.length === 0) {
       fail(`${path}.signatures`, "fallback signature set cannot be empty");

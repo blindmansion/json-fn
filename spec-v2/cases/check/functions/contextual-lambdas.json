@@ -1,0 +1,320 @@
+{
+  "$schema": "../../check.schema.json",
+  "description": "contextually typed un-annotated lambdas",
+  "builtins": "none",
+  "cases": [
+    {
+      "description": "a zero-arg lambda checks against an expected () -> T (capability record)",
+      "module": {
+        "f": {
+          "$params": [],
+          "$sig": {
+            "required": [],
+            "optional": [],
+            "returns": {
+              "$fnType": { "required": [], "optional": [], "returns": { "type": "integer" } }
+            }
+          },
+          "$return": { "$params": [], "$return": 1 }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "param types flow in: the body checks against the expected params",
+      "module": {
+        "f": {
+          "$params": [],
+          "$sig": {
+            "required": [],
+            "optional": [],
+            "returns": {
+              "$fnType": {
+                "required": [{ "type": "integer" }],
+                "optional": [],
+                "returns": { "type": "integer" }
+              }
+            }
+          },
+          "$return": { "$params": ["x"], "$return": { "$var": "x" } }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "a body that violates the expected return is pinpointed at the lambda's $return",
+      "module": {
+        "f": {
+          "$params": [],
+          "$sig": {
+            "required": [],
+            "optional": [],
+            "returns": {
+              "$fnType": {
+                "required": [{ "type": "integer" }],
+                "optional": [],
+                "returns": { "type": "string" }
+              }
+            }
+          },
+          "$return": { "$params": ["x"], "$return": { "$var": "x" } }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return", "$return"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "string" },
+            "actual": { "type": "integer" }
+          }
+        ]
+      }
+    },
+    {
+      "description": "the expected return recurses structurally into a composite body",
+      "module": {
+        "f": {
+          "$params": [],
+          "$sig": {
+            "required": [],
+            "optional": [],
+            "returns": {
+              "$fnType": {
+                "required": [],
+                "optional": [],
+                "returns": {
+                  "type": "object",
+                  "properties": { "a": { "type": "integer" } },
+                  "required": ["a"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "$return": { "$params": [], "$return": { "a": "x" } }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return", "$return", "a"],
+            "severity": "error",
+            "messageIncludes": "not assignable"
+          }
+        ]
+      }
+    },
+    {
+      "description": "an arity mismatch is reported at the lambda, not deferred to `any`",
+      "module": {
+        "f": {
+          "$params": [],
+          "$sig": {
+            "required": [],
+            "optional": [],
+            "returns": {
+              "$fnType": { "required": [], "optional": [], "returns": { "type": "integer" } }
+            }
+          },
+          "$return": { "$params": ["x"], "$return": { "$var": "x" } }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return", "$params"],
+            "severity": "error",
+            "messageIncludes": "Contextual signature expects 0 required parameter(s)"
+          }
+        ]
+      }
+    },
+    {
+      "description": "a rest param satisfies an expected rest signature",
+      "module": {
+        "f": {
+          "$params": [],
+          "$sig": {
+            "required": [],
+            "optional": [],
+            "returns": {
+              "$fnType": {
+                "required": [],
+                "optional": [],
+                "rest": { "type": "integer" },
+                "returns": { "type": "integer" }
+              }
+            }
+          },
+          "$return": { "$params": ["...xs"], "$return": 1 }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "a fixed-arity lambda does not satisfy an expected rest signature",
+      "module": {
+        "f": {
+          "$params": [],
+          "$sig": {
+            "required": [],
+            "optional": [],
+            "returns": {
+              "$fnType": {
+                "required": [],
+                "optional": [],
+                "rest": { "type": "integer" },
+                "returns": { "type": "integer" }
+              }
+            }
+          },
+          "$return": { "$params": ["x"], "$return": { "$var": "x" } }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return", "$params"],
+            "severity": "error",
+            "messageIncludes": "Contextual signature expects"
+          }
+        ]
+      }
+    },
+    {
+      "description": "the expected fn type resolves through a $ref alias",
+      "module": {
+        "$types": {
+          "Thunk": {
+            "$fnType": { "required": [], "optional": [], "returns": { "type": "integer" } }
+          }
+        },
+        "f": {
+          "$params": [],
+          "$sig": { "required": [], "optional": [], "returns": { "$ref": "#/$defs/Thunk" } },
+          "$return": { "$params": [], "$return": "nope" }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return", "$return"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "integer" }
+          }
+        ]
+      }
+    },
+    {
+      "description": "a non-fn-type expected defers silently (no spurious any mismatch)",
+      "module": {
+        "f": {
+          "$params": [],
+          "$sig": { "required": [], "optional": [], "returns": true },
+          "$return": { "$params": ["x"], "$return": { "$var": "x" } }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "a lambda argument to a user function is contextually typed: clean",
+      "module": {
+        "apply": {
+          "$params": ["cb"],
+          "$sig": {
+            "required": [
+              {
+                "$fnType": {
+                  "required": [{ "type": "integer" }],
+                  "optional": [],
+                  "returns": { "type": "integer" }
+                }
+              }
+            ],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": { "$call": { "$var": "cb" }, "$args": [1] }
+        },
+        "good": {
+          "$params": [],
+          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$return": {
+            "$call": "apply",
+            "$args": [{ "$params": ["n"], "$return": { "$var": "n" } }]
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "a lambda argument to a user function is contextually typed: body mismatch pinpointed",
+      "module": {
+        "apply": {
+          "$params": ["cb"],
+          "$sig": {
+            "required": [
+              {
+                "$fnType": {
+                  "required": [{ "type": "integer" }],
+                  "optional": [],
+                  "returns": { "type": "integer" }
+                }
+              }
+            ],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": { "$call": { "$var": "cb" }, "$args": [1] }
+        },
+        "caller": {
+          "$params": [],
+          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$return": { "$call": "apply", "$args": [{ "$params": ["n"], "$return": "x" }] }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["caller", "$return", "$args[0]", "$return"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "integer" }
+          }
+        ]
+      }
+    },
+    {
+      "description": "a malformed contextual lambda reports its parameter issue and skips its body",
+      "module": {
+        "f": {
+          "$params": [],
+          "$sig": {
+            "required": [],
+            "optional": [],
+            "returns": {
+              "$fnType": {
+                "required": [{ "type": "integer" }],
+                "optional": [],
+                "returns": { "type": "integer" }
+              }
+            }
+          },
+          "$return": { "$params": [{ "$param": "value" }], "$return": { "$var": "missing" } }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return", "$params[0]"],
+            "severity": "error",
+            "messageIncludes": "$params[0]: A defaulted parameter must contain exactly"
+          }
+        ]
+      }
+    }
+  ]
+}

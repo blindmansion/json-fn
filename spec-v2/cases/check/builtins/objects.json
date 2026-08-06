@@ -1,0 +1,240 @@
+{
+  "$schema": "../../check.schema.json",
+  "description": "standard builtins: object utilities and structural returns",
+  "builtins": "standard",
+  "cases": [
+    {
+      "description": "keys returns string arrays",
+      "expression": { "$call": "keys", "$args": [{ "a": 1, "b": 2 }] },
+      "expected": { "type": { "type": "array", "items": { "type": "string" } }, "diagnostics": [] }
+    },
+    {
+      "description": "values joins closed-record field types",
+      "expression": { "$call": "values", "$args": [{ "a": 1, "b": "x" }] },
+      "expected": {
+        "type": { "type": "array", "items": { "anyOf": [{ "const": 1 }, { "const": "x" }] } },
+        "diagnostics": []
+      }
+    },
+    {
+      "description": "entries pairs keys with joined value types",
+      "expression": { "$call": "entries", "$args": [{ "a": 1, "b": "x" }] },
+      "expected": {
+        "type": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "prefixItems": [{ "type": "string" }, { "anyOf": [{ "const": 1 }, { "const": "x" }] }],
+            "items": false,
+            "minItems": 2
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "description": "fromEntries projects pair values into a map",
+      "expression": {
+        "$call": "fromEntries",
+        "$args": [{ "$call": "entries", "$args": [{ "a": 1, "b": 2 }] }]
+      },
+      "expected": {
+        "type": {
+          "type": "object",
+          "additionalProperties": { "anyOf": [{ "const": 1 }, { "const": 2 }] }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "description": "values entries and fromEntries preserve typed maps through modules",
+      "module": {
+        "roundTrip": {
+          "$params": ["m"],
+          "$sig": {
+            "required": [{ "type": "object", "additionalProperties": { "type": "integer" } }],
+            "optional": [],
+            "returns": { "type": "object", "additionalProperties": { "type": "integer" } }
+          },
+          "$return": {
+            "$call": "fromEntries",
+            "$args": [{ "$call": "entries", "$args": [{ "$var": "m" }] }]
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "merge supports copy-with-one-field-changed",
+      "module": {
+        "$types": {
+          "A": {
+            "type": "object",
+            "properties": { "id": { "type": "string" }, "n": { "type": "integer" } },
+            "required": ["id", "n"],
+            "additionalProperties": false
+          }
+        },
+        "update": {
+          "$params": ["a"],
+          "$sig": {
+            "required": [{ "$ref": "#/$defs/A" }],
+            "optional": [],
+            "returns": { "$ref": "#/$defs/A" }
+          },
+          "$return": {
+            "$call": "merge",
+            "$args": [
+              { "$var": "a" },
+              { "n": { "$call": "add", "$args": [{ "$get": "n", "$from": { "$var": "a" } }, 1] } }
+            ]
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "merge catches a bad shared-key override",
+      "module": {
+        "$types": {
+          "A": {
+            "type": "object",
+            "properties": { "id": { "type": "string" }, "n": { "type": "integer" } },
+            "required": ["id", "n"],
+            "additionalProperties": false
+          }
+        },
+        "update": {
+          "$params": ["a"],
+          "$sig": {
+            "required": [{ "$ref": "#/$defs/A" }],
+            "optional": [],
+            "returns": { "$ref": "#/$defs/A" }
+          },
+          "$return": { "$call": "merge", "$args": [{ "$var": "a" }, { "n": "oops" }] }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["update", "$return"],
+            "severity": "error",
+            "messageIncludes": "not assignable"
+          }
+        ]
+      }
+    },
+    {
+      "description": "mapValues types closed-record values and callback results",
+      "expression": {
+        "$call": "mapValues",
+        "$args": [
+          { "$params": ["v", "k"], "$return": { "$call": "add", "$args": [{ "$var": "v" }, 1] } },
+          { "a": 1, "b": 2 }
+        ]
+      },
+      "expected": {
+        "type": { "type": "object", "additionalProperties": { "type": "integer" } },
+        "diagnostics": []
+      }
+    },
+    {
+      "description": "mapValues joins mixed closed-record values",
+      "expression": {
+        "$call": "mapValues",
+        "$args": [
+          { "$params": ["v", "k"], "$return": { "$var": "v" } },
+          { "a": 1, "b": "x" }
+        ]
+      },
+      "expected": {
+        "type": {
+          "type": "object",
+          "additionalProperties": { "anyOf": [{ "const": 1 }, { "const": "x" }] }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "description": "mapValues types callback keys as strings",
+      "expression": {
+        "$call": "mapValues",
+        "$args": [{ "$params": ["v", "k"], "$return": { "$var": "k" } }, { "a": 1 }]
+      },
+      "expected": {
+        "type": { "type": "object", "additionalProperties": { "type": "string" } },
+        "diagnostics": []
+      }
+    },
+    {
+      "description": "mapValues flows typed maps through module checking",
+      "module": {
+        "transform": {
+          "$params": ["obj"],
+          "$sig": {
+            "required": [{ "type": "object", "additionalProperties": { "type": "integer" } }],
+            "optional": [],
+            "returns": { "type": "object", "additionalProperties": { "type": "integer" } }
+          },
+          "$return": {
+            "$call": "mapValues",
+            "$args": [
+              {
+                "$params": ["v", "k"],
+                "$return": { "$call": "add", "$args": [{ "$var": "v" }, 1] }
+              },
+              { "$var": "obj" }
+            ]
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "mapValues retains callback precision for open objects",
+      "module": {
+        "transform": {
+          "$params": ["obj"],
+          "$sig": {
+            "required": [{ "type": "object" }],
+            "optional": [],
+            "returns": { "type": "object", "additionalProperties": { "const": "ok" } }
+          },
+          "$return": {
+            "$call": "mapValues",
+            "$args": [{ "$params": ["v", "k"], "$return": "ok" }, { "$var": "obj" }]
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "mapValues reports annotated callback return violations",
+      "expression": {
+        "$call": "mapValues",
+        "$args": [
+          {
+            "$params": ["v", "k"],
+            "$sig": {
+              "required": [{ "type": "integer" }, { "type": "string" }],
+              "optional": [],
+              "returns": { "type": "string" }
+            },
+            "$return": { "$var": "v" }
+          },
+          { "a": 1 }
+        ]
+      },
+      "expected": {
+        "type": { "type": "object", "additionalProperties": { "type": "string" } },
+        "diagnostics": [
+          {
+            "path": ["$args[0]", "$return"],
+            "severity": "error",
+            "messageIncludes": "not assignable"
+          }
+        ]
+      }
+    }
+  ]
+}

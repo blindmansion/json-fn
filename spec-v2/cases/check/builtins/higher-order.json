@@ -1,0 +1,353 @@
+{
+  "$schema": "../../check.schema.json",
+  "description": "standard builtins: higher-order and contextual inference",
+  "builtins": "standard",
+  "cases": [
+    {
+      "description": "builtin references are contextually resolved by map",
+      "expression": { "$call": "map", "$args": [{ "$fn": "upper" }, ["a", "b"]] },
+      "expected": { "type": { "type": "array", "items": { "type": "string" } }, "diagnostics": [] }
+    },
+    {
+      "description": "generic builtin references instantiate from context",
+      "expression": { "$call": "map", "$args": [{ "$fn": "head" }, [[1], [2, 3]]] },
+      "expected": {
+        "type": {
+          "type": "array",
+          "items": { "anyOf": [{ "type": "integer" }, { "type": "null" }] }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "description": "incompatible builtin references are rejected at their argument",
+      "expression": { "$call": "map", "$args": [{ "$fn": "length" }, [1, 2]] },
+      "expected": {
+        "type": { "type": "array", "items": { "type": "integer" } },
+        "diagnostics": [
+          { "path": ["$args[0]"], "severity": "error", "messageIncludes": "not assignable" }
+        ]
+      }
+    },
+    {
+      "description": "map infers its element and callback result types",
+      "expression": {
+        "$call": "map",
+        "$args": [
+          { "$params": ["n"], "$return": { "$call": "add", "$args": [{ "$var": "n" }, 1] } },
+          [1, 2, 3]
+        ]
+      },
+      "expected": { "type": { "type": "array", "items": { "type": "integer" } }, "diagnostics": [] }
+    },
+    {
+      "description": "indexed map supplies an integer index",
+      "expression": {
+        "$call": "mapIndexed",
+        "$args": [
+          {
+            "$params": ["n", "i"],
+            "$return": { "$call": "add", "$args": [{ "$var": "n" }, { "$var": "i" }] }
+          },
+          [1, 2, 3]
+        ]
+      },
+      "expected": { "type": { "type": "array", "items": { "type": "integer" } }, "diagnostics": [] }
+    },
+    {
+      "description": "ordinary higher-order builtins reject indexed callback shapes",
+      "expression": {
+        "$call": "filter",
+        "$args": [{ "$params": ["n", "i"], "$return": true }, [1, 2, 3]]
+      },
+      "expected": {
+        "type": { "type": "array", "items": { "type": "integer" } },
+        "diagnostics": [
+          {
+            "path": ["$args[0]", "$params"],
+            "severity": "error",
+            "messageIncludes": "body declares 2 required parameter(s)"
+          }
+        ]
+      }
+    },
+    {
+      "description": "indexed higher-order builtins reject ordinary callback shapes",
+      "expression": {
+        "$call": "filterIndexed",
+        "$args": [{ "$params": ["n"], "$return": true }, [1, 2, 3]]
+      },
+      "expected": {
+        "type": { "type": "array", "items": { "type": "integer" } },
+        "diagnostics": [
+          {
+            "path": ["$args[0]", "$params"],
+            "severity": "error",
+            "messageIncludes": "body declares 1 required parameter(s)"
+          }
+        ]
+      }
+    },
+    {
+      "description": "reduce binds and threads its accumulator",
+      "expression": {
+        "$call": "reduce",
+        "$args": [
+          {
+            "$params": ["acc", "n"],
+            "$return": { "$call": "add", "$args": [{ "$var": "acc" }, { "$var": "n" }] }
+          },
+          0,
+          [1, 2, 3]
+        ]
+      },
+      "expected": { "type": { "type": "integer" }, "diagnostics": [] }
+    },
+    {
+      "description": "reduce widens an accumulator from its callback return",
+      "expression": {
+        "$call": "reduce",
+        "$args": [
+          {
+            "$params": ["acc", "n"],
+            "$return": {
+              "$if": { "$call": "eq", "$args": [{ "$var": "n" }, 0] },
+              "$then": "done",
+              "$else": { "$var": "acc" }
+            }
+          },
+          0,
+          [1, 2, 3]
+        ]
+      },
+      "expected": {
+        "type": { "anyOf": [{ "type": "string" }, { "type": "integer" }] },
+        "diagnostics": []
+      }
+    },
+    {
+      "description": "reduce rejects callbacks unsafe for the widened accumulator",
+      "expression": {
+        "$call": "reduce",
+        "$args": [
+          {
+            "$params": ["acc", "n"],
+            "$return": {
+              "$if": { "$call": "eq", "$args": [{ "$var": "n" }, 0] },
+              "$then": "done",
+              "$else": { "$call": "mul", "$args": [{ "$var": "acc" }, { "$var": "n" }] }
+            }
+          },
+          0,
+          [1, 2, 3]
+        ]
+      },
+      "expected": {
+        "type": { "anyOf": [{ "type": "string" }, { "type": "integer" }] },
+        "diagnostics": [
+          {
+            "path": ["$args[0]", "$return", "$else"],
+            "severity": "error",
+            "messageIncludes": "No overload of \"mul\" matches arguments"
+          }
+        ]
+      }
+    },
+    {
+      "description": "find returns its element type or null",
+      "expression": {
+        "$call": "find",
+        "$args": [
+          { "$params": ["n"], "$return": { "$call": "gt", "$args": [{ "$var": "n" }, 1] } },
+          [1, 2, 3]
+        ]
+      },
+      "expected": {
+        "type": { "anyOf": [{ "type": "integer" }, { "type": "null" }] },
+        "diagnostics": []
+      }
+    },
+    {
+      "description": "count contextually requires a boolean predicate",
+      "expression": {
+        "$call": "count",
+        "$args": [{ "$params": ["n"], "$return": { "$var": "n" } }, [1, 2, 3]]
+      },
+      "expected": {
+        "type": { "type": "integer" },
+        "diagnostics": [
+          {
+            "path": ["$args[0]", "$return"],
+            "severity": "error",
+            "messageIncludes": "not assignable"
+          }
+        ]
+      }
+    },
+    {
+      "description": "partition returns a pair of element arrays",
+      "expression": {
+        "$call": "partition",
+        "$args": [
+          { "$params": ["n"], "$return": { "$call": "gt", "$args": [{ "$var": "n" }, 0] } },
+          [-1, 0, 1]
+        ]
+      },
+      "expected": {
+        "type": {
+          "type": "array",
+          "prefixItems": [
+            { "type": "array", "items": { "type": "integer" } },
+            { "type": "array", "items": { "type": "integer" } }
+          ],
+          "items": false,
+          "minItems": 2
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "description": "scan returns accumulated values",
+      "expression": {
+        "$call": "scan",
+        "$args": [
+          {
+            "$params": ["acc", "n"],
+            "$return": { "$call": "add", "$args": [{ "$var": "acc" }, { "$var": "n" }] }
+          },
+          0,
+          [1, 2, 3]
+        ]
+      },
+      "expected": { "type": { "type": "array", "items": { "type": "integer" } }, "diagnostics": [] }
+    },
+    {
+      "description": "countBy returns integer-valued maps",
+      "expression": {
+        "$call": "countBy",
+        "$args": [
+          { "$params": ["n"], "$return": { "$call": "mod", "$args": [{ "$var": "n" }, 2] } },
+          [1, 2, 3]
+        ]
+      },
+      "expected": {
+        "type": { "type": "object", "additionalProperties": { "type": "integer" } },
+        "diagnostics": []
+      }
+    },
+    {
+      "description": "sort preserves numeric element type",
+      "expression": { "$call": "sort", "$args": [[3, 1, 2]] },
+      "expected": { "type": { "type": "array", "items": { "type": "integer" } }, "diagnostics": [] }
+    },
+    {
+      "description": "sort rejects heterogeneous scalar arrays",
+      "expression": { "$call": "sort", "$args": [[1, "2"]] },
+      "expected": {
+        "type": { "type": "array", "items": { "type": "integer" } },
+        "diagnostics": [
+          { "path": [], "severity": "error", "messageIncludes": "No overload of \"sort\"" }
+        ]
+      }
+    },
+    {
+      "description": "groupBy accepts numeric keys and preserves values",
+      "expression": {
+        "$call": "groupBy",
+        "$args": [
+          { "$params": ["n"], "$return": { "$call": "mod", "$args": [{ "$var": "n" }, 2] } },
+          [1, 2, 3]
+        ]
+      },
+      "expected": {
+        "type": {
+          "type": "object",
+          "additionalProperties": { "type": "array", "items": { "type": "integer" } }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "description": "flatMap infers scalar callback returns",
+      "expression": {
+        "$call": "flatMap",
+        "$args": [
+          { "$params": ["n"], "$return": { "$call": "add", "$args": [{ "$var": "n" }, 1] } },
+          [1, 2, 3]
+        ]
+      },
+      "expected": { "type": { "type": "array", "items": { "type": "integer" } }, "diagnostics": [] }
+    },
+    {
+      "description": "flatMap distributes scalar-or-array callback unions",
+      "expression": {
+        "$call": "flatMap",
+        "$args": [
+          {
+            "$params": ["n"],
+            "$return": {
+              "$if": { "$call": "gt", "$args": [{ "$var": "n" }, 1] },
+              "$then": [{ "$call": "str", "$args": [{ "$var": "n" }] }],
+              "$else": { "$var": "n" }
+            }
+          },
+          [1, 2, 3]
+        ]
+      },
+      "expected": {
+        "type": {
+          "type": "array",
+          "items": { "anyOf": [{ "type": "string" }, { "type": "integer" }] }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "description": "flatMap reports callback diagnostics once",
+      "expression": {
+        "$call": "flatMap",
+        "$args": [
+          { "$params": ["n"], "$return": { "$call": "add", "$args": ["x", true] } },
+          [1, 2, 3]
+        ]
+      },
+      "expected": {
+        "type": { "type": "array", "items": { "type": "integer" } },
+        "diagnostics": [
+          {
+            "path": ["$args[0]", "$return"],
+            "severity": "error",
+            "messageIncludes": "No overload of \"add\""
+          }
+        ]
+      }
+    },
+    {
+      "description": "reReplaceWith contextually types Match callbacks",
+      "expression": {
+        "$call": "reReplaceWith",
+        "$args": [
+          "a",
+          { "$params": ["m"], "$return": { "$get": "match", "$from": { "$var": "m" } } },
+          "banana"
+        ]
+      },
+      "expected": { "type": { "type": "string" }, "diagnostics": [] }
+    },
+    {
+      "description": "wrong map arity suppresses callback cascades",
+      "expression": {
+        "$call": "map",
+        "$args": [
+          { "$params": ["n"], "$return": { "$call": "add", "$args": [{ "$var": "n" }, 1] } }
+        ]
+      },
+      "expected": {
+        "type": { "type": "array", "items": true },
+        "diagnostics": [
+          { "path": [], "severity": "error", "messageIncludes": "Expected exactly 2 arguments" }
+        ]
+      }
+    }
+  ]
+}

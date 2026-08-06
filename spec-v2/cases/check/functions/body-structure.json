@@ -1,0 +1,141 @@
+{
+  "$schema": "../../check.schema.json",
+  "description": "function bodies: structural boundaries of the function-body field vocabulary",
+  "comment": "Migrated from typescript/test/function-body-structure.test.ts (checker-observable cases). Direct analyzeFunctionBodyStructure unit tests and evaluator exceptions remain local.",
+  "builtins": "none",
+  "cases": [
+    {
+      "description": "checker reports each stray field once at its exact path",
+      "module": {
+        "invalid": {
+          "$sig": { "required": [], "optional": [], "returns": true },
+          "local": { "$params": 42, "$return": null },
+          "$unknown": true,
+          "$return": null
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["invalid", "local"],
+            "severity": "error",
+            "messageIncludes": "function body field \"local\" is not supported"
+          },
+          {
+            "path": ["invalid", "$unknown"],
+            "severity": "error",
+            "messageIncludes": "function body field \"$unknown\" is not supported"
+          }
+        ]
+      }
+    },
+    {
+      "description": "checker continues through supported fields without treating stray fields as bindings",
+      "comment": "The stray field is reported once at its own path and never checked as a nested binding; the declared return type is still enforced.",
+      "module": {
+        "invalid": {
+          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "stray": { "$params": 42, "$return": null },
+          "$return": "oops"
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["invalid", "stray"],
+            "severity": "error",
+            "messageIncludes": "function body field \"stray\" is not supported"
+          },
+          {
+            "path": ["invalid", "$return"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "integer" },
+            "actual": { "const": "oops" }
+          }
+        ]
+      }
+    },
+    {
+      "description": "checker reports malformed supported fields on unannotated bodies",
+      "comment": "Each malformed supported field is an independent error; the missing signature is only visible degradation, not an error.",
+      "expression": {
+        "$comment": false,
+        "$params": 42,
+        "$captures": 42,
+        "$runtimeContract": {},
+        "$return": null
+      },
+      "expected": {
+        "type": true,
+        "diagnostics": [
+          {
+            "path": ["$comment"],
+            "severity": "error",
+            "messageIncludes": "function body $comment must be a string"
+          },
+          {
+            "path": ["$params"],
+            "severity": "error",
+            "messageIncludes": "$params must be an array"
+          },
+          {
+            "path": ["$captures"],
+            "severity": "error",
+            "messageIncludes": "function $captures must be a non-null object of function bodies"
+          },
+          {
+            "path": ["$runtimeContract"],
+            "severity": "error",
+            "messageIncludes": "function $runtimeContract is malformed"
+          },
+          {
+            "path": [],
+            "severity": "info",
+            "messageIncludes": "degraded to `any` because the function value has no declared signature"
+          }
+        ]
+      }
+    },
+    {
+      "description": "checker rejects stray fields in an unannotated value body",
+      "expression": { "local": 1, "$return": null },
+      "expected": {
+        "type": true,
+        "diagnostics": [
+          {
+            "path": ["local"],
+            "severity": "error",
+            "messageIncludes": "function body field \"local\" is not supported"
+          },
+          {
+            "path": [],
+            "severity": "info",
+            "messageIncludes": "degraded to `any` because the function value has no declared signature"
+          }
+        ]
+      }
+    },
+    {
+      "description": "checker rejects stray fields in an unannotated inline-call body",
+      "expression": { "$call": { "local": 1, "$return": null }, "$args": [] },
+      "expected": {
+        "type": { "type": "null" },
+        "diagnostics": [
+          {
+            "path": ["local"],
+            "severity": "error",
+            "messageIncludes": "function body field \"local\" is not supported"
+          }
+        ]
+      }
+    },
+    {
+      "description": "module roots still allow ordinary named function entries",
+      "module": {
+        "named": { "$sig": { "required": [], "optional": [], "returns": true }, "$return": null }
+      },
+      "expected": { "diagnostics": [] }
+    }
+  ]
+}

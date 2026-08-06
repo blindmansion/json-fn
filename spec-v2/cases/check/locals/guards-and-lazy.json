@@ -1,0 +1,242 @@
+{
+  "$schema": "../../check.schema.json",
+  "description": "locals: narrowing through named boolean guards and lazy bindings",
+  "builtins": "standard",
+  "cases": [
+    {
+      "description": "a named boolean guard narrows its referenced outer value",
+      "module": {
+        "f": {
+          "$params": ["value"],
+          "$sig": {
+            "required": [{ "anyOf": [{ "type": "integer" }, { "type": "string" }] }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": {
+            "$let": { "integer": { "$call": "isInteger", "$args": [{ "$var": "value" }] } },
+            "$in": {
+              "$if": { "$var": "integer" },
+              "$then": { "$call": "add", "$args": [{ "$var": "value" }, 1] },
+              "$else": 0
+            }
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "uses creation-site and forcing-site facts for lazy bindings",
+      "module": {
+        "creationSite": {
+          "$params": ["value"],
+          "$sig": {
+            "required": [{ "anyOf": [{ "type": "integer" }, { "type": "string" }] }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": {
+            "$if": { "$call": "isInteger", "$args": [{ "$var": "value" }] },
+            "$then": {
+              "$let": { "copy": { "$var": "value" } },
+              "$in": { "$call": "add", "$args": [{ "$var": "copy" }, 1] }
+            },
+            "$else": 0
+          }
+        },
+        "forcingSite": {
+          "$params": ["value"],
+          "$sig": {
+            "required": [{ "anyOf": [{ "type": "integer" }, { "type": "string" }] }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": {
+            "$let": { "copy": { "$var": "value" } },
+            "$in": {
+              "$if": { "$call": "isInteger", "$args": [{ "$var": "value" }] },
+              "$then": { "$call": "add", "$args": [{ "$var": "copy" }, 1] },
+              "$else": 0
+            }
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "retains creation-site facts across a callback boundary",
+      "module": {
+        "acceptsString": {
+          "$params": ["value"],
+          "$sig": {
+            "required": [{ "type": "string" }],
+            "optional": [],
+            "returns": { "type": "boolean" }
+          },
+          "$return": true
+        },
+        "run": {
+          "$params": ["cmd"],
+          "$sig": {
+            "required": [{ "anyOf": [{ "type": "string" }, { "type": "null" }] }],
+            "optional": [],
+            "returns": { "$taskType": { "type": "string" } }
+          },
+          "$return": {
+            "$if": { "$call": "isNull", "$args": [{ "$var": "cmd" }] },
+            "$then": { "$call": "pure", "$args": ["none"] },
+            "$else": {
+              "$call": "bind",
+              "$args": [
+                { "$call": "pure", "$args": [null] },
+                {
+                  "$params": ["_"],
+                  "$return": {
+                    "$let": {
+                      "accepted": { "$call": "acceptsString", "$args": [{ "$var": "cmd" }] }
+                    },
+                    "$in": {
+                      "$if": { "$var": "accepted" },
+                      "$then": { "$call": "pure", "$args": ["yes"] },
+                      "$else": { "$call": "pure", "$args": ["no"] }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "nested let shadowing masks an outer same-named fact",
+      "module": {
+        "f": {
+          "$params": ["value"],
+          "$sig": {
+            "required": [{ "anyOf": [{ "type": "integer" }, { "type": "string" }] }],
+            "optional": [],
+            "returns": { "type": "string" }
+          },
+          "$return": {
+            "$if": { "$call": "isInteger", "$args": [{ "$var": "value" }] },
+            "$then": {
+              "$let": { "result": { "$let": { "value": "inner" }, "$in": { "$var": "value" } } },
+              "$in": { "$var": "result" }
+            },
+            "$else": "fallback"
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "function bindings shadow outer named guards",
+      "comment": "The inner function binding `same` shadows the outer guard, so the outer guard binding is unused and the branch no longer narrows `value` for the add call.",
+      "module": {
+        "f": {
+          "$params": ["value"],
+          "$sig": {
+            "required": [{ "anyOf": [{ "type": "integer" }, { "type": "string" }] }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": {
+            "$let": { "same": { "$call": "isInteger", "$args": [{ "$var": "value" }] } },
+            "$in": {
+              "$let": {
+                "same": {
+                  "$params": [],
+                  "$sig": { "required": [], "optional": [], "returns": { "type": "boolean" } },
+                  "$return": true
+                }
+              },
+              "$in": {
+                "$if": { "$var": "same" },
+                "$then": { "$call": "add", "$args": [{ "$var": "value" }, 1] },
+                "$else": 0
+              }
+            }
+          }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return", "$let", "same"],
+            "severity": "error",
+            "messageIncludes": "unused local binding \"same\""
+          },
+          {
+            "path": ["f", "$return", "$in", "$in", "$then"],
+            "severity": "error",
+            "messageIncludes": "No overload of \"add\" matches arguments"
+          }
+        ]
+      }
+    },
+    {
+      "description": "function parameters and captures mask outer narrowing facts",
+      "module": {
+        "f": {
+          "$params": ["value"],
+          "$sig": {
+            "required": [{ "anyOf": [{ "type": "integer" }, { "type": "string" }] }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": {
+            "$if": { "$call": "isInteger", "$args": [{ "$var": "value" }] },
+            "$then": {
+              "$let": {
+                "helper": {
+                  "$params": ["value"],
+                  "$sig": {
+                    "required": [{ "type": "string" }],
+                    "optional": [],
+                    "returns": { "type": "string" }
+                  },
+                  "$return": { "$var": "value" }
+                },
+                "worker": {
+                  "$params": [],
+                  "$sig": {
+                    "required": [],
+                    "optional": [],
+                    "returns": {
+                      "$fnType": {
+                        "required": [],
+                        "optional": [],
+                        "returns": { "type": "integer" }
+                      }
+                    }
+                  },
+                  "$captures": {
+                    "value": {
+                      "$params": [],
+                      "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+                      "$return": 1
+                    }
+                  },
+                  "$return": { "$var": "value" }
+                }
+              },
+              "$in": {
+                "$call": "length",
+                "$args": [
+                  [
+                    { "$call": "helper", "$args": ["text"] },
+                    { "$call": "worker", "$args": [] }
+                  ]
+                ]
+              }
+            },
+            "$else": 0
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    }
+  ]
+}

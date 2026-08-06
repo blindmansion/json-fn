@@ -1,0 +1,144 @@
+{
+  "$schema": "../../check.schema.json",
+  "description": "portable environment contracts: callable and Task typing",
+  "comment": "Contract functions and the contract-provided Task definition are checked through the ordinary module linker.",
+  "builtins": "standard",
+  "cases": [
+    {
+      "description": "a contract callable is available while checking the entry body",
+      "module": {
+        "main": {
+          "$params": [],
+          "$return": { "$call": "pure", "$args": [{ "$call": "host.inc", "$args": [1] }] }
+        }
+      },
+      "contract": {
+        "version": 1,
+        "functions": {
+          "host.inc": {
+            "signatures": [
+              {
+                "required": [{ "type": "integer" }],
+                "optional": [],
+                "returns": { "type": "integer" }
+              }
+            ]
+          }
+        },
+        "effects": {},
+        "entry": {
+          "name": "main",
+          "required": [],
+          "optional": [],
+          "returns": { "task": { "type": "integer" } }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "contract callable arguments are checked against their signatures",
+      "module": {
+        "main": {
+          "$params": [],
+          "$return": { "$call": "pure", "$args": [{ "$call": "host.inc", "$args": ["wrong"] }] }
+        }
+      },
+      "contract": {
+        "version": 1,
+        "functions": {
+          "host.inc": {
+            "signatures": [
+              {
+                "required": [{ "type": "integer" }],
+                "optional": [],
+                "returns": { "type": "integer" }
+              }
+            ]
+          }
+        },
+        "effects": {},
+        "entry": {
+          "name": "main",
+          "required": [],
+          "optional": [],
+          "returns": { "task": { "type": "integer" } }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["main", "$return", "$args[0]", "$args[0]"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "integer" },
+            "actual": { "const": "wrong" }
+          }
+        ]
+      }
+    },
+    {
+      "description": "recursive helpers retain their eager Task completion signatures",
+      "module": {
+        "loop": {
+          "$params": ["fuel"],
+          "$sig": {
+            "required": [{ "type": "integer" }],
+            "optional": [],
+            "returns": { "$taskType": { "type": "integer" } }
+          },
+          "$return": {
+            "$if": { "$call": "lte", "$args": [{ "$var": "fuel" }, 0] },
+            "$then": { "$call": "pure", "$args": [0] },
+            "$else": {
+              "$call": "loop",
+              "$args": [{ "$call": "sub", "$args": [{ "$var": "fuel" }, 1] }]
+            }
+          }
+        },
+        "main": { "$return": { "$call": "loop", "$args": [2] } }
+      },
+      "contract": {
+        "version": 1,
+        "functions": {},
+        "effects": {},
+        "entry": {
+          "name": "main",
+          "required": [],
+          "optional": [],
+          "returns": { "task": { "type": "integer" } }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "a helper body must produce its declared Task completion type",
+      "module": {
+        "wrong": {
+          "$sig": {
+            "required": [],
+            "optional": [],
+            "returns": { "$taskType": { "type": "integer" } }
+          },
+          "$return": { "$call": "pure", "$args": ["wrong"] }
+        },
+        "main": { "$return": { "$call": "wrong", "$args": [] } }
+      },
+      "contract": {
+        "version": 1,
+        "functions": {},
+        "effects": {},
+        "entry": {
+          "name": "main",
+          "required": [],
+          "optional": [],
+          "returns": { "task": { "type": "integer" } }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          { "path": ["wrong", "$return"], "severity": "error", "messageIncludes": "not assignable" }
+        ]
+      }
+    }
+  ]
+}

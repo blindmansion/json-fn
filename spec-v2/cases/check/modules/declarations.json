@@ -1,0 +1,158 @@
+{
+  "$schema": "../../check.schema.json",
+  "description": "module checking: declarations, signatures, and recovery",
+  "builtins": "none",
+  "cases": [
+    {
+      "description": "a typed module whose body matches its signature checks clean",
+      "module": {
+        "main": {
+          "$params": [],
+          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$return": 1
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "a return value outside the declared return type is a hard error",
+      "module": {
+        "main": {
+          "$params": [],
+          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$return": "wrong"
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["main", "$return"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "integer" },
+            "actual": { "const": "wrong" }
+          }
+        ]
+      }
+    },
+    {
+      "description": "a module-level function without a signature is rejected by default",
+      "module": { "main": { "$params": [], "$return": 1 } },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["main"],
+            "severity": "error",
+            "messageIncludes": "module-level function must declare a signature"
+          }
+        ]
+      }
+    },
+    {
+      "description": "allowUntypedFunctions records the missing signature as visible degradation",
+      "module": { "main": { "$params": [], "$return": 1 } },
+      "options": { "allowUntypedFunctions": true },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["main"],
+            "severity": "info",
+            "messageIncludes": "degraded to `any` because module function \"main\" has no declared signature"
+          }
+        ]
+      }
+    },
+    {
+      "description": "nested $let function bindings also require signatures",
+      "module": {
+        "main": {
+          "$params": [],
+          "$sig": { "required": [], "optional": [], "returns": true },
+          "$return": {
+            "$let": { "helper": { "$params": ["x"], "$return": { "$var": "x" } } },
+            "$in": { "$call": "helper", "$args": [1] }
+          }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["main", "$return", "$let", "helper"],
+            "severity": "error",
+            "messageIncludes": "function binding \"helper\" must declare a signature (typed parameters and return)"
+          },
+          {
+            "path": ["main", "$return", "$in"],
+            "severity": "info",
+            "messageIncludes": "expression degraded to `any` because the callee has no known function type."
+          }
+        ]
+      }
+    },
+    {
+      "description": "allowUntypedFunctions applies to module and nested named functions",
+      "module": {
+        "main": {
+          "$params": [],
+          "$return": {
+            "$let": { "helper": { "$params": [], "$return": 1 } },
+            "$in": { "$call": "helper", "$args": [] }
+          }
+        }
+      },
+      "options": { "allowUntypedFunctions": true },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["main"],
+            "severity": "info",
+            "messageIncludes": "module function \"main\" has no declared signature"
+          },
+          {
+            "path": ["main", "$return", "$let", "helper"],
+            "severity": "info",
+            "messageIncludes": "function binding \"helper\" has no declared signature"
+          },
+          {
+            "path": ["main", "$return", "$in"],
+            "severity": "info",
+            "messageIncludes": "expression degraded to `any` because the callee has no known function type."
+          }
+        ]
+      }
+    },
+    {
+      "description": "checking recovers and reports independent errors across functions",
+      "module": {
+        "f": {
+          "$params": [],
+          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$return": true
+        },
+        "g": {
+          "$params": [],
+          "$sig": { "required": [], "optional": [], "returns": { "type": "string" } },
+          "$return": 0
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "integer" },
+            "actual": { "const": true }
+          },
+          {
+            "path": ["g", "$return"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "string" },
+            "actual": { "const": 0 }
+          }
+        ]
+      }
+    }
+  ]
+}

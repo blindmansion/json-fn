@@ -7,7 +7,9 @@ import { writeFileSync } from "fs";
 import { join } from "path";
 import type { JSONType } from "../src/types";
 
-const fixturePath = join(import.meta.dir, "../../spec/cases/check/limits/structural-depth.json");
+const fixturePaths = ["spec", "spec-v2"].map((spec) =>
+  join(import.meta.dir, `../../${spec}/cases/check/limits/structural-depth.json`),
+);
 const MAX_DEPTH = 512;
 const DEPTH_ERROR = `Maximum structural depth of ${MAX_DEPTH} exceeded`;
 
@@ -44,7 +46,7 @@ const suite = {
 
 // No trailing newline: `format:spec-cases` collapses all JSON whitespace
 // outside strings, so generator output must match to keep regeneration clean.
-writeFileSync(fixturePath, JSON.stringify(suite));
+for (const fixturePath of fixturePaths) writeFileSync(fixturePath, JSON.stringify(suite));
 
 function nestedArray(depth: number, leaf: JSONType = 1): JSONType {
   let value = leaf;

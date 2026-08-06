@@ -1,0 +1,217 @@
+{
+  "$schema": "../../check.schema.json",
+  "description": "standard builtins: portable registry catalog coverage",
+  "builtins": "standard",
+  "cases": [
+    {
+      "description": "max preserves integer arrays",
+      "expression": { "$call": "max", "$args": [[1, 2, 3]] },
+      "expected": { "type": { "type": "integer" }, "diagnostics": [] }
+    },
+    {
+      "description": "min preserves number arrays",
+      "expression": { "$call": "min", "$args": [[1.5, 2]] },
+      "expected": { "type": { "type": "number" }, "diagnostics": [] }
+    },
+    {
+      "description": "sum preserves integer arrays",
+      "expression": { "$call": "sum", "$args": [[1, 2, 3]] },
+      "expected": { "type": { "type": "integer" }, "diagnostics": [] }
+    },
+    {
+      "description": "product preserves integer arrays",
+      "expression": { "$call": "product", "$args": [[1, 2, 3]] },
+      "expected": { "type": { "type": "integer" }, "diagnostics": [] }
+    },
+    {
+      "description": "argmin returns integer or null",
+      "expression": { "$call": "argmin", "$args": [[3, 1, 2]] },
+      "expected": {
+        "type": { "anyOf": [{ "type": "integer" }, { "type": "null" }] },
+        "diagnostics": []
+      }
+    },
+    {
+      "description": "argmax returns integer or null",
+      "expression": { "$call": "argmax", "$args": [[]] },
+      "expected": {
+        "type": { "anyOf": [{ "type": "integer" }, { "type": "null" }] },
+        "diagnostics": []
+      }
+    },
+    {
+      "description": "pow returns number",
+      "expression": { "$call": "pow", "$args": [2, 10] },
+      "expected": { "type": { "type": "number" }, "diagnostics": [] }
+    },
+    {
+      "description": "exp returns number",
+      "expression": { "$call": "exp", "$args": [1] },
+      "expected": { "type": { "type": "number" }, "diagnostics": [] }
+    },
+    {
+      "description": "log returns number",
+      "expression": { "$call": "log", "$args": [1] },
+      "expected": { "type": { "type": "number" }, "diagnostics": [] }
+    },
+    {
+      "description": "log10 returns number",
+      "expression": { "$call": "log10", "$args": [10] },
+      "expected": { "type": { "type": "number" }, "diagnostics": [] }
+    },
+    {
+      "description": "trigonometric functions return numbers",
+      "expression": {
+        "$call": "add",
+        "$args": [
+          { "$call": "sin", "$args": [0] },
+          {
+            "$call": "add",
+            "$args": [
+              { "$call": "cos", "$args": [0] },
+              { "$call": "tan", "$args": [0] }
+            ]
+          }
+        ]
+      },
+      "expected": { "type": { "type": "number" }, "diagnostics": [] }
+    },
+    {
+      "description": "arity returns integer or null",
+      "expression": { "$call": "arity", "$args": [1] },
+      "expected": {
+        "type": { "anyOf": [{ "type": "integer" }, { "type": "null" }] },
+        "diagnostics": []
+      }
+    },
+    {
+      "description": "range returns integer arrays",
+      "expression": { "$call": "range", "$args": [5] },
+      "expected": { "type": { "type": "array", "items": { "type": "integer" } }, "diagnostics": [] }
+    },
+    {
+      "description": "rangeFrom returns integer arrays",
+      "expression": { "$call": "rangeFrom", "$args": [2, 5] },
+      "expected": { "type": { "type": "array", "items": { "type": "integer" } }, "diagnostics": [] }
+    },
+    {
+      "description": "endsWith returns boolean",
+      "expression": { "$call": "endsWith", "$args": ["hello", "lo"] },
+      "expected": { "type": { "type": "boolean" }, "diagnostics": [] }
+    },
+    {
+      "description": "reSplit returns string arrays",
+      "expression": { "$call": "reSplit", "$args": ["a", "b"] },
+      "expected": { "type": { "type": "array", "items": { "type": "string" } }, "diagnostics": [] }
+    },
+    {
+      "description": "flattenDepth returns an array",
+      "expression": { "$call": "flattenDepth", "$args": [[[1]], 1] },
+      "expected": { "type": { "type": "array" }, "diagnostics": [] }
+    },
+    {
+      "description": "indexOf on arrays returns integer or null",
+      "expression": { "$call": "indexOf", "$args": [[1, 2, 3], 2] },
+      "expected": {
+        "type": { "anyOf": [{ "type": "integer" }, { "type": "null" }] },
+        "diagnostics": []
+      }
+    },
+    {
+      "description": "indexOf on strings returns integer or null",
+      "expression": { "$call": "indexOf", "$args": ["hi", "h"] },
+      "expected": {
+        "type": { "anyOf": [{ "type": "integer" }, { "type": "null" }] },
+        "diagnostics": []
+      }
+    },
+    {
+      "description": "some returns boolean",
+      "expression": {
+        "$call": "some",
+        "$args": [{ "$params": ["n"], "$return": true }, [1, 2, 3]]
+      },
+      "expected": { "type": { "type": "boolean" }, "diagnostics": [] }
+    },
+    {
+      "description": "every returns boolean",
+      "expression": {
+        "$call": "every",
+        "$args": [{ "$params": ["n"], "$return": true }, [1, 2, 3]]
+      },
+      "expected": { "type": { "type": "boolean" }, "diagnostics": [] }
+    },
+    {
+      "description": "findIndex returns integer or null",
+      "expression": {
+        "$call": "findIndex",
+        "$args": [{ "$params": ["n"], "$return": true }, [1, 2, 3]]
+      },
+      "expected": {
+        "type": { "anyOf": [{ "type": "integer" }, { "type": "null" }] },
+        "diagnostics": []
+      }
+    },
+    {
+      "description": "filterIndexed preserves element type",
+      "expression": {
+        "$call": "filterIndexed",
+        "$args": [{ "$params": ["n", "i"], "$return": true }, [1, 2, 3]]
+      },
+      "expected": { "type": { "type": "array", "items": { "type": "integer" } }, "diagnostics": [] }
+    },
+    {
+      "description": "reduceIndexed preserves accumulator type",
+      "expression": {
+        "$call": "reduceIndexed",
+        "$args": [{ "$params": ["acc", "n", "i"], "$return": { "$var": "acc" } }, 0, [1, 2, 3]]
+      },
+      "expected": { "type": { "const": 0 }, "diagnostics": [] }
+    },
+    {
+      "description": "flatMapIndexed infers scalar callback results",
+      "expression": {
+        "$call": "flatMapIndexed",
+        "$args": [
+          {
+            "$params": ["n", "i"],
+            "$return": { "$call": "add", "$args": [{ "$var": "n" }, { "$var": "i" }] }
+          },
+          [1, 2, 3]
+        ]
+      },
+      "expected": { "type": { "type": "array", "items": { "type": "integer" } }, "diagnostics": [] }
+    },
+    {
+      "description": "sortBy preserves element type",
+      "expression": {
+        "$call": "sortBy",
+        "$args": [{ "$params": ["n"], "$return": { "$var": "n" } }, [3, 1, 2]]
+      },
+      "expected": { "type": { "type": "array", "items": { "type": "integer" } }, "diagnostics": [] }
+    },
+    {
+      "description": "apply has a portable any floor without hard errors",
+      "expression": {
+        "$call": "apply",
+        "$args": [
+          {
+            "$params": ["a", "b"],
+            "$return": { "$call": "sub", "$args": [{ "$var": "a" }, { "$var": "b" }] }
+          },
+          [10, 3]
+        ]
+      },
+      "expected": {
+        "type": true,
+        "diagnostics": [
+          {
+            "path": [],
+            "severity": "info",
+            "messageIncludes": "callable rule \"apply\" has no precise return type"
+          }
+        ]
+      }
+    }
+  ]
+}

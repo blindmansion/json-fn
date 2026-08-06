@@ -1,0 +1,178 @@
+{
+  "$schema": "../../check.schema.json",
+  "description": "visible `any` degradation and unknown-callee errors",
+  "builtins": "none",
+  "cases": [
+    {
+      "description": "an unresolved variable degrades to any with an info diagnostic",
+      "expression": { "$var": "missing" },
+      "expected": {
+        "type": true,
+        "diagnostics": [
+          {
+            "path": [],
+            "severity": "info",
+            "messageIncludes": "expression degraded to `any` because variable \"missing\" is unresolved."
+          }
+        ]
+      }
+    },
+    {
+      "description": "an unknown literal callee is a hard error with never recovery",
+      "expression": { "$call": "missing", "$args": [] },
+      "expected": {
+        "type": false,
+        "diagnostics": [
+          { "path": [], "severity": "error", "messageIncludes": "Unknown function \"missing\"." }
+        ]
+      }
+    },
+    {
+      "description": "an unknown callee still walks its arguments",
+      "expression": { "$call": "missing", "$args": [{ "$var": "alsoMissing" }] },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["$args[0]"],
+            "severity": "info",
+            "messageIncludes": "variable \"alsoMissing\" is unresolved"
+          },
+          { "path": [], "severity": "error", "messageIncludes": "Unknown function \"missing\"." }
+        ]
+      }
+    },
+    {
+      "description": "a dynamic callee with no known function type still degrades",
+      "expression": { "$call": { "$if": true, "$then": "left", "$else": "right" }, "$args": [] },
+      "expected": {
+        "type": true,
+        "diagnostics": [
+          {
+            "path": [],
+            "severity": "info",
+            "messageIncludes": "expression degraded to `any` because the callee has no known function type."
+          }
+        ]
+      }
+    },
+    {
+      "description": "a reported dynamic result keeps strict assignability with an actionable hint",
+      "module": {
+        "f": {
+          "$params": ["dynamic"],
+          "$sig": { "required": [true], "optional": [], "returns": { "type": "integer" } },
+          "$return": { "$call": { "$var": "dynamic" }, "$args": [] }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return"],
+            "severity": "info",
+            "messageIncludes": "expression degraded to `any` because the callee has no known function type."
+          },
+          {
+            "path": ["f", "$return"],
+            "severity": "error",
+            "messageIncludes": "any is not assignable to {\"type\":\"integer\"}. Type coverage degraded here; use `checked as T` for an intentional runtime-checked boundary or fix the degradation above.",
+            "expected": { "type": "integer" },
+            "actual": true
+          }
+        ]
+      }
+    },
+    {
+      "description": "a static any remains strictly non-assignable without a reported degradation",
+      "module": {
+        "f": {
+          "$params": ["value"],
+          "$sig": { "required": [true], "optional": [], "returns": { "type": "integer" } },
+          "$return": { "$var": "value" }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return"],
+            "severity": "error",
+            "messageIncludes": "any is not assignable to {\"type\":\"integer\"}.",
+            "expected": { "type": "integer" },
+            "actual": true
+          }
+        ]
+      }
+    },
+    {
+      "description": "an unresolved string function reference reports its own degradation",
+      "expression": { "$fn": "missing" },
+      "expected": {
+        "type": true,
+        "diagnostics": [
+          {
+            "path": [],
+            "severity": "info",
+            "messageIncludes": "expression degraded to `any` because function reference \"missing\" is unresolved."
+          }
+        ]
+      }
+    },
+    {
+      "description": "an unannotated function value reports its missing signature",
+      "expression": { "$params": ["x"], "$return": { "$var": "x" } },
+      "expected": {
+        "type": true,
+        "diagnostics": [
+          {
+            "path": [],
+            "severity": "info",
+            "messageIncludes": "expression degraded to `any` because the function value has no declared signature."
+          }
+        ]
+      }
+    },
+    {
+      "description": "a builtin call with a loaded typing rule does not degrade",
+      "builtins": "standard",
+      "expression": { "$call": "add", "$args": [1, 2] },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "a spread call reports imprecise apply coverage and a strict return mismatch",
+      "builtins": "standard",
+      "module": {
+        "sum": {
+          "$params": ["a", "b"],
+          "$sig": {
+            "required": [{ "type": "integer" }, { "type": "integer" }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": { "$call": "add", "$args": [{ "$var": "a" }, { "$var": "b" }] }
+        },
+        "run": {
+          "$params": ["xs"],
+          "$sig": {
+            "required": [{ "type": "array", "items": { "type": "integer" } }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": { "$call": "apply", "$args": [{ "$fn": "sum" }, { "$var": "xs" }] }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["run", "$return"],
+            "severity": "info",
+            "messageIncludes": "callable rule \"apply\" has no precise return type"
+          },
+          {
+            "path": ["run", "$return"],
+            "severity": "error",
+            "messageIncludes": "any is not assignable to {\"type\":\"integer\"}"
+          }
+        ]
+      }
+    }
+  ]
+}

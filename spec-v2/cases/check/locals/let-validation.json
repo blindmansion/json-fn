@@ -1,0 +1,205 @@
+{
+  "$schema": "../../check.schema.json",
+  "description": "locals: canonical $let validation and result typing",
+  "builtins": "none",
+  "cases": [
+    {
+      "description": "a function body checks a where-lowered $let binding structurally",
+      "comment": "Canonical form of `(x: integer) -> integer => y where { y: x + 1 }`.",
+      "builtins": "standard",
+      "expression": {
+        "$params": ["x"],
+        "$sig": {
+          "required": [{ "type": "integer" }],
+          "optional": [],
+          "returns": { "type": "integer" }
+        },
+        "$return": {
+          "$let": { "y": { "$call": "add", "$args": [{ "$var": "x" }, 1] } },
+          "$in": { "$var": "y" }
+        }
+      },
+      "expected": {
+        "type": {
+          "$fnType": {
+            "required": [{ "type": "integer" }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "description": "a pure do-lowered $let binding checks structurally",
+      "comment": "Canonical form of `do { x: 1, pure(x) }`.",
+      "builtins": "standard",
+      "expression": { "$let": { "x": 1 }, "$in": { "$call": "pure", "$args": [{ "$var": "x" }] } },
+      "expected": { "type": { "$taskType": { "const": 1 } }, "diagnostics": [] }
+    },
+    {
+      "description": "synthesizes the result in a lazy recursive scope",
+      "comment": "The unused binding is reported without its unresolved contents cascading.",
+      "expression": { "$let": { "x": 1, "unused": { "$var": "missing" } }, "$in": { "$var": "x" } },
+      "expected": {
+        "type": { "const": 1 },
+        "diagnostics": [
+          {
+            "path": ["$let", "unused"],
+            "severity": "error",
+            "messageIncludes": "unused local binding \"unused\""
+          }
+        ]
+      }
+    },
+    {
+      "description": "reports a $let without $in as a malformed outer shape",
+      "expression": { "$let": { "x": 1 } },
+      "expected": {
+        "type": true,
+        "diagnostics": [
+          { "path": [], "severity": "error", "messageIncludes": "must have both $let and $in" }
+        ]
+      }
+    },
+    {
+      "description": "reports an $in without $let as a malformed outer shape",
+      "expression": { "$in": 1 },
+      "expected": {
+        "type": true,
+        "diagnostics": [
+          { "path": [], "severity": "error", "messageIncludes": "must have both $let and $in" }
+        ]
+      }
+    },
+    {
+      "description": "reports a null $let as a malformed binding object",
+      "expression": { "$let": null, "$in": 1 },
+      "expected": {
+        "type": true,
+        "diagnostics": [
+          {
+            "path": ["$let"],
+            "severity": "error",
+            "messageIncludes": "$let must be a non-null object"
+          }
+        ]
+      }
+    },
+    {
+      "description": "reports an array $let as a malformed binding object",
+      "expression": { "$let": [], "$in": 1 },
+      "expected": {
+        "type": true,
+        "diagnostics": [
+          {
+            "path": ["$let"],
+            "severity": "error",
+            "messageIncludes": "$let must be a non-null object"
+          }
+        ]
+      }
+    },
+    {
+      "description": "reports an empty $let binding object",
+      "expression": { "$let": {}, "$in": 1 },
+      "expected": {
+        "type": true,
+        "diagnostics": [
+          {
+            "path": ["$let"],
+            "severity": "error",
+            "messageIncludes": "$let must contain at least one binding"
+          }
+        ]
+      }
+    },
+    {
+      "description": "reports extra plain properties on a $let expression",
+      "expression": { "$let": { "x": 1 }, "$in": 1, "extra": true },
+      "expected": {
+        "type": true,
+        "diagnostics": [
+          { "path": [], "severity": "error", "messageIncludes": "cannot have other properties" }
+        ]
+      }
+    },
+    {
+      "description": "reports extra keyword properties on a $let expression",
+      "expression": { "$let": { "x": 1 }, "$in": 1, "$call": "x" },
+      "expected": {
+        "type": true,
+        "diagnostics": [
+          { "path": [], "severity": "error", "messageIncludes": "cannot have other properties" }
+        ]
+      }
+    },
+    {
+      "description": "reports an unused binding without classifying its contents",
+      "comment": "The malformed empty $let inside the unused binding is never forced, so only the unused-binding error is reported.",
+      "expression": { "$let": { "unused": { "$let": {} } }, "$in": "ok" },
+      "expected": {
+        "type": { "const": "ok" },
+        "diagnostics": [
+          {
+            "path": ["$let", "unused"],
+            "severity": "error",
+            "messageIncludes": "unused local binding \"unused\""
+          }
+        ]
+      }
+    },
+    {
+      "description": "checks $in directly against the expected return schema",
+      "module": {
+        "f": {
+          "$params": [],
+          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$return": { "$let": { "value": "wrong" }, "$in": { "$var": "value" } }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return", "$in"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "integer" },
+            "actual": { "const": "wrong" }
+          }
+        ]
+      }
+    },
+    {
+      "description": "roots binding diagnostics under $let.<name>",
+      "expression": { "$let": { "value": { "$var": "missing" } }, "$in": { "$var": "value" } },
+      "expected": {
+        "type": true,
+        "diagnostics": [
+          {
+            "path": ["$let", "value"],
+            "severity": "info",
+            "messageIncludes": "degraded to `any` because variable \"missing\" is unresolved"
+          }
+        ]
+      }
+    },
+    {
+      "description": "classifies a mixed $let binding as malformed when forced",
+      "expression": {
+        "$let": { "bad": { "$let": { "x": 1 }, "$in": 1, "$return": 1 } },
+        "$in": { "$var": "bad" }
+      },
+      "expected": {
+        "type": true,
+        "diagnostics": [
+          {
+            "path": ["$let", "bad"],
+            "severity": "error",
+            "messageIncludes": "$let expressions cannot have other properties"
+          }
+        ]
+      }
+    }
+  ]
+}

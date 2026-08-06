@@ -6,9 +6,14 @@ type TVarNode = { $tvar: string };
 type CallableSignature = FnTypeShape & {
   typeParams?: string[];
 };
+type CallableMetering = {
+  base: number;
+  sized: Array<number | "rest">;
+};
 type CallableEntry = {
   description?: string;
   category?: string;
+  metering?: CallableMetering;
   signatures: CallableSignature[];
   rule?: string;
 };
@@ -69,6 +74,7 @@ type CallableTypeRuleRegistry = Record<string, CallableTypeRuleV1>;
 export type {
   TVarNode,
   CallableSignature,
+  CallableMetering,
   CallableEntry,
   CallableTable,
   Bindings,

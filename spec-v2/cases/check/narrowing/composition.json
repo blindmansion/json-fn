@@ -1,0 +1,219 @@
+{
+  "$schema": "../../check.schema.json",
+  "description": "flow narrowing: boolean composition with not, $and, and $or",
+  "comment": "End-to-end forms of the composition fact-map rows in typescript/test/check/narrowing.test.ts: not flips the sense, $and conjoins operand facts on the true sense only, and $or conjoins the negated operands on the false sense only.",
+  "builtins": "standard",
+  "cases": [
+    {
+      "description": "not(isNull(x)) then-branch proves non-null (flipped sense)",
+      "module": {
+        "f": {
+          "$params": ["x"],
+          "$sig": {
+            "required": [{ "anyOf": [{ "type": "string" }, { "type": "null" }] }],
+            "optional": [],
+            "returns": { "type": "string" }
+          },
+          "$return": {
+            "$if": { "$call": "not", "$args": [{ "$call": "isNull", "$args": [{ "$var": "x" }] }] },
+            "$then": { "$var": "x" },
+            "$else": ""
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "not(isNull(x)) else-branch proves null",
+      "module": {
+        "f": {
+          "$params": ["x"],
+          "$sig": {
+            "required": [{ "anyOf": [{ "type": "string" }, { "type": "null" }] }],
+            "optional": [],
+            "returns": { "type": "null" }
+          },
+          "$return": {
+            "$if": { "$call": "not", "$args": [{ "$call": "isNull", "$args": [{ "$var": "x" }] }] },
+            "$then": null,
+            "$else": { "$var": "x" }
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "not(isInteger(x)) then-branch uses conservative subtraction",
+      "comment": "number minus integer is not expressible, so negating isInteger over number | string leaves the whole union in the then-branch.",
+      "module": {
+        "f": {
+          "$params": ["x"],
+          "$sig": {
+            "required": [{ "anyOf": [{ "type": "number" }, { "type": "string" }] }],
+            "optional": [],
+            "returns": { "type": "string" }
+          },
+          "$return": {
+            "$if": {
+              "$call": "not",
+              "$args": [{ "$call": "isInteger", "$args": [{ "$var": "x" }] }]
+            },
+            "$then": { "$var": "x" },
+            "$else": ""
+          }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return", "$then"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "string" },
+            "actual": { "anyOf": [{ "type": "number" }, { "type": "string" }] }
+          }
+        ]
+      }
+    },
+    {
+      "description": "$and on the true sense conjoins each operand's fact",
+      "module": {
+        "f": {
+          "$params": ["a", "b"],
+          "$sig": {
+            "required": [
+              { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+              { "anyOf": [{ "type": "string" }, { "type": "null" }] }
+            ],
+            "optional": [],
+            "returns": {
+              "type": "array",
+              "prefixItems": [{ "type": "string" }, { "type": "string" }],
+              "items": false,
+              "minItems": 2
+            }
+          },
+          "$return": {
+            "$if": {
+              "$and": [
+                { "$call": "not", "$args": [{ "$call": "isNull", "$args": [{ "$var": "a" }] }] },
+                { "$call": "not", "$args": [{ "$call": "isNull", "$args": [{ "$var": "b" }] }] }
+              ]
+            },
+            "$then": [{ "$var": "a" }, { "$var": "b" }],
+            "$else": ["", ""]
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "$and on the false sense yields no single-subject fact",
+      "comment": "The else-branch only knows that some conjunct failed, so neither operand narrows and the nullable union survives.",
+      "module": {
+        "f": {
+          "$params": ["a", "b"],
+          "$sig": {
+            "required": [
+              { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+              { "anyOf": [{ "type": "string" }, { "type": "null" }] }
+            ],
+            "optional": [],
+            "returns": { "type": "string" }
+          },
+          "$return": {
+            "$if": {
+              "$and": [
+                { "$call": "not", "$args": [{ "$call": "isNull", "$args": [{ "$var": "a" }] }] },
+                { "$call": "not", "$args": [{ "$call": "isNull", "$args": [{ "$var": "b" }] }] }
+              ]
+            },
+            "$then": "",
+            "$else": { "$var": "a" }
+          }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return", "$else"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "string" },
+            "actual": { "anyOf": [{ "type": "string" }, { "type": "null" }] }
+          }
+        ]
+      }
+    },
+    {
+      "description": "$or on the false sense conjoins the negated operands",
+      "module": {
+        "f": {
+          "$params": ["a", "b"],
+          "$sig": {
+            "required": [
+              { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+              { "anyOf": [{ "type": "string" }, { "type": "null" }] }
+            ],
+            "optional": [],
+            "returns": {
+              "type": "array",
+              "prefixItems": [{ "type": "string" }, { "type": "string" }],
+              "items": false,
+              "minItems": 2
+            }
+          },
+          "$return": {
+            "$if": {
+              "$or": [
+                { "$call": "isNull", "$args": [{ "$var": "a" }] },
+                { "$call": "isNull", "$args": [{ "$var": "b" }] }
+              ]
+            },
+            "$then": ["", ""],
+            "$else": [{ "$var": "a" }, { "$var": "b" }]
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "$or on the true sense yields no fact",
+      "comment": "The then-branch only knows that some disjunct held, so neither operand narrows and the nullable union survives.",
+      "module": {
+        "f": {
+          "$params": ["a", "b"],
+          "$sig": {
+            "required": [
+              { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+              { "anyOf": [{ "type": "string" }, { "type": "null" }] }
+            ],
+            "optional": [],
+            "returns": { "type": "string" }
+          },
+          "$return": {
+            "$if": {
+              "$or": [
+                { "$call": "isNull", "$args": [{ "$var": "a" }] },
+                { "$call": "isNull", "$args": [{ "$var": "b" }] }
+              ]
+            },
+            "$then": { "$var": "a" },
+            "$else": ""
+          }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return", "$then"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "string" },
+            "actual": { "anyOf": [{ "type": "string" }, { "type": "null" }] }
+          }
+        ]
+      }
+    }
+  ]
+}

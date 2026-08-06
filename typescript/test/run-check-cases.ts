@@ -1,5 +1,5 @@
-// Shared checker conformance runner for the suites under `spec/cases/check/`,
-// documented by `spec/docs/conformance/checking.md`. Each case runs through
+// Shared checker conformance runner for the suites under a spec's `cases/check/`,
+// documented by its `docs/conformance/checking.md`. Each case runs through
 // the public `checkExpr`/`checkModule` entry points only — no checker
 // internals. Inferred types are compared by exact canonical JSON equality and
 // diagnostics as an unordered multiset: every expected matcher must consume
@@ -23,25 +23,34 @@ import {
   type DiagnosticMatcher,
 } from "./check-case-fixtures";
 
+export interface CheckRunnerOptions {
+  standardBuiltinsPath?: string;
+}
+
 // The portable diagnostic shape, derived from the public entry point so the
 // runner cannot drift from the checker's observable surface.
 type Diagnostic = ReturnType<typeof checkExpr>["diagnostics"][number];
 
-export function runAllCheckCases(dir: string): void {
-  for (const suite of loadCheckSuites(dir)) runSuite(suite);
+export function runAllCheckCases(dir: string, options: CheckRunnerOptions = {}): void {
+  for (const suite of loadCheckSuites(dir, options)) runSuite(suite, options);
 }
 
-function runSuite(suite: CheckSuite): void {
+function runSuite(suite: CheckSuite, options: CheckRunnerOptions): void {
   describe(suite.description, () => {
     for (const tc of suite.cases) {
-      test(tc.description, () => runCheckCase(tc, suite));
+      test(tc.description, () => runCheckCase(tc, suite, options));
     }
   });
 }
 
-export function runCheckCase(tc: CheckCase, suite: CheckSuite): void {
+export function runCheckCase(
+  tc: CheckCase,
+  suite: CheckSuite,
+  runnerOptions: CheckRunnerOptions = {},
+): void {
   const selection = tc.builtins ?? suite.builtins;
-  const builtins = selection === "standard" ? loadBuiltinTable() : undefined;
+  const builtins =
+    selection === "standard" ? loadBuiltinTable(runnerOptions.standardBuiltinsPath) : undefined;
   const options: CheckOptions = { ...suite.options, ...tc.options };
   if (tc.module !== undefined && tc.contract !== undefined) {
     // Re-assert the loader's deep validation to type the contract, then pass

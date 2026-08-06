@@ -1,5 +1,5 @@
 // Typed loader and runtime validator for the shared checker conformance
-// format documented by `spec/cases/check.schema.json`. Follows the hardened
+// format documented by each spec's `cases/check.schema.json`. Follows the hardened
 // parse-suite pattern (`parse-case-fixtures.ts`): malformed fixtures fail with
 // the fixture path and failing field before any test is registered. The
 // validator uses only public entry points — no checker internals.
@@ -57,6 +57,10 @@ export interface CheckSuite {
   cases: CheckCase[];
 }
 
+export interface CheckFixtureOptions {
+  standardBuiltinsPath?: string;
+}
+
 const SUITE_FIELDS = new Set(["$schema", "description", "comment", "builtins", "options", "cases"]);
 const CASE_FIELDS = new Set([
   "description",
@@ -75,7 +79,11 @@ const EXPECTED_FIELDS = new Set(["type", "diagnostics"]);
 const DIAGNOSTIC_FIELDS = new Set(["path", "severity", "messageIncludes", "expected", "actual"]);
 const THROWS_FIELDS = new Set(["messageIncludes"]);
 
-export function loadCheckSuite(path: string, depth = 0): CheckSuite {
+export function loadCheckSuite(
+  path: string,
+  depth = 0,
+  options: CheckFixtureOptions = {},
+): CheckSuite {
   let value: unknown;
   try {
     value = JSON.parse(readFileSync(path, "utf8")) as unknown;
@@ -83,20 +91,20 @@ export function loadCheckSuite(path: string, depth = 0): CheckSuite {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`${path}: invalid JSON: ${message}`);
   }
-  validateCheckSuite(value, path, depth);
+  validateCheckSuite(value, path, depth, options);
   return value;
 }
 
 // Recursively load every suite below `dir`. Suites may sit directly below the
 // root or exactly one directory level deeper; their `$schema` must spell the
 // depth-exact relative path to `check.schema.json`.
-export function loadCheckSuites(dir: string): CheckSuite[] {
+export function loadCheckSuites(dir: string, options: CheckFixtureOptions = {}): CheckSuite[] {
   return collectCaseFiles(dir).map((path) => {
     const depth = relative(dir, path).split(sep).length - 1;
     if (depth > 1) {
       throw new Error(`${path}: check suites must be at most one directory level below ${dir}`);
     }
-    return loadCheckSuite(path, depth);
+    return loadCheckSuite(path, depth, options);
   });
 }
 
@@ -114,6 +122,7 @@ export function validateCheckSuite(
   value: unknown,
   path = "<check suite>",
   depth = 0,
+  options: CheckFixtureOptions = {},
 ): asserts value is CheckSuite {
   assertRecord(value, path, "$");
   assertKnownFields(value, SUITE_FIELDS, path, "$");
@@ -132,7 +141,7 @@ export function validateCheckSuite(
 
   const suiteBuiltins = value.builtins as BuiltinsSelection;
   for (const [index, checkCase] of value.cases.entries()) {
-    validateCheckCase(checkCase, path, `$.cases[${index}]`, suiteBuiltins);
+    validateCheckCase(checkCase, path, `$.cases[${index}]`, suiteBuiltins, options);
   }
 }
 
@@ -141,6 +150,7 @@ function validateCheckCase(
   fixturePath: string,
   fieldPath: string,
   suiteBuiltins: BuiltinsSelection,
+  options: CheckFixtureOptions,
 ): void {
   assertRecord(value, fixturePath, fieldPath);
   assertKnownFields(value, CASE_FIELDS, fixturePath, fieldPath);
@@ -173,7 +183,7 @@ function validateCheckCase(
       fail(fixturePath, `${fieldPath}.defs`, "is only allowed on expression cases");
     }
     if (Object.hasOwn(value, "contract")) {
-      validateContract(value.contract, builtins, fixturePath, `${fieldPath}.contract`);
+      validateContract(value.contract, builtins, fixturePath, `${fieldPath}.contract`, options);
     }
   }
 
@@ -205,9 +215,13 @@ function validateContract(
   builtins: BuiltinsSelection,
   fixturePath: string,
   fieldPath: string,
+  options: CheckFixtureOptions,
 ): void {
   try {
-    validateEnvironmentContract(value, builtins === "standard" ? loadBuiltinTable() : false);
+    validateEnvironmentContract(
+      value,
+      builtins === "standard" ? loadBuiltinTable(options.standardBuiltinsPath) : false,
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     fail(fixturePath, fieldPath, `is not a valid environment contract: ${message}`);

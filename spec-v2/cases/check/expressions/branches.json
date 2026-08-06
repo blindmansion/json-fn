@@ -1,0 +1,437 @@
+{
+  "$schema": "../../check.schema.json",
+  "description": "branch-arm checking, control-flow unions, and predicate narrowing through branches",
+  "builtins": "none",
+  "cases": [
+    {
+      "description": "$if: arms that both fit the expected type check clean",
+      "module": {
+        "f": {
+          "$params": [],
+          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$return": { "$if": true, "$then": 1, "$else": 2 }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "$if: a mismatching arm is pinpointed to that arm, not the whole $return",
+      "module": {
+        "f": {
+          "$params": [],
+          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$return": { "$if": true, "$then": 1, "$else": "x" }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return", "$else"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "integer" },
+            "actual": { "const": "x" }
+          }
+        ]
+      }
+    },
+    {
+      "description": "$if: arms recurse into composite literals (no literal-union widening)",
+      "module": {
+        "f": {
+          "$params": [],
+          "$sig": {
+            "required": [],
+            "optional": [],
+            "returns": {
+              "type": "object",
+              "properties": { "a": { "type": "integer" } },
+              "required": ["a"],
+              "additionalProperties": false
+            }
+          },
+          "$return": { "$if": true, "$then": { "a": 1 }, "$else": { "a": "x" } }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return", "$else", "a"],
+            "severity": "error",
+            "messageIncludes": "not assignable"
+          }
+        ]
+      }
+    },
+    {
+      "description": "$if: truthiness narrowing threads into the checked arm",
+      "module": {
+        "f": {
+          "$params": ["x"],
+          "$sig": {
+            "required": [{ "anyOf": [{ "type": "string" }, { "type": "null" }] }],
+            "optional": [],
+            "returns": { "type": "string" }
+          },
+          "$return": { "$if": { "$var": "x" }, "$then": { "$var": "x" }, "$else": "" }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "$if: isInteger permits an integer-only call from number | string",
+      "builtins": "standard",
+      "module": {
+        "f": {
+          "$params": ["value"],
+          "$sig": {
+            "required": [{ "anyOf": [{ "type": "number" }, { "type": "string" }] }],
+            "optional": [],
+            "returns": { "type": "array", "items": { "type": "integer" } }
+          },
+          "$return": {
+            "$if": { "$call": "isInteger", "$args": [{ "$var": "value" }] },
+            "$then": { "$call": "range", "$args": [{ "$var": "value" }] },
+            "$else": []
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "$if: short-circuit tails inherit equality null guards",
+      "builtins": "standard",
+      "module": {
+        "viaAnd": {
+          "$params": ["value"],
+          "$sig": {
+            "required": [{ "anyOf": [{ "type": "integer" }, { "type": "null" }] }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": {
+            "$if": {
+              "$and": [
+                { "$call": "neq", "$args": [{ "$var": "value" }, null] },
+                { "$call": "gt", "$args": [{ "$var": "value" }, 0] }
+              ]
+            },
+            "$then": { "$var": "value" },
+            "$else": 0
+          }
+        },
+        "viaOr": {
+          "$params": ["value"],
+          "$sig": {
+            "required": [{ "anyOf": [{ "type": "integer" }, { "type": "null" }] }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": {
+            "$if": {
+              "$or": [
+                { "$call": "eq", "$args": [{ "$var": "value" }, null] },
+                { "$call": "gt", "$args": [{ "$var": "value" }, 0] }
+              ]
+            },
+            "$then": 1,
+            "$else": 0
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "$if: isInteger false leaves a bare number neither string nor integer",
+      "builtins": "standard",
+      "module": {
+        "asString": {
+          "$params": ["value"],
+          "$sig": {
+            "required": [{ "type": "number" }],
+            "optional": [],
+            "returns": { "type": "string" }
+          },
+          "$return": {
+            "$if": { "$call": "isInteger", "$args": [{ "$var": "value" }] },
+            "$then": "",
+            "$else": { "$call": "upper", "$args": [{ "$var": "value" }] }
+          }
+        },
+        "asInteger": {
+          "$params": ["value"],
+          "$sig": {
+            "required": [{ "type": "number" }],
+            "optional": [],
+            "returns": { "type": "array", "items": { "type": "integer" } }
+          },
+          "$return": {
+            "$if": { "$call": "isInteger", "$args": [{ "$var": "value" }] },
+            "$then": [],
+            "$else": { "$call": "range", "$args": [{ "$var": "value" }] }
+          }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["asString", "$return", "$else", "$args[0]"],
+            "severity": "error",
+            "messageIncludes": "not assignable"
+          },
+          {
+            "path": ["asInteger", "$return", "$else", "$args[0]"],
+            "severity": "error",
+            "messageIncludes": "not assignable"
+          }
+        ]
+      }
+    },
+    {
+      "description": "$if: isInteger partitions integral and fractional enum members for calls",
+      "builtins": "standard",
+      "module": {
+        "fractionalOnly": {
+          "$params": ["value"],
+          "$sig": {
+            "required": [{ "const": 1.5 }],
+            "optional": [],
+            "returns": { "type": "array", "items": { "type": "integer" } }
+          },
+          "$return": []
+        },
+        "f": {
+          "$params": ["value"],
+          "$sig": {
+            "required": [{ "enum": [1, 1.5] }],
+            "optional": [],
+            "returns": { "type": "array", "items": { "type": "integer" } }
+          },
+          "$return": {
+            "$if": { "$call": "isInteger", "$args": [{ "$var": "value" }] },
+            "$then": { "$call": "range", "$args": [{ "$var": "value" }] },
+            "$else": { "$call": "fractionalOnly", "$args": [{ "$var": "value" }] }
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "$if: a shadowed isInteger does not authorize an integer-only call",
+      "builtins": "standard",
+      "module": {
+        "f": {
+          "$params": ["value", "isInteger"],
+          "$sig": {
+            "required": [
+              { "anyOf": [{ "type": "number" }, { "type": "string" }] },
+              {
+                "$fnType": { "required": [true], "optional": [], "returns": { "type": "boolean" } }
+              }
+            ],
+            "optional": [],
+            "returns": { "type": "array", "items": { "type": "integer" } }
+          },
+          "$return": {
+            "$if": { "$call": "isInteger", "$args": [{ "$var": "value" }] },
+            "$then": { "$call": "range", "$args": [{ "$var": "value" }] },
+            "$else": []
+          }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return", "$then", "$args[0]"],
+            "severity": "error",
+            "messageIncludes": "not assignable"
+          }
+        ]
+      }
+    },
+    {
+      "description": "$cond: a mismatching arm is pinpointed to that arm",
+      "module": {
+        "f": {
+          "$params": [],
+          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$return": {
+            "$cond": [
+              [true, 1],
+              [false, "x"]
+            ],
+            "$else": 3
+          }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return", "$cond[1][1]"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "integer" }
+          }
+        ]
+      }
+    },
+    {
+      "description": "$cond: a cond over literal results fits a string return",
+      "module": {
+        "label": {
+          "$params": ["n"],
+          "$sig": {
+            "required": [{ "type": "integer" }],
+            "optional": [],
+            "returns": { "type": "string" }
+          },
+          "$return": { "$cond": [[{ "$var": "n" }, "a"]], "$else": "b" }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "$cond: a negated guard narrows the else arm",
+      "comment": "End-to-end version of the local direct-synth control-flow-union unit tests.",
+      "builtins": "standard",
+      "module": {
+        "f": {
+          "$params": ["x"],
+          "$sig": {
+            "required": [{ "anyOf": [{ "type": "string" }, { "type": "null" }] }],
+            "optional": [],
+            "returns": { "type": "string" }
+          },
+          "$return": {
+            "$cond": [[{ "$call": "isNull", "$args": [{ "$var": "x" }] }, "d"]],
+            "$else": { "$var": "x" }
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "$match: a mismatching case arm is pinpointed to that arm",
+      "module": {
+        "f": {
+          "$params": ["p"],
+          "$sig": {
+            "required": [{ "enum": ["a", "b"] }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": {
+            "$match": { "$var": "p" },
+            "$cases": [
+              ["a", 1],
+              ["b", "x"]
+            ]
+          }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return", "$cases[1][1]"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "integer" }
+          }
+        ]
+      }
+    },
+    {
+      "description": "$match: exhaustiveness lint still fires in checked position",
+      "module": {
+        "f": {
+          "$params": ["p"],
+          "$sig": {
+            "required": [{ "enum": ["a", "b"] }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": { "$match": { "$var": "p" }, "$cases": [["a", 1]] }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          { "path": ["f", "$return"], "severity": "error", "messageIncludes": "Non-exhaustive" }
+        ]
+      }
+    },
+    {
+      "description": "$if widens literal branch results before joining them",
+      "comment": "End-to-end version of the local direct-synth control-flow-union unit tests.",
+      "expression": { "$if": true, "$then": 1, "$else": "x" },
+      "expected": {
+        "type": { "anyOf": [{ "type": "integer" }, { "type": "string" }] },
+        "diagnostics": []
+      }
+    },
+    {
+      "description": "$if joins same-primitive literal arms to the widened primitive",
+      "comment": "End-to-end version of the local direct-synth control-flow-union unit tests.",
+      "expression": { "$if": true, "$then": 10, "$else": 20 },
+      "expected": { "type": { "type": "integer" }, "diagnostics": [] }
+    },
+    {
+      "description": "$and yields the last operand when earlier ones can't be falsy",
+      "comment": "End-to-end version of the local direct-synth short-circuit unit tests.",
+      "expression": { "$and": [1, 2] },
+      "expected": { "type": { "const": 2 }, "diagnostics": [] }
+    },
+    {
+      "description": "$or yields the last operand when earlier ones can't be truthy",
+      "comment": "End-to-end version of the local direct-synth short-circuit unit tests.",
+      "expression": { "$or": [0, 5] },
+      "expected": { "type": { "const": 5 }, "diagnostics": [] }
+    },
+    {
+      "description": "boolean $and operands split by truthiness (true && false : false)",
+      "expression": { "$and": [true, false] },
+      "expected": { "type": { "const": false }, "diagnostics": [] }
+    },
+    {
+      "description": "an empty $and is true",
+      "expression": { "$and": [] },
+      "expected": { "type": { "const": true }, "diagnostics": [] }
+    },
+    {
+      "description": "an empty $or is false",
+      "expression": { "$or": [] },
+      "expected": { "type": { "const": false }, "diagnostics": [] }
+    },
+    {
+      "description": "$or over a nullable subject drops null from the non-final operand",
+      "comment": "End-to-end version of the local direct-synth short-circuit unit tests: the null-coalescing idiom.",
+      "module": {
+        "f": {
+          "$params": ["x"],
+          "$sig": {
+            "required": [{ "anyOf": [{ "type": "string" }, { "type": "null" }] }],
+            "optional": [],
+            "returns": { "type": "string" }
+          },
+          "$return": { "$or": [{ "$var": "x" }, "def"] }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "$and over a nullable subject keeps only its falsy slice, plus the tail",
+      "comment": "End-to-end version of the local direct-synth short-circuit unit tests.",
+      "module": {
+        "f": {
+          "$params": ["x"],
+          "$sig": {
+            "required": [{ "anyOf": [{ "type": "string" }, { "type": "null" }] }],
+            "optional": [],
+            "returns": { "anyOf": [{ "const": "" }, { "type": "null" }, { "const": "tail" }] }
+          },
+          "$return": { "$and": [{ "$var": "x" }, "tail"] }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    }
+  ]
+}

@@ -1,0 +1,155 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "json-fn checker conformance test suite",
+  "description": "Documents the checker test-suite format consumed from spec/cases/check.",
+  "type": "object",
+  "required": ["$schema", "description", "builtins", "cases"],
+  "properties": {
+    "$schema": {
+      "enum": ["../check.schema.json", "../../check.schema.json"],
+      "description": "Identifies the checker-case schema relative to the suite file. Loaders verify the value matches the suite's actual directory depth below spec/cases/check."
+    },
+    "description": { "type": "string", "description": "A description of the test suite." },
+    "comment": { "type": "string", "description": "Optional rationale or maintenance context." },
+    "builtins": {
+      "$ref": "#/$defs/builtins",
+      "description": "The default builtin callable selection for cases in this suite."
+    },
+    "options": {
+      "$ref": "#/$defs/options",
+      "description": "The default portable checker options for cases in this suite."
+    },
+    "cases": {
+      "type": "array",
+      "description": "The checker cases in this suite.",
+      "items": { "$ref": "#/$defs/case" }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "builtins": {
+      "enum": ["standard", "none"],
+      "description": "standard loads the portable registry from spec/builtins/builtins.json; none provides no builtin callable table."
+    },
+    "options": {
+      "type": "object",
+      "properties": {
+        "allowUntypedFunctions": {
+          "type": "boolean",
+          "description": "Permit module-level functions without declared signatures, recording visible coverage degradation instead of an error."
+        }
+      },
+      "additionalProperties": false
+    },
+    "case": {
+      "type": "object",
+      "required": ["description"],
+      "properties": {
+        "description": { "type": "string", "description": "A description used as the test name." },
+        "comment": {
+          "type": "string",
+          "description": "Optional rationale or maintenance context."
+        },
+        "builtins": {
+          "$ref": "#/$defs/builtins",
+          "description": "Overrides the suite builtin selection for this case."
+        },
+        "options": {
+          "$ref": "#/$defs/options",
+          "description": "Overrides the suite checker options for this case."
+        },
+        "expression": {
+          "description": "A canonical json-fn expression to check, including an explicit null."
+        },
+        "defs": {
+          "type": "object",
+          "description": "Named schema definitions in scope while checking an expression. Allowed only on expression cases.",
+          "additionalProperties": { "$ref": "#/$defs/schema" }
+        },
+        "module": { "type": "object", "description": "A canonical json-fn module to check." },
+        "contract": {
+          "type": "object",
+          "description": "A portable environment contract linked while checking a module. Allowed only on module cases; deep contract validation is enforced by the loader."
+        },
+        "expected": { "$ref": "#/$defs/expected" },
+        "throws": { "$ref": "#/$defs/throws" }
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "oneOf": [
+            {
+              "required": ["expression"],
+              "not": { "anyOf": [{ "required": ["module"] }, { "required": ["contract"] }] }
+            },
+            {
+              "required": ["module"],
+              "not": { "anyOf": [{ "required": ["expression"] }, { "required": ["defs"] }] },
+              "properties": { "expected": { "not": { "type": "object", "required": ["type"] } } }
+            }
+          ]
+        },
+        { "oneOf": [{ "required": ["expected"] }, { "required": ["throws"] }] }
+      ]
+    },
+    "expected": {
+      "type": "object",
+      "description": "The complete expected outcome of an ordinary checker run.",
+      "required": ["diagnostics"],
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/schema",
+          "description": "The exact inferred schema, compared by canonical JSON equality. Allowed only for expression cases."
+        },
+        "diagnostics": {
+          "type": "array",
+          "description": "The complete expected diagnostic multiset, matched unordered.",
+          "items": { "$ref": "#/$defs/diagnostic" }
+        }
+      },
+      "additionalProperties": false
+    },
+    "diagnostic": {
+      "type": "object",
+      "description": "A matcher that must consume exactly one actual diagnostic.",
+      "required": ["path", "severity", "messageIncludes"],
+      "properties": {
+        "path": {
+          "type": "array",
+          "description": "The exact canonical JSON path of the diagnostic as string segments.",
+          "items": { "type": "string" }
+        },
+        "severity": {
+          "enum": ["error", "info"],
+          "description": "error is a definite type failure; info records visible loss of type coverage."
+        },
+        "messageIncludes": {
+          "type": "string",
+          "description": "A substring that must occur in the diagnostic message."
+        },
+        "expected": {
+          "$ref": "#/$defs/schema",
+          "description": "The exact expected schema attached to the diagnostic."
+        },
+        "actual": {
+          "$ref": "#/$defs/schema",
+          "description": "The exact actual schema attached to the diagnostic."
+        }
+      },
+      "additionalProperties": false
+    },
+    "throws": {
+      "type": "object",
+      "description": "Requires checking to fail outside recover-and-continue diagnostics, such as the fixed structural-depth limit.",
+      "required": ["messageIncludes"],
+      "properties": {
+        "messageIncludes": {
+          "type": "string",
+          "description": "A substring that must occur in the thrown error message."
+        }
+      },
+      "additionalProperties": false
+    },
+    "schema": { "type": ["boolean", "object"], "description": "A canonical json-fn schema value." }
+  }
+}

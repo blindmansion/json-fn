@@ -34,8 +34,9 @@ covered by [execution limits](runtime/execution-limits.md),
 
 ### Implement json-fn
 
-Use the [parse conformance guide](conformance/parsing.md) and
-[builtin conformance guide](conformance/builtins.md) to run the shared cases
+Use the [parse conformance guide](conformance/parsing.md),
+[builtin conformance guide](conformance/builtins.md), and
+[checker conformance guide](conformance/checking.md) to run the shared cases
 against an implementation.
 
 ## Catalog
@@ -68,6 +69,8 @@ against an implementation.
   parser adapters, result comparison, and portable diagnostics.
 - [Builtin conformance](conformance/builtins.md) — requirements for direct
   builtin test adapters and result checking.
+- [Checker conformance](conformance/checking.md) — requirements for checker
+  adapters, diagnostic matching, and shared type-checking cases.
 
 ### Runtime
 

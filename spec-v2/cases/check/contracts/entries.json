@@ -1,0 +1,150 @@
+{
+  "$schema": "../../check.schema.json",
+  "description": "portable environment contracts: entry checking",
+  "comment": "Migrated from the contract checker integration block in typescript/test/contract.test.ts.",
+  "builtins": "standard",
+  "cases": [
+    {
+      "description": "the contract entry signature contextually checks parameters and task completion",
+      "module": { "main": { "$params": [], "$return": { "$call": "pure", "$args": [1] } } },
+      "contract": {
+        "version": 1,
+        "functions": {},
+        "effects": {},
+        "entry": {
+          "name": "main",
+          "required": [],
+          "optional": [],
+          "returns": { "task": { "type": "integer" } }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "an entry body must declare the contract's required parameters",
+      "module": { "main": { "$params": [], "$return": { "$call": "pure", "$args": [1] } } },
+      "contract": {
+        "version": 1,
+        "functions": {},
+        "effects": {},
+        "entry": {
+          "name": "main",
+          "required": [{ "type": "integer" }],
+          "optional": [],
+          "returns": { "task": { "type": "integer" } }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["main", "$params"],
+            "severity": "error",
+            "messageIncludes": "Contextual signature expects 1 required parameter(s)"
+          }
+        ]
+      }
+    },
+    {
+      "description": "malformed entry parameters are reported before body checking",
+      "module": {
+        "main": { "$params": [{ "$param": "value" }], "$return": { "$var": "missing" } }
+      },
+      "contract": {
+        "version": 1,
+        "functions": {},
+        "effects": {},
+        "entry": {
+          "name": "main",
+          "required": [{ "type": "integer" }],
+          "optional": [],
+          "returns": { "task": { "type": "integer" } }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["main", "$params[0]"],
+            "severity": "error",
+            "messageIncludes": "$params[0]: A defaulted parameter must contain exactly"
+          }
+        ]
+      }
+    },
+    {
+      "description": "a task-valued entry must produce the declared completion type",
+      "module": { "main": { "$params": [], "$return": { "$call": "pure", "$args": ["wrong"] } } },
+      "contract": {
+        "version": 1,
+        "functions": {},
+        "effects": {},
+        "entry": {
+          "name": "main",
+          "required": [],
+          "optional": [],
+          "returns": { "task": { "type": "integer" } }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          { "path": ["main", "$return"], "severity": "error", "messageIncludes": "not assignable" }
+        ]
+      }
+    },
+    {
+      "description": "a direct entry accepts a direct value",
+      "module": { "main": { "$return": 42 } },
+      "contract": {
+        "version": 1,
+        "functions": {},
+        "effects": {},
+        "entry": {
+          "name": "main",
+          "required": [],
+          "optional": [],
+          "returns": { "type": "integer" }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "a direct entry rejects a task value",
+      "module": { "main": { "$return": { "$call": "pure", "$args": [42] } } },
+      "contract": {
+        "version": 1,
+        "functions": {},
+        "effects": {},
+        "entry": {
+          "name": "main",
+          "required": [],
+          "optional": [],
+          "returns": { "type": "integer" }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          { "path": ["main", "$return"], "severity": "error", "messageIncludes": "not assignable" }
+        ]
+      }
+    },
+    {
+      "description": "a task-valued entry rejects a direct value",
+      "module": { "main": { "$return": 42 } },
+      "contract": {
+        "version": 1,
+        "functions": {},
+        "effects": {},
+        "entry": {
+          "name": "main",
+          "required": [],
+          "optional": [],
+          "returns": { "task": { "type": "integer" } }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          { "path": ["main", "$return"], "severity": "error", "messageIncludes": "not assignable" }
+        ]
+      }
+    }
+  ]
+}

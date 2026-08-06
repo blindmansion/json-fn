@@ -1,0 +1,139 @@
+{
+  "$schema": "../../check.schema.json",
+  "description": "module checking: dangling $ref hard errors",
+  "builtins": "none",
+  "cases": [
+    {
+      "description": "a $ref to an undeclared type in a sig is an error, not a silent top",
+      "module": {
+        "f": {
+          "$params": [],
+          "$sig": { "required": [], "optional": [], "returns": { "$ref": "#/$defs/Reprot" } },
+          "$return": true
+        }
+      },
+      "expected": {
+        "diagnostics": [{ "path": ["f", "$sig"], "severity": "error", "messageIncludes": "Reprot" }]
+      }
+    },
+    {
+      "description": "dangling refs in required and optional signature slots are both reported",
+      "module": {
+        "f": {
+          "$params": ["requiredValue", { "$param": "optionalValue", "$optional": true }],
+          "$sig": {
+            "required": [{ "$ref": "#/$defs/MissingRequired" }],
+            "optional": [{ "$ref": "#/$defs/MissingOptional" }],
+            "returns": true
+          },
+          "$return": true
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          { "path": ["f", "$sig"], "severity": "error", "messageIncludes": "MissingRequired" },
+          { "path": ["f", "$sig"], "severity": "error", "messageIncludes": "MissingOptional" }
+        ]
+      }
+    },
+    {
+      "description": "an intentional `type X = any` alias still checks clean",
+      "module": {
+        "$types": { "X": true },
+        "g": {
+          "$params": [],
+          "$sig": { "required": [], "optional": [], "returns": { "$ref": "#/$defs/X" } },
+          "$return": 1
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "a dangling $ref inside a $types body is reported at the def",
+      "module": {
+        "$types": {
+          "User": {
+            "type": "object",
+            "properties": { "id": { "$ref": "#/$defs/Missing" } },
+            "required": ["id"]
+          }
+        },
+        "main": {
+          "$params": [],
+          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$return": 1
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          { "path": ["$types", "User"], "severity": "error", "messageIncludes": "Missing" }
+        ]
+      }
+    },
+    {
+      "description": "refs are covered inside arrays, unions, and $fnType leaves",
+      "module": {
+        "f": {
+          "$params": ["xs", "cb"],
+          "$sig": {
+            "required": [
+              { "type": "array", "items": { "$ref": "#/$defs/Foo" } },
+              {
+                "$fnType": { "required": [], "optional": [], "returns": { "$ref": "#/$defs/Bar" } }
+              }
+            ],
+            "optional": [],
+            "returns": { "anyOf": [{ "$ref": "#/$defs/Baz" }, { "type": "null" }] }
+          },
+          "$return": 1
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          { "path": ["f", "$sig"], "severity": "error", "messageIncludes": "Foo" },
+          { "path": ["f", "$sig"], "severity": "error", "messageIncludes": "Bar" },
+          { "path": ["f", "$sig"], "severity": "error", "messageIncludes": "Baz" }
+        ]
+      }
+    },
+    {
+      "description": "a nested $let function signature is covered too",
+      "module": {
+        "main": {
+          "$params": [],
+          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$return": {
+            "$let": {
+              "helper": {
+                "$params": ["x"],
+                "$sig": {
+                  "required": [{ "$ref": "#/$defs/Qux" }],
+                  "optional": [],
+                  "returns": { "type": "integer" }
+                },
+                "$return": { "$var": "x" }
+              }
+            },
+            "$in": { "$call": "helper", "$args": [1] }
+          }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["main", "$return", "$let", "helper", "$sig"],
+            "severity": "error",
+            "messageIncludes": "Qux"
+          },
+          {
+            "path": ["main", "$return", "$let", "helper", "$return"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "integer" },
+            "actual": { "$ref": "#/$defs/Qux" }
+          }
+        ]
+      }
+    }
+  ]
+}

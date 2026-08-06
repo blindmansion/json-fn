@@ -1,0 +1,374 @@
+{
+  "$schema": "../../check.schema.json",
+  "description": "function signatures, parameter binding, and parameter/signature alignment",
+  "builtins": "none",
+  "cases": [
+    {
+      "description": "every normalized parameter kind binds from its aligned signature schema",
+      "module": {
+        "all": {
+          "$params": [
+            "required",
+            {
+              "$fields": [
+                "requiredField",
+                { "$field": "optionalField", "$optional": true },
+                { "$field": "defaultedField", "$default": false }
+              ]
+            },
+            { "$param": "optional", "$optional": true },
+            { "$param": "defaulted", "$default": 0 },
+            "...rest"
+          ],
+          "$sig": {
+            "required": [
+              { "type": "integer" },
+              {
+                "type": "object",
+                "properties": {
+                  "requiredField": { "type": "string" },
+                  "optionalField": { "type": "integer" },
+                  "defaultedField": { "type": "boolean" }
+                },
+                "required": ["requiredField"],
+                "additionalProperties": false
+              }
+            ],
+            "optional": [{ "type": "string" }, { "type": "integer" }],
+            "rest": { "type": "boolean" },
+            "returns": {
+              "type": "object",
+              "properties": {
+                "required": { "type": "integer" },
+                "requiredField": { "type": "string" },
+                "optionalField": { "anyOf": [{ "type": "integer" }, { "type": "null" }] },
+                "defaultedField": { "type": "boolean" },
+                "optional": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+                "defaulted": { "type": "integer" },
+                "rest": { "type": "array", "items": { "type": "boolean" } }
+              },
+              "required": [
+                "required",
+                "requiredField",
+                "optionalField",
+                "defaultedField",
+                "optional",
+                "defaulted",
+                "rest"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "$return": {
+            "required": { "$var": "required" },
+            "requiredField": { "$var": "requiredField" },
+            "optionalField": { "$var": "optionalField" },
+            "defaultedField": { "$var": "defaultedField" },
+            "optional": { "$var": "optional" },
+            "defaulted": { "$var": "defaulted" },
+            "rest": { "$var": "rest" }
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "parameter defaults can reference the complete parameter scope",
+      "module": {
+        "scopedDefault": {
+          "$params": ["seed", { "$param": "fallback", "$default": { "$var": "seed" } }],
+          "$sig": {
+            "required": [{ "type": "integer" }],
+            "optional": [{ "type": "integer" }],
+            "returns": { "type": "integer" }
+          },
+          "$return": { "$var": "fallback" }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "object parameter patterns resolve refs before projecting field types",
+      "module": {
+        "$types": {
+          "Input": {
+            "type": "object",
+            "properties": { "required": { "type": "integer" }, "optional": { "type": "string" } },
+            "required": ["required"],
+            "additionalProperties": false
+          }
+        },
+        "read": {
+          "$params": [{ "$fields": ["required", { "$field": "optional", "$optional": true }] }],
+          "$sig": {
+            "required": [{ "$ref": "#/$defs/Input" }],
+            "optional": [],
+            "returns": { "anyOf": [{ "type": "string" }, { "type": "null" }] }
+          },
+          "$return": { "$var": "optional" }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "malformed parameters produce one path-specific diagnostic without body cascades",
+      "module": {
+        "malformed": {
+          "$params": [{ "$param": "value" }],
+          "$sig": {
+            "required": [{ "type": "integer" }],
+            "optional": [],
+            "returns": { "type": "string" }
+          },
+          "$return": { "$var": "missing" }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["malformed", "$params[0]"],
+            "severity": "error",
+            "messageIncludes": "$params[0]: A defaulted parameter must contain exactly"
+          }
+        ]
+      }
+    },
+    {
+      "description": "a body's parameters must match its declared signature shape",
+      "module": {
+        "requiredInOptionalSlot": {
+          "$params": ["value"],
+          "$sig": { "required": [], "optional": [{ "type": "integer" }], "returns": true },
+          "$return": { "$var": "missing" }
+        },
+        "optionalInRequiredSlot": {
+          "$params": [{ "$param": "value", "$optional": true }],
+          "$sig": { "required": [{ "type": "integer" }], "optional": [], "returns": true },
+          "$return": { "$var": "missing" }
+        },
+        "undeclaredRest": {
+          "$params": ["value", "...rest"],
+          "$sig": { "required": [{ "type": "integer" }], "optional": [], "returns": true },
+          "$return": { "$var": "missing" }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["requiredInOptionalSlot", "$params"],
+            "severity": "error",
+            "messageIncludes": "Body signature expects 0 required parameter(s), 1 optional parameter(s), and no rest parameter; body declares 1 required parameter(s), 0 optional parameter(s), and no rest parameter."
+          },
+          {
+            "path": ["optionalInRequiredSlot", "$params"],
+            "severity": "error",
+            "messageIncludes": "Body signature expects 1 required parameter(s), 0 optional parameter(s), and no rest parameter; body declares 0 required parameter(s), 1 optional parameter(s), and no rest parameter."
+          },
+          {
+            "path": ["undeclaredRest", "$params"],
+            "severity": "error",
+            "messageIncludes": "Body signature expects 1 required parameter(s), 0 optional parameter(s), and no rest parameter; body declares 1 required parameter(s), 0 optional parameter(s), and a rest parameter."
+          }
+        ]
+      }
+    },
+    {
+      "description": "parameter defaults are checked before the return at their exact paths",
+      "module": {
+        "badDefaults": {
+          "$params": [
+            { "$fields": [{ "$field": "count", "$default": "bad field" }] },
+            { "$param": "fallback", "$default": "bad positional" }
+          ],
+          "$sig": {
+            "required": [
+              {
+                "type": "object",
+                "properties": { "count": { "type": "integer" } },
+                "required": [],
+                "additionalProperties": false
+              }
+            ],
+            "optional": [{ "type": "integer" }],
+            "returns": { "type": "integer" }
+          },
+          "$return": "bad return"
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["badDefaults", "$params[0]", "$fields[0]", "$default"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "integer" },
+            "actual": { "const": "bad field" }
+          },
+          {
+            "path": ["badDefaults", "$params[1]", "$default"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "integer" },
+            "actual": { "const": "bad positional" }
+          },
+          {
+            "path": ["badDefaults", "$return"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "integer" },
+            "actual": { "const": "bad return" }
+          }
+        ]
+      }
+    },
+    {
+      "description": "an optional positional binding includes null in its local type",
+      "module": {
+        "optional": {
+          "$params": [{ "$param": "value", "$optional": true }],
+          "$sig": {
+            "required": [],
+            "optional": [{ "type": "string" }],
+            "returns": { "type": "string" }
+          },
+          "$return": { "$var": "value" }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["optional", "$return"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "string" },
+            "actual": { "anyOf": [{ "type": "string" }, { "type": "null" }] }
+          }
+        ]
+      }
+    },
+    {
+      "description": "object parameter fields must agree with the input object contract",
+      "module": {
+        "requiredCanBeAbsent": {
+          "$params": [{ "$fields": ["value"] }],
+          "$sig": {
+            "required": [
+              {
+                "type": "object",
+                "properties": { "value": { "type": "integer" } },
+                "required": [],
+                "additionalProperties": false
+              }
+            ],
+            "optional": [],
+            "returns": true
+          },
+          "$return": null
+        },
+        "defaultCannotRun": {
+          "$params": [{ "$fields": [{ "$field": "value", "$default": 0 }] }],
+          "$sig": {
+            "required": [
+              {
+                "type": "object",
+                "properties": { "value": { "type": "integer" } },
+                "required": ["value"],
+                "additionalProperties": false
+              }
+            ],
+            "optional": [],
+            "returns": true
+          },
+          "$return": null
+        },
+        "closedMissing": {
+          "$params": [{ "$fields": [{ "$field": "value", "$optional": true }] }],
+          "$sig": {
+            "required": [
+              { "type": "object", "properties": {}, "required": [], "additionalProperties": false }
+            ],
+            "optional": [],
+            "returns": true
+          },
+          "$return": null
+        },
+        "nonObject": {
+          "$params": [{ "$fields": ["value"] }],
+          "$sig": { "required": [{ "type": "integer" }], "optional": [], "returns": true },
+          "$return": null
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["requiredCanBeAbsent", "$params[0]", "$fields[0]"],
+            "severity": "error",
+            "messageIncludes": "Required field \"value\" is not guaranteed by the aligned object schema."
+          },
+          {
+            "path": ["defaultCannotRun", "$params[0]", "$fields[0]"],
+            "severity": "error",
+            "messageIncludes": "Defaulted field \"value\" is required by the aligned object schema and cannot be omitted."
+          },
+          {
+            "path": ["closedMissing", "$params[0]", "$fields[0]"],
+            "severity": "error",
+            "messageIncludes": "Field \"value\" is not permitted by the aligned closed object schema."
+          },
+          {
+            "path": ["nonObject", "$params[0]"],
+            "severity": "error",
+            "messageIncludes": "Object parameter pattern requires an object schema in the aligned signature slot."
+          }
+        ]
+      }
+    },
+    {
+      "description": "a field alignment error stops scope-dependent work only for that body",
+      "module": {
+        "recovery": {
+          "$params": [
+            { "$fields": ["missing", { "$field": "fallback", "$default": "bad default" }] }
+          ],
+          "$sig": {
+            "required": [
+              {
+                "type": "object",
+                "properties": {
+                  "missing": { "type": "integer" },
+                  "fallback": { "type": "integer" }
+                },
+                "required": [],
+                "additionalProperties": false
+              }
+            ],
+            "optional": [],
+            "returns": true
+          },
+          "$return": { "$array": [{ "$var": "missing" }, { "$var": "independentlyMissing" }] }
+        },
+        "independent": {
+          "$params": [],
+          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$return": "bad return"
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["recovery", "$params[0]", "$fields[0]"],
+            "severity": "error",
+            "messageIncludes": "Required field \"missing\" is not guaranteed by the aligned object schema."
+          },
+          {
+            "path": ["independent", "$return"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "integer" },
+            "actual": { "const": "bad return" }
+          }
+        ]
+      }
+    }
+  ]
+}

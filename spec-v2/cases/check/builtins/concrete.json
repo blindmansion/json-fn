@@ -1,0 +1,285 @@
+{
+  "$schema": "../../check.schema.json",
+  "description": "standard builtins: concrete signatures",
+  "builtins": "standard",
+  "cases": [
+    {
+      "description": "add of two integers synthesizes integer",
+      "expression": { "$call": "add", "$args": [1, 2] },
+      "expected": { "type": { "type": "integer" }, "diagnostics": [] }
+    },
+    {
+      "description": "add widens mixed numeric arguments to number",
+      "expression": { "$call": "add", "$args": [1.5, 2] },
+      "expected": { "type": { "type": "number" }, "diagnostics": [] }
+    },
+    {
+      "description": "length accepts arrays",
+      "expression": { "$call": "length", "$args": [[1, 2, 3]] },
+      "expected": { "type": { "type": "integer" }, "diagnostics": [] }
+    },
+    {
+      "description": "length accepts strings",
+      "expression": { "$call": "length", "$args": ["hello"] },
+      "expected": { "type": { "type": "integer" }, "diagnostics": [] }
+    },
+    {
+      "description": "builtin $fn references synthesize as function values",
+      "expression": { "$fn": "upper" },
+      "expected": {
+        "type": {
+          "$fnType": {
+            "required": [{ "type": "string" }],
+            "optional": [],
+            "returns": { "type": "string" }
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "description": "builtin $var references synthesize as function values",
+      "expression": { "$var": "upper" },
+      "expected": {
+        "type": {
+          "$fnType": {
+            "required": [{ "type": "string" }],
+            "optional": [],
+            "returns": { "type": "string" }
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "description": "an invoked builtin $fn reference uses overload dispatch",
+      "expression": { "$call": { "$fn": "upper" }, "$args": ["a"] },
+      "expected": { "type": { "type": "string" }, "diagnostics": [] }
+    },
+    {
+      "description": "an invoked builtin $var reference uses overload dispatch",
+      "expression": { "$call": { "$var": "length" }, "$args": [[1, 2]] },
+      "expected": { "type": { "type": "integer" }, "diagnostics": [] }
+    },
+    {
+      "description": "arguments matching no add overload are a hard error",
+      "expression": { "$call": "add", "$args": [1, "two"] },
+      "expected": {
+        "type": { "type": "integer" },
+        "diagnostics": [
+          {
+            "path": [],
+            "severity": "error",
+            "messageIncludes": "No overload of \"add\" matches arguments"
+          }
+        ]
+      }
+    },
+    {
+      "description": "a multi-overload mismatch reports all length arms structurally",
+      "expression": { "$call": "length", "$args": [123] },
+      "expected": {
+        "type": { "type": "integer" },
+        "diagnostics": [
+          {
+            "path": [],
+            "severity": "error",
+            "messageIncludes": "\"string\"",
+            "expected": {
+              "anyOf": [
+                {
+                  "$fnType": {
+                    "required": [{ "type": "array" }],
+                    "optional": [],
+                    "returns": { "type": "integer" }
+                  }
+                },
+                {
+                  "$fnType": {
+                    "required": [{ "type": "string" }],
+                    "optional": [],
+                    "returns": { "type": "integer" }
+                  }
+                }
+              ]
+            },
+            "actual": {
+              "$fnType": { "required": [{ "const": 123 }], "optional": [], "returns": true }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "description": "nested errors surface once beside one overload-set error",
+      "expression": { "$call": "add", "$args": [{ "$call": "gt", "$args": ["a", "b"] }, "x"] },
+      "expected": {
+        "type": { "type": "integer" },
+        "diagnostics": [
+          {
+            "path": ["$args[0]", "$args[0]"],
+            "severity": "error",
+            "messageIncludes": "not assignable"
+          },
+          {
+            "path": ["$args[0]", "$args[1]"],
+            "severity": "error",
+            "messageIncludes": "not assignable"
+          },
+          {
+            "path": [],
+            "severity": "error",
+            "messageIncludes": "No overload of \"add\" matches arguments"
+          }
+        ]
+      }
+    },
+    {
+      "description": "numeric aggregates preserve integer results",
+      "expression": {
+        "$call": "map",
+        "$args": [
+          { "$fn": "sum" },
+          [
+            [1, 2],
+            [3, 4]
+          ]
+        ]
+      },
+      "expected": {
+        "type": {
+          "type": "array",
+          "items": { "anyOf": [{ "type": "integer" }, { "type": "number" }] }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "description": "numeric aggregates preserve number results",
+      "expression": { "$call": "product", "$args": [[1.5, 2]] },
+      "expected": { "type": { "type": "number" }, "diagnostics": [] }
+    },
+    {
+      "description": "math functions return numbers",
+      "expression": { "$call": "atan2", "$args": [1, 0] },
+      "expected": { "type": { "type": "number" }, "diagnostics": [] }
+    },
+    {
+      "description": "math functions reject strings",
+      "expression": { "$call": "sqrt", "$args": ["9"] },
+      "expected": {
+        "type": { "type": "number" },
+        "diagnostics": [
+          { "path": ["$args[0]"], "severity": "error", "messageIncludes": "not assignable" }
+        ]
+      }
+    },
+    {
+      "description": "num returns number",
+      "expression": { "$call": "num", "$args": ["5"] },
+      "expected": { "type": { "type": "number" }, "diagnostics": [] }
+    },
+    {
+      "description": "isTask returns boolean",
+      "expression": { "$call": "isTask", "$args": [1] },
+      "expected": { "type": { "type": "boolean" }, "diagnostics": [] }
+    },
+    {
+      "description": "range families return integer arrays",
+      "expression": { "$call": "rangeBy", "$args": [5, 0, -2] },
+      "expected": { "type": { "type": "array", "items": { "type": "integer" } }, "diagnostics": [] }
+    },
+    {
+      "description": "split returns string arrays",
+      "expression": { "$call": "split", "$args": ["a,b", ","] },
+      "expected": { "type": { "type": "array", "items": { "type": "string" } }, "diagnostics": [] }
+    },
+    {
+      "description": "join returns string",
+      "expression": { "$call": "join", "$args": [["a", "b"], ","] },
+      "expected": { "type": { "type": "string" }, "diagnostics": [] }
+    },
+    {
+      "description": "strcat accepts variadic strings",
+      "expression": { "$call": "strcat", "$args": ["a", "b", "c"] },
+      "expected": { "type": { "type": "string" }, "diagnostics": [] }
+    },
+    {
+      "description": "strcat rejects non-string arguments",
+      "expression": { "$call": "strcat", "$args": ["a", 1] },
+      "expected": {
+        "type": { "type": "string" },
+        "diagnostics": [
+          { "path": ["$args[1]"], "severity": "error", "messageIncludes": "not assignable" }
+        ]
+      }
+    },
+    {
+      "description": "string predicates require strings and return boolean",
+      "expression": { "$call": "startsWith", "$args": ["hello", "he"] },
+      "expected": { "type": { "type": "boolean" }, "diagnostics": [] }
+    },
+    {
+      "description": "replace requires strings and returns string",
+      "expression": { "$call": "replace", "$args": ["banana", "an", "X"] },
+      "expected": { "type": { "type": "string" }, "diagnostics": [] }
+    },
+    {
+      "description": "padStart accepts its optional fill",
+      "expression": { "$call": "padStart", "$args": ["7", 3, "0"] },
+      "expected": { "type": { "type": "string" }, "diagnostics": [] }
+    },
+    {
+      "description": "padStart requires an integer width",
+      "expression": { "$call": "padStart", "$args": ["7", 3.5] },
+      "expected": {
+        "type": { "type": "string" },
+        "diagnostics": [
+          { "path": [], "severity": "error", "messageIncludes": "No overload of \"padStart\"" }
+        ]
+      }
+    },
+    {
+      "description": "regex test returns boolean",
+      "expression": { "$call": "reTest", "$args": ["a", "b"] },
+      "expected": { "type": { "type": "boolean" }, "diagnostics": [] }
+    },
+    {
+      "description": "regex match returns named Match or null",
+      "expression": { "$call": "reMatch", "$args": ["a", "b"] },
+      "expected": {
+        "type": { "anyOf": [{ "$ref": "#/$defs/Match" }, { "type": "null" }] },
+        "diagnostics": []
+      }
+    },
+    {
+      "description": "regex match all returns Match arrays",
+      "expression": { "$call": "reMatchAll", "$args": ["a", "b"] },
+      "expected": {
+        "type": { "type": "array", "items": { "$ref": "#/$defs/Match" } },
+        "diagnostics": []
+      }
+    },
+    {
+      "description": "regex replacement returns string",
+      "expression": { "$call": "reReplace", "$args": ["a", "b", "c"] },
+      "expected": { "type": { "type": "string" }, "diagnostics": [] }
+    },
+    {
+      "description": "tap is identity with its optional label",
+      "expression": { "$call": "tap", "$args": ["hi", "label"] },
+      "expected": { "type": { "const": "hi" }, "diagnostics": [] }
+    },
+    {
+      "description": "a case-level builtins override of none makes standard names unknown",
+      "builtins": "none",
+      "expression": { "$call": "add", "$args": [1, 2] },
+      "expected": {
+        "type": false,
+        "diagnostics": [
+          { "path": [], "severity": "error", "messageIncludes": "Unknown function \"add\"" }
+        ]
+      }
+    }
+  ]
+}
