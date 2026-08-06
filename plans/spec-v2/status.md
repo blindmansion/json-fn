@@ -80,9 +80,8 @@ stated in the Stage 1 spec text:
   builtin/validator forcing-depth audit. All unchanged; the fuel-leak
   blocker dissolved with Stage 1 (2026-08-06).
 - **Checker-conformance regeneration for spec-v2.** The canonical `spec/`
-  migration in `plans/checker-conformance-migration.md` is complete.
-  Regenerate an equivalent `spec-v2/cases/check/` corpus after Stage 3, or
-  price that regeneration into the coordinated break.
+  migration is complete. Regenerate an equivalent `spec-v2/cases/check/`
+  corpus after Stage 3, or price that regeneration into the coordinated break.
 
 ## Bookkeeping and cross-plan updates
 
