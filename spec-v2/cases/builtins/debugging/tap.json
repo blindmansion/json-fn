@@ -1,0 +1,19 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "tap",
+  "description": "Log a value through the host-configured logger and return it unchanged.",
+  "cases": [
+    {
+      "description": "logs and returns an unlabeled value",
+      "args": [{ "status": "ready" }],
+      "outcome": { "returns": { "status": "ready" } },
+      "observations": { "logs": [{ "value": { "status": "ready" } }] }
+    },
+    {
+      "description": "passes an optional label to the logger",
+      "args": [[1, 2], "items"],
+      "outcome": { "returns": [1, 2] },
+      "observations": { "logs": [{ "value": [1, 2], "label": "items" }] }
+    }
+  ]
+}

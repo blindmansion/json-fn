@@ -1,0 +1,197 @@
+{
+  "$schema": "../parse.schema.json",
+  "description": "function literals and local bindings (shorthand spec section 8)",
+  "cases": [
+    {
+      "description": "simple function literal",
+      "source": "(a, b) => add(a, b)",
+      "expected": {
+        "$params": ["a", "b"],
+        "$return": { "$call": "add", "$args": [{ "$var": "a" }, { "$var": "b" }] }
+      }
+    },
+    {
+      "description": "where bindings",
+      "source": "(x, y) => doubled where {\n  sum:     add(x, y),\n  doubled: mul(sum, 2)\n}",
+      "expected": {
+        "$params": ["x", "y"],
+        "$return": {
+          "$let": {
+            "sum": { "$call": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] },
+            "doubled": { "$call": "mul", "$args": [{ "$var": "sum" }, 2] }
+          },
+          "$in": { "$var": "doubled" }
+        }
+      }
+    },
+    {
+      "description": "brace after arrow is a data object",
+      "source": "(state) => { output: boardSection(state, \"\"), exitCode: 0 }",
+      "expected": {
+        "$params": ["state"],
+        "$return": {
+          "output": { "$call": "boardSection", "$args": [{ "$var": "state" }, ""] },
+          "exitCode": 0
+        }
+      }
+    },
+    { "description": "no params", "source": "() => 1", "expected": { "$return": 1 } },
+    {
+      "description": "rest params",
+      "source": "(first, ...rest) => rest",
+      "expected": { "$params": ["first", "...rest"], "$return": { "$var": "rest" } }
+    },
+    {
+      "description": "optional and defaulted params",
+      "source": "(name, title?, punctuation = \"!\") => punctuation",
+      "expected": {
+        "$params": [
+          "name",
+          { "$param": "title", "$optional": true },
+          { "$param": "punctuation", "$default": "!" }
+        ],
+        "$return": { "$var": "punctuation" }
+      }
+    },
+    {
+      "description": "typed optional and defaulted params",
+      "source": "(name: string, title?: string, punctuation: string = \"!\") -> string => punctuation",
+      "expected": {
+        "$sig": {
+          "required": [{ "type": "string" }],
+          "optional": [{ "type": "string" }, { "type": "string" }],
+          "returns": { "type": "string" }
+        },
+        "$params": [
+          "name",
+          { "$param": "title", "$optional": true },
+          { "$param": "punctuation", "$default": "!" }
+        ],
+        "$return": { "$var": "punctuation" }
+      }
+    },
+    {
+      "description": "optional function-type slot",
+      "source": "(callback: (string, integer?) -> boolean) -> boolean => callback(\"x\")",
+      "expected": {
+        "$sig": {
+          "required": [
+            {
+              "$fnType": {
+                "required": [{ "type": "string" }],
+                "optional": [{ "type": "integer" }],
+                "returns": { "type": "boolean" }
+              }
+            }
+          ],
+          "optional": [],
+          "returns": { "type": "boolean" }
+        },
+        "$params": ["callback"],
+        "$return": { "$call": "callback", "$args": ["x"] }
+      }
+    },
+    {
+      "description": "typed lambda with a return annotation",
+      "source": "(x: number) -> number => x",
+      "expected": {
+        "$sig": {
+          "required": [{ "type": "number" }],
+          "optional": [],
+          "returns": { "type": "number" }
+        },
+        "$params": ["x"],
+        "$return": { "$var": "x" }
+      }
+    },
+    {
+      "description": "typed lambda with a curried function-type return annotation",
+      "source": "(x: number) -> (number) -> number => (y) => x",
+      "expected": {
+        "$sig": {
+          "required": [{ "type": "number" }],
+          "optional": [],
+          "returns": {
+            "$fnType": {
+              "required": [{ "type": "number" }],
+              "optional": [],
+              "returns": { "type": "number" }
+            }
+          }
+        },
+        "$params": ["x"],
+        "$return": { "$params": ["y"], "$return": { "$var": "x" } }
+      }
+    },
+    {
+      "description": "missing typed-lambda return type reports the annotation position",
+      "source": "(x: number) -> => x",
+      "error": {
+        "messageIncludes": "expected a type",
+        "at": { "line": 1, "column": 16 }
+      }
+    },
+    {
+      "description": "invalid star typed-lambda return type reports the annotation position",
+      "source": "(x: number) -> * => x",
+      "error": {
+        "messageIncludes": "expected a type",
+        "at": { "line": 1, "column": 16 }
+      }
+    },
+    {
+      "description": "invalid union typed-lambda return type reports the annotation position",
+      "source": "(x: number) -> | => x",
+      "error": {
+        "messageIncludes": "expected a type",
+        "at": { "line": 1, "column": 16 }
+      }
+    },
+    {
+      "description": "bare Task return annotation lowers to an erased task type",
+      "source": "() -> Task => pure(null)",
+      "expected": {
+        "$sig": { "required": [], "optional": [], "returns": { "$taskType": true } },
+        "$return": { "$call": "pure", "$args": [null] }
+      }
+    },
+    {
+      "description": "indexed Task return annotation preserves its completion type",
+      "source": "() -> Task<string | null> => pure(null)",
+      "expected": {
+        "$sig": {
+          "required": [],
+          "optional": [],
+          "returns": { "$taskType": { "type": ["string", "null"] } }
+        },
+        "$return": { "$call": "pure", "$args": [null] }
+      }
+    },
+    {
+      "description": "general user-facing type application is rejected",
+      "source": "(x: Box<string>) => x",
+      "error": "only the built-in Task<A> type constructor accepts a type argument"
+    },
+    {
+      "description": "required param after optional is rejected",
+      "source": "(first?, second) => second",
+      "error": true
+    },
+    {
+      "description": "required function-type slot after optional is rejected",
+      "source": "(callback: (string?, integer) -> boolean) -> boolean => true",
+      "error": true
+    },
+    {
+      "description": "nested closure",
+      "source": "(x) => (y) => x + y",
+      "expected": {
+        "$params": ["x"],
+        "$return": {
+          "$params": ["y"],
+          "$return": { "$call": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] }
+        }
+      }
+    }
+  ]
+}

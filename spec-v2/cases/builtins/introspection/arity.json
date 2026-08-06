@@ -1,0 +1,79 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "arity",
+  "description": "Return a function's fixed positional parameter count.",
+  "cases": [
+    {
+      "description": "returns the arity of a two-argument registered builtin",
+      "args": ["add"],
+      "outcome": { "returns": 2 }
+    },
+    {
+      "description": "returns the arity of a one-argument registered builtin",
+      "args": ["abs"],
+      "outcome": { "returns": 1 }
+    },
+    {
+      "description": "returns the arity of a higher-order builtin",
+      "args": ["map"],
+      "outcome": { "returns": 2 }
+    },
+    {
+      "description": "includes the accumulator in a reduce builtin's arity",
+      "args": ["reduce"],
+      "outcome": { "returns": 3 }
+    },
+    {
+      "description": "returns the arity of a named language function",
+      "args": [
+        {
+          "$function": {
+            "name": "myFn",
+            "body": { "$params": ["a", "b", "c"], "$return": { "$var": "a" } }
+          }
+        }
+      ],
+      "outcome": { "returns": 3 }
+    },
+    {
+      "description": "returns the arity of an inline language function body",
+      "args": [
+        {
+          "$params": ["x", "y"],
+          "$return": { "$call": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] }
+        }
+      ],
+      "outcome": { "returns": 2 }
+    },
+    {
+      "description": "returns zero for a named function without parameters",
+      "args": [{ "$function": { "name": "noArgs", "body": { "$return": 42 } } }],
+      "outcome": { "returns": 0 }
+    },
+    {
+      "description": "excludes a rest parameter from a named function's arity",
+      "args": [
+        {
+          "$function": {
+            "name": "varFn",
+            "body": {
+              "$params": ["first", "second", "...rest"],
+              "$return": { "$var": "first" }
+            }
+          }
+        }
+      ],
+      "outcome": { "returns": 2 }
+    },
+    {
+      "description": "returns null for an unknown function name",
+      "args": ["nonexistent"],
+      "outcome": { "returns": null }
+    },
+    {
+      "description": "reports its own arity",
+      "args": ["arity"],
+      "outcome": { "returns": 1 }
+    }
+  ]
+}

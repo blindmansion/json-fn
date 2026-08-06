@@ -1,0 +1,183 @@
+{
+  "description": "$comment keyword (sibling-key noise stripped from expression forms)",
+  "cases": [
+    {
+      "description": "$comment alongside $fn call is ignored",
+      "body": { "$return": { "$comment": "add 2 + 3", "$call": "add", "$args": [2, 3] } },
+      "expected": 5
+    },
+    {
+      "description": "$comment alongside $fn reference is ignored",
+      "body": { "$return": { "$comment": "function reference", "$fn": "add" } },
+      "expected": "add"
+    },
+    {
+      "description": "$comment alongside $var is ignored",
+      "body": { "$params": ["x"], "$return": { "$comment": "the input value", "$var": "x" } },
+      "args": [42],
+      "expected": 42
+    },
+    {
+      "description": "$comment alongside $var with $get is ignored",
+      "body": {
+        "$params": ["obj"],
+        "$return": { "$comment": "look up the name", "$get": "name", "$from": { "$var": "obj" } }
+      },
+      "args": [{ "name": "alice" }],
+      "expected": "alice"
+    },
+    {
+      "description": "$comment alongside $get/$from is ignored",
+      "body": { "$return": { "$comment": "first element", "$get": 0, "$from": [10, 20, 30] } },
+      "expected": 10
+    },
+    {
+      "description": "$comment alongside $if/$then/$else is ignored",
+      "body": {
+        "$params": ["n"],
+        "$return": {
+          "$comment": "sign check",
+          "$if": { "$call": "gt", "$args": [{ "$var": "n" }, 0] },
+          "$then": "positive",
+          "$else": "non-positive"
+        }
+      },
+      "args": [5],
+      "expected": "positive"
+    },
+    {
+      "description": "$comment alongside $cond is ignored",
+      "body": {
+        "$params": ["n"],
+        "$return": {
+          "$comment": "classify by sign",
+          "$cond": [
+            [{ "$call": "lt", "$args": [{ "$var": "n" }, 0] }, "negative"],
+            [{ "$call": "eq", "$args": [{ "$var": "n" }, 0] }, "zero"],
+            [true, "positive"]
+          ]
+        }
+      },
+      "args": [0],
+      "expected": "zero"
+    },
+    {
+      "description": "$comment alongside $match is ignored",
+      "body": {
+        "$params": ["cmd"],
+        "$return": {
+          "$comment": "route command",
+          "$match": { "$var": "cmd" },
+          "$cases": [["show", "display"]],
+          "$else": "move"
+        }
+      },
+      "args": ["show"],
+      "expected": "display"
+    },
+    {
+      "description": "$comment alongside $and is ignored",
+      "body": { "$return": { "$comment": "all truthy", "$and": [1, 2, "three"] } },
+      "expected": "three"
+    },
+    {
+      "description": "$comment alongside $or is ignored",
+      "body": { "$return": { "$comment": "first truthy", "$or": [null, 0, "winner"] } },
+      "expected": "winner"
+    },
+    {
+      "description": "$comment alongside $raw is ignored, value preserved",
+      "body": { "$return": { "$comment": "constant data", "$raw": [1, 2, 3] } },
+      "expected": [1, 2, 3]
+    },
+    {
+      "description": "$comment inside $raw is preserved (raw data)",
+      "body": { "$return": { "$raw": { "$comment": "preserved", "x": 1 } } },
+      "expected": { "$comment": "preserved", "x": 1 }
+    },
+    {
+      "description": "$comment in function body alongside $params/$return is ignored",
+      "body": {
+        "$comment": "doubles its input",
+        "$params": ["n"],
+        "$return": { "$call": "mul", "$args": [{ "$var": "n" }, 2] }
+      },
+      "args": [7],
+      "expected": 14
+    },
+    {
+      "description": "$comment alongside locals in function body is ignored",
+      "body": {
+        "$params": ["n"],
+        "$comment": "computes n squared then doubled",
+        "$return": {
+          "$let": { "squared": { "$call": "mul", "$args": [{ "$var": "n" }, { "$var": "n" }] } },
+          "$in": { "$call": "mul", "$args": [{ "$var": "squared" }, 2] }
+        }
+      },
+      "args": [3],
+      "expected": 18
+    },
+    {
+      "description": "$comment in plain data object is stripped from output",
+      "body": { "$return": { "$comment": "metadata", "name": "alice", "age": 30 } },
+      "expected": { "name": "alice", "age": 30 }
+    },
+    {
+      "description": "$comment alone in plain object yields empty object",
+      "body": { "$return": { "$comment": "nothing here" } },
+      "expected": {}
+    },
+    {
+      "description": "non-string $comment is not recognized as a comment (errors as extra property on $fn)",
+      "body": { "$return": { "$comment": 42, "$call": "add", "$args": [1, 2] } },
+      "error": "Function calls cannot have other properties"
+    },
+    {
+      "description": "non-string $comment inside $raw is preserved verbatim",
+      "body": { "$return": { "$raw": { "$comment": 42 } } },
+      "expected": { "$comment": 42 }
+    },
+    {
+      "description": "$comment in nested expressions is ignored",
+      "body": {
+        "$params": ["x"],
+        "$return": {
+          "$call": "add",
+          "$args": [
+            {
+              "$comment": "x squared",
+              "$call": "mul",
+              "$args": [{ "$var": "x" }, { "$var": "x" }]
+            },
+            { "$comment": "constant", "$call": "add", "$args": [1, 2] }
+          ]
+        }
+      },
+      "args": [4],
+      "expected": 19
+    },
+    {
+      "description": "$comment in array element is preserved as data (not stripped from arrays)",
+      "body": { "$return": [1, { "$comment": "middle" }, 3] },
+      "expected": [1, {}, 3]
+    },
+    {
+      "description": "$comment in returned function body (closure) is preserved",
+      "body": {
+        "$params": ["x"],
+        "$return": {
+          "$comment": "outer comment",
+          "$params": ["y"],
+          "$return": { "$call": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] }
+        }
+      },
+      "args": [10],
+      "expected": {
+        "$comment": "outer comment",
+        "$params": ["y"],
+        "$return": { "$call": "add", "$args": [10, { "$var": "y" }] }
+      }
+    }
+  ]
+}

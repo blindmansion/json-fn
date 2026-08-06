@@ -1,0 +1,42 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "isBool",
+  "description": "Test whether a value is a boolean.",
+  "cases": [
+    {
+      "description": "returns true for true",
+      "args": [true],
+      "outcome": { "returns": true }
+    },
+    {
+      "description": "returns true for false",
+      "args": [false],
+      "outcome": { "returns": true }
+    },
+    {
+      "description": "returns false for a number",
+      "args": [42],
+      "outcome": { "returns": false }
+    },
+    {
+      "description": "returns false for a string",
+      "args": ["hello"],
+      "outcome": { "returns": false }
+    },
+    {
+      "description": "returns false for null",
+      "args": [null],
+      "outcome": { "returns": false }
+    },
+    {
+      "description": "returns false for an array",
+      "args": [[1, 2]],
+      "outcome": { "returns": false }
+    },
+    {
+      "description": "returns false for an object",
+      "args": [{ "a": 1 }],
+      "outcome": { "returns": false }
+    }
+  ]
+}

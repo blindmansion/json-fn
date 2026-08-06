@@ -1,0 +1,67 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "neq",
+  "description": "Test JSON values for structural inequality without coercion.",
+  "cases": [
+    {
+      "description": "returns true for different numbers",
+      "args": [1, 2],
+      "outcome": { "returns": true }
+    },
+    {
+      "description": "returns false for equal numbers",
+      "args": [42, 42],
+      "outcome": { "returns": false }
+    },
+    {
+      "description": "returns true for different strings",
+      "args": ["hello", "world"],
+      "outcome": { "returns": true }
+    },
+    {
+      "description": "returns false for equal strings",
+      "args": ["hello", "hello"],
+      "outcome": { "returns": false }
+    },
+    {
+      "description": "returns true for different booleans",
+      "args": [true, false],
+      "outcome": { "returns": true }
+    },
+    {
+      "description": "returns false for equal booleans",
+      "args": [true, true],
+      "outcome": { "returns": false }
+    },
+    {
+      "description": "returns false for two null values",
+      "args": [null, null],
+      "outcome": { "returns": false }
+    },
+    {
+      "description": "returns true for null and zero",
+      "args": [null, 0],
+      "outcome": { "returns": true }
+    },
+    {
+      "description": "does not coerce strings to numbers",
+      "args": [1, "1"],
+      "outcome": { "returns": true }
+    },
+    {
+      "description": "returns false for structurally equal arrays",
+      "args": [[1], [1]],
+      "outcome": { "returns": false }
+    },
+    {
+      "description": "returns false for structurally equal objects",
+      "args": [{ "x": 1 }, { "x": 1 }],
+      "outcome": { "returns": false }
+    },
+    {
+      "description": "returns true for structurally different objects",
+      "args": [{ "x": 1 }, { "x": 2 }],
+      "outcome": { "returns": true }
+    }
+  ]
+}

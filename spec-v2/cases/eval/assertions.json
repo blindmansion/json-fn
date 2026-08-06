@@ -1,0 +1,184 @@
+{
+  "description": "runtime-checked assertions",
+  "cases": [
+    {
+      "description": "$nonnull returns a non-null scalar unchanged",
+      "body": { "$return": { "$nonnull": 42 } },
+      "expected": 42
+    },
+    {
+      "description": "$nonnull returns a non-null object unchanged",
+      "body": { "$return": { "$nonnull": { "value": 42 } } },
+      "expected": { "value": 42 }
+    },
+    {
+      "description": "$nonnull fails on null",
+      "body": { "$return": { "$nonnull": null } },
+      "error": "Assertion failed: expected a non-null value"
+    },
+    {
+      "description": "checked ascription accepts a matching primitive",
+      "body": { "$return": { "$as": 42, "$type": { "type": "integer" } } },
+      "expected": 42
+    },
+    {
+      "description": "checked ascription performs no primitive conversion",
+      "body": { "$return": { "$as": "42", "$type": { "type": "integer" } } },
+      "error": "checked ascription contract failed"
+    },
+    {
+      "description": "checked ascription enforces a numeric refinement",
+      "body": { "$return": { "$as": 3, "$type": { "type": "integer", "minimum": 0 } } },
+      "expected": 3
+    },
+    {
+      "description": "checked ascription rejects a failed numeric refinement",
+      "body": { "$return": { "$as": -1, "$type": { "type": "integer", "minimum": 0 } } },
+      "error": "checked ascription contract failed"
+    },
+    {
+      "description": "checked ascription measures string lengths in Unicode code points",
+      "body": {
+        "$return": { "$as": "😀", "$type": { "type": "string", "minLength": 1, "maxLength": 1 } }
+      },
+      "expected": "😀"
+    },
+    {
+      "description": "checked ascription validates arrays",
+      "body": {
+        "$return": {
+          "$as": [1, 2, 3],
+          "$type": { "type": "array", "items": { "type": "integer" } }
+        }
+      },
+      "expected": [1, 2, 3]
+    },
+    {
+      "description": "checked ascription validates tuples",
+      "body": {
+        "$return": {
+          "$as": [1, "ok"],
+          "$type": {
+            "type": "array",
+            "prefixItems": [{ "type": "integer" }, { "type": "string" }],
+            "items": false,
+            "minItems": 2
+          }
+        }
+      },
+      "expected": [1, "ok"]
+    },
+    {
+      "description": "checked ascription validates closed objects",
+      "body": {
+        "$return": {
+          "$as": { "id": 1 },
+          "$type": {
+            "type": "object",
+            "properties": { "id": { "type": "integer" } },
+            "required": ["id"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "expected": { "id": 1 }
+    },
+    {
+      "description": "checked ascription validates typed maps",
+      "body": {
+        "$return": {
+          "$as": { "left": 1, "right": 2 },
+          "$type": { "type": "object", "additionalProperties": { "type": "integer" } }
+        }
+      },
+      "expected": { "left": 1, "right": 2 }
+    },
+    {
+      "description": "checked ascription validates unions",
+      "body": { "$return": { "$as": "ok", "$type": { "type": ["integer", "string"] } } },
+      "expected": "ok"
+    },
+    {
+      "description": "$nonnull rejects additional properties",
+      "body": { "$return": { "$nonnull": 1, "extra": true } },
+      "error": "$nonnull expressions cannot have other properties"
+    },
+    {
+      "description": "checked ascription requires a $type",
+      "body": { "$return": { "$as": 1 } },
+      "error": "Checked ascriptions must have both $as and $type"
+    },
+    {
+      "description": "checked ascription rejects additional properties",
+      "body": { "$return": { "$as": 1, "$type": { "type": "integer" }, "extra": true } },
+      "error": "Checked ascriptions cannot have other properties"
+    },
+    {
+      "description": "$cast remains ordinary data",
+      "body": { "$return": { "$cast": null } },
+      "expected": { "$cast": null }
+    },
+    {
+      "description": "checked function ascription accepts a matching argument and return",
+      "body": {
+        "$return": {
+          "$call": {
+            "$as": { "$params": ["value"], "$return": { "$var": "value" } },
+            "$type": {
+              "$fnType": {
+                "required": [{ "type": "integer" }],
+                "optional": [],
+                "returns": { "type": "integer" }
+              }
+            }
+          },
+          "$args": [3]
+        }
+      },
+      "expected": 3
+    },
+    {
+      "description": "checked function ascription rejects an invalid eventual argument",
+      "body": {
+        "$return": {
+          "$call": {
+            "$as": { "$params": ["value"], "$return": { "$var": "value" } },
+            "$type": {
+              "$fnType": {
+                "required": [{ "type": "integer" }],
+                "optional": [],
+                "returns": { "type": "integer" }
+              }
+            }
+          },
+          "$args": ["wrong"]
+        }
+      },
+      "error": "function arguments contract failed"
+    },
+    {
+      "description": "checked function ascription rejects an invalid eventual return",
+      "body": {
+        "$return": {
+          "$call": {
+            "$as": { "$params": ["value"], "$return": "wrong" },
+            "$type": {
+              "$fnType": {
+                "required": [{ "type": "integer" }],
+                "optional": [],
+                "returns": { "type": "integer" }
+              }
+            }
+          },
+          "$args": [3]
+        }
+      },
+      "error": "function return contract failed"
+    },
+    {
+      "description": "checked ascription rejects schemas outside the runtime fragment",
+      "body": { "$return": { "$as": 1, "$type": { "$taskType": { "type": "integer" } } } },
+      "error": "checked ascription contract failed: unsupported schema"
+    }
+  ]
+}

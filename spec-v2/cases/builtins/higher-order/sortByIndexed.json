@@ -1,0 +1,23 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "sortByIndexed",
+  "description": "Sort array elements by keys from callbacks that also receive each index.",
+  "cases": [
+    {
+      "description": "passes every value and index before sorting",
+      "args": [
+        {
+          "$callback": {
+            "steps": [
+              { "args": ["a", 0], "outcome": { "returns": 0 } },
+              { "args": ["b", 1], "outcome": { "returns": -1 } },
+              { "args": ["c", 2], "outcome": { "returns": -2 } }
+            ]
+          }
+        },
+        ["a", "b", "c"]
+      ],
+      "outcome": { "returns": ["c", "b", "a"] }
+    }
+  ]
+}

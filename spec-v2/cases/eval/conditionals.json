@@ -1,0 +1,339 @@
+{
+  "description": "conditionals",
+  "functions": {
+    "classify": {
+      "$params": ["n"],
+      "$return": {
+        "$cond": [
+          [{ "$call": "lt", "$args": [{ "$var": "n" }, 0] }, "negative"],
+          [{ "$call": "eq", "$args": [{ "$var": "n" }, 0] }, "zero"],
+          [true, "positive"]
+        ]
+      }
+    },
+    "fizzbuzz": {
+      "$params": ["n"],
+      "$return": {
+        "$let": {
+          "divBy3": {
+            "$call": "eq",
+            "$args": [{ "$call": "mod", "$args": [{ "$var": "n" }, 3] }, 0]
+          },
+          "divBy5": {
+            "$call": "eq",
+            "$args": [{ "$call": "mod", "$args": [{ "$var": "n" }, 5] }, 0]
+          },
+          "divBy15": { "$call": "and", "$args": [{ "$var": "divBy3" }, { "$var": "divBy5" }] }
+        },
+        "$in": {
+          "$cond": [
+            [{ "$var": "divBy15" }, "FizzBuzz"],
+            [{ "$var": "divBy3" }, "Fizz"],
+            [{ "$var": "divBy5" }, "Buzz"],
+            [true, { "$var": "n" }]
+          ]
+        }
+      }
+    }
+  },
+  "cases": [
+    {
+      "description": "$if: truthy condition returns $then",
+      "body": {
+        "$return": {
+          "$if": { "$call": "gt", "$args": [10, 5] },
+          "$then": "ten is greater",
+          "$else": "five is greater"
+        }
+      },
+      "expected": "ten is greater"
+    },
+    {
+      "description": "$if: falsy condition returns $else",
+      "body": {
+        "$return": {
+          "$if": { "$call": "gt", "$args": [3, 5] },
+          "$then": "three is greater",
+          "$else": "five is greater"
+        }
+      },
+      "expected": "five is greater"
+    },
+    {
+      "description": "$cond: classify negative",
+      "body": { "$return": { "$call": "classify", "$args": [-5] } },
+      "expected": "negative"
+    },
+    {
+      "description": "$cond: classify zero",
+      "body": { "$return": { "$call": "classify", "$args": [0] } },
+      "expected": "zero"
+    },
+    {
+      "description": "$cond: classify positive",
+      "body": { "$return": { "$call": "classify", "$args": [42] } },
+      "expected": "positive"
+    },
+    {
+      "description": "$cond: fizzbuzz(15) → FizzBuzz",
+      "body": { "$return": { "$call": "fizzbuzz", "$args": [15] } },
+      "expected": "FizzBuzz"
+    },
+    {
+      "description": "$cond: fizzbuzz(9) → Fizz",
+      "body": { "$return": { "$call": "fizzbuzz", "$args": [9] } },
+      "expected": "Fizz"
+    },
+    {
+      "description": "$cond: fizzbuzz(10) → Buzz",
+      "body": { "$return": { "$call": "fizzbuzz", "$args": [10] } },
+      "expected": "Buzz"
+    },
+    {
+      "description": "$cond: fizzbuzz(7) → 7 (number passthrough)",
+      "body": { "$return": { "$call": "fizzbuzz", "$args": [7] } },
+      "expected": 7
+    },
+    {
+      "description": "$cond: inline letter grade",
+      "body": {
+        "$params": ["score"],
+        "$return": {
+          "$cond": [
+            [{ "$call": "gte", "$args": [{ "$var": "score" }, 90] }, "A"],
+            [{ "$call": "gte", "$args": [{ "$var": "score" }, 80] }, "B"],
+            [{ "$call": "gte", "$args": [{ "$var": "score" }, 70] }, "C"],
+            [{ "$call": "gte", "$args": [{ "$var": "score" }, 60] }, "D"],
+            [true, "F"]
+          ]
+        }
+      },
+      "args": [85],
+      "expected": "B"
+    },
+    {
+      "description": "$cond: short-circuits (only first matching branch evaluates)",
+      "body": {
+        "$return": {
+          "$cond": [
+            [false, { "$call": "add", "$args": [1, 2] }],
+            [true, "matched second"],
+            [true, "never reached"]
+          ]
+        }
+      },
+      "expected": "matched second"
+    },
+    {
+      "description": "$cond: single pair works as a guard",
+      "body": { "$return": { "$cond": [[true, "always this"]] } },
+      "expected": "always this"
+    },
+    {
+      "description": "$cond: $else returns fallback when no branch matches",
+      "body": {
+        "$return": {
+          "$cond": [
+            [false, "no"],
+            [0, "also no"]
+          ],
+          "$else": "fallback"
+        }
+      },
+      "expected": "fallback"
+    },
+    {
+      "description": "$cond: matched branch skips $else",
+      "body": {
+        "$return": { "$cond": [[true, "matched"]], "$else": { "$call": "div", "$args": [1, 0] } }
+      },
+      "expected": "matched"
+    },
+    {
+      "description": "$cond: no match without $else errors",
+      "body": { "$return": { "$cond": [[false, "no"]] } },
+      "error": "No $cond branch matched"
+    },
+    {
+      "description": "$cond: rejects non-array branches",
+      "body": { "$return": { "$cond": true, "$else": "fallback" } },
+      "error": "$cond must be an array of [condition, result] pairs"
+    },
+    {
+      "description": "$cond: rejects malformed branches",
+      "body": { "$return": { "$cond": [[true, "yes", "extra"]], "$else": "fallback" } },
+      "error": "Each $cond branch must be a [condition, result] pair"
+    },
+    {
+      "description": "$match: returns result for first strict-equal case",
+      "body": {
+        "$params": ["cmd"],
+        "$return": {
+          "$match": { "$var": "cmd" },
+          "$cases": [
+            ["show", "display"],
+            ["reset", "resetting"],
+            ["help", "help text"]
+          ],
+          "$else": "move"
+        }
+      },
+      "args": ["reset"],
+      "expected": "resetting"
+    },
+    {
+      "description": "$match: $else returns fallback when no case matches",
+      "body": {
+        "$params": ["cmd"],
+        "$return": { "$match": { "$var": "cmd" }, "$cases": [["show", "display"]], "$else": "move" }
+      },
+      "args": ["e2e4"],
+      "expected": "move"
+    },
+    {
+      "description": "$match: cases use strict equality",
+      "body": {
+        "$params": ["value"],
+        "$return": {
+          "$match": { "$var": "value" },
+          "$cases": [[1, "number"]],
+          "$else": "not number"
+        }
+      },
+      "args": ["1"],
+      "expected": "not number"
+    },
+    {
+      "description": "$match: rejects non-scalar match values",
+      "body": { "$return": { "$match": [1], "$cases": [[[1], "array"]], "$else": "fallback" } },
+      "error": "$match values must be null, boolean, number, or string"
+    },
+    {
+      "description": "$match: rejects non-scalar case values",
+      "body": {
+        "$return": { "$match": "show", "$cases": [[["show"], "array"]], "$else": "fallback" }
+      },
+      "error": "$match values must be null, boolean, number, or string"
+    },
+    {
+      "description": "$match: evaluates case values and only matched result",
+      "body": {
+        "$params": ["value"],
+        "$return": {
+          "$match": { "$var": "value" },
+          "$cases": [
+            ["b", { "$call": "div", "$args": [1, 0] }],
+            [{ "$call": "strcat", "$args": ["a", ""] }, "matched"]
+          ],
+          "$else": { "$call": "div", "$args": [1, 0] }
+        }
+      },
+      "args": ["a"],
+      "expected": "matched"
+    },
+    {
+      "description": "$match: stops after first matching case",
+      "body": {
+        "$return": {
+          "$match": "a",
+          "$cases": [
+            ["a", "first"],
+            [{ "$call": "div", "$args": [1, 0] }, "second"]
+          ],
+          "$else": { "$call": "div", "$args": [1, 0] }
+        }
+      },
+      "expected": "first"
+    },
+    {
+      "description": "$match: requires $else",
+      "body": { "$return": { "$match": "missing", "$cases": [["show", "display"]] } },
+      "error": "$match expressions must have $match, $cases, and $else properties"
+    },
+    {
+      "description": "$match: requires $cases",
+      "body": { "$return": { "$match": "show", "$else": "fallback" } },
+      "error": "$match expressions must have $match, $cases, and $else properties"
+    },
+    {
+      "description": "$match: rejects malformed cases",
+      "body": {
+        "$return": {
+          "$match": "show",
+          "$cases": [["show", "display", "extra"]],
+          "$else": "fallback"
+        }
+      },
+      "error": "Each $match case must be a [value, result] pair"
+    },
+    {
+      "description": "$and: all truthy returns last value",
+      "body": { "$return": { "$and": [1, "hello", true] } },
+      "expected": true
+    },
+    {
+      "description": "$and: short-circuits on first falsy",
+      "body": { "$return": { "$and": [1, 0, { "$call": "div", "$args": [1, 0] }] } },
+      "expected": 0
+    },
+    {
+      "description": "$and: empty array returns true",
+      "body": { "$return": { "$and": [] } },
+      "expected": true
+    },
+    {
+      "description": "$and: single falsy element",
+      "body": { "$return": { "$and": [null] } },
+      "expected": null
+    },
+    {
+      "description": "$and: single truthy element",
+      "body": { "$return": { "$and": ["yes"] } },
+      "expected": "yes"
+    },
+    {
+      "description": "$and: returns the falsy value, not boolean",
+      "body": { "$return": { "$and": [true, "", "unreached"] } },
+      "expected": ""
+    },
+    {
+      "description": "$or: all falsy returns last value",
+      "body": { "$return": { "$or": [false, 0, null] } },
+      "expected": null
+    },
+    {
+      "description": "$or: short-circuits on first truthy",
+      "body": { "$return": { "$or": [false, "found", { "$call": "div", "$args": [1, 0] }] } },
+      "expected": "found"
+    },
+    {
+      "description": "$or: empty array returns false",
+      "body": { "$return": { "$or": [] } },
+      "expected": false
+    },
+    {
+      "description": "$or: single truthy element",
+      "body": { "$return": { "$or": [42] } },
+      "expected": 42
+    },
+    {
+      "description": "$or: returns the truthy value, not boolean",
+      "body": { "$return": { "$or": [null, 0, "winner", "unreached"] } },
+      "expected": "winner"
+    },
+    {
+      "description": "$and/$or: nested composition",
+      "body": {
+        "$params": ["x"],
+        "$return": {
+          "$and": [
+            { "$call": "gt", "$args": [{ "$var": "x" }, 0] },
+            { "$or": [{ "$call": "eq", "$args": [{ "$var": "x" }, 42] }, "positive"] }
+          ]
+        }
+      },
+      "args": [10],
+      "expected": "positive"
+    }
+  ]
+}

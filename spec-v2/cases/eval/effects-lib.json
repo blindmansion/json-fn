@@ -1,0 +1,653 @@
+{
+  "description": "the guest-code effects library (examples/effects-lib.jfn): mapTask, andThen, forEachE, catch, retry, orElse, collectEffects, withState, and capability attenuation — all built on the kernel with ZERO new builtins. This suite is the acceptance test for the kernel: if any of these needed a primitive, the kernel would be wrong.",
+  "functions": {
+    "mapTask": {
+      "$params": ["f", "task"],
+      "$return": {
+        "$call": "bind",
+        "$args": [
+          { "$var": "task" },
+          {
+            "$params": ["x"],
+            "$return": { "$call": "pure", "$args": [{ "$call": "f", "$args": [{ "$var": "x" }] }] }
+          }
+        ]
+      }
+    },
+    "andThen": {
+      "$params": ["task", "next"],
+      "$return": {
+        "$call": "bind",
+        "$args": [{ "$var": "task" }, { "$params": ["_"], "$return": { "$var": "next" } }]
+      }
+    },
+    "forEachE": {
+      "$params": ["f", "xs"],
+      "$return": {
+        "$if": { "$call": "eq", "$args": [{ "$call": "length", "$args": [{ "$var": "xs" }] }, 0] },
+        "$then": { "$call": "pure", "$args": [[]] },
+        "$else": {
+          "$call": "bind",
+          "$args": [
+            { "$call": "f", "$args": [{ "$call": "head", "$args": [{ "$var": "xs" }] }] },
+            {
+              "$params": ["y"],
+              "$return": {
+                "$call": "mapTask",
+                "$args": [
+                  {
+                    "$params": ["rest"],
+                    "$return": {
+                      "$call": "concat",
+                      "$args": [[{ "$var": "y" }], { "$var": "rest" }]
+                    }
+                  },
+                  {
+                    "$call": "forEachE",
+                    "$args": [{ "$var": "f" }, { "$call": "tail", "$args": [{ "$var": "xs" }] }]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "catch": {
+      "$params": ["task", "onErr"],
+      "$return": {
+        "$call": "handle",
+        "$args": [
+          { "$var": "task" },
+          {
+            "raise": {
+              "$params": ["err", "resume"],
+              "$return": { "$call": "onErr", "$args": [{ "$var": "err" }] }
+            },
+            "return": {
+              "$params": ["v"],
+              "$return": { "$call": "pure", "$args": [{ "$var": "v" }] }
+            }
+          }
+        ]
+      }
+    },
+    "retry": {
+      "$params": ["n", "task"],
+      "$return": {
+        "$call": "catch",
+        "$args": [
+          { "$var": "task" },
+          {
+            "$params": ["err"],
+            "$return": {
+              "$if": { "$call": "lte", "$args": [{ "$var": "n" }, 0] },
+              "$then": { "$call": "raise", "$args": [{ "$var": "err" }] },
+              "$else": {
+                "$call": "retry",
+                "$args": [{ "$call": "sub", "$args": [{ "$var": "n" }, 1] }, { "$var": "task" }]
+              }
+            }
+          }
+        ]
+      }
+    },
+    "orElse": {
+      "$params": ["taskA", "taskB"],
+      "$return": {
+        "$call": "catch",
+        "$args": [{ "$var": "taskA" }, { "$params": ["err"], "$return": { "$var": "taskB" } }]
+      }
+    },
+    "collectEffects": {
+      "$params": ["task"],
+      "$return": {
+        "$call": "handle",
+        "$args": [
+          { "$var": "task" },
+          {
+            "*": {
+              "$params": ["eff", "resume"],
+              "$return": {
+                "$call": "concat",
+                "$args": [[{ "$var": "eff" }], { "$call": "resume", "$args": [null] }]
+              }
+            },
+            "return": { "$params": ["v"], "$return": [] }
+          }
+        ]
+      }
+    },
+    "withState": {
+      "$params": ["s0", "task"],
+      "$return": {
+        "$call": {
+          "$call": "handle",
+          "$args": [
+            { "$var": "task" },
+            {
+              "get": {
+                "$params": ["resume"],
+                "$return": {
+                  "$params": ["s"],
+                  "$return": {
+                    "$call": { "$call": "resume", "$args": [{ "$var": "s" }] },
+                    "$args": [{ "$var": "s" }]
+                  }
+                }
+              },
+              "put": {
+                "$params": ["s1", "resume"],
+                "$return": {
+                  "$params": ["s"],
+                  "$return": {
+                    "$call": { "$call": "resume", "$args": [null] },
+                    "$args": [{ "$var": "s1" }]
+                  }
+                }
+              },
+              "return": {
+                "$params": ["v"],
+                "$return": { "$params": ["s"], "$return": { "$var": "v" } }
+              }
+            }
+          ]
+        },
+        "$args": [{ "$var": "s0" }]
+      }
+    },
+    "attenuate": {
+      "$params": ["caps", "allowed"],
+      "$return": { "$call": "pick", "$args": [{ "$var": "caps" }, { "$var": "allowed" }] }
+    },
+    "readOnlyFs": {
+      "$params": ["fs", "prefix"],
+      "$return": {
+        "read": {
+          "$params": ["path"],
+          "$return": {
+            "$if": { "$call": "hasPrefix", "$args": [{ "$var": "path" }, { "$var": "prefix" }] },
+            "$then": {
+              "$call": { "$get": "read", "$from": { "$var": "fs" } },
+              "$args": [{ "$var": "path" }]
+            },
+            "$else": {
+              "$call": "raise",
+              "$args": [{ "tag": "Forbidden", "path": { "$var": "path" } }]
+            }
+          }
+        }
+      }
+    },
+    "hasPrefix": {
+      "$params": ["s", "p"],
+      "$return": {
+        "$call": "eq",
+        "$args": [
+          {
+            "$call": "slice",
+            "$args": [{ "$var": "s" }, 0, { "$call": "length", "$args": [{ "$var": "p" }] }]
+          },
+          { "$var": "p" }
+        ]
+      }
+    },
+    "mockFs": {
+      "$return": {
+        "read": {
+          "$params": ["path"],
+          "$return": { "$call": "perform", "$args": ["fs.read", [{ "$var": "path" }]] }
+        },
+        "write": {
+          "$params": ["path", "data"],
+          "$return": {
+            "$call": "perform",
+            "$args": ["fs.write", [{ "$var": "path" }, { "$var": "data" }]]
+          }
+        }
+      }
+    },
+    "counter": {
+      "$return": {
+        "$call": "bind",
+        "$args": [
+          { "$call": "perform", "$args": ["get", []] },
+          {
+            "$params": ["c"],
+            "$return": {
+              "$call": "bind",
+              "$args": [
+                {
+                  "$call": "perform",
+                  "$args": ["put", [{ "$call": "add", "$args": [{ "$var": "c" }, 1] }]]
+                },
+                { "$params": ["_"], "$return": { "$call": "pure", "$args": [{ "$var": "c" }] } }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  },
+  "cases": [
+    {
+      "description": "mapTask transforms the result of an effectful task",
+      "body": {
+        "$return": {
+          "$call": "handle",
+          "$args": [
+            {
+              "$call": "mapTask",
+              "$args": [
+                { "$params": ["x"], "$return": { "$call": "add", "$args": [{ "$var": "x" }, 1] } },
+                { "$call": "perform", "$args": ["ask", []] }
+              ]
+            },
+            { "ask": { "$params": ["resume"], "$return": { "$call": "resume", "$args": [41] } } }
+          ]
+        }
+      },
+      "expected": 42
+    },
+    {
+      "description": "mapTask over a pure task with no effects",
+      "body": {
+        "$return": {
+          "$call": "handle",
+          "$args": [
+            {
+              "$call": "mapTask",
+              "$args": [
+                { "$params": ["x"], "$return": { "$call": "mul", "$args": [{ "$var": "x" }, 10] } },
+                { "$call": "pure", "$args": [5] }
+              ]
+            },
+            {}
+          ]
+        }
+      },
+      "expected": 50
+    },
+    {
+      "description": "andThen sequences two tasks, discarding the first result",
+      "body": {
+        "$return": {
+          "$call": "handle",
+          "$args": [
+            {
+              "$call": "andThen",
+              "$args": [
+                { "$call": "perform", "$args": ["log", ["a"]] },
+                { "$call": "pure", "$args": [99] }
+              ]
+            },
+            {
+              "log": {
+                "$params": ["msg", "resume"],
+                "$return": { "$call": "resume", "$args": [null] }
+              }
+            }
+          ]
+        }
+      },
+      "expected": 99
+    },
+    {
+      "description": "forEachE runs an effect per element and collects results in order",
+      "body": {
+        "$return": {
+          "$call": "handle",
+          "$args": [
+            {
+              "$call": "forEachE",
+              "$args": [
+                {
+                  "$params": ["x"],
+                  "$return": { "$call": "perform", "$args": ["double", [{ "$var": "x" }]] }
+                },
+                [1, 2, 3]
+              ]
+            },
+            {
+              "double": {
+                "$params": ["x", "resume"],
+                "$return": {
+                  "$call": "resume",
+                  "$args": [{ "$call": "mul", "$args": [{ "$var": "x" }, 2] }]
+                }
+              }
+            }
+          ]
+        }
+      },
+      "expected": [2, 4, 6]
+    },
+    {
+      "description": "forEachE over an empty list is a pure empty result",
+      "body": {
+        "$return": {
+          "$call": "handle",
+          "$args": [
+            {
+              "$call": "forEachE",
+              "$args": [
+                {
+                  "$params": ["x"],
+                  "$return": { "$call": "perform", "$args": ["double", [{ "$var": "x" }]] }
+                },
+                []
+              ]
+            },
+            {}
+          ]
+        }
+      },
+      "expected": []
+    },
+    {
+      "description": "catch recovers from a raised error",
+      "body": {
+        "$return": {
+          "$call": "handle",
+          "$args": [
+            {
+              "$call": "catch",
+              "$args": [
+                { "$call": "raise", "$args": ["boom"] },
+                {
+                  "$params": ["err"],
+                  "$return": {
+                    "$call": "pure",
+                    "$args": [{ "$call": "strcat", "$args": ["caught:", { "$var": "err" }] }]
+                  }
+                }
+              ]
+            },
+            {}
+          ]
+        }
+      },
+      "expected": "caught:boom"
+    },
+    {
+      "description": "catch passes a successful value through untouched",
+      "body": {
+        "$return": {
+          "$call": "handle",
+          "$args": [
+            {
+              "$call": "catch",
+              "$args": [
+                { "$call": "pure", "$args": [7] },
+                { "$params": ["err"], "$return": { "$call": "pure", "$args": [-1] } }
+              ]
+            },
+            {}
+          ]
+        }
+      },
+      "expected": 7
+    },
+    {
+      "description": "catch is transparent to non-raise effects (they bubble to the outer handler)",
+      "body": {
+        "$return": {
+          "$call": "handle",
+          "$args": [
+            {
+              "$call": "catch",
+              "$args": [
+                {
+                  "$call": "bind",
+                  "$args": [
+                    { "$call": "perform", "$args": ["ask", []] },
+                    {
+                      "$params": ["x"],
+                      "$return": {
+                        "$call": "pure",
+                        "$args": [{ "$call": "add", "$args": [{ "$var": "x" }, 1] }]
+                      }
+                    }
+                  ]
+                },
+                { "$params": ["err"], "$return": { "$call": "pure", "$args": [-1] } }
+              ]
+            },
+            { "ask": { "$params": ["resume"], "$return": { "$call": "resume", "$args": [10] } } }
+          ]
+        }
+      },
+      "expected": 11
+    },
+    {
+      "description": "retry re-runs a failing task; the outer wildcard counts one initial attempt plus two retries",
+      "functions": {
+        "flaky": {
+          "$return": {
+            "$call": "bind",
+            "$args": [
+              { "$call": "perform", "$args": ["attempt", []] },
+              { "$params": ["_"], "$return": { "$call": "raise", "$args": ["boom"] } }
+            ]
+          }
+        }
+      },
+      "body": {
+        "$return": {
+          "$call": "handle",
+          "$args": [
+            {
+              "$call": "catch",
+              "$args": [
+                { "$call": "retry", "$args": [2, { "$call": "flaky", "$args": [] }] },
+                { "$params": ["err"], "$return": { "$call": "pure", "$args": [[]] } }
+              ]
+            },
+            {
+              "attempt": {
+                "$params": ["resume"],
+                "$return": {
+                  "$call": "concat",
+                  "$args": [["try"], { "$call": "resume", "$args": [null] }]
+                }
+              },
+              "return": { "$params": ["v"], "$return": { "$var": "v" } }
+            }
+          ]
+        }
+      },
+      "expected": ["try", "try", "try"]
+    },
+    {
+      "description": "retry returns immediately when the first attempt succeeds",
+      "body": {
+        "$return": {
+          "$call": "handle",
+          "$args": [
+            { "$call": "retry", "$args": [2, { "$call": "perform", "$args": ["ask", []] }] },
+            { "ask": { "$params": ["resume"], "$return": { "$call": "resume", "$args": [42] } } }
+          ]
+        }
+      },
+      "expected": 42
+    },
+    {
+      "description": "orElse falls back to the second task when the first raises",
+      "body": {
+        "$return": {
+          "$call": "handle",
+          "$args": [
+            {
+              "$call": "orElse",
+              "$args": [
+                { "$call": "raise", "$args": ["nope"] },
+                { "$call": "pure", "$args": ["fallback"] }
+              ]
+            },
+            {}
+          ]
+        }
+      },
+      "expected": "fallback"
+    },
+    {
+      "description": "orElse keeps the first task's value when it succeeds",
+      "body": {
+        "$return": {
+          "$call": "handle",
+          "$args": [
+            {
+              "$call": "orElse",
+              "$args": [
+                { "$call": "pure", "$args": [1] },
+                { "$call": "pure", "$args": [2] }
+              ]
+            },
+            {}
+          ]
+        }
+      },
+      "expected": 1
+    },
+    {
+      "description": "collectEffects dry-runs a task, listing the effects it would perform without performing them",
+      "body": {
+        "$return": {
+          "$call": "collectEffects",
+          "$args": [
+            {
+              "$call": "bind",
+              "$args": [
+                { "$call": "perform", "$args": ["read", ["a"]] },
+                {
+                  "$params": ["_"],
+                  "$return": {
+                    "$call": "bind",
+                    "$args": [
+                      { "$call": "perform", "$args": ["write", ["b"]] },
+                      { "$params": ["_"], "$return": { "$call": "pure", "$args": [null] } }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "expected": [
+        { "name": "read", "args": ["a"] },
+        { "name": "write", "args": ["b"] }
+      ]
+    },
+    {
+      "description": "withState threads state purely: counter returns the old value while incrementing",
+      "body": {
+        "$return": { "$call": "withState", "$args": [10, { "$call": "counter", "$args": [] }] }
+      },
+      "expected": 10
+    },
+    {
+      "description": "withState: a put is visible to a later get within the same run",
+      "functions": {
+        "putThenGet": {
+          "$return": {
+            "$call": "bind",
+            "$args": [
+              { "$call": "perform", "$args": ["put", [5]] },
+              {
+                "$params": ["_"],
+                "$return": {
+                  "$call": "bind",
+                  "$args": [
+                    { "$call": "perform", "$args": ["get", []] },
+                    { "$params": ["x"], "$return": { "$call": "pure", "$args": [{ "$var": "x" }] } }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      },
+      "body": {
+        "$return": { "$call": "withState", "$args": [99, { "$call": "putThenGet", "$args": [] }] }
+      },
+      "expected": 5
+    },
+    {
+      "description": "attenuate narrows a capability record to the allowed methods only",
+      "body": {
+        "$return": { "$call": "attenuate", "$args": [{ "a": 1, "b": 2, "c": 3 }, ["a", "c"]] }
+      },
+      "expected": { "a": 1, "c": 3 }
+    },
+    {
+      "description": "readOnlyFs permits a read under the allowed prefix",
+      "body": {
+        "$return": {
+          "$call": "handle",
+          "$args": [
+            {
+              "$call": {
+                "$get": "read",
+                "$from": {
+                  "$call": "readOnlyFs",
+                  "$args": [{ "$call": "mockFs", "$args": [] }, "/pub/"]
+                }
+              },
+              "$args": ["/pub/greeting"]
+            },
+            {
+              "fs.read": {
+                "$params": ["path", "resume"],
+                "$return": {
+                  "$call": "resume",
+                  "$args": [{ "$call": "strcat", "$args": ["contents of ", { "$var": "path" }] }]
+                }
+              }
+            }
+          ]
+        }
+      },
+      "expected": "contents of /pub/greeting"
+    },
+    {
+      "description": "readOnlyFs raises Forbidden for a path outside the prefix, without ever performing fs.read",
+      "body": {
+        "$return": {
+          "$call": "handle",
+          "$args": [
+            {
+              "$call": "catch",
+              "$args": [
+                {
+                  "$call": {
+                    "$get": "read",
+                    "$from": {
+                      "$call": "readOnlyFs",
+                      "$args": [{ "$call": "mockFs", "$args": [] }, "/pub/"]
+                    }
+                  },
+                  "$args": ["/etc/secrets"]
+                },
+                {
+                  "$params": ["err"],
+                  "$return": {
+                    "$call": "pure",
+                    "$args": [{ "$get": "tag", "$from": { "$var": "err" } }]
+                  }
+                }
+              ]
+            },
+            {
+              "fs.read": {
+                "$params": ["path", "resume"],
+                "$return": { "$call": "resume", "$args": ["should-not-happen"] }
+              }
+            }
+          ]
+        }
+      },
+      "expected": "Forbidden"
+    }
+  ]
+}

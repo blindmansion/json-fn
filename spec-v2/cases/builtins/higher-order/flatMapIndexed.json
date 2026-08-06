@@ -1,0 +1,24 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "flatMapIndexed",
+  "description": "Flat-map array elements with callbacks that also receive each index.",
+  "cases": [
+    {
+      "description": "passes each value and index to the callback",
+      "args": [
+        {
+          "$callback": {
+            "steps": [
+              { "args": ["a", 0], "outcome": { "returns": [0] } },
+              { "args": ["b", 1], "outcome": { "returns": [1] } },
+              { "args": ["c", 2], "outcome": { "returns": [2] } }
+            ]
+          }
+        },
+        ["a", "b", "c"]
+      ],
+      "outcome": { "returns": [0, 1, 2] },
+      "observations": { "meter": { "charged": 3, "guardedSizes": [3] } }
+    }
+  ]
+}

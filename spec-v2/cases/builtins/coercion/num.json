@@ -1,0 +1,58 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "num",
+  "description": "Convert strings, booleans, null, and numbers to finite numbers.",
+  "cases": [
+    {
+      "description": "parses an integer string",
+      "args": ["42"],
+      "outcome": { "returns": 42 },
+      "observations": { "meter": { "charged": 2 } }
+    },
+    {
+      "description": "parses a decimal string",
+      "args": ["3.14"],
+      "outcome": { "returns": 3.14 }
+    },
+    {
+      "description": "parses a negative string",
+      "args": ["-7"],
+      "outcome": { "returns": -7 }
+    },
+    {
+      "description": "parses a zero string",
+      "args": ["0"],
+      "outcome": { "returns": 0 }
+    },
+    {
+      "description": "converts true to one",
+      "args": [true],
+      "outcome": { "returns": 1 }
+    },
+    {
+      "description": "converts false to zero",
+      "args": [false],
+      "outcome": { "returns": 0 }
+    },
+    {
+      "description": "converts null to zero",
+      "args": [null],
+      "outcome": { "returns": 0 }
+    },
+    {
+      "description": "leaves a number unchanged",
+      "args": [99],
+      "outcome": { "returns": 99 }
+    },
+    {
+      "description": "rejects an unparseable string",
+      "args": ["not a number"],
+      "outcome": { "throws": { "messageIncludes": "cannot parse" } }
+    },
+    {
+      "description": "rejects a string outside the finite number range",
+      "args": ["1e999"],
+      "outcome": { "throws": { "messageIncludes": "finite number" } }
+    }
+  ]
+}

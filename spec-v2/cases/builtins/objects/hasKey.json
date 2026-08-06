@@ -1,0 +1,42 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "hasKey",
+  "description": "Test whether an object contains an own key.",
+  "cases": [
+    {
+      "description": "returns true for an existing key",
+      "args": [{ "x": 1, "y": 2 }, "x"],
+      "outcome": { "returns": true }
+    },
+    {
+      "description": "returns false for a missing key",
+      "args": [{ "x": 1 }, "z"],
+      "outcome": { "returns": false }
+    },
+    {
+      "description": "recognizes a key whose value is null",
+      "args": [{ "a": null }, "a"],
+      "outcome": { "returns": true }
+    },
+    {
+      "description": "rejects a non-object first argument",
+      "args": [[1, 2], "0"],
+      "outcome": { "throws": { "messageIncludes": "first argument must be an object" } }
+    },
+    {
+      "description": "rejects a numeric key",
+      "args": [{ "1": "one" }, 1],
+      "outcome": { "throws": { "messageIncludes": "second argument must be a string" } }
+    },
+    {
+      "description": "ignores inherited properties",
+      "args": [{}, "toString"],
+      "outcome": { "returns": false }
+    },
+    {
+      "description": "recognizes an own __proto__ property",
+      "args": [{ "__proto__": "data" }, "__proto__"],
+      "outcome": { "returns": true }
+    }
+  ]
+}

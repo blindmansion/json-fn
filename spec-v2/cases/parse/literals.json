@@ -1,0 +1,70 @@
+{
+  "$schema": "../parse.schema.json",
+  "description": "literals and data (shorthand spec section 3)",
+  "cases": [
+    { "description": "scalar: integer", "source": "42", "expected": 42 },
+    { "description": "scalar: negative float", "source": "-3.5", "expected": -3.5 },
+    { "description": "scalar: string", "source": "\"hello\"", "expected": "hello" },
+    { "description": "scalar: true", "source": "true", "expected": true },
+    { "description": "scalar: false", "source": "false", "expected": false },
+    { "description": "scalar: null", "source": "null", "expected": null },
+    {
+      "description": "arrays evaluate elements",
+      "source": "[1, add(2, 3)]",
+      "expected": [1, { "$call": "add", "$args": [2, 3] }]
+    },
+    {
+      "description": "data objects",
+      "source": "{ name: \"ada\", score: x + 1 }",
+      "expected": { "name": "ada", "score": { "$call": "add", "$args": [{ "$var": "x" }, 1] } }
+    },
+    {
+      "description": "data object with shorthand-property punning",
+      "source": "{ year, month, day }",
+      "expected": {
+        "year": { "$var": "year" },
+        "month": { "$var": "month" },
+        "day": { "$var": "day" }
+      }
+    },
+    {
+      "description": "punned and explicit entries mix",
+      "source": "{ year, month: m }",
+      "expected": { "year": { "$var": "year" }, "month": { "$var": "m" } }
+    },
+    {
+      "description": "trailing comma after a pun normalizes away",
+      "source": "{ x, }",
+      "expected": { "x": { "$var": "x" } }
+    },
+    {
+      "description": "quoted-string key cannot pun (requires a value)",
+      "source": "{ \"year\" }",
+      "error": true
+    },
+    {
+      "description": "data-object $-key (bare) is rejected",
+      "source": "{ $fn: 1 }",
+      "error": true
+    },
+    {
+      "description": "data-object $-key (quoted) quotes the static object",
+      "source": "{ \"$fn\": 1 }",
+      "expected": { "$raw": { "$fn": 1 } }
+    },
+    {
+      "description": "expression-shaped static data lowers to a $raw boundary",
+      "source": "{ \"$fn\": [\"not\", \"x\"] }",
+      "expected": { "$raw": { "$fn": ["not", "x"] } }
+    },
+    {
+      "description": "ordinary static nested arrays stay plain JSON",
+      "source": "[[-2, -1], [-2, 1], [-1, -2]]",
+      "expected": [
+        [-2, -1],
+        [-2, 1],
+        [-1, -2]
+      ]
+    }
+  ]
+}

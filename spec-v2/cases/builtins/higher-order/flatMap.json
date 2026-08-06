@@ -1,0 +1,62 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "flatMap",
+  "description": "Transform array elements and flatten array callback results by one level.",
+  "cases": [
+    {
+      "description": "maps and flattens array callback results",
+      "args": [
+        {
+          "$callback": {
+            "steps": [
+              { "args": [1], "outcome": { "returns": [1, -1] } },
+              { "args": [2], "outcome": { "returns": [2, -2] } },
+              { "args": [3], "outcome": { "returns": [3, -3] } }
+            ]
+          }
+        },
+        [1, 2, 3]
+      ],
+      "outcome": { "returns": [1, -1, 2, -2, 3, -3] },
+      "observations": { "meter": { "charged": 3, "guardedSizes": [6] } }
+    },
+    {
+      "description": "retains non-array callback results",
+      "args": [
+        {
+          "$callback": {
+            "steps": [
+              { "args": [1], "outcome": { "returns": 10 } },
+              { "args": [2], "outcome": { "returns": 20 } },
+              { "args": [3], "outcome": { "returns": 30 } }
+            ]
+          }
+        },
+        [1, 2, 3]
+      ],
+      "outcome": { "returns": [10, 20, 30] }
+    },
+    {
+      "description": "removes empty array callback results",
+      "args": [
+        {
+          "$callback": {
+            "steps": [
+              { "args": [1], "outcome": { "returns": [] } },
+              { "args": [2], "outcome": { "returns": [] } },
+              { "args": [3], "outcome": { "returns": [3] } },
+              { "args": [4], "outcome": { "returns": [4] } }
+            ]
+          }
+        },
+        [1, 2, 3, 4]
+      ],
+      "outcome": { "returns": [3, 4] }
+    },
+    {
+      "description": "does not call the callback for empty input",
+      "args": [{ "$callback": { "steps": [] } }, []],
+      "outcome": { "returns": [] }
+    }
+  ]
+}

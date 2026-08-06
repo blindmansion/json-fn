@@ -1,0 +1,37 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "min",
+  "description": "Return the smallest number in a non-empty array.",
+  "cases": [
+    {
+      "description": "returns the smallest element",
+      "args": [[3, 1, 4, 1, 5, 9, 2, 6]],
+      "outcome": { "returns": 1 }
+    },
+    {
+      "description": "returns the only element",
+      "args": [[42]],
+      "outcome": { "returns": 42 }
+    },
+    {
+      "description": "supports negative values",
+      "args": [[-3, -1, -4, -1, -5]],
+      "outcome": { "returns": -5 }
+    },
+    {
+      "description": "rejects a non-array argument",
+      "args": [42],
+      "outcome": { "throws": { "messageIncludes": "argument must be an array" } }
+    },
+    {
+      "description": "rejects an empty array",
+      "args": [[]],
+      "outcome": { "throws": { "messageIncludes": "argument must not be empty" } }
+    },
+    {
+      "description": "rejects a non-number element",
+      "args": [[1, "-9", 3]],
+      "outcome": { "throws": { "messageIncludes": "array elements must be numbers" } }
+    }
+  ]
+}

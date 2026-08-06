@@ -1,0 +1,416 @@
+{
+  "description": "Fuel limits (metered work budget)",
+  "comment": "Fuel is charged at expression, function-invocation, result-size, and size-sensitive builtin chokepoints; see docs/runtime/execution-limits.md.",
+  "cases": [
+    {
+      "description": "op-bomb via map + pure-builtin callback is rejected at a tight budget",
+      "body": {
+        "$return": {
+          "$call": "length",
+          "$args": [{ "$call": "map", "$args": ["neg", { "$call": "range", "$args": [100000] }] }]
+        }
+      },
+      "limits": { "maxFuel": 1000 },
+      "error": "Maximum fuel"
+    },
+    {
+      "description": "same map program completes under an adequate budget",
+      "body": {
+        "$return": {
+          "$call": "length",
+          "$args": [{ "$call": "map", "$args": ["neg", { "$call": "range", "$args": [100000] }] }]
+        }
+      },
+      "limits": { "maxFuel": 10000000 },
+      "expected": 100000
+    },
+    {
+      "description": "op-bomb via reduce + pure-builtin callback is rejected at a tight budget",
+      "body": {
+        "$return": { "$call": "reduce", "$args": ["add", 0, { "$call": "range", "$args": [1000] }] }
+      },
+      "limits": { "maxFuel": 1000 },
+      "error": "Maximum fuel"
+    },
+    {
+      "description": "same reduce program completes under an adequate budget",
+      "body": {
+        "$return": { "$call": "reduce", "$args": ["add", 0, { "$call": "range", "$args": [1000] }] }
+      },
+      "limits": { "maxFuel": 10000000 },
+      "expected": 499500
+    },
+    {
+      "description": "op-bomb via sort + pure-builtin comparator is rejected at a tight budget",
+      "body": {
+        "$return": {
+          "$call": "length",
+          "$args": [{ "$call": "sort", "$args": ["sub", { "$call": "range", "$args": [1000] }] }]
+        }
+      },
+      "limits": { "maxFuel": 1000 },
+      "error": "Maximum fuel"
+    },
+    {
+      "description": "nested-HOF amplification (flatMap of map) is rejected at a tight budget",
+      "body": {
+        "$return": {
+          "$call": "length",
+          "$args": [
+            {
+              "$call": "flatMap",
+              "$args": [
+                {
+                  "$params": ["x"],
+                  "$return": {
+                    "$call": "map",
+                    "$args": ["neg", { "$call": "range", "$args": [300] }]
+                  }
+                },
+                { "$call": "range", "$args": [300] }
+              ]
+            }
+          ]
+        }
+      },
+      "limits": { "maxFuel": 1000 },
+      "error": "Maximum fuel"
+    },
+    {
+      "description": "same nested-HOF program completes under an adequate budget",
+      "body": {
+        "$return": {
+          "$call": "length",
+          "$args": [
+            {
+              "$call": "flatMap",
+              "$args": [
+                {
+                  "$params": ["x"],
+                  "$return": {
+                    "$call": "map",
+                    "$args": ["neg", { "$call": "range", "$args": [300] }]
+                  }
+                },
+                { "$call": "range", "$args": [300] }
+              ]
+            }
+          ]
+        }
+      },
+      "limits": { "maxFuel": 10000000 },
+      "expected": 90000
+    },
+    {
+      "description": "constructing and measuring a 100-element range fits the aggregate test budget",
+      "body": { "$return": { "$call": "length", "$args": [{ "$call": "range", "$args": [100] }] } },
+      "limits": { "maxFuel": 150 },
+      "expected": 100
+    },
+    {
+      "description": "sum charges fuel for traversing its input",
+      "body": { "$return": { "$call": "sum", "$args": [{ "$call": "range", "$args": [100] }] } },
+      "limits": { "maxFuel": 150 },
+      "error": "Maximum fuel"
+    },
+    {
+      "description": "max charges fuel for traversing its input",
+      "body": { "$return": { "$call": "max", "$args": [{ "$call": "range", "$args": [100] }] } },
+      "limits": { "maxFuel": 150 },
+      "error": "Maximum fuel"
+    },
+    {
+      "description": "min charges fuel for traversing its input",
+      "body": { "$return": { "$call": "min", "$args": [{ "$call": "range", "$args": [100] }] } },
+      "limits": { "maxFuel": 150 },
+      "error": "Maximum fuel"
+    },
+    {
+      "description": "includes charges fuel for unsuccessful input traversal",
+      "body": {
+        "$return": { "$call": "includes", "$args": [{ "$call": "range", "$args": [100] }, -1] }
+      },
+      "limits": { "maxFuel": 150 },
+      "error": "Maximum fuel"
+    },
+    {
+      "description": "structural equality charges fuel for visited values",
+      "body": {
+        "$return": {
+          "$call": "eq",
+          "$args": [
+            { "$call": "range", "$args": [100] },
+            { "$call": "range", "$args": [100] }
+          ]
+        }
+      },
+      "limits": { "maxFuel": 250 },
+      "error": "Maximum fuel"
+    },
+    {
+      "description": "join charges fuel for traversing inputs that produce an empty string",
+      "body": {
+        "$return": { "$call": "join", "$args": [{ "$call": "repeat", "$args": [[""], 100] }, ""] }
+      },
+      "limits": { "maxFuel": 150 },
+      "error": "Maximum fuel"
+    },
+    {
+      "description": "trim charges fuel when a long input produces an empty string",
+      "body": {
+        "$return": { "$call": "trim", "$args": [{ "$call": "repeat", "$args": [" ", 100] }] }
+      },
+      "limits": { "maxFuel": 150 },
+      "error": "Maximum fuel"
+    },
+    {
+      "description": "fromEntries charges fuel even though its result is an object",
+      "body": {
+        "$return": {
+          "$call": "fromEntries",
+          "$args": [
+            {
+              "$call": "zip",
+              "$args": [
+                { "$call": "repeat", "$args": [["key"], 100] },
+                { "$call": "range", "$args": [100] }
+              ]
+            }
+          ]
+        }
+      },
+      "limits": { "maxFuel": 350 },
+      "error": "Maximum fuel"
+    },
+    {
+      "description": "constructing and measuring 100 empty arrays fits the flatten test budget",
+      "body": {
+        "$return": { "$call": "length", "$args": [{ "$call": "repeat", "$args": [[[]], 100] }] }
+      },
+      "limits": { "maxFuel": 150 },
+      "expected": 100
+    },
+    {
+      "description": "flatten charges fuel for traversing its input even when output is empty",
+      "body": {
+        "$return": {
+          "$call": "length",
+          "$args": [{ "$call": "flatten", "$args": [{ "$call": "repeat", "$args": [[[]], 100] }] }]
+        }
+      },
+      "limits": { "maxFuel": 150 },
+      "error": "Maximum fuel"
+    },
+    {
+      "description": "small program still runs under a modest budget (guards against over-charging)",
+      "body": { "$return": { "$call": "map", "$args": ["neg", [1, 2, 3]] } },
+      "limits": { "maxFuel": 1000 },
+      "expected": [-1, -2, -3]
+    },
+    {
+      "description": "product charges fuel for traversing its input",
+      "body": {
+        "$return": { "$call": "product", "$args": [{ "$call": "rangeFrom", "$args": [1, 101] }] }
+      },
+      "limits": { "maxFuel": 150 },
+      "error": "Maximum fuel"
+    },
+    {
+      "description": "frequencies charges fuel for traversing its input",
+      "body": {
+        "$return": {
+          "$call": "frequencies",
+          "$args": [{ "$call": "repeat", "$args": [["x"], 100] }]
+        }
+      },
+      "limits": { "maxFuel": 150 },
+      "error": "Maximum fuel"
+    },
+    {
+      "description": "scan charges native traversal and callback invocation fuel",
+      "body": {
+        "$return": { "$call": "scan", "$args": ["add", 0, { "$call": "range", "$args": [100] }] }
+      },
+      "limits": { "maxFuel": 250 },
+      "error": "Maximum fuel"
+    },
+    {
+      "description": "$raw charges the payload's full static-literal cost: exact budget passes",
+      "comment": "1 (call) + 4 ($raw boundary charging array + 3 elements) = 5, identical to the equivalent plain literal.",
+      "body": { "$return": { "$raw": [1, 2, 3] } },
+      "limits": { "maxFuel": 5 },
+      "expected": [1, 2, 3]
+    },
+    {
+      "description": "$raw charges the payload's full static-literal cost: one unit less fails",
+      "body": { "$return": { "$raw": [1, 2, 3] } },
+      "limits": { "maxFuel": 4 },
+      "error": "Maximum fuel"
+    },
+    {
+      "description": "an expression-shaped $raw payload charges its node count without being evaluated",
+      "comment": "1 (call) + 2 (object + one entry value) = 3; the $var key is quoted data, not syntax.",
+      "body": { "$return": { "$raw": { "$var": "quoted" } } },
+      "limits": { "maxFuel": 3 },
+      "expected": { "$var": "quoted" }
+    },
+    {
+      "description": "a plain constant literal charges the same fuel as its $raw equivalent",
+      "body": { "$return": [1, 2, 3] },
+      "limits": { "maxFuel": 5 },
+      "expected": [1, 2, 3]
+    },
+    {
+      "description": "a plain constant literal one unit under its cost fails like its $raw equivalent",
+      "body": { "$return": [1, 2, 3] },
+      "limits": { "maxFuel": 4 },
+      "error": "Maximum fuel"
+    },
+    {
+      "description": "$raw preserves $comment entries and charges the produced node count",
+      "comment": "1 (call) + 3 (object + preserved $comment string + value) = 4. Quotation keeps the entry, so it is charged.",
+      "body": { "$return": { "$raw": { "$comment": "kept", "value": 1 } } },
+      "limits": { "maxFuel": 4 },
+      "expected": { "$comment": "kept", "value": 1 }
+    },
+    {
+      "description": "$raw $comment payload one unit under its produced node count fails",
+      "body": { "$return": { "$raw": { "$comment": "kept", "value": 1 } } },
+      "limits": { "maxFuel": 3 },
+      "error": "Maximum fuel"
+    },
+    {
+      "description": "a plain literal strips $comment and charges only the produced nodes",
+      "comment": "1 (call) + 2 (object + value) = 3. The stripped entry is not part of the produced value and is not charged.",
+      "body": { "$return": { "$comment": "stripped", "value": 1 } },
+      "limits": { "maxFuel": 3 },
+      "expected": { "value": 1 }
+    },
+    {
+      "description": "a plain $comment literal one unit under its produced node count fails",
+      "body": { "$return": { "$comment": "stripped", "value": 1 } },
+      "limits": { "maxFuel": 2 },
+      "error": "Maximum fuel"
+    },
+    {
+      "description": "a captured runtime value re-enters expression position at one node regardless of payload size",
+      "comment": "The 41-node argument was produced and accounted for at the entry boundary; invoking the escaping closure re-enters the substituted value for 1 unit, so the whole program costs 8 whatever the payload size. Charging the payload's descendants again would exceed this budget.",
+      "functions": {
+        "capture": {
+          "$params": ["value"],
+          "$return": { "$params": [], "$return": { "$var": "value" } }
+        }
+      },
+      "body": {
+        "$params": ["payload"],
+        "$return": {
+          "$call": { "$call": "capture", "$args": [{ "$var": "payload" }] },
+          "$args": []
+        }
+      },
+      "args": [
+        [
+          { "id": 0, "tags": ["a", "b"] },
+          { "id": 1, "tags": ["a", "b"] },
+          { "id": 2, "tags": ["a", "b"] },
+          { "id": 3, "tags": ["a", "b"] },
+          { "id": 4, "tags": ["a", "b"] },
+          { "id": 5, "tags": ["a", "b"] },
+          { "id": 6, "tags": ["a", "b"] },
+          { "id": 7, "tags": ["a", "b"] }
+        ]
+      ],
+      "limits": { "maxFuel": 8 },
+      "expected": [
+        { "id": 0, "tags": ["a", "b"] },
+        { "id": 1, "tags": ["a", "b"] },
+        { "id": 2, "tags": ["a", "b"] },
+        { "id": 3, "tags": ["a", "b"] },
+        { "id": 4, "tags": ["a", "b"] },
+        { "id": 5, "tags": ["a", "b"] },
+        { "id": 6, "tags": ["a", "b"] },
+        { "id": 7, "tags": ["a", "b"] }
+      ]
+    },
+    {
+      "description": "the runtime-value re-entry program one unit under its cost fails",
+      "functions": {
+        "capture": {
+          "$params": ["value"],
+          "$return": { "$params": [], "$return": { "$var": "value" } }
+        }
+      },
+      "body": {
+        "$params": ["payload"],
+        "$return": {
+          "$call": { "$call": "capture", "$args": [{ "$var": "payload" }] },
+          "$args": []
+        }
+      },
+      "args": [
+        [
+          { "id": 0, "tags": ["a", "b"] },
+          { "id": 1, "tags": ["a", "b"] },
+          { "id": 2, "tags": ["a", "b"] },
+          { "id": 3, "tags": ["a", "b"] },
+          { "id": 4, "tags": ["a", "b"] },
+          { "id": 5, "tags": ["a", "b"] },
+          { "id": 6, "tags": ["a", "b"] },
+          { "id": 7, "tags": ["a", "b"] }
+        ]
+      ],
+      "limits": { "maxFuel": 7 },
+      "error": "Maximum fuel"
+    },
+    {
+      "description": "invoking a constant-bodied function charges its complete node count",
+      "comment": "Anchors the per-invocation cost of 12 used by the repeated-evaluation cases below.",
+      "functions": { "constants": { "$return": [{ "id": 1, "nested": [1, 2, 3] }, { "id": 2 }] } },
+      "body": { "$return": { "$call": "constants", "$args": [] } },
+      "limits": { "maxFuel": 12 },
+      "expected": [{ "id": 1, "nested": [1, 2, 3] }, { "id": 2 }]
+    },
+    {
+      "description": "re-evaluating a cached constant subtree charges its full cost each time",
+      "comment": "The second invocation may reuse discovered constant metadata to skip traversal, but it must charge the same complete cost again: 2 * 12 = 24, never a discounted runtime-value re-entry.",
+      "functions": { "constants": { "$return": [{ "id": 1, "nested": [1, 2, 3] }, { "id": 2 }] } },
+      "body": {
+        "$return": [
+          { "$call": "constants", "$args": [] },
+          { "$call": "constants", "$args": [] }
+        ]
+      },
+      "limits": { "maxFuel": 24 },
+      "expected": [
+        [{ "id": 1, "nested": [1, 2, 3] }, { "id": 2 }],
+        [{ "id": 1, "nested": [1, 2, 3] }, { "id": 2 }]
+      ]
+    },
+    {
+      "description": "the repeated constant evaluation one unit under its doubled cost fails",
+      "comment": "Guards against a constant cache discounting the second invocation: an implementation charging the cheap re-entry rate would finish well under this budget and fail to error.",
+      "functions": { "constants": { "$return": [{ "id": 1, "nested": [1, 2, 3] }, { "id": 2 }] } },
+      "body": {
+        "$return": [
+          { "$call": "constants", "$args": [] },
+          { "$call": "constants", "$args": [] }
+        ]
+      },
+      "limits": { "maxFuel": 23 },
+      "error": "Maximum fuel"
+    },
+    {
+      "description": "flattenDepth charges fuel for each visited nested element",
+      "body": {
+        "$return": {
+          "$call": "length",
+          "$args": [
+            { "$call": "flattenDepth", "$args": [{ "$call": "repeat", "$args": [[[]], 100] }, 2] }
+          ]
+        }
+      },
+      "limits": { "maxFuel": 150 },
+      "error": "Maximum fuel"
+    }
+  ]
+}

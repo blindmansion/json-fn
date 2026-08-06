@@ -1,0 +1,35 @@
+{
+  "description": "captured expression-shaped data remains inert",
+  "functions": {
+    "capture": {
+      "$params": ["value"],
+      "$return": { "$params": [], "$return": { "$var": "value" } }
+    }
+  },
+  "cases": [
+    {
+      "description": "$call-shaped argument data remains inert after closure capture",
+      "body": {
+        "$params": ["payload"],
+        "$return": {
+          "$call": { "$call": "capture", "$args": [{ "$var": "payload" }] },
+          "$args": []
+        }
+      },
+      "args": [{ "$call": "missing", "$args": [] }],
+      "expected": { "$call": "missing", "$args": [] }
+    },
+    {
+      "description": "$var-shaped argument data remains inert after closure capture",
+      "body": {
+        "$params": ["payload"],
+        "$return": {
+          "$call": { "$call": "capture", "$args": [{ "$var": "payload" }] },
+          "$args": []
+        }
+      },
+      "args": [{ "$var": "missing" }],
+      "expected": { "$var": "missing" }
+    }
+  ]
+}

@@ -1,0 +1,68 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "groupBy",
+  "description": "Group array elements by string or numeric callback keys.",
+  "cases": [
+    {
+      "description": "groups by string keys while preserving input order",
+      "args": [
+        {
+          "$callback": {
+            "steps": [
+              { "args": [{ "name": "alice" }], "outcome": { "returns": "admin" } },
+              { "args": [{ "name": "bob" }], "outcome": { "returns": "user" } },
+              { "args": [{ "name": "carol" }], "outcome": { "returns": "admin" } }
+            ]
+          }
+        },
+        [{ "name": "alice" }, { "name": "bob" }, { "name": "carol" }]
+      ],
+      "outcome": {
+        "returns": {
+          "admin": [{ "name": "alice" }, { "name": "carol" }],
+          "user": [{ "name": "bob" }]
+        }
+      },
+      "observations": { "meter": { "charged": 3 } }
+    },
+    {
+      "description": "normalizes numeric keys to object keys",
+      "args": [
+        {
+          "$callback": {
+            "steps": [
+              { "args": [1], "outcome": { "returns": 1 } },
+              { "args": [2], "outcome": { "returns": 0 } },
+              { "args": [3], "outcome": { "returns": 1 } },
+              { "args": [4], "outcome": { "returns": 0 } }
+            ]
+          }
+        },
+        [1, 2, 3, 4]
+      ],
+      "outcome": { "returns": { "0": [2, 4], "1": [1, 3] } }
+    },
+    {
+      "description": "does not call the callback for empty input",
+      "args": [{ "$callback": { "steps": [] } }, []],
+      "outcome": { "returns": {} }
+    },
+    {
+      "description": "rejects an unsupported callback key",
+      "args": [
+        {
+          "$callback": {
+            "steps": [{ "args": [1], "outcome": { "returns": [1] } }]
+          }
+        },
+        [1]
+      ],
+      "outcome": { "throws": { "messageIncludes": "must return a string or number" } }
+    },
+    {
+      "description": "rejects a non-array input before calling the callback",
+      "args": [{ "$callback": { "steps": [] } }, "abc"],
+      "outcome": { "throws": { "messageIncludes": "second argument must be an array" } }
+    }
+  ]
+}

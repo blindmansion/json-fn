@@ -1,0 +1,22 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "sign",
+  "description": "Return -1, 0, or 1 according to a number's sign.",
+  "cases": [
+    {
+      "description": "returns negative one for a negative number",
+      "args": [-8],
+      "outcome": { "returns": -1 }
+    },
+    {
+      "description": "returns zero for zero",
+      "args": [0],
+      "outcome": { "returns": 0 }
+    },
+    {
+      "description": "returns one for a positive number",
+      "args": [2.5],
+      "outcome": { "returns": 1 }
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "groupByIndexed",
+  "description": "Group array elements by keys from callbacks that also receive each index.",
+  "cases": [
+    {
+      "description": "passes every value and index",
+      "args": [
+        {
+          "$callback": {
+            "steps": [
+              { "args": ["a", 0], "outcome": { "returns": 0 } },
+              { "args": ["b", 1], "outcome": { "returns": 1 } },
+              { "args": ["c", 2], "outcome": { "returns": 0 } },
+              { "args": ["d", 3], "outcome": { "returns": 1 } }
+            ]
+          }
+        },
+        ["a", "b", "c", "d"]
+      ],
+      "outcome": { "returns": { "0": ["a", "c"], "1": ["b", "d"] } },
+      "observations": { "meter": { "charged": 4 } }
+    }
+  ]
+}

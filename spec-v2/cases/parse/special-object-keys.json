@@ -1,0 +1,32 @@
+{
+  "$schema": "../parse.schema.json",
+  "description": "special object keys: __proto__ survives shorthand parsing",
+  "cases": [
+    {
+      "description": "quoted __proto__ key in a data object becomes an own key",
+      "source": "{ \"__proto__\": { p: 1 } }",
+      "expected": { "__proto__": { "p": 1 } }
+    },
+    {
+      "description": "bare __proto__ key in a data object becomes an own key",
+      "source": "{ __proto__: 1, b: 2 }",
+      "expected": { "__proto__": 1, "b": 2 }
+    },
+    {
+      "description": "punned __proto__ key lowers to a $var read under an own key",
+      "source": "{ __proto__ }",
+      "expected": { "__proto__": { "$var": "__proto__" } }
+    },
+    {
+      "description": "quoted $-key data keeps an own __proto__ key in the $raw payload",
+      "source": "{ \"$tag\": true, \"__proto__\": { \"p\": 1 } }",
+      "expected": { "$raw": { "$tag": true, "__proto__": { "p": 1 } } }
+    },
+    {
+      "description": "module binding named __proto__ becomes an own key",
+      "mode": "module",
+      "source": "__proto__: 1\nmain: () => 2",
+      "expected": { "__proto__": 1, "main": { "$return": 2 } }
+    }
+  ]
+}

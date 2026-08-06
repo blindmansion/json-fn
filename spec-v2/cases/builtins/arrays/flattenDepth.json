@@ -1,0 +1,32 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "flattenDepth",
+  "description": "Flatten arrays to a requested depth.",
+  "cases": [
+    {
+      "description": "depth zero returns a shallow copy",
+      "args": [[1, [2, [3]]], 0],
+      "outcome": { "returns": [1, [2, [3]]] }
+    },
+    {
+      "description": "flattens one requested level",
+      "args": [[1, [2, [3]], [[4]]], 1],
+      "outcome": { "returns": [1, 2, [3], [4]] }
+    },
+    {
+      "description": "flattens two requested levels",
+      "args": [[1, [2, [3]], [[4]]], 2],
+      "outcome": { "returns": [1, 2, 3, 4] }
+    },
+    {
+      "description": "rejects a negative depth",
+      "args": [[[1]], -1],
+      "outcome": { "throws": { "messageIncludes": "depth must be a non-negative integer" } }
+    },
+    {
+      "description": "rejects a non-integer depth",
+      "args": [[[1]], 1.5],
+      "outcome": { "throws": { "messageIncludes": "depth must be a non-negative integer" } }
+    }
+  ]
+}

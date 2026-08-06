@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "json-fn deployment validation test suite",
+  "description": "Documents the portable deployment validation test-suite format consumed from spec/cases/deployment.",
+  "type": "object",
+  "required": ["description", "cases"],
+  "properties": {
+    "description": { "type": "string", "description": "A description of the test suite." },
+    "cases": {
+      "type": "array",
+      "description": "The validation cases in this suite.",
+      "items": { "$ref": "#/$defs/case" }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "case": {
+      "type": "object",
+      "required": ["name", "validator", "expected"],
+      "properties": {
+        "name": { "type": "string", "description": "A name used as the test name." },
+        "validator": {
+          "type": "string",
+          "description": "The validation operation exercised by this case.",
+          "enum": ["schema", "contract", "profile", "link", "deployment"]
+        },
+        "value": {
+          "description": "The direct input for schema, contract, and profile validation."
+        },
+        "contract": {
+          "type": "object",
+          "description": "An environment contract used as context for profile, link, or deployment validation."
+        },
+        "module": {
+          "type": "object",
+          "description": "A canonical json-fn module used for link or deployment validation."
+        },
+        "profile": {
+          "description": "A deployment profile used for prepared-deployment validation."
+        },
+        "adapterFunctions": {
+          "type": "array",
+          "description": "Names of host functions supplied by the mock runtime adapter.",
+          "items": { "type": "string" }
+        },
+        "adapterEffects": {
+          "type": "array",
+          "description": "Names of effects supplied by the mock runtime adapter.",
+          "items": { "type": "string" }
+        },
+        "expected": { "$ref": "#/$defs/expected" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "validator": { "enum": ["schema", "contract", "profile"] } },
+            "required": ["validator"]
+          },
+          "then": { "required": ["value"] }
+        },
+        {
+          "if": {
+            "properties": { "validator": { "const": "deployment" } },
+            "required": ["validator"]
+          },
+          "then": { "required": ["contract", "profile"] }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "expected": {
+      "description": "Whether validation should succeed, or the diagnostic expected on failure.",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["valid"],
+          "properties": { "valid": { "const": true } },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["valid", "code", "path"],
+          "properties": {
+            "valid": { "const": false },
+            "code": { "type": "string", "description": "The expected structured diagnostic code." },
+            "path": { "type": "string", "description": "The expected structured diagnostic path." }
+          },
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

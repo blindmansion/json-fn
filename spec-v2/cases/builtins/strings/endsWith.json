@@ -1,0 +1,23 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "endsWith",
+  "description": "Test whether a string ends with a suffix.",
+  "cases": [
+    {
+      "description": "identifies a matching suffix",
+      "args": ["json-fn", "fn"],
+      "outcome": { "returns": true },
+      "observations": { "meter": { "charged": 2 } }
+    },
+    {
+      "description": "rejects a non-suffix substring",
+      "args": ["json-fn", "json"],
+      "outcome": { "returns": false }
+    },
+    {
+      "description": "accepts the empty suffix",
+      "args": ["json-fn", ""],
+      "outcome": { "returns": true }
+    }
+  ]
+}

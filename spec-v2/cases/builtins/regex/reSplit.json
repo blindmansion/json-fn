@@ -1,0 +1,23 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "reSplit",
+  "description": "Split a string using a regex pattern.",
+  "cases": [
+    {
+      "description": "splits on whitespace runs",
+      "args": ["\\s+", "one  two   three"],
+      "outcome": { "returns": ["one", "two", "three"] },
+      "observations": { "meter": { "charged": 19 } }
+    },
+    {
+      "description": "splits on commas and surrounding whitespace",
+      "args": ["\\s*,\\s*", "a, b ,c , d"],
+      "outcome": { "returns": ["a", "b", "c", "d"] }
+    },
+    {
+      "description": "returns the whole string when there is no match",
+      "args": ["\\d+", "abcdef"],
+      "outcome": { "returns": ["abcdef"] }
+    }
+  ]
+}

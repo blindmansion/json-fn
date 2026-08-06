@@ -1,0 +1,28 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "perform",
+  "description": "Build a task requesting a named effect with arguments.",
+  "cases": [
+    {
+      "description": "builds a tagged effect task",
+      "args": ["http.get", ["https://example.com"]],
+      "outcome": {
+        "returns": {
+          "@task": "effect",
+          "name": "http.get",
+          "args": ["https://example.com"]
+        }
+      }
+    },
+    {
+      "description": "requires a string effect name",
+      "args": [5, []],
+      "outcome": { "throws": { "messageIncludes": "first argument must be a string" } }
+    },
+    {
+      "description": "requires an array of effect arguments",
+      "args": ["e", "not-an-array"],
+      "outcome": { "throws": { "messageIncludes": "second argument must be an array" } }
+    }
+  ]
+}

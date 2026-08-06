@@ -1,0 +1,38 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "max",
+  "description": "Return the largest number in a non-empty array.",
+  "cases": [
+    {
+      "description": "returns the largest element and meters the traversal",
+      "args": [[3, 9, 4, 9]],
+      "outcome": { "returns": 9 },
+      "observations": { "meter": { "charged": 4 } }
+    },
+    {
+      "description": "supports negative and decimal values",
+      "args": [[-7, -2.5, -3]],
+      "outcome": { "returns": -2.5 }
+    },
+    {
+      "description": "returns the only element",
+      "args": [[42]],
+      "outcome": { "returns": 42 }
+    },
+    {
+      "description": "rejects a non-array argument",
+      "args": [42],
+      "outcome": { "throws": { "messageIncludes": "argument must be an array" } }
+    },
+    {
+      "description": "rejects an empty array",
+      "args": [[]],
+      "outcome": { "throws": { "messageIncludes": "argument must not be empty" } }
+    },
+    {
+      "description": "rejects a non-number element",
+      "args": [[1, "2", 3]],
+      "outcome": { "throws": { "messageIncludes": "array elements must be numbers" } }
+    }
+  ]
+}

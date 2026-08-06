@@ -1,0 +1,210 @@
+{
+  "$schema": "../parse.schema.json",
+  "description": "trailing `where` in body positions (shorthand spec section 8)",
+  "cases": [
+    {
+      "description": "trailing where on a top-level expression lowers to $let",
+      "source": "double(n) where { double: (x) => x * 2 }",
+      "expected": {
+        "$let": {
+          "double": {
+            "$params": ["x"],
+            "$return": { "$call": "mul", "$args": [{ "$var": "x" }, 2] }
+          }
+        },
+        "$in": { "$call": "double", "$args": [{ "$var": "n" }] }
+      }
+    },
+    {
+      "description": "trailing where on a cond arm result lowers to $let",
+      "source": "cond {\n  n > 0: big(n) where { big: (x) => x * 100 },\n  else: 0\n}",
+      "expected": {
+        "$cond": [
+          [
+            { "$call": "gt", "$args": [{ "$var": "n" }, 0] },
+            {
+              "$let": {
+                "big": {
+                  "$params": ["x"],
+                  "$return": { "$call": "mul", "$args": [{ "$var": "x" }, 100] }
+                }
+              },
+              "$in": { "$call": "big", "$args": [{ "$var": "n" }] }
+            }
+          ]
+        ],
+        "$else": 0
+      }
+    },
+    {
+      "description": "trailing where on a match arm result lowers to $let",
+      "source": "match cmd {\n  \"go\": step(n) where { step: (x) => x + 1 },\n  else: 0\n}",
+      "expected": {
+        "$match": { "$var": "cmd" },
+        "$cases": [
+          [
+            "go",
+            {
+              "$let": {
+                "step": {
+                  "$params": ["x"],
+                  "$return": { "$call": "add", "$args": [{ "$var": "x" }, 1] }
+                }
+              },
+              "$in": { "$call": "step", "$args": [{ "$var": "n" }] }
+            }
+          ]
+        ],
+        "$else": 0
+      }
+    },
+    {
+      "description": "parenthesized trailing where on an if/then branch attaches to the branch",
+      "source": "if x > 0 then (double(x) where { double: (n) => n * 2 }) else 0",
+      "expected": {
+        "$if": { "$call": "gt", "$args": [{ "$var": "x" }, 0] },
+        "$then": {
+          "$let": {
+            "double": {
+              "$params": ["n"],
+              "$return": { "$call": "mul", "$args": [{ "$var": "n" }, 2] }
+            }
+          },
+          "$in": { "$call": "double", "$args": [{ "$var": "x" }] }
+        },
+        "$else": 0
+      }
+    },
+    {
+      "description": "unparenthesized trailing where after an if attaches to the whole expression",
+      "source": "if x > 0 then 1 else fallback(x) where { fallback: (n) => n - 1 }",
+      "expected": {
+        "$let": {
+          "fallback": {
+            "$params": ["n"],
+            "$return": { "$call": "sub", "$args": [{ "$var": "n" }, 1] }
+          }
+        },
+        "$in": {
+          "$if": { "$call": "gt", "$args": [{ "$var": "x" }, 0] },
+          "$then": 1,
+          "$else": { "$call": "fallback", "$args": [{ "$var": "x" }] }
+        }
+      }
+    },
+    {
+      "description": "parenthesized trailing where on an else branch attaches to the branch",
+      "source": "if x > 0 then 1 else (fallback(x) where { fallback: (n) => n - 1 })",
+      "expected": {
+        "$if": { "$call": "gt", "$args": [{ "$var": "x" }, 0] },
+        "$then": 1,
+        "$else": {
+          "$let": {
+            "fallback": {
+              "$params": ["n"],
+              "$return": { "$call": "sub", "$args": [{ "$var": "n" }, 1] }
+            }
+          },
+          "$in": { "$call": "fallback", "$args": [{ "$var": "x" }] }
+        }
+      }
+    },
+    {
+      "description": "trailing where after a cond used as a match arm attaches to the arm, not the match",
+      "source": "match cmd {\n  \"go\": 1,\n  else: cond { p: 2, else: n } where { n: 0 }\n}",
+      "expected": {
+        "$match": { "$var": "cmd" },
+        "$cases": [["go", 1]],
+        "$else": {
+          "$let": { "n": 0 },
+          "$in": { "$cond": [[{ "$var": "p" }, 2]], "$else": { "$var": "n" } }
+        }
+      }
+    },
+    {
+      "description": "trailing where nested inside a where-binding value",
+      "source": "(n) => total where {\n  total: sq(n) where { sq: (x) => x * x }\n}",
+      "expected": {
+        "$params": ["n"],
+        "$return": {
+          "$let": {
+            "total": {
+              "$let": {
+                "sq": {
+                  "$params": ["x"],
+                  "$return": { "$call": "mul", "$args": [{ "$var": "x" }, { "$var": "x" }] }
+                }
+              },
+              "$in": { "$call": "sq", "$args": [{ "$var": "n" }] }
+            }
+          },
+          "$in": { "$var": "total" }
+        }
+      }
+    },
+    {
+      "description": "unparenthesized if-return lets where bind to the function body as locals",
+      "source": "(s) => if len == 2 then len else null where { len: length(s) }",
+      "expected": {
+        "$params": ["s"],
+        "$return": {
+          "$let": { "len": { "$call": "length", "$args": [{ "$var": "s" }] } },
+          "$in": {
+            "$if": { "$call": "eq", "$args": [{ "$var": "len" }, 2] },
+            "$then": { "$var": "len" },
+            "$else": null
+          }
+        }
+      }
+    },
+    {
+      "description": "trailing where scopes over nested if expressions in a function body",
+      "source": "(a, b) => if a then if b then x else 0 else -1 where { x: 1 }",
+      "expected": {
+        "$params": ["a", "b"],
+        "$return": {
+          "$let": { "x": 1 },
+          "$in": {
+            "$if": { "$var": "a" },
+            "$then": { "$if": { "$var": "b" }, "$then": { "$var": "x" }, "$else": 0 },
+            "$else": -1
+          }
+        }
+      }
+    },
+    {
+      "description": "trailing where inside a parenthesized group binds within the parens",
+      "source": "(base(n) where { base: (x) => x + 1 }) * 2",
+      "expected": {
+        "$call": "mul",
+        "$args": [
+          {
+            "$let": {
+              "base": {
+                "$params": ["x"],
+                "$return": { "$call": "add", "$args": [{ "$var": "x" }, 1] }
+              }
+            },
+            "$in": { "$call": "base", "$args": [{ "$var": "n" }] }
+          },
+          2
+        ]
+      }
+    },
+    {
+      "description": "duplicate bindings in one where scope are rejected",
+      "source": "x where { x: 1, x: 2 }",
+      "error": "duplicate 'where' binding \"x\""
+    },
+    {
+      "description": "an empty where block is rejected",
+      "source": "value where {}",
+      "error": "empty 'where' block: at least one binding is required"
+    },
+    {
+      "description": "a nested where scope may shadow an outer binding",
+      "source": "(x where { x: 2 }) where { x: 1 }",
+      "expected": { "$let": { "x": 1 }, "$in": { "$let": { "x": 2 }, "$in": { "$var": "x" } } }
+    }
+  ]
+}

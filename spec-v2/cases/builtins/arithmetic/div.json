@@ -1,0 +1,12 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "div",
+  "description": "Divide two numbers.",
+  "cases": [
+    {
+      "description": "rejects a non-finite result",
+      "args": [1e308, 1e-308],
+      "outcome": { "throws": { "messageIncludes": "result must be a finite number" } }
+    }
+  ]
+}

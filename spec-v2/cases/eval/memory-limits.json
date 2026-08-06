@@ -1,0 +1,169 @@
+{
+  "description": "Memory limits (maxValueSize)",
+  "comment": "maxValueSize bounds arrays and strings returned by pure functions and interpreter-aware builtins; see docs/runtime/execution-limits.md.",
+  "cases": [
+    {
+      "description": "range exceeding maxValueSize is rejected",
+      "body": {
+        "$return": { "$call": "length", "$args": [{ "$call": "range", "$args": [100000] }] }
+      },
+      "limits": { "maxValueSize": 1000 },
+      "error": "Maximum value size"
+    },
+    {
+      "description": "range within maxValueSize succeeds",
+      "body": { "$return": { "$call": "length", "$args": [{ "$call": "range", "$args": [500] }] } },
+      "limits": { "maxValueSize": 1000 },
+      "expected": 500
+    },
+    {
+      "description": "concat whose output exceeds maxValueSize is rejected",
+      "body": {
+        "$return": {
+          "$call": "length",
+          "$args": [
+            {
+              "$call": "concat",
+              "$args": [
+                { "$call": "range", "$args": [600] },
+                { "$call": "range", "$args": [600] }
+              ]
+            }
+          ]
+        }
+      },
+      "limits": { "maxValueSize": 1000 },
+      "error": "Maximum value size"
+    },
+    {
+      "description": "concat whose output fits within maxValueSize succeeds",
+      "body": {
+        "$return": {
+          "$call": "length",
+          "$args": [
+            {
+              "$call": "concat",
+              "$args": [
+                { "$call": "range", "$args": [100] },
+                { "$call": "range", "$args": [100] }
+              ]
+            }
+          ]
+        }
+      },
+      "limits": { "maxValueSize": 1000 },
+      "expected": 200
+    },
+    {
+      "description": "flatten whose output exceeds maxValueSize is rejected",
+      "body": {
+        "$return": {
+          "$call": "length",
+          "$args": [
+            {
+              "$call": "flatten",
+              "$args": [
+                [
+                  { "$call": "range", "$args": [600] },
+                  { "$call": "range", "$args": [600] }
+                ]
+              ]
+            }
+          ]
+        }
+      },
+      "limits": { "maxValueSize": 1000 },
+      "error": "Maximum value size"
+    },
+    {
+      "description": "map output is checked against maxValueSize",
+      "body": {
+        "$return": { "$call": "map", "$args": ["neg", [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]] }
+      },
+      "limits": { "maxValueSize": 10 },
+      "error": "Maximum value size"
+    },
+    {
+      "description": "unique output is checked against maxValueSize",
+      "body": { "$return": { "$call": "unique", "$args": [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]] } },
+      "limits": { "maxValueSize": 10 },
+      "error": "Maximum value size"
+    },
+    {
+      "description": "reReplaceWith output is checked against maxValueSize",
+      "body": {
+        "$return": {
+          "$call": "reReplaceWith",
+          "$args": ["a", { "$params": ["m"], "$return": "xxxxxxxxxxxxxxxxxxxx" }, "aaaa"]
+        }
+      },
+      "limits": { "maxValueSize": 50 },
+      "error": "Maximum value size"
+    },
+    {
+      "description": "rangeBy preflights output against maxValueSize",
+      "body": {
+        "$return": { "$call": "length", "$args": [{ "$call": "rangeBy", "$args": [0, 100000, 2] }] }
+      },
+      "limits": { "maxValueSize": 1000 },
+      "error": "Maximum value size"
+    },
+    {
+      "description": "chunk checks the number of output chunks",
+      "body": {
+        "$return": { "$call": "chunk", "$args": [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], 1] }
+      },
+      "limits": { "maxValueSize": 10 },
+      "error": "Maximum value size"
+    },
+    {
+      "description": "partition checks each output group",
+      "body": {
+        "$return": {
+          "$call": "partition",
+          "$args": [{ "$params": ["item"], "$return": true }, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]]
+        }
+      },
+      "limits": { "maxValueSize": 10 },
+      "error": "Maximum value size"
+    },
+    {
+      "description": "scan preflights its fixed output length",
+      "body": {
+        "$return": {
+          "$call": "scan",
+          "$args": [
+            { "$params": ["acc", "item"], "$return": { "$var": "item" } },
+            0,
+            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+          ]
+        }
+      },
+      "limits": { "maxValueSize": 10 },
+      "error": "Maximum value size"
+    },
+    {
+      "description": "flattenDepth checks its growing output",
+      "body": {
+        "$return": {
+          "$call": "flattenDepth",
+          "$args": [
+            [
+              [1, 2, 3, 4, 5, 6],
+              [7, 8, 9, 10, 11, 12]
+            ],
+            1
+          ]
+        }
+      },
+      "limits": { "maxValueSize": 10 },
+      "error": "Maximum value size"
+    },
+    {
+      "description": "string value size counts Unicode code points",
+      "body": { "$return": { "$call": "repeat", "$args": ["😀", 2] } },
+      "limits": { "maxValueSize": 2 },
+      "expected": "😀😀"
+    }
+  ]
+}

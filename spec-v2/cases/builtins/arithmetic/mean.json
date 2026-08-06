@@ -1,0 +1,42 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "mean",
+  "description": "Return the arithmetic mean of a non-empty array of numbers.",
+  "cases": [
+    {
+      "description": "averages numbers",
+      "args": [[1, 2, 3, 4]],
+      "outcome": { "returns": 2.5 }
+    },
+    {
+      "description": "supports decimal and negative values",
+      "args": [[1.5, -2, 3.5]],
+      "outcome": { "returns": 1 }
+    },
+    {
+      "description": "rejects an empty array",
+      "args": [[]],
+      "outcome": { "throws": { "messageIncludes": "must not be empty" } }
+    },
+    {
+      "description": "rejects a non-array argument",
+      "args": [42],
+      "outcome": { "throws": { "messageIncludes": "must be an array" } }
+    },
+    {
+      "description": "rejects a non-number element",
+      "args": [[1, "2", 3]],
+      "outcome": { "throws": { "messageIncludes": "elements must be numbers" } }
+    },
+    {
+      "description": "avoids overflow for a finite result",
+      "args": [[1e308, 1e308]],
+      "outcome": { "returns": 1e308 }
+    },
+    {
+      "description": "avoids underflow when the ordinary sum is finite",
+      "args": [[5e-324, 5e-324]],
+      "outcome": { "returns": 5e-324 }
+    }
+  ]
+}

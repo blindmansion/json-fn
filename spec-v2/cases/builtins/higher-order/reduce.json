@@ -1,0 +1,25 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "reduce",
+  "description": "Fold arrays with callbacks receiving an accumulator and value.",
+  "cases": [
+    {
+      "description": "passes each accumulator and value without an index",
+      "args": [
+        {
+          "$callback": {
+            "steps": [
+              { "args": [0, 1], "outcome": { "returns": 1 } },
+              { "args": [1, 2], "outcome": { "returns": 3 } },
+              { "args": [3, 3], "outcome": { "returns": 6 } }
+            ]
+          }
+        },
+        0,
+        [1, 2, 3]
+      ],
+      "outcome": { "returns": 6 },
+      "observations": { "meter": { "charged": 3 } }
+    }
+  ]
+}

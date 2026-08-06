@@ -1,0 +1,38 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "trim",
+  "description": "Remove whitespace from both ends of a string.",
+  "cases": [
+    {
+      "description": "removes leading and trailing spaces",
+      "args": ["  hello  "],
+      "outcome": { "returns": "hello" },
+      "observations": { "meter": { "charged": 9 } }
+    },
+    {
+      "description": "removes tabs and newlines",
+      "args": ["\t hello \n"],
+      "outcome": { "returns": "hello" }
+    },
+    {
+      "description": "leaves an already trimmed string unchanged",
+      "args": ["hello"],
+      "outcome": { "returns": "hello" }
+    },
+    {
+      "description": "leaves an empty string empty",
+      "args": [""],
+      "outcome": { "returns": "" }
+    },
+    {
+      "description": "reduces all-whitespace input to an empty string",
+      "args": ["   "],
+      "outcome": { "returns": "" }
+    },
+    {
+      "description": "preserves internal whitespace",
+      "args": ["  hello world  "],
+      "outcome": { "returns": "hello world" }
+    }
+  ]
+}

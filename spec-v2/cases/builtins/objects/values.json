@@ -1,0 +1,22 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "values",
+  "description": "Return an object's values.",
+  "cases": [
+    {
+      "description": "returns an empty array for an empty object",
+      "args": [{}],
+      "outcome": { "returns": [] }
+    },
+    {
+      "description": "returns the value of a single-key object",
+      "args": [{ "a": 42 }],
+      "outcome": { "returns": [42] }
+    },
+    {
+      "description": "rejects an array",
+      "args": [[1, 2]],
+      "outcome": { "throws": { "messageIncludes": "argument must be an object" } }
+    }
+  ]
+}

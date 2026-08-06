@@ -1,0 +1,278 @@
+{
+  "description": "$let final scoping and closure regressions",
+  "cases": [
+    {
+      "description": "unused bindings are lazy",
+      "body": {
+        "$return": { "$let": { "unused": { "$call": "missing", "$args": [] } }, "$in": "ok" }
+      },
+      "expected": "ok"
+    },
+    {
+      "description": "bindings capture parameters while nested lets shadow both",
+      "body": {
+        "$params": ["outer"],
+        "$return": {
+          "$let": { "captured": { "$var": "outer" }, "local": "outer local" },
+          "$in": [
+            { "$var": "captured" },
+            {
+              "$let": { "outer": "inner parameter", "local": "inner local" },
+              "$in": [{ "$var": "outer" }, { "$var": "local" }]
+            },
+            { "$var": "local" }
+          ]
+        }
+      },
+      "args": ["parameter"],
+      "expected": ["parameter", ["inner parameter", "inner local"], "outer local"]
+    },
+    {
+      "description": "function-valued bindings are accessible through $var and $fn",
+      "body": {
+        "$return": {
+          "$let": { "identity": { "$params": ["value"], "$return": { "$var": "value" } } },
+          "$in": [
+            { "$call": { "$var": "identity" }, "$args": [1] },
+            { "$call": { "$fn": "identity" }, "$args": [2] }
+          ]
+        }
+      },
+      "expected": [1, 2]
+    },
+    {
+      "description": "an escaping closure serializes the local function it calls",
+      "body": {
+        "$return": {
+          "$let": {
+            "increment": {
+              "$params": ["value"],
+              "$return": { "$call": "add", "$args": [{ "$var": "value" }, 1] }
+            }
+          },
+          "$in": {
+            "$params": ["value"],
+            "$return": { "$call": "increment", "$args": [{ "$var": "value" }] }
+          }
+        }
+      },
+      "expected": {
+        "$params": ["value"],
+        "$return": { "$call": "increment", "$args": [{ "$var": "value" }] },
+        "$captures": {
+          "increment": {
+            "$params": ["value"],
+            "$return": { "$call": "add", "$args": [{ "$var": "value" }, 1] }
+          }
+        }
+      }
+    },
+    {
+      "description": "an escaping closure exposes captures to parameter defaults",
+      "body": {
+        "$return": {
+          "$call": {
+            "$let": { "fallback": { "$return": 13 } },
+            "$in": {
+              "$params": [{ "$param": "value", "$default": { "$call": "fallback", "$args": [] } }],
+              "$return": { "$var": "value" }
+            }
+          },
+          "$args": []
+        }
+      },
+      "expected": 13
+    },
+    {
+      "description": "a nested lambda calls the function rebound in the current recursive activation",
+      "body": { "$return": { "$call": "collect", "$args": [[1, 2, 3], []] } },
+      "functions": {
+        "collect": {
+          "$params": ["xs", "acc"],
+          "$return": {
+            "$if": {
+              "$call": "eq",
+              "$args": [{ "$call": "length", "$args": [{ "$var": "xs" }] }, 0]
+            },
+            "$then": { "$var": "acc" },
+            "$else": {
+              "$let": {
+                "current": { "$call": "head", "$args": [{ "$var": "xs" }] },
+                "selected": { "$params": ["ignored"], "$return": { "$var": "current" } }
+              },
+              "$in": {
+                "$call": "collect",
+                "$args": [
+                  { "$call": "tail", "$args": [{ "$var": "xs" }] },
+                  {
+                    "$call": "concat",
+                    "$args": [
+                      { "$var": "acc" },
+                      [
+                        {
+                          "$call": "map",
+                          "$args": [
+                            {
+                              "$params": ["item"],
+                              "$return": { "$call": "selected", "$args": [{ "$var": "item" }] }
+                            },
+                            [0]
+                          ]
+                        }
+                      ]
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "expected": [[1], [2], [3]]
+    },
+    {
+      "description": "each relaxation round uses its current distance inside a nested map lambda",
+      "body": {
+        "$return": {
+          "$call": "relaxRounds",
+          "$args": [
+            [
+              { "distance": 0, "edges": [{ "to": "B", "weight": 2 }] },
+              { "distance": 2, "edges": [{ "to": "C", "weight": 3 }] },
+              { "distance": 5, "edges": [{ "to": "E", "weight": 2 }] }
+            ],
+            []
+          ]
+        }
+      },
+      "functions": {
+        "relaxRounds": {
+          "$params": ["rounds", "acc"],
+          "$return": {
+            "$if": {
+              "$call": "eq",
+              "$args": [{ "$call": "length", "$args": [{ "$var": "rounds" }] }, 0]
+            },
+            "$then": { "$var": "acc" },
+            "$else": {
+              "$let": {
+                "round": { "$call": "head", "$args": [{ "$var": "rounds" }] },
+                "alternative": {
+                  "$params": ["edge"],
+                  "$return": {
+                    "$call": "add",
+                    "$args": [
+                      { "$from": { "$var": "round" }, "$get": "distance" },
+                      { "$from": { "$var": "edge" }, "$get": "weight" }
+                    ]
+                  }
+                },
+                "updates": {
+                  "$call": "fromEntries",
+                  "$args": [
+                    {
+                      "$call": "map",
+                      "$args": [
+                        {
+                          "$params": ["edge"],
+                          "$return": [
+                            { "$from": { "$var": "edge" }, "$get": "to" },
+                            { "$call": "alternative", "$args": [{ "$var": "edge" }] }
+                          ]
+                        },
+                        { "$from": { "$var": "round" }, "$get": "edges" }
+                      ]
+                    }
+                  ]
+                }
+              },
+              "$in": {
+                "$call": "relaxRounds",
+                "$args": [
+                  { "$call": "tail", "$args": [{ "$var": "rounds" }] },
+                  { "$call": "concat", "$args": [{ "$var": "acc" }, [{ "$var": "updates" }]] }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "expected": [{ "B": 2 }, { "C": 5 }, { "E": 7 }]
+    },
+    {
+      "description": "persistent module functions are not serialized into escaping closures",
+      "body": {
+        "$return": {
+          "$params": ["value"],
+          "$return": { "$call": "moduleIncrement", "$args": [{ "$var": "value" }] }
+        }
+      },
+      "functions": {
+        "moduleIncrement": {
+          "$params": ["value"],
+          "$return": { "$call": "add", "$args": [{ "$var": "value" }, 1] }
+        }
+      },
+      "expected": {
+        "$params": ["value"],
+        "$return": { "$call": "moduleIncrement", "$args": [{ "$var": "value" }] }
+      }
+    },
+    {
+      "description": "$let requires $in",
+      "body": { "$return": { "$let": { "value": 1 } } },
+      "error": "must have both $let and $in"
+    },
+    {
+      "description": "$in requires $let",
+      "body": { "$return": { "$in": 1 } },
+      "error": "must have both $let and $in"
+    },
+    {
+      "description": "$let bindings cannot be null",
+      "body": { "$return": { "$let": null, "$in": 1 } },
+      "error": "$let must be a non-null object"
+    },
+    {
+      "description": "$let bindings cannot be an array",
+      "body": { "$return": { "$let": [], "$in": 1 } },
+      "error": "$let must be a non-null object"
+    },
+    {
+      "description": "$let requires at least one binding",
+      "body": { "$return": { "$let": {}, "$in": 1 } },
+      "error": "$let must contain at least one binding"
+    },
+    {
+      "description": "$let rejects additional ordinary properties",
+      "body": { "$return": { "$let": { "value": 1 }, "$in": 1, "extra": true } },
+      "error": "cannot have other properties"
+    },
+    {
+      "description": "$let rejects additional reserved properties",
+      "body": { "$return": { "$let": { "value": 1 }, "$in": 1, "$call": "value" } },
+      "error": "cannot have other properties"
+    },
+    {
+      "description": "a nested let masks an outer same-named function",
+      "body": {
+        "$return": {
+          "$call": {
+            "$call": {
+              "$let": { "selected": { "$return": "outer" } },
+              "$in": {
+                "$return": {
+                  "$let": { "selected": { "$return": "inner" } },
+                  "$in": { "$return": { "$call": "selected", "$args": [] } }
+                }
+              }
+            },
+            "$args": []
+          },
+          "$args": []
+        }
+      },
+      "expected": "inner"
+    }
+  ]
+}

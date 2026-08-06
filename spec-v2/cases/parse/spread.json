@@ -1,0 +1,119 @@
+{
+  "$schema": "../parse.schema.json",
+  "description": "array, object, computed-key, and call spread sugar (shorthand spec sections 3 & 4)",
+  "cases": [
+    {
+      "description": "array spread preserves ordered ordinary runs",
+      "source": "[first, ...middle, last, ...tail]",
+      "expected": {
+        "$call": "concat",
+        "$args": [
+          [{ "$var": "first" }],
+          { "$var": "middle" },
+          [{ "$var": "last" }],
+          { "$var": "tail" }
+        ]
+      }
+    },
+    {
+      "description": "spread-only array still validates through concat",
+      "source": "[...items,]",
+      "expected": { "$call": "concat", "$args": [{ "$var": "items" }] }
+    },
+    {
+      "description": "object spread and computed key preserve source order",
+      "source": "{ ...defaults, name: requestedName, [extraKey]: extraValue }",
+      "expected": {
+        "$call": "merge",
+        "$args": [
+          {
+            "$call": "merge",
+            "$args": [{ "$var": "defaults" }, { "name": { "$var": "requestedName" } }]
+          },
+          {
+            "$call": "fromEntries",
+            "$args": [[[{ "$var": "extraKey" }, { "$var": "extraValue" }]]]
+          }
+        ]
+      }
+    },
+    {
+      "description": "ordinary entries around a spread remain ordered chunks",
+      "source": "{ name: initial, ...defaults, name: final }",
+      "expected": {
+        "$call": "merge",
+        "$args": [
+          {
+            "$call": "merge",
+            "$args": [{ "name": { "$var": "initial" } }, { "$var": "defaults" }]
+          },
+          { "name": { "$var": "final" } }
+        ]
+      }
+    },
+    {
+      "description": "spread-only object validates through merge",
+      "source": "{ ...source, }",
+      "expected": { "$call": "merge", "$args": [{}, { "$var": "source" }] }
+    },
+    {
+      "description": "computed key alone lowers to fromEntries",
+      "source": "{ [key]: value }",
+      "expected": { "$call": "fromEntries", "$args": [[[{ "$var": "key" }, { "$var": "value" }]]] }
+    },
+    {
+      "description": "computed literal key remains dynamic and may start with dollar",
+      "source": "{ [\"$fn\"]: value }",
+      "expected": { "$call": "fromEntries", "$args": [[["$fn", { "$var": "value" }]]] }
+    },
+    {
+      "description": "bare named call with sole spread uses a named function reference",
+      "source": "f(...args)",
+      "expected": { "$call": "apply", "$args": [{ "$fn": "f" }, { "$var": "args" }] }
+    },
+    {
+      "description": "mixed call arguments lower through concat and apply",
+      "source": "f(first, ...middle, last, ...tail)",
+      "expected": {
+        "$call": "apply",
+        "$args": [
+          { "$fn": "f" },
+          {
+            "$call": "concat",
+            "$args": [
+              [{ "$var": "first" }],
+              { "$var": "middle" },
+              [{ "$var": "last" }],
+              { "$var": "tail" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "description": "parenthesized callee spread remains an evaluated variable",
+      "source": "(fn)(...args)",
+      "expected": { "$call": "apply", "$args": [{ "$var": "fn" }, { "$var": "args" }] }
+    },
+    {
+      "description": "method callee spread remains an evaluated access",
+      "source": "caps.run(...args)",
+      "expected": {
+        "$call": "apply",
+        "$args": [{ "$get": "run", "$from": { "$var": "caps" } }, { "$var": "args" }]
+      }
+    },
+    { "description": "spread requires an expression", "source": "[..., value]", "error": true },
+    {
+      "description": "computed object key requires a colon",
+      "source": "{ [key], value: 1 }",
+      "error": "':' after computed data-object key"
+    },
+    {
+      "description": "module entries cannot use object spread",
+      "mode": "module",
+      "source": "type Id = string\n...fields",
+      "error": "module entries must be named bindings or type declarations"
+    }
+  ]
+}

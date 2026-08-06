@@ -1,0 +1,24 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "everyIndexed",
+  "description": "Test every array element with callbacks that also receive each index.",
+  "cases": [
+    {
+      "description": "passes every value and index",
+      "args": [
+        {
+          "$callback": {
+            "steps": [
+              { "args": ["a", 0], "outcome": { "returns": true } },
+              { "args": ["b", 1], "outcome": { "returns": true } },
+              { "args": ["c", 2], "outcome": { "returns": true } }
+            ]
+          }
+        },
+        ["a", "b", "c"]
+      ],
+      "outcome": { "returns": true },
+      "observations": { "meter": { "charged": 3 } }
+    }
+  ]
+}

@@ -1,0 +1,136 @@
+{
+  "$schema": "../parse.schema.json",
+  "description": "handle ... with { ... } surface sugar over the handle builtin (shorthand-spec §13)",
+  "cases": [
+    {
+      "description": "named clauses with dotted (quoted) effect names",
+      "source": "handle greet(io) with {\n  \"io.readLine\": (resume) => resume(\"world\"),\n  \"io.print\": (msg, resume) => resume(null)\n}",
+      "expected": {
+        "$call": "handle",
+        "$args": [
+          { "$call": "greet", "$args": [{ "$var": "io" }] },
+          {
+            "io.readLine": {
+              "$params": ["resume"],
+              "$return": { "$call": "resume", "$args": ["world"] }
+            },
+            "io.print": {
+              "$params": ["msg", "resume"],
+              "$return": { "$call": "resume", "$args": [null] }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "description": "wildcard and return clauses",
+      "source": "handle t with {\n  \"*\": (eff, resume) => resume(null),\n  return: (v) => v\n}",
+      "expected": {
+        "$call": "handle",
+        "$args": [
+          { "$var": "t" },
+          {
+            "*": {
+              "$params": ["eff", "resume"],
+              "$return": { "$call": "resume", "$args": [null] }
+            },
+            "return": { "$params": ["v"], "$return": { "$var": "v" } }
+          }
+        ]
+      }
+    },
+    {
+      "description": "a do block as the handled task",
+      "source": "handle do {\n  x <- get(),\n  pure(x)\n} with {\n  \"get\": (resume) => resume(1)\n}",
+      "expected": {
+        "$call": "handle",
+        "$args": [
+          {
+            "$call": "bind",
+            "$args": [
+              { "$call": "get", "$args": [] },
+              { "$params": ["x"], "$return": { "$call": "pure", "$args": [{ "$var": "x" }] } }
+            ]
+          },
+          { "get": { "$params": ["resume"], "$return": { "$call": "resume", "$args": [1] } } }
+        ]
+      }
+    },
+    {
+      "description": "a total handle with a function result annotation",
+      "source": "handle task returns (State) -> Report with {\n  return: (value) => (state) => value\n}",
+      "expected": {
+        "$call": "handle",
+        "$args": [
+          { "$var": "task" },
+          {
+            "return": {
+              "$params": ["value"],
+              "$return": { "$params": ["state"], "$return": { "$var": "value" } }
+            }
+          },
+          {
+            "$raw": {
+              "$fnType": {
+                "required": [{ "$ref": "#/$defs/State" }],
+                "optional": [],
+                "returns": { "$ref": "#/$defs/Report" }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "description": "a parenthesized checked task operand precedes the result contract",
+      "source": "handle (task checked as Task<Report>) returns Report with {}",
+      "expected": {
+        "$call": "handle",
+        "$args": [
+          { "$as": { "$var": "task" }, "$type": { "$taskType": { "$ref": "#/$defs/Report" } } },
+          {},
+          { "$raw": { "$ref": "#/$defs/Report" } }
+        ]
+      }
+    },
+    {
+      "description": "returns remains an ordinary handler task name",
+      "source": "handle returns with {}",
+      "expected": { "$call": "handle", "$args": [{ "$var": "returns" }, {}] }
+    },
+    {
+      "description": "an unannotated handle remains usable as a cond guard",
+      "source": "cond {\n  handle task with {}: true,\n  else: false\n}",
+      "expected": {
+        "$cond": [[{ "$call": "handle", "$args": [{ "$var": "task" }, {}] }, true]],
+        "$else": false
+      }
+    },
+    {
+      "description": "old annotated handle arrow spelling is rejected",
+      "source": "handle task -> Report with {}",
+      "error": true
+    },
+    {
+      "description": "clause values may quote expression-shaped data",
+      "source": "handle t with {\n  \"get\": (resume) => resume({ \"$x\": 1 })\n}",
+      "expected": {
+        "$call": "handle",
+        "$args": [
+          { "$var": "t" },
+          {
+            "get": {
+              "$params": ["resume"],
+              "$return": { "$call": "resume", "$args": [{ "$raw": { "$x": 1 } }] }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "description": "handler clause names must not start with $",
+      "source": "handle t with { \"$get\": (resume) => resume(1) }",
+      "error": "handler clause name \"$get\" must not start with '$'"
+    }
+  ]
+}

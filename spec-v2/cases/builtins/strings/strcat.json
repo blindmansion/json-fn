@@ -1,0 +1,57 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "strcat",
+  "description": "Concatenate any number of strings.",
+  "cases": [
+    {
+      "description": "concatenates two strings",
+      "args": ["foo", "bar"],
+      "outcome": { "returns": "foobar" }
+    },
+    {
+      "description": "concatenates three strings",
+      "args": ["a", "b", "c"],
+      "outcome": { "returns": "abc" }
+    },
+    {
+      "description": "concatenates many strings",
+      "args": ["a", "b", "c", "d", "e"],
+      "outcome": { "returns": "abcde" }
+    },
+    {
+      "description": "returns its single argument",
+      "args": ["solo"],
+      "outcome": { "returns": "solo" }
+    },
+    {
+      "description": "returns an empty string without arguments",
+      "args": [],
+      "outcome": { "returns": "" }
+    },
+    {
+      "description": "ignores empty string parts",
+      "args": ["a", "", "b", ""],
+      "outcome": { "returns": "ab" }
+    },
+    {
+      "description": "preserves internal whitespace across parts",
+      "args": ["hello", " ", "world"],
+      "outcome": { "returns": "hello world" }
+    },
+    {
+      "description": "concatenates runtime-style string values",
+      "args": ["Ada", " ", "Lovelace"],
+      "outcome": { "returns": "Ada Lovelace" }
+    },
+    {
+      "description": "rejects a non-string argument",
+      "args": ["a", 1],
+      "outcome": { "throws": { "messageIncludes": "must be strings" } }
+    },
+    {
+      "description": "rejects a non-string in a later variadic position",
+      "args": ["a", "b", true],
+      "outcome": { "throws": { "messageIncludes": "must be strings" } }
+    }
+  ]
+}

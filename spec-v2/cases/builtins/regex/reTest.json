@@ -1,0 +1,68 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "reTest",
+  "description": "Test whether a regex pattern matches anywhere in a string.",
+  "cases": [
+    {
+      "description": "returns true for a simple match",
+      "args": ["\\d+", "abc123"],
+      "outcome": { "returns": true },
+      "observations": { "meter": { "charged": 9 } }
+    },
+    {
+      "description": "returns false when there is no match",
+      "args": ["\\d+", "abcdef"],
+      "outcome": { "returns": false }
+    },
+    {
+      "description": "supports the case-insensitive flag",
+      "args": ["(?i)hello", "Hello World"],
+      "outcome": { "returns": true }
+    },
+    {
+      "description": "is case-sensitive by default",
+      "args": ["hello", "Hello World"],
+      "outcome": { "returns": false }
+    },
+    {
+      "description": "matches an anchored pattern",
+      "args": ["^abc$", "abc"],
+      "outcome": { "returns": true }
+    },
+    {
+      "description": "rejects an anchored non-match",
+      "args": ["^abc$", "xabc"],
+      "outcome": { "returns": false }
+    },
+    {
+      "description": "dotall makes dot match a newline",
+      "args": ["(?s)hello.world", "hello\nworld"],
+      "outcome": { "returns": true }
+    },
+    {
+      "description": "dot does not match a newline without dotall",
+      "args": ["hello.world", "hello\nworld"],
+      "outcome": { "returns": false }
+    },
+    {
+      "description": "multiline makes caret match a line start",
+      "args": ["(?m)^world", "hello\nworld"],
+      "outcome": { "returns": true }
+    },
+    {
+      "description": "caret only matches the string start without multiline",
+      "args": ["^world", "hello\nworld"],
+      "outcome": { "returns": false }
+    },
+    {
+      "description": "unicode makes dot treat an astral symbol as one code point",
+      "args": ["(?u)^.$", "😀"],
+      "outcome": { "returns": true }
+    },
+    {
+      "description": "dot treats an astral symbol as two code units without unicode",
+      "args": ["^.$", "😀"],
+      "outcome": { "returns": false }
+    }
+  ]
+}

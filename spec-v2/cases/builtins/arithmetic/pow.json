@@ -1,0 +1,22 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "pow",
+  "description": "Raise a base to an exponent.",
+  "cases": [
+    {
+      "description": "raises a base to an exponent",
+      "args": [2, 10],
+      "outcome": { "returns": 1024 }
+    },
+    {
+      "description": "supports negative exponents",
+      "args": [4, -1],
+      "outcome": { "returns": 0.25 }
+    },
+    {
+      "description": "rejects a non-finite result",
+      "args": [0, -1],
+      "outcome": { "throws": { "messageIncludes": "result must be a finite number" } }
+    }
+  ]
+}

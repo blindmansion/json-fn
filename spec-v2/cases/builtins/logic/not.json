@@ -1,0 +1,37 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "not",
+  "description": "Return the logical negation of a value.",
+  "cases": [
+    {
+      "description": "negates true",
+      "args": [true],
+      "outcome": { "returns": false }
+    },
+    {
+      "description": "negates false",
+      "args": [false],
+      "outcome": { "returns": true }
+    },
+    {
+      "description": "returns true for null",
+      "args": [null],
+      "outcome": { "returns": true }
+    },
+    {
+      "description": "returns true for zero",
+      "args": [0],
+      "outcome": { "returns": true }
+    },
+    {
+      "description": "returns true for an empty string",
+      "args": [""],
+      "outcome": { "returns": true }
+    },
+    {
+      "description": "returns false for a non-empty string",
+      "args": ["value"],
+      "outcome": { "returns": false }
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "isString",
+  "description": "Test whether a value is a string.",
+  "cases": [
+    {
+      "description": "returns true for a non-empty string",
+      "args": ["hello"],
+      "outcome": { "returns": true }
+    },
+    {
+      "description": "returns true for an empty string",
+      "args": [""],
+      "outcome": { "returns": true }
+    },
+    {
+      "description": "returns false for a number",
+      "args": [42],
+      "outcome": { "returns": false }
+    },
+    {
+      "description": "returns false for a boolean",
+      "args": [true],
+      "outcome": { "returns": false }
+    },
+    {
+      "description": "returns false for null",
+      "args": [null],
+      "outcome": { "returns": false }
+    },
+    {
+      "description": "returns false for an array",
+      "args": [["a", "b"]],
+      "outcome": { "returns": false }
+    }
+  ]
+}

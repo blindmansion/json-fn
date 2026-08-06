@@ -1,0 +1,24 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "countIndexed",
+  "description": "Count matches with callbacks that also receive each index.",
+  "cases": [
+    {
+      "description": "passes every value and index",
+      "args": [
+        {
+          "$callback": {
+            "steps": [
+              { "args": ["a", 0], "outcome": { "returns": false } },
+              { "args": ["b", 1], "outcome": { "returns": true } },
+              { "args": ["c", 2], "outcome": { "returns": true } }
+            ]
+          }
+        },
+        ["a", "b", "c"]
+      ],
+      "outcome": { "returns": 2 },
+      "observations": { "meter": { "charged": 3 } }
+    }
+  ]
+}

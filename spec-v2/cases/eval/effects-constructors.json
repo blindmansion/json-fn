@@ -1,0 +1,45 @@
+{
+  "description": "effect task constructor evaluator integration",
+  "cases": [
+    {
+      "description": "a constructed task passes through an array literal inert",
+      "body": {
+        "$return": [
+          { "$call": "pure", "$args": [1] },
+          { "$call": "perform", "$args": ["e", []] }
+        ]
+      },
+      "expected": [
+        { "@task": "pure", "value": 1 },
+        { "@task": "effect", "name": "e", "args": [] }
+      ]
+    },
+    {
+      "description": "a constructed task nested in an object literal is not re-walked",
+      "body": { "$return": { "wrapped": { "$call": "perform", "$args": ["e", [1, 2]] } } },
+      "expected": { "wrapped": { "@task": "effect", "name": "e", "args": [1, 2] } }
+    },
+    {
+      "description": "a task in an unreferenced lazy local never runs (laziness interaction)",
+      "body": {
+        "$return": {
+          "$let": { "unused": { "$call": "perform", "$args": ["boom", []] } },
+          "$in": 99
+        }
+      },
+      "expected": 99
+    },
+    {
+      "description": "a constructed task is returned from a closure unchanged",
+      "body": {
+        "$return": {
+          "$let": {
+            "mk": { "$params": ["n"], "$return": { "$call": "pure", "$args": [{ "$var": "n" }] } }
+          },
+          "$in": { "$call": "mk", "$args": [7] }
+        }
+      },
+      "expected": { "@task": "pure", "value": 7 }
+    }
+  ]
+}

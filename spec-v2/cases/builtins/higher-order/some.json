@@ -1,0 +1,45 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "some",
+  "description": "Test whether any array element matches a unary callback.",
+  "cases": [
+    {
+      "description": "short-circuits after the first match",
+      "args": [
+        {
+          "$callback": {
+            "steps": [
+              { "args": [1], "outcome": { "returns": false } },
+              { "args": [2], "outcome": { "returns": false } },
+              { "args": [3], "outcome": { "returns": true } }
+            ]
+          }
+        },
+        [1, 2, 3]
+      ],
+      "outcome": { "returns": true },
+      "observations": { "meter": { "charged": 3 } }
+    },
+    {
+      "description": "returns false when no element matches",
+      "args": [
+        {
+          "$callback": {
+            "steps": [
+              { "args": [1], "outcome": { "returns": false } },
+              { "args": [2], "outcome": { "returns": false } },
+              { "args": [3], "outcome": { "returns": false } }
+            ]
+          }
+        },
+        [1, 2, 3]
+      ],
+      "outcome": { "returns": false }
+    },
+    {
+      "description": "returns false without calling the callback for an empty array",
+      "args": [{ "$callback": { "steps": [] } }, []],
+      "outcome": { "returns": false }
+    }
+  ]
+}

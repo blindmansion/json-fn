@@ -1,0 +1,23 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "findIndexed",
+  "description": "Find the first array element using callbacks that also receive each index.",
+  "cases": [
+    {
+      "description": "passes values and indices and short-circuits after a match",
+      "args": [
+        {
+          "$callback": {
+            "steps": [
+              { "args": [10, 0], "outcome": { "returns": false } },
+              { "args": [20, 1], "outcome": { "returns": true } }
+            ]
+          }
+        },
+        [10, 20, 30]
+      ],
+      "outcome": { "returns": 20 },
+      "observations": { "meter": { "charged": 3 } }
+    }
+  ]
+}

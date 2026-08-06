@@ -1,0 +1,45 @@
+{
+  "$schema": "../parse.schema.json",
+  "description": "typed modules (type syntax spec section 8)",
+  "mode": "module",
+  "cases": [
+    {
+      "description": "named types and typed function bindings",
+      "source": "type N = integer\ntype Box = { value: N }\nid: (x: N) -> N => x\nunbox: ({ value }: Box) -> N => value",
+      "expected": {
+        "$types": {
+          "N": { "type": "integer" },
+          "Box": {
+            "type": "object",
+            "properties": { "value": { "$ref": "#/$defs/N" } },
+            "required": ["value"],
+            "additionalProperties": false
+          }
+        },
+        "id": {
+          "$sig": {
+            "required": [{ "$ref": "#/$defs/N" }],
+            "optional": [],
+            "returns": { "$ref": "#/$defs/N" }
+          },
+          "$params": ["x"],
+          "$return": { "$var": "x" }
+        },
+        "unbox": {
+          "$sig": {
+            "required": [{ "$ref": "#/$defs/Box" }],
+            "optional": [],
+            "returns": { "$ref": "#/$defs/N" }
+          },
+          "$params": [{ "$fields": ["value"] }],
+          "$return": { "$var": "value" }
+        }
+      }
+    },
+    {
+      "description": "Task is reserved and cannot be declared as a module type name",
+      "source": "type Task = integer\nmain: (x: Task) -> Task => x",
+      "error": "'Task' is reserved for the built-in Task<A> type constructor"
+    }
+  ]
+}

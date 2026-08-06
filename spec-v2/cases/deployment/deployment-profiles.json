@@ -1,0 +1,105 @@
+{
+  "description": "Portable deployment profile validation",
+  "cases": [
+    {
+      "name": "accepts a selected live effect subset",
+      "validator": "profile",
+      "contract": {
+        "version": 1,
+        "effects": {
+          "clock.now": { "params": [], "returns": { "type": "integer" } },
+          "log.write": { "params": [{ "type": "string" }], "returns": true }
+        },
+        "entry": { "name": "main", "required": [], "optional": [], "returns": true }
+      },
+      "value": {
+        "version": 1,
+        "mode": "live",
+        "effects": ["clock.now"],
+        "limits": { "maxFuel": 1000 }
+      },
+      "expected": { "valid": true }
+    },
+    {
+      "name": "accepts durable effect classifications",
+      "validator": "profile",
+      "value": {
+        "version": 1,
+        "mode": "durable",
+        "deploymentId": "orders-v1",
+        "effects": { "cache.get": "inline", "approval.wait": "suspending" }
+      },
+      "expected": { "valid": true }
+    },
+    {
+      "name": "rejects effects absent from the contract",
+      "validator": "profile",
+      "contract": {
+        "version": 1,
+        "effects": {},
+        "entry": { "name": "main", "required": [], "optional": [], "returns": true }
+      },
+      "value": { "version": 1, "mode": "live", "effects": ["missing"] },
+      "expected": {
+        "valid": false,
+        "code": "INVALID_DEPLOYMENT_PROFILE",
+        "path": "profile.effects[0]"
+      }
+    },
+    {
+      "name": "rejects duplicate live effects",
+      "validator": "profile",
+      "value": { "version": 1, "mode": "live", "effects": ["clock.now", "clock.now"] },
+      "expected": {
+        "valid": false,
+        "code": "INVALID_DEPLOYMENT_PROFILE",
+        "path": "profile.effects[1]"
+      }
+    },
+    {
+      "name": "rejects selecting intrinsic raise",
+      "validator": "profile",
+      "value": { "version": 1, "mode": "live", "effects": ["raise"] },
+      "expected": {
+        "valid": false,
+        "code": "INVALID_DEPLOYMENT_PROFILE",
+        "path": "profile.effects[0]"
+      }
+    },
+    {
+      "name": "requires a durable deployment ID",
+      "validator": "profile",
+      "value": { "version": 1, "mode": "durable", "effects": {} },
+      "expected": {
+        "valid": false,
+        "code": "INVALID_DEPLOYMENT_PROFILE",
+        "path": "profile.deploymentId"
+      }
+    },
+    {
+      "name": "rejects invalid durable classifications",
+      "validator": "profile",
+      "value": {
+        "version": 1,
+        "mode": "durable",
+        "deploymentId": "orders-v1",
+        "effects": { "approval.wait": "background" }
+      },
+      "expected": {
+        "valid": false,
+        "code": "INVALID_DEPLOYMENT_PROFILE",
+        "path": "profile.effects.approval.wait"
+      }
+    },
+    {
+      "name": "rejects unsupported profile fields",
+      "validator": "profile",
+      "value": { "version": 1, "mode": "live", "effects": [], "unknown": true },
+      "expected": {
+        "valid": false,
+        "code": "INVALID_DEPLOYMENT_PROFILE",
+        "path": "profile.unknown"
+      }
+    }
+  ]
+}

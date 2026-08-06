@@ -1,0 +1,27 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "rangeFrom",
+  "description": "Create ascending half-open integer ranges.",
+  "cases": [
+    {
+      "description": "creates an ascending half-open range",
+      "args": [-2, 3],
+      "outcome": { "returns": [-2, -1, 0, 1, 2] }
+    },
+    {
+      "description": "returns an empty range for descending endpoints",
+      "args": [3, -2],
+      "outcome": { "returns": [] }
+    },
+    {
+      "description": "rejects a non-integer start",
+      "args": [0.5, 5],
+      "outcome": { "throws": { "messageIncludes": "first argument must be an integer" } }
+    },
+    {
+      "description": "rejects a non-integer end",
+      "args": [0, 5.5],
+      "outcome": { "throws": { "messageIncludes": "second argument must be an integer" } }
+    }
+  ]
+}

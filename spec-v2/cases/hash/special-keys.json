@@ -1,0 +1,53 @@
+{
+  "description": "Keys with host-prototype or tag-like names are ordinary data at the value layer: __proto__, constructor, empty, $-prefixed, and @-prefixed keys all survive canonical encoding as own properties",
+  "cases": [
+    {
+      "name": "proto key",
+      "value": { "__proto__": { "polluted": true }, "safe": 1 },
+      "canonical": "{\"__proto__\":{\"polluted\":true},\"safe\":1}",
+      "valueHash": "jfn:value:v1:sha256:35c7ee1d5e9c68fd32af39288e47672620b285a51fb9fc4d82129db2ca79f507"
+    },
+    {
+      "name": "constructor and prototype keys",
+      "value": { "constructor": 1, "prototype": 2 },
+      "canonical": "{\"constructor\":1,\"prototype\":2}",
+      "valueHash": "jfn:value:v1:sha256:83b7d9f214ef83eff4e26b19a45ec54591be1bb55bb493d716b63f2d3f45d857"
+    },
+    {
+      "name": "toString key",
+      "value": { "toString": "data" },
+      "canonical": "{\"toString\":\"data\"}",
+      "valueHash": "jfn:value:v1:sha256:15c97d2af470951244b202fff5f0ddbc43b6538cd7212a286e55c5f4fce9437f"
+    },
+    {
+      "name": "empty-string key",
+      "value": { "": "empty" },
+      "canonical": "{\"\":\"empty\"}",
+      "valueHash": "jfn:value:v1:sha256:fd53f344ee813d22e36b7c50117bddb49d96fd40c68e8a1dc0d9f3beab34d177"
+    },
+    {
+      "name": "dollar-prefixed keys as plain data",
+      "value": { "$call": "add", "$args": [1, 2] },
+      "canonical": "{\"$args\":[1,2],\"$call\":\"add\"}",
+      "valueHash": "jfn:value:v1:sha256:53f77f19f2aca75c7f0073d328a23cd8ba89decaa1c8474d2ac287b54e94cca8"
+    },
+    {
+      "name": "at-prefixed codec-tag-like keys as plain data",
+      "value": { "@blob": "not a ref" },
+      "canonical": "{\"@blob\":\"not a ref\"}",
+      "valueHash": "jfn:value:v1:sha256:fc0d641820d25f64b55b38363e8e98c1e331168793d58bfe3e5eb9e66c68b67f"
+    },
+    {
+      "name": "lit-tag-like key as plain data",
+      "value": { "@lit": { "@blob": "still data" } },
+      "canonical": "{\"@lit\":{\"@blob\":\"still data\"}}",
+      "valueHash": "jfn:value:v1:sha256:f5e38713429976d42d9b6c0f144c19c2465a05224f4c4d77fea26cd4b1b0ec31"
+    },
+    {
+      "name": "special keys sort with ordinary keys",
+      "value": { "zebra": 1, "__proto__": 2, "": 3, "$var": 4 },
+      "canonical": "{\"\":3,\"$var\":4,\"__proto__\":2,\"zebra\":1}",
+      "valueHash": "jfn:value:v1:sha256:de6077c9e7f118ddbe475d87fc9275604c7f06b7d3e6b4cc73e165dcba229702"
+    }
+  ]
+}

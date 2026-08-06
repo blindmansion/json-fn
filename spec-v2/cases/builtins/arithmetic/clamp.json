@@ -1,0 +1,32 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "clamp",
+  "description": "Constrain a number to inclusive minimum and maximum bounds.",
+  "cases": [
+    {
+      "description": "raises a value below the minimum",
+      "args": [-2, 0, 10],
+      "outcome": { "returns": 0 }
+    },
+    {
+      "description": "leaves a value within the bounds unchanged",
+      "args": [4, 0, 10],
+      "outcome": { "returns": 4 }
+    },
+    {
+      "description": "lowers a value above the maximum",
+      "args": [12, 0, 10],
+      "outcome": { "returns": 10 }
+    },
+    {
+      "description": "accepts a value equal to an inclusive bound",
+      "args": [10, 0, 10],
+      "outcome": { "returns": 10 }
+    },
+    {
+      "description": "rejects reversed bounds",
+      "args": [5, 10, 0],
+      "outcome": { "throws": { "messageIncludes": "minimum must not exceed maximum" } }
+    }
+  ]
+}

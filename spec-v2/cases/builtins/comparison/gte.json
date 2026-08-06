@@ -1,0 +1,12 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "gte",
+  "description": "Test whether one number is greater than or equal to another.",
+  "cases": [
+    {
+      "description": "returns true for equal numbers",
+      "args": [3, 3],
+      "outcome": { "returns": true }
+    }
+  ]
+}

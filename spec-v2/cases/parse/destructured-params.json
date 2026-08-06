@@ -1,0 +1,85 @@
+{
+  "$schema": "../parse.schema.json",
+  "description": "destructured (object-pattern) parameters — $fields (plans/destructured-params.md)",
+  "cases": [
+    {
+      "description": "single field pattern",
+      "source": "({ x }) => x",
+      "expected": { "$params": [{ "$fields": ["x"] }], "$return": { "$var": "x" } }
+    },
+    {
+      "description": "two field pattern",
+      "source": "({ from, to }) => sub(to, from)",
+      "expected": {
+        "$params": [{ "$fields": ["from", "to"] }],
+        "$return": { "$call": "sub", "$args": [{ "$var": "to" }, { "$var": "from" }] }
+      }
+    },
+    {
+      "description": "optional and defaulted fields",
+      "source": "({ required, label?, count = 0 }) => count",
+      "expected": {
+        "$params": [
+          {
+            "$fields": [
+              "required",
+              { "$field": "label", "$optional": true },
+              { "$field": "count", "$default": 0 }
+            ]
+          }
+        ],
+        "$return": { "$var": "count" }
+      }
+    },
+    {
+      "description": "positional param followed by a pattern slot",
+      "source": "(label, { x, y }) => x + y",
+      "expected": {
+        "$params": ["label", { "$fields": ["x", "y"] }],
+        "$return": { "$call": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] }
+      }
+    },
+    {
+      "description": "pattern slot followed by a rest parameter",
+      "source": "({ x }, ...rest) => rest",
+      "expected": { "$params": [{ "$fields": ["x"] }, "...rest"], "$return": { "$var": "rest" } }
+    },
+    {
+      "description": "multiple pattern slots",
+      "source": "({ a }, { b }) => a + b",
+      "expected": {
+        "$params": [{ "$fields": ["a"] }, { "$fields": ["b"] }],
+        "$return": { "$call": "add", "$args": [{ "$var": "a" }, { "$var": "b" }] }
+      }
+    },
+    {
+      "description": "trailing comma inside a pattern normalizes away",
+      "source": "({ x, y, }) => x",
+      "expected": { "$params": [{ "$fields": ["x", "y"] }], "$return": { "$var": "x" } }
+    },
+    {
+      "description": "pattern with a trailing where clause",
+      "source": "({ n }) => doubled where {\n  doubled: n * 2\n}",
+      "expected": {
+        "$params": [{ "$fields": ["n"] }],
+        "$return": {
+          "$let": { "doubled": { "$call": "mul", "$args": [{ "$var": "n" }, 2] } },
+          "$in": { "$var": "doubled" }
+        }
+      }
+    },
+    { "description": "empty pattern is rejected", "source": "({}) => 1", "error": true },
+    {
+      "description": "field rename is not supported",
+      "source": "({ from: f }) => f",
+      "error": true
+    },
+    {
+      "description": "nested pattern is not supported",
+      "source": "({ a: { b } }) => b",
+      "error": true
+    },
+    { "description": "rest pattern is not supported", "source": "(...{ x }) => x", "error": true },
+    { "description": "non-identifier field is rejected", "source": "({ 1 }) => 1", "error": true }
+  ]
+}

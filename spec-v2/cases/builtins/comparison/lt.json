@@ -1,0 +1,12 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "lt",
+  "description": "Test whether one number is less than another.",
+  "cases": [
+    {
+      "description": "returns true when the first number is smaller",
+      "args": [1, 2],
+      "outcome": { "returns": true }
+    }
+  ]
+}

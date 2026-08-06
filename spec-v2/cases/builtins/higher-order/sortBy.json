@@ -1,0 +1,132 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "sortBy",
+  "description": "Stably sort array elements by finite numeric or string callback keys.",
+  "cases": [
+    {
+      "description": "sorts by numeric keys",
+      "args": [
+        {
+          "$callback": {
+            "steps": [
+              { "args": ["bbb"], "outcome": { "returns": 3 } },
+              { "args": ["a"], "outcome": { "returns": 1 } },
+              { "args": ["cccc"], "outcome": { "returns": 4 } },
+              { "args": ["dd"], "outcome": { "returns": 2 } }
+            ]
+          }
+        },
+        ["bbb", "a", "cccc", "dd"]
+      ],
+      "outcome": { "returns": ["a", "dd", "bbb", "cccc"] }
+    },
+    {
+      "description": "sorts objects by string keys",
+      "args": [
+        {
+          "$callback": {
+            "steps": [
+              { "args": [{ "name": "charlie" }], "outcome": { "returns": "charlie" } },
+              { "args": [{ "name": "alice" }], "outcome": { "returns": "alice" } },
+              { "args": [{ "name": "bob" }], "outcome": { "returns": "bob" } }
+            ]
+          }
+        },
+        [{ "name": "charlie" }, { "name": "alice" }, { "name": "bob" }]
+      ],
+      "outcome": {
+        "returns": [{ "name": "alice" }, { "name": "bob" }, { "name": "charlie" }]
+      }
+    },
+    {
+      "description": "sorts objects by extracted numeric keys",
+      "args": [
+        {
+          "$callback": {
+            "steps": [
+              { "args": [{ "name": "alice", "age": 30 }], "outcome": { "returns": 30 } },
+              { "args": [{ "name": "bob", "age": 20 }], "outcome": { "returns": 20 } },
+              { "args": [{ "name": "carol", "age": 25 }], "outcome": { "returns": 25 } }
+            ]
+          }
+        },
+        [
+          { "name": "alice", "age": 30 },
+          { "name": "bob", "age": 20 },
+          { "name": "carol", "age": 25 }
+        ]
+      ],
+      "outcome": {
+        "returns": [
+          { "name": "bob", "age": 20 },
+          { "name": "carol", "age": 25 },
+          { "name": "alice", "age": 30 }
+        ]
+      }
+    },
+    {
+      "description": "preserves input order for equal keys",
+      "args": [
+        {
+          "$callback": {
+            "steps": [
+              { "args": ["alice"], "outcome": { "returns": 1 } },
+              { "args": ["bob"], "outcome": { "returns": 2 } },
+              { "args": ["carol"], "outcome": { "returns": 1 } }
+            ]
+          }
+        },
+        ["alice", "bob", "carol"]
+      ],
+      "outcome": { "returns": ["alice", "carol", "bob"] }
+    },
+    {
+      "description": "does not call the callback for empty input",
+      "args": [{ "$callback": { "steps": [] } }, []],
+      "outcome": { "returns": [] }
+    },
+    {
+      "description": "orders string keys by Unicode code point",
+      "args": [
+        {
+          "$callback": {
+            "steps": [
+              { "args": ["😀"], "outcome": { "returns": "😀" } },
+              { "args": [""], "outcome": { "returns": "" } },
+              { "args": ["a"], "outcome": { "returns": "a" } }
+            ]
+          }
+        },
+        ["😀", "", "a"]
+      ],
+      "outcome": { "returns": ["a", "", "😀"] }
+    },
+    {
+      "description": "rejects an unsupported key type",
+      "args": [
+        {
+          "$callback": {
+            "steps": [{ "args": [1], "outcome": { "returns": true } }]
+          }
+        },
+        [1, 2]
+      ],
+      "outcome": { "throws": { "messageIncludes": "must return a finite number or string" } }
+    },
+    {
+      "description": "rejects mixed key types",
+      "args": [
+        {
+          "$callback": {
+            "steps": [
+              { "args": [1], "outcome": { "returns": "one" } },
+              { "args": [2], "outcome": { "returns": 2 } }
+            ]
+          }
+        },
+        [1, 2]
+      ],
+      "outcome": { "throws": { "messageIncludes": "keys of one consistent type" } }
+    }
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "description": "composing features together",
+  "functions": {
+    "fact": {
+      "$params": ["n"],
+      "$return": {
+        "$if": { "$call": "lte", "$args": [{ "$var": "n" }, 1] },
+        "$then": 1,
+        "$else": {
+          "$call": "mul",
+          "$args": [
+            { "$var": "n" },
+            { "$call": "fact", "$args": [{ "$call": "sub", "$args": [{ "$var": "n" }, 1] }] }
+          ]
+        }
+      }
+    },
+    "isEven": {
+      "$params": ["n"],
+      "$return": {
+        "$let": { "remainder": { "$call": "mod", "$args": [{ "$var": "n" }, 2] } },
+        "$in": { "$call": "eq", "$args": [{ "$var": "remainder" }, 0] }
+      }
+    }
+  },
+  "cases": [
+    {
+      "description": "isEven(fact(6)) — combines named functions, variables, conditionals",
+      "body": {
+        "$return": {
+          "$let": {
+            "result": { "$call": "fact", "$args": [6] },
+            "check": { "$call": "isEven", "$args": [{ "$var": "result" }] }
+          },
+          "$in": {
+            "$if": { "$var": "check" },
+            "$then": { "$call": "strcat", "$args": ["720 is ", "even"] },
+            "$else": { "$call": "strcat", "$args": ["720 is ", "odd"] }
+          }
+        }
+      },
+      "expected": "720 is even"
+    },
+    {
+      "description": "greeting from parts using variables and strcat",
+      "body": {
+        "$params": ["first", "last"],
+        "$return": {
+          "$let": {
+            "full": {
+              "$call": "strcat",
+              "$args": [
+                { "$var": "first" },
+                { "$call": "strcat", "$args": [" ", { "$var": "last" }] }
+              ]
+            }
+          },
+          "$in": { "$call": "strcat", "$args": ["Hello, ", { "$var": "full" }] }
+        }
+      },
+      "args": ["Ada", "Lovelace"],
+      "expected": "Hello, Ada Lovelace"
+    }
+  ]
+}

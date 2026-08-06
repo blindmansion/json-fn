@@ -1,0 +1,12 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "mul",
+  "description": "Multiply two numbers.",
+  "cases": [
+    {
+      "description": "rejects a non-finite result",
+      "args": [1e308, 2],
+      "outcome": { "throws": { "messageIncludes": "result must be a finite number" } }
+    }
+  ]
+}

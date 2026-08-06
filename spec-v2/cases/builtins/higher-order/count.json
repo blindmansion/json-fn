@@ -1,0 +1,50 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "count",
+  "description": "Count array elements selected by a unary callback.",
+  "cases": [
+    {
+      "description": "passes every value without an index",
+      "args": [
+        {
+          "$callback": {
+            "steps": [
+              { "args": [1], "outcome": { "returns": false } },
+              { "args": [2], "outcome": { "returns": true } },
+              { "args": [3], "outcome": { "returns": true } }
+            ]
+          }
+        },
+        [1, 2, 3]
+      ],
+      "outcome": { "returns": 2 },
+      "observations": { "meter": { "charged": 3 } }
+    },
+    {
+      "description": "returns zero when no element matches",
+      "args": [
+        {
+          "$callback": {
+            "steps": [
+              { "args": [1], "outcome": { "returns": false } },
+              { "args": [2], "outcome": { "returns": false } },
+              { "args": [3], "outcome": { "returns": false } }
+            ]
+          }
+        },
+        [1, 2, 3]
+      ],
+      "outcome": { "returns": 0 }
+    },
+    {
+      "description": "returns zero without calling the callback for an empty array",
+      "args": [{ "$callback": { "steps": [] } }, []],
+      "outcome": { "returns": 0 }
+    },
+    {
+      "description": "rejects a non-array argument",
+      "args": [{ "$callback": { "steps": [] } }, 42],
+      "outcome": { "throws": { "messageIncludes": "must be an array" } }
+    }
+  ]
+}

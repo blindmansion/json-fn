@@ -1,0 +1,164 @@
+{
+  "$schema": "../parse.schema.json",
+  "description": "do-notation: effect bindings (`<-`), pure bindings (`:`), and a final result expression, desugaring to a bind spine (shorthand-spec §13)",
+  "cases": [
+    {
+      "description": "single effect binding then a final expression",
+      "source": "do {\n  x <- readLine(),\n  pure(x)\n}",
+      "expected": {
+        "$call": "bind",
+        "$args": [
+          { "$call": "readLine", "$args": [] },
+          { "$params": ["x"], "$return": { "$call": "pure", "$args": [{ "$var": "x" }] } }
+        ]
+      }
+    },
+    {
+      "description": "effect + pure binding + effect + final (the greeter)",
+      "source": "do {\n  name <- readLine(),\n  upper: upper(name),\n  _ <- print(upper),\n  pure(upper)\n}",
+      "expected": {
+        "$call": "bind",
+        "$args": [
+          { "$call": "readLine", "$args": [] },
+          {
+            "$params": ["name"],
+            "$return": {
+              "$let": { "upper": { "$call": "upper", "$args": [{ "$var": "name" }] } },
+              "$in": {
+                "$call": "bind",
+                "$args": [
+                  { "$call": "print", "$args": [{ "$var": "upper" }] },
+                  {
+                    "$params": ["_"],
+                    "$return": { "$call": "pure", "$args": [{ "$var": "upper" }] }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "description": "a pure binding before the first effect wraps the chain in $let",
+      "source": "do {\n  x: 1,\n  y <- eff(),\n  pure(add(x, y))\n}",
+      "expected": {
+        "$let": { "x": 1 },
+        "$in": {
+          "$call": "bind",
+          "$args": [
+            { "$call": "eff", "$args": [] },
+            {
+              "$params": ["y"],
+              "$return": {
+                "$call": "pure",
+                "$args": [{ "$call": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] }]
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "underscore binding and a method-call effect value",
+      "source": "do {\n  _ <- io.print(\"hi\"),\n  pure(null)\n}",
+      "expected": {
+        "$call": "bind",
+        "$args": [
+          { "$call": { "$get": "print", "$from": { "$var": "io" } }, "$args": ["hi"] },
+          { "$params": ["_"], "$return": { "$call": "pure", "$args": [null] } }
+        ]
+      }
+    },
+    {
+      "description": "the `<-` adjacency rule does not disturb `< -` comparison in the result",
+      "source": "do {\n  r <- f(),\n  r < -1\n}",
+      "expected": {
+        "$call": "bind",
+        "$args": [
+          { "$call": "f", "$args": [] },
+          { "$params": ["r"], "$return": { "$call": "lt", "$args": [{ "$var": "r" }, -1] } }
+        ]
+      }
+    },
+    {
+      "description": "a non-final bare expression is a discard: it runs for its effect and drops the result (`bind` with a zero-param continuation)",
+      "source": "do {\n  log(\"hi\"),\n  pure(1)\n}",
+      "expected": {
+        "$call": "bind",
+        "$args": [
+          { "$call": "log", "$args": ["hi"] },
+          { "$return": { "$call": "pure", "$args": [1] } }
+        ]
+      }
+    },
+    {
+      "description": "discard mixed with effect bindings and pures (the greeter, `_ <-` written as a bare discard)",
+      "source": "do {\n  name <- readLine(),\n  upper: upper(name),\n  print(upper),\n  pure(upper)\n}",
+      "expected": {
+        "$call": "bind",
+        "$args": [
+          { "$call": "readLine", "$args": [] },
+          {
+            "$params": ["name"],
+            "$return": {
+              "$let": { "upper": { "$call": "upper", "$args": [{ "$var": "name" }] } },
+              "$in": {
+                "$call": "bind",
+                "$args": [
+                  { "$call": "print", "$args": [{ "$var": "upper" }] },
+                  { "$return": { "$call": "pure", "$args": [{ "$var": "upper" }] } }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "description": "a discard may carry following pure bindings in its continuation's $let",
+      "source": "do {\n  step(),\n  n: 1,\n  pure(n)\n}",
+      "expected": {
+        "$call": "bind",
+        "$args": [
+          { "$call": "step", "$args": [] },
+          {
+            "$return": {
+              "$let": { "n": 1 },
+              "$in": { "$call": "pure", "$args": [{ "$var": "n" }] }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "description": "a do block must end with a result expression, not a binding",
+      "source": "do {\n  x <- e()\n}",
+      "error": "must end with a result expression"
+    },
+    {
+      "description": "duplicate pure bindings in one lexical run are rejected",
+      "source": "do {\n  x: 1,\n  x: 2,\n  pure(x)\n}",
+      "error": "duplicate pure 'do' binding \"x\""
+    },
+    {
+      "description": "a pure run after a discard may shadow an earlier pure binding",
+      "source": "do {\n  x: 1,\n  step(),\n  x: 2,\n  pure(x)\n}",
+      "expected": {
+        "$let": { "x": 1 },
+        "$in": {
+          "$call": "bind",
+          "$args": [
+            { "$call": "step", "$args": [] },
+            {
+              "$return": {
+                "$let": { "x": 2 },
+                "$in": { "$call": "pure", "$args": [{ "$var": "x" }] }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

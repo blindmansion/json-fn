@@ -1,0 +1,52 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "slice",
+  "description": "Slice arrays and strings by integer offsets.",
+  "cases": [
+    {
+      "description": "returns an array from the start index",
+      "args": [[10, 20, 30, 40, 50], 2],
+      "outcome": { "returns": [30, 40, 50] }
+    },
+    {
+      "description": "returns an array between start and end indices",
+      "args": [[10, 20, 30, 40, 50], 1, 3],
+      "outcome": { "returns": [20, 30] }
+    },
+    {
+      "description": "counts a negative start from the end",
+      "args": [[10, 20, 30, 40, 50], -2],
+      "outcome": { "returns": [40, 50] }
+    },
+    {
+      "description": "counts a negative end from the end",
+      "args": [[10, 20, 30, 40, 50], 1, -1],
+      "outcome": { "returns": [20, 30, 40] }
+    },
+    {
+      "description": "returns an empty array when start is beyond the length",
+      "args": [[1, 2, 3], 10],
+      "outcome": { "returns": [] }
+    },
+    {
+      "description": "returns a string from the start index",
+      "args": ["hello world", 6],
+      "outcome": { "returns": "world" }
+    },
+    {
+      "description": "returns a string between start and end indices",
+      "args": ["hello world", 0, 5],
+      "outcome": { "returns": "hello" }
+    },
+    {
+      "description": "counts string offsets in Unicode code points",
+      "args": ["a😀bc", 1, 3],
+      "outcome": { "returns": "😀b" }
+    },
+    {
+      "description": "rejects a non-integer index",
+      "args": [[1, 2, 3], 1.5],
+      "outcome": { "throws": { "messageIncludes": "second argument must be an integer" } }
+    }
+  ]
+}

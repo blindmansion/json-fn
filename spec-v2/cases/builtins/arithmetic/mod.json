@@ -1,0 +1,12 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "mod",
+  "description": "Return the remainder after division.",
+  "cases": [
+    {
+      "description": "rejects division by zero",
+      "args": [5, 0],
+      "outcome": { "throws": { "messageIncludes": "division by zero" } }
+    }
+  ]
+}

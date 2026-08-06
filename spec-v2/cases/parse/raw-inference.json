@@ -1,0 +1,106 @@
+{
+  "$schema": "../parse.schema.json",
+  "description": "raw inference: static JSON needs no keyword; quoted $-keys infer a maximal canonical $raw boundary (shorthand spec section 3)",
+  "cases": [
+    {
+      "description": "ordinary static object stays plain JSON",
+      "source": "{ rooms: [\"cell\", \"hall\", \"gate\"], enabled: true }",
+      "expected": { "rooms": ["cell", "hall", "gate"], "enabled": true }
+    },
+    {
+      "description": "nested ordinary static data needs no $raw",
+      "source": "{ a: { b: { c: [null, false, 1.5] } } }",
+      "expected": { "a": { "b": { "c": [null, false, 1.5] } } }
+    },
+    {
+      "description": "top-level expression-shaped data is quoted",
+      "source": "{ \"$var\": \"this is data\" }",
+      "expected": { "$raw": { "$var": "this is data" } }
+    },
+    {
+      "description": "raw bubbles maximally through static objects",
+      "source": "{ envelope: { payload: { \"$call\": \"not code\", \"$args\": [] } } }",
+      "expected": { "$raw": { "envelope": { "payload": { "$call": "not code", "$args": [] } } } }
+    },
+    {
+      "description": "raw bubbles maximally through static arrays",
+      "source": "[[{ \"$ref\": 1 }], 2]",
+      "expected": { "$raw": [[{ "$ref": 1 }], 2] }
+    },
+    {
+      "description": "a dynamic parent keeps the maximal static raw child",
+      "source": "{ receivedAt, payload: { \"$call\": \"not code\", \"$args\": [] } }",
+      "expected": {
+        "receivedAt": { "$var": "receivedAt" },
+        "payload": { "$raw": { "$call": "not code", "$args": [] } }
+      }
+    },
+    {
+      "description": "a dynamic array keeps a raw static element",
+      "source": "[now(), { \"$tag\": true }]",
+      "expected": [{ "$call": "now", "$args": [] }, { "$raw": { "$tag": true } }]
+    },
+    {
+      "description": "quoted $-key with a dynamic value is rejected",
+      "source": "{ \"$status\": status }",
+      "error": "only allowed when the whole object literal is static JSON data"
+    },
+    {
+      "description": "quoted $-key beside a dynamic sibling is rejected",
+      "source": "{ \"$status\": 1, other: f() }",
+      "error": "only allowed when the whole object literal is static JSON data"
+    },
+    {
+      "description": "quoted $-key beside a spread is rejected",
+      "source": "{ ...base, \"$status\": 1 }",
+      "error": "only allowed when the whole object literal is static JSON data"
+    },
+    {
+      "description": "computed $-key with a dynamic value is accepted",
+      "source": "{ [\"$status\"]: status }",
+      "expected": { "$call": "fromEntries", "$args": [[["$status", { "$var": "status" }]]] }
+    },
+    { "description": "bare $-key remains invalid", "source": "{ $status: 1 }", "error": true },
+    {
+      "description": "module bindings must not start with $",
+      "mode": "module",
+      "source": "\"$x\": 1",
+      "error": "module binding \"$x\" must not start with '$'"
+    },
+    {
+      "description": "literal $comment is preserved as quoted data",
+      "source": "{ \"$comment\": \"note\", a: 1 }",
+      "expected": { "$raw": { "$comment": "note", "a": 1 } }
+    },
+    {
+      "description": "__proto__ and constructor stay ordinary data keys",
+      "source": "{ \"__proto__\": { p: 1 }, constructor: 2 }",
+      "expected": { "__proto__": { "p": 1 }, "constructor": 2 }
+    },
+    {
+      "description": "__proto__ survives inside a quoted payload",
+      "source": "{ \"$tag\": 1, \"__proto__\": { p: 2 } }",
+      "expected": { "$raw": { "$tag": 1, "__proto__": { "p": 2 } } }
+    },
+    {
+      "description": "template holes participate in raw inference",
+      "source": "[`${ { \"$x\": 1 } }`]",
+      "expected": { "$raw": [{ "$x": 1 }] }
+    },
+    {
+      "description": "grouping parentheses are transparent to absorption",
+      "source": "[({ \"$x\": 1 })]",
+      "expected": { "$raw": [{ "$x": 1 }] }
+    },
+    {
+      "description": "raw is an ordinary identifier",
+      "source": "raw",
+      "expected": { "$var": "raw" }
+    },
+    {
+      "description": "raw calls resolve like any function name",
+      "source": "raw(x)",
+      "expected": { "$call": "raw", "$args": [{ "$var": "x" }] }
+    }
+  ]
+}

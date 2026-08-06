@@ -1,0 +1,37 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "includes",
+  "description": "Test arrays for structurally equal values and strings for substrings.",
+  "cases": [
+    {
+      "description": "returns true when an array element exists",
+      "args": [[1, 2, 3], 2],
+      "outcome": { "returns": true }
+    },
+    {
+      "description": "returns false when an array element is absent",
+      "args": [[1, 2, 3], 5],
+      "outcome": { "returns": false }
+    },
+    {
+      "description": "uses structural equality for arrays",
+      "args": [[[1]], [1]],
+      "outcome": { "returns": true }
+    },
+    {
+      "description": "uses structural equality for objects",
+      "args": [[{ "x": 1 }], { "x": 1 }],
+      "outcome": { "returns": true }
+    },
+    {
+      "description": "returns true when a substring exists",
+      "args": ["hello world", "world"],
+      "outcome": { "returns": true }
+    },
+    {
+      "description": "returns false when a substring is absent",
+      "args": ["hello", "xyz"],
+      "outcome": { "returns": false }
+    }
+  ]
+}

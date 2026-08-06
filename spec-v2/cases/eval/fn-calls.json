@@ -1,0 +1,59 @@
+{
+  "description": "function calls",
+  "cases": [
+    {
+      "description": "nested calls: mul(add(2,3), sub(10,4))",
+      "body": {
+        "$return": {
+          "$call": "mul",
+          "$args": [
+            { "$call": "add", "$args": [2, 3] },
+            { "$call": "sub", "$args": [10, 4] }
+          ]
+        }
+      },
+      "expected": 30
+    },
+    {
+      "description": "$params binds arguments by name",
+      "body": {
+        "$params": ["a", "b"],
+        "$return": { "$call": "add", "$args": [{ "$var": "a" }, { "$var": "b" }] }
+      },
+      "args": [10, 20],
+      "expected": 30
+    },
+    {
+      "description": "inline square(5)",
+      "body": {
+        "$return": {
+          "$call": {
+            "$params": ["x"],
+            "$return": { "$call": "mul", "$args": [{ "$var": "x" }, { "$var": "x" }] }
+          },
+          "$args": [5]
+        }
+      },
+      "expected": 25
+    },
+    {
+      "description": "nested inline: sumThenSquare(3, 4)",
+      "body": {
+        "$return": {
+          "$call": {
+            "$params": ["a", "b"],
+            "$return": {
+              "$call": {
+                "$params": ["sum"],
+                "$return": { "$call": "mul", "$args": [{ "$var": "sum" }, { "$var": "sum" }] }
+              },
+              "$args": [{ "$call": "add", "$args": [{ "$var": "a" }, { "$var": "b" }] }]
+            }
+          },
+          "$args": [3, 4]
+        }
+      },
+      "expected": 49
+    }
+  ]
+}

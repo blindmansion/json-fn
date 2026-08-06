@@ -1,0 +1,164 @@
+{
+  "$schema": "../parse.schema.json",
+  "description": "operators and precedence (shorthand spec section 6)",
+  "cases": [
+    {
+      "description": "arithmetic precedence (* binds tighter than +)",
+      "source": "row * 8 + col",
+      "expected": {
+        "$call": "add",
+        "$args": [{ "$call": "mul", "$args": [{ "$var": "row" }, 8] }, { "$var": "col" }]
+      }
+    },
+    {
+      "description": "unary not",
+      "source": "!done",
+      "expected": { "$call": "not", "$args": [{ "$var": "done" }] }
+    },
+    {
+      "description": "unary negation of variable",
+      "source": "-x",
+      "expected": { "$call": "neg", "$args": [{ "$var": "x" }] }
+    },
+    {
+      "description": "unary negation of literal folds to negative number",
+      "source": "-5",
+      "expected": -5
+    },
+    {
+      "description": "logical and flattens across comparisons",
+      "source": "x > 0 && x < 100",
+      "expected": {
+        "$and": [
+          { "$call": "gt", "$args": [{ "$var": "x" }, 0] },
+          { "$call": "lt", "$args": [{ "$var": "x" }, 100] }
+        ]
+      }
+    },
+    {
+      "description": "logical and flattens chained operands",
+      "source": "a && b && c",
+      "expected": { "$and": [{ "$var": "a" }, { "$var": "b" }, { "$var": "c" }] }
+    },
+    {
+      "description": "logical or",
+      "source": "cached || compute(x)",
+      "expected": {
+        "$or": [{ "$var": "cached" }, { "$call": "compute", "$args": [{ "$var": "x" }] }]
+      }
+    },
+    {
+      "description": "ordered comparisons chain through a variable",
+      "source": "0 <= x < 100",
+      "expected": {
+        "$and": [
+          { "$call": "lte", "$args": [0, { "$var": "x" }] },
+          { "$call": "lt", "$args": [{ "$var": "x" }, 100] }
+        ]
+      }
+    },
+    {
+      "description": "a nontrivial middle comparison operand is evaluated through a lazy memo",
+      "source": "0 <= value() < 100",
+      "expected": {
+        "$let": { "__jfn_cmp_0": { "$call": "value", "$args": [] } },
+        "$in": {
+          "$and": [
+            { "$call": "lte", "$args": [0, { "$var": "__jfn_cmp_0" }] },
+            { "$call": "lt", "$args": [{ "$var": "__jfn_cmp_0" }, 100] }
+          ]
+        }
+      }
+    },
+    {
+      "description": "mixed ordered comparisons form one chain",
+      "source": "a < b >= c > d",
+      "expected": {
+        "$and": [
+          { "$call": "lt", "$args": [{ "$var": "a" }, { "$var": "b" }] },
+          { "$call": "gte", "$args": [{ "$var": "b" }, { "$var": "c" }] },
+          { "$call": "gt", "$args": [{ "$var": "c" }, { "$var": "d" }] }
+        ]
+      }
+    },
+    {
+      "description": "synthetic comparison bindings avoid operand names",
+      "source": "0 < choose(__jfn_cmp_0) < 10",
+      "expected": {
+        "$let": { "__jfn_cmp_1": { "$call": "choose", "$args": [{ "$var": "__jfn_cmp_0" }] } },
+        "$in": {
+          "$and": [
+            { "$call": "lt", "$args": [0, { "$var": "__jfn_cmp_1" }] },
+            { "$call": "lt", "$args": [{ "$var": "__jfn_cmp_1" }, 10] }
+          ]
+        }
+      }
+    },
+    {
+      "description": "equality cannot begin a comparison chain",
+      "source": "a == b < c",
+      "error": "only ordered comparison operators can be chained"
+    },
+    {
+      "description": "equality cannot end a comparison chain",
+      "source": "a < b != c",
+      "error": "only ordered comparison operators can be chained"
+    },
+    {
+      "description": "concat operator flattens",
+      "source": "a ++ b ++ c",
+      "expected": {
+        "$call": "strcat",
+        "$args": [{ "$var": "a" }, { "$var": "b" }, { "$var": "c" }]
+      }
+    },
+    {
+      "description": "template with leading text",
+      "source": "`Illegal move: ${moveDesc}`",
+      "expected": { "$call": "strcat", "$args": ["Illegal move: ", { "$var": "moveDesc" }] }
+    },
+    {
+      "description": "template with interleaved literals",
+      "source": "`${firstName} ${lastName}`",
+      "expected": {
+        "$call": "strcat",
+        "$args": [{ "$var": "firstName" }, " ", { "$var": "lastName" }]
+      }
+    },
+    {
+      "description": "template with single interpolation normalizes away strcat",
+      "source": "`${x}`",
+      "expected": { "$var": "x" }
+    },
+    {
+      "description": "template with no interpolation normalizes to a string",
+      "source": "`hello`",
+      "expected": "hello"
+    },
+    {
+      "description": "a lone dollar sign not followed by a brace is literal template text",
+      "source": "`cost $5 for ${item}`",
+      "expected": { "$call": "strcat", "$args": ["cost $5 for ", { "$var": "item" }] }
+    },
+    {
+      "description": "escaped \\${ produces literal ${ instead of interpolating",
+      "source": "`a \\${literal} b`",
+      "expected": "a ${literal} b"
+    },
+    {
+      "description": "postfix non-null assertion",
+      "source": "value!",
+      "expected": { "$nonnull": { "$var": "value" } }
+    },
+    {
+      "description": "postfix assertion binds before property access",
+      "source": "move!.from",
+      "expected": { "$get": "from", "$from": { "$nonnull": { "$var": "move" } } }
+    },
+    {
+      "description": "postfix assertion binds before prefix not",
+      "source": "!value!",
+      "expected": { "$call": "not", "$args": [{ "$nonnull": { "$var": "value" } }] }
+    }
+  ]
+}

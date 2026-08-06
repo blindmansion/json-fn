@@ -1,0 +1,33 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "flatten",
+  "description": "Flatten arrays by one level.",
+  "cases": [
+    {
+      "description": "flattens one level of nesting",
+      "args": [[[1, 2], [3, 4], [5]]],
+      "outcome": { "returns": [1, 2, 3, 4, 5] },
+      "observations": { "meter": { "charged": 3 } }
+    },
+    {
+      "description": "does not flatten deeper than one level",
+      "args": [[[1, [2, 3]], [4]]],
+      "outcome": { "returns": [1, [2, 3], 4] }
+    },
+    {
+      "description": "retains non-array elements",
+      "args": [[1, [2, 3], 4, [5]]],
+      "outcome": { "returns": [1, 2, 3, 4, 5] }
+    },
+    {
+      "description": "returns an empty array for empty input",
+      "args": [[]],
+      "outcome": { "returns": [] }
+    },
+    {
+      "description": "rejects a non-array argument",
+      "args": ["abc"],
+      "outcome": { "throws": { "messageIncludes": "argument must be an array" } }
+    }
+  ]
+}

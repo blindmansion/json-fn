@@ -1,0 +1,28 @@
+{
+  "description": "Portable schema-fragment validation",
+  "cases": [
+    {
+      "name": "accepts a closed object schema",
+      "validator": "schema",
+      "value": {
+        "type": "object",
+        "properties": { "id": { "type": "integer" } },
+        "required": ["id"],
+        "additionalProperties": false
+      },
+      "expected": { "valid": true }
+    },
+    {
+      "name": "rejects inverted string bounds",
+      "validator": "schema",
+      "value": { "type": "string", "minLength": 3, "maxLength": 2 },
+      "expected": { "valid": false, "code": "INVALID_SCHEMA_FRAGMENT", "path": "schema" }
+    },
+    {
+      "name": "rejects undefined references",
+      "validator": "schema",
+      "value": { "$ref": "#/$defs/Missing" },
+      "expected": { "valid": false, "code": "INVALID_SCHEMA_FRAGMENT", "path": "schema.$ref" }
+    }
+  ]
+}

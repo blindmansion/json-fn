@@ -1,0 +1,17 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "length",
+  "description": "Count array items or string Unicode code points.",
+  "cases": [
+    {
+      "description": "counts string Unicode code points",
+      "args": ["a😀b"],
+      "outcome": { "returns": 3 }
+    },
+    {
+      "description": "rejects values other than arrays and strings",
+      "args": [{ "length": 3 }],
+      "outcome": { "throws": { "messageIncludes": "argument must be an array or string" } }
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "eq",
+  "description": "Test JSON values for structural equality without coercion.",
+  "cases": [
+    {
+      "description": "returns true for structurally equal arrays",
+      "args": [[1], [1]],
+      "outcome": { "returns": true }
+    },
+    {
+      "description": "returns true for structurally equal objects",
+      "args": [{ "x": 1 }, { "x": 1 }],
+      "outcome": { "returns": true }
+    },
+    {
+      "description": "returns true for deeply equal nested values",
+      "args": [
+        [1, { "x": [true, null] }],
+        [1, { "x": [true, null] }]
+      ],
+      "outcome": { "returns": true }
+    },
+    {
+      "description": "ignores object key order",
+      "args": [
+        { "a": 1, "b": [2, 3] },
+        { "b": [2, 3], "a": 1 }
+      ],
+      "outcome": { "returns": true }
+    },
+    {
+      "description": "returns false when array order differs",
+      "args": [
+        [1, 2, 3],
+        [3, 2, 1]
+      ],
+      "outcome": { "returns": false }
+    },
+    {
+      "description": "does not coerce booleans to numbers",
+      "args": [true, 1],
+      "outcome": { "returns": false }
+    },
+    {
+      "description": "does not coerce strings to numbers",
+      "args": [1, "1"],
+      "outcome": { "returns": false }
+    }
+  ]
+}

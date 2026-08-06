@@ -1,0 +1,47 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "pipe",
+  "description": "Pass a value through functions from left to right.",
+  "cases": [
+    {
+      "description": "threads a value through builtin functions",
+      "args": [[{ "$builtin": "neg" }, { "$builtin": "abs" }], -5],
+      "outcome": { "returns": 5 },
+      "observations": { "meter": { "charged": 2 } }
+    },
+    {
+      "description": "applies a single function",
+      "args": [[{ "$builtin": "neg" }], 42],
+      "outcome": { "returns": -42 }
+    },
+    {
+      "description": "returns the initial value for an empty pipeline",
+      "args": [[], 99],
+      "outcome": { "returns": 99 }
+    },
+    {
+      "description": "passes each result to the next callback",
+      "args": [
+        [
+          {
+            "$callback": {
+              "steps": [{ "args": [5], "outcome": { "returns": 10 } }]
+            }
+          },
+          {
+            "$callback": {
+              "steps": [{ "args": [10], "outcome": { "returns": 11 } }]
+            }
+          }
+        ],
+        5
+      ],
+      "outcome": { "returns": 11 }
+    },
+    {
+      "description": "rejects a non-array pipeline",
+      "args": ["neg", 5],
+      "outcome": { "throws": { "messageIncludes": "first argument must be an array" } }
+    }
+  ]
+}

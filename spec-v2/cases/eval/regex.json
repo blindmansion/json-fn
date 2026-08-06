@@ -1,0 +1,43 @@
+{
+  "description": "regex functions",
+  "cases": [
+    {
+      "description": "reMatch result used with property access",
+      "body": {
+        "$return": {
+          "$let": { "m": { "$call": "reMatch", "$args": ["(\\d+)-(\\d+)", "foo-123-456-bar"] } },
+          "$in": {
+            "$if": { "$call": "isNull", "$args": [{ "$var": "m" }] },
+            "$then": null,
+            "$else": { "$get": "match", "$from": { "$var": "m" } }
+          }
+        }
+      },
+      "expected": "123-456"
+    },
+    {
+      "description": "pipeline: extract all numbers from text",
+      "body": {
+        "$return": {
+          "$let": {
+            "matches": { "$call": "reMatchAll", "$args": ["\\d+", "I have 3 cats and 12 dogs"] }
+          },
+          "$in": {
+            "$call": "map",
+            "$args": [
+              {
+                "$params": ["m"],
+                "$return": {
+                  "$call": "num",
+                  "$args": [{ "$get": "match", "$from": { "$var": "m" } }]
+                }
+              },
+              { "$var": "matches" }
+            ]
+          }
+        }
+      },
+      "expected": [3, 12]
+    }
+  ]
+}

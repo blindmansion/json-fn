@@ -1,0 +1,18 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "raise",
+  "description": "Build a task requesting the distinguished raise effect.",
+  "cases": [
+    {
+      "description": "builds a raise effect carrying the supplied value",
+      "args": [{ "tag": "NotFound" }],
+      "outcome": {
+        "returns": {
+          "@task": "effect",
+          "name": "raise",
+          "args": [{ "tag": "NotFound" }]
+        }
+      }
+    }
+  ]
+}

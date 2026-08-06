@@ -1,0 +1,37 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "repeat",
+  "description": "Repeat arrays or strings a non-negative number of times.",
+  "cases": [
+    {
+      "description": "repeats an array",
+      "args": [[1, 2], 3],
+      "outcome": { "returns": [1, 2, 1, 2, 1, 2] }
+    },
+    {
+      "description": "returns an empty array for zero repetitions",
+      "args": [[1, 2], 0],
+      "outcome": { "returns": [] }
+    },
+    {
+      "description": "rejects a negative count",
+      "args": [[1, 2], -1],
+      "outcome": { "throws": { "messageIncludes": "count must be a non-negative integer" } }
+    },
+    {
+      "description": "repeats a string",
+      "args": ["ab", 3],
+      "outcome": { "returns": "ababab" }
+    },
+    {
+      "description": "returns an empty string for zero repetitions",
+      "args": ["ab", 0],
+      "outcome": { "returns": "" }
+    },
+    {
+      "description": "rejects a fractional string repetition count",
+      "args": ["ab", 1.5],
+      "outcome": { "throws": { "messageIncludes": "count must be a non-negative integer" } }
+    }
+  ]
+}

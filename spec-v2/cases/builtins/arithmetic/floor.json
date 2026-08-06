@@ -1,0 +1,27 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "floor",
+  "description": "Round numbers down to the nearest integer.",
+  "cases": [
+    {
+      "description": "rounds a positive decimal down",
+      "args": [3.7],
+      "outcome": { "returns": 3 }
+    },
+    {
+      "description": "rounds a negative decimal down",
+      "args": [-2.3],
+      "outcome": { "returns": -3 }
+    },
+    {
+      "description": "leaves an integer unchanged",
+      "args": [5],
+      "outcome": { "returns": 5 }
+    },
+    {
+      "description": "leaves zero unchanged",
+      "args": [0],
+      "outcome": { "returns": 0 }
+    }
+  ]
+}

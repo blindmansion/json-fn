@@ -1,0 +1,28 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "frequencies",
+  "description": "Count scalar array values after normalizing them to object keys.",
+  "cases": [
+    {
+      "description": "counts scalar values with normalized collisions",
+      "args": [[1, "1", true, true, null, "__proto__", "__proto__"]],
+      "outcome": { "returns": { "1": 2, "true": 2, "null": 1, "__proto__": 2 } },
+      "observations": { "meter": { "charged": 7 } }
+    },
+    {
+      "description": "returns an empty object for empty input",
+      "args": [[]],
+      "outcome": { "returns": {} }
+    },
+    {
+      "description": "rejects a non-array input",
+      "args": ["abc"],
+      "outcome": { "throws": { "messageIncludes": "argument must be an array" } }
+    },
+    {
+      "description": "rejects non-scalar elements",
+      "args": [[[1]]],
+      "outcome": { "throws": { "messageIncludes": "array elements must be scalars" } }
+    }
+  ]
+}

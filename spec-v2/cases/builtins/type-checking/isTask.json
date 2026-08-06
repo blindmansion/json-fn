@@ -1,0 +1,27 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "isTask",
+  "description": "Test for a plain object with a string-valued task tag.",
+  "cases": [
+    {
+      "description": "recognizes a tagged task object",
+      "args": [{ "@task": "pure", "value": 42 }],
+      "outcome": { "returns": true }
+    },
+    {
+      "description": "rejects a number",
+      "args": [42],
+      "outcome": { "returns": false }
+    },
+    {
+      "description": "rejects an array containing a task tag",
+      "args": [[{ "@task": "pure" }]],
+      "outcome": { "returns": false }
+    },
+    {
+      "description": "rejects an untagged object",
+      "args": [{ "value": 42 }],
+      "outcome": { "returns": false }
+    }
+  ]
+}

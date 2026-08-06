@@ -1,0 +1,71 @@
+{
+  "description": "Prepared deployment runtime-adapter binding validation",
+  "cases": [
+    {
+      "name": "rejects a missing adapter function",
+      "validator": "deployment",
+      "contract": {
+        "version": 1,
+        "functions": {
+          "host.lookup": { "signatures": [{ "required": [], "optional": [], "returns": true }] }
+        },
+        "entry": { "name": "main", "required": [], "optional": [], "returns": true }
+      },
+      "module": { "main": { "$params": [], "$return": null } },
+      "profile": { "version": 1, "mode": "live", "effects": [] },
+      "expected": {
+        "valid": false,
+        "code": "MISSING_ADAPTER_FUNCTION",
+        "path": "adapter.functions.host.lookup"
+      }
+    },
+    {
+      "name": "rejects an extra adapter function",
+      "validator": "deployment",
+      "contract": {
+        "version": 1,
+        "entry": { "name": "main", "required": [], "optional": [], "returns": true }
+      },
+      "module": { "main": { "$params": [], "$return": null } },
+      "profile": { "version": 1, "mode": "live", "effects": [] },
+      "adapterFunctions": ["host.extra"],
+      "expected": {
+        "valid": false,
+        "code": "EXTRA_ADAPTER_FUNCTION",
+        "path": "adapter.functions.host.extra"
+      }
+    },
+    {
+      "name": "rejects a missing selected adapter effect",
+      "validator": "deployment",
+      "contract": {
+        "version": 1,
+        "effects": { "clock.now": { "params": [], "returns": true } },
+        "entry": { "name": "main", "required": [], "optional": [], "returns": true }
+      },
+      "module": { "main": { "$params": [], "$return": null } },
+      "profile": { "version": 1, "mode": "live", "effects": ["clock.now"] },
+      "expected": {
+        "valid": false,
+        "code": "MISSING_ADAPTER_EFFECT",
+        "path": "adapter.effects.clock.now"
+      }
+    },
+    {
+      "name": "rejects an extra adapter effect",
+      "validator": "deployment",
+      "contract": {
+        "version": 1,
+        "entry": { "name": "main", "required": [], "optional": [], "returns": true }
+      },
+      "module": { "main": { "$params": [], "$return": null } },
+      "profile": { "version": 1, "mode": "live", "effects": [] },
+      "adapterEffects": ["clock.now"],
+      "expected": {
+        "valid": false,
+        "code": "EXTRA_ADAPTER_EFFECT",
+        "path": "adapter.effects.clock.now"
+      }
+    }
+  ]
+}

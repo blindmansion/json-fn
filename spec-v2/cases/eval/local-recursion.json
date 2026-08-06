@@ -1,0 +1,447 @@
+{
+  "description": "local function recursion via scoped registry",
+  "cases": [
+    {
+      "description": "self-recursive local factorial via string dispatch",
+      "body": {
+        "$params": ["n"],
+        "$return": {
+          "$let": {
+            "fact": {
+              "$params": ["x"],
+              "$return": {
+                "$if": { "$call": "lte", "$args": [{ "$var": "x" }, 1] },
+                "$then": 1,
+                "$else": {
+                  "$call": "mul",
+                  "$args": [
+                    { "$var": "x" },
+                    {
+                      "$call": "fact",
+                      "$args": [{ "$call": "sub", "$args": [{ "$var": "x" }, 1] }]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "$in": { "$call": "fact", "$args": [{ "$var": "n" }] }
+        }
+      },
+      "args": [5],
+      "expected": 120
+    },
+    {
+      "description": "self-recursive local fibonacci",
+      "body": {
+        "$params": ["n"],
+        "$return": {
+          "$let": {
+            "fib": {
+              "$params": ["x"],
+              "$return": {
+                "$if": { "$call": "lte", "$args": [{ "$var": "x" }, 1] },
+                "$then": { "$var": "x" },
+                "$else": {
+                  "$call": "add",
+                  "$args": [
+                    {
+                      "$call": "fib",
+                      "$args": [{ "$call": "sub", "$args": [{ "$var": "x" }, 1] }]
+                    },
+                    { "$call": "fib", "$args": [{ "$call": "sub", "$args": [{ "$var": "x" }, 2] }] }
+                  ]
+                }
+              }
+            }
+          },
+          "$in": { "$call": "fib", "$args": [{ "$var": "n" }] }
+        }
+      },
+      "args": [10],
+      "expected": 55
+    },
+    {
+      "description": "base case: local factorial(0) = 1",
+      "body": {
+        "$return": {
+          "$let": {
+            "fact": {
+              "$params": ["n"],
+              "$return": {
+                "$if": { "$call": "lte", "$args": [{ "$var": "n" }, 1] },
+                "$then": 1,
+                "$else": {
+                  "$call": "mul",
+                  "$args": [
+                    { "$var": "n" },
+                    {
+                      "$call": "fact",
+                      "$args": [{ "$call": "sub", "$args": [{ "$var": "n" }, 1] }]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "$in": { "$call": "fact", "$args": [0] }
+        }
+      },
+      "expected": 1
+    },
+    {
+      "description": "mutual recursion between local isEven and isOdd",
+      "body": {
+        "$params": ["n"],
+        "$return": {
+          "$let": {
+            "myIsEven": {
+              "$params": ["x"],
+              "$return": {
+                "$if": { "$call": "eq", "$args": [{ "$var": "x" }, 0] },
+                "$then": true,
+                "$else": {
+                  "$call": "myIsOdd",
+                  "$args": [{ "$call": "sub", "$args": [{ "$var": "x" }, 1] }]
+                }
+              }
+            },
+            "myIsOdd": {
+              "$params": ["x"],
+              "$return": {
+                "$if": { "$call": "eq", "$args": [{ "$var": "x" }, 0] },
+                "$then": false,
+                "$else": {
+                  "$call": "myIsEven",
+                  "$args": [{ "$call": "sub", "$args": [{ "$var": "x" }, 1] }]
+                }
+              }
+            }
+          },
+          "$in": [
+            { "$call": "myIsEven", "$args": [{ "$var": "n" }] },
+            { "$call": "myIsOdd", "$args": [{ "$var": "n" }] }
+          ]
+        }
+      },
+      "args": [4],
+      "expected": [true, false]
+    },
+    {
+      "description": "mutual recursion: odd number",
+      "body": {
+        "$params": ["n"],
+        "$return": {
+          "$let": {
+            "myIsEven": {
+              "$params": ["x"],
+              "$return": {
+                "$if": { "$call": "eq", "$args": [{ "$var": "x" }, 0] },
+                "$then": true,
+                "$else": {
+                  "$call": "myIsOdd",
+                  "$args": [{ "$call": "sub", "$args": [{ "$var": "x" }, 1] }]
+                }
+              }
+            },
+            "myIsOdd": {
+              "$params": ["x"],
+              "$return": {
+                "$if": { "$call": "eq", "$args": [{ "$var": "x" }, 0] },
+                "$then": false,
+                "$else": {
+                  "$call": "myIsEven",
+                  "$args": [{ "$call": "sub", "$args": [{ "$var": "x" }, 1] }]
+                }
+              }
+            }
+          },
+          "$in": [
+            { "$call": "myIsEven", "$args": [{ "$var": "n" }] },
+            { "$call": "myIsOdd", "$args": [{ "$var": "n" }] }
+          ]
+        }
+      },
+      "args": [5],
+      "expected": [false, true]
+    },
+    {
+      "description": "local recursive fn can also call stdlib functions",
+      "body": {
+        "$return": {
+          "$let": {
+            "sumTo": {
+              "$params": ["n"],
+              "$return": {
+                "$if": { "$call": "lte", "$args": [{ "$var": "n" }, 0] },
+                "$then": 0,
+                "$else": {
+                  "$call": "add",
+                  "$args": [
+                    { "$var": "n" },
+                    {
+                      "$call": "sumTo",
+                      "$args": [{ "$call": "sub", "$args": [{ "$var": "n" }, 1] }]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "$in": { "$call": "sumTo", "$args": [10] }
+        }
+      },
+      "expected": 55
+    },
+    {
+      "description": "local recursive fn coexists with non-recursive local variable",
+      "body": {
+        "$params": ["n"],
+        "$return": {
+          "$let": {
+            "threshold": 1,
+            "fact": {
+              "$params": ["x"],
+              "$return": {
+                "$if": { "$call": "lte", "$args": [{ "$var": "x" }, { "$var": "threshold" }] },
+                "$then": 1,
+                "$else": {
+                  "$call": "mul",
+                  "$args": [
+                    { "$var": "x" },
+                    {
+                      "$call": "fact",
+                      "$args": [{ "$call": "sub", "$args": [{ "$var": "x" }, 1] }]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "$in": { "$call": "fact", "$args": [{ "$var": "n" }] }
+        }
+      },
+      "args": [5],
+      "expected": 120
+    },
+    {
+      "description": "non-recursive local calling a recursive local",
+      "body": {
+        "$return": {
+          "$let": {
+            "fact": {
+              "$params": ["n"],
+              "$return": {
+                "$if": { "$call": "lte", "$args": [{ "$var": "n" }, 1] },
+                "$then": 1,
+                "$else": {
+                  "$call": "mul",
+                  "$args": [
+                    { "$var": "n" },
+                    {
+                      "$call": "fact",
+                      "$args": [{ "$call": "sub", "$args": [{ "$var": "n" }, 1] }]
+                    }
+                  ]
+                }
+              }
+            },
+            "doubleFactorial": { "$call": "mul", "$args": [{ "$call": "fact", "$args": [5] }, 2] }
+          },
+          "$in": { "$var": "doubleFactorial" }
+        }
+      },
+      "expected": 240
+    },
+    {
+      "description": "local function body shadows a global registry function of the same name",
+      "body": {
+        "$return": {
+          "$let": {
+            "double": {
+              "$params": ["x"],
+              "$return": { "$call": "mul", "$args": [{ "$var": "x" }, 3] }
+            }
+          },
+          "$in": { "$call": "double", "$args": [5] }
+        }
+      },
+      "functions": {
+        "double": { "$params": ["x"], "$return": { "$call": "mul", "$args": [{ "$var": "x" }, 2] } }
+      },
+      "expected": 15
+    },
+    {
+      "description": "local recursive fn used with map (HOF callback by string name)",
+      "body": {
+        "$return": {
+          "$let": {
+            "fact": {
+              "$params": ["n", "..._ignored"],
+              "$return": {
+                "$if": { "$call": "lte", "$args": [{ "$var": "n" }, 1] },
+                "$then": 1,
+                "$else": {
+                  "$call": "mul",
+                  "$args": [
+                    { "$var": "n" },
+                    {
+                      "$call": "fact",
+                      "$args": [{ "$call": "sub", "$args": [{ "$var": "n" }, 1] }]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "$in": { "$call": "map", "$args": [{ "$fn": "fact" }, [1, 2, 3, 4, 5]] }
+        }
+      },
+      "expected": [1, 2, 6, 24, 120]
+    },
+    {
+      "description": "local recursive fn called with named args",
+      "body": {
+        "$return": {
+          "$let": {
+            "fact": {
+              "$params": ["n"],
+              "$return": {
+                "$if": { "$call": "lte", "$args": [{ "$var": "n" }, 1] },
+                "$then": 1,
+                "$else": {
+                  "$call": "mul",
+                  "$args": [
+                    { "$var": "n" },
+                    {
+                      "$call": "fact",
+                      "$args": [{ "$call": "sub", "$args": [{ "$var": "n" }, 1] }]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "$in": { "$call": "fact", "$args": [6] }
+        }
+      },
+      "expected": 720
+    },
+    {
+      "description": "recursive local with rest params",
+      "body": {
+        "$return": {
+          "$let": {
+            "sumAll": {
+              "$params": ["first", "...rest"],
+              "$return": {
+                "$if": {
+                  "$call": "eq",
+                  "$args": [{ "$call": "length", "$args": [{ "$var": "rest" }] }, 0]
+                },
+                "$then": { "$var": "first" },
+                "$else": {
+                  "$call": "add",
+                  "$args": [
+                    { "$var": "first" },
+                    { "$call": "apply", "$args": ["sumAll", { "$var": "rest" }] }
+                  ]
+                }
+              }
+            }
+          },
+          "$in": { "$call": "sumAll", "$args": [1, 2, 3, 4, 5] }
+        }
+      },
+      "expected": 15
+    },
+    {
+      "description": "nested scope: inner function body has its own local recursive fn",
+      "body": {
+        "$params": ["n"],
+        "$return": {
+          "$let": {
+            "fact": {
+              "$params": ["x"],
+              "$return": {
+                "$if": { "$call": "lte", "$args": [{ "$var": "x" }, 1] },
+                "$then": 1,
+                "$else": {
+                  "$call": "mul",
+                  "$args": [
+                    { "$var": "x" },
+                    {
+                      "$call": "fact",
+                      "$args": [{ "$call": "sub", "$args": [{ "$var": "x" }, 1] }]
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "$in": { "$call": "fact", "$args": [{ "$var": "n" }] }
+        }
+      },
+      "args": [6],
+      "expected": 720
+    },
+    {
+      "description": "local recursive fn does not leak into sibling scope",
+      "body": {
+        "$return": {
+          "$let": {
+            "wrapper": {
+              "$return": {
+                "$let": {
+                  "fact": {
+                    "$params": ["n"],
+                    "$return": {
+                      "$if": { "$call": "lte", "$args": [{ "$var": "n" }, 1] },
+                      "$then": 1,
+                      "$else": {
+                        "$call": "mul",
+                        "$args": [
+                          { "$var": "n" },
+                          {
+                            "$call": "fact",
+                            "$args": [{ "$call": "sub", "$args": [{ "$var": "n" }, 1] }]
+                          }
+                        ]
+                      }
+                    }
+                  }
+                },
+                "$in": { "$call": "fact", "$args": [5] }
+              }
+            }
+          },
+          "$in": { "$call": "fact", "$args": [3] }
+        }
+      },
+      "error": "Function fact not found"
+    },
+    {
+      "description": "returned closure re-attaches the local fn it calls, so it works outside its defining scope",
+      "body": {
+        "$return": {
+          "$let": {
+            "closure": {
+              "$let": {
+                "helper": {
+                  "$params": ["x"],
+                  "$return": { "$call": "mul", "$args": [{ "$var": "x" }, 2] }
+                }
+              },
+              "$in": {
+                "$params": ["y"],
+                "$return": { "$call": "helper", "$args": [{ "$var": "y" }] }
+              }
+            }
+          },
+          "$in": { "$call": { "$var": "closure" }, "$args": [5] }
+        }
+      },
+      "expected": 10
+    }
+  ]
+}

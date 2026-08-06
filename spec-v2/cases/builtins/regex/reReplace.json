@@ -1,0 +1,28 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "reReplace",
+  "description": "Replace all regex matches using a replacement string.",
+  "cases": [
+    {
+      "description": "replaces every digit",
+      "args": ["\\d", "X", "a1b2c3"],
+      "outcome": { "returns": "aXbXcX" },
+      "observations": { "meter": { "charged": 8 } }
+    },
+    {
+      "description": "expands capture-group references in the replacement",
+      "args": ["(\\w+)@(\\w+)", "$2@$1", "user@host"],
+      "outcome": { "returns": "host@user" }
+    },
+    {
+      "description": "leaves the string unchanged when there is no match",
+      "args": ["\\d+", "X", "abcdef"],
+      "outcome": { "returns": "abcdef" }
+    },
+    {
+      "description": "supports case-insensitive replacement",
+      "args": ["(?i)hello", "hi", "Hello hello HELLO"],
+      "outcome": { "returns": "hi hi hi" }
+    }
+  ]
+}

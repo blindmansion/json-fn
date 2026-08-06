@@ -1,0 +1,27 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "tail",
+  "description": "Return all but the first array element.",
+  "cases": [
+    {
+      "description": "returns all but the first element",
+      "args": [[10, 20, 30]],
+      "outcome": { "returns": [20, 30] }
+    },
+    {
+      "description": "returns an empty array for empty input",
+      "args": [[]],
+      "outcome": { "returns": [] }
+    },
+    {
+      "description": "returns an empty array for a single element",
+      "args": [[42]],
+      "outcome": { "returns": [] }
+    },
+    {
+      "description": "rejects a non-array argument",
+      "args": ["abc"],
+      "outcome": { "throws": { "messageIncludes": "argument must be an array" } }
+    }
+  ]
+}

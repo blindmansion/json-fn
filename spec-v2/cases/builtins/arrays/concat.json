@@ -1,0 +1,12 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "concat",
+  "description": "Concatenate arrays.",
+  "cases": [
+    {
+      "description": "rejects a non-array argument",
+      "args": [[1, 2], "ab"],
+      "outcome": { "throws": { "messageIncludes": "arguments must be arrays" } }
+    }
+  ]
+}

@@ -1,0 +1,55 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "mapIndexed",
+  "description": "Transform array elements with callbacks that receive each value and index.",
+  "cases": [
+    {
+      "description": "passes each value and index to a scripted callback",
+      "args": [
+        {
+          "$callback": {
+            "steps": [
+              { "args": ["a", 0], "outcome": { "returns": "a0" } },
+              { "args": ["b", 1], "outcome": { "returns": "b1" } }
+            ]
+          }
+        },
+        ["a", "b"]
+      ],
+      "outcome": { "returns": ["a0", "b1"] },
+      "observations": { "meter": { "charged": 2 } }
+    },
+    {
+      "description": "can dispatch callback calls to another builtin",
+      "args": [{ "$builtin": "add" }, [10, 10, 10]],
+      "outcome": { "returns": [10, 11, 12] }
+    },
+    {
+      "description": "does not call the callback for an empty array",
+      "args": [{ "$callback": { "steps": [] } }, []],
+      "outcome": { "returns": [] }
+    },
+    {
+      "description": "propagates a callback error",
+      "args": [
+        {
+          "$callback": {
+            "steps": [
+              {
+                "args": [1, 0],
+                "outcome": { "throws": { "messageIncludes": "callback failed" } }
+              }
+            ]
+          }
+        },
+        [1]
+      ],
+      "outcome": { "throws": { "messageIncludes": "callback failed" } }
+    },
+    {
+      "description": "rejects a non-array second argument before calling the callback",
+      "args": [{ "$callback": { "steps": [] } }, "not an array"],
+      "outcome": { "throws": { "messageIncludes": "second argument must be an array" } }
+    }
+  ]
+}

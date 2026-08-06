@@ -1,0 +1,68 @@
+{
+  "$schema": "../parse.schema.json",
+  "description": "program shape (shorthand spec section 9)",
+  "mode": "module",
+  "cases": [
+    {
+      "description": "module source is implicit without an outer object wrapper",
+      "source": "main: () => 42",
+      "expected": { "main": { "$return": 42 } }
+    },
+    {
+      "description": "an outer object wrapper is rejected in module mode",
+      "source": "{ main: () => 42 }",
+      "error": "expected data-object key, found 'lbrace'"
+    },
+    {
+      "description": "registry object of named functions",
+      "source": "otherColor: (color) => if color == \"w\" then \"b\" else \"w\"\npieceType:  (piece) => upper(piece)",
+      "expected": {
+        "otherColor": {
+          "$params": ["color"],
+          "$return": {
+            "$if": { "$call": "eq", "$args": [{ "$var": "color" }, "w"] },
+            "$then": "b",
+            "$else": "w"
+          }
+        },
+        "pieceType": {
+          "$params": ["piece"],
+          "$return": { "$call": "upper", "$args": [{ "$var": "piece" }] }
+        }
+      }
+    },
+    {
+      "description": "blank lines and comments separate multiline declarations",
+      "source": "answer: if true\n  then 42\n  else 0\n\n// The next declaration starts here.\nnext: answer + 1",
+      "expected": {
+        "answer": { "$if": true, "$then": 42, "$else": 0 },
+        "next": { "$call": "add", "$args": [{ "$var": "answer" }, 1] }
+      }
+    },
+    {
+      "description": "separator follows the ending line of a multiline token",
+      "source": "first: `line one\nline two`\nsecond: 2",
+      "expected": { "first": "line one\nline two", "second": 2 }
+    },
+    {
+      "description": "a multiline token does not separate a declaration on its ending line",
+      "source": "first: `line one\nline two` second: 2",
+      "error": "expected newline or end of input in module"
+    },
+    {
+      "description": "same-line declarations require a newline",
+      "source": "first: 1 second: 2",
+      "error": "expected newline or end of input in module"
+    },
+    {
+      "description": "top-level separator commas are rejected",
+      "source": "first: 1,\nsecond: 2",
+      "error": "expected newline or end of input in module"
+    },
+    {
+      "description": "a final top-level comma is rejected",
+      "source": "only: 1,",
+      "error": "expected newline or end of input in module"
+    }
+  ]
+}

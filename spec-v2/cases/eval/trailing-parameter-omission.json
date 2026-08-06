@@ -1,0 +1,67 @@
+{
+  "description": "trailing positional parameter omission",
+  "cases": [
+    {
+      "description": "required slots may precede defaulted slots and rest",
+      "body": {
+        "$params": ["required", { "$param": "fallback", "$default": 2 }, "...rest"],
+        "$return": {
+          "required": { "$var": "required" },
+          "fallback": { "$var": "fallback" },
+          "rest": { "$var": "rest" }
+        }
+      },
+      "args": [1],
+      "expected": { "required": 1, "fallback": 2, "rest": [] }
+    },
+    {
+      "description": "multiple trailing defaults may be omitted",
+      "body": {
+        "$params": [
+          "required",
+          { "$param": "first", "$default": 2 },
+          { "$param": "second", "$default": 3 }
+        ],
+        "$return": [{ "$var": "required" }, { "$var": "first" }, { "$var": "second" }]
+      },
+      "args": [1],
+      "expected": [1, 2, 3]
+    },
+    {
+      "description": "explicit null supplies a defaulted slot",
+      "body": {
+        "$params": ["required", { "$param": "fallback", "$default": 2 }],
+        "$return": { "$var": "fallback" }
+      },
+      "args": [1, null],
+      "expected": null
+    },
+    {
+      "description": "required parameter after a default is rejected",
+      "body": { "$params": [{ "$param": "fallback", "$default": 2 }, "required"], "$return": null },
+      "args": [1, 2],
+      "error": "Required positional parameters must precede defaulted parameters"
+    },
+    {
+      "description": "object pattern after a default is rejected",
+      "body": {
+        "$params": [{ "$param": "fallback", "$default": 2 }, { "$fields": ["required"] }],
+        "$return": null
+      },
+      "args": [1, { "required": 2 }],
+      "error": "Required positional parameters must precede defaulted parameters"
+    },
+    {
+      "description": "an all-defaulted object pattern remains required",
+      "body": {
+        "$params": [
+          { "$fields": [{ "$field": "value", "$default": 2 }] },
+          { "$param": "fallback", "$default": 3 }
+        ],
+        "$return": [{ "$var": "value" }, { "$var": "fallback" }]
+      },
+      "args": [{}],
+      "expected": [2, 3]
+    }
+  ]
+}

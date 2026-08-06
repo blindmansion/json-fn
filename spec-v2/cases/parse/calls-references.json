@@ -1,0 +1,131 @@
+{
+  "$schema": "../parse.schema.json",
+  "description": "calls and references (shorthand spec section 4)",
+  "cases": [
+    {
+      "description": "named call",
+      "source": "add(3, 4)",
+      "expected": { "$call": "add", "$args": [3, 4] }
+    },
+    { "description": "nullary call", "source": "f()", "expected": { "$call": "f", "$args": [] } },
+    {
+      "description": "call target from parenthesized variable",
+      "source": "(fnName)(3, 4)",
+      "expected": { "$call": { "$var": "fnName" }, "$args": [3, 4] }
+    },
+    {
+      "description": "immediately-invoked function literal",
+      "source": "((x) => x * x)(5)",
+      "expected": {
+        "$call": {
+          "$params": ["x"],
+          "$return": { "$call": "mul", "$args": [{ "$var": "x" }, { "$var": "x" }] }
+        },
+        "$args": [5]
+      }
+    },
+    {
+      "description": "function reference by name",
+      "source": "&double",
+      "expected": { "$fn": "double" }
+    },
+    {
+      "description": "function reference as argument",
+      "source": "map(&double, nums)",
+      "expected": { "$call": "map", "$args": [{ "$fn": "double" }, { "$var": "nums" }] }
+    },
+    {
+      "description": "function reference from parenthesized expression",
+      "source": "&(expr)",
+      "expected": { "$fn": { "$var": "expr" } }
+    },
+    {
+      "description": "empty array-literal function reference operand is rejected",
+      "source": "&([])",
+      "error": "function references cannot contain array literals; use a call expression instead"
+    },
+    {
+      "description": "array-literal function reference operand is rejected",
+      "source": "&([1, 2])",
+      "error": "function references cannot contain array literals; use a call expression instead"
+    },
+    {
+      "description": "dynamic array-literal function reference operand is rejected",
+      "source": "&([&upper, value + 1])",
+      "error": "function references cannot contain array literals; use a call expression instead"
+    },
+    {
+      "description": "spread array-literal function reference operand is rejected",
+      "source": "&([...candidates])",
+      "error": "function references cannot contain array literals; use a call expression instead"
+    },
+    {
+      "description": "parenthesized spread array-literal function reference operand is rejected",
+      "source": "&(([...left, ...right]))",
+      "error": "function references cannot contain array literals; use a call expression instead"
+    },
+    {
+      "description": "dynamic conditional function-reference operand is retained",
+      "source": "&(if enabled then primary else fallback)",
+      "expected": {
+        "$fn": {
+          "$if": { "$var": "enabled" },
+          "$then": { "$var": "primary" },
+          "$else": { "$var": "fallback" }
+        }
+      }
+    },
+    {
+      "description": "indexed expression may select a function-reference value from an array",
+      "source": "&([primary, fallback][index])",
+      "expected": {
+        "$fn": {
+          "$get": { "$var": "index" },
+          "$from": [{ "$var": "primary" }, { "$var": "fallback" }]
+        }
+      }
+    },
+    {
+      "description": "method call: access chain in call position is a call on the evaluated callee",
+      "source": "caps.db.query(sql)",
+      "expected": {
+        "$call": { "$get": ["db", "query"], "$from": { "$var": "caps" } },
+        "$args": [{ "$var": "sql" }]
+      }
+    },
+    {
+      "description": "zero-arg method call",
+      "source": "io.readLine()",
+      "expected": { "$call": { "$get": "readLine", "$from": { "$var": "io" } }, "$args": [] }
+    },
+    {
+      "description": "single-dot method call",
+      "source": "obj.method(x)",
+      "expected": {
+        "$call": { "$get": "method", "$from": { "$var": "obj" } },
+        "$args": [{ "$var": "x" }]
+      }
+    },
+    {
+      "description": "computed-key method call",
+      "source": "caps[name](x)",
+      "expected": {
+        "$call": { "$get": { "$var": "name" }, "$from": { "$var": "caps" } },
+        "$args": [{ "$var": "x" }]
+      }
+    },
+    {
+      "description": "method call on a call result uses $from callee",
+      "source": "f(x).method(y)",
+      "expected": {
+        "$call": { "$get": "method", "$from": { "$call": "f", "$args": [{ "$var": "x" }] } },
+        "$args": [{ "$var": "y" }]
+      }
+    },
+    {
+      "description": "chained application: a call in call position calls its result",
+      "source": "makeCountdown(42)(3)",
+      "expected": { "$call": { "$call": "makeCountdown", "$args": [42] }, "$args": [3] }
+    }
+  ]
+}

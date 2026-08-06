@@ -1,0 +1,28 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "join",
+  "description": "Join an array's elements with a separator.",
+  "cases": [
+    {
+      "description": "joins strings with a separator",
+      "args": [["a", "b", "c"], ", "],
+      "outcome": { "returns": "a, b, c" },
+      "observations": { "meter": { "charged": 3 } }
+    },
+    {
+      "description": "concatenates with an empty separator",
+      "args": [["x", "y", "z"], ""],
+      "outcome": { "returns": "xyz" }
+    },
+    {
+      "description": "returns the only element of a singleton array",
+      "args": [["hello"], "-"],
+      "outcome": { "returns": "hello" }
+    },
+    {
+      "description": "returns an empty string for an empty array",
+      "args": [[], ","],
+      "outcome": { "returns": "" }
+    }
+  ]
+}

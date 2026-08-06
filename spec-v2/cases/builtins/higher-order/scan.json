@@ -1,0 +1,36 @@
+{
+  "$schema": "../../builtin.schema.json",
+  "builtin": "scan",
+  "description": "Return each post-callback accumulator produced while folding an array.",
+  "cases": [
+    {
+      "description": "returns post-callback accumulators in input order",
+      "args": [
+        {
+          "$callback": {
+            "steps": [
+              { "args": [0, 1], "outcome": { "returns": 1 } },
+              { "args": [1, 2], "outcome": { "returns": 3 } },
+              { "args": [3, 3], "outcome": { "returns": 6 } },
+              { "args": [6, 4], "outcome": { "returns": 10 } }
+            ]
+          }
+        },
+        0,
+        [1, 2, 3, 4]
+      ],
+      "outcome": { "returns": [1, 3, 6, 10] },
+      "observations": { "meter": { "charged": 4 } }
+    },
+    {
+      "description": "omits the initial accumulator for empty input",
+      "args": [{ "$callback": { "steps": [] } }, 10, []],
+      "outcome": { "returns": [] }
+    },
+    {
+      "description": "rejects a non-array input before calling the callback",
+      "args": [{ "$callback": { "steps": [] } }, 0, "abc"],
+      "outcome": { "throws": { "messageIncludes": "third argument must be an array" } }
+    }
+  ]
+}
