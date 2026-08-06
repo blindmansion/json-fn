@@ -1,0 +1,48 @@
+{
+  "$schema": "../../check.schema.json",
+  "description": "expression synthesis: literals and data",
+  "builtins": "none",
+  "cases": [
+    {
+      "description": "an integer literal synthesizes its const type",
+      "expression": 1,
+      "expected": { "type": { "const": 1 }, "diagnostics": [] }
+    },
+    {
+      "description": "a string literal synthesizes its const type",
+      "expression": "hi",
+      "expected": { "type": { "const": "hi" }, "diagnostics": [] }
+    },
+    {
+      "description": "null synthesizes the null type",
+      "expression": null,
+      "expected": { "type": { "type": "null" }, "diagnostics": [] }
+    },
+    {
+      "description": "an array literal synthesizes a closed tuple type",
+      "expression": [1, "two"],
+      "expected": {
+        "type": {
+          "type": "array",
+          "prefixItems": [{ "const": 1 }, { "const": "two" }],
+          "items": false,
+          "minItems": 2
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "description": "an object literal synthesizes a closed object type",
+      "expression": { "name": "ada", "age": 36 },
+      "expected": {
+        "type": {
+          "type": "object",
+          "properties": { "name": { "const": "ada" }, "age": { "const": 36 } },
+          "required": ["name", "age"],
+          "additionalProperties": false
+        },
+        "diagnostics": []
+      }
+    }
+  ]
+}

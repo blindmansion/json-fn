@@ -1,0 +1,52 @@
+{
+  "$schema": "../../check.schema.json",
+  "description": "expression synthesis: non-null assertions and checked ascription",
+  "builtins": "none",
+  "cases": [
+    {
+      "description": "a non-null assertion strips null from a conditional",
+      "expression": { "$nonnull": { "$if": true, "$then": 1, "$else": null } },
+      "expected": { "type": { "type": "integer" }, "diagnostics": [] }
+    },
+    {
+      "description": "checked ascription returns the declared type without static subsumption",
+      "expression": { "$as": -1, "$type": { "type": "integer", "minimum": 0 } },
+      "expected": { "type": { "type": "integer", "minimum": 0 }, "diagnostics": [] }
+    },
+    {
+      "description": "checked ascription resolves named types from the definition pool",
+      "expression": { "$as": 1, "$type": { "$ref": "#/$defs/Count" } },
+      "defs": { "Count": { "type": "integer" } },
+      "expected": { "type": { "$ref": "#/$defs/Count" }, "diagnostics": [] }
+    },
+    {
+      "description": "an ascription type outside the runtime-contract fragment is a hard error",
+      "expression": { "$as": 1, "$type": { "unknown": true } },
+      "expected": {
+        "type": { "unknown": true },
+        "diagnostics": [
+          {
+            "path": ["$type"],
+            "severity": "error",
+            "messageIncludes": "checked ascription type is outside the runtime-contract fragment"
+          }
+        ]
+      }
+    },
+    {
+      "description": "an unresolved variable under an ascription records visible degradation",
+      "comment": "The ascription still yields its declared type; the operand's fallback to any is an info diagnostic, not an error.",
+      "expression": { "$as": { "$var": "missing" }, "$type": { "type": "string" } },
+      "expected": {
+        "type": { "type": "string" },
+        "diagnostics": [
+          {
+            "path": ["$as"],
+            "severity": "info",
+            "messageIncludes": "degraded to `any` because variable \"missing\" is unresolved"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "$schema": "../../check.schema.json",
+  "description": "standard builtins: concrete signatures",
+  "builtins": "standard",
+  "cases": [
+    {
+      "description": "add of two integers synthesizes integer",
+      "expression": { "$call": "add", "$args": [1, 2] },
+      "expected": { "type": { "type": "integer" }, "diagnostics": [] }
+    },
+    {
+      "description": "arguments matching no overload are a hard error",
+      "expression": { "$call": "add", "$args": [1, "two"] },
+      "expected": {
+        "type": { "type": "integer" },
+        "diagnostics": [
+          {
+            "path": [],
+            "severity": "error",
+            "messageIncludes": "No overload of \"add\" matches arguments"
+          }
+        ]
+      }
+    },
+    {
+      "description": "a case-level builtins override of none makes standard names unknown",
+      "builtins": "none",
+      "expression": { "$call": "add", "$args": [1, 2] },
+      "expected": {
+        "type": false,
+        "diagnostics": [
+          { "path": [], "severity": "error", "messageIncludes": "Unknown function \"add\"" }
+        ]
+      }
+    }
+  ]
+}
