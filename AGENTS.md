@@ -33,6 +33,7 @@ Uses **Bun** (not node/npm). Common commands, run inside `typescript/`:
 - `bun run fix` — typecheck, lint --fix, format (TS + spec-case JSON).
 - `bun test` — run the test suite.
 - `bun run generate:builtins-doc` — regenerate `docs/builtins/builtins.md`; run whenever `spec/builtins/builtins.json` is updated.
+- `bun run validate:spec-cases <spec-dir>` — validate conformance case files against their suite schemas; `<spec-dir>` is relative to the repo root (e.g. `spec` or `spec-v2`). Run after altering any spec cases.
 
 ### The `jfn` CLI
 
