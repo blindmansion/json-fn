@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { callFunction, createStdlib } from "../src";
 import type { FunctionDeclaration, JSONType } from "../src";
-import { checkExpr, checkModule } from "../src/check/module";
 import { hydrateTask, serializeTask } from "../src/host/task-serialization";
 import { hydrateWorkflowRecord } from "../src/host/durable/workflow-record";
 import { validateDefinitionTable, validateSchemaFragment } from "../src/schema/validation";
@@ -135,21 +134,6 @@ describe("evaluator boundaries", () => {
     };
     const functions = { ...stdlib, go: { $params: ["n"], $return: site } };
     expect(() => callFunction(body, [50], functions, { maxCallDepth: 200 })).toThrow(NESTING_ERROR);
-  });
-});
-
-describe("checker", () => {
-  test("rejects an over-deep expression before synthesis", () => {
-    expect(() => checkExpr(deepArray(MAX_STRUCTURAL_DEPTH + 1))).toThrow(DEPTH_ERROR);
-  });
-
-  test("synthesizes a type for an expression at the limit", () => {
-    expect(() => checkExpr(deepArray(MAX_STRUCTURAL_DEPTH))).not.toThrow();
-  });
-
-  test("rejects an over-deep module", () => {
-    const module = { main: { $params: [], $return: deepArray(MAX_STRUCTURAL_DEPTH) } };
-    expect(() => checkModule(module as Record<string, JSONType>)).toThrow(DEPTH_ERROR);
   });
 });
 

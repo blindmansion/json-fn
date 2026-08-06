@@ -1,0 +1,224 @@
+{
+  "$schema": "../../check.schema.json",
+  "description": "standard builtins: module flow and portable degradation",
+  "builtins": "standard",
+  "cases": [
+    {
+      "description": "module functions shadow same-named builtin references",
+      "module": {
+        "upper": {
+          "$params": ["n"],
+          "$sig": {
+            "required": [{ "type": "integer" }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": { "$var": "n" }
+        },
+        "use": {
+          "$params": [],
+          "$sig": {
+            "required": [],
+            "optional": [],
+            "returns": { "type": "array", "items": { "type": "integer" } }
+          },
+          "$return": { "$call": "map", "$args": [{ "$fn": "upper" }, [1, 2]] }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "map and add flow integer arrays through module checking",
+      "module": {
+        "doubleAll": {
+          "$params": ["xs"],
+          "$sig": {
+            "required": [{ "type": "array", "items": { "type": "integer" } }],
+            "optional": [],
+            "returns": { "type": "array", "items": { "type": "integer" } }
+          },
+          "$return": {
+            "$call": "map",
+            "$args": [
+              {
+                "$params": ["n"],
+                "$return": { "$call": "add", "$args": [{ "$var": "n" }, { "$var": "n" }] }
+              },
+              { "$var": "xs" }
+            ]
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "builtin result mismatches are reported at declared returns",
+      "module": {
+        "wrong": {
+          "$params": ["xs"],
+          "$sig": {
+            "required": [{ "type": "array", "items": { "type": "integer" } }],
+            "optional": [],
+            "returns": { "type": "array", "items": { "type": "string" } }
+          },
+          "$return": {
+            "$call": "map",
+            "$args": [{ "$params": ["n"], "$return": { "$var": "n" } }, { "$var": "xs" }]
+          }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          { "path": ["wrong", "$return"], "severity": "error", "messageIncludes": "not assignable" }
+        ]
+      }
+    },
+    {
+      "description": "named callbacks instantiate map's final type",
+      "module": {
+        "callback": {
+          "$params": ["value"],
+          "$sig": {
+            "required": [{ "type": "integer" }],
+            "optional": [],
+            "returns": { "type": "string" }
+          },
+          "$return": "value"
+        },
+        "main": {
+          "$params": [],
+          "$sig": {
+            "required": [],
+            "optional": [],
+            "returns": { "type": "array", "items": { "type": "string" } }
+          },
+          "$return": { "$call": "map", "$args": [{ "$var": "callback" }, [1, 2]] }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "named callbacks may be contravariantly broader",
+      "module": {
+        "callback": {
+          "$params": ["value"],
+          "$sig": {
+            "required": [{ "type": "number" }],
+            "optional": [],
+            "returns": { "type": "boolean" }
+          },
+          "$return": true
+        },
+        "main": {
+          "$params": [],
+          "$sig": {
+            "required": [],
+            "optional": [],
+            "returns": { "type": "array", "items": { "type": "integer" } }
+          },
+          "$return": { "$call": "filter", "$args": [{ "$var": "callback" }, [1, 2]] }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "named callbacks narrower than data are rejected",
+      "module": {
+        "callback": {
+          "$params": ["value"],
+          "$sig": {
+            "required": [{ "type": "string" }],
+            "optional": [],
+            "returns": { "type": "string" }
+          },
+          "$return": { "$var": "value" }
+        },
+        "main": {
+          "$params": [],
+          "$sig": {
+            "required": [],
+            "optional": [],
+            "returns": { "type": "array", "items": { "type": "string" } }
+          },
+          "$return": { "$call": "map", "$args": [{ "$var": "callback" }, [1, 2]] }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["main", "$return", "$args[0]"],
+            "severity": "error",
+            "messageIncludes": "not assignable"
+          }
+        ]
+      }
+    },
+    {
+      "description": "rule builtins expose portable fallback floors and degradation",
+      "expression": { "$call": "pipe", "$args": [[], 1] },
+      "expected": {
+        "type": true,
+        "diagnostics": [
+          {
+            "path": [],
+            "severity": "info",
+            "messageIncludes": "callable rule \"pipe\" has no precise return type"
+          }
+        ]
+      }
+    },
+    {
+      "description": "any arguments dynamically union overload returns",
+      "expression": { "$call": "add", "$args": [{ "$var": "unknown" }, 1] },
+      "expected": {
+        "type": { "type": "number" },
+        "diagnostics": [
+          {
+            "path": ["$args[0]"],
+            "severity": "info",
+            "messageIncludes": "variable \"unknown\" is unresolved"
+          },
+          {
+            "path": [],
+            "severity": "info",
+            "messageIncludes": "any`-typed argument affected overload selection for \"add\""
+          }
+        ]
+      }
+    },
+    {
+      "description": "known mismatches still reject overloads beside an any argument",
+      "expression": { "$call": "add", "$args": [{ "$var": "unknown" }, "not a number"] },
+      "expected": {
+        "type": { "type": "integer" },
+        "diagnostics": [
+          {
+            "path": ["$args[0]"],
+            "severity": "info",
+            "messageIncludes": "variable \"unknown\" is unresolved"
+          },
+          { "path": [], "severity": "error", "messageIncludes": "No overload of \"add\"" }
+        ]
+      }
+    },
+    {
+      "description": "any escape-hatch arguments retain both degradation sources",
+      "expression": { "$call": "pipe", "$args": [{ "$var": "unknown" }, 1] },
+      "expected": {
+        "type": true,
+        "diagnostics": [
+          {
+            "path": ["$args[0]"],
+            "severity": "info",
+            "messageIncludes": "variable \"unknown\" is unresolved"
+          },
+          {
+            "path": [],
+            "severity": "info",
+            "messageIncludes": "callable rule \"pipe\" has no precise return type"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,1021 @@
+{
+  "$schema": "../../check.schema.json",
+  "description": "realistic chess-program fragments across coordinates, nullable pieces, lazy locals, field paths, discriminants, and finite matches",
+  "comment": "Canonical checker corpus migrated from typescript/test/check/chess.test.ts. Cases retain the original fragment names and intentionally include both focused coordinate checks and their aggregate module check.",
+  "builtins": "standard",
+  "cases": [
+    {
+      "description": "rowOf: floor(idx / 8) : integer",
+      "module": {
+        "$types": { "Color": { "enum": ["w", "b"] } },
+        "rowOf": {
+          "$params": ["idx"],
+          "$sig": {
+            "required": [{ "type": "integer" }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": {
+            "$call": "floor",
+            "$args": [{ "$call": "div", "$args": [{ "$var": "idx" }, 8] }]
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "colOf: idx % 8 preserves integer",
+      "module": {
+        "$types": { "Color": { "enum": ["w", "b"] } },
+        "colOf": {
+          "$params": ["idx"],
+          "$sig": {
+            "required": [{ "type": "integer" }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": { "$call": "mod", "$args": [{ "$var": "idx" }, 8] }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "toIdx: row * 8 + col preserves integer through mul/add",
+      "module": {
+        "$types": { "Color": { "enum": ["w", "b"] } },
+        "toIdx": {
+          "$params": ["row", "col"],
+          "$sig": {
+            "required": [{ "type": "integer" }, { "type": "integer" }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": {
+            "$call": "add",
+            "$args": [{ "$call": "mul", "$args": [{ "$var": "row" }, 8] }, { "$var": "col" }]
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "inBounds: a variadic $and of comparisons is boolean",
+      "module": {
+        "$types": { "Color": { "enum": ["w", "b"] } },
+        "inBounds": {
+          "$params": ["row", "col"],
+          "$sig": {
+            "required": [{ "type": "integer" }, { "type": "integer" }],
+            "optional": [],
+            "returns": { "type": "boolean" }
+          },
+          "$return": {
+            "$and": [
+              { "$call": "gte", "$args": [{ "$var": "row" }, 0] },
+              { "$call": "lte", "$args": [{ "$var": "row" }, 7] },
+              { "$call": "gte", "$args": [{ "$var": "col" }, 0] },
+              { "$call": "lte", "$args": [{ "$var": "col" }, 7] }
+            ]
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "otherColor: an if over string literals fits the Color enum",
+      "module": {
+        "$types": { "Color": { "enum": ["w", "b"] } },
+        "otherColor": {
+          "$params": ["color"],
+          "$sig": {
+            "required": [{ "$ref": "#/$defs/Color" }],
+            "optional": [],
+            "returns": { "$ref": "#/$defs/Color" }
+          },
+          "$return": {
+            "$if": { "$call": "eq", "$args": [{ "$var": "color" }, "w"] },
+            "$then": "b",
+            "$else": "w"
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "the whole coordinate layer checks together, cleanly",
+      "module": {
+        "$types": { "Color": { "enum": ["w", "b"] } },
+        "rowOf": {
+          "$params": ["idx"],
+          "$sig": {
+            "required": [{ "type": "integer" }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": {
+            "$call": "floor",
+            "$args": [{ "$call": "div", "$args": [{ "$var": "idx" }, 8] }]
+          }
+        },
+        "colOf": {
+          "$params": ["idx"],
+          "$sig": {
+            "required": [{ "type": "integer" }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": { "$call": "mod", "$args": [{ "$var": "idx" }, 8] }
+        },
+        "toIdx": {
+          "$params": ["row", "col"],
+          "$sig": {
+            "required": [{ "type": "integer" }, { "type": "integer" }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": {
+            "$call": "add",
+            "$args": [{ "$call": "mul", "$args": [{ "$var": "row" }, 8] }, { "$var": "col" }]
+          }
+        },
+        "inBounds": {
+          "$params": ["row", "col"],
+          "$sig": {
+            "required": [{ "type": "integer" }, { "type": "integer" }],
+            "optional": [],
+            "returns": { "type": "boolean" }
+          },
+          "$return": {
+            "$and": [
+              { "$call": "gte", "$args": [{ "$var": "row" }, 0] },
+              { "$call": "lte", "$args": [{ "$var": "row" }, 7] },
+              { "$call": "gte", "$args": [{ "$var": "col" }, 0] },
+              { "$call": "lte", "$args": [{ "$var": "col" }, 7] }
+            ]
+          }
+        },
+        "otherColor": {
+          "$params": ["color"],
+          "$sig": {
+            "required": [{ "$ref": "#/$defs/Color" }],
+            "optional": [],
+            "returns": { "$ref": "#/$defs/Color" }
+          },
+          "$return": {
+            "$if": { "$call": "eq", "$args": [{ "$var": "color" }, "w"] },
+            "$then": "b",
+            "$else": "w"
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "isNull accepts a Cell and yields boolean (the guard itself is fine)",
+      "module": {
+        "$types": {
+          "Color": { "enum": ["w", "b"] },
+          "Piece": { "enum": ["K", "Q", "R", "B", "N", "P", "k", "q", "r", "b", "n", "p"] },
+          "PieceType": { "enum": ["P", "N", "B", "R", "Q", "K"] },
+          "Cell": { "anyOf": [{ "$ref": "#/$defs/Piece" }, { "type": "null" }] }
+        },
+        "isEmpty": {
+          "$params": ["piece"],
+          "$sig": {
+            "required": [{ "$ref": "#/$defs/Cell" }],
+            "optional": [],
+            "returns": { "type": "boolean" }
+          },
+          "$return": { "$call": "isNull", "$args": [{ "$var": "piece" }] }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "pieceColor: isNull(piece) narrows Cell to Piece in the else-branch",
+      "module": {
+        "$types": {
+          "Color": { "enum": ["w", "b"] },
+          "Piece": { "enum": ["K", "Q", "R", "B", "N", "P", "k", "q", "r", "b", "n", "p"] },
+          "PieceType": { "enum": ["P", "N", "B", "R", "Q", "K"] },
+          "Cell": { "anyOf": [{ "$ref": "#/$defs/Piece" }, { "type": "null" }] }
+        },
+        "pieceColor": {
+          "$params": ["piece"],
+          "$sig": {
+            "required": [{ "$ref": "#/$defs/Cell" }],
+            "optional": [],
+            "returns": { "anyOf": [{ "$ref": "#/$defs/Color" }, { "type": "null" }] }
+          },
+          "$return": {
+            "$if": { "$call": "isNull", "$args": [{ "$var": "piece" }] },
+            "$then": null,
+            "$else": {
+              "$if": {
+                "$call": "eq",
+                "$args": [{ "$var": "piece" }, { "$call": "upper", "$args": [{ "$var": "piece" }] }]
+              },
+              "$then": "w",
+              "$else": "b"
+            }
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "negative narrowing: eq(color, \"w\") excludes the literal on the else-branch",
+      "module": {
+        "$types": {
+          "Color": { "enum": ["w", "b"] },
+          "Piece": { "enum": ["K", "Q", "R", "B", "N", "P", "k", "q", "r", "b", "n", "p"] },
+          "PieceType": { "enum": ["P", "N", "B", "R", "Q", "K"] },
+          "Cell": { "anyOf": [{ "$ref": "#/$defs/Piece" }, { "type": "null" }] }
+        },
+        "afterWhite": {
+          "$params": ["color"],
+          "$sig": {
+            "required": [{ "$ref": "#/$defs/Color" }],
+            "optional": [],
+            "returns": { "$ref": "#/$defs/Color" }
+          },
+          "$return": {
+            "$if": { "$call": "eq", "$args": [{ "$var": "color" }, "w"] },
+            "$then": "b",
+            "$else": { "$var": "color" }
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "narrowed var feeds a field projection: isNull(sq) guard unlocks sq.file",
+      "module": {
+        "$types": {
+          "Color": { "enum": ["w", "b"] },
+          "Piece": { "enum": ["K", "Q", "R", "B", "N", "P", "k", "q", "r", "b", "n", "p"] },
+          "PieceType": { "enum": ["P", "N", "B", "R", "Q", "K"] },
+          "Cell": { "anyOf": [{ "$ref": "#/$defs/Piece" }, { "type": "null" }] }
+        },
+        "fileOf": {
+          "$params": ["sq"],
+          "$sig": {
+            "required": [
+              {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": { "file": { "type": "integer" }, "rank": { "type": "integer" } },
+                    "required": ["file", "rank"],
+                    "additionalProperties": false
+                  },
+                  { "type": "null" }
+                ]
+              }
+            ],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": {
+            "$if": { "$call": "isNull", "$args": [{ "$var": "sq" }] },
+            "$then": 0,
+            "$else": { "$get": "file", "$from": { "$var": "sq" } }
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "makePiece: lower(type) widens the enum to string, losing assignability to Piece",
+      "module": {
+        "$types": {
+          "Color": { "enum": ["w", "b"] },
+          "Piece": { "enum": ["K", "Q", "R", "B", "N", "P", "k", "q", "r", "b", "n", "p"] },
+          "PieceType": { "enum": ["P", "N", "B", "R", "Q", "K"] },
+          "Cell": { "anyOf": [{ "$ref": "#/$defs/Piece" }, { "type": "null" }] }
+        },
+        "makePiece": {
+          "$params": ["color", "type"],
+          "$sig": {
+            "required": [{ "$ref": "#/$defs/Color" }, { "$ref": "#/$defs/PieceType" }],
+            "optional": [],
+            "returns": { "$ref": "#/$defs/Piece" }
+          },
+          "$return": {
+            "$if": { "$call": "eq", "$args": [{ "$var": "color" }, "w"] },
+            "$then": { "$var": "type" },
+            "$else": { "$call": "lower", "$args": [{ "$var": "type" }] }
+          }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["makePiece", "$return", "$else"],
+            "severity": "error",
+            "messageIncludes": "not assignable"
+          }
+        ]
+      }
+    },
+    {
+      "description": "a disjoint mismatch stays a hard error (the predicate discriminates)",
+      "module": {
+        "$types": {
+          "Color": { "enum": ["w", "b"] },
+          "Piece": { "enum": ["K", "Q", "R", "B", "N", "P", "k", "q", "r", "b", "n", "p"] },
+          "PieceType": { "enum": ["P", "N", "B", "R", "Q", "K"] },
+          "Cell": { "anyOf": [{ "$ref": "#/$defs/Piece" }, { "type": "null" }] }
+        },
+        "bad": {
+          "$params": ["color"],
+          "$sig": {
+            "required": [{ "$ref": "#/$defs/Color" }],
+            "optional": [],
+            "returns": { "$ref": "#/$defs/Color" }
+          },
+          "$return": { "$call": "length", "$args": ["abc"] }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          { "path": ["bad", "$return"], "severity": "error", "messageIncludes": "not assignable" }
+        ]
+      }
+    },
+    {
+      "description": "pieceMoves: locals bound from a guarded var narrow at their forcing site",
+      "module": {
+        "$types": {
+          "Color": { "enum": ["w", "b"] },
+          "Piece": { "enum": ["K", "Q", "R", "B", "N", "P", "k", "q", "r", "b", "n", "p"] },
+          "PieceType": { "enum": ["P", "N", "B", "R", "Q", "K"] },
+          "Cell": { "anyOf": [{ "$ref": "#/$defs/Piece" }, { "type": "null" }] }
+        },
+        "pieceMoves": {
+          "$params": ["piece"],
+          "$sig": {
+            "required": [{ "$ref": "#/$defs/Cell" }],
+            "optional": [],
+            "returns": { "type": "array", "items": { "type": "string" } }
+          },
+          "$return": {
+            "$let": {
+              "type": { "$call": "upper", "$args": [{ "$var": "piece" }] },
+              "color": { "$call": "lower", "$args": [{ "$var": "piece" }] }
+            },
+            "$in": {
+              "$if": { "$call": "isNull", "$args": [{ "$var": "piece" }] },
+              "$then": [],
+              "$else": [{ "$var": "type" }, { "$var": "color" }]
+            }
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "slideDir: a $cond guarded by named boolean locals narrows the else-arm",
+      "module": {
+        "$types": {
+          "Color": { "enum": ["w", "b"] },
+          "Piece": { "enum": ["K", "Q", "R", "B", "N", "P", "k", "q", "r", "b", "n", "p"] },
+          "PieceType": { "enum": ["P", "N", "B", "R", "Q", "K"] },
+          "Cell": { "anyOf": [{ "$ref": "#/$defs/Piece" }, { "type": "null" }] }
+        },
+        "slideDir": {
+          "$params": ["target"],
+          "$sig": {
+            "required": [{ "$ref": "#/$defs/Cell" }],
+            "optional": [],
+            "returns": { "anyOf": [{ "type": "string" }, { "type": "null" }] }
+          },
+          "$return": {
+            "$let": {
+              "empty": { "$call": "isNull", "$args": [{ "$var": "target" }] },
+              "ok": { "$call": "not", "$args": [{ "$var": "empty" }] }
+            },
+            "$in": {
+              "$cond": [
+                [{ "$call": "not", "$args": [{ "$var": "ok" }] }, null],
+                [{ "$var": "empty" }, null]
+              ],
+              "$else": { "$call": "upper", "$args": [{ "$var": "target" }] }
+            }
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "bare $let condition falls back to truthiness when its initializer is not a guard",
+      "module": {
+        "$types": {
+          "Color": { "enum": ["w", "b"] },
+          "Piece": { "enum": ["K", "Q", "R", "B", "N", "P", "k", "q", "r", "b", "n", "p"] },
+          "PieceType": { "enum": ["P", "N", "B", "R", "Q", "K"] },
+          "Cell": { "anyOf": [{ "$ref": "#/$defs/Piece" }, { "type": "null" }] }
+        },
+        "localTruthy": {
+          "$params": ["x"],
+          "$sig": {
+            "required": [{ "anyOf": [{ "type": "string" }, { "type": "null" }] }],
+            "optional": [],
+            "returns": { "type": "string" }
+          },
+          "$return": {
+            "$let": {
+              "h": { "$call": "maybe", "$args": [{ "$var": "x" }] },
+              "maybe": {
+                "$params": ["y"],
+                "$sig": {
+                  "required": [{ "anyOf": [{ "type": "string" }, { "type": "null" }] }],
+                  "optional": [],
+                  "returns": { "anyOf": [{ "type": "string" }, { "type": "null" }] }
+                },
+                "$return": { "$var": "y" }
+              }
+            },
+            "$in": { "$if": { "$var": "h" }, "$then": { "$var": "h" }, "$else": "" }
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "parseMove: !isNull(from) && !isNull(to) narrows both before object construction",
+      "module": {
+        "$types": {
+          "Color": { "enum": ["w", "b"] },
+          "Piece": { "enum": ["K", "Q", "R", "B", "N", "P", "k", "q", "r", "b", "n", "p"] },
+          "PieceType": { "enum": ["P", "N", "B", "R", "Q", "K"] },
+          "Cell": { "anyOf": [{ "$ref": "#/$defs/Piece" }, { "type": "null" }] }
+        },
+        "parseMove": {
+          "$params": ["from", "to"],
+          "$sig": {
+            "required": [{ "$ref": "#/$defs/Cell" }, { "$ref": "#/$defs/Cell" }],
+            "optional": [],
+            "returns": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "from": { "$ref": "#/$defs/Piece" },
+                    "to": { "$ref": "#/$defs/Piece" }
+                  },
+                  "required": ["from", "to"],
+                  "additionalProperties": false
+                },
+                { "type": "null" }
+              ]
+            }
+          },
+          "$return": {
+            "$if": {
+              "$and": [
+                { "$call": "not", "$args": [{ "$call": "isNull", "$args": [{ "$var": "from" }] }] },
+                { "$call": "not", "$args": [{ "$call": "isNull", "$args": [{ "$var": "to" }] }] }
+              ]
+            },
+            "$then": { "from": { "$var": "from" }, "to": { "$var": "to" } },
+            "$else": null
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "per-arm divergence: a local re-synthesizes per fact set, with deduplicated diagnostics",
+      "module": {
+        "$types": {
+          "Color": { "enum": ["w", "b"] },
+          "Piece": { "enum": ["K", "Q", "R", "B", "N", "P", "k", "q", "r", "b", "n", "p"] },
+          "PieceType": { "enum": ["P", "N", "B", "R", "Q", "K"] },
+          "Cell": { "anyOf": [{ "$ref": "#/$defs/Piece" }, { "type": "null" }] }
+        },
+        "divergent": {
+          "$params": ["p", "q"],
+          "$sig": {
+            "required": [{ "$ref": "#/$defs/Color" }, { "$ref": "#/$defs/Cell" }],
+            "optional": [],
+            "returns": {
+              "type": "array",
+              "prefixItems": [{ "type": "string" }, { "const": "w" }],
+              "items": false,
+              "minItems": 2
+            }
+          },
+          "$return": {
+            "$let": { "d": [{ "$call": "upper", "$args": [{ "$var": "q" }] }, { "$var": "p" }] },
+            "$in": {
+              "$match": { "$var": "p" },
+              "$cases": [["w", { "$var": "d" }]],
+              "$else": { "$var": "d" }
+            }
+          }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["divergent", "$return", "$in", "$else"],
+            "severity": "error",
+            "messageIncludes": "not assignable"
+          },
+          {
+            "path": ["divergent", "$return", "$let", "d", "[0]", "$args[0]"],
+            "severity": "error",
+            "messageIncludes": "not assignable"
+          }
+        ]
+      }
+    },
+    {
+      "description": "fast path: a module with no narrowing is unaffected by the gate and deduplication",
+      "module": {
+        "$types": {
+          "Color": { "enum": ["w", "b"] },
+          "Piece": { "enum": ["K", "Q", "R", "B", "N", "P", "k", "q", "r", "b", "n", "p"] },
+          "PieceType": { "enum": ["P", "N", "B", "R", "Q", "K"] },
+          "Cell": { "anyOf": [{ "$ref": "#/$defs/Piece" }, { "type": "null" }] }
+        },
+        "plain": {
+          "$params": ["q"],
+          "$sig": {
+            "required": [{ "$ref": "#/$defs/Cell" }],
+            "optional": [],
+            "returns": { "type": "string" }
+          },
+          "$return": { "$call": "upper", "$args": [{ "$var": "q" }] }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["plain", "$return", "$args[0]"],
+            "severity": "error",
+            "messageIncludes": "not assignable"
+          }
+        ]
+      }
+    },
+    {
+      "description": "nullable field: isNull(move.from) narrows the path move.from to Piece in the else-arm",
+      "module": {
+        "$types": {
+          "Color": { "enum": ["w", "b"] },
+          "Piece": { "enum": ["K", "Q", "R", "B", "N", "P", "k", "q", "r", "b", "n", "p"] },
+          "PieceType": { "enum": ["P", "N", "B", "R", "Q", "K"] },
+          "Cell": { "anyOf": [{ "$ref": "#/$defs/Piece" }, { "type": "null" }] }
+        },
+        "firstGlyph": {
+          "$params": ["move"],
+          "$sig": {
+            "required": [
+              {
+                "type": "object",
+                "properties": {
+                  "from": { "$ref": "#/$defs/Cell" },
+                  "to": { "$ref": "#/$defs/Cell" }
+                },
+                "required": ["from", "to"],
+                "additionalProperties": false
+              }
+            ],
+            "optional": [],
+            "returns": { "anyOf": [{ "type": "string" }, { "type": "null" }] }
+          },
+          "$return": {
+            "$if": {
+              "$call": "isNull",
+              "$args": [{ "$get": "from", "$from": { "$var": "move" } }]
+            },
+            "$then": null,
+            "$else": {
+              "$call": "upper",
+              "$args": [{ "$get": "from", "$from": { "$var": "move" } }]
+            }
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "discriminated union: s.tag == lit narrows s to the matching arm",
+      "module": {
+        "$types": {
+          "Shape": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": { "tag": { "const": "circle" }, "r": { "type": "integer" } },
+                "required": ["tag", "r"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": { "tag": { "const": "square" }, "side": { "type": "integer" } },
+                "required": ["tag", "side"],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "area": {
+          "$params": ["s"],
+          "$sig": {
+            "required": [{ "$ref": "#/$defs/Shape" }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": {
+            "$if": {
+              "$call": "eq",
+              "$args": [{ "$get": "tag", "$from": { "$var": "s" } }, "circle"]
+            },
+            "$then": { "$get": "r", "$from": { "$var": "s" } },
+            "$else": { "$get": "side", "$from": { "$var": "s" } }
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "disjoint field use stays a hard error even after path narrowing",
+      "module": {
+        "$types": {
+          "Color": { "enum": ["w", "b"] },
+          "Piece": { "enum": ["K", "Q", "R", "B", "N", "P", "k", "q", "r", "b", "n", "p"] },
+          "PieceType": { "enum": ["P", "N", "B", "R", "Q", "K"] },
+          "Cell": { "anyOf": [{ "$ref": "#/$defs/Piece" }, { "type": "null" }] }
+        },
+        "needInt": {
+          "$params": ["n"],
+          "$sig": {
+            "required": [{ "type": "integer" }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": { "$var": "n" }
+        },
+        "badField": {
+          "$params": ["move"],
+          "$sig": {
+            "required": [
+              {
+                "type": "object",
+                "properties": {
+                  "from": { "$ref": "#/$defs/Cell" },
+                  "to": { "$ref": "#/$defs/Cell" }
+                },
+                "required": ["from", "to"],
+                "additionalProperties": false
+              }
+            ],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": {
+            "$if": {
+              "$call": "not",
+              "$args": [
+                { "$call": "isNull", "$args": [{ "$get": "from", "$from": { "$var": "move" } }] }
+              ]
+            },
+            "$then": {
+              "$call": "needInt",
+              "$args": [{ "$get": "from", "$from": { "$var": "move" } }]
+            },
+            "$else": 0
+          }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["badField", "$return", "$then", "$args[0]"],
+            "severity": "error",
+            "messageIncludes": "not assignable"
+          }
+        ]
+      }
+    },
+    {
+      "description": "lazy local through a path: a $let binding from move.from narrows at forcing",
+      "module": {
+        "$types": {
+          "Color": { "enum": ["w", "b"] },
+          "Piece": { "enum": ["K", "Q", "R", "B", "N", "P", "k", "q", "r", "b", "n", "p"] },
+          "PieceType": { "enum": ["P", "N", "B", "R", "Q", "K"] },
+          "Cell": { "anyOf": [{ "$ref": "#/$defs/Piece" }, { "type": "null" }] }
+        },
+        "firstGlyphLocal": {
+          "$params": ["move"],
+          "$sig": {
+            "required": [
+              {
+                "type": "object",
+                "properties": {
+                  "from": { "$ref": "#/$defs/Cell" },
+                  "to": { "$ref": "#/$defs/Cell" }
+                },
+                "required": ["from", "to"],
+                "additionalProperties": false
+              }
+            ],
+            "optional": [],
+            "returns": { "anyOf": [{ "type": "string" }, { "type": "null" }] }
+          },
+          "$return": {
+            "$let": {
+              "glyph": {
+                "$call": "upper",
+                "$args": [{ "$get": "from", "$from": { "$var": "move" } }]
+              }
+            },
+            "$in": {
+              "$if": {
+                "$call": "isNull",
+                "$args": [{ "$get": "from", "$from": { "$var": "move" } }]
+              },
+              "$then": null,
+              "$else": { "$var": "glyph" }
+            }
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "negated field guard narrows to non-null on the then-arm",
+      "module": {
+        "$types": {
+          "Color": { "enum": ["w", "b"] },
+          "Piece": { "enum": ["K", "Q", "R", "B", "N", "P", "k", "q", "r", "b", "n", "p"] },
+          "PieceType": { "enum": ["P", "N", "B", "R", "Q", "K"] },
+          "Cell": { "anyOf": [{ "$ref": "#/$defs/Piece" }, { "type": "null" }] }
+        },
+        "target": {
+          "$params": ["move"],
+          "$sig": {
+            "required": [
+              {
+                "type": "object",
+                "properties": {
+                  "from": { "$ref": "#/$defs/Cell" },
+                  "to": { "$ref": "#/$defs/Cell" }
+                },
+                "required": ["from", "to"],
+                "additionalProperties": false
+              }
+            ],
+            "optional": [],
+            "returns": { "anyOf": [{ "$ref": "#/$defs/Piece" }, { "type": "null" }] }
+          },
+          "$return": {
+            "$if": {
+              "$call": "not",
+              "$args": [
+                { "$call": "isNull", "$args": [{ "$get": "to", "$from": { "$var": "move" } }] }
+              ]
+            },
+            "$then": { "$get": "to", "$from": { "$var": "move" } },
+            "$else": null
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "enum match missing an arm errors (no $else, unhandled b)",
+      "module": {
+        "$types": { "Color": { "enum": ["w", "b"] } },
+        "f": {
+          "$params": ["color"],
+          "$sig": {
+            "required": [{ "$ref": "#/$defs/Color" }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": { "$match": { "$var": "color" }, "$cases": [["w", 1]] }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return"],
+            "severity": "error",
+            "messageIncludes": "unhandled case(s) \"b\""
+          }
+        ]
+      }
+    },
+    {
+      "description": "a full enum match is clean even without an $else",
+      "module": {
+        "$types": { "Color": { "enum": ["w", "b"] } },
+        "f": {
+          "$params": ["color"],
+          "$sig": {
+            "required": [{ "$ref": "#/$defs/Color" }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": {
+            "$match": { "$var": "color" },
+            "$cases": [
+              ["w", 1],
+              ["b", 2]
+            ]
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "a present $else suppresses the exhaustiveness error",
+      "module": {
+        "$types": { "Color": { "enum": ["w", "b"] } },
+        "f": {
+          "$params": ["color"],
+          "$sig": {
+            "required": [{ "$ref": "#/$defs/Color" }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": { "$match": { "$var": "color" }, "$cases": [["w", 1]], "$else": 2 }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "discriminated-union match missing an arm errors (unhandled square)",
+      "module": {
+        "$types": {
+          "Shape": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": { "tag": { "const": "circle" }, "r": { "type": "integer" } },
+                "required": ["tag", "r"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": { "tag": { "const": "square" }, "side": { "type": "integer" } },
+                "required": ["tag", "side"],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "f": {
+          "$params": ["s"],
+          "$sig": {
+            "required": [{ "$ref": "#/$defs/Shape" }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": {
+            "$match": { "$get": "tag", "$from": { "$var": "s" } },
+            "$cases": [["circle", 1]]
+          }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return"],
+            "severity": "error",
+            "messageIncludes": "unhandled case(s) \"square\""
+          }
+        ]
+      }
+    },
+    {
+      "description": "a full discriminated-union match is clean without an $else",
+      "module": {
+        "$types": {
+          "Shape": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": { "tag": { "const": "circle" }, "r": { "type": "integer" } },
+                "required": ["tag", "r"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": { "tag": { "const": "square" }, "side": { "type": "integer" } },
+                "required": ["tag", "side"],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "f": {
+          "$params": ["s"],
+          "$sig": {
+            "required": [{ "$ref": "#/$defs/Shape" }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": {
+            "$match": { "$get": "tag", "$from": { "$var": "s" } },
+            "$cases": [
+              ["circle", 1],
+              ["square", 2]
+            ]
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "discriminated-union match narrows the base in each case arm",
+      "module": {
+        "$types": {
+          "Shape": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": { "tag": { "const": "circle" }, "r": { "type": "integer" } },
+                "required": ["tag", "r"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": { "tag": { "const": "square" }, "side": { "type": "integer" } },
+                "required": ["tag", "side"],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "f": {
+          "$params": ["s"],
+          "$sig": {
+            "required": [{ "$ref": "#/$defs/Shape" }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": {
+            "$match": { "$get": "tag", "$from": { "$var": "s" } },
+            "$cases": [
+              ["circle", { "$get": "r", "$from": { "$var": "s" } }],
+              ["square", { "$get": "side", "$from": { "$var": "s" } }]
+            ]
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "a dead/impossible case errors (literal not in the enum)",
+      "module": {
+        "$types": { "Color": { "enum": ["w", "b"] } },
+        "f": {
+          "$params": ["color"],
+          "$sig": {
+            "required": [{ "$ref": "#/$defs/Color" }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": {
+            "$match": { "$var": "color" },
+            "$cases": [
+              ["w", 1],
+              ["x", 2]
+            ],
+            "$else": 3
+          }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return", "$cases[1][0]"],
+            "severity": "error",
+            "messageIncludes": "Unreachable $match case"
+          }
+        ]
+      }
+    },
+    {
+      "description": "a match over an infinite subject is not linted (undecidable universe)",
+      "module": {
+        "f": {
+          "$params": ["s"],
+          "$sig": {
+            "required": [{ "type": "string" }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": { "$match": { "$var": "s" }, "$cases": [["hi", 1]] }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    }
+  ]
+}

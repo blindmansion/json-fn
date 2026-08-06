@@ -1,0 +1,55 @@
+{
+  "$schema": "../../check.schema.json",
+  "description": "object expressions: special keys are ordinary own properties",
+  "comment": "Portable checker behavior migrated from typescript/test/special-object-keys.test.ts. Host own-property, prototype, and schema-satisfaction assertions remain TypeScript-local.",
+  "builtins": "none",
+  "cases": [
+    {
+      "description": "an object literal with __proto__ synthesizes that key as a required property",
+      "expression": { "__proto__": 1, "b": 2 },
+      "expected": {
+        "type": {
+          "type": "object",
+          "properties": { "__proto__": { "const": 1 }, "b": { "const": 2 } },
+          "required": ["__proto__", "b"],
+          "additionalProperties": false
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "description": "a $raw payload with __proto__ synthesizes that key as an own property",
+      "expression": { "$raw": { "__proto__": { "p": 1 } } },
+      "expected": {
+        "type": {
+          "type": "object",
+          "properties": {
+            "__proto__": {
+              "type": "object",
+              "properties": { "p": { "const": 1 } },
+              "required": ["p"],
+              "additionalProperties": false
+            }
+          },
+          "required": ["__proto__"],
+          "additionalProperties": false
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "description": "an inherited Object.prototype name is not a checker callable",
+      "expression": { "$call": "hasOwnProperty", "$args": ["x"] },
+      "expected": {
+        "type": false,
+        "diagnostics": [
+          {
+            "path": [],
+            "severity": "error",
+            "messageIncludes": "Unknown function \"hasOwnProperty\""
+          }
+        ]
+      }
+    }
+  ]
+}

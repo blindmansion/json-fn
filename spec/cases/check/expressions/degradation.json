@@ -135,6 +135,44 @@
       "builtins": "standard",
       "expression": { "$call": "add", "$args": [1, 2] },
       "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "a spread call reports imprecise apply coverage and a strict return mismatch",
+      "builtins": "standard",
+      "module": {
+        "sum": {
+          "$params": ["a", "b"],
+          "$sig": {
+            "required": [{ "type": "integer" }, { "type": "integer" }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": { "$call": "add", "$args": [{ "$var": "a" }, { "$var": "b" }] }
+        },
+        "run": {
+          "$params": ["xs"],
+          "$sig": {
+            "required": [{ "type": "array", "items": { "type": "integer" } }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$return": { "$call": "apply", "$args": [{ "$fn": "sum" }, { "$var": "xs" }] }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["run", "$return"],
+            "severity": "info",
+            "messageIncludes": "callable rule \"apply\" has no precise return type"
+          },
+          {
+            "path": ["run", "$return"],
+            "severity": "error",
+            "messageIncludes": "any is not assignable to {\"type\":\"integer\"}"
+          }
+        ]
+      }
     }
   ]
 }

@@ -740,6 +740,27 @@
       }
     },
     {
+      "description": "a number-typed index into a tuple is a hard error",
+      "module": {
+        "f": {
+          "$params": ["i"],
+          "$sig": { "required": [{ "type": "number" }], "optional": [], "returns": true },
+          "$return": { "$get": { "$var": "i" }, "$from": [1, 2] }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return", "$get"],
+            "severity": "error",
+            "messageIncludes": "Index key must be an integer.",
+            "expected": { "type": "integer" },
+            "actual": { "type": "number" }
+          }
+        ]
+      }
+    },
+    {
       "description": "a literal string key absent from a closed object is a hard error",
       "comment": "End-to-end version of the local direct-synth missing-closed-field unit tests.",
       "module": {

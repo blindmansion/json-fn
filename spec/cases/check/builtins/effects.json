@@ -1,0 +1,253 @@
+{
+  "$schema": "../../check.schema.json",
+  "description": "standard builtins: task and effect precision rules",
+  "builtins": "standard",
+  "cases": [
+    {
+      "description": "perform carries the portable Task floor",
+      "expression": { "$call": "perform", "$args": ["read", []] },
+      "expected": {
+        "type": { "$ref": "#/$defs/Task" },
+        "diagnostics": [
+          { "path": [], "severity": "info", "messageIncludes": "no effect manifest is configured" }
+        ]
+      }
+    },
+    {
+      "description": "pure carries its precise completion type",
+      "expression": { "$call": "pure", "$args": [1] },
+      "expected": { "type": { "$taskType": { "const": 1 } }, "diagnostics": [] }
+    },
+    {
+      "description": "raise carries a never completion type",
+      "expression": { "$call": "raise", "$args": ["boom"] },
+      "expected": { "type": { "$taskType": false }, "diagnostics": [] }
+    },
+    {
+      "description": "bind threads its precise completion type",
+      "expression": {
+        "$call": "bind",
+        "$args": [
+          { "$call": "pure", "$args": [1] },
+          {
+            "$params": ["value"],
+            "$return": {
+              "$call": "pure",
+              "$args": [{ "$call": "add", "$args": [{ "$var": "value" }, 1] }]
+            }
+          }
+        ]
+      },
+      "expected": { "type": { "$taskType": { "type": "integer" } }, "diagnostics": [] }
+    },
+    {
+      "description": "bind accepts a zero-parameter discard continuation",
+      "expression": {
+        "$call": "bind",
+        "$args": [
+          { "$call": "pure", "$args": [1] },
+          { "$return": { "$call": "pure", "$args": ["done"] } }
+        ]
+      },
+      "expected": { "type": { "$taskType": { "const": "done" } }, "diagnostics": [] }
+    },
+    {
+      "description": "bind diagnoses its continuation once",
+      "expression": {
+        "$call": "bind",
+        "$args": [
+          { "$call": "pure", "$args": [1] },
+          {
+            "$params": ["value"],
+            "$return": {
+              "$let": { "bad": { "$call": "add", "$args": ["x", true] } },
+              "$in": { "$call": "pure", "$args": [{ "$var": "bad" }] }
+            }
+          }
+        ]
+      },
+      "expected": {
+        "type": { "$taskType": { "type": "integer" } },
+        "diagnostics": [
+          {
+            "path": ["$args[1]", "$return", "$let", "bad"],
+            "severity": "error",
+            "messageIncludes": "No overload of \"add\""
+          }
+        ]
+      }
+    },
+    {
+      "description": "bind reports a non-task argument at the argument",
+      "expression": {
+        "$call": "bind",
+        "$args": [
+          1,
+          { "$params": ["value"], "$return": { "$call": "pure", "$args": [{ "$var": "value" }] } }
+        ]
+      },
+      "expected": {
+        "type": { "$ref": "#/$defs/Task" },
+        "diagnostics": [
+          { "path": ["$args[0]"], "severity": "error", "messageIncludes": "not assignable" }
+        ]
+      }
+    },
+    {
+      "description": "perform leaves malformed argument lists to its fallback",
+      "expression": { "$call": "perform", "$args": ["read", 5] },
+      "expected": {
+        "type": { "$ref": "#/$defs/Task" },
+        "diagnostics": [
+          { "path": ["$args[1]"], "severity": "error", "messageIncludes": "not assignable" }
+        ]
+      }
+    },
+    {
+      "description": "annotated handle returns its static result schema",
+      "expression": {
+        "$call": "handle",
+        "$args": [
+          { "$call": "pure", "$args": [1] },
+          {},
+          {
+            "$raw": {
+              "$fnType": {
+                "required": [{ "type": "object" }],
+                "optional": [],
+                "returns": { "type": "string" }
+              }
+            }
+          }
+        ]
+      },
+      "expected": {
+        "type": {
+          "$fnType": {
+            "required": [{ "type": "object" }],
+            "optional": [],
+            "returns": { "type": "string" }
+          }
+        },
+        "diagnostics": []
+      }
+    },
+    {
+      "description": "annotated handle accepts referenced runtime-contract schemas",
+      "defs": { "Result": { "type": "string" } },
+      "expression": {
+        "$call": "handle",
+        "$args": [{ "$call": "pure", "$args": [1] }, {}, { "$raw": { "$ref": "#/$defs/Result" } }]
+      },
+      "expected": { "type": { "$ref": "#/$defs/Result" }, "diagnostics": [] }
+    },
+    {
+      "description": "annotated handle rejects task result annotations",
+      "expression": {
+        "$call": "handle",
+        "$args": [
+          { "$call": "pure", "$args": [1] },
+          {},
+          { "$raw": { "$taskType": { "type": "string" } } }
+        ]
+      },
+      "expected": {
+        "type": true,
+        "diagnostics": [
+          {
+            "path": ["$args[2]", "$raw"],
+            "severity": "error",
+            "messageIncludes": "outside the tractable type fragment"
+          }
+        ]
+      }
+    },
+    {
+      "description": "annotated handle requires a raw static schema",
+      "expression": {
+        "$call": "handle",
+        "$args": [{ "$call": "pure", "$args": [1] }, {}, { "type": "string" }]
+      },
+      "expected": {
+        "type": true,
+        "diagnostics": [{ "path": ["$args[2]"], "severity": "error", "messageIncludes": "static" }]
+      }
+    },
+    {
+      "description": "annotated handle reports undefined named result types",
+      "expression": {
+        "$call": "handle",
+        "$args": [{ "$call": "pure", "$args": [1] }, {}, { "$raw": { "$ref": "#/$defs/Missing" } }]
+      },
+      "expected": {
+        "type": { "$ref": "#/$defs/Missing" },
+        "diagnostics": [
+          {
+            "path": ["$args[2]", "$raw"],
+            "severity": "error",
+            "messageIncludes": "reference to undefined type \"Missing\""
+          }
+        ]
+      }
+    },
+    {
+      "description": "escape-hatch rule floors enforce arity",
+      "expression": { "$call": "pipe", "$args": [] },
+      "expected": {
+        "type": true,
+        "diagnostics": [
+          { "path": [], "severity": "error", "messageIncludes": "argument" },
+          {
+            "path": [],
+            "severity": "info",
+            "messageIncludes": "callable rule \"pipe\" has no precise return type"
+          }
+        ]
+      }
+    },
+    {
+      "description": "escape-hatch rule floors enforce disjoint shapes",
+      "expression": { "$call": "pipe", "$args": [5, 1] },
+      "expected": {
+        "type": true,
+        "diagnostics": [
+          { "path": ["$args[0]"], "severity": "error", "messageIncludes": "not assignable" },
+          {
+            "path": [],
+            "severity": "info",
+            "messageIncludes": "callable rule \"pipe\" has no precise return type"
+          }
+        ]
+      }
+    },
+    {
+      "description": "effectful functions accept precise and portable Task returns",
+      "module": {
+        "precise": {
+          "$params": [],
+          "$sig": { "required": [], "optional": [], "returns": { "$taskType": true } },
+          "$return": { "$call": "perform", "$args": ["e", []] }
+        },
+        "portable": {
+          "$params": [],
+          "$sig": { "required": [], "optional": [], "returns": { "$ref": "#/$defs/Task" } },
+          "$return": { "$call": "perform", "$args": ["e", []] }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["precise", "$return"],
+            "severity": "info",
+            "messageIncludes": "no effect manifest is configured"
+          },
+          {
+            "path": ["portable", "$return"],
+            "severity": "info",
+            "messageIncludes": "no effect manifest is configured"
+          }
+        ]
+      }
+    }
+  ]
+}

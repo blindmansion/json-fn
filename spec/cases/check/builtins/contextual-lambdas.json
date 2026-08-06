@@ -1,0 +1,209 @@
+{
+  "$schema": "../../check.schema.json",
+  "description": "standard builtins: contextual lambda boundaries",
+  "builtins": "standard",
+  "cases": [
+    {
+      "description": "contextual callbacks reject stray body fields",
+      "expression": {
+        "$call": "map",
+        "$args": [
+          {
+            "$params": ["value"],
+            "stray": { "$params": 42, "$return": null },
+            "$return": { "$var": "value" }
+          },
+          [1, 2, 3]
+        ]
+      },
+      "expected": {
+        "type": { "type": "array", "items": { "type": "integer" } },
+        "diagnostics": [
+          {
+            "path": ["$args[0]", "stray"],
+            "severity": "error",
+            "messageIncludes": "function body field \"stray\" is not supported"
+          }
+        ]
+      }
+    },
+    {
+      "description": "malformed callback parameters skip callback bodies",
+      "expression": {
+        "$call": "map",
+        "$args": [
+          { "$params": [{ "$param": "value" }], "$return": { "$var": "missing" } },
+          [1, 2, 3]
+        ]
+      },
+      "expected": {
+        "type": { "type": "array", "items": true },
+        "diagnostics": [
+          {
+            "path": ["$args[0]", "$params[0]"],
+            "severity": "error",
+            "messageIncludes": "A defaulted parameter must contain exactly"
+          }
+        ]
+      }
+    },
+    {
+      "description": "filter requires boolean callback returns",
+      "expression": {
+        "$call": "filter",
+        "$args": [{ "$params": ["n"], "$return": { "$var": "n" } }, [1, 2, 3]]
+      },
+      "expected": {
+        "type": { "type": "array", "items": { "type": "integer" } },
+        "diagnostics": [
+          {
+            "path": ["$args[0]", "$return"],
+            "severity": "error",
+            "messageIncludes": "not assignable"
+          }
+        ]
+      }
+    },
+    {
+      "description": "annotated callbacks retain their declared parameter types",
+      "expression": {
+        "$call": "map",
+        "$args": [
+          {
+            "$params": ["n"],
+            "$sig": {
+              "required": [{ "type": "string" }],
+              "optional": [],
+              "returns": { "type": "integer" }
+            },
+            "$return": 1
+          },
+          [10, 20]
+        ]
+      },
+      "expected": {
+        "type": { "type": "array", "items": { "type": "integer" } },
+        "diagnostics": [
+          {
+            "path": ["$args[0]"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": {
+              "$fnType": {
+                "required": [{ "type": "integer" }],
+                "optional": [],
+                "returns": { "type": "integer" }
+              }
+            },
+            "actual": {
+              "$fnType": {
+                "required": [{ "type": "string" }],
+                "optional": [],
+                "returns": { "type": "integer" }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "description": "callbacks must declare every contextual parameter",
+      "expression": { "$call": "map", "$args": [{ "$params": [], "$return": 1 }, [10, 20]] },
+      "expected": {
+        "type": { "type": "array", "items": true },
+        "diagnostics": [
+          {
+            "path": ["$args[0]", "$params"],
+            "severity": "error",
+            "messageIncludes": "body declares 0 required parameter(s)"
+          }
+        ]
+      }
+    },
+    {
+      "description": "optional callback slots cannot replace required contextual slots",
+      "expression": {
+        "$call": "map",
+        "$args": [
+          { "$params": ["n", { "$param": "i", "$optional": true }], "$return": { "$var": "n" } },
+          [10, 20]
+        ]
+      },
+      "expected": {
+        "type": { "type": "array", "items": true },
+        "diagnostics": [
+          {
+            "path": ["$args[0]", "$params"],
+            "severity": "error",
+            "messageIncludes": "1 optional parameter(s)"
+          }
+        ]
+      }
+    },
+    {
+      "description": "callback rest parameters do not absorb fixed contextual slots",
+      "expression": {
+        "$call": "map",
+        "$args": [{ "$params": ["n", "...rest"], "$return": { "$var": "rest" } }, [10, 20]]
+      },
+      "expected": {
+        "type": { "type": "array", "items": true },
+        "diagnostics": [
+          {
+            "path": ["$args[0]", "$params"],
+            "severity": "error",
+            "messageIncludes": "and a rest parameter"
+          }
+        ]
+      }
+    },
+    {
+      "description": "a lambda in a non-function position reports a diagnostic",
+      "expression": {
+        "$call": "map",
+        "$args": [
+          [1, 2, 3],
+          { "$params": ["n"], "$return": { "$call": "add", "$args": [{ "$var": "n" }, 1] } }
+        ]
+      },
+      "expected": {
+        "type": { "type": "array", "items": true },
+        "diagnostics": [
+          { "path": ["$args[0]"], "severity": "error", "messageIncludes": "not assignable" },
+          { "path": ["$args[1]"], "severity": "error", "messageIncludes": "not assignable" }
+        ]
+      }
+    },
+    {
+      "description": "wrong arity still traverses ordinary arguments but skips callbacks",
+      "expression": {
+        "$call": "map",
+        "$args": [
+          { "$params": ["n"], "$return": { "$var": "missingFromCallback" } },
+          { "$var": "independentlyMissingArray" },
+          { "$var": "independentlyMissingExtra" }
+        ]
+      },
+      "expected": {
+        "type": { "type": "array", "items": true },
+        "diagnostics": [
+          {
+            "path": [],
+            "severity": "error",
+            "messageIncludes": "Expected exactly 2 arguments, got 3"
+          },
+          {
+            "path": ["$args[1]"],
+            "severity": "info",
+            "messageIncludes": "variable \"independentlyMissingArray\" is unresolved"
+          },
+          {
+            "path": ["$args[2]"],
+            "severity": "info",
+            "messageIncludes": "variable \"independentlyMissingExtra\" is unresolved"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,221 @@
+{
+  "$schema": "../../check.schema.json",
+  "description": "portable environment contracts: effects, handlers, and namespace shadowing",
+  "comment": "Migrated from the contract checker integration block in typescript/test/contract.test.ts.",
+  "builtins": "standard",
+  "cases": [
+    {
+      "description": "contract effects are callable through the injected namespace",
+      "module": {
+        "main": {
+          "$return": {
+            "$call": { "$get": ["sensor", "read"], "$from": { "$var": "effects" } },
+            "$args": []
+          }
+        }
+      },
+      "contract": {
+        "version": 1,
+        "functions": {},
+        "effects": { "sensor.read": { "params": [], "returns": { "type": "integer" } } },
+        "entry": {
+          "name": "main",
+          "required": [],
+          "optional": [],
+          "returns": { "task": { "type": "integer" } }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "explicitly typed helpers preserve effect completion types",
+      "module": {
+        "read": {
+          "$return": {
+            "$call": { "$get": ["sensor", "read"], "$from": { "$var": "effects" } },
+            "$args": []
+          },
+          "$sig": {
+            "required": [],
+            "optional": [],
+            "returns": { "$taskType": { "type": "integer" } }
+          }
+        },
+        "main": { "$return": { "$call": "read", "$args": [] } }
+      },
+      "contract": {
+        "version": 1,
+        "functions": {},
+        "effects": { "sensor.read": { "params": [], "returns": { "type": "integer" } } },
+        "entry": {
+          "name": "main",
+          "required": [],
+          "optional": [],
+          "returns": { "task": { "type": "integer" } }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "effect-call arguments are checked against the contract",
+      "module": {
+        "main": {
+          "$return": {
+            "$call": { "$get": ["log"], "$from": { "$var": "effects" } },
+            "$args": ["wrong"]
+          }
+        }
+      },
+      "contract": {
+        "version": 1,
+        "functions": {},
+        "effects": { "log": { "params": [{ "type": "integer" }], "returns": { "type": "null" } } },
+        "entry": {
+          "name": "main",
+          "required": [],
+          "optional": [],
+          "returns": { "task": { "type": "null" } }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["main", "$return", "$args[0]"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "integer" },
+            "actual": { "const": "wrong" }
+          }
+        ]
+      }
+    },
+    {
+      "description": "handler clauses receive contextual effect, resume, and return types",
+      "module": {
+        "interpret": {
+          "$return": {
+            "$call": "handle",
+            "$args": [
+              { "$var": "task" },
+              {
+                "log": {
+                  "$return": {
+                    "$call": "add",
+                    "$args": [
+                      { "$call": "resume", "$args": [null] },
+                      { "$call": "length", "$args": [{ "$var": "message" }] }
+                    ]
+                  },
+                  "$params": ["message", "resume"]
+                },
+                "return": {
+                  "$return": { "$call": "add", "$args": [{ "$var": "value" }, 1] },
+                  "$params": ["value"]
+                }
+              },
+              { "$raw": { "type": "integer" } }
+            ]
+          },
+          "$sig": {
+            "required": [{ "$taskType": { "type": "integer" } }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$params": ["task"]
+        },
+        "main": { "$return": { "$call": "pure", "$args": [1] } }
+      },
+      "contract": {
+        "version": 1,
+        "functions": {},
+        "effects": { "log": { "params": [{ "type": "string" }], "returns": { "type": "null" } } },
+        "entry": {
+          "name": "main",
+          "required": [],
+          "optional": [],
+          "returns": { "task": { "type": "integer" } }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "handler resume inputs and clause results are checked without degradation",
+      "module": {
+        "interpret": {
+          "$return": {
+            "$call": "handle",
+            "$args": [
+              { "$var": "task" },
+              {
+                "log": {
+                  "$return": {
+                    "$call": "add",
+                    "$args": [{ "$call": "resume", "$args": ["wrong"] }, { "$var": "message" }]
+                  },
+                  "$params": ["message", "resume"]
+                },
+                "return": { "$return": "wrong", "$params": ["value"] }
+              },
+              { "$raw": { "type": "integer" } }
+            ]
+          },
+          "$sig": {
+            "required": [{ "$taskType": { "type": "integer" } }],
+            "optional": [],
+            "returns": { "type": "integer" }
+          },
+          "$params": ["task"]
+        },
+        "main": { "$return": { "$call": "pure", "$args": [1] } }
+      },
+      "contract": {
+        "version": 1,
+        "functions": {},
+        "effects": { "log": { "params": [{ "type": "string" }], "returns": { "type": "null" } } },
+        "entry": {
+          "name": "main",
+          "required": [],
+          "optional": [],
+          "returns": { "task": { "type": "integer" } }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["interpret", "$return", "$args[1]", "log", "$return", "$args[0]", "$args[0]"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "null" },
+            "actual": { "const": "wrong" }
+          },
+          {
+            "path": ["interpret", "$return", "$args[1]", "log", "$return"],
+            "severity": "error",
+            "messageIncludes": "No overload of \"add\" matches arguments"
+          },
+          {
+            "path": ["interpret", "$return", "$args[1]", "return", "$return"],
+            "severity": "error",
+            "messageIncludes": "not assignable"
+          }
+        ]
+      }
+    },
+    {
+      "description": "a guest module cannot shadow the injected effects namespace",
+      "module": { "effects": {}, "main": { "$return": { "$call": "pure", "$args": [1] } } },
+      "contract": {
+        "version": 1,
+        "functions": {},
+        "effects": {},
+        "entry": {
+          "name": "main",
+          "required": [],
+          "optional": [],
+          "returns": { "task": { "type": "integer" } }
+        }
+      },
+      "throws": { "messageIncludes": "\"effects\" is reserved for contract-declared effects" }
+    }
+  ]
+}
