@@ -2,7 +2,7 @@
 
 Status: **adopted**, 2026-08-08 (written as working notes the same day). The
 consolidated ordering in §4 is folded into [`plan.md`](plan.md) (Stage 2
-items 5–7, Stage 3 item 4, the revised pattern-matching posture); the two
+chunks 2d–2f, Stage 3 item 4, the revised pattern-matching posture); the two
 flagged open decisions are resolved as **D4** (truthiness: boolean
 conditions required) and **D5** (pattern v1 fragment boundary: the
 proposal's fragment as written) in [`status.md`](status.md). Compiled from a

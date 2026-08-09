@@ -62,79 +62,122 @@ vectors and cases for the same region twice). Rewrites `expressions.md`,
 normalizer, and `spec-v2/docs/runtime/hashing.md` rules land in the same
 change.
 
-1. **`$let` becomes strict and dependency-ordered** (Change 4's variant):
-   bindings evaluate eagerly in dependency order, cycles are errors, the lazy
-   forcing machinery and unforced-error-suppression semantics are deleted.
-   Lazy parameter defaults remain as the one documented exception.
-   Proposal 3 is recorded as resolved in this form.
-2. **Parameter richness** (Proposal 6, in-scope portion): `$fields`
-   destructuring patterns collapse into desugaring. The defaults axis is
-   dropped — defaults stay lazy and primitive. The lowering is deliberately
-   chosen as the **flat image of the future pattern lowering**
-   ([`type-eval-coherence.md`](type-eval-coherence.md) §1 piece 2): an
-   irrefutable object pattern of bare binders lowers to a body-top `$let` of
-   `$get`/`$else` projections (using this stage's strict-read access forms;
-   optional fields bind `null` on absence), with the printer folding the
-   parameter shape back. Parameter unification later _extends_ this surface
-   rather than re-lowering it; no pattern-bind kernel node is introduced yet.
-   The signature shape (`required`/`optional`/`rest`) is untouched as the
-   interface description (see item 5).
-3. **Closures move from substitution to capture** (Proposal 1, with the
-   record-on-value encoding): escaping bodies are never rewritten; evaluated
-   free-variable values attach as a capture record on the function value, a
-   sibling of `$params`/`$return`. Capture is one mechanism generalized to
-   values, escape is idempotent, name collisions are impossible by
-   construction, and inertness survives serialization by position. The
-   capture record's cost charges at the closure-creation event (Stage 1,
-   item 4); re-entry charges 1. The record prints as the local-binding form
-   for audit reading. Normalizer and printer rules plus hash vectors for the
-   record shape land in this same stage.
-4. **Strict reads**: [`strict-reads.md`](strict-reads.md) is absorbed,
-   including the `$get` redesign and the absent-vs-null resolution
-   (Proposal 10).
-5. **`$sig` inlining** ([`type-eval-coherence.md`](type-eval-coherence.md)
-   §2): `$sig` is removed from **function bodies only**. Types attach
-   per-slot (`$type` on the parameter descriptor); the return type moves to
-   a `$returns` sibling on the body. The
-   `required`/`optional`/`rest`/`returns` callable shape survives as the
-   **interface description** — contract `functions`, contract `entry`, the
-   builtin registry — with a normative derivation function from the inline
-   form; the "selected module function must satisfy the contract entry"
-   check consumes the derivation. "Fully typed or bare" becomes a per-body
-   lint; contextually typed bare lambdas are untouched. Forward commitments
-   land with it: `$type` is pinned as the shared attachment key (the future
-   pattern dialect's typed binder uses the same shape); schema payloads
-   inside `$params` are static syntax (a row in the raw-inference
-   conformance matrix); annotations fold into the containing region's
-   static constant (one line in the D2 cost framing — typing a function
-   cannot change its fuel).
-6. **Boolean conditions** (decision **D4** in [`status.md`](status.md)):
-   truthiness is deleted. Conditions (`$if`, `$cond` arms) must be boolean;
-   a non-boolean condition is an evaluation error (evaluator-enforced,
-   fail-closed — condition position is a runtime position whose semantics
-   is validation against the boolean schema). `$and`/`$or` become
-   boolean-only (operands boolean, result boolean, short-circuit
-   preserved); prefix `!` likewise. Condition narrowing becomes exact. The
-   truthiness sections of `expressions.md`, `narrowing.md`, and
-   `spec-v2/docs/language/shorthand/control-flow.md` are rewritten; the
-   authoring guide follows.
-   Absence-defaulting is already absorbed by this stage's `$get`/`$else`;
-   the null-defaulting surface replacing `x || default` is a small open
-   item in [`status.md`](status.md).
-7. **The coherence framing section**
-   ([`type-eval-coherence.md`](type-eval-coherence.md) §3): a short
-   normative section, landed alongside this stage's rewrites — the
-   checker's types and the evaluator's validators are the same objects;
-   checking never changes behavior (erasability); in a checked program,
-   runtime contract errors fire only at declared trust boundaries; and the
-   normatively declared **exactness fragment** (which D4 keeps clean on
-   conditions and D5 defines for exhaustiveness). It acts as the filter
-   for later work (`isType` respecification, the `$nonnull` deletion path).
-8. **Checker conformance**: migrate the affected
-   `spec-v2/cases/check/` suites for strict bindings, generalized captures,
-   `$fields` lowering, strict `$get`, inline parameter types, and boolean
-   conditions; add `$else` and `hasKey` narrowing
-   coverage. The v1 corpus remains unchanged.
+The stage **lands as one break** but decomposes into ordered chunks for
+writing and review. Each chunk is internally coherent spec text; later
+chunks are written in the vocabulary of earlier ones. Dependency spine:
+2a → 2c (capture stores eagerly evaluated binding values); 2a + 2b → 2d
+(the `$fields` lowering targets eager `$let` and strict-read projections);
+2e is independent of 2a–2d but must precede 2f; 2f consumes the text of
+2b, 2d, and 2e; 2g is last and assembles the conformance surface for the
+whole stage.
+
+### 2a — strict `$let`
+
+**`$let` becomes strict and dependency-ordered** (Change 4's variant):
+bindings evaluate eagerly in dependency order, cycles are errors, the lazy
+forcing machinery and unforced-error-suppression semantics are deleted.
+Lazy parameter defaults remain as the one documented exception.
+Proposal 3 is recorded as resolved in this form. Rewrites the binding
+sections of `expressions.md`.
+
+### 2b — strict reads
+
+[`strict-reads.md`](strict-reads.md) is absorbed, including the `$get`
+redesign and the absent-vs-null resolution (Proposal 10). Settle the
+null-defaulting surface ([`status.md`](status.md)) and the `??` spelling
+question here if possible — this chunk owns the access/defaulting forms
+that D4 (2e) leans on.
+
+### 2c — capture closures
+
+**Closures move from substitution to capture** (Proposal 1, with the
+record-on-value encoding): escaping bodies are never rewritten; evaluated
+free-variable values attach as a capture record on the function value, a
+sibling of `$params`/`$return`. Capture is one mechanism generalized to
+values, escape is idempotent, name collisions are impossible by
+construction, and inertness survives serialization by position. The
+capture record's cost charges at the closure-creation event (Stage 1,
+item 4); re-entry charges 1. The record prints as the local-binding form
+for audit reading. Rewrites `functions.md`/`closures.md`; the normalizer
+and printer rules plus hash vectors for the record shape are drafted here
+and assembled in 2g.
+
+### 2d — the parameter surface: `$fields` lowering + `$sig` inlining
+
+The two parameter changes are one chunk: both rewrite the same
+`functions.md`/`type-syntax-spec.md` text, and the alignment rules the
+`$sig` removal deletes are the same rules the `$fields` collapse forces a
+rewrite of.
+
+- **Parameter richness** (Proposal 6, in-scope portion): `$fields`
+  destructuring patterns collapse into desugaring. The defaults axis is
+  dropped — defaults stay lazy and primitive. The lowering is deliberately
+  chosen as the **flat image of the future pattern lowering**
+  ([`type-eval-coherence.md`](type-eval-coherence.md) §1 piece 2): an
+  irrefutable object pattern of bare binders lowers to a body-top `$let` of
+  `$get`/`$else` projections (2a's eager `$let`, 2b's access forms;
+  optional fields bind `null` on absence), with the printer folding the
+  parameter shape back. Parameter unification later _extends_ this surface
+  rather than re-lowering it; no pattern-bind kernel node is introduced
+  yet. The signature shape (`required`/`optional`/`rest`) is untouched as
+  the interface description (below).
+- **`$sig` inlining** ([`type-eval-coherence.md`](type-eval-coherence.md)
+  §2): `$sig` is removed from **function bodies only**. Types attach
+  per-slot (`$type` on the parameter descriptor); the return type moves to
+  a `$returns` sibling on the body. The
+  `required`/`optional`/`rest`/`returns` callable shape survives as the
+  **interface description** — contract `functions`, contract `entry`, the
+  builtin registry — with a normative derivation function from the inline
+  form; the "selected module function must satisfy the contract entry"
+  check consumes the derivation. "Fully typed or bare" becomes a per-body
+  lint; contextually typed bare lambdas are untouched. Forward commitments
+  land with it: `$type` is pinned as the shared attachment key (the future
+  pattern dialect's typed binder uses the same shape); schema payloads
+  inside `$params` are static syntax (a row in the raw-inference
+  conformance matrix); annotations fold into the containing region's
+  static constant (one line in the D2 cost framing — typing a function
+  cannot change its fuel).
+
+Note 2c and 2d both alter the function-value shape (capture record;
+`$returns` and typed descriptors) — the `functions.md` hashing/printing
+text is co-owned, so whichever chunk is written second reconciles it.
+
+### 2e — boolean conditions (D4)
+
+Decision **D4** in [`status.md`](status.md): truthiness is deleted.
+Conditions (`$if`, `$cond` arms) must be boolean; a non-boolean condition
+is an evaluation error (evaluator-enforced, fail-closed — condition
+position is a runtime position whose semantics is validation against the
+boolean schema). `$and`/`$or` become boolean-only (operands boolean,
+result boolean, short-circuit preserved); prefix `!` likewise. Condition
+narrowing becomes exact. The truthiness sections of `expressions.md`,
+`narrowing.md`, and `spec-v2/docs/language/shorthand/control-flow.md` are
+rewritten; the authoring guide follows. Absence-defaulting is already
+absorbed by 2b's `$get`/`$else`; the null-defaulting surface replacing
+`x || default` is settled in 2b (or tracked in
+[`status.md`](status.md) if it slips).
+
+### 2f — the coherence framing section
+
+[`type-eval-coherence.md`](type-eval-coherence.md) §3: a short normative
+section, landed alongside this stage's rewrites — the checker's types and
+the evaluator's validators are the same objects; checking never changes
+behavior (erasability); in a checked program, runtime contract errors fire
+only at declared trust boundaries; and the normatively declared
+**exactness fragment** (which D4 keeps clean on conditions and D5 defines
+for exhaustiveness). Written after 2b/2d/2e so it states, rather than
+anticipates, the adjacent text. It acts as the filter for later work
+(`isType` respecification, the `$nonnull` deletion path).
+
+### 2g — conformance assembly
+
+Migrate the affected `spec-v2/cases/check/` suites for strict bindings,
+generalized captures, `$fields` lowering, strict `$get`, inline parameter
+types, and boolean conditions; add `$else` and `hasKey` narrowing
+coverage. The v1 corpus remains unchanged. Final printer/normalizer
+round-trip rules and the hash vectors drafted in 2c/2d are assembled and
+pinned here, once, for the whole stage — this is what makes the stage a
+single format break.
 
 ## Stage 3 — kernel cleanup
 

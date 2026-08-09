@@ -35,7 +35,7 @@ stated in the Stage 2 spec text and the pattern-matching spec respectively:
   truthiness bugs (`if retries` at zero), and a silently wrong branch is the
   worst failure mode for durable workflows. The null/false-only middle
   option was rejected for flipping `if count` silently instead of erroring.
-  Lands as Stage 2 item 6; condition narrowing becomes exact. Residue: the
+  Lands as Stage 2 chunk 2e; condition narrowing becomes exact. Residue: the
   null-defaulting surface replacing `x || default` (tracked below).
 - **D5 — pattern v1 fragment boundary: resolved, the proposal's fragment as
   written.** Exhaustiveness is exact on: finite enums and literal unions;
@@ -97,10 +97,10 @@ stated in the Stage 2 spec text and the pattern-matching spec respectively:
   `x || default` idiom. Absence-defaulting is covered by strict reads'
   `$get`/`$else`; null-defaulting needs a decided form — a builtin, a
   dedicated operator, or nothing (exact `T | null` narrowing makes the
-  explicit conditional fully typed). Small; should be settled while
-  Stage 2's `expressions.md` rewrite is open. Note the strict-reads `??`
-  spelling question interacts (JS's `??` prior is null-coalescing, while
-  the strict-reads form is miss-only).
+  explicit conditional fully typed). Small; owned by Stage 2 chunk 2b
+  (strict reads), which also holds the interacting `??` spelling question
+  (JS's `??` prior is null-coalescing, while the strict-reads form is
+  miss-only).
 - **Proposal 6, signature-shape axis.** Whether the
   `required`/`optional`/`rest` signature shape ever changes; gated on a
   deliberate contract-format revision, not on any plan stage. Unaffected by
@@ -131,8 +131,8 @@ stated in the Stage 2 spec text and the pattern-matching spec respectively:
 
 - Done (2026-08-08): [`type-eval-coherence.md`](type-eval-coherence.md)
   adopted — its consolidated ordering folded into [`plan.md`](plan.md)
-  (Stage 2 items 5–7, Stage 3 item 4, the revised pattern-matching posture),
-  and its two flagged decisions resolved as D4/D5 above.
+  (Stage 2 chunks 2d–2f, Stage 3 item 4, the revised pattern-matching
+  posture), and its two flagged decisions resolved as D4/D5 above.
 - Done (2026-08-06): [`do-target.md`](do-target.md) updated after Stage 1 —
   its follow-up B blocker list and fuel invariants now reflect the
   event-trace model, with the "portable fuel must not leak chunk thresholds
