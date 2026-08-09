@@ -1,13 +1,16 @@
 # Spec v2 status: what remains to be decided
 
-Status: **living document**, 2026-08-06. Everything not yet decided, grouped
+Status: **living document**, 2026-08-08. Everything not yet decided, grouped
 by what it blocks. The settled sequence is in [`plan.md`](plan.md); rationale
-for the settled items is in [`review.md`](review.md).
+for the settled items is in [`review.md`](review.md) and
+[`type-eval-coherence.md`](type-eval-coherence.md).
 
 ## Decisions blocking plan stages
 
 None open. The three Stage 1 decisions were resolved 2026-08-06 and are
-stated in the Stage 1 spec text:
+stated in the Stage 1 spec text; D4 and D5 were resolved 2026-08-08 (with
+[`type-eval-coherence.md`](type-eval-coherence.md)'s adoption) and will be
+stated in the Stage 2 spec text and the pattern-matching spec respectively:
 
 - **D1 — string length unit: resolved, Unicode code points.** Stated once in
   the measures section of `spec-v2/docs/runtime/execution-limits.md`;
@@ -23,14 +26,45 @@ stated in the Stage 1 spec text:
   rule was defined in terms of per-node charging, which the event-trace
   model deletes; `maxCallDepth` plus the fixed structural depth of 512
   remain.
+- **D4 — truthiness: resolved, boolean conditions required.** Truthiness is
+  deleted rather than kept-and-named: conditions must be boolean
+  (evaluator-enforced error otherwise), and `$and`/`$or`/`!` become
+  boolean-only with short-circuiting preserved. Rationale: the falsy-`0`/`""`
+  exactness loss in condition narrowing is permanent (no `not` in the schema
+  dialect), agent authors fix loud checker errors well but generate silent
+  truthiness bugs (`if retries` at zero), and a silently wrong branch is the
+  worst failure mode for durable workflows. The null/false-only middle
+  option was rejected for flipping `if count` silently instead of erroring.
+  Lands as Stage 2 item 6; condition narrowing becomes exact. Residue: the
+  null-defaulting surface replacing `x || default` (tracked below).
+- **D5 — pattern v1 fragment boundary: resolved, the proposal's fragment as
+  written.** Exhaustiveness is exact on: finite enums and literal unions;
+  discriminated unions of **closed** objects, discriminated by any
+  literal-covered field, nested; tuple-length splits with rest; and
+  `null | T` splits. Outside the fragment the checker requires a catch-all
+  and reports why. Leaf rules: refinement/`format`/`$ref`-typed binders are
+  allowed but contribute nothing to coverage (erase to `true` for
+  exhaustiveness); the optional-field pattern form is in v1; the pure
+  absence pattern, or-patterns, closed object patterns, and pattern-level
+  defaults stay excluded (additive later). Open data at workflow ingress is
+  correctly outside the fragment: validate at the contract boundary with
+  `$as` into a closed declared type, dispatch exhaustively inside.
+  Consumed by Stage 3's case regeneration and the post-Stage-5 dialect.
 
 ## Design work not yet proposal-ready
 
 - **Pattern matching** ([`pattern-matching.md`](pattern-matching.md)).
-  Canonical node shapes unfinished. Open inside it: arm-selection/dispatch
-  events (one story shared with `handle` clauses and, later, `select` arms);
-  absence patterns coherent with strict reads; whether a full pattern
-  language subsumes `$match`.
+  Scope has narrowed (2026-08-08): the fragment boundary is resolved (D5),
+  the clock-sensitive pieces moved into plan Stages 2–3, the dialect
+  subsumes `$match` (resolved — the post-Stage-5 unit generalizes it), and
+  absence/optional-field rules are aligned with strict reads in the
+  proposal. Still open inside the remaining post-Stage-5 units:
+  arm-selection/dispatch events (one story shared with `handle` clauses
+  and, later, `select` arms); the guard arm encoding
+  (`[pattern, guard, result]` triple vs a keyed variant); the typed-binder
+  shorthand token (`(name: Type)` vs `name is Type`); whether
+  `$let`-position destructuring joins parameter unification in the same
+  pass.
 - **Durable tasks** ([`durable-tasks-design.md`](durable-tasks-design.md)).
   Still a design exploration; needs decomposition into proposals along its
   own candidate seams (taxonomy → temporal values → guards → combinators →
@@ -59,9 +93,19 @@ stated in the Stage 1 spec text:
   semantics at suspension boundaries (by-name `$fn` vs captured closure);
   stdlib argument-order audit for pipeline ergonomics; `$imports` canonical
   form and hash-pinning location.
+- **Null-defaulting surface after D4.** Boolean-only `||` kills the
+  `x || default` idiom. Absence-defaulting is covered by strict reads'
+  `$get`/`$else`; null-defaulting needs a decided form — a builtin, a
+  dedicated operator, or nothing (exact `T | null` narrowing makes the
+  explicit conditional fully typed). Small; should be settled while
+  Stage 2's `expressions.md` rewrite is open. Note the strict-reads `??`
+  spelling question interacts (JS's `??` prior is null-coalescing, while
+  the strict-reads form is miss-only).
 - **Proposal 6, signature-shape axis.** Whether the
   `required`/`optional`/`rest` signature shape ever changes; gated on a
-  deliberate contract-format revision, not on any plan stage.
+  deliberate contract-format revision, not on any plan stage. Unaffected by
+  Stage 2's body-side `$sig` removal: the callable shape survives as the
+  interface description, with a normative derivation from the inline form.
 
 ## Host and deployment questions (no spec-v2 language footprint)
 
@@ -85,6 +129,10 @@ stated in the Stage 1 spec text:
 
 ## Bookkeeping and cross-plan updates
 
+- Done (2026-08-08): [`type-eval-coherence.md`](type-eval-coherence.md)
+  adopted — its consolidated ordering folded into [`plan.md`](plan.md)
+  (Stage 2 items 5–7, Stage 3 item 4, the revised pattern-matching posture),
+  and its two flagged decisions resolved as D4/D5 above.
 - Done (2026-08-06): [`do-target.md`](do-target.md) updated after Stage 1 —
   its follow-up B blocker list and fuel invariants now reflect the
   event-trace model, with the "portable fuel must not leak chunk thresholds

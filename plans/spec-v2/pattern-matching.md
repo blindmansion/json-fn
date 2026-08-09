@@ -1,6 +1,15 @@
 # Structural pattern matching
 
-Status: **proposal.** Written during the ground-up spec revisit. The TypeScript
+Status: **proposal; sequencing and fragment boundary settled 2026-08-08.**
+Per [`type-eval-coherence.md`](type-eval-coherence.md) (adopted) and
+[`plan.md`](plan.md): the v1 fragment boundary is resolved as written here
+(**D5** in [`status.md`](status.md), including the refinement-leaf and
+optional-field rules); the clock-sensitive pieces are extracted into plan
+Stages 2–3 (the `$fields` lowering chosen as the flat image of the pattern
+lowering; static case position, `$pin`, and scalar `$else` elision); the
+dialect + `$match` generalization and then parameter unification land
+post-Stage-5 as two units. Guards are boolean under **D4** ("truthy" below
+reads as boolean-required). Written during the ground-up spec revisit. The TypeScript
 implementation is cited throughout as evidence — measurements of where the
 current design already carries the needed machinery and where it forces
 complexity — but that implementation is ephemeral; nothing here is scoped to

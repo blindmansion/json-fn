@@ -1,7 +1,12 @@
 # Spec v2 update plan
 
-Status: **adopted sequence**, 2026-08-06. The concrete, ordered updates to the
-spec-v2 draft (the `spec-v2/` tree at the repo root). This document contains
+Status: **adopted sequence**, 2026-08-06; revised 2026-08-08 to fold in
+[`type-eval-coherence.md`](type-eval-coherence.md) (adopted): `$sig` inlining,
+boolean conditions (D4), the deliberate `$fields` lowering, and the coherence
+framing section join Stage 2; the scalar `$match` corrections join Stage 3;
+the pattern dialect proper stays post-Stage-5. The concrete, ordered updates
+to the spec-v2 draft (the `spec-v2/` tree at the repo root); Stage 1 is
+implemented there. This document contains
 only settled work. Everything still open lives in
 [`status.md`](status.md); decision rationale lives in
 [`review.md`](review.md) and the individual plans.
@@ -46,11 +51,16 @@ in [`review.md`](review.md) §3. Rewrites
 6. String sizes in the table are specified in a single pinned unit (unit
    choice is decision **D1** in [`status.md`](status.md)).
 
-## Stage 2 — strict bindings and closures
+## Stage 2 — strict bindings, closures, and type/eval coherence
 
-The semantics rewrite. Rewrites `expressions.md`, `functions.md`, and
-`closures.md` under `spec-v2/docs/language/json/`; the printer, normalizer,
-and `spec-v2/docs/runtime/hashing.md` rules land in the same change.
+The semantics rewrite, and the **one versioned function-body format break**
+(Proposal 9's logic: every body-format change after this one re-pins hash
+vectors and cases for the same region twice). Rewrites `expressions.md`,
+`functions.md`, `narrowing.md`, and `closures.md` under
+`spec-v2/docs/language/json/` and the parameter/type sections of
+`spec-v2/docs/language/shorthand/type-syntax-spec.md`; the printer,
+normalizer, and `spec-v2/docs/runtime/hashing.md` rules land in the same
+change.
 
 1. **`$let` becomes strict and dependency-ordered** (Change 4's variant):
    bindings evaluate eagerly in dependency order, cycles are errors, the lazy
@@ -59,8 +69,16 @@ and `spec-v2/docs/runtime/hashing.md` rules land in the same change.
    Proposal 3 is recorded as resolved in this form.
 2. **Parameter richness** (Proposal 6, in-scope portion): `$fields`
    destructuring patterns collapse into desugaring. The defaults axis is
-   dropped — defaults stay lazy and primitive. The signature shape
-   (`required`/`optional`/`rest`) is untouched.
+   dropped — defaults stay lazy and primitive. The lowering is deliberately
+   chosen as the **flat image of the future pattern lowering**
+   ([`type-eval-coherence.md`](type-eval-coherence.md) §1 piece 2): an
+   irrefutable object pattern of bare binders lowers to a body-top `$let` of
+   `$get`/`$else` projections (using this stage's strict-read access forms;
+   optional fields bind `null` on absence), with the printer folding the
+   parameter shape back. Parameter unification later _extends_ this surface
+   rather than re-lowering it; no pattern-bind kernel node is introduced yet.
+   The signature shape (`required`/`optional`/`rest`) is untouched as the
+   interface description (see item 5).
 3. **Closures move from substitution to capture** (Proposal 1, with the
    record-on-value encoding): escaping bodies are never rewritten; evaluated
    free-variable values attach as a capture record on the function value, a
@@ -74,9 +92,48 @@ and `spec-v2/docs/runtime/hashing.md` rules land in the same change.
 4. **Strict reads**: [`strict-reads.md`](strict-reads.md) is absorbed,
    including the `$get` redesign and the absent-vs-null resolution
    (Proposal 10).
-5. **Checker conformance**: migrate the affected
+5. **`$sig` inlining** ([`type-eval-coherence.md`](type-eval-coherence.md)
+   §2): `$sig` is removed from **function bodies only**. Types attach
+   per-slot (`$type` on the parameter descriptor); the return type moves to
+   a `$returns` sibling on the body. The
+   `required`/`optional`/`rest`/`returns` callable shape survives as the
+   **interface description** — contract `functions`, contract `entry`, the
+   builtin registry — with a normative derivation function from the inline
+   form; the "selected module function must satisfy the contract entry"
+   check consumes the derivation. "Fully typed or bare" becomes a per-body
+   lint; contextually typed bare lambdas are untouched. Forward commitments
+   land with it: `$type` is pinned as the shared attachment key (the future
+   pattern dialect's typed binder uses the same shape); schema payloads
+   inside `$params` are static syntax (a row in the raw-inference
+   conformance matrix); annotations fold into the containing region's
+   static constant (one line in the D2 cost framing — typing a function
+   cannot change its fuel).
+6. **Boolean conditions** (decision **D4** in [`status.md`](status.md)):
+   truthiness is deleted. Conditions (`$if`, `$cond` arms) must be boolean;
+   a non-boolean condition is an evaluation error (evaluator-enforced,
+   fail-closed — condition position is a runtime position whose semantics
+   is validation against the boolean schema). `$and`/`$or` become
+   boolean-only (operands boolean, result boolean, short-circuit
+   preserved); prefix `!` likewise. Condition narrowing becomes exact. The
+   truthiness sections of `expressions.md`, `narrowing.md`, and
+   `spec-v2/docs/language/shorthand/control-flow.md` are rewritten; the
+   authoring guide follows.
+   Absence-defaulting is already absorbed by this stage's `$get`/`$else`;
+   the null-defaulting surface replacing `x || default` is a small open
+   item in [`status.md`](status.md).
+7. **The coherence framing section**
+   ([`type-eval-coherence.md`](type-eval-coherence.md) §3): a short
+   normative section, landed alongside this stage's rewrites — the
+   checker's types and the evaluator's validators are the same objects;
+   checking never changes behavior (erasability); in a checked program,
+   runtime contract errors fire only at declared trust boundaries; and the
+   normatively declared **exactness fragment** (which D4 keeps clean on
+   conditions and D5 defines for exhaustiveness). It acts as the filter
+   for later work (`isType` respecification, the `$nonnull` deletion path).
+8. **Checker conformance**: migrate the affected
    `spec-v2/cases/check/` suites for strict bindings, generalized captures,
-   `$fields` lowering, and strict `$get`; add `$else` and `hasKey` narrowing
+   `$fields` lowering, strict `$get`, inline parameter types, and boolean
+   conditions; add `$else` and `hasKey` narrowing
    coverage. The v1 corpus remains unchanged.
 
 ## Stage 3 — kernel cleanup
@@ -85,11 +142,23 @@ Small, definite deletions against the Stage 2 language.
 
 1. **Remove `$if`**; one-arm `$cond` is the survivor. `$match` stays
    canonical.
-2. **Record Proposal 5 as won't-do**: `$and`/`$or` stay.
+2. **Record Proposal 5 as resolved**: `$and`/`$or` stay as forms; their
+   boolean-only semantics landed with D4 in Stage 2.
 3. **Run the Proposal 7 name-resolution audit** against the final resolution
    order (which retains a capture lookup tier), deleting asymmetric normative
    text where found.
-4. Regenerate the affected `spec-v2/cases/` suites (as with every stage).
+4. **Scalar `$match` corrections**
+   ([`type-eval-coherence.md`](type-eval-coherence.md) §1 piece 2): case
+   position becomes **static syntax** with the `^` / `$pin` escape for
+   dynamic equality (`{"$pin": <expr>}` canonically; evaluate, compare by
+   structural equality); `$else` becomes elidable when the checker proves
+   the arms exhaustive **on the scalar universe** (resolving the existing
+   `$else` spec/impl divergence in that direction). Format-visible breaks
+   confined to the scalar `$match` that already exists; no pattern grammar
+   is introduced. Lands before this stage's case regeneration so
+   regenerated cases pin the corrected `$else` and case-position semantics.
+5. Regenerate the affected `spec-v2/cases/` suites (as with every stage) —
+   against the corrected `$match` semantics and the D5 fragment boundary.
 
 ## Stage 4 — identity and record plumbing
 
@@ -147,8 +216,18 @@ Later, additive work that consumes Stages 1–4 but does not gate them:
 - Everything in [`durable-tasks-design.md`](durable-tasks-design.md) —
   arrives as additive node kinds, versioned contract revisions, and host
   behavior.
-- Pattern matching ([`pattern-matching.md`](pattern-matching.md)) — lands
-  when its canonical shapes are design-ready.
+- Pattern matching ([`pattern-matching.md`](pattern-matching.md)) — the
+  clock-sensitive pieces are extracted into Stages 2–3 above (the `$fields`
+  lowering choice; the scalar `$match` corrections) and the v1 fragment
+  boundary is resolved (**D5** in [`status.md`](status.md)). What remains
+  lands post-Stage-5 as two units: the **pattern dialect + `$match`
+  generalization** first (grammar, erasure, normative match order and
+  per-node charge over the Stage 1 event-trace model, intersection
+  narrowing, fragment exhaustiveness), then **parameter unification** as
+  the separable second unit — mostly surface, printer fold-back, and the
+  irrefutability subsumption check, given Stage 2's lowering choice. The
+  `isType` respecification (schema intersection sharing the pattern-arm
+  machinery) and the `$nonnull` deletion path ride the same window.
 - The testing framework ([`testing-framework.md`](testing-framework.md)) —
   additive by construction (`$tests` is excluded from module identity); can
   land any time after Stage 1.
