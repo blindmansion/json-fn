@@ -36,8 +36,9 @@ dynamic event charges.
 
 Ingestion of a canonical program computes, by a deterministic normative rule,
 one non-negative integer constant for each **straight-line region**: a maximal
-program segment containing no function invocation, no branch point, no lazy
-boundary, and no builtin call. The rule is defined over post-normalization
+program segment containing no function invocation, no branch point, no
+parameter-default boundary, and no builtin call. The rule is defined over
+post-normalization
 canonical JSON, so `parse(print(node))` stability guarantees identical
 constants from shorthand or canonical ingestion.
 
@@ -48,6 +49,13 @@ as value nodes; stripped literal comments do not. Statically sized
 construction charges through its containing region's constant; there is no
 separate materialization charge for data whose size is fixed by the program
 text.
+
+Bindings are not boundaries. Since `$let` and module bindings evaluate
+strictly, a `$let` whose bindings and `$in` contain no invocation, branch
+point, parameter-default boundary, or builtin call folds entirely into its
+containing region. The only lazy construct in the language is the parameter
+default (`$default` on positional and `$fields` slots), and it is the only
+boundary evaluation strategy could otherwise leak through.
 
 The static function produces constants, never functions of inputs. A program's
 own control flow supplies input-dependence at runtime: a loop charges its
@@ -63,7 +71,8 @@ Execution charges fuel only at these events:
 - **arm selection** — resolving a `$cond`, `$match`, or `$if` branch,
   dispatching a `handle` clause, or continuing into a further `$and` or `$or`
   operand enters the selected arm's entry region;
-- **binding force** — forcing a lazy binding enters the binding expression's
+- **default force** — evaluating an omitted parameter's or field's `$default`
+  expression when its binding is first read enters the default expression's
   entry region;
 - **builtin call** — charges the builtin's metering declaration from the
   signature registry: a base constant plus the top-level lengths of its
@@ -102,10 +111,13 @@ which branch was taken, which builtin ran on which sizes. Fuel is additive
 over the event multiset and aggregation is order-independent, so the trace —
 and therefore fuel — is a pure function of the program, its inputs, and
 recorded effect results, on every conforming implementation. Parser metadata,
-caching, serialization, and ingestion route do not change it.
+caching, serialization, and ingestion route do not change it. Bindings are
+strict, so no event depends on demand; the one lazy construct, the parameter
+default, keeps the property because whether and when a default is first read
+is itself determined by values.
 
 Evaluation strategy is outside the observable surface. Memoization,
-speculative or parallel forcing of values whose demand is determined, and
+speculative or parallel evaluation, and
 compilation are legal; an implementation's only obligation is the trace. A
 cache keyed on callee identity and arguments may replace a transitively pure
 computation; the hit charges the recorded consumed fuel of the original

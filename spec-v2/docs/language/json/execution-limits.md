@@ -5,25 +5,28 @@ The complete cost model and boundary rules are defined in
 
 ## Circular variable dependencies
 
-Lazy `$let` and module bindings are resolved on demand. If resolving a binding
-requires resolving itself, either directly
-(`{ "$let": { "x": { "$var": "x" } }, "$in": { "$var": "x" } }`) or through a
-cycle such as `a → b → a`, evaluation fails. The error identifies the first
-cycle reached:
+`$let` and module bindings evaluate eagerly in
+[dependency order](expressions.md#dependency-order). If unevaluated bindings
+remain and none has all of its dependencies evaluated, the bindings form a
+cycle and evaluation fails. Direct self-reference
+(`{ "$let": { "x": { "$var": "x" } }, "$in": { "$var": "x" } }`) is the
+one-binding case of the same rule.
+
+The error names the cycle through the earliest stalled binding in source
+order, with the path in reference order:
 
 ```
 Circular variable dependency detected: a -> b -> a
 ```
 
-The error reports the first cycle reached, even if that cycle does not begin
-with the first binding resolved. Cycle detection is always active and is not
-configurable.
+Cycle detection is always active and is not configurable.
 
 A `$let` is an expression scope, not a function call. Entering one is not an
 invocation event and does not increase call depth; the `$let` itself counts in
-its containing region's static constant. Each binding expression is its own
-region, entered by the binding-force event when the binding is first demanded.
-Calling a function-valued binding later has the ordinary invocation costs.
+its containing region's static constant. `$let` is not a region boundary:
+binding expressions and `$in` belong to the containing region unless an
+invocation, branch, or builtin call inside them starts a new one. Calling a
+function-valued binding later has the ordinary invocation costs.
 
 ## Resource limits
 

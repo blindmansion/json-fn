@@ -42,6 +42,14 @@ A string slot requires an argument. An omitted optional slot binds `null`. An
 omitted defaulted slot evaluates its `$default` lazily when first read. Passing
 `null` explicitly supplies a value and does not trigger omission behavior.
 
+Lazy defaults — positional `$default` and `$fields` field defaults — are the
+language's one documented exception to strict evaluation: everywhere else,
+including `$let` and module bindings, expressions evaluate eagerly. The
+exception is sound because whether and when a default is first read is itself
+determined by values, so the
+[cost trace](../../runtime/execution-limits.md#determinism) remains a pure
+function of values.
+
 Required slots, including object patterns, precede optional and defaulted
 slots. Optional and defaulted slots may be mixed, followed only by a final rest
 parameter.

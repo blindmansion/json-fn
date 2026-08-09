@@ -52,7 +52,7 @@ objectEntry := (ident | string) ":" expr
              | "..." expr
              | "[" expr "]" ":" expr
 doEntry     := ident "<-" expr                       // effect binding
-             | ident ":" body                        // pure (lazy-local) binding
+             | ident ":" body                        // pure (local) binding
              | body                                  // discard (non-final) / result (final)
 arm         := (expr | "else") ":" body
 template    := "`" ( char | "${" expr "}" )* "`"     // strict; no coercion

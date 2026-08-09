@@ -88,11 +88,49 @@ scope.
 }
 ```
 
-Bindings are lazy, memoized after their first use, order-independent, and
-mutually recursive. An unused binding is not evaluated. Forcing a direct or
-indirect value cycle is an error. In variable lookup, a `$let` binding shadows
-same-named function parameters, captures, enclosing bindings, and module
-entries throughout every binding expression and `$in`.
+Bindings are strict: every binding evaluates eagerly, exactly once, in
+dependency order, before `$in`. Bindings need not appear in dependency order
+in source — the references between them determine evaluation order. A failing
+binding fails the whole `$let`, whether or not `$in` references it. In
+variable lookup, a `$let` binding shadows same-named function parameters,
+captures, enclosing bindings, and module entries throughout every binding
+expression and `$in`.
+
+### Dependency order
+
+A binding depends on a sibling binding when its expression **statically
+references** it — directly or through transitive `$var`, named `$call`, and
+`$fn` references. References from inside a nested function body count:
+creating a closure consumes the referenced values, so they must exist when
+the closure is created.
+
+One exemption preserves mutual recursion: a **call-position** reference to a
+sibling binding whose literal value is a function body resolves by name and
+adds no dependency. A **value-position** reference to such a binding — `$var`
+or `$fn` taking the closure as a value — does add one, because taking a
+closure as a value requires the closure to exist. Two sibling functions may
+therefore recurse mutually through calls, while a value-position cycle
+between them (each storing the other's closure) is a cycle error.
+
+Bindings evaluate one at a time. At each step, the first binding in source
+order whose dependencies have all been evaluated is evaluated next. If
+unevaluated bindings remain and none is ready, the bindings form a cycle and
+evaluation fails; direct self-reference is the one-binding case. Cycle error
+identity is defined in
+[Execution limits](execution-limits.md#circular-variable-dependencies). An
+implementation may evaluate bindings in any order that produces the same
+observable results and
+[cost trace](../../runtime/execution-limits.md#determinism).
+
+### Dynamic references during binding evaluation
+
+A dynamic callee can resolve to a sibling binding's name at runtime without
+appearing in the static reference graph. While bindings are still being
+evaluated, a dynamic name resolution that reaches a sibling binding **not yet
+evaluated** is a deterministic evaluation error naming that binding. Inside
+`$in` every binding has been evaluated, so the error cannot occur there.
+
+### Checking
 
 The checker applies these rules:
 
@@ -100,11 +138,12 @@ The checker applies these rules:
   transitive `$var`, named `$call`, and `$fn` references;
 - a reachable named function must declare a complete signature, and its body
   must satisfy that signature;
-- a reachable value binding is checked wherever it is referenced.
+- a reachable value binding is checked wherever it is referenced;
+- a binding cycle under the dependency relation above is reported statically.
 
 An unreachable binding produces an unused-binding error and its contents are
-not checked. Static reachability does not change evaluation: unused bindings
-are not evaluated.
+not checked. Static reachability does not change evaluation: in unchecked
+evaluation, an unused binding still evaluates — and can still fail.
 
 A binding whose literal value is a function body is callable by its binding
 name. It shadows an outer callable with the same name. A non-function binding

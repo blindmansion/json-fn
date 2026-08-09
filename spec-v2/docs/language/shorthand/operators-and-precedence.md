@@ -46,9 +46,12 @@ Additional rules:
   `a < b && b <= c`. Mixed ordered operators are allowed. Equality operators
   cannot participate in a chain: `a == b < c` and `a < b != c` are errors.
   Equality is structural; scalar equality is strict.
-- Chained operands evaluate from left to right, at most once, and stop after
-  the first false comparison. A nontrivial interior operand is stored in a
-  lazy `$let` binding and reused by its adjacent comparisons.
+- Chained comparisons evaluate from left to right and stop after the first
+  false comparison. A nontrivial interior operand is hoisted into a `$let`
+  binding shared by its adjacent comparisons; it therefore evaluates exactly
+  once, before the chain's comparisons, even when an earlier comparison is
+  false. The first and last operands evaluate inline, only when their
+  comparison is reached.
 - Postfix `x!` is a runtime-checked non-null assertion. It removes `null` from
   the inferred type, returns every non-null value unchanged, and raises an
   evaluation error on `null`.

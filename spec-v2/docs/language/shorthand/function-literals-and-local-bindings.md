@@ -1,7 +1,7 @@
 # Function literals and local bindings
 
 `(params) => body`. The body is a single expression, optionally followed by a
-`where { … }` clause introducing **lazy local bindings**.
+`where { … }` clause introducing **local bindings**.
 
 ```jfn
 (a, b) => add(a, b)
@@ -37,8 +37,12 @@ expression-local bindings. Bindings use `:` and lower to the canonical
 }
 ```
 
-Bindings are lazy, memoized, order-independent, mutually recursive, and
-cycle-checked. Only bindings reachable from `$in` are evaluated.
+Bindings are strict: every binding evaluates eagerly, exactly once, in
+[dependency order](../json/expressions.md#dependency-order), before the
+result expression. They need not appear in dependency order in source,
+sibling function bindings may be mutually recursive through calls, and
+dependency cycles are errors. A failing binding fails the whole expression
+even when the result never references it.
 Every binding name in one `where` block must be unique; nested `where` blocks
 may shadow names from enclosing scopes.
 The checker rejects a binding that is not lexically reachable from the result,
@@ -75,8 +79,9 @@ answer where { answer: 40 + 2 }
 The canonical `$let` object has exactly `$let` and `$in`, and its binding map
 must be non-empty. A `$let` is an expression scope, not a function call, so
 entering it is not an invocation event and consumes no call frame. The `$let`
-counts in its containing region's static cost constant, and each binding
-expression is its own region, charged when the binding is first forced.
+counts in its containing region's static cost constant, and its binding
+expressions and result fold into the containing region unless an invocation,
+branch, or builtin call inside them starts a new one.
 
 Canonical rendering writes `$let` as `<in> where { ...bindings }`, including
 when it occurs directly under a function's `$return`.
@@ -160,7 +165,8 @@ suppresses either omission behavior. json-fn has no `undefined` value.
 Default expressions use the function invocation scope. They may reference any
 parameter, other defaults, object-pattern fields, captures, and outer or module
 bindings. They cannot reference a `where` binding inside `$return`. A
-self-reference or dependency cycle fails only if forced.
+self-reference or dependency cycle among defaults fails only when the default
+is read.
 
 Canonical parameter layouts place every required positional or object-pattern
 slot before all optional/defaulted positional slots, with a rest parameter last

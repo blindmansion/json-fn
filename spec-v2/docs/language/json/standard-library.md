@@ -86,6 +86,8 @@ Constructors build inert records; `handle` interprets them.
 ## Debugging
 
 `tap(value, label?)` sends its arguments to a configured logger and returns
-`value` unchanged. Without a logger it produces no output. A `tap` in an
-unreferenced lazy binding is not evaluated.
+`value` unchanged. Without a logger it produces no output. Bindings are
+strict, so a `tap` inside any binding fires when the binding evaluates;
+output order follows the
+[binding evaluation order](expressions.md#dependency-order).
 

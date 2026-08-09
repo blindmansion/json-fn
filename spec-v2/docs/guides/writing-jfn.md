@@ -98,8 +98,10 @@ demo: () -> { names: string[], log: string } => {
   so multi-line expressions are fine. No commas between top-level bindings and
   no two bindings on one line.
 - Constants and functions are both plain `name: expression` bindings. All
-  module names are visible everywhere in the file — bindings are lazy,
-  memoized, order-independent, mutually recursive, and cycle-checked. There is
+  module names are visible everywhere in the file — bindings are strict and
+  dependency-ordered: the constants an entry point transitively references
+  evaluate before it runs, definition order does not matter, functions may
+  recurse mutually, and dependency cycles are errors. There is
   no definition-order concern and no forward-declaration problem.
 - A module binding shadows a same-named builtin. One nuance: only a binding
   whose value is _literally_ a function (`f: (x) => …`) is callable as `f(x)`.
@@ -162,7 +164,7 @@ The semantics fit in a few live expressions:
   deepEquality: [1, { a: 2 }] == [1, { a: 2 }], // true: equality is structural
   inRange: 0 <= x < 100,                   // real chain; each operand runs once
   emptyIsTruthy: [] && "yes",              // "yes"; only false/null/0/"" are falsy
-  fallback: value || "default",            // &&/|| are lazy and return operand values
+  fallback: value || "default",            // &&/|| short-circuit and return operand values
   quotient: 7 / 2,                         // 3.5; 1 / 0 errors (no NaN/Infinity)
   required: maybe!,                        // errors on null; statically strips null
   cents: total + fee checked as Cents,     // validates the whole sum once
@@ -173,7 +175,8 @@ The semantics fit in a few live expressions:
 ```
 
 `+` is numeric only; concatenate strings with `++` or a template. `&&`/`||`
-are the only lazy boolean operators (`and`/`or` are eager builtins). A
+are the only short-circuiting boolean operators (`and`/`or` are eager
+builtins). A
 `checked as` is an assertion, not a conversion (`"1" checked as integer`
 fails), and is non-associative. Template escapes are `` \` ``, `\${`, plus
 normal JSON escapes.
@@ -255,19 +258,29 @@ when one fits.
 ```jfn
 summary: (xs: number[]) -> string =>
   if n == 0 then "empty"
-  else `${str(n)} item(s), mean ${str(mean)}` where {
-    mean: total / n, // never forced on the empty branch
+  else `${str(n)} item(s), mean ${str(total / n)}` where {
     total: reduce((a, x) => a + x, 0, xs), // may refer to `n` above/below
     n: length(xs) // order does not matter
   }
 ```
 
-The result comes first. Its locals form a lazy, memoized dependency graph,
-not a statement sequence: order is irrelevant, mutual recursion works, and
-cycles fail only if forced. Every binding must nevertheless be reachable from
+The result comes first. Its locals form a strict dependency graph, not a
+statement sequence: every binding evaluates exactly once, in dependency
+order, before the result — source order is irrelevant, mutual recursion
+between function locals works, and dependency cycles are errors. Every
+binding must be reachable from
 the result or the checker reports it as unused. A function-valued local is a
 named function and needs a full signature. Inner locals shadow parameters and
 outer bindings.
+
+**Every binding runs, even when the result never reads it.** If you are used
+to demand-driven locals, this is the sharp edge. A top-level binding
+`mean: total / n` would divide by zero on the empty branch, even though that
+branch never mentions `mean` — which is why the example above computes
+`total / n` inside the branch that uses it. The migration is mechanical: move
+a computation that is only valid on one branch into that branch (parenthesize
+the branch and give it its own `where` if it needs locals), or guard it
+inside the binding itself.
 
 Attachment: `where` (like `checked as`) stops at commas and object-entry
 braces, so neither position needs defensive parentheses; otherwise a `where`
@@ -291,8 +304,8 @@ branch: (p: boolean, input: integer) -> integer =>
 
 ## 8. Control flow
 
-All control flow is expression-valued and lazy (only the taken branch
-evaluates):
+All control flow is expression-valued and short-circuiting (only the taken
+branch evaluates):
 
 ```jfn
 if x > 0 then "pos" else "non-pos" // else is mandatory
@@ -460,14 +473,14 @@ describeReading: (reading: Reading | null) -> string =>
 
 tick: (st: State) -> Task<State> => do {
   reading <- effects.sensor.read(), // run the task, bind its result
-  message: describeReading(reading), // ':' is a lazy pure local
+  message: describeReading(reading), // ':' is a pure local
   effects.log(message), // bare non-final entry: run, discard result
   pure(st) // final entry is the block's result
 }
 ```
 
 - **`name <- taskExpr` is the only entry that runs a task and binds its
-  result.** `name: taskExpr` merely binds the task _value_ (lazily, with
+  result.** `name: taskExpr` merely binds the task _value_ (with
   `where`-binding semantics). When the mistaken value is used as result data,
   full typing on the named function makes the `Task<T>`/`T` mismatch a static
   error with a source position.
@@ -519,7 +532,7 @@ Terse reminders only — each rule is owned by the cited section.
 Coming from JS/TS:
 
 - `{…}` after `=>` is data, never a block; no statements, loops, `return`, or `try`/`catch` (§1, §4).
-- `where` is a lazy graph, not sequential `const`s; unused bindings error (§7).
+- `where` is a strict dependency graph, not sequential `const`s; every binding runs, and unused bindings error (§7).
 - Exact arity; callback first, data last; `*Indexed` variants for the index (§6).
 - `==` is deep structural, no `===`; `+` never concatenates — `++`/templates, `${str(n)}` (§5).
 - Omitted optionals bind `null` (no `undefined`); explicit `null` suppresses defaults and must be admitted by the annotation — no skipping middle slots (§6).

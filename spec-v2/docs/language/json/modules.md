@@ -5,8 +5,22 @@ outermost lexical scope.
 
 - Every entry is available through `$var`.
 - An entry whose literal value is a function body is also callable by name.
-- Entries are lazy, memoized, order-independent, mutually recursive, and
-  cycle-checked.
+- Entries are strict and dependency-ordered. When an entry is selected for
+  invocation, the value entries in its **static reference closure** — the
+  same transitive `$var` / named-`$call` / `$fn` relation, with the same
+  call-position exemption, as
+  [`$let` dependency order](expressions.md#dependency-order) — evaluate at
+  invocation start, dependency-ordered, before the entry function is invoked.
+  Entries outside that closure do not evaluate.
+- Entry evaluation is per invocation; there is no cross-invocation
+  memoization. Resumed continuations do not re-enter module entries: captured
+  values ride the continuation record, and module functions stay available by
+  name.
+- Entries need not be topologically sorted in source. Sibling functions may
+  recurse mutually through calls; dependency cycles among evaluated entries
+  are errors, with the same
+  [error identity](execution-limits.md#circular-variable-dependencies) as
+  `$let` cycles.
 - Module functions remain available by name and are not copied into a closure's
   `$captures`.
 

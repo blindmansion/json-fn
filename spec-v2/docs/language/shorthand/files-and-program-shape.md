@@ -20,8 +20,13 @@ declarations only after the preceding expression or type is complete.
 Top-level commas and multiple declarations on one line are invalid. Module
 binding names cannot start with `$`.
 
-Module entries form the outermost lexical scope. They are lazy, memoized,
-order-independent, mutually recursive, and cycle-checked. Every entry is
+Module entries form the outermost lexical scope. They are strict and
+dependency-ordered: the value entries in the selected entry's static reference
+closure evaluate at invocation start, before the entry function is invoked,
+and entries outside that closure do not evaluate (see
+[Modules and scope](../json/modules.md)). Entries need not be topologically
+sorted in source, sibling functions may recurse mutually through calls, and
+dependency cycles are errors. Every entry is
 available through `$var`; literal function entries are also callable by name.
 Module functions are not copied into escaping closures.
 

@@ -1,6 +1,8 @@
 # Plan: strict `$let` (Stage 2 chunk 2a)
 
-Status: **proposed**, 2026-08-08. Owns [`plan.md`](plan.md) Stage 2 chunk 2a.
+Status: **spec text written**, 2026-08-08 — the rewrite surface below has
+landed in `spec-v2/docs/`; the conformance-case consequences remain with 2g.
+Owns [`plan.md`](plan.md) Stage 2 chunk 2a.
 The decision itself is settled — Change 4's dependency-ordered variant, adopted
 in [`review.md`](review.md) §3 and recorded in
 [`event-trace-cost-model.md`](event-trace-cost-model.md); Proposal 3 is

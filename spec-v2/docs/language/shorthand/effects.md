@@ -13,7 +13,7 @@ A `do` block is a comma-separated list of:
 
 - **effect binding** — `name <- expr`: run the task `expr`, bind its result to
   `name` for the rest of the block;
-- **pure binding** — `name : expr`: a lazy local (like a `where` binding; the
+- **pure binding** — `name : expr`: a local (like a `where` binding; the
   value parses as a `body`, so a trailing `where` works);
 - **bare expression** — a discard if non-final, or the block result if final.
 
@@ -32,8 +32,10 @@ unique. A later run after an effect or discard is a nested scope and may shadow
 an earlier name.
 
 Within one consecutive run, pure bindings have exactly the same semantics as a
-`where` binding group: they are lazy, memoized, order-independent, and mutually
-recursive. A run after an effect may refer to results bound by that effect or
+`where` binding group: strict and
+[dependency-ordered](../json/expressions.md#dependency-order), source-order
+independent, and mutually recursive through sibling function calls. A run
+after an effect may refer to results bound by that effect or
 any preceding effect. By contrast, a `where` attached to the complete `do`
 expression is outside the generated continuations and cannot refer to their
 effect-bound names. Finally, `name: taskExpr` only binds the task value; it does

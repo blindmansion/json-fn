@@ -23,8 +23,9 @@ so task values remain ordinary inert data. There are three node kinds:
 - **`pure`** is a completed task whose result is `value`.
 - **`bind`** sequences: run `task`, then apply the continuation `then` to obtain the next task. A one-parameter continuation receives the completed value; a zero-parameter continuation discards it (the shape emitted by a non-final bare expression in `do` notation).
 
-A task in an unreferenced
-[`$let` binding](expressions.md#let-binding--let-in) is not built.
+Constructing a task is pure: a task built in a
+[`$let` binding](expressions.md#let-binding--let-in) is inert data, and one
+never sequenced into the handled task performs nothing.
 
 ## Constructors
 
