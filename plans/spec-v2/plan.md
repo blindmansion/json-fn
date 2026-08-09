@@ -78,7 +78,11 @@ bindings evaluate eagerly in dependency order, cycles are errors, the lazy
 forcing machinery and unforced-error-suppression semantics are deleted.
 Lazy parameter defaults remain as the one documented exception.
 Proposal 3 is recorded as resolved in this form. Rewrites the binding
-sections of `expressions.md`.
+sections of `expressions.md`. Chunk plan: [`strict-let.md`](strict-let.md)
+— pins the dependency relation, the normative evaluation order, cycle and
+dynamic-reference error identity, and the module-entry rule; the rewrite
+surface extends to `modules.md` and both execution-limits documents (the
+binding-force event narrows to parameter defaults).
 
 ### 2b — strict reads
 
