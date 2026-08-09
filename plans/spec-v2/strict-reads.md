@@ -1,6 +1,11 @@
 # Plan: strict indexed reads and the `$get` redesign
 
-Status: proposed; revised 2026-08-04. Earlier revisions held the canonical
+Status: **absorbed into Stage 2**, 2026-08-08 — this design is settled and
+owned by [`plan.md`](plan.md) Stage 2 chunk 2b; the chunk plan restating it
+in spec-v2 vocabulary and settling the open questions below is
+[`strict-reads-2b.md`](strict-reads-2b.md). Original proposal follows,
+revised 2026-08-04 (file paths and fuel language predate the spec-v2 tree
+and the Stage 1 cost model). Earlier revisions held the canonical
 `$get`/`$from` form fixed and compensated with new builtins. The type system
 was added after the eval spec settled, and there is no
 backwards-compatibility constraint, so this revision changes the access node

@@ -90,7 +90,14 @@ binding-force event narrows to parameter defaults).
 redesign and the absent-vs-null resolution (Proposal 10). Settle the
 null-defaulting surface ([`status.md`](status.md)) and the `??` spelling
 question here if possible — this chunk owns the access/defaulting forms
-that D4 (2e) leans on.
+that D4 (2e) leans on. Chunk plan:
+[`strict-reads-2b.md`](strict-reads-2b.md) — restates the design over the
+event-trace cost model (the `$else` arm as an arm-selection branch, path
+unfolding as region-constant changes), recommends settling `??` as miss-only
+with no dedicated null-defaulting form, and pins error identity, checker
+typing, and `hasKey` narrowing; the rewrite surface spans `expressions.md`,
+`narrowing.md`, both execution-limits documents, and the shorthand access
+and operator references.
 
 ### 2c — capture closures
 
