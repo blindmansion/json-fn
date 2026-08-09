@@ -191,28 +191,40 @@ Data passes through a successful ascription unchanged. Ascribing a function
 type creates a serializable boundary that validates later arguments and
 results.
 
-## Property access — `{ $get, $from }`
+## Property access — `{ $get, $from, $else? }`
 
 All property access uses `$get`/`$from`. `$from` evaluates to the target and `$get` evaluates to the key read from it:
 
 ```json
 { "$get": "name", "$from": { "$var": "person" } }
 { "$get": 1, "$from": { "$var": "items" } }
-{ "$get": ["address", "city"], "$from": { "$var": "person" } }
 { "$get": { "$var": "fieldName" }, "$from": { "$var": "data" } }
 { "$get": 0, "$from": { "$call": "concat", "$args": [[10], [20]] } }
 ```
 
-`$get` evaluates to one of:
+The evaluated `$get` key must be one of exactly two kinds:
 
-- a **string** key — reads an object property (`null` if the key is missing);
+- a **string** key — reads an object property;
 - an **integer** index — reads an array element, or a Unicode code point from
-  a string (`null` if out of bounds);
-- an **array** — a static path walked segment by segment, applying the per-segment rules above at each step.
+  a string.
 
-The accepted key depends on the target at each step. Objects reject non-string
-keys, while arrays and strings reject non-integer indices. Property access does
-not coerce keys: use an explicit conversion such as
+Any other evaluated key is an immediate error naming the rule: "evaluated
+`$get` key must be a string or an integer". There is no array-path form; a
+multi-segment path is written as nested `$get`s, one per segment:
+
+```json
+{
+  "$get": "city",
+  "$from": { "$get": "address", "$from": { "$var": "person" } }
+}
+```
+
+Shorthand prints such static chains back as `person.address.city`; see
+[Function calls and references](../shorthand/function-calls-and-references.md).
+
+The accepted key kind depends on the target. Objects reject integer keys,
+while arrays and strings reject string keys. Property access does not coerce
+keys: use an explicit conversion such as
 `{ "$get": { "$call": "str", "$args": [1] }, "$from": { "1": "one" } }`
 (`object[str(number)]` in shorthand) when a numeric value is intended to name an
 object property.
@@ -222,7 +234,61 @@ user-perceived grapheme clusters. For example, `"a😀b"[1]` is `"😀"` and
 `length("a😀b")` is `3`. String `slice` offsets and string `indexOf` results use
 the same unit; `split(string, "")` returns one element per code point.
 
-`$from` may be any expression: a variable, a function result, a literal, or another `$get`/`$from` chain (nest them to walk deeper). A missing path segment returns `null`; traversal into a present `null` value errors, as does a `$get` whose target is not an object, array, or string. `$get`/`$from` must be the only two keys.
+`$from` may be any expression: a variable, a function result, a literal, or
+another `$get`/`$from` chain. Traversal into a present `null` value errors, as
+does a `$get` whose target is not an object, array, or string.
+
+### Misses and the `$else` arm
+
+A **bare** `$get` that misses — a missing object key, or an out-of-range or
+negative index — is an immediate error: absence is a bug. When absence is a
+case rather than a bug, the optional **`$else` arm** says so at the access
+site: on a genuine miss, the arm evaluates and supplies the value.
+
+```json
+{ "$get": "sku-42", "$from": { "$var": "inventory" } }
+{ "$get": "sku-42", "$from": { "$var": "inventory" }, "$else": { "$var": "empty" } }
+```
+
+`$else` fires on **absence only** — never on a present `null` value. A key
+mapped to `null` is present: the read returns `null` and the arm does not
+evaluate. Both bare reads and `$else` arms therefore preserve the distinction
+between an absent key and a present-and-null value. In shorthand the arm is
+written with the `??` operator (`inventory["sku-42"] ?? empty`), which — unlike
+its JavaScript namesake — fires on absence, not on `null`; see
+[Operators and precedence](../shorthand/operators-and-precedence.md).
+
+The arm evaluates only on a miss, like the `$else` arms of `$if`, `$cond`, and
+`$match`. This is branch selection — one of two arms, at most one taken — not
+an exception to the language's strict evaluation: branch arms were never part
+of the strictness claim, and lazy parameter defaults remain the language's one
+documented exception (see [Functions](functions.md)).
+
+Miss errors carry a stable identity:
+
+- an object or map miss names the key and, when the container is small, the
+  available keys;
+- an array or string miss names the index and the container's length
+  (negative indices are the same error);
+- an invalid key names the evaluated key's kind: "evaluated `$get` key must be
+  a string or an integer".
+
+All three are host errors — the same class as `checked as` failures and
+arithmetic errors — not `raise`-catchable domain signals.
+
+### Checking reads
+
+A bare read types as the element or field type `T` — never `T | null`. The
+`$else` form types as `T | typeof(else-arm)`, collapsing when the arm's type is
+subsumed; `$else: null` (`?? null` in shorthand) is therefore the nullable
+lookup, typed `T | null`, with no dedicated builtin. A bare read of a field
+declared optional (`k?: T`) is a static error — "this field may be absent; add
+`?? default` or guard with `hasKey`" — since the checker cannot rule out the
+miss; [`hasKey` narrowing](narrowing.md) makes the guarded bare read typecheck.
+A literal index beyond a tuple type's tracked arity (`pair[2]` against a
+two-element tuple) is likewise a static error. Map and open-object reads stay
+bare-allowed: the checker cannot prove presence there, and those are the sites
+where the `$else` arm earns its keep.
 
 ## Function body — `{ $return, ... }`
 
@@ -388,7 +454,8 @@ Rules:
 - `$var` must be the sole key; its value is a plain variable name (no path notation, no `$get` sibling).
 - `$let`/`$in` must be the only two keys; both are required, and `$let` must be
   a non-empty object of bindings.
-- `$get`/`$from` must be the only two keys; both are required. This is the only property-access form.
+- A property access has `$get` and `$from` (both required) and an optional
+  `$else`; no other keys. This is the only property-access form.
 - `$if`/`$then`/`$else` must all be present, exactly three keys.
 - `$cond` may have only `$cond` and optional `$else`; each entry must be a two-element array.
 - `$match` must have `$match`, `$cases`, and `$else`; `$match` and case values must evaluate to scalar JSON values.

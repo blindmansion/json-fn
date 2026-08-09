@@ -127,6 +127,25 @@ A `$match` narrows its subject per case, reusing the equality machinery:
 Finite-universe exhaustiveness and unreachable-case errors are separate from
 narrowing.
 
+### 6. Key presence — `hasKey`
+
+`hasKey(x, "lit")`, where `x` is a path subject (the same paths as form 4) and
+the key is a **literal** string:
+
+- then: an optional field `k?: T` on the subject's type becomes present
+  (`k: T`), so a bare read of `x.k` typechecks (see
+  [property-access checking](expressions.md#checking-reads)).
+- else: on a **closed** object type, the field is known absent and is removed
+  from the type; on open objects and maps, no fact.
+
+A non-literal key or a non-path subject yields no fact.
+
+```
+if hasKey(config, "retries")
+then config.retries      // retries?: integer, narrowed present: integer
+else defaultRetries
+```
+
 ## Composition
 
 Recognized forms compose:
@@ -155,6 +174,7 @@ Recognized forms compose:
 ## Limits
 
 - No narrowing on non-path subjects (call results, computed indices).
+- No `hasKey` fact from a non-literal key.
 - No arithmetic / refinement inference (`Score = integer & min(0)` stays opaque
   to arithmetic). `x!` only removes `null`; use `expression checked as Score` when a
   computed result must be validated as a refinement.

@@ -14,7 +14,7 @@ fallback applies only to a plain name; property access always lowers through
 ```jfn
 x                         // {"$var":"x"}
 a.b                       // {"$get":"b","$from":{"$var":"a"}}
-a.b.c                     // {"$get":["b","c"],"$from":{"$var":"a"}}
+a.b.c                     // {"$get":"c","$from":{"$get":"b","$from":{"$var":"a"}}}
 a[0]                      // {"$get":0,"$from":{"$var":"a"}}
 a[i]                      // {"$get":{"$var":"i"},"$from":{"$var":"a"}}
 f(x).b                    // {"$get":"b","$from":{"$call":"f","$args":[{"$var":"x"}]}}
@@ -22,17 +22,39 @@ f(x).b                    // {"$get":"b","$from":{"$call":"f","$args":[{"$var":"
 
 Lowering rules:
 
+- **Every segment gets its own `$get`**, wrapping the prior result as its
+  `$from`. A canonical `$get` key is one string or one integer; there is no
+  array-path form. `a.b[0].c` →
+  `{"$get":"c","$from":{"$get":0,"$from":{"$get":"b","$from":{"$var":"a"}}}}`.
 - Inside `[...]`, an **integer or quoted string** is a **static** key/index; a
-  **bare identifier or any other expression** is a **computed** key.
-- A run of consecutive **static** segments folds into one `$get` (a single
-  string/number, or an array path for multiple): `a.b[0].c` →
-  `{"$get":["b",0,"c"],"$from":{"$var":"a"}}`.
-- A **computed** segment gets its own `$get`, wrapping the prior result as its
-  `$from`: `a.b[i]` →
+  **bare identifier or any other expression** is a **computed** key:
+  `a.b[i]` →
   `{"$get":{"$var":"i"},"$from":{"$get":"b","$from":{"$var":"a"}}}`.
+- The printer folds a chain of nested static `$get`s back to the
+  dotted/indexed path: the canonical form of `a.b[0].c` prints as `a.b[0].c`.
 
 Canonical JSON always uses `$get` with `$from`. `$var` contains only a bare
 variable name.
+
+### Access defaults with `??`
+
+`access ?? default` lowers to the access's `$else` arm, which evaluates only
+when the read **misses** (a missing key or out-of-range index) — never when
+the value is present, even present as `null`. A bare access with no `??`
+errors on a miss. The left operand must be a property or index access;
+`expr ?? d` on anything else is a parse-time error naming this rule. See
+[Operators and precedence](operators-and-precedence.md) for the precedence row
+and chaining.
+
+```jfn
+inv["sku-42"] ?? empty    // supply a default on a miss
+inv[sku] ?? null          // nullable lookup
+```
+
+```json
+{ "$get": "sku-42", "$from": { "$var": "inv" }, "$else": { "$var": "empty" } }
+{ "$get": { "$var": "sku" }, "$from": { "$var": "inv" }, "$else": null }
+```
 
 An access chain **in call position** is a method call: the chain evaluates to a
 function value that is then applied (`caps.db.query(sql)`). See
@@ -109,7 +131,7 @@ makeCountdown(42)(3)      // chained application (call the returned closure)
 ```
 
 ```json
-{ "$call": { "$get": ["db", "query"], "$from": { "$var": "caps" } }, "$args": [{ "$var": "sql" }] }
+{ "$call": { "$get": "query", "$from": { "$get": "db", "$from": { "$var": "caps" } } }, "$args": [{ "$var": "sql" }] }
 { "$call": { "$get": "readLine", "$from": { "$var": "io" } }, "$args": [] }
 { "$call": { "$get": { "$var": "name" }, "$from": { "$var": "caps" } }, "$args": [{ "$var": "x" }] }
 { "$call": { "$get": "method", "$from": { "$call": "f", "$args": [{ "$var": "x" }] } }, "$args": [{ "$var": "y" }] }

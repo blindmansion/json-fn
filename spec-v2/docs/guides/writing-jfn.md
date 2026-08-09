@@ -42,12 +42,13 @@ type Tx = // discriminated union
 
 type Books = { ledger: Ledger, log: string[] }
 
+// `??` supplies a default only when the key is *missing* — a bare miss errors (§9).
 balanceOf: (led: Ledger, id: Id) -> integer =>
-  if hasKey(led, id) then led[id].balance else 0
+  (led[id] ?? { id, name: "", balance: 0 }).balance
 
 // Object-pattern parameter destructuring one positional object argument.
 canDebit: ({ led, id, amount }: { led: Ledger, id: Id, amount: Cents }) -> boolean =>
-  hasKey(led, id) && balanceOf(led, id) >= amount
+  balanceOf(led, id) >= amount
 
 note: (books: Books, msg: string) -> Books =>
   { ledger: books.ledger, log: concat(books.log, [msg]) }
@@ -60,7 +61,7 @@ put: (books: Books, acct: Account, msg: string) -> Books => {
 
 adjust: (books: Books, id: Id, delta: integer, msg: string) -> Books =>
   put(books, merge(acct, { balance: acct.balance + delta }), msg) where {
-    acct: books.ledger[id]
+    acct: books.ledger[id] // bare read: callers guarantee the account exists (§9)
   }
 
 // `match` on the tag narrows `tx` per arm; `else` is required.
@@ -151,10 +152,11 @@ builtin call.
 | 1    | `!x` `-x`                   | logical not, numeric negation                 |
 | 2    | `*` `/` `%`                 | float64 arithmetic                            |
 | 3    | `+` `-` `++`                | numeric add/sub; `++` is string concatenation |
-| 4    | `==` `!=` `<` `<=` `>` `>=` | comparisons; ordered ones chain               |
-| 5    | `&&`                        | short-circuit and, returns the deciding value |
-| 6    | `\|\|`                      | short-circuit or, returns the deciding value  |
-| 7    | `expr checked as T`         | runtime-validated type ascription             |
+| 4    | `??`                        | default for a property/index access that **misses** (§9) |
+| 5    | `==` `!=` `<` `<=` `>` `>=` | comparisons; ordered ones chain               |
+| 6    | `&&`                        | short-circuit and, returns the deciding value |
+| 7    | `\|\|`                      | short-circuit or, returns the deciding value  |
+| 8    | `expr checked as T`         | runtime-validated type ascription             |
 
 The semantics fit in a few live expressions:
 
@@ -331,16 +333,36 @@ arbitrary conditions. There are no loops; see §6 on recursion and HOFs.
 
 ```jfn
 user.name        cells[0]        row[i]        config["retry-count"]
+inv[sku] ?? emptyLot     // ?? supplies a default when the read *misses*
+inv[sku] ?? null         // nullable lookup
 ```
 
-- Statically, map and array reads have their element type, **not** `T | null`
-  — no `!` or guard is needed merely to satisfy the checker. At runtime a
-  **missing** object key or out-of-range index still reads as `null`, so guard
-  when absence is a real case (see `balanceOf` in §2 for the `hasKey` pattern).
+Reads are **as strict as their types**. A read has its element/field type,
+**not** `T | null` — and at runtime a **missing** object key or out-of-range
+index is an immediate error, not `null`. The decision procedure:
+
+- **Absence is a bug → bare access.** `row[i]`, `user.name`. A miss fails
+  loudly at the access site.
+- **Absence is a case → `?? default`.** The default evaluates only on a
+  genuine miss and the result types as `T | typeof(default)`; `?? null` is
+  the nullable lookup (`T | null`). Alternatively, guard with
+  `hasKey(obj, "key")` — on a literal key, the then-branch marks the optional
+  field present, so the bare read typechecks (§11).
+
+More rules:
+
+- **Unlike JS, `??` fires on absence, not on `null`.** A key that is present
+  with value `null` is present: the read returns `null` and the default does
+  not apply. The checker keeps that residue visible — if the element type
+  includes `null`, `x[k] ?? d` still types with `null` in the union, so
+  JS-instinct code fails at the first non-null use instead of misbehaving.
+- A bare read of a declared-optional field (`score?: integer`) is a **static
+  error** — add `?? default` or a `hasKey` guard. Map and open-object reads
+  are allowed bare; use `??` where absence is expected.
 - Reading _through_ a present `null` errors (`a.b.c` when `a.b` is `null`),
-  as does accessing a non-container. There is no `?.`. Use `!` to assert a
-  value whose static type actually includes `null`, or to make an
-  expected-presence check fail immediately at runtime.
+  as does accessing a non-container. There is no `?.`. Use `!` only to strip
+  `null` from a value whose static type actually includes it — never for
+  absence, which `??` and `hasKey` own.
 - Keys are never coerced: arrays and strings require integer indices, objects
   require string keys. Index an object by a number's string form explicitly:
   `obj[str(n)]`.
@@ -438,6 +460,10 @@ other):
 4. **Discriminants** — `tx.tag == "open"` (or `match tx.tag { … }`) selects
    the union arms of `tx` whose tag admits the literal, per arm/case, with
    `else` seeing the rest.
+5. **Key presence** — `hasKey(x, "lit")` with a **literal** key marks the
+   optional field present on the then-branch, so a bare read of `x.lit`
+   typechecks; on a closed object the else-branch knows it absent. A computed
+   key yields no fact.
 
 These compose through `!`, `&&` (facts flow into the true branch), `||`
 (negated facts into the false branch), and named boolean `where`-locals used
@@ -536,7 +562,8 @@ Coming from JS/TS:
 - Exact arity; callback first, data last; `*Indexed` variants for the index (§6).
 - `==` is deep structural, no `===`; `+` never concatenates — `++`/templates, `${str(n)}` (§5).
 - Omitted optionals bind `null` (no `undefined`); explicit `null` suppresses defaults and must be admitted by the annotation — no skipping middle slots (§6).
-- Missing keys read `null`; reading through `null` errors; no `?.`; reads type as `T` — guard real absence, don't `!` for the checker (§9).
+- A read that misses **errors** — it never reads `null`; expected absence is `?? default` or a `hasKey` guard; reading through a present `null` errors; no `?.` (§9).
+- `??` fires on **absence**, not on `null` — a present `null` passes through it, and the checker keeps `null` in the type to catch JS instincts (§9).
 - Object types are closed by default (`...` opens); `&` is refinement, not intersection (§10).
 - Narrowing is a fixed small set; escape with `x!` or `checked as` (§11).
 - Evaluation errors halt; recoverable failure is `raise` + `handle` (§12).

@@ -69,8 +69,9 @@ Execution charges fuel only at these events:
 - **invocation** — entering a function invocation charges 1 and enters the
   callee's entry region;
 - **arm selection** — resolving a `$cond`, `$match`, or `$if` branch,
-  dispatching a `handle` clause, or continuing into a further `$and` or `$or`
-  operand enters the selected arm's entry region;
+  dispatching a `handle` clause, continuing into a further `$and` or `$or`
+  operand, or taking a `$get` `$else` arm on a miss enters the selected arm's
+  entry region;
 - **default force** — evaluating an omitted parameter's or field's `$default`
   expression when its binding is first read enters the default expression's
   entry region;
@@ -130,7 +131,9 @@ metering declarations, and the floors — carries a single **cost-model
 version**, currently 1. The event vocabulary is closed per version and
 extended only by versioned addition. A new event kind attaches only to a new
 node kind, so an existing program's cost is invariant under vocabulary
-extension. Events are defined as canonically encodable data.
+extension. Which node kinds carry each event — the attachment lists above —
+is likewise fixed per version, not extended independently. Events are defined
+as canonically encodable data.
 
 ### Exhaustion
 

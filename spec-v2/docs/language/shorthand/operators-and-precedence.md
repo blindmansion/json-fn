@@ -8,10 +8,11 @@ Precedence is highest to lowest:
 | 1    | `!x` `-x` (unary)     | prefix  | `not(x)` · `neg(x)` (stdlib calls)               |
 | 2    | `*` `/` `%`           | left    | `mul` · `div` · `mod` (stdlib calls)             |
 | 3    | `+` `-` `++`          | left    | `add` · `sub` · `strcat` (stdlib calls)          |
-| 4    | `== != < <= > >=`     | ordered chain | `eq neq lt lte gt gte` (stdlib calls)       |
-| 5    | `&&`                  | flatten | `$and` (short-circuit, variadic)                  |
-| 6    | `\|\|`                | flatten | `$or` (short-circuit, variadic)                   |
-| 7    | `expression checked as Type` | none | `{ "$as": expression, "$type": schema }`       |
+| 4    | `??`                  | right   | the access's `$else` arm                          |
+| 5    | `== != < <= > >=`     | ordered chain | `eq neq lt lte gt gte` (stdlib calls)       |
+| 6    | `&&`                  | flatten | `$and` (short-circuit, variadic)                  |
+| 7    | `\|\|`                | flatten | `$or` (short-circuit, variadic)                   |
+| 8    | `expression checked as Type` | none | `{ "$as": expression, "$type": schema }`       |
 
 ```jfn
 row * 8 + col
@@ -19,6 +20,7 @@ row * 8 + col
 x > 0 && x < 100
 0 <= x < 100
 cached || compute(x)
+inv[sku] ?? emptyLot()
 balance + delta checked as Cents
 ```
 
@@ -28,6 +30,7 @@ balance + delta checked as Cents
 { "$and": [{ "$call": "gt", "$args": [{ "$var": "x" }, 0] }, { "$call": "lt", "$args": [{ "$var": "x" }, 100] }] }
 { "$and": [{ "$call": "lte", "$args": [0, { "$var": "x" }] }, { "$call": "lt", "$args": [{ "$var": "x" }, 100] }] }
 { "$or": [{ "$var": "cached" }, { "$call": "compute", "$args": [{ "$var": "x" }] }] }
+{ "$get": { "$var": "sku" }, "$from": { "$var": "inv" }, "$else": { "$call": "emptyLot", "$args": [] } }
 { "$as": { "$call": "add", "$args": [{ "$var": "balance" }, { "$var": "delta" }] }, "$type": { "$ref": "#/$defs/Cents" } }
 ```
 
@@ -52,6 +55,17 @@ Additional rules:
   once, before the chain's comparisons, even when an earlier comparison is
   false. The first and last operands evaluate inline, only when their
   comparison is reached.
+- `??` supplies a default for a property or index access that **misses**. It
+  lowers to the access's `$else` arm and fires on absence only — never on a
+  present `null` value, unlike JavaScript's `??`. Its left operand must be a
+  property or index access; `expr ?? d` on anything else is a parse-time
+  error. Its position between additive and comparison means
+  `a[i] ?? b + 1` parses as `a[i] ?? (b + 1)` (a default is usually a small
+  computed value) and `x.k ?? limit < 9000` parses as
+  `(x.k ?? limit) < 9000` (default, then compare). It is right-associative:
+  `a[i] ?? b[j] ?? d` parses as `a[i] ?? (b[j] ?? d)` and lowers to nested
+  `$else` arms — the first miss falls to the next access, then to `d`. See
+  [access defaults](function-calls-and-references.md#access-defaults-with-).
 - Postfix `x!` is a runtime-checked non-null assertion. It removes `null` from
   the inferred type, returns every non-null value unchanged, and raises an
   evaluation error on `null`.

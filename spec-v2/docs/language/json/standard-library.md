@@ -36,6 +36,13 @@ scalar subjects and cases.
 `rangeFrom(start, end)`, `rangeBy(start, end, step)`, and
 `flattenDepth(array, depth)`.
 
+Partial accessors such as `head`, `last`, and `find` return `null` when no
+element qualifies, and their signatures say so (`T | null`). This is a
+returned value, not the property-access miss behavior: a bare
+[`$get`](expressions.md#property-access--get-from-else) that misses errors,
+and its `$else` arm supplies a default on absence. No builtin promises
+null-on-miss for property or index reads.
+
 ## Regex
 
 Patterns are plain strings. Flags are specified via inline `(?flags)` prefix: `i` (case-insensitive), `m` (multiline), `s` (dotall), `u` (Unicode). Example: `"(?i)hello"`.

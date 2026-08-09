@@ -28,6 +28,15 @@ binding expressions and `$in` belong to the containing region unless an
 invocation, branch, or builtin call inside them starts a new one. Calling a
 function-valued binding later has the ordinary invocation costs.
 
+Property access follows the same pattern. A bare `$get` is ordinary
+straight-line work: it counts in its containing region's static constant and
+fires no event. A `$get` with an `$else` arm is a branch point: the target and
+key evaluate in the containing region, and the `$else` arm is its own region,
+entered by an arm-selection event on a genuine miss. A hit fires no event and
+stays in the containing region. Because a multi-segment path is nested
+`$get`s — one node per segment — each segment counts as a node in its region's
+static constant.
+
 ## Resource limits
 
 Evaluation may set these limits:

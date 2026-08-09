@@ -69,7 +69,7 @@ parameter and the record you build to pass it read identically.
 Punning and explicit entries mix freely (`{ year, month: m }`). Only **bare
 identifier** keys pun; a quoted-string key always requires an explicit value.
 The pun is the **canonical printback** for a `{ "$var": k }` value whose key `k`
-equals the variable name (a value with a `$get` path — `{ year: year.start }` —
+equals the variable name (a value with a `$get` access — `{ year: year.start }` —
 is not a pun and prints in full).
 
 Object entries may be spreads (`...object`) or computed keys (`[key]: value`).

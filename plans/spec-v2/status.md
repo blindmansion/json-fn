@@ -93,14 +93,20 @@ stated in the Stage 2 spec text and the pattern-matching spec respectively:
   semantics at suspension boundaries (by-name `$fn` vs captured closure);
   stdlib argument-order audit for pipeline ergonomics; `$imports` canonical
   form and hash-pinning location.
-- **Null-defaulting surface after D4.** Boolean-only `||` kills the
-  `x || default` idiom. Absence-defaulting is covered by strict reads'
-  `$get`/`$else`; null-defaulting needs a decided form — a builtin, a
-  dedicated operator, or nothing (exact `T | null` narrowing makes the
-  explicit conditional fully typed). Small; owned by Stage 2 chunk 2b
-  (strict reads), which also holds the interacting `??` spelling question
-  (JS's `??` prior is null-coalescing, while the strict-reads form is
-  miss-only).
+- **Null-defaulting surface after D4: resolved for Stage 2, no dedicated
+  form** (2026-08-08, with chunk 2b's spec text —
+  [`strict-reads-2b.md`](strict-reads-2b.md) decision 2). Absence-defaulting
+  is strict reads' `$get`/`$else`; null-defaulting is the explicit
+  conditional, which exact `T | null` narrowing makes fully typed, and the
+  main null producers have better fixes (lazy parameter defaults). A
+  dedicated form is additive and can land later without a format break.
+  Revisit criterion: if the 2g corpus migration or the next blind-authoring
+  run shows pervasive `if isNull(…)` boilerplate around stdlib nullable
+  returns (`head`, `last`, `find`), a dedicated form — spelled distinctly
+  from `??` — is the follow-up. The interacting `??` spelling question is
+  also settled there: `??` is kept, miss-only, access-only (its divergence
+  from JS's null-coalescing prior is documented prominently in the guide,
+  and the checker keeps the null residue visible in the type).
 - **Proposal 6, signature-shape axis.** Whether the
   `required`/`optional`/`rest` signature shape ever changes; gated on a
   deliberate contract-format revision, not on any plan stage. Unaffected by

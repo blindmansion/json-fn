@@ -11,8 +11,10 @@ expr        := ascription
 ascription  := orExpr ( "checked" "as" type )?                   // non-assoc
 orExpr      := andExpr ( "||" andExpr )*
 andExpr     := cmpExpr ( "&&" cmpExpr )*
-cmpExpr     := addExpr ( ("=="|"!="|"<"|"<="|">"|">=") addExpr )*
+cmpExpr     := coalesce ( ("=="|"!="|"<"|"<="|">"|">=") coalesce )*
                // Multiple operators must all be ordered: < <= > >=
+coalesce    := addExpr ( "??" coalesce )?            // right-assoc; left
+               // operand must be a property/index access (checked at lowering)
 addExpr     := mulExpr ( ("+"|"-"|"++") mulExpr )*
 mulExpr     := unary ( ("*"|"/"|"%") unary )*
 unary       := ("!"|"-") unary | postfix

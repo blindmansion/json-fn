@@ -1,6 +1,9 @@
 # Plan: strict reads (Stage 2 chunk 2b)
 
-Status: **proposed**, 2026-08-08. Owns [`plan.md`](plan.md) Stage 2 chunk 2b.
+Status: **spec text written**, 2026-08-08 — the rewrite surface below has
+landed in `spec-v2/docs/`; the conformance-case consequences remain with 2g.
+The decisions this chunk owns are settled as recommended (recorded in
+[`status.md`](status.md)). Owns [`plan.md`](plan.md) Stage 2 chunk 2b.
 The design itself is settled — [`strict-reads.md`](strict-reads.md) as revised
 2026-08-04, absorbed per [`review.md`](review.md) (Proposal 10 resolves
 there). That document predates Stage 1 and chunk 2a, so this document restates

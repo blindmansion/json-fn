@@ -93,11 +93,11 @@ question here if possible — this chunk owns the access/defaulting forms
 that D4 (2e) leans on. Chunk plan:
 [`strict-reads-2b.md`](strict-reads-2b.md) — restates the design over the
 event-trace cost model (the `$else` arm as an arm-selection branch, path
-unfolding as region-constant changes), recommends settling `??` as miss-only
-with no dedicated null-defaulting form, and pins error identity, checker
-typing, and `hasKey` narrowing; the rewrite surface spans `expressions.md`,
+unfolding as region-constant changes), settles `??` as miss-only with no
+dedicated null-defaulting form, and pins error identity, checker typing,
+and `hasKey` narrowing; the rewrite surface spans `expressions.md`,
 `narrowing.md`, both execution-limits documents, and the shorthand access
-and operator references.
+and operator references. Spec text landed 2026-08-08; cases remain with 2g.
 
 ### 2c — capture closures
 
