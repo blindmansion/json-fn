@@ -156,6 +156,20 @@ rewrite of.
   static constant (one line in the D2 cost framing — typing a function
   cannot change its fuel).
 
+Chunk plan: [`param-surface-2d.md`](param-surface-2d.md) — restates both
+changes over the 2a/2b/2c vocabulary and pins: the synthesized slot name
+and its shorthand reservation; the defaulted-field question the adopted
+texts left open (field `= e` lowers to the `$else` arm, so the lazy
+exception narrows to the positional `$default` — flagged as revising two
+landed sentences); the slot grammar with `$type`/`$returns`; the
+interface-description derivation and its consumers; alignment rules as
+derived read checking, with fully-typed-or-bare as the per-body lint; the
+annotations-charge-nothing cost line; and the printer fold-back
+conditions. The rewrite surface spans `functions.md`,
+`type-syntax-spec.md`, `expressions.md`, both execution-limits documents,
+the contract and registry wording, and `closures.md`'s co-owned
+value-shape text.
+
 Note 2c and 2d both alter the function-value shape (capture record;
 `$returns` and typed descriptors) — the `functions.md` hashing/printing
 text is co-owned, so whichever chunk is written second reconciles it.
