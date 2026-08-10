@@ -5,8 +5,8 @@ Status: **adopted sequence**, 2026-08-06; revised 2026-08-08 to fold in
 boolean conditions (D4), the deliberate `$fields` lowering, and the coherence
 framing section join Stage 2; the scalar `$match` corrections join Stage 3;
 the pattern dialect proper stays post-Stage-5. The concrete, ordered updates
-to the spec-v2 draft (the `spec-v2/` tree at the repo root); Stage 1 is
-implemented there. This document contains
+to the spec-v2 draft (the `spec-v2/` tree at the repo root); Stages 1 and 2
+are implemented there. This document contains
 only settled work. Everything still open lives in
 [`status.md`](status.md); decision rationale lives in
 [`review.md`](review.md) and the individual plans.
@@ -231,6 +231,13 @@ single format break. Chunk plan: [`conformance-2g.md`](conformance-2g.md)
 and lands the corpus audit script
 (`typescript/scripts/audit-spec-v2-cases.ts`) used as the work queue and
 progress gate.
+
+Completed 2026-08-10: all chunk stages done, the final gate and validation
+runs clean, and the `examples/` audit recorded its datapoints in
+[`status.md`](status.md) (null-defaulting and field-default re-projection
+criteria not triggered; one borderline use-site-checking recurrence noted).
+**Stage 2 is complete** — the function-body format break is fully pinned in
+`spec-v2/cases/`.
 
 ## Stage 3 — kernel cleanup
 

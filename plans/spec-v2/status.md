@@ -112,8 +112,12 @@ in the Stage 2e spec text; D5 will be stated in the pattern-matching spec:
   from `??` — is the follow-up. First datapoint (2026-08-10, 2g Stage C
   2b): the conformance-queue migration produced zero `if isNull(…)`
   rewrites — every null-on-miss case resolved to a miss-error identity or
-  a local `$else` arm; the `examples/` corpus audit in Stage F remains the
-  fuller test. The interacting `??` spelling question is
+  a local `$else` arm. Second datapoint (2026-08-10, 2g Stage F): the
+  `examples/` audit found four null-on-miss sites across two of thirteen
+  modules, each migrating to `?? null` against an `isNull` guard that
+  already exists — zero new boilerplate, and the corpus never calls the
+  nullable stdlib returns. **Not triggered**; the next blind-authoring
+  run is the remaining test. The interacting `??` spelling question is
   also settled there: `??` is kept, miss-only, access-only (its divergence
   from JS's null-coalescing prior is documented prominently in the guide,
   and the checker keeps the null residue visible in the type).
@@ -132,7 +136,13 @@ in the Stage 2e spec text; D5 will be stated in the pattern-matching spec:
   checker-blessed-but-crashing shape recurring, the follow-up is a checker
   tightening — additionally checking initializers under ambient facts, or
   a dedicated diagnostic for guard-dependent initializers — with no format
-  break.
+  break. First datapoint (2026-08-10, 2g Stage F): the `examples/` audit
+  found one recurrence in thirteen modules — the dungeon's `move` binds a
+  lookup keyed by an asserted nullable (`exits[dir!]`) above the
+  `isNull(dir)` arm, so the shape is assertion-silenced rather than
+  checker-clean — plus two guard-dependent initializers the checker flags
+  loudly at the reference. One borderline site does not trip the
+  criterion; the blind-authoring run remains the open test.
 - **Field defaults after the `$fields` collapse: resolved for Stage 2,
   `= e` lowers to the projection's `$else` arm** (2026-08-09, with chunk 2d's
   spec text — [`param-surface-2d.md`](param-surface-2d.md) rule 2). The arm
@@ -146,7 +156,10 @@ in the Stage 2e spec text; D5 will be stated in the pattern-matching spec:
   reading pattern fields, the lowering re-projects field references inside
   default expressions (deterministic and printable, since the reserved
   `__p<i>` name cannot be authored) — an additive lowering rule, no format
-  break.
+  break. First datapoint (2026-08-10, 2g Stage F): the `examples/` audit
+  found zero pattern defaults and zero positional defaults reading
+  pattern fields — the corpus's four object-pattern signatures are plain
+  binder lists. **Not triggered.**
 - **`allowUntypedFunctions`: removed from spec-v2** (2026-08-09, revising
   2d rule 5 as the spec text landed). The option was the v1 migration escape
   hatch — its only effect was downgrading the missing-annotation error to an
@@ -203,8 +216,9 @@ in the Stage 2e spec text; D5 will be stated in the pattern-matching spec:
   builtin/validator forcing-depth audit. All unchanged; the fuel-leak
   blocker dissolved with Stage 1 (2026-08-06).
 - **Checker-conformance migration for spec-v2.** The v1 corpus has been copied
-  into `spec-v2/cases/check/`. Migrate the affected suites as part of Stage 2,
-  then apply the additional Stage 3 cleanup; the v1 corpus remains unchanged.
+  into `spec-v2/cases/check/`. The Stage 2 migration is done (2026-08-10,
+  chunk 2g — [`conformance-2g.md`](conformance-2g.md)); the additional
+  Stage 3 cleanup remains. The v1 corpus remains unchanged.
 
 ## Bookkeeping and cross-plan updates
 

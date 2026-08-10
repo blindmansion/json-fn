@@ -739,3 +739,59 @@ otherwise stable.
 - [`plan.md`](plan.md) Stage 2 marks complete; [`status.md`](status.md)
   picks up anything the migration surfaced (the two revisit criteria, plus
   whatever Stage C triage exposes).
+
+  **Done 2026-08-10**, closing the stage and the chunk. Final gate run
+  clear across all ten categories; `validate:spec-cases` green (234 case
+  files) and the spec-case format check green; `bun run check` clean.
+  Stage 2 is marked complete in [`plan.md`](plan.md) and the audit
+  datapoints are recorded in [`status.md`](status.md).
+
+  The `examples/` audit — thirteen modules, ~1,240 lines, read in full
+  against the landed spec text. The files themselves are untouched: they
+  run against the v1 implementation until spec-v2 lands there. Findings by
+  rule set:
+
+  - **Boolean conditions: zero breakage** — better than predicted. The
+    corpus has no `||` defaulting and no bare truthiness condition
+    anywhere: every condition, `$and`/`$or` operand, and predicate
+    callback is boolean-typed (comparisons, `isNull`/`hasKey`/`includes`,
+    boolean fields). The one user-facing truthiness rule — the
+    spreadsheet's formula conditional — was already modeled in-language as
+    `t.value != 0`.
+  - **Strict reads: near-zero, as predicted.** Four null-on-miss sites in
+    two of the thirteen files, each migrating mechanically to `?? null`
+    against an `isNull` guard that already exists: the dungeon's
+    `exits[dir!]` lookup (guarded by `isNull(dest)`), its `parts[0]` and
+    `parts[1]` token reads (empty or one-word commands), and the
+    spreadsheet's `sheet[id]` lookup (guarded by `isNull(f)`). Everything
+    else routes element access through HOFs or `hasKey` guards, or reads
+    in-range by construction; the corpus never calls the nullable stdlib
+    returns (`head`/`last`/`find`). The corpus's `!` assertions on reads
+    (`world[st.at]!`, `inv[sku]!`, `pair[0]!`, …) become redundant no-ops
+    — bare reads type as `T` — which is not breakage.
+  - **Parameter surface: invisible, as predicted.** Four object-pattern
+    signatures (both ledgers' `canDebit`, the pipeline's `clampTo`, the
+    type showcase's `distance`), all plain binder lists with inline
+    object-type annotations: no field defaults, no optional marks, and no
+    positional default reading a pattern field.
+  - **Strict `$let`: three guard-dependent initializers, all in the
+    dungeon.** `move`'s `dest` initializer is the sharp-edge shape —
+    checker-silenced by the `dir!` assertion, it now evaluates eagerly and
+    errors whenever `dir` is null, though the first `cond` arm would have
+    handled that case. `move`'s `next` and `take`'s `richer` are the loud
+    variant: their initializers read a nullable binding only the arm
+    narrows, so the checker flags them at the reference. All three migrate
+    by the documented pattern (move the computation into the branch that
+    uses it).
+  - One implementation-side touchpoint: the spread-and-comments header
+    comment references the deleted `--allow-untyped-functions` flag; it
+    updates when the implementation lands.
+
+  Revisit-criteria verdicts, recorded in [`status.md`](status.md): the
+  null-defaulting surface is **not triggered** (zero `if isNull(…)`
+  boilerplate; all four rewrites are `?? null` forms); the field-default
+  re-projection fallback is **not triggered** (zero pattern defaults in
+  the corpus); the use-site checking sharp edge gets **one borderline
+  recurrence** (assertion-silenced rather than checker-clean) — recorded
+  as a datapoint, with the criterion left open for the next
+  blind-authoring run.
