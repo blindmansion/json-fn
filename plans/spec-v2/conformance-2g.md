@@ -623,6 +623,49 @@ suite. Written after Stage C so they land in migrated files.
   hydrated application charges re-entry 1); the annotated-vs-bare
   fuel-identity vector; the boolean short-circuit fuel-unchanged vector.
 
+  **Done 2026-08-10**, closing Stage D. Gate, schema validation, and format
+  checks green; no new allowlist entries (the comments state the current
+  rules without tripping the wording heuristics). Every vector derivation
+  is spelled out in its case comment, hand-derived from
+  `docs/runtime/execution-limits.md` and the language-side cost paragraphs.
+  Seven static cases and twelve fuel cases, extending the two existing
+  files rather than opening new ones (the suite is organized by vector
+  kind, not topic):
+
+  - `$let` folding: the no-boundary case pins a single body region despite
+    the `$let` (the existing folding case has builtin boundaries inside).
+  - Default force: the static case pins the `$default` expression as its
+    own region behind the parameter-default boundary
+    (`/$params/0/$default`); the fuel triple pins supplied (region never
+    entered, total matches the undefaulted square), omitted-and-read
+    (entered once at the first read; the second read adds nothing), and
+    omitted-never-read (never entered — whether a default is read is
+    value-determined). The bind-time contrast vector runs the lowered
+    field default: the absent field enters the `$else` arm region when the
+    strict binding evaluates, with `$in` never reading it, and never fires
+    default force — the attachment-narrowing observable.
+  - Reads: the path-unfolding static case (three `$get` nodes + the
+    target, constant 4), the `$else`-arm static case (arm its own region,
+    target and key in the containing region), and the hit/miss fuel pair
+    (hit fires no event; miss enters the arm by arm selection).
+  - Capture records (D2): the static case pins one count per record entry
+    in the region containing the function literal (two entries → literal
+    1 + 2, creation fires no event); the fuel trio pins local
+    creation-and-application (entry charged in-region, ordinary
+    invocation, no re-entry), hydrated application (a `$captures`-carrying
+    function value arriving in `args` charges re-entry 1; its record's
+    cost is not recharged), and the named per-iteration vector (a closure
+    created inside a `map` callback charges its entry once per element,
+    because each element re-enters the callback's body region).
+  - Annotation invariance: the static case pins `$type`/`$returns`
+    payloads contributing zero, and the fuel case runs the annotated
+    square to the bare square's exact total of 5.
+  - Short-circuit charging: the static case pins the further `$and`
+    operand as its own region (`/$return/$and/1`); the fuel pair pins the
+    deciding-operand stop (second operand neither evaluated nor charged;
+    validation is region work, not an event) against the
+    continue-by-arm-selection total.
+
 ## Stage E — vectors and round-trip pinning
 
 The step that seals the format break; done once, after the corpus is

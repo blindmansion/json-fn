@@ -67,6 +67,101 @@
         ]
       },
       "regions": [{ "at": "", "constant": 8 }]
+    },
+    {
+      "description": "a $let with no boundary inside folds entirely into its containing region",
+      "comment": "The body is one region despite the $let: the $let node 1, the binding's array node 1, its $var and literal 2, and the $var read in $in 1. No invocation, branch point, parameter-default boundary, or builtin call splits it.",
+      "program": {
+        "$params": ["x"],
+        "$return": { "$let": { "y": [{ "$var": "x" }, 2] }, "$in": { "$var": "y" } }
+      },
+      "regions": [
+        { "at": "", "constant": 1 },
+        { "at": "/$return", "constant": 5 }
+      ]
+    },
+    {
+      "description": "a positional $default is its own region behind the parameter-default boundary",
+      "comment": "The default expression's region counts the add call's two literals; the add call node is a builtin-call boundary. The body region counts the two $var reads. The parameter-default boundary is the only boundary an evaluation strategy could reach through; the region is entered by the default-force event.",
+      "program": {
+        "$params": [{ "$param": "x", "$default": { "$call": "add", "$args": [1, 2] } }],
+        "$return": { "$call": "mul", "$args": [{ "$var": "x" }, { "$var": "x" }] }
+      },
+      "regions": [
+        { "at": "", "constant": 1 },
+        { "at": "/$params/0/$default", "constant": 2 },
+        { "at": "/$return", "constant": 2 }
+      ]
+    },
+    {
+      "description": "a multi-segment path is nested $get nodes, one count per segment",
+      "comment": "Three $get nodes plus the $var target: constant 4. Bare $get is straight-line work — no boundary, no event.",
+      "program": {
+        "$params": ["o"],
+        "$return": {
+          "$get": "c",
+          "$from": { "$get": "b", "$from": { "$get": "a", "$from": { "$var": "o" } } }
+        }
+      },
+      "regions": [
+        { "at": "", "constant": 1 },
+        { "at": "/$return", "constant": 4 }
+      ]
+    },
+    {
+      "description": "a $get $else arm is its own region; the target and key stay in the containing region",
+      "comment": "The $get node with an $else arm is a branch point: the body region counts the $get node and the $var target, and the arm's literal forms the region entered by arm selection on a miss.",
+      "program": {
+        "$params": ["o"],
+        "$return": { "$get": "a", "$from": { "$var": "o" }, "$else": "missing" }
+      },
+      "regions": [
+        { "at": "", "constant": 1 },
+        { "at": "/$return", "constant": 2 },
+        { "at": "/$return/$else", "constant": 1 }
+      ]
+    },
+    {
+      "description": "capture-record entries count in the region containing the function literal",
+      "comment": "The inner literal captures a and b, so the body region counts the literal 1 plus one per record entry 2. Creation fires no event; the captured values are shared, charged where they were produced. The inner body region counts its array node and three $var reads.",
+      "program": {
+        "$params": ["a", "b"],
+        "$return": {
+          "$params": ["y"],
+          "$return": [{ "$var": "a" }, { "$var": "b" }, { "$var": "y" }]
+        }
+      },
+      "regions": [
+        { "at": "", "constant": 1 },
+        { "at": "/$return", "constant": 3 },
+        { "at": "/$return/$return", "constant": 4 }
+      ]
+    },
+    {
+      "description": "type annotations contribute zero to region constants",
+      "comment": "The $type and $returns payloads are static syntax that never produces a value — like object keys, unlike data literals. The constants are identical to the bare form of the same program: entry 1, body 2 (two $var reads; the mul call node is a boundary).",
+      "program": {
+        "$params": [{ "$param": "x", "$type": { "type": "number" } }],
+        "$return": { "$call": "mul", "$args": [{ "$var": "x" }, { "$var": "x" }] },
+        "$returns": { "type": "number" }
+      },
+      "regions": [
+        { "at": "", "constant": 1 },
+        { "at": "/$return", "constant": 2 }
+      ]
+    },
+    {
+      "description": "a further $and operand is its own region entered by arm selection",
+      "comment": "The $and node is a branch point: the first operand evaluates unconditionally in the containing region, and each further operand is a region entered by continuing past a true operand. The boolean validation of each operand is a kind check folded into the node counts, not an event.",
+      "program": {
+        "$params": ["p", "q"],
+        "$return": { "$and": [{ "$var": "p" }, { "$var": "q" }] }
+      },
+      "regions": [
+        { "at": "", "constant": 1 },
+        { "at": "/$return", "constant": 1 },
+        { "at": "/$return/$and/1", "constant": 1 }
+      ]
     }
   ]
 }

@@ -90,6 +90,164 @@
       "consumedFuel": 15
     },
     {
+      "description": "annotations do not change consumed fuel",
+      "comment": "The annotated form of the square program: $type and $returns payloads contribute zero to region constants, so the total is identical to the bare form's 5 (program entry 1 + invocation 1 + body entry region 2 + mul builtin 1).",
+      "program": {
+        "$params": [{ "$param": "x", "$type": { "type": "number" } }],
+        "$return": { "$call": "mul", "$args": [{ "$var": "x" }, { "$var": "x" }] },
+        "$returns": { "type": "number" }
+      },
+      "args": [9],
+      "consumedFuel": 5
+    },
+    {
+      "description": "a supplied argument never enters the default region",
+      "comment": "program entry 1 + invocation 1 + body entry region 2 + mul builtin 1 = 5. The default-force event attaches only to an omitted parameter; the default expression's region contributes nothing here.",
+      "program": {
+        "$params": [{ "$param": "x", "$default": { "$call": "add", "$args": [1, 2] } }],
+        "$return": { "$call": "mul", "$args": [{ "$var": "x" }, { "$var": "x" }] }
+      },
+      "args": [3],
+      "consumedFuel": 5
+    },
+    {
+      "description": "an omitted parameter's default region is entered at the binding's first read",
+      "comment": "program entry 1 + invocation 1 + body entry region 2 + default region 2 (the add call's two literals) + add builtin 1 + mul builtin 1 = 8. The default-force event fires once, at the first $var read; the second read is an already-evaluated binding and adds nothing.",
+      "program": {
+        "$params": [{ "$param": "x", "$default": { "$call": "add", "$args": [1, 2] } }],
+        "$return": { "$call": "mul", "$args": [{ "$var": "x" }, { "$var": "x" }] }
+      },
+      "args": [],
+      "consumedFuel": 8
+    },
+    {
+      "description": "an omitted parameter that is never read never enters its default region",
+      "comment": "program entry 1 + invocation 1 + body entry region 1 (the literal) = 3. Whether and when a default is first read is value-determined, so the un-read default charges nothing.",
+      "program": {
+        "$params": [{ "$param": "x", "$default": { "$call": "add", "$args": [1, 2] } }],
+        "$return": 7
+      },
+      "args": [],
+      "consumedFuel": 3
+    },
+    {
+      "description": "a lowered field default evaluates at bind time: the miss fires arm selection even though the binding is never read",
+      "comment": "program entry 1 + invocation 1 + body entry region 4 (the $let node, the $get node, the $var target, and the literal in $in) + $else arm region 2 + add builtin 1 = 9. The projection is a strict $let binding, so the absent field enters the arm region when the binding evaluates, not at a read — contrast the positional $default above, whose region an un-read binding never enters. A pattern field never fires default force.",
+      "program": {
+        "$params": ["__p0"],
+        "$return": {
+          "$let": {
+            "a": {
+              "$get": "a",
+              "$from": { "$var": "__p0" },
+              "$else": { "$call": "add", "$args": [1, 2] }
+            }
+          },
+          "$in": 7
+        }
+      },
+      "args": [{}],
+      "consumedFuel": 9
+    },
+    {
+      "description": "a hit fires no event: the $else arm region is not entered",
+      "comment": "program entry 1 + invocation 1 + body entry region 2 (the $get node and the $var target) = 4. The read stays in the containing region.",
+      "program": {
+        "$params": ["o"],
+        "$return": { "$get": "a", "$from": { "$var": "o" }, "$else": "missing" }
+      },
+      "args": [{ "a": 5 }],
+      "consumedFuel": 4
+    },
+    {
+      "description": "a miss enters the $else arm region by arm selection",
+      "comment": "program entry 1 + invocation 1 + body entry region 2 + arm region 1 = 5.",
+      "program": {
+        "$params": ["o"],
+        "$return": { "$get": "a", "$from": { "$var": "o" }, "$else": "missing" }
+      },
+      "args": [{}],
+      "consumedFuel": 5
+    },
+    {
+      "description": "a deciding $and operand ends the charge: the further operand's region is never entered",
+      "comment": "program entry 1 + invocation 1 + body entry region 1 (the first operand's $var) = 3. The boolean validation of the evaluated operand is region work, not an event; the second operand is neither evaluated nor charged.",
+      "program": {
+        "$params": ["p", "q"],
+        "$return": { "$and": [{ "$var": "p" }, { "$var": "q" }] }
+      },
+      "args": [false, true],
+      "consumedFuel": 3
+    },
+    {
+      "description": "continuing into a further $and operand enters its region by arm selection",
+      "comment": "program entry 1 + invocation 1 + body entry region 1 + second-operand region 1 = 4.",
+      "program": {
+        "$params": ["p", "q"],
+        "$return": { "$and": [{ "$var": "p" }, { "$var": "q" }] }
+      },
+      "args": [true, false],
+      "consumedFuel": 4
+    },
+    {
+      "description": "closure creation charges its record entry in the containing region and fires no event",
+      "comment": "program entry 1 + invocation 1 + body entry region 4 (the $let node, the function literal, its one record entry for a, and the argument literal) + f invocation 1 + f body entry region 2 (two $var) + add builtin 1 = 10. Applying the locally created value is an ordinary invocation; no re-entry charge applies to a value created in this evaluation.",
+      "program": {
+        "$params": ["a"],
+        "$return": {
+          "$let": {
+            "f": {
+              "$params": ["y"],
+              "$return": { "$call": "add", "$args": [{ "$var": "a" }, { "$var": "y" }] }
+            }
+          },
+          "$in": { "$call": "f", "$args": [2] }
+        }
+      },
+      "args": [10],
+      "consumedFuel": 10
+    },
+    {
+      "description": "applying a hydrated function value charges re-entry 1; its record's cost was paid at creation",
+      "comment": "program entry 1 + invocation 1 + body entry region 1 (the argument literal) + re-entry 1 + f invocation 1 + f body entry region 2 (two $var) + add builtin 1 = 8. The function value arrives as input, so entering it charges 1 for the value itself; its capture record was charged where the value was produced, and fuel does not cross that boundary.",
+      "program": { "$params": ["f"], "$return": { "$call": "f", "$args": [2] } },
+      "args": [
+        {
+          "$params": ["y"],
+          "$return": { "$call": "add", "$args": [{ "$var": "a" }, { "$var": "y" }] },
+          "$captures": { "a": 10 }
+        }
+      ],
+      "consumedFuel": 8
+    },
+    {
+      "description": "a closure created per callback invocation charges its record entry per iteration",
+      "comment": "program entry 1 + invocation 1 + body entry region 2 (the callback literal, which captures nothing, and the $var) + map builtin 1 + per element 9 (callback invocation 1 + callback body region 4: the $let node, the inner literal, its one record entry for x, and the argument literal + inner invocation 1 + inner body region 2 + add builtin 1) x 2 elements + produced map array 2 = 25. Each element re-enters the callback's body region, so the record entry is charged once per iteration.",
+      "program": {
+        "$params": ["xs"],
+        "$return": {
+          "$call": "map",
+          "$args": [
+            {
+              "$params": ["x"],
+              "$return": {
+                "$let": {
+                  "f": {
+                    "$params": ["y"],
+                    "$return": { "$call": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] }
+                  }
+                },
+                "$in": { "$call": "f", "$args": [1] }
+              }
+            },
+            { "$var": "xs" }
+          ]
+        }
+      },
+      "args": [[10, 20]],
+      "consumedFuel": 25
+    },
+    {
       "description": "exhaustion is checked at event points: the size-metered builtin event exceeds the budget",
       "comment": "Charges before the strcat event total 4; the event's 11 exceeds the remaining budget of 6.",
       "program": {
