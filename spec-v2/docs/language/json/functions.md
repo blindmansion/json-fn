@@ -9,11 +9,14 @@ A source function body is a closed object with:
 
 Evaluated function values may also contain:
 
-- `$captures`: a non-null object mapping names to captured function bodies;
+- `$captures`: the capture record — a plain object mapping the body's free
+  variable names to captured values, omitted when empty (see
+  [Closures](closures.md));
 - `$runtimeContract`: serializable argument and result contract state.
 
-Captured functions are available through `$var`, `$fn`, and `$call` in
-parameter defaults and `$return`. `$captures` and `$runtimeContract` are not
+Captured values are available through `$var` and `$fn` in parameter defaults
+and `$return`; a function-valued or open-body record entry is additionally
+callable by name through `$call`. `$captures` and `$runtimeContract` are not
 source fields. `$types` is valid only at module scope. All other fields are
 invalid.
 

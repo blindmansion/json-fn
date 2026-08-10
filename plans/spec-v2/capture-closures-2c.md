@@ -1,6 +1,8 @@
 # Plan: capture closures (Stage 2 chunk 2c)
 
-Status: **planned**, 2026-08-09. Owns [`plan.md`](plan.md) Stage 2 chunk 2c.
+Status: **spec text written**, 2026-08-09 — the rewrite surface below has
+landed in `spec-v2/docs/`; the conformance-case consequences and hash-vector
+pinning remain with 2g. Owns [`plan.md`](plan.md) Stage 2 chunk 2c.
 The decision itself is settled — Proposal 1 with the record-on-value
 encoding, adopted in [`review.md`](review.md) §4 ("P1 yes, P2 in spirit but
 not in encoding"). This document plans the spec text: it restates the

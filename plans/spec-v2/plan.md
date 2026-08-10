@@ -117,7 +117,8 @@ and assembled in 2g. Chunk plan:
 2a's edge rule viewed from the value side, the flat-group rule for by-name
 recursion after escape, the no-new-event cost treatment (records fold into
 region constants; hydrated application charges re-entry), boundary
-validation, and the audit-rendering posture for printing.
+validation, and the audit-rendering posture for printing. Spec text landed
+2026-08-09; cases remain with 2g.
 
 ### 2d — the parameter surface: `$fields` lowering + `$sig` inlining
 

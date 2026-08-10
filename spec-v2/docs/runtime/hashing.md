@@ -36,7 +36,11 @@ applies.
 
 Canonical encoding operates on values, not programs. Expression-shaped guest
 data is encoded exactly as data. Program normalization is applied only by the
-normalized module hash defined below.
+normalized module hash defined below. A function value — capture record
+included — encodes as the value it is, and its body subtree encodes
+byte-identical to the corresponding normalized source subtree (see
+[Closures](../language/json/closures.md#body-identity-and-hashing)), so a
+suspended continuation verifies against the deployed program.
 
 ## Hash framing
 

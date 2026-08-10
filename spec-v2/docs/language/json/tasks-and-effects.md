@@ -73,8 +73,13 @@ Running a task normalizes its `bind` chain to one of two shapes:
 ```
 
 `resume` is a self-contained closure from the effect result to the remaining
-task. A pending value is serializable and its continuation may be applied more
-than once.
+task — self-contained **by attachment**: its [capture record](closures.md)
+carries every value the remainder needs, so the suspended form is closed JSON
+with no references to live host memory, and its body subtree stays
+byte-identical to the deployed program's source. `$runtimeContract` state
+rides beside the record unchanged. A pending value is serializable and its
+continuation may be applied more than once; sharing one record across
+applications is sound because values are immutable.
 
 ## `handle` — interpreting effects in-language
 

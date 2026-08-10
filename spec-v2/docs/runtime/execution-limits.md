@@ -48,7 +48,10 @@ object keys adding nothing. Preserved `$comment` fields in `$raw` data count
 as value nodes; stripped literal comments do not. Statically sized
 construction charges through its containing region's constant; there is no
 separate materialization charge for data whose size is fixed by the program
-text.
+text. The closure capture record is the named conformance vector for this
+rule: its entry set is a static function of the program text, each entry
+counts in the region containing the function literal, and closure creation
+fires no event.
 
 Bindings are not boundaries. Since `$let` and module bindings evaluate
 strictly, a `$let` whose bindings and `$in` contain no invocation, branch
@@ -80,8 +83,11 @@ Execution charges fuel only at these events:
   size-metered arguments;
 - **value production** — each array or string produced by a builtin or host
   function charges its top-level length;
-- **re-entry** — re-entering an existing runtime value charges 1 for the
-  value itself; its descendants were charged when the value was produced.
+- **re-entry** — entering a value whose construction was already charged — a
+  hydrated continuation or other function value arriving as input and
+  applied, or a memoization cache hit — charges 1 for the value itself; its
+  descendants were charged when the value was produced, possibly in an
+  earlier invocation.
 
 Returning from an invocation or a builtin call enters the continuation
 region. The program's entry region is charged when evaluation begins.

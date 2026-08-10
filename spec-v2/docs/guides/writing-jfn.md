@@ -243,7 +243,9 @@ Higher-order builtins take the **callback first and the data last**:
 Returning a lambda closes over outer variables; curried application works
 (`makeAdder(2)(40)`), and an access chain in call position is an evaluated
 callee (`handlers.onMove(x)`, `caps[name](x)`). Closures are self-contained
-serializable values.
+serializable values: the body stays your source, and the outer values it
+uses ride along as a readable capture record when a value is persisted or
+printed back.
 
 ```jfn
 makeAdder: (x: number) -> (number) -> number => (y) => x + y

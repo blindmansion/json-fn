@@ -244,8 +244,12 @@ nested, and rest object patterns are invalid.
 A nested function literal is a closure. Functions recurse through a module name
 or a local function binding.
 
-Escaping closures may contain the canonical `$captures` field. It is serialized
-closure state and has no shorthand source form.
+An evaluated function value may carry the canonical `$captures` field: its
+capture record, mapping the body's free variables to their captured values
+(see [Closures](../json/closures.md)). The record has no shorthand source
+form. Printed values render it as a trailing local-binding clause for audit
+reading, and the body itself prints exactly as authored — capture never
+rewrites it.
 
 ```jfn
 (x) => (y) => x + y

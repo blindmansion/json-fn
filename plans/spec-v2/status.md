@@ -90,7 +90,10 @@ stated in the Stage 2 spec text and the pattern-matching spec respectively:
 - **Shorthand, pending items**
   ([`shorthand-redesign.md`](shorthand-redesign.md)): pipe printback policy
   (normalize away vs render deep chains as pipelines); `&` durability
-  semantics at suspension boundaries (by-name `$fn` vs captured closure);
+  semantics at suspension boundaries (by-name `$fn` vs captured closure —
+  chunk 2c's capture record now gives the captured alternative a precise
+  meaning: a record-carrying function value survives suspension without the
+  target host resolving the name);
   stdlib argument-order audit for pipeline ergonomics; `$imports` canonical
   form and hash-pinning location.
 - **Null-defaulting surface after D4: resolved for Stage 2, no dedicated

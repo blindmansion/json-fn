@@ -112,6 +112,13 @@ closure as a value requires the closure to exist. Two sibling functions may
 therefore recurse mutually through calls, while a value-position cycle
 between them (each storing the other's closure) is a cycle error.
 
+The exemption removes only the edge to the sibling function itself; the
+static-reference relation continues **through** the exempted call. A binding
+that calls a sibling function depends on every binding that function's body
+references in value position, directly or transitively: creating the caller's
+closure [captures those values](closures.md#the-capture-relation) even though
+the called function is resolved by name.
+
 Bindings evaluate one at a time. At each step, the first binding in source
 order whose dependencies have all been evaluated is evaluated next. If
 unevaluated bindings remain and none is ready, the bindings form a cycle and
@@ -310,8 +317,10 @@ No other source fields are allowed; expression-local bindings belong in a
 }
 ```
 
-Evaluating a function body creates a [closure](closures.md), including when the
-body is used directly as a call's callee.
+Evaluating a function body creates a function value carrying the body as
+authored plus a [capture record](closures.md) holding the evaluated values of
+its free variables — including when the body is used directly as a call's
+callee. Capture happens at creation; the body is never rewritten.
 
 ## Conditional — `{ $if, $then, $else }`
 
@@ -447,7 +456,8 @@ Rules:
 - In plain data objects, `$comment` is stripped from the output. `$raw`
   preserves a literal `$comment` property.
 - Inside `$raw`, the entire value is returned unchanged.
-- Closures preserve `$comment` when a function body is returned as a value.
+- Function values preserve `$comment`: [capture](closures.md) never rewrites
+  the body, so a returned body keeps its comments.
 
 ## Constraints
 
@@ -466,8 +476,10 @@ Rules:
 - A function reference has `$fn` as its sole key; `$fn` is never an array.
 - `$return` cannot coexist with `$call` or `$fn`.
 - A source function body has `$return` and only optional `$params`, `$sig`, and
-  string-valued `$comment`; `$captures` and `$runtimeContract` are reserved
-  runtime fields, and `$types` is module-only.
+  string-valued `$comment`; `$captures` (the
+  [capture record](closures.md#the-capture-record--captures)) and
+  `$runtimeContract` appear only on evaluated function values and are invalid
+  in source, and `$types` is module-only.
 - A supported string `$comment` does not count toward the key limits of forms
   listed under [Comments](#comments--comment). `$let`, `$match`, `$nonnull`,
   and `$as` do not allow it.

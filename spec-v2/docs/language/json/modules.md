@@ -22,7 +22,8 @@ outermost lexical scope.
   [error identity](execution-limits.md#circular-variable-dependencies) as
   `$let` cycles.
 - Module functions remain available by name and are not copied into a closure's
-  `$captures`.
+  `$captures`. Module *value* entries referenced from a closure body are the
+  other half of the same rule: they are captured by value into its record.
 
 ```json
 {
@@ -44,10 +45,15 @@ Selecting `area` as the entry returns `240`.
 Names resolve from the innermost scope outward:
 
 1. the current `$let`;
-2. function parameters and `$captures`;
+2. function parameters and the applied function value's capture record;
 3. enclosing expression scopes;
 4. module entries;
 5. builtins and host functions.
+
+The capture record resolves as one flat, mutually recursive binding group: a
+function-valued or open-body record entry applied by name resolves its own
+body through the same containing record (see
+[Closures](closures.md#captured-local-functions)).
 
 A `$let` shadows all outer variable bindings. A literal function-body binding
 also shadows outer callables in `$call` position.

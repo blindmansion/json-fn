@@ -37,6 +37,19 @@ stays in the containing region. Because a multi-segment path is nested
 `$get`s — one node per segment — each segment counts as a node in its region's
 static constant.
 
+Closure creation follows the same pattern: it is not an event. The
+[capture record](closures.md) is statically sized construction — its entry
+set is a static function of the program text — so each record entry counts
+one node in the region containing the function-literal node. Captured values
+are shared, not copied; each was already charged where it was produced.
+Open-body entries are static program text whose nodes charge as every
+function body's do. A closure created inside a loop charges its record entries
+once per iteration, because each iteration re-enters the region. Applying a
+function value has the ordinary invocation costs; applying a **hydrated**
+function value — one arriving as input, such as a resumed continuation —
+charges re-entry (1), its record's cost having been paid at the original
+creation. Fuel does not cross suspensions.
+
 ## Resource limits
 
 Evaluation may set these limits:
