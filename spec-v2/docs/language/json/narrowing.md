@@ -10,6 +10,10 @@ Narrowing only removes possibilities from a subject's type within the branch
 governed by the fact. Sibling branches are unaffected. If a use remains
 unprovable, checking fails rather than widening the subject to `any`.
 
+Narrowing claims exactness only on the dialect's
+[exactness fragment](coherence.md#the-exactness-fragment); off it, a form
+produces no fact or leaves an unrepresentable remainder unchanged.
+
 ## Subjects
 
 A fact is produced only when the narrowed subject is a **static access path**:

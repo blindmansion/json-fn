@@ -12,6 +12,8 @@ evaluation, scope, static checking, effects, and limits.
 - [Closures](closures.md) — captured values and local functions.
 - [Modules and scope](modules.md) — module bindings and name resolution.
 - [Flow narrowing](narrowing.md) — branch-sensitive type refinement.
+- [Type/eval coherence](coherence.md) — types as validators, erasability,
+  declared trust boundaries, and the exactness fragment.
 - [Tasks and effects](tasks-and-effects.md) — pure effect descriptions,
   handlers, and suspension.
 - [Execution limits](execution-limits.md) — cycles and resource limits.

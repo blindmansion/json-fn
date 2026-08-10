@@ -56,6 +56,8 @@ against an implementation.
   and schema lowering.
 - [Flow narrowing](language/json/narrowing.md) — branch-sensitive static
   narrowing rules.
+- [Type/eval coherence](language/json/coherence.md) — types as validators,
+  erasability, declared trust boundaries, and the exactness fragment.
 
 ### Builtins
 

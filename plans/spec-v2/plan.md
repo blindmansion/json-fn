@@ -210,7 +210,12 @@ only at declared trust boundaries; and the normatively declared
 **exactness fragment** (which D4 keeps clean on conditions and D5 defines
 for exhaustiveness). Written after 2b/2d/2e so it states, rather than
 anticipates, the adjacent text. It acts as the filter for later work
-(`isType` respecification, the `$nonnull` deletion path).
+(`isType` respecification, the `$nonnull` deletion path). Spec text landed
+2026-08-09 as `spec-v2/docs/language/json/coherence.md` (linked from both
+indexes, cross-referenced from `narrowing.md` and `expressions.md`); it has
+no case surface of its own — 2g's suites exercise the text it frames. The
+fragment is stated as a ceiling on claimed exactness, so Stage 3's scalar
+`$else` elision is a consumer change, not a fragment change.
 
 ### 2g — conformance assembly
 

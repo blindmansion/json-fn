@@ -380,7 +380,8 @@ fail-closed backstop: in a checked program where no `any` reaches a boolean
 position, the runtime error is unreachable. A literal `true`/`false`
 condition is legal — `[true, result]` is the documented catch-all `$cond`
 arm. The checker's boolean requirement and the evaluator's boolean
-validation are the same rule applied at the same positions.
+validation are the same rule applied at the same positions — an instance of
+the language's [type/eval coherence](coherence.md) invariant.
 
 ## Multi-branch conditional — `{ $cond }`
 
