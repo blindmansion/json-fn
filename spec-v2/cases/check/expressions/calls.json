@@ -582,7 +582,7 @@
           {
             "path": ["$params[0]"],
             "severity": "error",
-            "messageIncludes": "$params[0]: A defaulted parameter must contain exactly"
+            "messageIncludes": "$params[0]: A parameter descriptor must carry $optional, $default, or $type"
           }
         ]
       }

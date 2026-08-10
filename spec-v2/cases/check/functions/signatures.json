@@ -1,6 +1,6 @@
 {
   "$schema": "../../check.schema.json",
-  "description": "function signatures, parameter binding, and parameter/signature alignment",
+  "description": "per-slot parameter and return types, parameter binding, and descriptor validation",
   "builtins": "none",
   "cases": [
     {
@@ -117,14 +117,11 @@
     },
     {
       "description": "malformed parameters produce one path-specific diagnostic without body cascades",
+      "comment": "A descriptor carrying only $param is invalid — the bare name string is the one canonical spelling of a plain required slot. The body is not checked after a parameter error, so the unresolved $var does not cascade.",
       "module": {
         "malformed": {
           "$params": [{ "$param": "value" }],
-          "$sig": {
-            "required": [{ "type": "integer" }],
-            "optional": [],
-            "returns": { "type": "string" }
-          },
+          "$returns": { "type": "string" },
           "$return": { "$var": "missing" }
         }
       },
@@ -133,82 +130,64 @@
           {
             "path": ["malformed", "$params[0]"],
             "severity": "error",
-            "messageIncludes": "$params[0]: A defaulted parameter must contain exactly"
+            "messageIncludes": "$params[0]: A parameter descriptor must carry $optional, $default, or $type"
           }
         ]
       }
     },
     {
-      "description": "a body's parameters must match its declared signature shape",
+      "description": "a named function missing its return annotation is a missing-annotation error",
+      "comment": "A named function is fully annotated only when every slot carries $type and $returns is present. Present annotations are still used as declared; the requirement is not configurable.",
       "module": {
-        "requiredInOptionalSlot": {
-          "$params": ["value"],
-          "$sig": { "required": [], "optional": [{ "type": "integer" }], "returns": true },
-          "$return": { "$var": "missing" }
-        },
-        "optionalInRequiredSlot": {
-          "$params": [{ "$param": "value", "$optional": true }],
-          "$sig": { "required": [{ "type": "integer" }], "optional": [], "returns": true },
-          "$return": { "$var": "missing" }
-        },
-        "undeclaredRest": {
-          "$params": ["value", "...rest"],
-          "$sig": { "required": [{ "type": "integer" }], "optional": [], "returns": true },
-          "$return": { "$var": "missing" }
+        "noReturn": {
+          "$params": [{ "$param": "n", "$type": { "type": "integer" } }],
+          "$return": { "$var": "n" }
         }
       },
       "expected": {
         "diagnostics": [
           {
-            "path": ["requiredInOptionalSlot", "$params"],
+            "path": ["noReturn"],
             "severity": "error",
-            "messageIncludes": "Body signature expects 0 required parameter(s), 1 optional parameter(s), and no rest parameter; body declares 1 required parameter(s), 0 optional parameter(s), and no rest parameter."
-          },
-          {
-            "path": ["optionalInRequiredSlot", "$params"],
-            "severity": "error",
-            "messageIncludes": "Body signature expects 1 required parameter(s), 0 optional parameter(s), and no rest parameter; body declares 0 required parameter(s), 1 optional parameter(s), and no rest parameter."
-          },
-          {
-            "path": ["undeclaredRest", "$params"],
-            "severity": "error",
-            "messageIncludes": "Body signature expects 1 required parameter(s), 0 optional parameter(s), and no rest parameter; body declares 1 required parameter(s), 0 optional parameter(s), and a rest parameter."
+            "messageIncludes": "module-level function must declare a signature"
           }
         ]
       }
     },
     {
-      "description": "parameter defaults are checked before the return at their exact paths",
+      "description": "a named function with one untyped slot is a missing-annotation error",
+      "module": {
+        "oneBare": {
+          "$params": [{ "$param": "a", "$type": { "type": "integer" } }, "b"],
+          "$returns": { "type": "integer" },
+          "$return": { "$var": "a" }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["oneBare"],
+            "severity": "error",
+            "messageIncludes": "module-level function must declare a signature"
+          }
+        ]
+      }
+    },
+    {
+      "description": "parameter defaults are checked against their slot types before the return",
+      "comment": "A $default expression is checked against the slot's $type even when no call omits the slot; each mismatch is reported at its exact path.",
       "module": {
         "badDefaults": {
           "$params": [
-            { "$fields": [{ "$field": "count", "$default": "bad field" }] },
-            { "$param": "fallback", "$default": "bad positional" }
+            { "$param": "count", "$type": { "type": "integer" } },
+            { "$param": "fallback", "$default": "bad positional", "$type": { "type": "integer" } }
           ],
-          "$sig": {
-            "required": [
-              {
-                "type": "object",
-                "properties": { "count": { "type": "integer" } },
-                "required": [],
-                "additionalProperties": false
-              }
-            ],
-            "optional": [{ "type": "integer" }],
-            "returns": { "type": "integer" }
-          },
+          "$returns": { "type": "integer" },
           "$return": "bad return"
         }
       },
       "expected": {
         "diagnostics": [
-          {
-            "path": ["badDefaults", "$params[0]", "$fields[0]", "$default"],
-            "severity": "error",
-            "messageIncludes": "not assignable",
-            "expected": { "type": "integer" },
-            "actual": { "const": "bad field" }
-          },
           {
             "path": ["badDefaults", "$params[1]", "$default"],
             "severity": "error",
@@ -248,118 +227,65 @@
       }
     },
     {
-      "description": "object parameter fields must agree with the input object contract",
+      "description": "a defaulted positional binding keeps the bare slot type",
+      "comment": "A defaulted slot always has a value — the default runs on omission — so unlike an optional slot its local type is the slot type itself, without null.",
       "module": {
-        "requiredCanBeAbsent": {
-          "$params": [{ "$fields": ["value"] }],
-          "$sig": {
-            "required": [
-              {
-                "type": "object",
-                "properties": { "value": { "type": "integer" } },
-                "required": [],
-                "additionalProperties": false
-              }
-            ],
-            "optional": [],
-            "returns": true
-          },
-          "$return": null
+        "defaulted": {
+          "$params": [{ "$param": "value", "$default": "fallback", "$type": { "type": "string" } }],
+          "$returns": { "type": "string" },
+          "$return": { "$var": "value" }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "lowered pattern projections are checked as ordinary reads against the slot type",
+      "comment": "An object pattern is sugar: its lowered projections are ordinary strict reads, so a field the slot schema leaves optional is a bare read of an optional field, rejected with the bare-read error. There is no separate field/schema agreement rule.",
+      "module": {
+        "$types": {
+          "Input": {
+            "type": "object",
+            "properties": { "value": { "type": "integer" } },
+            "required": [],
+            "additionalProperties": false
+          }
         },
-        "defaultCannotRun": {
-          "$params": [{ "$fields": [{ "$field": "value", "$default": 0 }] }],
-          "$sig": {
-            "required": [
-              {
-                "type": "object",
-                "properties": { "value": { "type": "integer" } },
-                "required": ["value"],
-                "additionalProperties": false
-              }
-            ],
-            "optional": [],
-            "returns": true
-          },
-          "$return": null
-        },
-        "closedMissing": {
-          "$params": [{ "$fields": [{ "$field": "value", "$optional": true }] }],
-          "$sig": {
-            "required": [
-              { "type": "object", "properties": {}, "required": [], "additionalProperties": false }
-            ],
-            "optional": [],
-            "returns": true
-          },
-          "$return": null
-        },
-        "nonObject": {
-          "$params": [{ "$fields": ["value"] }],
-          "$sig": { "required": [{ "type": "integer" }], "optional": [], "returns": true },
-          "$return": null
+        "lowered": {
+          "$params": [{ "$param": "__p0", "$type": { "$ref": "#/$defs/Input" } }],
+          "$returns": true,
+          "$return": {
+            "$let": { "value": { "$get": "value", "$from": { "$var": "__p0" } } },
+            "$in": { "$var": "value" }
+          }
         }
       },
       "expected": {
         "diagnostics": [
           {
-            "path": ["requiredCanBeAbsent", "$params[0]", "$fields[0]"],
+            "path": ["lowered", "$return", "$let", "value", "$get"],
             "severity": "error",
-            "messageIncludes": "Required field \"value\" is not guaranteed by the aligned object schema."
-          },
-          {
-            "path": ["defaultCannotRun", "$params[0]", "$fields[0]"],
-            "severity": "error",
-            "messageIncludes": "Defaulted field \"value\" is required by the aligned object schema and cannot be omitted."
-          },
-          {
-            "path": ["closedMissing", "$params[0]", "$fields[0]"],
-            "severity": "error",
-            "messageIncludes": "Field \"value\" is not permitted by the aligned closed object schema."
-          },
-          {
-            "path": ["nonObject", "$params[0]"],
-            "severity": "error",
-            "messageIncludes": "Object parameter pattern requires an object schema in the aligned signature slot."
+            "messageIncludes": "may be absent; add `?? default` or guard with `hasKey`"
           }
         ]
       }
     },
     {
-      "description": "a field alignment error stops scope-dependent work only for that body",
+      "description": "a parameter error stops scope-dependent work only for that body",
+      "comment": "The malformed descriptor suppresses the broken body's unresolved-variable cascades, and the sibling body is still checked independently.",
       "module": {
-        "recovery": {
-          "$params": [
-            { "$fields": ["missing", { "$field": "fallback", "$default": "bad default" }] }
-          ],
-          "$sig": {
-            "required": [
-              {
-                "type": "object",
-                "properties": {
-                  "missing": { "type": "integer" },
-                  "fallback": { "type": "integer" }
-                },
-                "required": [],
-                "additionalProperties": false
-              }
-            ],
-            "optional": [],
-            "returns": true
-          },
-          "$return": { "$array": [{ "$var": "missing" }, { "$var": "independentlyMissing" }] }
+        "broken": {
+          "$params": [{ "$param": "value" }],
+          "$returns": true,
+          "$return": { "$array": [{ "$var": "value" }, { "$var": "independentlyMissing" }] }
         },
-        "independent": {
-          "$params": [],
-          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
-          "$return": "bad return"
-        }
+        "independent": { "$params": [], "$returns": { "type": "integer" }, "$return": "bad return" }
       },
       "expected": {
         "diagnostics": [
           {
-            "path": ["recovery", "$params[0]", "$fields[0]"],
+            "path": ["broken", "$params[0]"],
             "severity": "error",
-            "messageIncludes": "Required field \"missing\" is not guaranteed by the aligned object schema."
+            "messageIncludes": "$params[0]: A parameter descriptor must carry $optional, $default, or $type"
           },
           {
             "path": ["independent", "$return"],

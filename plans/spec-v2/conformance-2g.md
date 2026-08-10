@@ -463,6 +463,62 @@ suite. Written after Stage C so they land in migrated files.
   missing-annotation error; interface-derivation cases (contract-entry
   satisfaction, `$fnType` value compatibility, task-entry mapping);
   condition-type checker rule (`boolean` and `boolean | null` rejection).
+
+  **Done 2026-08-10.** Gate, schema validation, and format checks green.
+  Outcomes beyond the plan's letter:
+
+  - This chunk also resolved the deferred Stage B 2d flags, which no
+    Stage C sweep owned: `check/modules/references.json`'s four `$sig`
+    cases took the mechanical rewrite (dangling-ref diagnostics now
+    path onto `$params[i].$type`/`$returns`), and
+    `check/functions/signatures.json`'s five flagged cases triaged as
+    Stage B anticipated — the alignment-error class is unexpressible, so
+    they became descriptor-validation, missing-annotation, and
+    lowered-read cases. Three allowlist entries removed; only
+    `fields-descriptors eval/parameter-defaults.json` remains, owned by
+    the eval pass.
+  - The descriptor-validation rendering was re-pinned across `check/`:
+    the "A defaulted parameter must contain exactly" identity described
+    a grammar where a descriptor required `$default`, and
+    `{"$param": name, "$type": schema}` is now valid. The new identity —
+    `$params[i]: A parameter descriptor must carry $optional, $default,
+    or $type` — is pinned in the five check files that assert it
+    (`signatures`, `contracts/entries`, both `contextual-lambdas`,
+    `expressions/calls`). `eval/parameter-defaults.json` still pins the
+    old family; the eval pass owes the same re-pin there.
+  - Missing-annotation adds pin the full-annotation definition with the
+    existing "must declare a signature" identity: a named function
+    missing only `$returns`, and one with a single untyped slot, are
+    each the error (the completely-bare cases were already in
+    `declarations.json`/`recursion.json`). Rounding out the per-slot
+    rules: the defaulted-local-type case (`$default` slot binds bare
+    `T`, beside the existing optional-binds-`T | null` case) and
+    `badDefaults` rewritten to `$default`-checked-against-`$type` even
+    when no call omits the slot. The lowered-pattern case pins the
+    alignment dissolution directly: a projection of a field the slot
+    schema leaves optional is the ordinary bare-read error at the
+    binding's `$get`.
+  - Interface derivation landed as a new
+    `check/functions/interface-derivation.json` (six cases): annotated
+    lambda satisfaction, the mismatch pinning the **derived** shape as
+    the diagnostic's `actual` `$fnType` (counts from `$params`, schemas
+    from `$type` — the derivation output is asserted literally),
+    `$optional`/`$default` deriving to the same optional position, rest
+    element from the array-as-written `items`, a `$fn` reference
+    deriving from the named function's annotations, and the pattern
+    slot contributing one required position. `contracts/entries.json`
+    gained the satisfaction consumers: an annotated entry clean through
+    the derivation with the task mapping (`$taskType` completion vs
+    `{"task": A}`), the completion mismatch pinned at `$returns`, the
+    slot-type mismatch pinned at `$params[0].$type`, and the lowered
+    pattern slot satisfying an object-schema entry slot.
+  - Condition-type adds in `branches.json`: a `string` `$if` condition
+    and a `boolean | null` one (assignability is exact — the nullable
+    boolean is the loud error the defaulting migration teaches), the
+    `$cond` arm condition at its own `$cond[i][0]` path, and the
+    admitted-`any` `$if` condition beside the existing `$and` operand
+    case. All pin `expected: {type: boolean}` at the condition path,
+    matching the identity `guards-and-lazy.json` already carries.
 - `eval/`: dependency-order vectors (error selection, `tap` order); strict
   failure of an erroring unreferenced binding; value-position vs
   call-position sibling-function cycles; the dynamic-reference TDZ error;

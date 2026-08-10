@@ -426,6 +426,86 @@
         }
       },
       "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "$if: a non-boolean condition is a static error at the condition",
+      "comment": "A condition's type must be assignable to boolean; there is no truthiness. Write an explicit comparison — s != \"\" — for the emptiness check this shape suggests.",
+      "module": {
+        "f": {
+          "$params": [{ "$param": "s", "$type": { "type": "string" } }],
+          "$returns": { "type": "integer" },
+          "$return": { "$if": { "$var": "s" }, "$then": 1, "$else": 0 }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return", "$if"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "boolean" },
+            "actual": { "type": "string" }
+          }
+        ]
+      }
+    },
+    {
+      "description": "$if: a nullable boolean condition is a static error",
+      "comment": "Assignability at the condition is exact: boolean | null does not fit boolean. Narrow the null away first (x != null) or compare explicitly (x == true).",
+      "module": {
+        "f": {
+          "$params": [
+            { "$param": "x", "$type": { "anyOf": [{ "type": "boolean" }, { "type": "null" }] } }
+          ],
+          "$returns": { "type": "integer" },
+          "$return": { "$if": { "$var": "x" }, "$then": 1, "$else": 0 }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return", "$if"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "boolean" },
+            "actual": { "anyOf": [{ "type": "boolean" }, { "type": "null" }] }
+          }
+        ]
+      }
+    },
+    {
+      "description": "$cond: each arm condition is a boolean position",
+      "comment": "The arm's condition slot carries the same boolean requirement as $if, reported at the condition's own path.",
+      "module": {
+        "f": {
+          "$params": [{ "$param": "n", "$type": { "type": "integer" } }],
+          "$returns": { "type": "integer" },
+          "$return": { "$cond": [[{ "$var": "n" }, 1]], "$else": 0 }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return", "$cond[0][0]"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "boolean" },
+            "actual": { "type": "integer" }
+          }
+        ]
+      }
+    },
+    {
+      "description": "$if: an any-typed condition is admitted at the boolean position",
+      "comment": "The same posture as the $and operand: any is unknown evidence, and the runtime boolean validation is the fail-closed backstop.",
+      "module": {
+        "f": {
+          "$params": [{ "$param": "x", "$type": true }],
+          "$returns": { "type": "integer" },
+          "$return": { "$if": { "$var": "x" }, "$then": 1, "$else": 0 }
+        }
+      },
+      "expected": { "diagnostics": [] }
     }
   ]
 }

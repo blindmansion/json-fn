@@ -65,7 +65,7 @@
           {
             "path": ["main", "$params[0]"],
             "severity": "error",
-            "messageIncludes": "$params[0]: A defaulted parameter must contain exactly"
+            "messageIncludes": "$params[0]: A parameter descriptor must carry $optional, $default, or $type"
           }
         ]
       }
@@ -145,6 +145,130 @@
           { "path": ["main", "$return"], "severity": "error", "messageIncludes": "not assignable" }
         ]
       }
+    },
+    {
+      "description": "an annotated entry satisfies the contract through the interface derivation",
+      "comment": "The callable shape compared against the entry is derived from the function's slot types and $returns; a $taskType result satisfies a `{\"task\": A}` entry when its completion type satisfies A.",
+      "module": {
+        "main": {
+          "$params": [{ "$param": "n", "$type": { "type": "integer" } }],
+          "$returns": { "$taskType": { "type": "integer" } },
+          "$return": { "$call": "pure", "$args": [{ "$var": "n" }] }
+        }
+      },
+      "contract": {
+        "version": 1,
+        "functions": {},
+        "effects": {},
+        "entry": {
+          "name": "main",
+          "required": [{ "type": "integer" }],
+          "optional": [],
+          "returns": { "task": { "type": "integer" } }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "a declared task completion outside the entry's completion type is an error",
+      "comment": "The body agrees with its own annotation, so the one diagnostic is the satisfaction failure: the derived completion type does not satisfy the entry's, reported at the return annotation.",
+      "module": {
+        "main": {
+          "$params": [],
+          "$returns": { "$taskType": { "type": "string" } },
+          "$return": { "$call": "pure", "$args": ["text"] }
+        }
+      },
+      "contract": {
+        "version": 1,
+        "functions": {},
+        "effects": {},
+        "entry": {
+          "name": "main",
+          "required": [],
+          "optional": [],
+          "returns": { "task": { "type": "integer" } }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          { "path": ["main", "$returns"], "severity": "error", "messageIncludes": "not assignable" }
+        ]
+      }
+    },
+    {
+      "description": "a declared slot type that cannot accept the entry's argument schema is an error",
+      "comment": "Entry callers supply any value of the contract's required schema, so each derived required slot must admit it; the mismatch is reported at the slot's type annotation.",
+      "module": {
+        "main": {
+          "$params": [{ "$param": "id", "$type": { "type": "string" } }],
+          "$returns": { "$taskType": { "type": "integer" } },
+          "$return": { "$call": "pure", "$args": [1] }
+        }
+      },
+      "contract": {
+        "version": 1,
+        "functions": {},
+        "effects": {},
+        "entry": {
+          "name": "main",
+          "required": [{ "type": "integer" }],
+          "optional": [],
+          "returns": { "task": { "type": "integer" } }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["main", "$params[0]", "$type"],
+            "severity": "error",
+            "messageIncludes": "not assignable"
+          }
+        ]
+      }
+    },
+    {
+      "description": "a lowered pattern slot contributes its object schema to the entry check",
+      "comment": "The pattern consumes one required slot whose interface schema is its $type; the projected fields are ordinary $let bindings and contribute no interface positions.",
+      "module": {
+        "main": {
+          "$params": [
+            {
+              "$param": "__p0",
+              "$type": {
+                "type": "object",
+                "properties": { "count": { "type": "integer" } },
+                "required": ["count"],
+                "additionalProperties": false
+              }
+            }
+          ],
+          "$returns": { "$taskType": { "type": "integer" } },
+          "$return": {
+            "$let": { "count": { "$get": "count", "$from": { "$var": "__p0" } } },
+            "$in": { "$call": "pure", "$args": [{ "$var": "count" }] }
+          }
+        }
+      },
+      "contract": {
+        "version": 1,
+        "functions": {},
+        "effects": {},
+        "entry": {
+          "name": "main",
+          "required": [
+            {
+              "type": "object",
+              "properties": { "count": { "type": "integer" } },
+              "required": ["count"],
+              "additionalProperties": false
+            }
+          ],
+          "optional": [],
+          "returns": { "task": { "type": "integer" } }
+        }
+      },
+      "expected": { "diagnostics": [] }
     }
   ]
 }

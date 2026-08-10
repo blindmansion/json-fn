@@ -1,0 +1,222 @@
+{
+  "$schema": "../../check.schema.json",
+  "description": "the interface derivation: annotated function values and references against expected function types",
+  "comment": "Every consumer of a callable shape uses one derivation from the inline form: required slots contribute their $type in order, $optional and $default slots contribute optional positions, a rest slot contributes the items of its array-as-written $type, and returns is $returns. These cases pin the derivation through $fnType compatibility; the contract-entry consumer is pinned in check/contracts/entries.json.",
+  "builtins": "none",
+  "cases": [
+    {
+      "description": "an annotated lambda's derived interface satisfies an expected function type",
+      "module": {
+        "f": {
+          "$params": [],
+          "$returns": {
+            "$fnType": {
+              "required": [{ "type": "integer" }],
+              "optional": [],
+              "returns": { "type": "integer" }
+            }
+          },
+          "$return": {
+            "$params": [{ "$param": "n", "$type": { "type": "integer" } }],
+            "$returns": { "type": "integer" },
+            "$return": { "$var": "n" }
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "a mismatched slot type reports the derived interface at the value",
+      "comment": "The lambda's body agrees with its own annotations, so the one diagnostic is the interface comparison: parameter counts come from $params and schemas from $type, and the derived shape is attached as the actual type.",
+      "module": {
+        "f": {
+          "$params": [],
+          "$returns": {
+            "$fnType": {
+              "required": [{ "type": "integer" }],
+              "optional": [],
+              "returns": { "type": "integer" }
+            }
+          },
+          "$return": {
+            "$params": [{ "$param": "s", "$type": { "type": "string" } }],
+            "$returns": { "type": "integer" },
+            "$return": 0
+          }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": {
+              "$fnType": {
+                "required": [{ "type": "integer" }],
+                "optional": [],
+                "returns": { "type": "integer" }
+              }
+            },
+            "actual": {
+              "$fnType": {
+                "required": [{ "type": "string" }],
+                "optional": [],
+                "returns": { "type": "integer" }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "description": "optional and defaulted slots derive to the same optional position",
+      "comment": "Function types do not distinguish $optional from $default: both bodies satisfy one expected type with a single optional slot.",
+      "module": {
+        "viaOptional": {
+          "$params": [],
+          "$returns": {
+            "$fnType": {
+              "required": [],
+              "optional": [{ "type": "integer" }],
+              "returns": { "type": "integer" }
+            }
+          },
+          "$return": {
+            "$params": [{ "$param": "n", "$optional": true, "$type": { "type": "integer" } }],
+            "$returns": { "type": "integer" },
+            "$return": 0
+          }
+        },
+        "viaDefault": {
+          "$params": [],
+          "$returns": {
+            "$fnType": {
+              "required": [],
+              "optional": [{ "type": "integer" }],
+              "returns": { "type": "integer" }
+            }
+          },
+          "$return": {
+            "$params": [{ "$param": "n", "$default": 0, "$type": { "type": "integer" } }],
+            "$returns": { "type": "integer" },
+            "$return": { "$var": "n" }
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "a typed rest slot derives its element schema from the array items",
+      "comment": "The slot's $type stores the array type as written; the interface rest schema is its items.",
+      "module": {
+        "f": {
+          "$params": [],
+          "$returns": {
+            "$fnType": {
+              "required": [],
+              "optional": [],
+              "rest": { "type": "string" },
+              "returns": { "type": "integer" }
+            }
+          },
+          "$return": {
+            "$params": [
+              { "$param": "...xs", "$type": { "type": "array", "items": { "type": "string" } } }
+            ],
+            "$returns": { "type": "integer" },
+            "$return": 0
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "a function reference derives its interface from the named function's annotations",
+      "comment": "References consume the same derivation as values: the referenced function's slot types and $returns form the actual type compared against the expected function type.",
+      "module": {
+        "helper": {
+          "$params": [{ "$param": "s", "$type": { "type": "string" } }],
+          "$returns": { "type": "integer" },
+          "$return": 0
+        },
+        "f": {
+          "$params": [],
+          "$returns": {
+            "$fnType": {
+              "required": [{ "type": "integer" }],
+              "optional": [],
+              "returns": { "type": "integer" }
+            }
+          },
+          "$return": { "$fn": "helper" }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": {
+              "$fnType": {
+                "required": [{ "type": "integer" }],
+                "optional": [],
+                "returns": { "type": "integer" }
+              }
+            },
+            "actual": {
+              "$fnType": {
+                "required": [{ "type": "string" }],
+                "optional": [],
+                "returns": { "type": "integer" }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "description": "a lowered pattern slot contributes one required position with its object schema",
+      "comment": "The pattern consumes one required slot; its projected fields are ordinary $let bindings and contribute no interface positions.",
+      "module": {
+        "f": {
+          "$params": [],
+          "$returns": {
+            "$fnType": {
+              "required": [
+                {
+                  "type": "object",
+                  "properties": { "count": { "type": "integer" } },
+                  "required": ["count"],
+                  "additionalProperties": false
+                }
+              ],
+              "optional": [],
+              "returns": { "type": "integer" }
+            }
+          },
+          "$return": {
+            "$params": [
+              {
+                "$param": "__p0",
+                "$type": {
+                  "type": "object",
+                  "properties": { "count": { "type": "integer" } },
+                  "required": ["count"],
+                  "additionalProperties": false
+                }
+              }
+            ],
+            "$returns": { "type": "integer" },
+            "$return": {
+              "$let": { "count": { "$get": "count", "$from": { "$var": "__p0" } } },
+              "$in": { "$var": "count" }
+            }
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    }
+  ]
+}

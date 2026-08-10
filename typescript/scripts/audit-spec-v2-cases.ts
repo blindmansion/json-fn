@@ -94,14 +94,10 @@ const CATEGORIES: Category[] = [
 
 // Entries are `"<category-id> <path relative to spec-v2/cases>"`.
 const ALLOWLIST = new Set<string>([
-  // Stage B flagged these files' remaining findings for Stage C hand triage
-  // (see the migrate-spec-v2-stage-b.ts report): alignment/malformed-descriptor
-  // diagnostics that are unexpressible after 2d, diagnostics whose paths point
-  // into `$sig`/`$fields`, and eval errors asserting pattern-specific identities
-  // that 2b/2d replace. Remove each entry as Stage C resolves its cases.
-  "sig-in-body check/functions/signatures.json",
-  "sig-in-body check/modules/references.json",
-  "fields-descriptors check/functions/signatures.json",
+  // Stage B flagged this file's remaining findings for hand triage
+  // (see the migrate-spec-v2-stage-b.ts report): pattern-form validation
+  // cases whose descriptor grammar 2d replaced. Resolved by the Stage D
+  // eval pass; remove the entry with it.
   "fields-descriptors eval/parameter-defaults.json",
   // Stage C (2a) deliberate survivors: cycles are still errors under strict
   // $let — these cases now pin the schedule-stall identity (docs

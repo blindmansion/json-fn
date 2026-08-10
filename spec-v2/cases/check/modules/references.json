@@ -4,35 +4,44 @@
   "builtins": "none",
   "cases": [
     {
-      "description": "a $ref to an undeclared type in a sig is an error, not a silent top",
+      "description": "a $ref to an undeclared type in a return annotation is an error, not a silent top",
       "module": {
-        "f": {
-          "$params": [],
-          "$sig": { "required": [], "optional": [], "returns": { "$ref": "#/$defs/Reprot" } },
-          "$return": true
-        }
+        "f": { "$params": [], "$returns": { "$ref": "#/$defs/Reprot" }, "$return": true }
       },
       "expected": {
-        "diagnostics": [{ "path": ["f", "$sig"], "severity": "error", "messageIncludes": "Reprot" }]
+        "diagnostics": [
+          { "path": ["f", "$returns"], "severity": "error", "messageIncludes": "Reprot" }
+        ]
       }
     },
     {
-      "description": "dangling refs in required and optional signature slots are both reported",
+      "description": "dangling refs in required and optional slot types are both reported",
       "module": {
         "f": {
-          "$params": ["requiredValue", { "$param": "optionalValue", "$optional": true }],
-          "$sig": {
-            "required": [{ "$ref": "#/$defs/MissingRequired" }],
-            "optional": [{ "$ref": "#/$defs/MissingOptional" }],
-            "returns": true
-          },
+          "$params": [
+            { "$param": "requiredValue", "$type": { "$ref": "#/$defs/MissingRequired" } },
+            {
+              "$param": "optionalValue",
+              "$optional": true,
+              "$type": { "$ref": "#/$defs/MissingOptional" }
+            }
+          ],
+          "$returns": true,
           "$return": true
         }
       },
       "expected": {
         "diagnostics": [
-          { "path": ["f", "$sig"], "severity": "error", "messageIncludes": "MissingRequired" },
-          { "path": ["f", "$sig"], "severity": "error", "messageIncludes": "MissingOptional" }
+          {
+            "path": ["f", "$params[0]", "$type"],
+            "severity": "error",
+            "messageIncludes": "MissingRequired"
+          },
+          {
+            "path": ["f", "$params[1]", "$type"],
+            "severity": "error",
+            "messageIncludes": "MissingOptional"
+          }
         ]
       }
     },
@@ -66,43 +75,38 @@
       "description": "refs are covered inside arrays, unions, and $fnType leaves",
       "module": {
         "f": {
-          "$params": ["xs", "cb"],
-          "$sig": {
-            "required": [
-              { "type": "array", "items": { "$ref": "#/$defs/Foo" } },
-              {
+          "$params": [
+            { "$param": "xs", "$type": { "type": "array", "items": { "$ref": "#/$defs/Foo" } } },
+            {
+              "$param": "cb",
+              "$type": {
                 "$fnType": { "required": [], "optional": [], "returns": { "$ref": "#/$defs/Bar" } }
               }
-            ],
-            "optional": [],
-            "returns": { "anyOf": [{ "$ref": "#/$defs/Baz" }, { "type": "null" }] }
-          },
+            }
+          ],
+          "$returns": { "anyOf": [{ "$ref": "#/$defs/Baz" }, { "type": "null" }] },
           "$return": 1
         }
       },
       "expected": {
         "diagnostics": [
-          { "path": ["f", "$sig"], "severity": "error", "messageIncludes": "Foo" },
-          { "path": ["f", "$sig"], "severity": "error", "messageIncludes": "Bar" },
-          { "path": ["f", "$sig"], "severity": "error", "messageIncludes": "Baz" }
+          { "path": ["f", "$params[0]", "$type"], "severity": "error", "messageIncludes": "Foo" },
+          { "path": ["f", "$params[1]", "$type"], "severity": "error", "messageIncludes": "Bar" },
+          { "path": ["f", "$returns"], "severity": "error", "messageIncludes": "Baz" }
         ]
       }
     },
     {
-      "description": "a nested $let function signature is covered too",
+      "description": "a nested $let function's annotations are covered too",
       "module": {
         "main": {
           "$params": [],
-          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$returns": { "type": "integer" },
           "$return": {
             "$let": {
               "helper": {
-                "$params": ["x"],
-                "$sig": {
-                  "required": [{ "$ref": "#/$defs/Qux" }],
-                  "optional": [],
-                  "returns": { "type": "integer" }
-                },
+                "$params": [{ "$param": "x", "$type": { "$ref": "#/$defs/Qux" } }],
+                "$returns": { "type": "integer" },
                 "$return": { "$var": "x" }
               }
             },
@@ -113,7 +117,7 @@
       "expected": {
         "diagnostics": [
           {
-            "path": ["main", "$return", "$let", "helper", "$sig"],
+            "path": ["main", "$return", "$let", "helper", "$params[0]", "$type"],
             "severity": "error",
             "messageIncludes": "Qux"
           },
