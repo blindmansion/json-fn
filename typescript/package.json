@@ -16,6 +16,7 @@
     "generate:check-depth-cases": "bun run scripts/generate-check-depth-cases.ts",
     "generate:parse-depth-cases": "bun run scripts/generate-parse-depth-cases.ts",
     "instrument:durable": "bun run scripts/instrument-durable.ts",
+    "audit:spec-v2-cases": "bun run scripts/audit-spec-v2-cases.ts",
     "validate:spec-cases": "cd .. && bun run typescript/scripts/validate-spec-schemas.ts",
     "format:spec-cases": "cd .. && bun run typescript/scripts/collapse-json-whitespace.ts 'spec/cases/**/*.json' 'spec-v2/cases/**/*.json' && ./typescript/node_modules/.bin/oxfmt 'spec/cases/**/*.json' 'spec-v2/cases/**/*.json' '!spec/cases/parse/structural-depth.json' '!spec-v2/cases/parse/structural-depth.json' '!spec/cases/check/limits/structural-depth.json' '!spec-v2/cases/check/limits/structural-depth.json'",
     "format:spec-cases:check": "cd .. && bun -e 'for (const path of [\"spec/cases/parse/structural-depth.json\", \"spec-v2/cases/parse/structural-depth.json\", \"spec/cases/check/limits/structural-depth.json\", \"spec-v2/cases/check/limits/structural-depth.json\"]) JSON.parse(await Bun.file(path).text())' && ./typescript/node_modules/.bin/oxfmt --check 'spec/cases/**/*.json' 'spec-v2/cases/**/*.json' '!spec/cases/parse/structural-depth.json' '!spec-v2/cases/parse/structural-depth.json' '!spec/cases/check/limits/structural-depth.json' '!spec-v2/cases/check/limits/structural-depth.json'"

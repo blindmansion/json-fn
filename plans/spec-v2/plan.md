@@ -225,7 +225,12 @@ types, and boolean conditions; add `$else` and `hasKey` narrowing
 coverage. The v1 corpus remains unchanged. Final printer/normalizer
 round-trip rules and the hash vectors drafted in 2c/2d are assembled and
 pinned here, once, for the whole stage — this is what makes the stage a
-single format break.
+single format break. Chunk plan: [`conformance-2g.md`](conformance-2g.md)
+— stages the migration (mechanical bulk passes → semantic triage per chunk
+→ additive coverage → vector/round-trip pinning → the `examples/` audit)
+and lands the corpus audit script
+(`typescript/scripts/audit-spec-v2-cases.ts`) used as the work queue and
+progress gate.
 
 ## Stage 3 — kernel cleanup
 
