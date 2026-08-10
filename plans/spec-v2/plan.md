@@ -187,7 +187,17 @@ narrowing becomes exact. The truthiness sections of `expressions.md`,
 rewritten; the authoring guide follows. Absence-defaulting is already
 absorbed by 2b's `$get`/`$else`; the null-defaulting surface replacing
 `x || default` is settled in 2b (or tracked in
-[`status.md`](status.md) if it slips).
+[`status.md`](status.md) if it slips). Chunk plan:
+[`boolean-conditions-2e.md`](boolean-conditions-2e.md) — pins the
+boolean-position inventory (conditions, `$and`/`$or` operands, `!`/`not`,
+and the boolean-declared predicate-callback results, so truthiness deletes
+from the stdlib too), validation attached to evaluation with the
+short-circuit shape preserved, error identity and the host-error class, the
+condition-type checker rule, the exact boolean narrowing rewrite, the
+no-cost-change statement, and the `$and`/`$or` minimum-arity constraint;
+the rewrite surface spans `expressions.md`, `narrowing.md`, the shorthand
+control-flow and operator references, `standard-library.md`, and the
+guide's truthiness teaching.
 
 ### 2f — the coherence framing section
 
