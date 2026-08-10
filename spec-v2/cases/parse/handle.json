@@ -99,7 +99,7 @@
       "expected": { "$call": "handle", "$args": [{ "$var": "returns" }, {}] }
     },
     {
-      "description": "an unannotated handle remains usable as a cond guard",
+      "description": "an unannotated handle parses in cond-guard position",
       "source": "cond {\n  handle task with {}: true,\n  else: false\n}",
       "expected": {
         "$cond": [[{ "$call": "handle", "$args": [{ "$var": "task" }, {}] }, true]],

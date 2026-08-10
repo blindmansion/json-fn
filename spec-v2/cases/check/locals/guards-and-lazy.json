@@ -132,7 +132,7 @@
     },
     {
       "description": "function bindings shadow outer named guards",
-      "comment": "The inner function binding `same` shadows the outer guard, so the outer guard binding is unused and the branch no longer narrows `value` for the add call.",
+      "comment": "The inner function binding `same` shadows the outer guard, so the outer guard binding is unused and the branch no longer narrows `value` for the add call. The shadowing binding is also function-typed, so the condition itself fails the boolean-position requirement.",
       "module": {
         "f": {
           "$params": [
@@ -163,6 +163,12 @@
             "path": ["f", "$return", "$let", "same"],
             "severity": "error",
             "messageIncludes": "unused local binding \"same\""
+          },
+          {
+            "path": ["f", "$return", "$in", "$in", "$if"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "boolean" }
           },
           {
             "path": ["f", "$return", "$in", "$in", "$then"],

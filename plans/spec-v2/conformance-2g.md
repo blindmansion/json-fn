@@ -317,6 +317,70 @@ landed spec text, and error cases pin the error identities those texts fixed.
   and boolean results; sweep `$if`/`$cond`/`$and`/`$or` positions the
   literal heuristic cannot see (non-boolean-typed `$var`/`$call`
   conditions) during the same file-by-file pass.
+
+  **Done 2026-08-10.** Queues clear; gate, schema validation, and format
+  checks green. Outcomes beyond the plan's letter:
+
+  - `truthiness.json` deleted whole, but five of its cases survive the
+    form change in substance and re-homed to a new
+    `check/narrowing/boolean-subject.json` (narrowing.md form 1): the
+    boolean `true`/`false` pins, the field-path condition (retyped to a
+    boolean field), and the boolean-discriminant then/else pair — Stage
+    D's exact-boolean-narrowing adds, covered early. The `T | null`,
+    falsy-slice, always-truthy-discriminant, and inferred-type cases died
+    with the form.
+  - The conditionals eval suite's twelve `$and`/`$or` cases rewrote in
+    place, pinning several Stage D adds early: the arity rejections
+    (empty and singleton, both forms — `$and must be an array of at least
+    two expressions`), the non-boolean-operand error identity, and the
+    short-circuit-before-validation case (`$and: [false, "never
+    validated"]` → `false`). The pass fixes the operand rendering family
+    the docs left at identity-component level:
+    `$and operand 2 must be a boolean; got string` — positions 1-based
+    (matching "parameter position 1"), kinds the JSON value kinds. The
+    `$if`/`$cond`-condition and predicate-callback renderings are still
+    unpinned; Stage D's per-position error adds owe them.
+  - `branches.json`'s value-returning typing cases became the
+    checker-surface pins: per-operand static rejection (diagnostics with
+    `expected: {type: boolean}`), boolean result synthesis (literal
+    operand types are *not* folded to a literal result, matching the
+    `$if` posture of widening literal branch results), the nullable-`$or`
+    defaulting idiom as the loud static error D4 wants, and the
+    admitted-`any` backstop case (another Stage D add covered early). The
+    empty-`$and`/`$or` typing cases deleted — the arity constraint is
+    structural and the eval rejections pin it. Two conditions the literal
+    heuristic could not see rewrote: the `string | null` truthiness
+    thread (#3, now a `neq` guard) and the integer `$cond` guard (#10,
+    now a boolean param).
+  - The corpus sweep (bulk-reviewed by subagent) caught four sites beyond
+    the queues: `builtins/logic/not.json`'s truthiness-coercion cases
+    (now boolean-only rejections pinning `argument must be a boolean`,
+    the builtins-suite rendering family beside `and`/`or`'s existing
+    `arguments must be booleans`); `check/locals/guards-and-lazy.json`'s
+    function-typed shadow condition (#4 now also pins the
+    condition-position diagnostic); `check/narrowing/guards.json`'s
+    no-fact fallback (re-derived to the boolean-subject fallback — a
+    `length(xs) > 0` local observed against a const-`true` return); and
+    the parse suite's dead-idiom examples (`cached || fallback checked as
+    Count` and `cached || compute(x)` renamed to boolean readings,
+    `handle` #6's description narrowed to the parse claim, and
+    control-flow #2's object-literal condition rewritten to
+    `state == { ready: true }` — expected JSON verified byte-identical
+    against the v1 parser, which stays authoritative since 2e changes no
+    grammar). Everything else with a non-literal condition verified
+    boolean-typed.
+  - The 2e audit heuristics were re-pointed at the live claim, the 2c
+    precedent: literal non-booleans past a deciding operand (or behind a
+    literal-`true` `$cond` arm) are dead — neither evaluated nor
+    validated — and cases that pin the boolean-position rejection (an
+    eval `error` naming it, or a checker diagnostic expecting
+    `{type: boolean}`) keep their reached literal as the teaching. Both
+    categories clear with **no allowlist entries**, and a reintroduced
+    value-returning expectation would flag again.
+  - `check/programs/chess.json`'s truthiness cases (#13 named-guard
+    `$cond`, #14 bare-`$let` fallback on `integer | null`) are
+    deliberately untouched — the Programs pass owns the file's single
+    rewrite.
 - **Programs**: `check/programs/chess.json` is rewritten once here, after
   the four sweeps, since it intersects every category.
 

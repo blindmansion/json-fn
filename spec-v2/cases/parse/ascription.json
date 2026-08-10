@@ -9,10 +9,10 @@
     },
     {
       "description": "checked ascription binds less tightly than logical or",
-      "source": "cached || fallback checked as Count",
+      "source": "primed || ready checked as Flag",
       "expected": {
-        "$as": { "$or": [{ "$var": "cached" }, { "$var": "fallback" }] },
-        "$type": { "$ref": "#/$defs/Count" }
+        "$as": { "$or": [{ "$var": "primed" }, { "$var": "ready" }] },
+        "$type": { "$ref": "#/$defs/Flag" }
       }
     },
     {

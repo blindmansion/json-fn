@@ -60,14 +60,19 @@
       }
     },
     {
-      "description": "$if: truthiness narrowing threads into the checked arm",
+      "description": "$if: narrowing from the condition threads into the checked arm",
+      "builtins": "standard",
       "module": {
         "f": {
           "$params": [
             { "$param": "x", "$type": { "anyOf": [{ "type": "string" }, { "type": "null" }] } }
           ],
           "$returns": { "type": "string" },
-          "$return": { "$if": { "$var": "x" }, "$then": { "$var": "x" }, "$else": "" }
+          "$return": {
+            "$if": { "$call": "neq", "$args": [{ "$var": "x" }, null] },
+            "$then": { "$var": "x" },
+            "$else": ""
+          }
         }
       },
       "expected": { "diagnostics": [] }
@@ -256,9 +261,9 @@
       "description": "$cond: a cond over literal results fits a string return",
       "module": {
         "label": {
-          "$params": [{ "$param": "n", "$type": { "type": "integer" } }],
+          "$params": [{ "$param": "flag", "$type": { "type": "boolean" } }],
           "$returns": { "type": "string" },
-          "$return": { "$cond": [[{ "$var": "n" }, "a"]], "$else": "b" }
+          "$return": { "$cond": [[{ "$var": "flag" }, "a"]], "$else": "b" }
         }
       },
       "expected": { "diagnostics": [] }
@@ -338,56 +343,86 @@
       "expected": { "type": { "type": "integer" }, "diagnostics": [] }
     },
     {
-      "description": "$and yields the last operand when earlier ones can't be falsy",
-      "comment": "End-to-end version of the local direct-synth short-circuit unit tests.",
+      "description": "$and: non-boolean operands are static errors at each operand",
+      "comment": "Every $and/$or operand is a boolean position: its type must be assignable to boolean.",
       "expression": { "$and": [1, 2] },
-      "expected": { "type": { "const": 2 }, "diagnostics": [] }
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["$and[0]"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "boolean" },
+            "actual": { "const": 1 }
+          },
+          {
+            "path": ["$and[1]"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "boolean" },
+            "actual": { "const": 2 }
+          }
+        ]
+      }
     },
     {
-      "description": "$or yields the last operand when earlier ones can't be truthy",
-      "comment": "End-to-end version of the local direct-synth short-circuit unit tests.",
-      "expression": { "$or": [0, 5] },
-      "expected": { "type": { "const": 5 }, "diagnostics": [] }
+      "description": "$or: a non-boolean operand is a static error at that operand",
+      "expression": { "$or": [false, "x"] },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["$or[1]"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "boolean" },
+            "actual": { "const": "x" }
+          }
+        ]
+      }
     },
     {
-      "description": "boolean $and operands split by truthiness (true && false : false)",
+      "description": "$and: boolean operands synthesize a boolean result",
+      "comment": "The result of $and/$or is always a boolean; literal operand types are not folded into a literal result, matching the $if posture of widening literal branch results.",
       "expression": { "$and": [true, false] },
-      "expected": { "type": { "const": false }, "diagnostics": [] }
+      "expected": { "type": { "type": "boolean" }, "diagnostics": [] }
     },
     {
-      "description": "an empty $and is true",
-      "expression": { "$and": [] },
-      "expected": { "type": { "const": true }, "diagnostics": [] }
+      "description": "$or: boolean operands synthesize a boolean result",
+      "expression": { "$or": [false, true] },
+      "expected": { "type": { "type": "boolean" }, "diagnostics": [] }
     },
     {
-      "description": "an empty $or is false",
-      "expression": { "$or": [] },
-      "expected": { "type": { "const": false }, "diagnostics": [] }
-    },
-    {
-      "description": "$or over a nullable subject drops null from the non-final operand",
-      "comment": "End-to-end version of the local direct-synth short-circuit unit tests: the null-coalescing idiom.",
+      "description": "$or: a nullable operand is a static error (|| defaulting is gone)",
+      "comment": "The v1 `x || default` idiom is a static error at the condition: write `x ?? default` when the value is an access and absence is the case, or an explicit `x != null` conditional when null is.",
       "module": {
         "f": {
           "$params": [
             { "$param": "x", "$type": { "anyOf": [{ "type": "string" }, { "type": "null" }] } }
           ],
-          "$returns": { "type": "string" },
-          "$return": { "$or": [{ "$var": "x" }, "def"] }
+          "$returns": { "type": "boolean" },
+          "$return": { "$or": [{ "$var": "x" }, false] }
         }
       },
-      "expected": { "diagnostics": [] }
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return", "$or[0]"],
+            "severity": "error",
+            "messageIncludes": "not assignable",
+            "expected": { "type": "boolean" },
+            "actual": { "anyOf": [{ "type": "string" }, { "type": "null" }] }
+          }
+        ]
+      }
     },
     {
-      "description": "$and over a nullable subject keeps only its falsy slice, plus the tail",
-      "comment": "End-to-end version of the local direct-synth short-circuit unit tests.",
+      "description": "$and: an any-typed operand is admitted at a boolean position",
+      "comment": "any is unknown evidence, not a rejection; the runtime boolean validation is the fail-closed backstop. In a checked program where no any reaches a boolean position, the runtime error is unreachable.",
       "module": {
         "f": {
-          "$params": [
-            { "$param": "x", "$type": { "anyOf": [{ "type": "string" }, { "type": "null" }] } }
-          ],
-          "$returns": { "anyOf": [{ "const": "" }, { "type": "null" }, { "const": "tail" }] },
-          "$return": { "$and": [{ "$var": "x" }, "tail"] }
+          "$params": [{ "$param": "x", "$type": true }],
+          "$returns": { "type": "boolean" },
+          "$return": { "$and": [{ "$var": "x" }, true] }
         }
       },
       "expected": { "diagnostics": [] }

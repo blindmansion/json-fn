@@ -42,9 +42,9 @@
     },
     {
       "description": "logical or",
-      "source": "cached || compute(x)",
+      "source": "cached || recheck(x)",
       "expected": {
-        "$or": [{ "$var": "cached" }, { "$call": "compute", "$args": [{ "$var": "x" }] }]
+        "$or": [{ "$var": "cached" }, { "$call": "recheck", "$args": [{ "$var": "x" }] }]
       }
     },
     {

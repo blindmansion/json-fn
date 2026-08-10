@@ -243,25 +243,37 @@ function isLiteralNonBoolean(value: Json | undefined): boolean {
 }
 
 // Structural (node-shape) categories, attributed to `pointer`.
-function scanNodes(value: Json, file: string, pointer: string): void {
+//
+// The 2e categories flag only *live* literal non-booleans: operands past a
+// literal deciding operand (`false` for `$and`, `true` for `$or`) and `$cond`
+// arms behind a literal `true` condition are neither evaluated nor validated
+// (validation attaches to evaluation), so a dead literal asserts nothing. A
+// case that pins the boolean-position rejection — an eval `error` naming it,
+// or a checker diagnostic expecting `{type: boolean}` — keeps its reached
+// non-boolean literal deliberately; that is the case's teaching.
+function scanNodes(value: Json, file: string, pointer: string, pinsBooleanError = false): void {
   walkNodes(value, (node) => {
     if ("$sig" in node) record("sig-in-body", file, pointer);
     if ("$fields" in node) record("fields-descriptors", file, pointer);
     if ("allowUntypedFunctions" in node) record("allow-untyped-functions", file, pointer);
     if (Array.isArray(node["$get"])) record("array-path-get", file, pointer);
+    if (pinsBooleanError) return;
     if (isLiteralNonBoolean(node["$if"])) record("nonbool-literal-condition", file, pointer);
     const cond = node["$cond"];
     if (Array.isArray(cond)) {
       for (const arm of cond) {
-        if (Array.isArray(arm) && isLiteralNonBoolean(arm[0])) {
-          record("nonbool-literal-condition", file, pointer);
-        }
+        if (!Array.isArray(arm)) continue;
+        if (isLiteralNonBoolean(arm[0])) record("nonbool-literal-condition", file, pointer);
+        if (arm[0] === true) break; // later arms are unreachable
       }
     }
     for (const form of ["$and", "$or"]) {
       const operands = node[form];
-      if (Array.isArray(operands) && operands.some(isLiteralNonBoolean)) {
-        record("nonbool-literal-operand", file, pointer);
+      if (!Array.isArray(operands)) continue;
+      const decider = form === "$and" ? false : true;
+      for (const operand of operands) {
+        if (isLiteralNonBoolean(operand)) record("nonbool-literal-operand", file, pointer);
+        if (operand === decider) break; // later operands are neither evaluated nor validated
       }
     }
   });
@@ -294,7 +306,16 @@ for (const file of caseFiles) {
     if (!isObject(entry)) return;
     const description = typeof entry["description"] === "string" ? entry["description"] : "";
     const pointer = `${file} #${index}${description ? ` — ${description}` : ""}`;
-    scanNodes(entry, file, pointer);
+    const expectedDiagnostics = isObject(entry["expected"])
+      ? entry["expected"]["diagnostics"]
+      : undefined;
+    const pinsBooleanError =
+      (typeof entry["error"] === "string" && entry["error"].includes("must be a boolean")) ||
+      (Array.isArray(expectedDiagnostics) &&
+        expectedDiagnostics.some(
+          (d) => isObject(d) && canonicalize(d["expected"] ?? null) === '{"type":"boolean"}',
+        ));
+    scanNodes(entry, file, pointer, pinsBooleanError);
 
     if (suite === "eval") {
       if (

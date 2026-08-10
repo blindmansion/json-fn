@@ -24,9 +24,14 @@
     },
     {
       "description": "nested object expressions remain distinct from colon arm separators",
-      "source": "cond {\n  { ready: true }: { result: { ok: true } },\n  else: { result: { ok: false } }\n}",
+      "source": "cond {\n  state == { ready: true }: { result: { ok: true } },\n  else: { result: { ok: false } }\n}",
       "expected": {
-        "$cond": [[{ "ready": true }, { "result": { "ok": true } }]],
+        "$cond": [
+          [
+            { "$call": "eq", "$args": [{ "$var": "state" }, { "ready": true }] },
+            { "result": { "ok": true } }
+          ]
+        ],
         "$else": { "result": { "ok": false } }
       }
     },

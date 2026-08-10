@@ -77,13 +77,13 @@
     },
     {
       "description": "$comment alongside $and is ignored",
-      "body": { "$return": { "$comment": "all truthy", "$and": [1, 2, "three"] } },
-      "expected": "three"
+      "body": { "$return": { "$comment": "all true", "$and": [true, true] } },
+      "expected": true
     },
     {
       "description": "$comment alongside $or is ignored",
-      "body": { "$return": { "$comment": "first truthy", "$or": [null, 0, "winner"] } },
-      "expected": "winner"
+      "body": { "$return": { "$comment": "second is true", "$or": [false, true] } },
+      "expected": true
     },
     {
       "description": "$comment alongside $raw is ignored, value preserved",

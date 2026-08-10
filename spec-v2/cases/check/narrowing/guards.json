@@ -1,7 +1,7 @@
 {
   "$schema": "../../check.schema.json",
   "description": "flow narrowing: named boolean guard bindings",
-  "comment": "End-to-end forms of the named-guard fact-map rows in typescript/test/check/narrowing.test.ts: a bare local bound to a recognized guard expression adopts the binding's facts, aliases are followed, and a binding that yields no fact falls back to the local's own truthiness.",
+  "comment": "End-to-end forms of the named-guard fact-map rows: a bare local bound to a recognized guard expression adopts the binding's facts, aliases are followed, and a binding that yields no fact leaves the local narrowed as a boolean subject (narrowing.md form 1).",
   "builtins": "standard",
   "cases": [
     {
@@ -59,17 +59,22 @@
       "expected": { "diagnostics": [] }
     },
     {
-      "description": "a guard local whose binding yields no fact falls back to truthiness",
-      "comment": "head(xs) is a plain call, not a recognized guard, so the bare local h narrows by its own truthiness from integer | null to integer in the then-branch.",
+      "description": "a guard local whose binding yields no fact narrows as a boolean subject",
+      "comment": "length(xs) > 0 is a plain comparison, not a recognized guard form, so the binding contributes no fact about xs; the bare local present still narrows as a boolean subject — true in the then-branch — which is observable against the const-true return.",
       "module": {
         "f": {
           "$params": [
             { "$param": "xs", "$type": { "type": "array", "items": { "type": "integer" } } }
           ],
-          "$returns": { "type": "integer" },
+          "$returns": { "const": true },
           "$return": {
-            "$let": { "h": { "$call": "head", "$args": [{ "$var": "xs" }] } },
-            "$in": { "$if": { "$var": "h" }, "$then": { "$var": "h" }, "$else": 0 }
+            "$let": {
+              "present": {
+                "$call": "gt",
+                "$args": [{ "$call": "length", "$args": [{ "$var": "xs" }] }, 0]
+              }
+            },
+            "$in": { "$if": { "$var": "present" }, "$then": { "$var": "present" }, "$else": true }
           }
         }
       },

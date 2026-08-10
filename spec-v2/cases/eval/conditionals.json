@@ -38,7 +38,7 @@
   },
   "cases": [
     {
-      "description": "$if: truthy condition returns $then",
+      "description": "$if: true condition returns $then",
       "body": {
         "$return": {
           "$if": { "$call": "gt", "$args": [10, 5] },
@@ -49,7 +49,7 @@
       "expected": "ten is greater"
     },
     {
-      "description": "$if: falsy condition returns $else",
+      "description": "$if: false condition returns $else",
       "body": {
         "$return": {
           "$if": { "$call": "gt", "$args": [3, 5] },
@@ -135,7 +135,7 @@
         "$return": {
           "$cond": [
             [false, "no"],
-            [0, "also no"]
+            [{ "$call": "gt", "$args": [1, 2] }, "also no"]
           ],
           "$else": "fallback"
         }
@@ -267,59 +267,62 @@
       "error": "Each $match case must be a [value, result] pair"
     },
     {
-      "description": "$and: all truthy returns last value",
-      "body": { "$return": { "$and": [1, "hello", true] } },
+      "description": "$and: returns true when every operand is true",
+      "body": { "$return": { "$and": [true, { "$call": "gt", "$args": [2, 1] }, true] } },
       "expected": true
     },
     {
-      "description": "$and: short-circuits on first falsy",
-      "body": { "$return": { "$and": [1, 0, { "$call": "div", "$args": [1, 0] }] } },
-      "expected": 0
-    },
-    {
-      "description": "$and: empty array returns true",
-      "body": { "$return": { "$and": [] } },
-      "expected": true
-    },
-    {
-      "description": "$and: single falsy element",
-      "body": { "$return": { "$and": [null] } },
-      "expected": null
-    },
-    {
-      "description": "$and: single truthy element",
-      "body": { "$return": { "$and": ["yes"] } },
-      "expected": "yes"
-    },
-    {
-      "description": "$and: returns the falsy value, not boolean",
-      "body": { "$return": { "$and": [true, "", "unreached"] } },
-      "expected": ""
-    },
-    {
-      "description": "$or: all falsy returns last value",
-      "body": { "$return": { "$or": [false, 0, null] } },
-      "expected": null
-    },
-    {
-      "description": "$or: short-circuits on first truthy",
-      "body": { "$return": { "$or": [false, "found", { "$call": "div", "$args": [1, 0] }] } },
-      "expected": "found"
-    },
-    {
-      "description": "$or: empty array returns false",
-      "body": { "$return": { "$or": [] } },
+      "description": "$and: returns false at the first false operand without evaluating the rest",
+      "body": { "$return": { "$and": [true, false, { "$call": "div", "$args": [1, 0] }] } },
       "expected": false
     },
     {
-      "description": "$or: single truthy element",
-      "body": { "$return": { "$or": [42] } },
-      "expected": 42
+      "description": "$and: rejects an empty operand array",
+      "comment": "$and takes at least two operands: an empty form would be a second spelling of true, and a singleton a bare validation form.",
+      "body": { "$return": { "$and": [] } },
+      "error": "$and must be an array of at least two expressions"
     },
     {
-      "description": "$or: returns the truthy value, not boolean",
-      "body": { "$return": { "$or": [null, 0, "winner", "unreached"] } },
-      "expected": "winner"
+      "description": "$and: rejects a singleton operand array",
+      "body": { "$return": { "$and": [true] } },
+      "error": "$and must be an array of at least two expressions"
+    },
+    {
+      "description": "$and: an operand past the deciding false is not validated",
+      "comment": "Validation attaches to evaluation, never a pre-pass: operands past the deciding one are neither evaluated nor validated.",
+      "body": { "$return": { "$and": [false, "never validated"] } },
+      "expected": false
+    },
+    {
+      "description": "$and: a non-boolean operand is an immediate error",
+      "comment": "The error names the position (1-based operand index) and the evaluated value's kind; it is a host error, not a raise-catchable signal.",
+      "body": { "$return": { "$and": [true, "", "unreached"] } },
+      "error": "$and operand 2 must be a boolean; got string"
+    },
+    {
+      "description": "$or: returns false when every operand is false",
+      "body": { "$return": { "$or": [false, { "$call": "gt", "$args": [1, 2] }, false] } },
+      "expected": false
+    },
+    {
+      "description": "$or: returns true at the first true operand without evaluating the rest",
+      "body": { "$return": { "$or": [false, true, { "$call": "div", "$args": [1, 0] }] } },
+      "expected": true
+    },
+    {
+      "description": "$or: rejects an empty operand array",
+      "body": { "$return": { "$or": [] } },
+      "error": "$or must be an array of at least two expressions"
+    },
+    {
+      "description": "$or: rejects a singleton operand array",
+      "body": { "$return": { "$or": [true] } },
+      "error": "$or must be an array of at least two expressions"
+    },
+    {
+      "description": "$or: a non-boolean operand is an immediate error",
+      "body": { "$return": { "$or": [false, 42, "unreached"] } },
+      "error": "$or operand 2 must be a boolean; got number"
     },
     {
       "description": "$and/$or: nested composition",
@@ -328,12 +331,17 @@
         "$return": {
           "$and": [
             { "$call": "gt", "$args": [{ "$var": "x" }, 0] },
-            { "$or": [{ "$call": "eq", "$args": [{ "$var": "x" }, 42] }, "positive"] }
+            {
+              "$or": [
+                { "$call": "eq", "$args": [{ "$var": "x" }, 42] },
+                { "$call": "lt", "$args": [{ "$var": "x" }, 100] }
+              ]
+            }
           ]
         }
       },
       "args": [10],
-      "expected": "positive"
+      "expected": true
     }
   ]
 }
