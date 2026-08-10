@@ -111,7 +111,13 @@ capture record's cost charges at the closure-creation event (Stage 1,
 item 4); re-entry charges 1. The record prints as the local-binding form
 for audit reading. Rewrites `functions.md`/`closures.md`; the normalizer
 and printer rules plus hash vectors for the record shape are drafted here
-and assembled in 2g.
+and assembled in 2g. Chunk plan:
+[`capture-closures-2c.md`](capture-closures-2c.md) — pins the record shape
+(`$captures` generalized to values, empty omitted), the capture relation as
+2a's edge rule viewed from the value side, the flat-group rule for by-name
+recursion after escape, the no-new-event cost treatment (records fold into
+region constants; hydrated application charges re-entry), boundary
+validation, and the audit-rendering posture for printing.
 
 ### 2d — the parameter surface: `$fields` lowering + `$sig` inlining
 
