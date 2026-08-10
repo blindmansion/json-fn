@@ -103,9 +103,7 @@ const ALLOWLIST = new Set<string>([
   "sig-in-body check/locals/captures.json",
   "sig-in-body check/modules/references.json",
   "fields-descriptors check/functions/signatures.json",
-  "fields-descriptors eval/destructured-params.json",
   "fields-descriptors eval/parameter-defaults.json",
-  "fields-descriptors eval/strict-parameter-runtime.json",
   // Stage C (2a) deliberate survivors: cycles are still errors under strict
   // $let — these cases now pin the schedule-stall identity (docs
   // language/json/execution-limits.md), so their "cycle" wording is accurate.

@@ -48,11 +48,15 @@
     },
     {
       "description": "all-defaulted object pattern still requires its argument",
+      "comment": "Field defaults live in the projections' $else arms; the lowered slot itself is a plain required positional parameter, so omission is the ordinary missing-argument error.",
       "body": {
-        "$params": [{ "$fields": [{ "$field": "value", "$default": 4 }] }],
-        "$return": { "$var": "value" }
+        "$params": ["__p0"],
+        "$return": {
+          "$let": { "value": { "$get": "value", "$from": { "$var": "__p0" }, "$else": 4 } },
+          "$in": { "$var": "value" }
+        }
       },
-      "error": "Missing object-pattern argument at parameter position 1"
+      "error": "Missing required argument at parameter position 1"
     },
     {
       "description": "absent defaulted field uses its default",

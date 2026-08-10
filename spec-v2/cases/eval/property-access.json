@@ -40,14 +40,15 @@
       "expected": "world"
     },
     {
-      "description": "missing key returns null",
+      "description": "bare access to a missing object key errors",
+      "comment": "Strict reads: a bare $get miss is an immediate host error naming the key and, on a small container, the available keys.",
       "body": {
         "$return": {
           "$let": { "obj": { "a": 1 } },
           "$in": { "$get": "z", "$from": { "$var": "obj" } }
         }
       },
-      "expected": null
+      "error": "Missing key \"z\": the target is an object with keys \"a\""
     },
     {
       "description": "path traversal into a present null value throws",
@@ -181,14 +182,15 @@
       "expected": 42
     },
     {
-      "description": "dot notation: missing key returns null",
+      "description": "an $else arm supplies the value when the key is missing",
+      "comment": "Absence as a case: on a genuine miss the $else arm evaluates and supplies the value (?? in shorthand).",
       "body": {
         "$return": {
           "$let": { "obj": { "a": 1 } },
-          "$in": { "$get": "z", "$from": { "$var": "obj" } }
+          "$in": { "$get": "z", "$from": { "$var": "obj" }, "$else": 42 }
         }
       },
-      "expected": null
+      "expected": 42
     },
     {
       "description": "dot notation: path into non-object throws",
@@ -201,14 +203,15 @@
       "error": "Cannot access property"
     },
     {
-      "description": "dot notation: out-of-bounds index returns null",
+      "description": "out-of-range array index errors",
+      "comment": "An array miss names the index and the container's length.",
       "body": {
         "$return": {
           "$let": { "items": [1, 2, 3] },
           "$in": { "$get": 99, "$from": { "$var": "items" } }
         }
       },
-      "expected": null
+      "error": "Index 99 out of range: the target is an array of length 3"
     },
     {
       "description": "dot notation combined with $get",
@@ -368,9 +371,10 @@
       "expected": "b"
     },
     {
-      "description": "$get on string: out of bounds returns null",
+      "description": "$get on string: out-of-range index errors",
+      "comment": "A string miss names the index and the code-point length.",
       "body": { "$return": { "$get": 10, "$from": "hi" } },
-      "expected": null
+      "error": "Index 10 out of range: the target is a string of length 2"
     },
     {
       "description": "$get on string: via $var",
@@ -409,11 +413,14 @@
       "expected": "l"
     },
     {
-      "description": "$var bracket notation on string: out of bounds returns null",
+      "description": "$var bracket notation on string: $else supplies the value on an out-of-range index",
       "body": {
-        "$return": { "$let": { "s": "hi" }, "$in": { "$get": 5, "$from": { "$var": "s" } } }
+        "$return": {
+          "$let": { "s": "hi" },
+          "$in": { "$get": 5, "$from": { "$var": "s" }, "$else": "?" }
+        }
       },
-      "expected": null
+      "expected": "?"
     },
     {
       "description": "$var dot path ending in string index",
@@ -441,9 +448,10 @@
       "error": "Cannot index an array with key \"0\": array indices must be integers"
     },
     {
-      "description": "array access rejects a fractional numeric index",
+      "description": "a fractional numeric key fails key validity (array target)",
+      "comment": "The single-key rule: an evaluated key that is neither a string nor an integer is invalid before container dispatch, uniformly across target kinds.",
       "body": { "$return": { "$get": 1.5, "$from": ["first", "second"] } },
-      "error": "Cannot index an array with key 1.5: array indices must be integers"
+      "error": "evaluated $get key must be a string or an integer"
     },
     {
       "description": "string access rejects a string index",
@@ -451,24 +459,26 @@
       "error": "Cannot index a string with key \"0\": string indices must be integers"
     },
     {
-      "description": "string access rejects a fractional numeric index",
+      "description": "a fractional numeric key fails key validity (string target)",
       "body": { "$return": { "$get": 1.5, "$from": "hello" } },
-      "error": "Cannot index a string with key 1.5: string indices must be integers"
+      "error": "evaluated $get key must be a string or an integer"
     },
     {
-      "description": "negative array index is valid but out of bounds",
+      "description": "negative array index errors as out of range",
+      "comment": "A negative index is the same miss error as an over-large one.",
       "body": { "$return": { "$get": -1, "$from": ["first"] } },
-      "expected": null
+      "error": "Index -1 out of range: the target is an array of length 1"
     },
     {
-      "description": "negative string index is valid but out of bounds",
+      "description": "negative string index errors as out of range",
       "body": { "$return": { "$get": -1, "$from": "hello" } },
-      "expected": null
+      "error": "Index -1 out of range: the target is a string of length 5"
     },
     {
       "description": "object access does not read inherited properties",
+      "comment": "An inherited name is not an own key, so the bare read is the strict-miss error; reading the prototype chain would instead produce a value here.",
       "body": { "$return": { "$get": "toString", "$from": { "$raw": {} } } },
-      "expected": null
+      "error": "Missing key \"toString\": the target is an empty object"
     },
     {
       "description": "object access reads an own constructor property",

@@ -109,7 +109,11 @@ in the Stage 2e spec text; D5 will be stated in the pattern-matching spec:
   Revisit criterion: if the 2g corpus migration or the next blind-authoring
   run shows pervasive `if isNull(…)` boilerplate around stdlib nullable
   returns (`head`, `last`, `find`), a dedicated form — spelled distinctly
-  from `??` — is the follow-up. The interacting `??` spelling question is
+  from `??` — is the follow-up. First datapoint (2026-08-10, 2g Stage C
+  2b): the conformance-queue migration produced zero `if isNull(…)`
+  rewrites — every null-on-miss case resolved to a miss-error identity or
+  a local `$else` arm; the `examples/` corpus audit in Stage F remains the
+  fuller test. The interacting `??` spelling question is
   also settled there: `??` is kept, miss-only, access-only (its divergence
   from JS's null-coalescing prior is documented prominently in the guide,
   and the checker keeps the null residue visible in the type).

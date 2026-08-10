@@ -1,5 +1,5 @@
 {
-  "description": "destructured (object-pattern) parameters — $fields (plans/destructured-params.md)",
+  "description": "destructured (object-pattern) parameters after the $fields lowering: __p<i> slots plus a body-top projection $let",
   "functions": {
     "move": {
       "$params": ["__p0"],
@@ -46,10 +46,20 @@
       "expected": 42
     },
     {
-      "description": "absent required key is rejected",
-      "body": { "$params": [{ "$fields": ["from", "to"] }], "$return": { "$var": "to" } },
+      "description": "an absent required field errors at its projection, naming the key",
+      "comment": "A lowered required-field projection is a bare $get, so the miss is the strict-read error, not a pattern-specific rejection.",
+      "body": {
+        "$params": ["__p0"],
+        "$return": {
+          "$let": {
+            "from": { "$get": "from", "$from": { "$var": "__p0" } },
+            "to": { "$get": "to", "$from": { "$var": "__p0" } }
+          },
+          "$in": { "$var": "to" }
+        }
+      },
       "args": [{ "from": 5 }],
-      "error": "Missing required field \"to\""
+      "error": "Missing key \"to\": the target is an object with keys \"from\""
     },
     {
       "description": "extra keys are ignored",
@@ -67,51 +77,81 @@
       "expected": 3
     },
     {
-      "description": "non-object argument (number) is rejected",
+      "description": "non-object argument (number) errors at the field projection",
+      "comment": "There is no pattern-specific argument validation after the lowering: a non-container argument surfaces as the projection's access error.",
       "body": {
-        "$params": [{ "$fields": ["a"] }],
-        "$return": { "$call": "isNull", "$args": [{ "$var": "a" }] }
+        "$params": ["__p0"],
+        "$return": {
+          "$let": { "a": { "$get": "a", "$from": { "$var": "__p0" } } },
+          "$in": { "$call": "isNull", "$args": [{ "$var": "a" }] }
+        }
       },
       "args": [5],
-      "error": "expected a plain object, received number"
+      "error": "Cannot access property \"a\": the target is a number"
     },
     {
-      "description": "missing object-pattern argument is rejected",
+      "description": "a missing pattern argument is an ordinary missing-argument error",
+      "comment": "The lowered pattern slot is a plain required positional parameter; the pattern-specific rejection identity is gone.",
       "body": {
-        "$params": [{ "$fields": ["a", "b"] }],
-        "$return": { "$call": "isNull", "$args": [{ "$var": "b" }] }
+        "$params": ["__p0"],
+        "$return": {
+          "$let": {
+            "a": { "$get": "a", "$from": { "$var": "__p0" } },
+            "b": { "$get": "b", "$from": { "$var": "__p0" } }
+          },
+          "$in": { "$call": "isNull", "$args": [{ "$var": "b" }] }
+        }
       },
-      "error": "Missing object-pattern argument at parameter position 1"
+      "error": "Missing required argument at parameter position 1"
     },
     {
-      "description": "null object-pattern argument is rejected",
+      "description": "null pattern argument errors at the field projection",
+      "comment": "Reading through a present null errors; the projection is where a null argument surfaces.",
       "body": {
-        "$params": [{ "$fields": ["a"] }],
-        "$return": { "$call": "isNull", "$args": [{ "$var": "a" }] }
+        "$params": ["__p0"],
+        "$return": {
+          "$let": { "a": { "$get": "a", "$from": { "$var": "__p0" } } },
+          "$in": { "$call": "isNull", "$args": [{ "$var": "a" }] }
+        }
       },
       "args": [null],
-      "error": "expected a plain object, received null"
+      "error": "Cannot access property \"a\": the target is null"
     },
     {
-      "description": "array object-pattern argument is rejected",
+      "description": "array pattern argument errors at the field projection (string key on an array)",
       "body": {
-        "$params": [{ "$fields": ["a"] }],
-        "$return": { "$call": "isNull", "$args": [{ "$var": "a" }] }
+        "$params": ["__p0"],
+        "$return": {
+          "$let": { "a": { "$get": "a", "$from": { "$var": "__p0" } } },
+          "$in": { "$call": "isNull", "$args": [{ "$var": "a" }] }
+        }
       },
       "args": [[1, 2, 3]],
-      "error": "expected a plain object, received array"
+      "error": "Cannot index an array with key \"a\": array indices must be integers"
     },
     {
-      "description": "string object-pattern argument is rejected",
-      "body": { "$params": [{ "$fields": ["a"] }], "$return": { "$var": "a" } },
+      "description": "string pattern argument errors at the field projection (string key on a string)",
+      "body": {
+        "$params": ["__p0"],
+        "$return": {
+          "$let": { "a": { "$get": "a", "$from": { "$var": "__p0" } } },
+          "$in": { "$var": "a" }
+        }
+      },
       "args": ["text"],
-      "error": "expected a plain object, received string"
+      "error": "Cannot index a string with key \"a\": string indices must be integers"
     },
     {
-      "description": "boolean object-pattern argument is rejected",
-      "body": { "$params": [{ "$fields": ["a"] }], "$return": { "$var": "a" } },
+      "description": "boolean pattern argument errors at the field projection",
+      "body": {
+        "$params": ["__p0"],
+        "$return": {
+          "$let": { "a": { "$get": "a", "$from": { "$var": "__p0" } } },
+          "$in": { "$var": "a" }
+        }
+      },
       "args": [false],
-      "error": "expected a plain object, received boolean"
+      "error": "Cannot access property \"a\": the target is a boolean"
     },
     {
       "description": "mixed positional and pattern slots",

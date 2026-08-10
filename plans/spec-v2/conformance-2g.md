@@ -214,6 +214,54 @@ landed spec text, and error cases pin the error identities those texts fixed.
   teaching; computed-key cases move to the single-key rule (an evaluated
   array key errors). The migration experience here feeds the
   null-defaulting revisit criterion in [`status.md`](status.md).
+
+  **Done 2026-08-10.** Queue clear (9 findings after Stage B's array-path
+  deletes); gate, schema validation, and format checks green. Outcomes
+  beyond the plan's letter:
+
+  - No computed-key case existed to rewrite: every dynamic `$get` key in
+    the corpus evaluates to a string or an integer. The stale key-validity
+    identities were the two fractional-index cases in
+    `eval/property-access.json`, which now pin the single-key rule's
+    rendering — "evaluated $get key must be a string or an integer",
+    uniform across target kinds — replacing the per-container
+    "indices must be integers" wording (that wording survives for valid
+    keys of the wrong kind for the target, e.g. a string key on an array).
+  - The corpus now pins the miss renderings the landed docs fix only at
+    identity-component level: `Missing key "z": the target is an object
+    with keys "a"` (empty containers render "an empty object"),
+    `Index 99 out of range: the target is an array of length 3` /
+    `a string of length 2`, with negative indices pinning the same
+    rendering.
+  - Seven queue cases rewrote to the bare-miss error — including both
+    inherited-property cases (`eval/property-access.json` #49,
+    `eval/special-object-keys.json` #6), which keep their own-key teaching
+    by erroring where a prototype-chain read would produce a value — and
+    two to the `$else` arm (the duplicate dot-notation missing-key case
+    and the `$var` string miss), covering the absence-as-a-case side.
+  - The Stage B flags in `eval/destructured-params.json` (#3, #5–#10) and
+    `eval/strict-parameter-runtime.json` (#8) resolved here, since their
+    replacement identities are exactly this chunk's: the remaining
+    `$fields` bodies lowered by hand, a required-field miss is the
+    object-miss error naming the key, non-object pattern arguments error
+    at the field projection with the ordinary access identities, and the
+    pattern-specific "Missing object-pattern argument" becomes the plain
+    missing-required-argument identity. Both allowlist entries removed;
+    `eval/parameter-defaults.json` #21–#25 stay flagged (pattern-form
+    validation is 2d triage, not access identity).
+  - Caught outside the queue by a checker sweep:
+    `check/expressions/objects-and-arrays.json`'s union-arm projection
+    ("absent arms contributing null") re-derived to the `$else: null`
+    nullable lookup, typing `integer | null` per the checker rule. The
+    narrowing suites' reads are all guarded or on required fields and
+    stand unchanged.
+  - Decision 2's datapoint, recorded in [`status.md`](status.md): zero
+    `if isNull(…)` rewrites — every miss case resolved to an error
+    identity or a local `$else` arm. Stage D still owes the systematic
+    adds (per-container misses, `$else` laziness and present-`null`
+    preservation, the invalid-key error for an evaluated array key,
+    `hasKey` narrowing, the optional-field bare-read checker error, the
+    tuple bound, the fold-site regression, cost vectors).
 - **2c — capture closures** (queue: `substituted-closure-expectation`, 13
   findings in `eval/curry.json`, `eval/scoping.json`,
   `eval/let-regressions.json`, `eval/comments.json`,

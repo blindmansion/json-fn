@@ -553,8 +553,8 @@
       "expected": { "diagnostics": [] }
     },
     {
-      "description": "a field on only some union arms projects to the join, absent arms contributing null",
-      "comment": "End-to-end version of the local direct-synth field-projection unit tests.",
+      "description": "a field on only some union arms reads through an $else arm; ?? null is the nullable lookup",
+      "comment": "Strict reads: a bare read cannot rule out the miss on the arm without the field, so the case reads with $else: null — the projection joins the arms where the field is present, plus the arm's null, typing integer | null.",
       "module": {
         "$types": {
           "F": {
@@ -577,7 +577,7 @@
         "f": {
           "$params": [{ "$param": "x", "$type": { "$ref": "#/$defs/F" } }],
           "$returns": { "anyOf": [{ "type": "integer" }, { "type": "null" }] },
-          "$return": { "$get": "n", "$from": { "$var": "x" } }
+          "$return": { "$get": "n", "$from": { "$var": "x" }, "$else": null }
         }
       },
       "expected": { "diagnostics": [] }

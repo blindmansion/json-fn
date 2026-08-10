@@ -47,8 +47,9 @@
     },
     {
       "description": "$get does not observe inherited Object.prototype members",
+      "comment": "\"constructor\" is not an own key, so the bare read is the strict-miss error rather than an inherited value.",
       "body": { "$return": { "$get": "constructor", "$from": { "$raw": { "a": 1 } } } },
-      "expected": null
+      "error": "Missing key \"constructor\": the target is an object with keys \"a\""
     },
     {
       "description": "keys lists __proto__",
