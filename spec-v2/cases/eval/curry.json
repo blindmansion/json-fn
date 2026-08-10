@@ -100,7 +100,8 @@
       "args": [10],
       "expected": {
         "$params": ["y"],
-        "$return": { "$call": "add", "$args": [10, { "$var": "y" }] }
+        "$return": { "$call": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] },
+        "$captures": { "x": 10 }
       }
     },
     {
@@ -153,7 +154,8 @@
       "body": { "$return": { "$call": "partialAdd", "$args": [10] } },
       "expected": {
         "$params": ["b"],
-        "$return": { "$call": "add", "$args": [10, { "$var": "b" }] }
+        "$return": { "$call": "add", "$args": [{ "$var": "a" }, { "$var": "b" }] },
+        "$captures": { "a": 10 }
       }
     },
     {
@@ -216,10 +218,15 @@
     },
     {
       "description": "curry('add', 2) returns a function",
+      "comment": "curryApply is a module function, resolved by name and never captured; the enclosing parameters ride the record.",
       "body": { "$return": { "$call": "curry", "$args": ["add", 2] } },
       "expected": {
         "$params": ["...newArgs"],
-        "$return": { "$call": "curryApply", "$args": ["add", 2, [], { "$var": "newArgs" }] }
+        "$return": {
+          "$call": "curryApply",
+          "$args": [{ "$var": "targetFn" }, { "$var": "arity" }, [], { "$var": "newArgs" }]
+        },
+        "$captures": { "targetFn": "add", "arity": 2 }
       }
     },
     {
@@ -232,7 +239,16 @@
       },
       "expected": {
         "$params": ["...nextArgs"],
-        "$return": { "$call": "curryApply", "$args": ["add", 2, [10], { "$var": "nextArgs" }] }
+        "$return": {
+          "$call": "curryApply",
+          "$args": [
+            { "$var": "targetFn" },
+            { "$var": "arity" },
+            { "$var": "allArgs" },
+            { "$var": "nextArgs" }
+          ]
+        },
+        "$captures": { "targetFn": "add", "arity": 2, "allArgs": [10] }
       }
     },
     {

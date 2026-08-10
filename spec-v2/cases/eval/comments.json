@@ -164,6 +164,7 @@
     },
     {
       "description": "$comment in returned function body (closure) is preserved",
+      "comment": "The body is never rewritten, so the comment survives trivially; the captured x rides the record.",
       "body": {
         "$params": ["x"],
         "$return": {
@@ -176,7 +177,8 @@
       "expected": {
         "$comment": "outer comment",
         "$params": ["y"],
-        "$return": { "$call": "add", "$args": [10, { "$var": "y" }] }
+        "$return": { "$call": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] },
+        "$captures": { "x": 10 }
       }
     }
   ]

@@ -88,7 +88,8 @@
       }
     },
     {
-      "description": "reports a non-function capture value as malformed",
+      "description": "a non-function capture value is a legal value entry",
+      "comment": "The record maps names to captured values — any JSON value, not only function bodies.",
       "expression": {
         "$params": [],
         "$returns": { "type": "integer" },
@@ -97,40 +98,22 @@
       },
       "expected": {
         "type": { "$fnType": { "required": [], "optional": [], "returns": { "type": "integer" } } },
-        "diagnostics": [
-          {
-            "path": ["$captures", "helper"],
-            "severity": "error",
-            "messageIncludes": "function capture \"helper\" must be a function body"
-          }
-        ]
+        "diagnostics": []
       }
     },
     {
-      "description": "walks signatures nested under $let and $captures for dangling refs",
-      "comment": "Both nested signatures report the dangling ref; the local call additionally fails assignability against the declared integer return.",
+      "description": "walks type annotations nested under $let and $captures for dangling refs",
+      "comment": "Both nested return annotations report the dangling ref; the local call additionally fails assignability against the declared integer return.",
       "module": {
         "entry": {
           "$params": [],
-          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$returns": { "type": "integer" },
           "$captures": {
-            "captured": {
-              "$params": [],
-              "$sig": { "required": [], "optional": [], "returns": { "$ref": "#/$defs/Missing" } },
-              "$return": 1
-            }
+            "captured": { "$params": [], "$returns": { "$ref": "#/$defs/Missing" }, "$return": 1 }
           },
           "$return": {
             "$let": {
-              "local": {
-                "$params": [],
-                "$sig": {
-                  "required": [],
-                  "optional": [],
-                  "returns": { "$ref": "#/$defs/Missing" }
-                },
-                "$return": 1
-              }
+              "local": { "$params": [], "$returns": { "$ref": "#/$defs/Missing" }, "$return": 1 }
             },
             "$in": { "$call": "local", "$args": [] }
           }
@@ -139,12 +122,12 @@
       "expected": {
         "diagnostics": [
           {
-            "path": ["entry", "$captures", "captured", "$sig"],
+            "path": ["entry", "$captures", "captured", "$returns"],
             "severity": "error",
             "messageIncludes": "reference to undefined type \"Missing\""
           },
           {
-            "path": ["entry", "$return", "$let", "local", "$sig"],
+            "path": ["entry", "$return", "$let", "local", "$returns"],
             "severity": "error",
             "messageIncludes": "reference to undefined type \"Missing\""
           },

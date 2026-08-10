@@ -268,6 +268,47 @@ landed spec text, and error cases pin the error identities those texts fixed.
   `eval/property-access.json`). Expected function values rewrite from
   substituted bodies to byte-identical bodies plus `$captures` records;
   cases predicated on substitution (raw-marking/rehydration) delete.
+
+  **Done 2026-08-10.** Queue clear; gate, schema validation, and format
+  checks green. Outcomes beyond the plan's letter:
+
+  - Nine of the thirteen queue cases rewrote to record shapes (unrewritten
+    bodies plus `$captures` value entries; `curry.json` #11/#12 also pin
+    that the by-name module call `curryApply` is *not* captured). The other
+    four were already record-correct — `let-regressions.json` #3's open-body
+    entry and #7's by-name module call, and the two `scoping.json` shadowing
+    cases whose bodies have no free variables — and took wording only
+    (substitution vocabulary out, empty-record-omission comments in).
+  - Zero deletes: the corpus has no raw-marking/rehydration case and none
+    asserting captured values in expression position. A `$return`-keyed
+    sweep confirmed the flagged 13 are the complete set of expected
+    function values (nothing hides from the `$params` heuristic as a
+    zero-parameter value).
+  - The audit heuristic was re-pointed at 2c's testable claim: instead of
+    flagging every expected function value, it flags one whose body (node
+    minus `$captures`/`$runtimeContract`) is not byte-identical, under
+    canonical key-sorted encoding, to a subtree of the case's source
+    material. The category clears with no allowlist entries, the gate run
+    machine-checks the rewrites' byte-identity, and reintroduced substituted
+    output would flag again — the guard survives.
+  - Checker sweep caught the v1 record-payload assertions outside the
+    queue: `check/locals/captures.json` #4 flipped from "non-function
+    capture value is malformed" to a legal value entry (the record holds
+    values, not only function bodies), and
+    `check/functions/body-structure.json`'s malformed-`$captures` message
+    drops "of function bodies", matching the rendering the null/array/scalar
+    cases already pin. The record-entry cases in `check/locals/captures.json`
+    #0, `check/locals/inline-calls.json`, and `check/locals/guards-and-lazy.json`
+    stand — records in checker input keep v1's posture (validated and
+    resolvable, though invalid in authored source), and their entries are
+    valid open-body shapes.
+  - Riding along: `check/locals/captures.json`'s Stage B `$sig` flag
+    resolved (the deferred mechanical rewrite — `$returns` annotations,
+    diagnostic paths onto `$returns`), removing the file's `sig-in-body`
+    allowlist entry.
+  - `eval/escaping-closures.json` (behavioral call-through expectations,
+    untouched by the format break) got wording-only updates from
+    re-attachment vocabulary to open-body record entries.
 - **2e — boolean conditions** (queues: `truthiness-suite`,
   `nonbool-literal-condition`, `nonbool-literal-operand`). Delete
   `check/narrowing/truthiness.json` whole; rewrite the conditionals eval

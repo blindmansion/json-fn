@@ -82,7 +82,7 @@
           {
             "path": ["$captures"],
             "severity": "error",
-            "messageIncludes": "function $captures must be a non-null object of function bodies"
+            "messageIncludes": "function $captures must be a non-null object"
           },
           {
             "path": ["$runtimeContract"],

@@ -42,7 +42,8 @@
       "expected": [1, 2]
     },
     {
-      "description": "an escaping closure serializes the local function it calls",
+      "description": "an escaping closure carries the local function it calls as an open-body record entry",
+      "comment": "increment is reached only through call position, so its record entry is the unrewritten binding value with no record of its own; the call resolves by name through the containing record.",
       "body": {
         "$return": {
           "$let": {
@@ -201,7 +202,8 @@
       "expected": [{ "B": 2 }, { "C": 5 }, { "E": 7 }]
     },
     {
-      "description": "persistent module functions are not serialized into escaping closures",
+      "description": "module functions are not captured into escaping closures",
+      "comment": "moduleIncrement resolves by name where the value is applied; the body has no other free variables, so the empty record is omitted and the value is byte-identical to its source body.",
       "body": {
         "$return": {
           "$params": ["value"],

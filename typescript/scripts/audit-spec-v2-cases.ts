@@ -81,7 +81,7 @@ const CATEGORIES: Category[] = [
     chunk: "2c",
     kind: "review",
     summary:
-      "expected value containing $params — substituted output is gone; rewrite to capture records",
+      "expected function value whose body is not byte-identical to a case source subtree — substituted output is gone; bodies ride unrewritten beside $captures",
   },
   {
     id: "lazy-forcing-wording",
@@ -100,7 +100,6 @@ const ALLOWLIST = new Set<string>([
   // into `$sig`/`$fields`, and eval errors asserting pattern-specific identities
   // that 2b/2d replace. Remove each entry as Stage C resolves its cases.
   "sig-in-body check/functions/signatures.json",
-  "sig-in-body check/locals/captures.json",
   "sig-in-body check/modules/references.json",
   "fields-descriptors check/functions/signatures.json",
   "fields-descriptors eval/parameter-defaults.json",
@@ -193,6 +192,38 @@ function containsKey(value: Json, key: string): boolean {
   return found;
 }
 
+// Canonical (key-sorted) encoding, used for subtree byte-identity checks.
+function canonicalize(value: Json): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalize).join(",")}]`;
+  if (isObject(value)) {
+    const members = Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${canonicalize(value[key]!)}`);
+    return `{${members.join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function collectSubtrees(value: Json, into: Set<string>): void {
+  walkNodes(value, (node) => into.add(canonicalize(node)));
+}
+
+// 2c's body byte-identity claim: every expected function value's body — the
+// node minus the value-only fields — must appear byte-identically as a
+// subtree of the case's source material. Substituted output never does.
+function hasNonSourceFunctionValue(expected: Json, sourceSubtrees: Set<string>): boolean {
+  let found = false;
+  walkNodes(expected, (node) => {
+    if (!("$return" in node)) return;
+    const body: JsonObject = {};
+    for (const key of Object.keys(node)) {
+      if (key !== "$captures" && key !== "$runtimeContract") body[key] = node[key]!;
+    }
+    if (!sourceSubtrees.has(canonicalize(body))) found = true;
+  });
+  return found;
+}
+
 function hasBareGet(value: Json): boolean {
   let found = false;
   walkNodes(value, (node) => {
@@ -251,8 +282,11 @@ for (const file of caseFiles) {
   }
 
   // Shared top-level material (e.g. an eval file's `functions`).
+  const sharedSubtrees = new Set<string>();
   for (const key of Object.keys(doc)) {
-    if (key !== "cases") scanNodes(doc[key]!, file, `${file} (shared)`);
+    if (key === "cases") continue;
+    scanNodes(doc[key]!, file, `${file} (shared)`);
+    collectSubtrees(doc[key]!, sharedSubtrees);
   }
   const sharedHasBareGet = hasBareGet(doc["functions"] ?? null);
 
@@ -274,9 +308,15 @@ for (const file of caseFiles) {
     if (
       (suite === "eval" || suite === "builtins") &&
       entry["expected"] !== undefined &&
-      containsKey(entry["expected"], "$params")
+      containsKey(entry["expected"], "$return")
     ) {
-      record("substituted-closure-expectation", file, pointer);
+      const sourceSubtrees = new Set(sharedSubtrees);
+      for (const key of Object.keys(entry)) {
+        if (key !== "expected") collectSubtrees(entry[key]!, sourceSubtrees);
+      }
+      if (hasNonSourceFunctionValue(entry["expected"]!, sourceSubtrees)) {
+        record("substituted-closure-expectation", file, pointer);
+      }
     }
     const wording = [entry["description"], entry["comment"]]
       .filter((v) => typeof v === "string")

@@ -90,7 +90,8 @@
       "args": [{ "x": 10, "y": 20 }],
       "expected": {
         "$params": ["key"],
-        "$return": { "$get": { "$var": "key" }, "$from": { "x": 10, "y": 20 } }
+        "$return": { "$get": { "$var": "key" }, "$from": { "$var": "data" } },
+        "$captures": { "data": { "x": 10, "y": 20 } }
       }
     },
     {
@@ -284,7 +285,8 @@
       "args": [{ "name": "Ada", "age": 36 }],
       "expected": {
         "$params": ["unused"],
-        "$return": { "$get": "name", "$from": { "name": "Ada", "age": 36 } }
+        "$return": { "$get": "name", "$from": { "$var": "person" } },
+        "$captures": { "person": { "name": "Ada", "age": 36 } }
       }
     },
     {
@@ -321,8 +323,9 @@
         "$params": ["key"],
         "$return": {
           "$get": { "$var": "key" },
-          "$from": { "$get": "nested", "$from": { "nested": { "x": 10, "y": 20 } } }
-        }
+          "$from": { "$get": "nested", "$from": { "$var": "data" } }
+        },
+        "$captures": { "data": { "nested": { "x": 10, "y": 20 } } }
       }
     },
     {

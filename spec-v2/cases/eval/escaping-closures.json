@@ -1,5 +1,5 @@
 {
-  "description": "escaping closures re-attach the enclosing local functions they call by name, so recursion and mutual recursion survive leaving the defining scope",
+  "description": "escaping closures carry the enclosing local functions they call as open-body record entries, so recursion and mutual recursion survive leaving the defining scope",
   "cases": [
     {
       "description": "self-recursive local escapes as a closure and remains callable outside its defining scope",
@@ -121,7 +121,7 @@
       "expected": false
     },
     {
-      "description": "partial application: capturing a param baked into the escaping recursive closure",
+      "description": "partial application: a captured param rides the escaping recursive closure's record",
       "body": {
         "$params": ["base", "start"],
         "$return": {
@@ -189,7 +189,7 @@
       "expected": [3, 6, 9]
     },
     {
-      "description": "inner param shadows an enclosing local fn of the same name; the argument wins and the enclosing definition is not attached in its place",
+      "description": "inner param shadows an enclosing local fn of the same name; the argument wins and the enclosing definition is not captured in its place",
       "body": {
         "$params": ["base", "arg"],
         "$return": {
