@@ -329,7 +329,9 @@ callee. Capture happens at creation; the body is never rewritten.
 
 ## Conditional — `{ $if, $then, $else }`
 
-All three keys are required. `$if` is evaluated; if truthy, `$then` is evaluated and returned, otherwise `$else`. Short-circuits (only the taken branch evaluates).
+All three keys are required. `$if` is evaluated and must produce `true` or
+`false`: on `true`, `$then` is evaluated and returned; on `false`, `$else`.
+Only the taken branch evaluates.
 
 ```json
 {
@@ -339,11 +341,55 @@ All three keys are required. `$if` is evaluated; if truthy, `$then` is evaluated
 }
 ```
 
+### Boolean positions
+
+Condition positions are **runtime boolean positions**: declared positions
+whose semantics is validation against the boolean schema — the posture of an
+[`$as` expression](#checked-type-ascription--as-type)'s `$type`, not a
+checker-only rule. The boolean positions are:
+
+- the `$if` condition;
+- each `$cond` arm condition;
+- each `$and` / `$or` operand;
+- the arguments of the `not`, `and`, and `or` builtins;
+- the callback result of every builtin whose signature declares a
+  boolean-returning callback — the predicate families; see the
+  [standard library](standard-library.md#higher-order-functions).
+
+An evaluated value at a boolean position that is not `true` or `false` is an
+immediate error. Validation attaches to evaluation, never a pre-pass: a
+position that evaluation does not reach — a `$cond` arm condition behind an
+earlier `true` condition, an `$and`/`$or` operand past the deciding one — is
+neither evaluated nor validated, so which position errors is a pure function
+of the values evaluation produces.
+
+The error names the position (the `$if` condition; `$cond` arm *i*'s
+condition; `$and`/`$or` operand *i*; the named builtin's argument or callback
+result) and the evaluated value's kind: "condition must be a boolean; got
+string". It is a host error — the same class as `checked as` failures,
+arithmetic errors, and access misses — not a `raise`-catchable domain signal.
+
+### Checking conditions
+
+The checker requires the type at every boolean position to be **assignable
+to `boolean`** — `boolean`, `true`, `false`, or a union of these. `string`,
+`integer`, `T | null`, and composite types are static errors at the
+condition; write the test out (`x != null`, `n > 0`, `s != ""`,
+`length(xs) > 0`). `any` is admitted, with the runtime validation as the
+fail-closed backstop: in a checked program where no `any` reaches a boolean
+position, the runtime error is unreachable. A literal `true`/`false`
+condition is legal — `[true, result]` is the documented catch-all `$cond`
+arm. The checker's boolean requirement and the evaluator's boolean
+validation are the same rule applied at the same positions.
+
 ## Multi-branch conditional — `{ $cond }`
 
-`$cond` is an array of `[condition, result]` pairs. The first truthy condition
-wins. If none matches, `$else` is evaluated. Without `$else`, evaluation fails.
-Only the selected result is evaluated.
+`$cond` is an array of `[condition, result]` pairs. Conditions evaluate in
+order; the first condition to evaluate to `true` selects its result. If none
+does, `$else` is evaluated. Without `$else`, evaluation fails. Only the
+selected result is evaluated, and only the tested prefix of conditions
+evaluates: a non-boolean arm condition errors only when it is reached — only
+when every earlier condition evaluated to `false`.
 
 ```json
 {
@@ -375,27 +421,38 @@ Evaluates `$match`, then checks `$cases` left-to-right. Each case is a `[value, 
 
 ## Short-circuit and — `{ $and }`
 
-Array of expressions evaluated left-to-right. Returns the first falsy value, or the last value if all are truthy. Short-circuits (stops evaluating after the first falsy result).
+Array of at least two expressions evaluated left-to-right. Each evaluated
+operand is a [boolean position](#boolean-positions). `$and` returns `false`
+at the first `false` operand without evaluating the rest, and `true` when
+every operand is `true`; the result is always a boolean. Operands past the
+deciding one are neither evaluated nor validated.
 
 ```json
 {
   "$and": [
     { "$call": "gt", "$args": [{ "$var": "x" }, 0] },
-    { "$call": "lt", "$args": [{ "$var": "x" }, 100] },
-    "in range"
+    { "$call": "lt", "$args": [{ "$var": "x" }, 100] }
   ]
 }
 ```
 
-Unlike the `and` builtin, `$and` short-circuits and accepts any number of
+Unlike the `and` builtin, `$and` short-circuits and accepts two or more
 operands.
 
 ## Short-circuit or — `{ $or }`
 
-Array of expressions evaluated left-to-right. Returns the first truthy value, or the last value if all are falsy. Short-circuits (stops evaluating after the first truthy result).
+Array of at least two expressions evaluated left-to-right, with the same
+per-operand boolean position rule. `$or` returns `true` at the first `true`
+operand without evaluating the rest, and `false` when every operand is
+`false`.
 
 ```json
-{ "$or": [{ "$var": "cached" }, { "$call": "compute", "$args": [{ "$var": "x" }] }] }
+{
+  "$or": [
+    { "$call": "eq", "$args": [{ "$var": "status" }, "won"] },
+    { "$call": "eq", "$args": [{ "$var": "status" }, "drawn"] }
+  ]
+}
 ```
 
 Comparison and negation use ordinary
@@ -474,8 +531,10 @@ Rules:
 - `$if`/`$then`/`$else` must all be present, exactly three keys.
 - `$cond` may have only `$cond` and optional `$else`; each entry must be a two-element array.
 - `$match` must have `$match`, `$cases`, and `$else`; `$match` and case values must evaluate to scalar JSON values.
-- `$and` must be the sole key; value must be an array of expressions.
-- `$or` must be the sole key; value must be an array of expressions.
+- `$and` must be the sole key; value must be an array of at least two
+  expressions.
+- `$or` must be the sole key; value must be an array of at least two
+  expressions.
 - `$raw` must be the sole key.
 - A function call has exactly `$call` (the callee) and `$args` (an array of arguments) and no other keys.
 - A function reference has `$fn` as its sole key; `$fn` is never an array.
@@ -488,5 +547,4 @@ Rules:
 - A supported string `$comment` does not count toward the key limits of forms
   listed under [Comments](#comments--comment). `$let`, `$match`, `$nonnull`,
   and `$as` do not allow it.
-- Truthiness: `0`, `""`, `null`, `false` are falsy; everything else is truthy.
 

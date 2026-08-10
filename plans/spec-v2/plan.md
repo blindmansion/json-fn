@@ -197,7 +197,8 @@ condition-type checker rule, the exact boolean narrowing rewrite, the
 no-cost-change statement, and the `$and`/`$or` minimum-arity constraint;
 the rewrite surface spans `expressions.md`, `narrowing.md`, the shorthand
 control-flow and operator references, `standard-library.md`, and the
-guide's truthiness teaching.
+guide's truthiness teaching. Spec text landed 2026-08-09; cases remain
+with 2g.
 
 ### 2f — the coherence framing section
 

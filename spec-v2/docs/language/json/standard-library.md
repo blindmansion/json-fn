@@ -30,6 +30,15 @@ distinct. There is no reference-identity equality.
 `includes` and `indexOf` use the same structural equality. `$match` uses it for
 scalar subjects and cases.
 
+## Logic
+
+`not`, `and`, and `or` accept only booleans, as their signatures declare: a
+non-boolean argument is the same evaluation error as a non-boolean condition
+(their arguments are [boolean positions](expressions.md#boolean-positions)).
+`and` and `or` are eager — every argument evaluates — unlike the
+short-circuiting `$and` and `$or` forms. Prefix `!` in shorthand lowers to
+`not` and carries the same rule.
+
 ## Arrays
 
 `range(end)` and `flatten(array)` are unary. Their extended forms are
@@ -77,9 +86,14 @@ are ordinary keys.
 keep non-array results as single elements; nested arrays are therefore
 flattened by exactly one level.
 
-`reReplaceWith` callbacks must return strings. `mapValues` has a string-keyed
-map result type and does not preserve exact input keys. `filter` and `find` do
-not infer type predicates from callback bodies.
+`reReplaceWith` callbacks must return strings. A **predicate callback** — the
+boolean-returning callback of the `filter`, `partition`, `find`/`findIndex`,
+`some`, `every`, and `count` families, including their `*Indexed` forms —
+must return a boolean; any other result is the same evaluation error as a
+non-boolean condition (the callback result is a
+[boolean position](expressions.md#boolean-positions)). `mapValues` has a
+string-keyed map result type and does not preserve exact input keys. `filter`
+and `find` do not infer type predicates from callback bodies.
 
 ## Tasks and effects
 

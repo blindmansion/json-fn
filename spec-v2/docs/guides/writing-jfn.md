@@ -154,8 +154,8 @@ builtin call.
 | 3    | `+` `-` `++`                | numeric add/sub; `++` is string concatenation |
 | 4    | `??`                        | default for a property/index access that **misses** (§9) |
 | 5    | `==` `!=` `<` `<=` `>` `>=` | comparisons; ordered ones chain               |
-| 6    | `&&`                        | short-circuit and, returns the deciding value |
-| 7    | `\|\|`                      | short-circuit or, returns the deciding value  |
+| 6    | `&&`                        | short-circuit boolean and                     |
+| 7    | `\|\|`                      | short-circuit boolean or                      |
 | 8    | `expr checked as T`         | runtime-validated type ascription             |
 
 The semantics fit in a few live expressions:
@@ -165,20 +165,24 @@ The semantics fit in a few live expressions:
   noCoercion: 1 == "1",                    // false; there is no `===`
   deepEquality: [1, { a: 2 }] == [1, { a: 2 }], // true: equality is structural
   inRange: 0 <= x < 100,                   // real chain; each operand runs once
-  emptyIsTruthy: [] && "yes",              // "yes"; only false/null/0/"" are falsy
-  fallback: value || "default",            // &&/|| short-circuit and return operand values
+  eitherEnd: x == 0 || x == 99,            // &&/||/! take and return booleans only
   quotient: 7 / 2,                         // 3.5; 1 / 0 errors (no NaN/Infinity)
   required: maybe!,                        // errors on null; statically strips null
   cents: total + fee checked as Cents,     // validates the whole sum once
   label: `total: ${str(total)}`             // interpolation requires a string
 } where {
-  x: 42, value: "", maybe: 3, total: 10, fee: 2
+  x: 42, maybe: 3, total: 10, fee: 2
 }
 ```
 
 `+` is numeric only; concatenate strings with `++` or a template. `&&`/`||`
 are the only short-circuiting boolean operators (`and`/`or` are eager
-builtins). A
+builtins), and they are strictly boolean: a non-boolean operand is an error,
+statically and at runtime — there is no truthiness anywhere in the language.
+That also means no `||` defaulting: default a read that can miss with
+`?? default` (§9), and default a nullable value with the explicit
+conditional, `if isNull(v) then fallback else v`, which types exactly under
+narrowing (§11). A
 `checked as` is an assertion, not a conversion (`"1" checked as integer`
 fails), and is non-associative. Template escapes are `` \` ``, `\${`, plus
 normal JSON escapes.
@@ -319,7 +323,7 @@ branch evaluates):
 ```jfn
 if x > 0 then "pos" else "non-pos" // else is mandatory
 
-cond { // first truthy arm wins
+cond { // first true arm wins
   n < 0: "negative",
   n == 0: "zero",
   else: "positive" // optional, but falling off the end errors
@@ -331,6 +335,11 @@ match cmd { // subject compared by equality
   else: help() // else is REQUIRED
 }
 ```
+
+Conditions must evaluate to `true` or `false` — any other value is an
+immediate error, and the checker rejects a non-boolean condition type up
+front. Write the test out: `retries > 0`, `s != ""`, `x != null`,
+`length(xs) > 0`.
 
 `match` subjects and case values must be **scalars** (`null`, boolean, number,
 string) — no array/object cases, no patterns, no guards. Use `cond` for
@@ -458,8 +467,9 @@ indices never narrow.
 Recognized forms (each narrows the taken branch and its inverse narrows the
 other):
 
-1. **Truthiness** — `if x then … else …` drops `null` (and `false`) on the
-   then-branch; a truthy check on `r.ok` selects matching arms of a union `r`.
+1. **Boolean subjects** — `if ok then … else …` pins a `boolean` subject to
+   `true`/`false` per branch, exactly; a check on a boolean field `r.ok`
+   selects the matching arms of a union `r` (the boolean discriminant).
 2. **Type predicates** — `isNull`, `isBool`, `isNumber`, `isInteger`,
    `isString`, `isArray`, `isObject` applied to a subject.
 3. **Literal equality** — `x == "a"` pins, `x != "a"` excludes; `x != null`
@@ -568,6 +578,8 @@ Coming from JS/TS:
 - `where` is a strict dependency graph, not sequential `const`s; every binding runs, and unused bindings error (§7).
 - Exact arity; callback first, data last; `*Indexed` variants for the index (§6).
 - `==` is deep structural, no `===`; `+` never concatenates — `++`/templates, `${str(n)}` (§5).
+- Conditions must be booleans — no truthiness: `if retries` is an error whether it's 0 or not; write `retries > 0`, `s != ""`, `x != null` (§8).
+- `&&`/`||` take and return booleans, never the deciding operand — no `x || default`; use `?? default` for a read that can miss, or an explicit `isNull` conditional for a nullable value (§5, §9).
 - Omitted optionals bind `null` (no `undefined`); explicit `null` suppresses defaults and must be admitted by the annotation — no skipping middle slots (§6).
 - Object-pattern field defaults run at call time on absence (positional defaults stay lazy); a positional default cannot read a destructured field (§6).
 - A read that misses **errors** — it never reads `null`; expected absence is `?? default` or a `hasKey` guard; reading through a present `null` errors; no `?.` (§9).
@@ -579,7 +591,7 @@ Coming from JS/TS:
 
 Coming from Python/Haskell:
 
-- Empty `[]` / `{}` are truthy; only `false`, `null`, `0`, `""` are falsy (§5).
+- No truthiness: `if xs` doesn't test emptiness — conditions must be booleans; write `length(xs) > 0` (§8).
 - In `do`, only `<-` runs a task; `:` binds the task value — misuse is a static error (§12).
 - No pattern matching beyond scalar `match` and object-pattern parameters; no comprehensions — use HOFs (§6, §8).
 

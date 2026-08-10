@@ -29,31 +29,27 @@ using the facts at the point where that binding is used.
 Each form is evaluated on both the branch where the condition holds (the
 *then* / matching-case sense) and where it doesn't (the *else* sense).
 
-### 1. Truthiness
+### 1. Boolean subject
 
-A subject used directly as a condition is known truthy in the then branch and
-falsy in the else branch. As defined by
-[expression truthiness](expressions.md#constraints), `false`, `null`, `0`, and
-`""` are falsy; all other values are truthy.
+A subject used directly as a condition — necessarily boolean-typed, since
+conditions are [boolean positions](expressions.md#boolean-positions) — is
+`true` in the then branch and `false` in the else branch.
 
-- then: keep the truthy inhabitants. `T | null` ⇒ `T`; `boolean` ⇒ `true`; a
-  number/string keeps its whole type (its single falsy value `0` / `""` is
-  dropped).
-- else: keep the falsy inhabitants. `T | null` else-branch keeps `null` (plus
-  the falsy slice of `T`); `boolean` ⇒ `false`.
+- then: `boolean` ⇒ `true`; the literal type `false` ⇒ `never`.
+- else: `boolean` ⇒ `false`; the literal type `true` ⇒ `never`.
 
-Splits that aren't exactly expressible widen back to the whole type rather than
-under-approximate (soundness). Composites and functions are always truthy.
+On the boolean domain this split is a partition: both branch types are
+**exact**, and no widening clause is needed.
 
 This also applies to a bare local binding used as a condition.
 
 A field-path condition whose base is a union is also a
-*discriminant* (the truthiness analog of form 4): each branch keeps only the
-arms whose `field` has any truthy (then) / falsy (else) inhabitants. This is
+*discriminant* (the boolean analog of form 4): each branch keeps only the
+arms whose `field` admits `true` (then) / `false` (else). This is
 the boolean-discriminant idiom —
 `if r.ok then r.output else r.error` narrows
 `r : {ok: true, output: string} | {ok: false, error: string}` to the matching
-arm on each branch. An arm whose `field` admits both (e.g. a plain `boolean`)
+arm on each branch. An arm whose `field` is a plain `boolean`
 survives both branches; a non-union base yields no base fact (the path itself
 still narrows as above).
 
@@ -159,8 +155,8 @@ Recognized forms compose:
   facts on the **false** sense only. `$or` on the true sense yields nothing.
 - **Named boolean guards** — a bare-variable condition naming a local binding
   adopts facts from that binding's expression. Alias chains are followed and
-  cycle-checked. If the expression produces no fact, the local is narrowed by
-  its own truthiness.
+  cycle-checked. If the expression produces no fact, the local is narrowed as
+  a boolean subject (form 1).
 
 ## Control-flow wiring
 

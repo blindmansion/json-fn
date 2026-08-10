@@ -9,8 +9,8 @@ for the settled items is in [`review.md`](review.md) and
 
 None open. The three Stage 1 decisions were resolved 2026-08-06 and are
 stated in the Stage 1 spec text; D4 and D5 were resolved 2026-08-08 (with
-[`type-eval-coherence.md`](type-eval-coherence.md)'s adoption) and will be
-stated in the Stage 2 spec text and the pattern-matching spec respectively:
+[`type-eval-coherence.md`](type-eval-coherence.md)'s adoption). D4 is stated
+in the Stage 2e spec text; D5 will be stated in the pattern-matching spec:
 
 - **D1 — string length unit: resolved, Unicode code points.** Stated once in
   the measures section of `spec-v2/docs/runtime/execution-limits.md`;
@@ -35,7 +35,10 @@ stated in the Stage 2 spec text and the pattern-matching spec respectively:
   truthiness bugs (`if retries` at zero), and a silently wrong branch is the
   worst failure mode for durable workflows. The null/false-only middle
   option was rejected for flipping `if count` silently instead of erroring.
-  Lands as Stage 2 chunk 2e; condition narrowing becomes exact. Residue: the
+  Stated in the Stage 2e spec text (2026-08-09,
+  [`boolean-conditions-2e.md`](boolean-conditions-2e.md)): the
+  boolean-position inventory, error identity, and checker rule live in
+  `expressions.md`, and condition narrowing is exact. Residue: the
   null-defaulting surface replacing `x || default` (tracked below).
 - **D5 — pattern v1 fragment boundary: resolved, the proposal's fragment as
   written.** Exhaustiveness is exact on: finite enums and literal unions;
@@ -137,6 +140,26 @@ stated in the Stage 2 spec text and the pattern-matching spec respectively:
   for other coverage degradation. The v1 spec, cases, and implementation
   flag (`--allow-untyped-functions`) are untouched until spec-v2 lands in
   the implementation.
+- **Predicate-callback results under D4: resolved for Stage 2,
+  boolean-only** (2026-08-09, with chunk 2e's spec text —
+  [`boolean-conditions-2e.md`](boolean-conditions-2e.md) rule 1). The
+  callback result of every builtin whose signature declares a
+  boolean-returning callback (the `filter`, `partition`, `find`/`findIndex`,
+  `some`, `every`, and `count` families, `*Indexed` forms included) is a
+  boolean position: a non-boolean result is the same evaluation error as a
+  non-boolean condition. This is what makes truthiness deleted rather than
+  mostly-deleted — the registry signatures already said boolean, so nothing
+  in the registry or the generated catalog changes.
+- **`$and`/`$or` arity: resolved for Stage 2, at least two operands**
+  (2026-08-09, with chunk 2e's spec text —
+  [`boolean-conditions-2e.md`](boolean-conditions-2e.md) rule 7). Empty and
+  singleton arrays are structurally rejected: the shorthand can only express
+  two or more, an empty form would be a second spelling of `true`/`false`,
+  and a singleton is a bare validation form that cannot be normalized away
+  without dropping the validation. Programmatic composition has the eager
+  `and`/`or` builtins and `reduce`. Priced into the Stage 2 break; Stage 3
+  item 2 records Proposal 5 as resolved by pointing at 2e's `$and`/`$or`
+  text.
 - **Proposal 6, signature-shape axis.** Whether the
   `required`/`optional`/`rest` signature shape ever changes; gated on a
   deliberate contract-format revision, not on any plan stage. Unaffected by

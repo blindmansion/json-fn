@@ -19,7 +19,7 @@ row * 8 + col
 !done
 x > 0 && x < 100
 0 <= x < 100
-cached || compute(x)
+done || cancelled
 inv[sku] ?? emptyLot()
 balance + delta checked as Cents
 ```
@@ -29,7 +29,7 @@ balance + delta checked as Cents
 { "$call": "not", "$args": [{ "$var": "done" }] }
 { "$and": [{ "$call": "gt", "$args": [{ "$var": "x" }, 0] }, { "$call": "lt", "$args": [{ "$var": "x" }, 100] }] }
 { "$and": [{ "$call": "lte", "$args": [0, { "$var": "x" }] }, { "$call": "lt", "$args": [{ "$var": "x" }, 100] }] }
-{ "$or": [{ "$var": "cached" }, { "$call": "compute", "$args": [{ "$var": "x" }] }] }
+{ "$or": [{ "$var": "done" }, { "$var": "cancelled" }] }
 { "$get": { "$var": "sku" }, "$from": { "$var": "inv" }, "$else": { "$call": "emptyLot", "$args": [] } }
 { "$as": { "$call": "add", "$args": [{ "$var": "balance" }, { "$var": "delta" }] }, "$type": { "$ref": "#/$defs/Cents" } }
 ```
@@ -37,11 +37,14 @@ balance + delta checked as Cents
 Arithmetic, `++`, comparisons, prefix `!`, and unary `-` lower to the named
 calls shown above. The call spellings remain valid input, but canonical
 rendering uses operators. A leading `-` on a numeric literal is part of that
-literal rather than a `neg` call.
+literal rather than a `neg` call. Prefix `!` lowers to `not` and is
+boolean-only: a non-boolean argument is a runtime error.
 
 `&&` and `||` lower to the short-circuit `$and` and `$or` forms and flatten
-consecutive operands into one variadic form. Named `and(...)` and `or(...)`
-calls remain eager.
+consecutive operands into one variadic form. Both are boolean-only: every
+evaluated operand must be `true` or `false` and the result is a boolean (see
+[Boolean conditions](control-flow.md#boolean-conditions)). Named `and(...)`
+and `or(...)` calls remain eager.
 
 Additional rules:
 

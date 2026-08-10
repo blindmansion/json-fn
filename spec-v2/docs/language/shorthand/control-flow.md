@@ -2,7 +2,8 @@
 
 ## `if … then … else …`
 
-All three expressions are required. Only the selected branch is evaluated.
+All three expressions are required. The condition must evaluate to `true` or
+`false`; only the selected branch is evaluated.
 
 ```jfn
 if x > 0 then "positive" else "non-positive"
@@ -14,7 +15,8 @@ if x > 0 then "positive" else "non-positive"
 
 ## `cond { … }`
 
-Arms are tested in order. The first truthy condition selects its result.
+Arms are tested in order. The first condition to evaluate to `true` selects
+its result.
 `else: …` is optional. `true: …` is an explicit catch-all arm within `$cond`.
 Evaluation fails if no arm matches and neither catch-all form is present. Only
 the selected result is evaluated.
@@ -65,9 +67,14 @@ match cmd {
 }
 ```
 
-## Truthiness
+## Boolean conditions
 
-`0`, `""`, `null`, and `false` are falsy. Every other value is truthy.
-Truthiness controls `if`, `cond`, `&&`, `||`, and prefix `!`. `match` uses
-strict equality instead.
+Conditions are boolean positions: the condition of an `if` and of each `cond`
+arm must evaluate to `true` or `false`, and any other value is an immediate
+error. `&&`, `||`, and prefix `!` are boolean-only in the same way — every
+evaluated operand must be a boolean, and the result is a boolean. No value
+coerces to a boolean: write the test out (`x != null`, `n > 0`, `s != ""`,
+`length(xs) > 0`). `match` selects by strict equality on its scalar subject
+instead. The position inventory and error identity are defined in
+[boolean positions](../json/expressions.md#boolean-positions).
 

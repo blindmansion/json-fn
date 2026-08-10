@@ -304,7 +304,11 @@ Consistency sweep:
 
 - Truthiness is unexpressible: no coercion at any boolean position, and no
   truthy/falsy vocabulary survives anywhere in `spec-v2/docs/` (grep-clean
-  for truthy/falsy/truthiness).
+  for truthy/falsy/truthiness) — with one carve-out: the authoring guide may
+  name the concept in explicit statements of absence ("there is no
+  truthiness"), the same pattern as its "no `===`" / "no `?.`" trip-ups,
+  because migration text must name the instinct it negates. Normative
+  reference documents stay fully grep-clean.
 - Every boolean position in rule 1's inventory is fail-closed at runtime
   and statically checked against the same boolean schema; one conformance
   case per position asserts the error.

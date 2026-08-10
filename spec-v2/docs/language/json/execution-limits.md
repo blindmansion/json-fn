@@ -37,6 +37,17 @@ stays in the containing region. Because a multi-segment path is nested
 `$get`s — one node per segment — each segment counts as a node in its region's
 static constant.
 
+Boolean-condition validation is likewise not an event. The check that an
+evaluated condition or operand is a boolean
+([boolean positions](expressions.md#boolean-positions)) is a constant-time
+kind check like `$get`'s key-validity check — straight-line work folded into
+the branch node's existing count in its region's static constant, not the
+`$as` validator's schema walk. The arm-selection events attached to
+`$cond`/`$match`/`$if` arms, further `$and`/`$or` operands, `$get` `$else`
+arms, and `handle` clauses are unchanged: a program whose conditions and
+operands are booleans consumes identical fuel with and without the
+validation.
+
 Closure creation follows the same pattern: it is not an event. The
 [capture record](closures.md) is statically sized construction — its entry
 set is a static function of the program text — so each record entry counts
