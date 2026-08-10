@@ -384,8 +384,40 @@ landed spec text, and error cases pin the error identities those texts fixed.
 - **Programs**: `check/programs/chess.json` is rewritten once here, after
   the four sweeps, since it intersects every category.
 
+  **Done 2026-08-10.** Gate, schema validation, and format checks green;
+  no new allowlist entries. The file's rewrite resolved the four deferred
+  cases; everything else verified clean against the sweeps (conditions
+  boolean-typed, reads on required fields, no expected function values):
+
+  - #12 (`pieceMoves`) rewrote to the strict-`$let` migration idiom
+    writing-jfn.md documents: the `upper(piece)`/`lower(piece)` bindings
+    move into the guarded `$else` arm, where the guard's fact is in scope
+    for their initializers. The v1 shape — bindings above the guard,
+    counting on the null branch never reading them — errors under strict
+    evaluation whenever `piece` is null.
+  - #21 (`firstGlyphLocal`) keeps the path-fact-at-use-site teaching
+    (narrowing.md's transitive-reference sentence) in a strict-safe body:
+    the binding is now a plain copy of `move.from` — a required, merely
+    nullable read that cannot error eagerly — re-synthesized as `Piece` at
+    its guarded use site. The checker-blessed-but-crashing v1 body is
+    documented in the case comment, not pinned as a fragment; the sharp
+    edge itself is recorded in [`status.md`](status.md).
+  - #14 (`localTruthy` → `localDefault`) rewrote from the bare-`$let`
+    truthiness fallback to the explicit `neq(h, null)` conditional — 2b/2e's
+    landed defaulting idiom — exercising the bare local as a narrowing
+    subject even though its initializer is a call result.
+  - #13 (`slideDir`) kept byte-identical with a justifying comment: its
+    conditions were already boolean locals, and named-guard alias
+    composition (`not(ok)` → `ok` → `not(empty)` → `isNull(target)`) plus
+    `$cond`'s negation accumulation give exactly the claimed else-arm
+    narrowing.
+  - #16 (`divergent`) stands: its eagerly erroring binding is a negative
+    checker case pinning per-fact-set re-synthesis and deduplication, not
+    an authoring model.
+
 Exit gate: `--gate all` reports the review categories clear (with any
 deliberate survivors allowlisted and justified in the allowlist entry).
+**Met 2026-08-10** with the Programs pass above — Stage C is complete.
 
 ## Stage D — additive coverage
 

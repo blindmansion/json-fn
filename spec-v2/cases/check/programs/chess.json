@@ -1,7 +1,7 @@
 {
   "$schema": "../../check.schema.json",
   "description": "realistic chess-program fragments across coordinates, nullable pieces, local bindings, field paths, discriminants, and finite matches",
-  "comment": "Canonical checker corpus migrated from typescript/test/check/chess.test.ts. Cases retain the original fragment names and intentionally include both focused coordinate checks and their aggregate module check.",
+  "comment": "Realistic checker corpus. Cases intentionally include both focused coordinate checks and their aggregate module check, and model idiomatic authoring: bindings placed where strict $let can safely run them, and explicit boolean guards.",
   "builtins": "standard",
   "cases": [
     {
@@ -298,7 +298,8 @@
       }
     },
     {
-      "description": "pieceMoves: locals bound from a guarded var narrow at their use sites",
+      "description": "pieceMoves: bindings over a nullable var live inside the guarded arm",
+      "comment": "Strict $let runs every binding, so upper(piece)/lower(piece) belong inside the $else arm rather than above the null guard; the guard's fact (piece: Piece) is in scope for their initializers there.",
       "module": {
         "$types": {
           "Color": { "enum": ["w", "b"] },
@@ -310,14 +311,14 @@
           "$params": [{ "$param": "piece", "$type": { "$ref": "#/$defs/Cell" } }],
           "$returns": { "type": "array", "items": { "type": "string" } },
           "$return": {
-            "$let": {
-              "type": { "$call": "upper", "$args": [{ "$var": "piece" }] },
-              "color": { "$call": "lower", "$args": [{ "$var": "piece" }] }
-            },
-            "$in": {
-              "$if": { "$call": "isNull", "$args": [{ "$var": "piece" }] },
-              "$then": [],
-              "$else": [{ "$var": "type" }, { "$var": "color" }]
+            "$if": { "$call": "isNull", "$args": [{ "$var": "piece" }] },
+            "$then": [],
+            "$else": {
+              "$let": {
+                "type": { "$call": "upper", "$args": [{ "$var": "piece" }] },
+                "color": { "$call": "lower", "$args": [{ "$var": "piece" }] }
+              },
+              "$in": [{ "$var": "type" }, { "$var": "color" }]
             }
           }
         }
@@ -326,6 +327,7 @@
     },
     {
       "description": "slideDir: a $cond guarded by named boolean locals narrows the else-arm",
+      "comment": "Named-guard composition per narrowing.md: not(ok) follows the alias chain ok -> not(empty) -> isNull(target), and the $cond $else accumulates every condition negated, so target is non-null there and upper(target) checks. Both bindings are boolean-typed (conditions are boolean positions) and strict-safe to evaluate unconditionally.",
       "module": {
         "$types": {
           "Color": { "enum": ["w", "b"] },
@@ -354,7 +356,8 @@
       "expected": { "diagnostics": [] }
     },
     {
-      "description": "bare $let condition falls back to truthiness when its initializer is not a guard",
+      "description": "nullable local defaulted through an explicit neq-null guard",
+      "comment": "The neq(h, null) conditional is fully typed under exact T | null narrowing: h is string on the then-arm even though its initializer is a call result, because the bare local is itself a narrowing subject.",
       "module": {
         "$types": {
           "Color": { "enum": ["w", "b"] },
@@ -362,7 +365,7 @@
           "PieceType": { "enum": ["P", "N", "B", "R", "Q", "K"] },
           "Cell": { "anyOf": [{ "$ref": "#/$defs/Piece" }, { "type": "null" }] }
         },
-        "localTruthy": {
+        "localDefault": {
           "$params": [
             { "$param": "x", "$type": { "anyOf": [{ "type": "string" }, { "type": "null" }] } }
           ],
@@ -381,7 +384,11 @@
                 "$return": { "$var": "y" }
               }
             },
-            "$in": { "$if": { "$var": "h" }, "$then": { "$var": "h" }, "$else": "" }
+            "$in": {
+              "$if": { "$call": "neq", "$args": [{ "$var": "h" }, null] },
+              "$then": { "$var": "h" },
+              "$else": ""
+            }
           }
         }
       },
@@ -631,7 +638,8 @@
       }
     },
     {
-      "description": "local through a path: a $let binding from move.from narrows at its use site",
+      "description": "local through a path: a $let binding copying move.from narrows at its guarded use site",
+      "comment": "The binding is a plain read — safe for strict $let to run unconditionally, since `from` is required and merely nullable — and the guarded use site supplies the path fact: use-site checking re-synthesizes `cell` as Piece inside the $else arm.",
       "module": {
         "$types": {
           "Color": { "enum": ["w", "b"] },
@@ -656,19 +664,14 @@
           ],
           "$returns": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
           "$return": {
-            "$let": {
-              "glyph": {
-                "$call": "upper",
-                "$args": [{ "$get": "from", "$from": { "$var": "move" } }]
-              }
-            },
+            "$let": { "cell": { "$get": "from", "$from": { "$var": "move" } } },
             "$in": {
               "$if": {
                 "$call": "isNull",
                 "$args": [{ "$get": "from", "$from": { "$var": "move" } }]
               },
               "$then": null,
-              "$else": { "$var": "glyph" }
+              "$else": { "$call": "upper", "$args": [{ "$var": "cell" }] }
             }
           }
         }

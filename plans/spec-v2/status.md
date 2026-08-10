@@ -1,6 +1,6 @@
 # Spec v2 status: what remains to be decided
 
-Status: **living document**, 2026-08-09. Everything not yet decided, grouped
+Status: **living document**, 2026-08-10. Everything not yet decided, grouped
 by what it blocks. The settled sequence is in [`plan.md`](plan.md); rationale
 for the settled items is in [`review.md`](review.md) and
 [`type-eval-coherence.md`](type-eval-coherence.md).
@@ -117,6 +117,22 @@ in the Stage 2e spec text; D5 will be stated in the pattern-matching spec:
   also settled there: `??` is kept, miss-only, access-only (its divergence
   from JS's null-coalescing prior is documented prominently in the guide,
   and the checker keeps the null residue visible in the type).
+- **Use-site checking under strict `$let`: sharp edge recorded, no checker
+  change for Stage 2** (2026-08-10, 2g Stage C Programs pass, directed by
+  the 2a pass). The checker checks a value binding wherever it is
+  referenced — never its initializer under ambient facts — so a binding
+  created outside a guard whose initializer is only valid inside it (the
+  v1 chess fragment binding `upper(move.from)` above the null guard) is
+  checker-clean yet errors under strict evaluation whenever the guarded
+  case holds. The migration is the documented authoring-pattern break
+  (`writing-jfn.md`: move the computation into the branch that uses it),
+  and the conformance corpus now models the migrated idiom
+  (`check/programs/chess.json` #12, #21). Revisit criterion: if the
+  Stage F `examples/` audit or a blind-authoring run shows the
+  checker-blessed-but-crashing shape recurring, the follow-up is a checker
+  tightening — additionally checking initializers under ambient facts, or
+  a dedicated diagnostic for guard-dependent initializers — with no format
+  break.
 - **Field defaults after the `$fields` collapse: resolved for Stage 2,
   `= e` lowers to the projection's `$else` arm** (2026-08-09, with chunk 2d's
   spec text — [`param-surface-2d.md`](param-surface-2d.md) rule 2). The arm
