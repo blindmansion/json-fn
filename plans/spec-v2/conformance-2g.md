@@ -429,6 +429,36 @@ suite. Written after Stage C so they land in migrated files.
   bare-read error; exact boolean narrowing (`boolean` ⇒ `true`/`false`,
   the boolean discriminant, the named-guard fallback) plus the
   admitted-`any` runtime-error case.
+
+  **Done 2026-08-10.** Gate, schema validation, and format checks green.
+  Outcomes beyond the plan's letter:
+
+  - The exact-boolean set needed no new cases: verified covered by Stage
+    C's early adds (`boolean-subject.json`, `guards.json`'s no-fact
+    fallback, `branches.json`'s admitted-`any` operand).
+  - `hasKey` narrowing landed as a new `check/narrowing/key-presence.json`
+    (six cases): then-branch presence for bare-variable and field-path
+    subjects, else-branch field removal on a closed object (observed via
+    closed-target assignability), fact flow through a named guard, and
+    the two no-fact negatives (non-literal key, non-path subject), each
+    observed as the bare-read error surviving the guard. The open-object/
+    map else-branch no-fact claim has no clean observable (an open object
+    minus the field still fails a closed target), so it has no case.
+  - `$else`-arm typing and the bare-read error landed beside the existing
+    `$get` typing coverage in `check/expressions/objects-and-arrays.json`
+    rather than the narrowing suite — that file already owns read typing.
+    Exact `expected.type` pins: `T | typeof(else)` with the literal arm
+    widening to its primitive before the join (`integer | string`, not
+    `integer | "missing"` — the pinned `$if` branch-join posture carried
+    to the arm), the subsumed-arm collapse, and `?? null` as `T | null`.
+  - Two stale cases caught and rewritten in place: the optional-field
+    pair in `objects-and-arrays.json` still pinned bare optional-field
+    reads projecting `T | null`, contradicting the landed checking-reads
+    rule. They now pin the bare-read error — message rendering
+    `` may be absent; add `?? default` or guard with `hasKey` `` (the
+    substring leaves room for the field name), path on the read's `$get`,
+    matching the unknown-key precedent — and the `$else`-arm fit of the
+    same read.
 - `check/` (functions/expressions/contracts): per-slot typing and the
   missing-annotation error; interface-derivation cases (contract-entry
   satisfaction, `$fnType` value compatibility, task-entry mapping);

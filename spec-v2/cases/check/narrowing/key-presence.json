@@ -1,0 +1,194 @@
+{
+  "$schema": "../../check.schema.json",
+  "description": "flow narrowing: key presence via hasKey",
+  "comment": "End-to-end forms of narrowing.md form 6 (key presence): hasKey with a literal key on a path subject makes an optional field present in the then-branch, so the guarded bare read typechecks, and removes the field from a closed object type in the else-branch. A non-literal key or a non-path subject yields no fact, observable as the optional-field bare-read error surviving the guard.",
+  "builtins": "standard",
+  "cases": [
+    {
+      "description": "hasKey then-branch makes an optional field present: the guarded bare read typechecks",
+      "module": {
+        "f": {
+          "$params": [
+            {
+              "$param": "config",
+              "$type": {
+                "type": "object",
+                "properties": { "retries": { "type": "integer" } },
+                "additionalProperties": false
+              }
+            },
+            { "$param": "fallback", "$type": { "type": "integer" } }
+          ],
+          "$returns": { "type": "integer" },
+          "$return": {
+            "$if": { "$call": "hasKey", "$args": [{ "$var": "config" }, "retries"] },
+            "$then": { "$get": "retries", "$from": { "$var": "config" } },
+            "$else": { "$var": "fallback" }
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "hasKey narrows a field-path subject: the guarded read through the path typechecks",
+      "module": {
+        "f": {
+          "$params": [
+            {
+              "$param": "job",
+              "$type": {
+                "type": "object",
+                "properties": {
+                  "config": {
+                    "type": "object",
+                    "properties": { "retries": { "type": "integer" } },
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["config"],
+                "additionalProperties": false
+              }
+            }
+          ],
+          "$returns": { "type": "integer" },
+          "$return": {
+            "$if": {
+              "$call": "hasKey",
+              "$args": [{ "$get": "config", "$from": { "$var": "job" } }, "retries"]
+            },
+            "$then": {
+              "$get": "retries",
+              "$from": { "$get": "config", "$from": { "$var": "job" } }
+            },
+            "$else": 0
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "hasKey else-branch removes the field from a closed object type",
+      "comment": "In the else-branch the key is known absent, so the closed object type drops the optional field and the value fits a closed target without it; without the fact, the field could still be present and the return would not check.",
+      "module": {
+        "f": {
+          "$params": [
+            {
+              "$param": "config",
+              "$type": {
+                "type": "object",
+                "properties": { "level": { "type": "string" }, "retries": { "type": "integer" } },
+                "required": ["level"],
+                "additionalProperties": false
+              }
+            }
+          ],
+          "$returns": {
+            "type": "object",
+            "properties": { "level": { "type": "string" } },
+            "required": ["level"],
+            "additionalProperties": false
+          },
+          "$return": {
+            "$if": { "$call": "hasKey", "$args": [{ "$var": "config" }, "retries"] },
+            "$then": { "level": { "$get": "level", "$from": { "$var": "config" } } },
+            "$else": { "$var": "config" }
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "hasKey facts flow through a named boolean guard",
+      "module": {
+        "f": {
+          "$params": [
+            {
+              "$param": "config",
+              "$type": {
+                "type": "object",
+                "properties": { "retries": { "type": "integer" } },
+                "additionalProperties": false
+              }
+            },
+            { "$param": "fallback", "$type": { "type": "integer" } }
+          ],
+          "$returns": { "type": "integer" },
+          "$return": {
+            "$let": { "has": { "$call": "hasKey", "$args": [{ "$var": "config" }, "retries"] } },
+            "$in": {
+              "$if": { "$var": "has" },
+              "$then": { "$get": "retries", "$from": { "$var": "config" } },
+              "$else": { "$var": "fallback" }
+            }
+          }
+        }
+      },
+      "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "a non-literal key yields no fact: the guarded bare read still errors",
+      "module": {
+        "f": {
+          "$params": [
+            {
+              "$param": "config",
+              "$type": {
+                "type": "object",
+                "properties": { "retries": { "type": "integer" } },
+                "additionalProperties": false
+              }
+            },
+            { "$param": "key", "$type": { "type": "string" } }
+          ],
+          "$returns": { "type": "integer" },
+          "$return": {
+            "$if": { "$call": "hasKey", "$args": [{ "$var": "config" }, { "$var": "key" }] },
+            "$then": { "$get": "retries", "$from": { "$var": "config" } },
+            "$else": 0
+          }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return", "$then", "$get"],
+            "severity": "error",
+            "messageIncludes": "may be absent; add `?? default` or guard with `hasKey`"
+          }
+        ]
+      }
+    },
+    {
+      "description": "a non-path subject yields no fact: a call-result guard does not license the read",
+      "module": {
+        "load": {
+          "$params": [],
+          "$returns": {
+            "type": "object",
+            "properties": { "retries": { "type": "integer" } },
+            "additionalProperties": false
+          },
+          "$return": { "$raw": {} }
+        },
+        "f": {
+          "$params": [],
+          "$returns": { "type": "integer" },
+          "$return": {
+            "$if": { "$call": "hasKey", "$args": [{ "$call": "load", "$args": [] }, "retries"] },
+            "$then": { "$get": "retries", "$from": { "$call": "load", "$args": [] } },
+            "$else": 0
+          }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return", "$then", "$get"],
+            "severity": "error",
+            "messageIncludes": "may be absent; add `?? default` or guard with `hasKey`"
+          }
+        ]
+      }
+    }
+  ]
+}

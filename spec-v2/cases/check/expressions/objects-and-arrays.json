@@ -457,7 +457,8 @@
       "expected": { "diagnostics": [] }
     },
     {
-      "description": "$get on an optional field projects `T | null`: fits a nullable return",
+      "description": "a bare $get on an optional field is a static error",
+      "comment": "The checker cannot rule out a miss on an optional field, so the bare read is rejected; the message names the two fixes — read through `?? default` or guard with `hasKey`.",
       "module": {
         "$types": {
           "User": {
@@ -469,14 +470,23 @@
         },
         "f": {
           "$params": [{ "$param": "u", "$type": { "$ref": "#/$defs/User" } }],
-          "$returns": { "type": ["integer", "null"] },
+          "$returns": true,
           "$return": { "$get": "score", "$from": { "$var": "u" } }
         }
       },
-      "expected": { "diagnostics": [] }
+      "expected": {
+        "diagnostics": [
+          {
+            "path": ["f", "$return", "$get"],
+            "severity": "error",
+            "messageIncludes": "may be absent; add `?? default` or guard with `hasKey`"
+          }
+        ]
+      }
     },
     {
-      "description": "$get on an optional field projects `T | null`: does not fit a bare return",
+      "description": "an optional field reads through $else: the arm covers the miss",
+      "comment": "The arm supplies the value on a miss, and its type is subsumed by the field type, so the read types as bare integer and fits a bare integer return.",
       "module": {
         "$types": {
           "User": {
@@ -489,19 +499,10 @@
         "f": {
           "$params": [{ "$param": "u", "$type": { "$ref": "#/$defs/User" } }],
           "$returns": { "type": "integer" },
-          "$return": { "$get": "score", "$from": { "$var": "u" } }
+          "$return": { "$get": "score", "$from": { "$var": "u" }, "$else": 0 }
         }
       },
-      "expected": {
-        "diagnostics": [
-          {
-            "path": ["f", "$return"],
-            "severity": "error",
-            "messageIncludes": "not assignable",
-            "expected": { "type": "integer" }
-          }
-        ]
-      }
+      "expected": { "diagnostics": [] }
     },
     {
       "description": "$get on a required field keeps its bare type",
@@ -581,6 +582,50 @@
         }
       },
       "expected": { "diagnostics": [] }
+    },
+    {
+      "description": "$else types the read as the union of the element type and the arm type",
+      "comment": "A map read cannot prove presence, so the arm stays in the result. Like other branch arms, a literal arm result widens to its primitive before joining: integer | string, not integer | \"missing\".",
+      "expression": {
+        "$get": "k",
+        "$from": {
+          "$as": {},
+          "$type": { "type": "object", "additionalProperties": { "type": "integer" } }
+        },
+        "$else": "missing"
+      },
+      "expected": {
+        "type": { "anyOf": [{ "type": "integer" }, { "type": "string" }] },
+        "diagnostics": []
+      }
+    },
+    {
+      "description": "$else collapses when the arm type is subsumed by the read type",
+      "expression": {
+        "$get": "k",
+        "$from": {
+          "$as": {},
+          "$type": { "type": "object", "additionalProperties": { "type": "integer" } }
+        },
+        "$else": 0
+      },
+      "expected": { "type": { "type": "integer" }, "diagnostics": [] }
+    },
+    {
+      "description": "$else: null is the nullable lookup, typed T | null",
+      "comment": "There is no dedicated nullable-lookup builtin: `?? null` is the idiom, and its type is the read type joined with null.",
+      "expression": {
+        "$get": "k",
+        "$from": {
+          "$as": {},
+          "$type": { "type": "object", "additionalProperties": { "type": "integer" } }
+        },
+        "$else": null
+      },
+      "expected": {
+        "type": { "anyOf": [{ "type": "integer" }, { "type": "null" }] },
+        "diagnostics": []
+      }
     },
     {
       "description": "an integer-typed index projects an array's element type",
