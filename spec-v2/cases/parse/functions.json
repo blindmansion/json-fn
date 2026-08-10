@@ -166,6 +166,66 @@
           "$return": { "$call": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] }
         }
       }
+    },
+    {
+      "description": "partially annotated parameter list is accepted",
+      "comment": "Annotations may be present on some slots and absent on others; a partially annotated body also prints partially, so the printer never has to invent or drop an annotation.",
+      "source": "(x: integer, y) => x + y",
+      "expected": {
+        "$params": [{ "$param": "x", "$type": { "type": "integer" } }, "y"],
+        "$return": { "$call": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] }
+      }
+    },
+    {
+      "description": "return annotation without parameter annotations is accepted",
+      "source": "(x) -> integer => x",
+      "expected": {
+        "$params": ["x"],
+        "$returns": { "type": "integer" },
+        "$return": { "$var": "x" }
+      }
+    },
+    {
+      "description": "combining ? and = on one parameter is rejected",
+      "source": "(value? = 1) => value",
+      "error": true
+    },
+    {
+      "description": "a printed function value's record rendering parses as ordinary local bindings",
+      "comment": "The rendering is audit output for values: parsing it yields a body-top eager $let of literal values — semantically faithful, since the record is a flat group of evaluated bindings callable by name — but not the canonical value shape, which carries $captures. The round-trip law parse(print(node)) = normalize(node) is scoped to programs, and programs never contain records.",
+      "source": "(x) => if x <= 0 then base else go(x - 1) where {\n  base: 42,\n  go: (x) => if x <= 0 then base else go(x - 1)\n}",
+      "expected": {
+        "$params": ["x"],
+        "$return": {
+          "$let": {
+            "base": 42,
+            "go": {
+              "$params": ["x"],
+              "$return": {
+                "$if": { "$call": "lte", "$args": [{ "$var": "x" }, 0] },
+                "$then": { "$var": "base" },
+                "$else": {
+                  "$call": "go",
+                  "$args": [{ "$call": "sub", "$args": [{ "$var": "x" }, 1] }]
+                }
+              }
+            }
+          },
+          "$in": {
+            "$if": { "$call": "lte", "$args": [{ "$var": "x" }, 0] },
+            "$then": { "$var": "base" },
+            "$else": { "$call": "go", "$args": [{ "$call": "sub", "$args": [{ "$var": "x" }, 1] }] }
+          }
+        }
+      }
+    },
+    {
+      "description": "an expression-shaped record entry renders under raw quoting and parses back as quoted data",
+      "comment": "A captured value whose keys look like code prints under inferred-$raw quoting, so a record rendering never reads as code.",
+      "source": "() => x where { x: { \"$var\": \"state\" } }",
+      "expected": {
+        "$return": { "$let": { "x": { "$raw": { "$var": "state" } } }, "$in": { "$var": "x" } }
+      }
     }
   ]
 }

@@ -109,6 +109,23 @@
         }
       }
     },
+    {
+      "description": "annotated pattern slot carries the annotation as the slot's type",
+      "comment": "The printer folds this canonical form back to the pattern: the slot's $type prints as the pattern's annotation, and bare, $else: null, and $else: e projections print as f, f?, and f = e.",
+      "source": "({ from, via?, weight = 1 }: Leg) -> integer => weight",
+      "expected": {
+        "$params": [{ "$param": "__p0", "$type": { "$ref": "#/$defs/Leg" } }],
+        "$returns": { "type": "integer" },
+        "$return": {
+          "$let": {
+            "from": { "$get": "from", "$from": { "$var": "__p0" } },
+            "via": { "$get": "via", "$from": { "$var": "__p0" }, "$else": null },
+            "weight": { "$get": "weight", "$from": { "$var": "__p0" }, "$else": 1 }
+          },
+          "$in": { "$var": "weight" }
+        }
+      }
+    },
     { "description": "empty pattern is rejected", "source": "({}) => 1", "error": true },
     {
       "description": "field rename is not supported",
@@ -136,6 +153,37 @@
     {
       "description": "a pattern field duplicating the rest parameter is rejected",
       "source": "({ xs }, ...xs) => xs",
+      "error": true
+    },
+    {
+      "description": "a field cannot combine ? and =",
+      "source": "({ x? = 1 }) => x",
+      "error": true
+    },
+    {
+      "description": "a whole pattern cannot be optional",
+      "source": "({ x }?) => x",
+      "error": true
+    },
+    {
+      "description": "a whole pattern cannot take a default",
+      "source": "({ x } = 1) => x",
+      "error": true
+    },
+    {
+      "description": "the reserved __p<digits> scheme is not a valid binder",
+      "comment": "The reservation is what makes fold-back unambiguous: a __p<i> slot in canonical JSON is lowering output or indistinguishable from it, because the shorthand surface can never author the name.",
+      "source": "(__p0) => 1",
+      "error": true
+    },
+    {
+      "description": "the reserved __p<digits> scheme is not a valid reference",
+      "source": "(x) => __p1",
+      "error": true
+    },
+    {
+      "description": "the reserved __p<digits> scheme is not a valid where-binding name",
+      "source": "x where { __p2: 1 }",
       "error": true
     }
   ]

@@ -686,6 +686,43 @@ otherwise stable.
   inline-type printing), stated once for the whole stage, with `parse/`
   round-trip cases exercising them.
 
+  **Done 2026-08-10.** The rule text needed no assembly — the fold-back
+  conditions had already landed with the doc rewrites
+  (`function-literals-and-local-bindings.md` for the pattern fold,
+  `closures.md` for the record rendering) — so the stage reduced to
+  vectors and cases.
+
+  - **Hash tooling decision**: the value encoding is unchanged by the
+    record shape (function values are ordinary values to the encoder), so
+    the vectors are computed by a new one-shot generator,
+    `scripts/generate-hash-function-values.ts`, importing
+    `canonicalJsonText`/`valueHash` from `src/hashing` and writing
+    `hash/function-values.json`. One vector was verified independently
+    against the domain-framing rule (`UTF8(D) || 0x0a || P` through
+    SHA-256).
+  - **`hash/function-values.json`** (new, 9 vectors): empty-record
+    omission (the value encodes identically to its source body); the
+    curried-add source body and the value it evaluates to, paired so the
+    byte-identical `$params`/`$return` subtrees are visible across the two
+    canonical texts; a captured call-shaped value as inert record data; a
+    nested closure whose record entry is itself record-carrying; the
+    self-recursive escape (open-body self entry beside a captured value);
+    a mutual group (two open-body entries plus the group's one captured
+    value); a `$default` expression reading a record entry; typed slots
+    and `$returns` participating in the value's bytes.
+  - **`parse/destructured-params.json`**: the annotated pattern slot in
+    expression form (annotation as slot `$type`, the three field marks in
+    one pattern); rejections for `?`-with-`=` on a field, whole-pattern
+    `?`, whole-pattern default; and the reserved `__p<digits>` scheme
+    rejected as binder, reference, and `where`-binding name — the
+    reservation that makes fold-back unambiguous.
+  - **`parse/functions.json`**: partially annotated parameter lists and a
+    return annotation over bare params (printer totality for partial
+    printing); `?`-with-`=` on a positional slot rejected; the record
+    audit rendering parsing back to a body-top eager `$let` of literal
+    values (faithful, but not the canonical value shape); an
+    expression-shaped record entry parsing back as `$raw`-quoted data.
+
 ## Stage F — audit and close-out
 
 - The `examples/` corpus audit rides here (all three chunk plans point at
