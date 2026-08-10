@@ -93,7 +93,20 @@ const CATEGORIES: Category[] = [
 ];
 
 // Entries are `"<category-id> <path relative to spec-v2/cases>"`.
-const ALLOWLIST = new Set<string>([]);
+const ALLOWLIST = new Set<string>([
+  // Stage B flagged these files' remaining findings for Stage C hand triage
+  // (see the migrate-spec-v2-stage-b.ts report): alignment/malformed-descriptor
+  // diagnostics that are unexpressible after 2d, diagnostics whose paths point
+  // into `$sig`/`$fields`, and eval errors asserting pattern-specific identities
+  // that 2b/2d replace. Remove each entry as Stage C resolves its cases.
+  "sig-in-body check/functions/signatures.json",
+  "sig-in-body check/locals/captures.json",
+  "sig-in-body check/modules/references.json",
+  "fields-descriptors check/functions/signatures.json",
+  "fields-descriptors eval/destructured-params.json",
+  "fields-descriptors eval/parameter-defaults.json",
+  "fields-descriptors eval/strict-parameter-runtime.json",
+]);
 
 // --- CLI ---
 

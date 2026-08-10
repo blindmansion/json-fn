@@ -40,11 +40,7 @@
       "description": "an intentional `type X = any` alias still checks clean",
       "module": {
         "$types": { "X": true },
-        "g": {
-          "$params": [],
-          "$sig": { "required": [], "optional": [], "returns": { "$ref": "#/$defs/X" } },
-          "$return": 1
-        }
+        "g": { "$params": [], "$returns": { "$ref": "#/$defs/X" }, "$return": 1 }
       },
       "expected": { "diagnostics": [] }
     },
@@ -58,11 +54,7 @@
             "required": ["id"]
           }
         },
-        "main": {
-          "$params": [],
-          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
-          "$return": 1
-        }
+        "main": { "$params": [], "$returns": { "type": "integer" }, "$return": 1 }
       },
       "expected": {
         "diagnostics": [

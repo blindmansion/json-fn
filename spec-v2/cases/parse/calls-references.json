@@ -89,7 +89,7 @@
       "description": "method call: access chain in call position is a call on the evaluated callee",
       "source": "caps.db.query(sql)",
       "expected": {
-        "$call": { "$get": ["db", "query"], "$from": { "$var": "caps" } },
+        "$call": { "$get": "query", "$from": { "$get": "db", "$from": { "$var": "caps" } } },
         "$args": [{ "$var": "sql" }]
       }
     },

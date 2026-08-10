@@ -8,12 +8,8 @@
       "comment": "Canonical form of `(x: integer) -> integer => y where { y: x + 1 }`.",
       "builtins": "standard",
       "expression": {
-        "$params": ["x"],
-        "$sig": {
-          "required": [{ "type": "integer" }],
-          "optional": [],
-          "returns": { "type": "integer" }
-        },
+        "$params": [{ "$param": "x", "$type": { "type": "integer" } }],
+        "$returns": { "type": "integer" },
         "$return": {
           "$let": { "y": { "$call": "add", "$args": [{ "$var": "x" }, 1] } },
           "$in": { "$var": "y" }
@@ -154,7 +150,7 @@
       "module": {
         "f": {
           "$params": [],
-          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$returns": { "type": "integer" },
           "$return": { "$let": { "value": "wrong" }, "$in": { "$var": "value" } }
         }
       },

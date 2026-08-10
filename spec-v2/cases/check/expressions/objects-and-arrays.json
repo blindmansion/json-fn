@@ -8,15 +8,11 @@
       "module": {
         "f": {
           "$params": [],
-          "$sig": {
-            "required": [],
-            "optional": [],
-            "returns": {
-              "type": "object",
-              "properties": { "a": { "type": "integer" }, "b": { "type": "string" } },
-              "required": ["a", "b"],
-              "additionalProperties": false
-            }
+          "$returns": {
+            "type": "object",
+            "properties": { "a": { "type": "integer" }, "b": { "type": "string" } },
+            "required": ["a", "b"],
+            "additionalProperties": false
           },
           "$return": { "a": 1, "b": "s" }
         }
@@ -28,15 +24,11 @@
       "module": {
         "f": {
           "$params": [],
-          "$sig": {
-            "required": [],
-            "optional": [],
-            "returns": {
-              "type": "object",
-              "properties": { "a": { "type": "integer" } },
-              "required": ["a"],
-              "additionalProperties": false
-            }
+          "$returns": {
+            "type": "object",
+            "properties": { "a": { "type": "integer" } },
+            "required": ["a"],
+            "additionalProperties": false
           },
           "$return": { "a": 1, "b": 2 }
         }
@@ -52,15 +44,11 @@
       "module": {
         "f": {
           "$params": [],
-          "$sig": {
-            "required": [],
-            "optional": [],
-            "returns": {
-              "type": "object",
-              "properties": { "a": { "type": "integer" }, "b": { "type": "string" } },
-              "required": ["a", "b"],
-              "additionalProperties": false
-            }
+          "$returns": {
+            "type": "object",
+            "properties": { "a": { "type": "integer" }, "b": { "type": "string" } },
+            "required": ["a", "b"],
+            "additionalProperties": false
           },
           "$return": { "a": 1 }
         }
@@ -81,15 +69,11 @@
       "module": {
         "f": {
           "$params": [],
-          "$sig": {
-            "required": [],
-            "optional": [],
-            "returns": {
-              "type": "object",
-              "properties": { "a": { "type": "integer" } },
-              "required": ["a"],
-              "additionalProperties": false
-            }
+          "$returns": {
+            "type": "object",
+            "properties": { "a": { "type": "integer" } },
+            "required": ["a"],
+            "additionalProperties": false
           },
           "$return": { "a": "x" }
         }
@@ -111,22 +95,18 @@
       "module": {
         "f": {
           "$params": [],
-          "$sig": {
-            "required": [],
-            "optional": [],
-            "returns": {
-              "type": "object",
-              "properties": {
-                "a": {
-                  "type": "object",
-                  "properties": { "x": { "type": "integer" } },
-                  "required": ["x"],
-                  "additionalProperties": false
-                }
-              },
-              "required": ["a"],
-              "additionalProperties": false
-            }
+          "$returns": {
+            "type": "object",
+            "properties": {
+              "a": {
+                "type": "object",
+                "properties": { "x": { "type": "integer" } },
+                "required": ["x"],
+                "additionalProperties": false
+              }
+            },
+            "required": ["a"],
+            "additionalProperties": false
           },
           "$return": { "a": { "x": "y" } }
         }
@@ -146,11 +126,7 @@
       "module": {
         "f": {
           "$params": [],
-          "$sig": {
-            "required": [],
-            "optional": [],
-            "returns": { "type": "object", "additionalProperties": { "type": "integer" } }
-          },
+          "$returns": { "type": "object", "additionalProperties": { "type": "integer" } },
           "$return": { "a": 1, "b": 2 }
         }
       },
@@ -161,11 +137,7 @@
       "module": {
         "f": {
           "$params": [],
-          "$sig": {
-            "required": [],
-            "optional": [],
-            "returns": { "type": "object", "additionalProperties": { "type": "integer" } }
-          },
+          "$returns": { "type": "object", "additionalProperties": { "type": "integer" } },
           "$return": { "a": 1, "b": "x" }
         }
       },
@@ -191,11 +163,7 @@
             "additionalProperties": false
           }
         },
-        "f": {
-          "$params": [],
-          "$sig": { "required": [], "optional": [], "returns": { "$ref": "#/$defs/Rec" } },
-          "$return": { "a": "nope" }
-        }
+        "f": { "$params": [], "$returns": { "$ref": "#/$defs/Rec" }, "$return": { "a": "nope" } }
       },
       "expected": {
         "diagnostics": [
@@ -212,11 +180,7 @@
       "module": {
         "f": {
           "$params": [],
-          "$sig": {
-            "required": [],
-            "optional": [],
-            "returns": { "anyOf": [{ "type": "integer" }, { "type": "string" }] }
-          },
+          "$returns": { "anyOf": [{ "type": "integer" }, { "type": "string" }] },
           "$return": { "a": 1 }
         }
       },
@@ -231,11 +195,7 @@
       "module": {
         "f": {
           "$params": [],
-          "$sig": {
-            "required": [],
-            "optional": [],
-            "returns": { "type": "array", "items": { "type": "integer" } }
-          },
+          "$returns": { "type": "array", "items": { "type": "integer" } },
           "$return": [1, 2, 3]
         }
       },
@@ -246,11 +206,7 @@
       "module": {
         "f": {
           "$params": [],
-          "$sig": {
-            "required": [],
-            "optional": [],
-            "returns": { "type": "array", "items": { "type": "integer" } }
-          },
+          "$returns": { "type": "array", "items": { "type": "integer" } },
           "$return": [1, "x", 3]
         }
       },
@@ -271,17 +227,13 @@
       "module": {
         "f": {
           "$params": [],
-          "$sig": {
-            "required": [],
-            "optional": [],
-            "returns": {
-              "type": "array",
-              "items": {
-                "type": "object",
-                "properties": { "x": { "type": "integer" } },
-                "required": ["x"],
-                "additionalProperties": false
-              }
+          "$returns": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": { "x": { "type": "integer" } },
+              "required": ["x"],
+              "additionalProperties": false
             }
           },
           "$return": [{ "x": "y" }]
@@ -302,11 +254,7 @@
       "module": {
         "f": {
           "$params": [],
-          "$sig": {
-            "required": [],
-            "optional": [],
-            "returns": { "type": "array", "items": { "type": "integer" }, "minItems": 3 }
-          },
+          "$returns": { "type": "array", "items": { "type": "integer" }, "minItems": 3 },
           "$return": [1, 2]
         }
       },
@@ -321,14 +269,10 @@
       "module": {
         "f": {
           "$params": [],
-          "$sig": {
-            "required": [],
-            "optional": [],
-            "returns": {
-              "type": "array",
-              "prefixItems": [{ "type": "integer" }, { "type": "string" }],
-              "items": false
-            }
+          "$returns": {
+            "type": "array",
+            "prefixItems": [{ "type": "integer" }, { "type": "string" }],
+            "items": false
           },
           "$return": [1, "s"]
         }
@@ -340,14 +284,10 @@
       "module": {
         "f": {
           "$params": [],
-          "$sig": {
-            "required": [],
-            "optional": [],
-            "returns": {
-              "type": "array",
-              "prefixItems": [{ "type": "integer" }, { "type": "string" }],
-              "items": false
-            }
+          "$returns": {
+            "type": "array",
+            "prefixItems": [{ "type": "integer" }, { "type": "string" }],
+            "items": false
           },
           "$return": [1, 2]
         }
@@ -368,11 +308,7 @@
       "module": {
         "f": {
           "$params": [],
-          "$sig": {
-            "required": [],
-            "optional": [],
-            "returns": { "type": "array", "prefixItems": [{ "type": "integer" }], "items": false }
-          },
+          "$returns": { "type": "array", "prefixItems": [{ "type": "integer" }], "items": false },
           "$return": [1, 2]
         }
       },
@@ -391,14 +327,10 @@
       "module": {
         "f": {
           "$params": [],
-          "$sig": {
-            "required": [],
-            "optional": [],
-            "returns": {
-              "type": "array",
-              "prefixItems": [{ "type": "integer" }, { "type": "string" }],
-              "items": false
-            }
+          "$returns": {
+            "type": "array",
+            "prefixItems": [{ "type": "integer" }, { "type": "string" }],
+            "items": false
           },
           "$return": [1]
         }
@@ -419,14 +351,10 @@
       "module": {
         "f": {
           "$params": [],
-          "$sig": {
-            "required": [],
-            "optional": [],
-            "returns": {
-              "type": "array",
-              "prefixItems": [{ "type": "integer" }],
-              "items": { "type": "string" }
-            }
+          "$returns": {
+            "type": "array",
+            "prefixItems": [{ "type": "integer" }],
+            "items": { "type": "string" }
           },
           "$return": [1, "a", "b"]
         }
@@ -438,14 +366,10 @@
       "module": {
         "f": {
           "$params": [],
-          "$sig": {
-            "required": [],
-            "optional": [],
-            "returns": {
-              "type": "array",
-              "prefixItems": [{ "type": "integer" }],
-              "items": { "type": "string" }
-            }
+          "$returns": {
+            "type": "array",
+            "prefixItems": [{ "type": "integer" }],
+            "items": { "type": "string" }
           },
           "$return": [1, 2]
         }
@@ -465,11 +389,7 @@
       "description": "an expected array type resolves through a $ref alias",
       "module": {
         "$types": { "Row": { "type": "array", "items": { "type": "integer" } } },
-        "f": {
-          "$params": [],
-          "$sig": { "required": [], "optional": [], "returns": { "$ref": "#/$defs/Row" } },
-          "$return": ["x"]
-        }
+        "f": { "$params": [], "$returns": { "$ref": "#/$defs/Row" }, "$return": ["x"] }
       },
       "expected": {
         "diagnostics": [
@@ -486,12 +406,8 @@
       "module": {
         "f": {
           "$params": [],
-          "$sig": {
-            "required": [],
-            "optional": [],
-            "returns": {
-              "anyOf": [{ "type": "array", "items": { "type": "string" } }, { "type": "string" }]
-            }
+          "$returns": {
+            "anyOf": [{ "type": "array", "items": { "type": "string" } }, { "type": "string" }]
           },
           "$return": [1]
         }
@@ -507,11 +423,7 @@
       "module": {
         "f": {
           "$params": [],
-          "$sig": {
-            "required": [],
-            "optional": [],
-            "returns": { "type": "array", "items": { "type": "integer" }, "uniqueItems": true }
-          },
+          "$returns": { "type": "array", "items": { "type": "integer" }, "uniqueItems": true },
           "$return": [1, 2]
         }
       },
@@ -537,12 +449,8 @@
           }
         },
         "getTurn": {
-          "$params": ["s"],
-          "$sig": {
-            "required": [{ "$ref": "#/$defs/State" }],
-            "optional": [],
-            "returns": { "$ref": "#/$defs/Color" }
-          },
+          "$params": [{ "$param": "s", "$type": { "$ref": "#/$defs/State" } }],
+          "$returns": { "$ref": "#/$defs/Color" },
           "$return": { "$get": "turn", "$from": { "$var": "s" } }
         }
       },
@@ -560,12 +468,8 @@
           }
         },
         "f": {
-          "$params": ["u"],
-          "$sig": {
-            "required": [{ "$ref": "#/$defs/User" }],
-            "optional": [],
-            "returns": { "type": ["integer", "null"] }
-          },
+          "$params": [{ "$param": "u", "$type": { "$ref": "#/$defs/User" } }],
+          "$returns": { "type": ["integer", "null"] },
           "$return": { "$get": "score", "$from": { "$var": "u" } }
         }
       },
@@ -583,12 +487,8 @@
           }
         },
         "f": {
-          "$params": ["u"],
-          "$sig": {
-            "required": [{ "$ref": "#/$defs/User" }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [{ "$param": "u", "$type": { "$ref": "#/$defs/User" } }],
+          "$returns": { "type": "integer" },
           "$return": { "$get": "score", "$from": { "$var": "u" } }
         }
       },
@@ -615,12 +515,8 @@
           }
         },
         "f": {
-          "$params": ["u"],
-          "$sig": {
-            "required": [{ "$ref": "#/$defs/User" }],
-            "optional": [],
-            "returns": { "type": "string" }
-          },
+          "$params": [{ "$param": "u", "$type": { "$ref": "#/$defs/User" } }],
+          "$returns": { "type": "string" },
           "$return": { "$get": "id", "$from": { "$var": "u" } }
         }
       },
@@ -649,12 +545,8 @@
           }
         },
         "f": {
-          "$params": ["x"],
-          "$sig": {
-            "required": [{ "$ref": "#/$defs/F" }],
-            "optional": [],
-            "returns": { "anyOf": [{ "const": "a" }, { "const": "b" }] }
-          },
+          "$params": [{ "$param": "x", "$type": { "$ref": "#/$defs/F" } }],
+          "$returns": { "anyOf": [{ "const": "a" }, { "const": "b" }] },
           "$return": { "$get": "tag", "$from": { "$var": "x" } }
         }
       },
@@ -683,12 +575,8 @@
           }
         },
         "f": {
-          "$params": ["x"],
-          "$sig": {
-            "required": [{ "$ref": "#/$defs/F" }],
-            "optional": [],
-            "returns": { "anyOf": [{ "type": "integer" }, { "type": "null" }] }
-          },
+          "$params": [{ "$param": "x", "$type": { "$ref": "#/$defs/F" } }],
+          "$returns": { "anyOf": [{ "type": "integer" }, { "type": "null" }] },
           "$return": { "$get": "n", "$from": { "$var": "x" } }
         }
       },
@@ -699,15 +587,11 @@
       "comment": "End-to-end version of the local direct-synth computed-index unit tests.",
       "module": {
         "f": {
-          "$params": ["xs", "i"],
-          "$sig": {
-            "required": [
-              { "type": "array", "items": { "type": "integer" } },
-              { "type": "integer" }
-            ],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [
+            { "$param": "xs", "$type": { "type": "array", "items": { "type": "integer" } } },
+            { "$param": "i", "$type": { "type": "integer" } }
+          ],
+          "$returns": { "type": "integer" },
           "$return": { "$get": { "$var": "i" }, "$from": { "$var": "xs" } }
         }
       },
@@ -718,12 +602,11 @@
       "comment": "End-to-end version of the local direct-synth computed-index unit tests.",
       "module": {
         "f": {
-          "$params": ["xs", "k"],
-          "$sig": {
-            "required": [{ "type": "array", "items": { "type": "integer" } }, { "type": "string" }],
-            "optional": [],
-            "returns": true
-          },
+          "$params": [
+            { "$param": "xs", "$type": { "type": "array", "items": { "type": "integer" } } },
+            { "$param": "k", "$type": { "type": "string" } }
+          ],
+          "$returns": true,
           "$return": { "$get": { "$var": "k" }, "$from": { "$var": "xs" } }
         }
       },
@@ -743,8 +626,8 @@
       "description": "a number-typed index into a tuple is a hard error",
       "module": {
         "f": {
-          "$params": ["i"],
-          "$sig": { "required": [{ "type": "number" }], "optional": [], "returns": true },
+          "$params": [{ "$param": "i", "$type": { "type": "number" } }],
+          "$returns": true,
           "$return": { "$get": { "$var": "i" }, "$from": [1, 2] }
         }
       },
@@ -765,19 +648,18 @@
       "comment": "End-to-end version of the local direct-synth missing-closed-field unit tests.",
       "module": {
         "f": {
-          "$params": ["o"],
-          "$sig": {
-            "required": [
-              {
+          "$params": [
+            {
+              "$param": "o",
+              "$type": {
                 "type": "object",
                 "properties": { "name": { "type": "string" } },
                 "required": ["name"],
                 "additionalProperties": false
               }
-            ],
-            "optional": [],
-            "returns": true
-          },
+            }
+          ],
+          "$returns": true,
           "$return": { "$get": "nmae", "$from": { "$var": "o" } }
         }
       },
@@ -792,18 +674,17 @@
       "comment": "End-to-end version of the local direct-synth missing-closed-field unit tests.",
       "module": {
         "f": {
-          "$params": ["o"],
-          "$sig": {
-            "required": [
-              {
+          "$params": [
+            {
+              "$param": "o",
+              "$type": {
                 "type": "object",
                 "properties": { "name": { "type": "string" } },
                 "required": ["name"]
               }
-            ],
-            "optional": [],
-            "returns": true
-          },
+            }
+          ],
+          "$returns": true,
           "$return": { "$get": "whatever", "$from": { "$var": "o" } }
         }
       },

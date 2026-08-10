@@ -8,10 +8,10 @@
       "description": "checker reports each stray field once at its exact path",
       "module": {
         "invalid": {
-          "$sig": { "required": [], "optional": [], "returns": true },
+          "$returns": true,
+          "$return": null,
           "local": { "$params": 42, "$return": null },
-          "$unknown": true,
-          "$return": null
+          "$unknown": true
         }
       },
       "expected": {
@@ -34,9 +34,9 @@
       "comment": "The stray field is reported once at its own path and never checked as a nested binding; the declared return type is still enforced.",
       "module": {
         "invalid": {
-          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
-          "stray": { "$params": 42, "$return": null },
-          "$return": "oops"
+          "$returns": { "type": "integer" },
+          "$return": "oops",
+          "stray": { "$params": 42, "$return": null }
         }
       },
       "expected": {
@@ -132,9 +132,7 @@
     },
     {
       "description": "module roots still allow ordinary named function entries",
-      "module": {
-        "named": { "$sig": { "required": [], "optional": [], "returns": true }, "$return": null }
-      },
+      "module": { "named": { "$returns": true, "$return": null } },
       "expected": { "diagnostics": [] }
     }
   ]

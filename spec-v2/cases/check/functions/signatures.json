@@ -8,22 +8,10 @@
       "module": {
         "all": {
           "$params": [
-            "required",
+            { "$param": "required", "$type": { "type": "integer" } },
             {
-              "$fields": [
-                "requiredField",
-                { "$field": "optionalField", "$optional": true },
-                { "$field": "defaultedField", "$default": false }
-              ]
-            },
-            { "$param": "optional", "$optional": true },
-            { "$param": "defaulted", "$default": 0 },
-            "...rest"
-          ],
-          "$sig": {
-            "required": [
-              { "type": "integer" },
-              {
+              "$param": "__p1",
+              "$type": {
                 "type": "object",
                 "properties": {
                   "requiredField": { "type": "string" },
@@ -33,40 +21,56 @@
                 "required": ["requiredField"],
                 "additionalProperties": false
               }
+            },
+            { "$param": "optional", "$optional": true, "$type": { "type": "string" } },
+            { "$param": "defaulted", "$default": 0, "$type": { "type": "integer" } },
+            { "$param": "...rest", "$type": { "type": "array", "items": { "type": "boolean" } } }
+          ],
+          "$returns": {
+            "type": "object",
+            "properties": {
+              "required": { "type": "integer" },
+              "requiredField": { "type": "string" },
+              "optionalField": { "anyOf": [{ "type": "integer" }, { "type": "null" }] },
+              "defaultedField": { "type": "boolean" },
+              "optional": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+              "defaulted": { "type": "integer" },
+              "rest": { "type": "array", "items": { "type": "boolean" } }
+            },
+            "required": [
+              "required",
+              "requiredField",
+              "optionalField",
+              "defaultedField",
+              "optional",
+              "defaulted",
+              "rest"
             ],
-            "optional": [{ "type": "string" }, { "type": "integer" }],
-            "rest": { "type": "boolean" },
-            "returns": {
-              "type": "object",
-              "properties": {
-                "required": { "type": "integer" },
-                "requiredField": { "type": "string" },
-                "optionalField": { "anyOf": [{ "type": "integer" }, { "type": "null" }] },
-                "defaultedField": { "type": "boolean" },
-                "optional": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
-                "defaulted": { "type": "integer" },
-                "rest": { "type": "array", "items": { "type": "boolean" } }
-              },
-              "required": [
-                "required",
-                "requiredField",
-                "optionalField",
-                "defaultedField",
-                "optional",
-                "defaulted",
-                "rest"
-              ],
-              "additionalProperties": false
-            }
+            "additionalProperties": false
           },
           "$return": {
-            "required": { "$var": "required" },
-            "requiredField": { "$var": "requiredField" },
-            "optionalField": { "$var": "optionalField" },
-            "defaultedField": { "$var": "defaultedField" },
-            "optional": { "$var": "optional" },
-            "defaulted": { "$var": "defaulted" },
-            "rest": { "$var": "rest" }
+            "$let": {
+              "requiredField": { "$get": "requiredField", "$from": { "$var": "__p1" } },
+              "optionalField": {
+                "$get": "optionalField",
+                "$from": { "$var": "__p1" },
+                "$else": null
+              },
+              "defaultedField": {
+                "$get": "defaultedField",
+                "$from": { "$var": "__p1" },
+                "$else": false
+              }
+            },
+            "$in": {
+              "required": { "$var": "required" },
+              "requiredField": { "$var": "requiredField" },
+              "optionalField": { "$var": "optionalField" },
+              "defaultedField": { "$var": "defaultedField" },
+              "optional": { "$var": "optional" },
+              "defaulted": { "$var": "defaulted" },
+              "rest": { "$var": "rest" }
+            }
           }
         }
       },
@@ -76,12 +80,11 @@
       "description": "parameter defaults can reference the complete parameter scope",
       "module": {
         "scopedDefault": {
-          "$params": ["seed", { "$param": "fallback", "$default": { "$var": "seed" } }],
-          "$sig": {
-            "required": [{ "type": "integer" }],
-            "optional": [{ "type": "integer" }],
-            "returns": { "type": "integer" }
-          },
+          "$params": [
+            { "$param": "seed", "$type": { "type": "integer" } },
+            { "$param": "fallback", "$default": { "$var": "seed" }, "$type": { "type": "integer" } }
+          ],
+          "$returns": { "type": "integer" },
           "$return": { "$var": "fallback" }
         }
       },
@@ -99,13 +102,15 @@
           }
         },
         "read": {
-          "$params": [{ "$fields": ["required", { "$field": "optional", "$optional": true }] }],
-          "$sig": {
-            "required": [{ "$ref": "#/$defs/Input" }],
-            "optional": [],
-            "returns": { "anyOf": [{ "type": "string" }, { "type": "null" }] }
-          },
-          "$return": { "$var": "optional" }
+          "$params": [{ "$param": "__p0", "$type": { "$ref": "#/$defs/Input" } }],
+          "$returns": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+          "$return": {
+            "$let": {
+              "required": { "$get": "required", "$from": { "$var": "__p0" } },
+              "optional": { "$get": "optional", "$from": { "$var": "__p0" }, "$else": null }
+            },
+            "$in": { "$var": "optional" }
+          }
         }
       },
       "expected": { "diagnostics": [] }
@@ -225,12 +230,8 @@
       "description": "an optional positional binding includes null in its local type",
       "module": {
         "optional": {
-          "$params": [{ "$param": "value", "$optional": true }],
-          "$sig": {
-            "required": [],
-            "optional": [{ "type": "string" }],
-            "returns": { "type": "string" }
-          },
+          "$params": [{ "$param": "value", "$optional": true, "$type": { "type": "string" } }],
+          "$returns": { "type": "string" },
           "$return": { "$var": "value" }
         }
       },

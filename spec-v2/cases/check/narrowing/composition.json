@@ -8,12 +8,10 @@
       "description": "not(isNull(x)) then-branch proves non-null (flipped sense)",
       "module": {
         "f": {
-          "$params": ["x"],
-          "$sig": {
-            "required": [{ "anyOf": [{ "type": "string" }, { "type": "null" }] }],
-            "optional": [],
-            "returns": { "type": "string" }
-          },
+          "$params": [
+            { "$param": "x", "$type": { "anyOf": [{ "type": "string" }, { "type": "null" }] } }
+          ],
+          "$returns": { "type": "string" },
           "$return": {
             "$if": { "$call": "not", "$args": [{ "$call": "isNull", "$args": [{ "$var": "x" }] }] },
             "$then": { "$var": "x" },
@@ -27,12 +25,10 @@
       "description": "not(isNull(x)) else-branch proves null",
       "module": {
         "f": {
-          "$params": ["x"],
-          "$sig": {
-            "required": [{ "anyOf": [{ "type": "string" }, { "type": "null" }] }],
-            "optional": [],
-            "returns": { "type": "null" }
-          },
+          "$params": [
+            { "$param": "x", "$type": { "anyOf": [{ "type": "string" }, { "type": "null" }] } }
+          ],
+          "$returns": { "type": "null" },
           "$return": {
             "$if": { "$call": "not", "$args": [{ "$call": "isNull", "$args": [{ "$var": "x" }] }] },
             "$then": null,
@@ -47,12 +43,10 @@
       "comment": "number minus integer is not expressible, so negating isInteger over number | string leaves the whole union in the then-branch.",
       "module": {
         "f": {
-          "$params": ["x"],
-          "$sig": {
-            "required": [{ "anyOf": [{ "type": "number" }, { "type": "string" }] }],
-            "optional": [],
-            "returns": { "type": "string" }
-          },
+          "$params": [
+            { "$param": "x", "$type": { "anyOf": [{ "type": "number" }, { "type": "string" }] } }
+          ],
+          "$returns": { "type": "string" },
           "$return": {
             "$if": {
               "$call": "not",
@@ -79,19 +73,15 @@
       "description": "$and on the true sense conjoins each operand's fact",
       "module": {
         "f": {
-          "$params": ["a", "b"],
-          "$sig": {
-            "required": [
-              { "anyOf": [{ "type": "string" }, { "type": "null" }] },
-              { "anyOf": [{ "type": "string" }, { "type": "null" }] }
-            ],
-            "optional": [],
-            "returns": {
-              "type": "array",
-              "prefixItems": [{ "type": "string" }, { "type": "string" }],
-              "items": false,
-              "minItems": 2
-            }
+          "$params": [
+            { "$param": "a", "$type": { "anyOf": [{ "type": "string" }, { "type": "null" }] } },
+            { "$param": "b", "$type": { "anyOf": [{ "type": "string" }, { "type": "null" }] } }
+          ],
+          "$returns": {
+            "type": "array",
+            "prefixItems": [{ "type": "string" }, { "type": "string" }],
+            "items": false,
+            "minItems": 2
           },
           "$return": {
             "$if": {
@@ -112,15 +102,11 @@
       "comment": "The else-branch only knows that some conjunct failed, so neither operand narrows and the nullable union survives.",
       "module": {
         "f": {
-          "$params": ["a", "b"],
-          "$sig": {
-            "required": [
-              { "anyOf": [{ "type": "string" }, { "type": "null" }] },
-              { "anyOf": [{ "type": "string" }, { "type": "null" }] }
-            ],
-            "optional": [],
-            "returns": { "type": "string" }
-          },
+          "$params": [
+            { "$param": "a", "$type": { "anyOf": [{ "type": "string" }, { "type": "null" }] } },
+            { "$param": "b", "$type": { "anyOf": [{ "type": "string" }, { "type": "null" }] } }
+          ],
+          "$returns": { "type": "string" },
           "$return": {
             "$if": {
               "$and": [
@@ -149,19 +135,15 @@
       "description": "$or on the false sense conjoins the negated operands",
       "module": {
         "f": {
-          "$params": ["a", "b"],
-          "$sig": {
-            "required": [
-              { "anyOf": [{ "type": "string" }, { "type": "null" }] },
-              { "anyOf": [{ "type": "string" }, { "type": "null" }] }
-            ],
-            "optional": [],
-            "returns": {
-              "type": "array",
-              "prefixItems": [{ "type": "string" }, { "type": "string" }],
-              "items": false,
-              "minItems": 2
-            }
+          "$params": [
+            { "$param": "a", "$type": { "anyOf": [{ "type": "string" }, { "type": "null" }] } },
+            { "$param": "b", "$type": { "anyOf": [{ "type": "string" }, { "type": "null" }] } }
+          ],
+          "$returns": {
+            "type": "array",
+            "prefixItems": [{ "type": "string" }, { "type": "string" }],
+            "items": false,
+            "minItems": 2
           },
           "$return": {
             "$if": {
@@ -182,15 +164,11 @@
       "comment": "The then-branch only knows that some disjunct held, so neither operand narrows and the nullable union survives.",
       "module": {
         "f": {
-          "$params": ["a", "b"],
-          "$sig": {
-            "required": [
-              { "anyOf": [{ "type": "string" }, { "type": "null" }] },
-              { "anyOf": [{ "type": "string" }, { "type": "null" }] }
-            ],
-            "optional": [],
-            "returns": { "type": "string" }
-          },
+          "$params": [
+            { "$param": "a", "$type": { "anyOf": [{ "type": "string" }, { "type": "null" }] } },
+            { "$param": "b", "$type": { "anyOf": [{ "type": "string" }, { "type": "null" }] } }
+          ],
+          "$returns": { "type": "string" },
           "$return": {
             "$if": {
               "$or": [

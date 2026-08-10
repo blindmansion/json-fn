@@ -7,21 +7,13 @@
       "description": "module functions shadow same-named builtin references",
       "module": {
         "upper": {
-          "$params": ["n"],
-          "$sig": {
-            "required": [{ "type": "integer" }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [{ "$param": "n", "$type": { "type": "integer" } }],
+          "$returns": { "type": "integer" },
           "$return": { "$var": "n" }
         },
         "use": {
           "$params": [],
-          "$sig": {
-            "required": [],
-            "optional": [],
-            "returns": { "type": "array", "items": { "type": "integer" } }
-          },
+          "$returns": { "type": "array", "items": { "type": "integer" } },
           "$return": { "$call": "map", "$args": [{ "$fn": "upper" }, [1, 2]] }
         }
       },
@@ -31,12 +23,10 @@
       "description": "map and add flow integer arrays through module checking",
       "module": {
         "doubleAll": {
-          "$params": ["xs"],
-          "$sig": {
-            "required": [{ "type": "array", "items": { "type": "integer" } }],
-            "optional": [],
-            "returns": { "type": "array", "items": { "type": "integer" } }
-          },
+          "$params": [
+            { "$param": "xs", "$type": { "type": "array", "items": { "type": "integer" } } }
+          ],
+          "$returns": { "type": "array", "items": { "type": "integer" } },
           "$return": {
             "$call": "map",
             "$args": [
@@ -55,12 +45,10 @@
       "description": "builtin result mismatches are reported at declared returns",
       "module": {
         "wrong": {
-          "$params": ["xs"],
-          "$sig": {
-            "required": [{ "type": "array", "items": { "type": "integer" } }],
-            "optional": [],
-            "returns": { "type": "array", "items": { "type": "string" } }
-          },
+          "$params": [
+            { "$param": "xs", "$type": { "type": "array", "items": { "type": "integer" } } }
+          ],
+          "$returns": { "type": "array", "items": { "type": "string" } },
           "$return": {
             "$call": "map",
             "$args": [{ "$params": ["n"], "$return": { "$var": "n" } }, { "$var": "xs" }]
@@ -77,21 +65,13 @@
       "description": "named callbacks instantiate map's final type",
       "module": {
         "callback": {
-          "$params": ["value"],
-          "$sig": {
-            "required": [{ "type": "integer" }],
-            "optional": [],
-            "returns": { "type": "string" }
-          },
+          "$params": [{ "$param": "value", "$type": { "type": "integer" } }],
+          "$returns": { "type": "string" },
           "$return": "value"
         },
         "main": {
           "$params": [],
-          "$sig": {
-            "required": [],
-            "optional": [],
-            "returns": { "type": "array", "items": { "type": "string" } }
-          },
+          "$returns": { "type": "array", "items": { "type": "string" } },
           "$return": { "$call": "map", "$args": [{ "$var": "callback" }, [1, 2]] }
         }
       },
@@ -101,21 +81,13 @@
       "description": "named callbacks may be contravariantly broader",
       "module": {
         "callback": {
-          "$params": ["value"],
-          "$sig": {
-            "required": [{ "type": "number" }],
-            "optional": [],
-            "returns": { "type": "boolean" }
-          },
+          "$params": [{ "$param": "value", "$type": { "type": "number" } }],
+          "$returns": { "type": "boolean" },
           "$return": true
         },
         "main": {
           "$params": [],
-          "$sig": {
-            "required": [],
-            "optional": [],
-            "returns": { "type": "array", "items": { "type": "integer" } }
-          },
+          "$returns": { "type": "array", "items": { "type": "integer" } },
           "$return": { "$call": "filter", "$args": [{ "$var": "callback" }, [1, 2]] }
         }
       },
@@ -125,21 +97,13 @@
       "description": "named callbacks narrower than data are rejected",
       "module": {
         "callback": {
-          "$params": ["value"],
-          "$sig": {
-            "required": [{ "type": "string" }],
-            "optional": [],
-            "returns": { "type": "string" }
-          },
+          "$params": [{ "$param": "value", "$type": { "type": "string" } }],
+          "$returns": { "type": "string" },
           "$return": { "$var": "value" }
         },
         "main": {
           "$params": [],
-          "$sig": {
-            "required": [],
-            "optional": [],
-            "returns": { "type": "array", "items": { "type": "string" } }
-          },
+          "$returns": { "type": "array", "items": { "type": "string" } },
           "$return": { "$call": "map", "$args": [{ "$var": "callback" }, [1, 2]] }
         }
       },

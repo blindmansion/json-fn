@@ -5,66 +5,107 @@
     {
       "description": "single field pattern",
       "source": "({ x }) => x",
-      "expected": { "$params": [{ "$fields": ["x"] }], "$return": { "$var": "x" } }
+      "expected": {
+        "$params": ["__p0"],
+        "$return": {
+          "$let": { "x": { "$get": "x", "$from": { "$var": "__p0" } } },
+          "$in": { "$var": "x" }
+        }
+      }
     },
     {
       "description": "two field pattern",
       "source": "({ from, to }) => sub(to, from)",
       "expected": {
-        "$params": [{ "$fields": ["from", "to"] }],
-        "$return": { "$call": "sub", "$args": [{ "$var": "to" }, { "$var": "from" }] }
+        "$params": ["__p0"],
+        "$return": {
+          "$let": {
+            "from": { "$get": "from", "$from": { "$var": "__p0" } },
+            "to": { "$get": "to", "$from": { "$var": "__p0" } }
+          },
+          "$in": { "$call": "sub", "$args": [{ "$var": "to" }, { "$var": "from" }] }
+        }
       }
     },
     {
       "description": "optional and defaulted fields",
       "source": "({ required, label?, count = 0 }) => count",
       "expected": {
-        "$params": [
-          {
-            "$fields": [
-              "required",
-              { "$field": "label", "$optional": true },
-              { "$field": "count", "$default": 0 }
-            ]
-          }
-        ],
-        "$return": { "$var": "count" }
+        "$params": ["__p0"],
+        "$return": {
+          "$let": {
+            "required": { "$get": "required", "$from": { "$var": "__p0" } },
+            "label": { "$get": "label", "$from": { "$var": "__p0" }, "$else": null },
+            "count": { "$get": "count", "$from": { "$var": "__p0" }, "$else": 0 }
+          },
+          "$in": { "$var": "count" }
+        }
       }
     },
     {
       "description": "positional param followed by a pattern slot",
       "source": "(label, { x, y }) => x + y",
       "expected": {
-        "$params": ["label", { "$fields": ["x", "y"] }],
-        "$return": { "$call": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] }
+        "$params": ["label", "__p1"],
+        "$return": {
+          "$let": {
+            "x": { "$get": "x", "$from": { "$var": "__p1" } },
+            "y": { "$get": "y", "$from": { "$var": "__p1" } }
+          },
+          "$in": { "$call": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] }
+        }
       }
     },
     {
       "description": "pattern slot followed by a rest parameter",
       "source": "({ x }, ...rest) => rest",
-      "expected": { "$params": [{ "$fields": ["x"] }, "...rest"], "$return": { "$var": "rest" } }
+      "expected": {
+        "$params": ["__p0", "...rest"],
+        "$return": {
+          "$let": { "x": { "$get": "x", "$from": { "$var": "__p0" } } },
+          "$in": { "$var": "rest" }
+        }
+      }
     },
     {
       "description": "multiple pattern slots",
       "source": "({ a }, { b }) => a + b",
       "expected": {
-        "$params": [{ "$fields": ["a"] }, { "$fields": ["b"] }],
-        "$return": { "$call": "add", "$args": [{ "$var": "a" }, { "$var": "b" }] }
+        "$params": ["__p0", "__p1"],
+        "$return": {
+          "$let": {
+            "a": { "$get": "a", "$from": { "$var": "__p0" } },
+            "b": { "$get": "b", "$from": { "$var": "__p1" } }
+          },
+          "$in": { "$call": "add", "$args": [{ "$var": "a" }, { "$var": "b" }] }
+        }
       }
     },
     {
       "description": "trailing comma inside a pattern normalizes away",
       "source": "({ x, y, }) => x",
-      "expected": { "$params": [{ "$fields": ["x", "y"] }], "$return": { "$var": "x" } }
+      "expected": {
+        "$params": ["__p0"],
+        "$return": {
+          "$let": {
+            "x": { "$get": "x", "$from": { "$var": "__p0" } },
+            "y": { "$get": "y", "$from": { "$var": "__p0" } }
+          },
+          "$in": { "$var": "x" }
+        }
+      }
     },
     {
       "description": "pattern with a trailing where clause",
       "source": "({ n }) => doubled where {\n  doubled: n * 2\n}",
       "expected": {
-        "$params": [{ "$fields": ["n"] }],
+        "$params": ["__p0"],
         "$return": {
-          "$let": { "doubled": { "$call": "mul", "$args": [{ "$var": "n" }, 2] } },
-          "$in": { "$var": "doubled" }
+          "$let": { "n": { "$get": "n", "$from": { "$var": "__p0" } } },
+          "$in": {
+            "$let": { "doubled": { "$call": "mul", "$args": [{ "$var": "n" }, 2] } },
+            "$in": { "$var": "doubled" }
+          }
         }
       }
     },

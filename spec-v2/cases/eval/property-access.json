@@ -17,16 +17,6 @@
       "expected": 20
     },
     {
-      "description": "path access walks nested structure",
-      "body": {
-        "$return": {
-          "$let": { "person": { "name": "Ada", "address": { "city": "London", "zip": "SW1" } } },
-          "$in": { "$get": ["address", "city"], "$from": { "$var": "person" } }
-        }
-      },
-      "expected": "London"
-    },
-    {
       "description": "dynamic key via variable",
       "body": {
         "$return": {
@@ -50,16 +40,6 @@
       "expected": "world"
     },
     {
-      "description": "path with array index",
-      "body": {
-        "$return": {
-          "$let": { "data": { "items": ["a", "b", "c"] } },
-          "$in": { "$get": ["items", 2], "$from": { "$var": "data" } }
-        }
-      },
-      "expected": "c"
-    },
-    {
       "description": "missing key returns null",
       "body": {
         "$return": {
@@ -70,21 +50,11 @@
       "expected": null
     },
     {
-      "description": "missing path segment returns null",
-      "body": {
-        "$return": {
-          "$let": { "obj": { "a": { "b": 1 } } },
-          "$in": { "$get": ["a", "missing", "deep"], "$from": { "$var": "obj" } }
-        }
-      },
-      "expected": null
-    },
-    {
       "description": "path traversal into a present null value throws",
       "body": {
         "$return": {
           "$let": { "obj": { "a": null } },
-          "$in": { "$get": ["a", "b"], "$from": { "$var": "obj" } }
+          "$in": { "$get": "b", "$from": { "$get": "a", "$from": { "$var": "obj" } } }
         }
       },
       "error": "Cannot access property"
@@ -154,7 +124,7 @@
       "body": {
         "$return": {
           "$let": { "person": { "address": { "city": "London", "zip": "SW1" } } },
-          "$in": { "$get": ["address", "city"], "$from": { "$var": "person" } }
+          "$in": { "$get": "city", "$from": { "$get": "address", "$from": { "$var": "person" } } }
         }
       },
       "expected": "London"
@@ -174,7 +144,10 @@
       "body": {
         "$return": {
           "$let": { "data": { "items": [{ "name": "first" }, { "name": "second" }] } },
-          "$in": { "$get": ["items", 1, "name"], "$from": { "$var": "data" } }
+          "$in": {
+            "$get": "name",
+            "$from": { "$get": 1, "$from": { "$get": "items", "$from": { "$var": "data" } } }
+          }
         }
       },
       "expected": "second"
@@ -189,7 +162,7 @@
               { "x": 30, "y": 40 }
             ]
           },
-          "$in": { "$get": [0, "y"], "$from": { "$var": "rows" } }
+          "$in": { "$get": "y", "$from": { "$get": 0, "$from": { "$var": "rows" } } }
         }
       },
       "expected": 20
@@ -199,7 +172,10 @@
       "body": {
         "$return": {
           "$let": { "a": { "b": { "c": { "d": 42 } } } },
-          "$in": { "$get": ["b", "c", "d"], "$from": { "$var": "a" } }
+          "$in": {
+            "$get": "d",
+            "$from": { "$get": "c", "$from": { "$get": "b", "$from": { "$var": "a" } } }
+          }
         }
       },
       "expected": 42
@@ -215,21 +191,11 @@
       "expected": null
     },
     {
-      "description": "dot notation: missing intermediate returns null",
-      "body": {
-        "$return": {
-          "$let": { "obj": { "a": { "b": 1 } } },
-          "$in": { "$get": ["missing", "deep"], "$from": { "$var": "obj" } }
-        }
-      },
-      "expected": null
-    },
-    {
       "description": "dot notation: path into non-object throws",
       "body": {
         "$return": {
           "$let": { "obj": { "a": 42 } },
-          "$in": { "$get": ["a", "b"], "$from": { "$var": "obj" } }
+          "$in": { "$get": "b", "$from": { "$get": "a", "$from": { "$var": "obj" } } }
         }
       },
       "error": "Cannot access property"
@@ -256,7 +222,10 @@
               ]
             }
           },
-          "$in": { "$get": "city", "$from": { "$get": ["people", 0], "$from": { "$var": "data" } } }
+          "$in": {
+            "$get": "city",
+            "$from": { "$get": 0, "$from": { "$get": "people", "$from": { "$var": "data" } } }
+          }
         }
       },
       "expected": "London"
@@ -451,7 +420,7 @@
       "body": {
         "$return": {
           "$let": { "data": { "name": "Alice" } },
-          "$in": { "$get": ["name", 0], "$from": { "$var": "data" } }
+          "$in": { "$get": 0, "$from": { "$get": "name", "$from": { "$var": "data" } } }
         }
       },
       "expected": "A"
@@ -485,16 +454,6 @@
       "description": "string access rejects a fractional numeric index",
       "body": { "$return": { "$get": 1.5, "$from": "hello" } },
       "error": "Cannot index a string with key 1.5: string indices must be integers"
-    },
-    {
-      "description": "folded paths validate each segment against its current target",
-      "body": {
-        "$return": {
-          "$let": { "data": { "items": { "0": { "name": "first" } } } },
-          "$in": { "$get": ["items", 0, "name"], "$from": { "$var": "data" } }
-        }
-      },
-      "error": "Cannot index an object with key 0: object keys must be strings"
     },
     {
       "description": "negative array index is valid but out of bounds",

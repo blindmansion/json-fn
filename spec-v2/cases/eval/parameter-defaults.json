@@ -104,12 +104,22 @@
               "$raw": {
                 "$params": [
                   "required",
-                  { "$fields": ["field", { "$field": "optionalField", "$optional": true }] },
+                  "__p1",
                   { "$param": "optional", "$optional": true },
                   { "$param": "defaulted", "$default": 1 },
                   "...rest"
                 ],
-                "$return": null
+                "$return": {
+                  "$let": {
+                    "field": { "$get": "field", "$from": { "$var": "__p1" } },
+                    "optionalField": {
+                      "$get": "optionalField",
+                      "$from": { "$var": "__p1" },
+                      "$else": null
+                    }
+                  },
+                  "$in": null
+                }
               }
             }
           ]
@@ -133,23 +143,26 @@
         "$return": {
           "$let": {
             "calculate": {
-              "$params": [
-                "base",
-                {
-                  "$fields": [
-                    { "$field": "first", "$default": { "$var": "base" } },
-                    { "$field": "second", "$default": 2 },
-                    {
-                      "$field": "total",
-                      "$default": {
-                        "$call": "add",
-                        "$args": [{ "$var": "first" }, { "$var": "second" }]
-                      }
+              "$params": ["base", "__p1"],
+              "$return": {
+                "$let": {
+                  "first": {
+                    "$get": "first",
+                    "$from": { "$var": "__p1" },
+                    "$else": { "$var": "base" }
+                  },
+                  "second": { "$get": "second", "$from": { "$var": "__p1" }, "$else": 2 },
+                  "total": {
+                    "$get": "total",
+                    "$from": { "$var": "__p1" },
+                    "$else": {
+                      "$call": "add",
+                      "$args": [{ "$var": "first" }, { "$var": "second" }]
                     }
-                  ]
-                }
-              ],
-              "$return": { "$var": "total" }
+                  }
+                },
+                "$in": { "$var": "total" }
+              }
             }
           },
           "$in": [
@@ -167,14 +180,17 @@
           "$call": {
             "$let": { "fallback": { "$return": 13 } },
             "$in": {
-              "$params": [
-                {
-                  "$fields": [
-                    { "$field": "value", "$default": { "$call": "fallback", "$args": [] } }
-                  ]
-                }
-              ],
-              "$return": { "$var": "value" }
+              "$params": ["__p0"],
+              "$return": {
+                "$let": {
+                  "value": {
+                    "$get": "value",
+                    "$from": { "$var": "__p0" },
+                    "$else": { "$call": "fallback", "$args": [] }
+                  }
+                },
+                "$in": { "$var": "value" }
+              }
             }
           },
           "$args": [{}]
@@ -234,25 +250,34 @@
             "$in": {
               "$params": [
                 "required",
-                {
-                  "$fields": [
-                    "fieldRequired",
-                    { "$field": "fieldOptional", "$optional": true },
-                    { "$field": "fieldDefaulted", "$default": "field default" }
-                  ]
-                },
+                "__p1",
                 { "$param": "optional", "$optional": true },
                 { "$param": "defaulted", "$default": "parameter default" },
                 "...rest"
               ],
               "$return": {
-                "required": { "$var": "required" },
-                "fieldRequired": { "$var": "fieldRequired" },
-                "fieldOptional": { "$var": "fieldOptional" },
-                "fieldDefaulted": { "$var": "fieldDefaulted" },
-                "optional": { "$var": "optional" },
-                "defaulted": { "$var": "defaulted" },
-                "rest": { "$var": "rest" }
+                "$let": {
+                  "fieldRequired": { "$get": "fieldRequired", "$from": { "$var": "__p1" } },
+                  "fieldOptional": {
+                    "$get": "fieldOptional",
+                    "$from": { "$var": "__p1" },
+                    "$else": null
+                  },
+                  "fieldDefaulted": {
+                    "$get": "fieldDefaulted",
+                    "$from": { "$var": "__p1" },
+                    "$else": "field default"
+                  }
+                },
+                "$in": {
+                  "required": { "$var": "required" },
+                  "fieldRequired": { "$var": "fieldRequired" },
+                  "fieldOptional": { "$var": "fieldOptional" },
+                  "fieldDefaulted": { "$var": "fieldDefaulted" },
+                  "optional": { "$var": "optional" },
+                  "defaulted": { "$var": "defaulted" },
+                  "rest": { "$var": "rest" }
+                }
               }
             }
           },
@@ -280,18 +305,24 @@
         "$return": {
           "$let": {
             "requiredFirst": {
-              "$params": [
-                { "$fields": ["required", { "$field": "fallback", "$default": 2 }] },
-                { "$param": "suffix", "$default": 3 }
-              ],
-              "$return": [{ "$var": "required" }, { "$var": "fallback" }, { "$var": "suffix" }]
+              "$params": ["__p0", { "$param": "suffix", "$default": 3 }],
+              "$return": {
+                "$let": {
+                  "required": { "$get": "required", "$from": { "$var": "__p0" } },
+                  "fallback": { "$get": "fallback", "$from": { "$var": "__p0" }, "$else": 2 }
+                },
+                "$in": [{ "$var": "required" }, { "$var": "fallback" }, { "$var": "suffix" }]
+              }
             },
             "defaultedFirst": {
-              "$params": [
-                { "$fields": [{ "$field": "fallback", "$default": 2 }, "required"] },
-                { "$param": "suffix", "$default": 3 }
-              ],
-              "$return": [{ "$var": "required" }, { "$var": "fallback" }, { "$var": "suffix" }]
+              "$params": ["__p0", { "$param": "suffix", "$default": 3 }],
+              "$return": {
+                "$let": {
+                  "fallback": { "$get": "fallback", "$from": { "$var": "__p0" }, "$else": 2 },
+                  "required": { "$get": "required", "$from": { "$var": "__p0" } }
+                },
+                "$in": [{ "$var": "required" }, { "$var": "fallback" }, { "$var": "suffix" }]
+              }
             }
           },
           "$in": [

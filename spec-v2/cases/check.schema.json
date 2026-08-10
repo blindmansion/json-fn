@@ -15,10 +15,6 @@
       "$ref": "#/$defs/builtins",
       "description": "The default builtin callable selection for cases in this suite."
     },
-    "options": {
-      "$ref": "#/$defs/options",
-      "description": "The default portable checker options for cases in this suite."
-    },
     "cases": {
       "type": "array",
       "description": "The checker cases in this suite.",
@@ -30,16 +26,6 @@
     "builtins": {
       "enum": ["standard", "none"],
       "description": "standard loads the portable registry from spec/builtins/builtins.json; none provides no builtin callable table."
-    },
-    "options": {
-      "type": "object",
-      "properties": {
-        "allowUntypedFunctions": {
-          "type": "boolean",
-          "description": "Permit module-level functions without declared signatures, recording visible coverage degradation instead of an error."
-        }
-      },
-      "additionalProperties": false
     },
     "case": {
       "type": "object",
@@ -53,10 +39,6 @@
         "builtins": {
           "$ref": "#/$defs/builtins",
           "description": "Overrides the suite builtin selection for this case."
-        },
-        "options": {
-          "$ref": "#/$defs/options",
-          "description": "Overrides the suite checker options for this case."
         },
         "expression": {
           "description": "A canonical json-fn expression to check, including an explicit null."

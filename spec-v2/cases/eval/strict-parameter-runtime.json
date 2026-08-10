@@ -57,8 +57,11 @@
     {
       "description": "absent defaulted field uses its default",
       "body": {
-        "$params": [{ "$fields": [{ "$field": "value", "$default": 4 }] }],
-        "$return": { "$var": "value" }
+        "$params": ["__p0"],
+        "$return": {
+          "$let": { "value": { "$get": "value", "$from": { "$var": "__p0" }, "$else": 4 } },
+          "$in": { "$var": "value" }
+        }
       },
       "args": [{}],
       "expected": 4
@@ -66,8 +69,11 @@
     {
       "description": "explicit null field suppresses its default",
       "body": {
-        "$params": [{ "$fields": [{ "$field": "value", "$default": 4 }] }],
-        "$return": { "$var": "value" }
+        "$params": ["__p0"],
+        "$return": {
+          "$let": { "value": { "$get": "value", "$from": { "$var": "__p0" }, "$else": 4 } },
+          "$in": { "$var": "value" }
+        }
       },
       "args": [{ "value": null }],
       "expected": null
@@ -81,11 +87,11 @@
     {
       "description": "omitted optional parameters and fields bind to null",
       "body": {
-        "$params": [
-          { "$fields": [{ "$field": "field", "$optional": true }] },
-          { "$param": "value", "$optional": true }
-        ],
-        "$return": { "field": { "$var": "field" }, "value": { "$var": "value" } }
+        "$params": ["__p0", { "$param": "value", "$optional": true }],
+        "$return": {
+          "$let": { "field": { "$get": "field", "$from": { "$var": "__p0" }, "$else": null } },
+          "$in": { "field": { "$var": "field" }, "value": { "$var": "value" } }
+        }
       },
       "args": [{}],
       "expected": { "field": null, "value": null }
@@ -93,11 +99,11 @@
     {
       "description": "supplied optional parameters and fields retain their values",
       "body": {
-        "$params": [
-          { "$fields": [{ "$field": "field", "$optional": true }] },
-          { "$param": "value", "$optional": true }
-        ],
-        "$return": { "field": { "$var": "field" }, "value": { "$var": "value" } }
+        "$params": ["__p0", { "$param": "value", "$optional": true }],
+        "$return": {
+          "$let": { "field": { "$get": "field", "$from": { "$var": "__p0" }, "$else": null } },
+          "$in": { "field": { "$var": "field" }, "value": { "$var": "value" } }
+        }
       },
       "args": [{ "field": 1 }, 2],
       "expected": { "field": 1, "value": 2 }

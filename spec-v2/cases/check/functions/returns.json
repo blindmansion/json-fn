@@ -6,12 +6,8 @@
     {
       "description": "a standalone typed lambda checks its body against the declared return",
       "expression": {
-        "$params": ["n"],
-        "$sig": {
-          "required": [{ "type": "integer" }],
-          "optional": [],
-          "returns": { "type": "string" }
-        },
+        "$params": [{ "$param": "n", "$type": { "type": "integer" } }],
+        "$returns": { "type": "string" },
         "$return": { "$var": "n" }
       },
       "expected": {
@@ -29,12 +25,8 @@
     {
       "description": "a well-typed standalone lambda is clean",
       "expression": {
-        "$params": ["n"],
-        "$sig": {
-          "required": [{ "type": "integer" }],
-          "optional": [],
-          "returns": { "type": "integer" }
-        },
+        "$params": [{ "$param": "n", "$type": { "type": "integer" } }],
+        "$returns": { "type": "integer" },
         "$return": { "$var": "n" }
       },
       "expected": { "diagnostics": [] }
@@ -46,12 +38,8 @@
         "$call": "map",
         "$args": [
           {
-            "$params": ["n"],
-            "$sig": {
-              "required": [{ "type": "integer" }],
-              "optional": [],
-              "returns": { "type": "string" }
-            },
+            "$params": [{ "$param": "n", "$type": { "type": "integer" } }],
+            "$returns": { "type": "string" },
             "$return": { "$var": "n" }
           },
           [1, 2, 3]
@@ -76,12 +64,8 @@
         "$call": "map",
         "$args": [
           {
-            "$params": ["n"],
-            "$sig": {
-              "required": [{ "type": "integer" }],
-              "optional": [],
-              "returns": { "type": "integer" }
-            },
+            "$params": [{ "$param": "n", "$type": { "type": "integer" } }],
+            "$returns": { "type": "integer" },
             "$return": { "$var": "n" }
           },
           [1, 2, 3]

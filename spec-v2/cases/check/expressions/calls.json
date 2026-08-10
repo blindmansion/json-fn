@@ -7,21 +7,13 @@
       "description": "identity + a caller through the registry sig type-check",
       "module": {
         "identity": {
-          "$params": ["n"],
-          "$sig": {
-            "required": [{ "type": "integer" }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [{ "$param": "n", "$type": { "type": "integer" } }],
+          "$returns": { "type": "integer" },
           "$return": { "$var": "n" }
         },
         "caller": {
-          "$params": ["n"],
-          "$sig": {
-            "required": [{ "type": "integer" }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [{ "$param": "n", "$type": { "type": "integer" } }],
+          "$returns": { "type": "integer" },
           "$return": { "$call": "identity", "$args": [{ "$var": "n" }] }
         }
       },
@@ -31,17 +23,16 @@
       "description": "required and optional schemas share one positional sequence",
       "module": {
         "pickSecond": {
-          "$params": ["number", { "$param": "label", "$default": "" }],
-          "$sig": {
-            "required": [{ "type": "integer" }],
-            "optional": [{ "type": "string" }],
-            "returns": { "type": "string" }
-          },
+          "$params": [
+            { "$param": "number", "$type": { "type": "integer" } },
+            { "$param": "label", "$default": "", "$type": { "type": "string" } }
+          ],
+          "$returns": { "type": "string" },
           "$return": { "$var": "label" }
         },
         "caller": {
           "$params": [],
-          "$sig": { "required": [], "optional": [], "returns": { "type": "string" } },
+          "$returns": { "type": "string" },
           "$return": { "$call": "pickSecond", "$args": [1, "ok"] }
         }
       },
@@ -51,17 +42,16 @@
       "description": "explicit null for an omittable slot explains the omission model",
       "module": {
         "f": {
-          "$params": ["a", { "$param": "b", "$optional": true }],
-          "$sig": {
-            "required": [{ "type": "integer" }],
-            "optional": [{ "type": "string" }],
-            "returns": { "type": "integer" }
-          },
+          "$params": [
+            { "$param": "a", "$type": { "type": "integer" } },
+            { "$param": "b", "$optional": true, "$type": { "type": "string" } }
+          ],
+          "$returns": { "type": "integer" },
           "$return": { "$var": "a" }
         },
         "g": {
           "$params": [],
-          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$returns": { "type": "integer" },
           "$return": { "$call": "f", "$args": [1, null] }
         }
       },
@@ -81,17 +71,16 @@
       "description": "a nullable annotation admits explicit null without the omission hint",
       "module": {
         "f": {
-          "$params": ["a", { "$param": "b", "$optional": true }],
-          "$sig": {
-            "required": [{ "type": "integer" }],
-            "optional": [{ "type": ["string", "null"] }],
-            "returns": { "type": "integer" }
-          },
+          "$params": [
+            { "$param": "a", "$type": { "type": "integer" } },
+            { "$param": "b", "$optional": true, "$type": { "type": ["string", "null"] } }
+          ],
+          "$returns": { "type": "integer" },
           "$return": { "$var": "a" }
         },
         "g": {
           "$params": [],
-          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$returns": { "type": "integer" },
           "$return": { "$call": "f", "$args": [1, null] }
         }
       },
@@ -101,17 +90,13 @@
       "description": "a required slot keeps the plain assignability error for explicit null",
       "module": {
         "strict": {
-          "$params": ["a"],
-          "$sig": {
-            "required": [{ "type": "string" }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [{ "$param": "a", "$type": { "type": "string" } }],
+          "$returns": { "type": "integer" },
           "$return": 1
         },
         "h": {
           "$params": [],
-          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$returns": { "type": "integer" },
           "$return": { "$call": "strict", "$args": [null] }
         }
       },
@@ -131,21 +116,13 @@
       "description": "argument type mismatch is reported at the arg path",
       "module": {
         "wantString": {
-          "$params": ["s"],
-          "$sig": {
-            "required": [{ "type": "string" }],
-            "optional": [],
-            "returns": { "type": "string" }
-          },
+          "$params": [{ "$param": "s", "$type": { "type": "string" } }],
+          "$returns": { "type": "string" },
           "$return": { "$var": "s" }
         },
         "caller": {
-          "$params": ["n"],
-          "$sig": {
-            "required": [{ "type": "integer" }],
-            "optional": [],
-            "returns": { "type": "string" }
-          },
+          "$params": [{ "$param": "n", "$type": { "type": "integer" } }],
+          "$returns": { "type": "string" },
           "$return": { "$call": "wantString", "$args": [{ "$var": "n" }] }
         }
       },
@@ -165,21 +142,13 @@
       "description": "arity mismatch is reported",
       "module": {
         "identity": {
-          "$params": ["n"],
-          "$sig": {
-            "required": [{ "type": "integer" }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [{ "$param": "n", "$type": { "type": "integer" } }],
+          "$returns": { "type": "integer" },
           "$return": { "$var": "n" }
         },
         "caller": {
-          "$params": ["n"],
-          "$sig": {
-            "required": [{ "type": "integer" }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [{ "$param": "n", "$type": { "type": "integer" } }],
+          "$returns": { "type": "integer" },
           "$return": { "$call": "identity", "$args": [{ "$var": "n" }, { "$var": "n" }] }
         }
       },
@@ -197,18 +166,15 @@
       "description": "rest params accept extra arguments of the element type",
       "module": {
         "variadic": {
-          "$params": ["...xs"],
-          "$sig": {
-            "required": [],
-            "optional": [],
-            "rest": { "type": "integer" },
-            "returns": { "type": "integer" }
-          },
+          "$params": [
+            { "$param": "...xs", "$type": { "type": "array", "items": { "type": "integer" } } }
+          ],
+          "$returns": { "type": "integer" },
           "$return": 0
         },
         "caller": {
           "$params": [],
-          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$returns": { "type": "integer" },
           "$return": { "$call": "variadic", "$args": [1, 2, 3] }
         }
       },
@@ -218,22 +184,21 @@
       "description": "optional parameters define an accepted argument-count range",
       "module": {
         "flexible": {
-          "$params": ["n", { "$param": "label", "$optional": true }],
-          "$sig": {
-            "required": [{ "type": "integer" }],
-            "optional": [{ "type": "string" }],
-            "returns": { "type": "integer" }
-          },
+          "$params": [
+            { "$param": "n", "$type": { "type": "integer" } },
+            { "$param": "label", "$optional": true, "$type": { "type": "string" } }
+          ],
+          "$returns": { "type": "integer" },
           "$return": { "$var": "n" }
         },
         "oneArgument": {
           "$params": [],
-          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$returns": { "type": "integer" },
           "$return": { "$call": "flexible", "$args": [1] }
         },
         "twoArguments": {
           "$params": [],
-          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$returns": { "type": "integer" },
           "$return": { "$call": "flexible", "$args": [1, "label"] }
         }
       },
@@ -243,22 +208,21 @@
       "description": "optional-parameter arity diagnostics report the accepted range",
       "module": {
         "flexible": {
-          "$params": ["n", { "$param": "label", "$optional": true }],
-          "$sig": {
-            "required": [{ "type": "integer" }],
-            "optional": [{ "type": "string" }],
-            "returns": { "type": "integer" }
-          },
+          "$params": [
+            { "$param": "n", "$type": { "type": "integer" } },
+            { "$param": "label", "$optional": true, "$type": { "type": "string" } }
+          ],
+          "$returns": { "type": "integer" },
           "$return": { "$var": "n" }
         },
         "tooFew": {
           "$params": [],
-          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$returns": { "type": "integer" },
           "$return": { "$call": "flexible", "$args": [] }
         },
         "tooMany": {
           "$params": [],
-          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$returns": { "type": "integer" },
           "$return": { "$call": "flexible", "$args": [1, "label", 2] }
         }
       },
@@ -281,22 +245,21 @@
       "description": "arity errors still traverse every supplied argument",
       "module": {
         "pair": {
-          "$params": ["left", "right"],
-          "$sig": {
-            "required": [{ "type": "integer" }, { "type": "integer" }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [
+            { "$param": "left", "$type": { "type": "integer" } },
+            { "$param": "right", "$type": { "type": "integer" } }
+          ],
+          "$returns": { "type": "integer" },
           "$return": { "$var": "left" }
         },
         "tooFew": {
           "$params": [],
-          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$returns": { "type": "integer" },
           "$return": { "$call": "pair", "$args": [{ "$var": "missingFew" }] }
         },
         "tooMany": {
           "$params": [],
-          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$returns": { "type": "integer" },
           "$return": { "$call": "pair", "$args": [1, 2, { "$var": "missingExtra" }] }
         }
       },
@@ -334,26 +297,25 @@
       "description": "wrong user-function arity suppresses contextual lambda cascades",
       "module": {
         "consume": {
-          "$params": ["callback", "value"],
-          "$sig": {
-            "required": [
-              {
+          "$params": [
+            {
+              "$param": "callback",
+              "$type": {
                 "$fnType": {
                   "required": [{ "type": "integer" }],
                   "optional": [],
                   "returns": { "type": "integer" }
                 }
-              },
-              { "type": "integer" }
-            ],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+              }
+            },
+            { "$param": "value", "$type": { "type": "integer" } }
+          ],
+          "$returns": { "type": "integer" },
           "$return": { "$var": "value" }
         },
         "caller": {
           "$params": [],
-          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$returns": { "type": "integer" },
           "$return": {
             "$call": "consume",
             "$args": [{ "$params": ["n"], "$return": { "$var": "missingFromCallback" } }]
@@ -375,22 +337,17 @@
       "module": {
         "flexible": {
           "$params": [
-            "n",
-            { "$param": "label", "$optional": true },
-            { "$param": "enabled", "$optional": true },
-            "...rest"
+            { "$param": "n", "$type": { "type": "integer" } },
+            { "$param": "label", "$optional": true, "$type": { "type": "string" } },
+            { "$param": "enabled", "$optional": true, "$type": { "type": "boolean" } },
+            { "$param": "...rest", "$type": { "type": "array", "items": { "type": "integer" } } }
           ],
-          "$sig": {
-            "required": [{ "type": "integer" }],
-            "optional": [{ "type": "string" }, { "type": "boolean" }],
-            "rest": { "type": "integer" },
-            "returns": { "type": "integer" }
-          },
+          "$returns": { "type": "integer" },
           "$return": { "$var": "n" }
         },
         "caller": {
           "$params": [],
-          "$sig": { "required": [], "optional": [], "returns": true },
+          "$returns": true,
           "$return": {
             "$array": [
               { "$call": "flexible", "$args": [1, null] },
@@ -422,18 +379,15 @@
       "description": "a rest arg of the wrong element type is reported",
       "module": {
         "variadic": {
-          "$params": ["...xs"],
-          "$sig": {
-            "required": [],
-            "optional": [],
-            "rest": { "type": "integer" },
-            "returns": { "type": "integer" }
-          },
+          "$params": [
+            { "$param": "...xs", "$type": { "type": "array", "items": { "type": "integer" } } }
+          ],
+          "$returns": { "type": "integer" },
           "$return": 0
         },
         "caller": {
           "$params": [],
-          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$returns": { "type": "integer" },
           "$return": { "$call": "variadic", "$args": [1, "two"] }
         }
       },
@@ -638,7 +592,7 @@
       "module": {
         "f": {
           "$params": [],
-          "$sig": { "required": [], "optional": [], "returns": { "type": "string" } },
+          "$returns": { "type": "string" },
           "$return": { "$call": { "$return": 1 }, "$args": [] }
         }
       },
@@ -659,7 +613,7 @@
       "module": {
         "f": {
           "$params": [],
-          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$returns": { "type": "integer" },
           "$return": { "$call": { "$return": 1 }, "$args": [] }
         }
       },

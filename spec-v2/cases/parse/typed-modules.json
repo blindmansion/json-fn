@@ -17,22 +17,17 @@
           }
         },
         "id": {
-          "$sig": {
-            "required": [{ "$ref": "#/$defs/N" }],
-            "optional": [],
-            "returns": { "$ref": "#/$defs/N" }
-          },
-          "$params": ["x"],
+          "$params": [{ "$param": "x", "$type": { "$ref": "#/$defs/N" } }],
+          "$returns": { "$ref": "#/$defs/N" },
           "$return": { "$var": "x" }
         },
         "unbox": {
-          "$sig": {
-            "required": [{ "$ref": "#/$defs/Box" }],
-            "optional": [],
-            "returns": { "$ref": "#/$defs/N" }
-          },
-          "$params": [{ "$fields": ["value"] }],
-          "$return": { "$var": "value" }
+          "$params": [{ "$param": "__p0", "$type": { "$ref": "#/$defs/Box" } }],
+          "$returns": { "$ref": "#/$defs/N" },
+          "$return": {
+            "$let": { "value": { "$get": "value", "$from": { "$var": "__p0" } } },
+            "$in": { "$var": "value" }
+          }
         }
       }
     },

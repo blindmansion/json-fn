@@ -7,12 +7,13 @@
       "description": "a named boolean guard narrows its referenced outer value",
       "module": {
         "f": {
-          "$params": ["value"],
-          "$sig": {
-            "required": [{ "anyOf": [{ "type": "integer" }, { "type": "string" }] }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [
+            {
+              "$param": "value",
+              "$type": { "anyOf": [{ "type": "integer" }, { "type": "string" }] }
+            }
+          ],
+          "$returns": { "type": "integer" },
           "$return": {
             "$let": { "integer": { "$call": "isInteger", "$args": [{ "$var": "value" }] } },
             "$in": {
@@ -29,12 +30,13 @@
       "description": "uses creation-site and forcing-site facts for lazy bindings",
       "module": {
         "creationSite": {
-          "$params": ["value"],
-          "$sig": {
-            "required": [{ "anyOf": [{ "type": "integer" }, { "type": "string" }] }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [
+            {
+              "$param": "value",
+              "$type": { "anyOf": [{ "type": "integer" }, { "type": "string" }] }
+            }
+          ],
+          "$returns": { "type": "integer" },
           "$return": {
             "$if": { "$call": "isInteger", "$args": [{ "$var": "value" }] },
             "$then": {
@@ -45,12 +47,13 @@
           }
         },
         "forcingSite": {
-          "$params": ["value"],
-          "$sig": {
-            "required": [{ "anyOf": [{ "type": "integer" }, { "type": "string" }] }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [
+            {
+              "$param": "value",
+              "$type": { "anyOf": [{ "type": "integer" }, { "type": "string" }] }
+            }
+          ],
+          "$returns": { "type": "integer" },
           "$return": {
             "$let": { "copy": { "$var": "value" } },
             "$in": {
@@ -67,21 +70,15 @@
       "description": "retains creation-site facts across a callback boundary",
       "module": {
         "acceptsString": {
-          "$params": ["value"],
-          "$sig": {
-            "required": [{ "type": "string" }],
-            "optional": [],
-            "returns": { "type": "boolean" }
-          },
+          "$params": [{ "$param": "value", "$type": { "type": "string" } }],
+          "$returns": { "type": "boolean" },
           "$return": true
         },
         "run": {
-          "$params": ["cmd"],
-          "$sig": {
-            "required": [{ "anyOf": [{ "type": "string" }, { "type": "null" }] }],
-            "optional": [],
-            "returns": { "$taskType": { "type": "string" } }
-          },
+          "$params": [
+            { "$param": "cmd", "$type": { "anyOf": [{ "type": "string" }, { "type": "null" }] } }
+          ],
+          "$returns": { "$taskType": { "type": "string" } },
           "$return": {
             "$if": { "$call": "isNull", "$args": [{ "$var": "cmd" }] },
             "$then": { "$call": "pure", "$args": ["none"] },
@@ -113,12 +110,13 @@
       "description": "nested let shadowing masks an outer same-named fact",
       "module": {
         "f": {
-          "$params": ["value"],
-          "$sig": {
-            "required": [{ "anyOf": [{ "type": "integer" }, { "type": "string" }] }],
-            "optional": [],
-            "returns": { "type": "string" }
-          },
+          "$params": [
+            {
+              "$param": "value",
+              "$type": { "anyOf": [{ "type": "integer" }, { "type": "string" }] }
+            }
+          ],
+          "$returns": { "type": "string" },
           "$return": {
             "$if": { "$call": "isInteger", "$args": [{ "$var": "value" }] },
             "$then": {
@@ -136,21 +134,18 @@
       "comment": "The inner function binding `same` shadows the outer guard, so the outer guard binding is unused and the branch no longer narrows `value` for the add call.",
       "module": {
         "f": {
-          "$params": ["value"],
-          "$sig": {
-            "required": [{ "anyOf": [{ "type": "integer" }, { "type": "string" }] }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [
+            {
+              "$param": "value",
+              "$type": { "anyOf": [{ "type": "integer" }, { "type": "string" }] }
+            }
+          ],
+          "$returns": { "type": "integer" },
           "$return": {
             "$let": { "same": { "$call": "isInteger", "$args": [{ "$var": "value" }] } },
             "$in": {
               "$let": {
-                "same": {
-                  "$params": [],
-                  "$sig": { "required": [], "optional": [], "returns": { "type": "boolean" } },
-                  "$return": true
-                }
+                "same": { "$params": [], "$returns": { "type": "boolean" }, "$return": true }
               },
               "$in": {
                 "$if": { "$var": "same" },
@@ -180,46 +175,31 @@
       "description": "function parameters and captures mask outer narrowing facts",
       "module": {
         "f": {
-          "$params": ["value"],
-          "$sig": {
-            "required": [{ "anyOf": [{ "type": "integer" }, { "type": "string" }] }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [
+            {
+              "$param": "value",
+              "$type": { "anyOf": [{ "type": "integer" }, { "type": "string" }] }
+            }
+          ],
+          "$returns": { "type": "integer" },
           "$return": {
             "$if": { "$call": "isInteger", "$args": [{ "$var": "value" }] },
             "$then": {
               "$let": {
                 "helper": {
-                  "$params": ["value"],
-                  "$sig": {
-                    "required": [{ "type": "string" }],
-                    "optional": [],
-                    "returns": { "type": "string" }
-                  },
+                  "$params": [{ "$param": "value", "$type": { "type": "string" } }],
+                  "$returns": { "type": "string" },
                   "$return": { "$var": "value" }
                 },
                 "worker": {
                   "$params": [],
-                  "$sig": {
-                    "required": [],
-                    "optional": [],
-                    "returns": {
-                      "$fnType": {
-                        "required": [],
-                        "optional": [],
-                        "returns": { "type": "integer" }
-                      }
-                    }
+                  "$returns": {
+                    "$fnType": { "required": [], "optional": [], "returns": { "type": "integer" } }
                   },
+                  "$return": { "$var": "value" },
                   "$captures": {
-                    "value": {
-                      "$params": [],
-                      "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
-                      "$return": 1
-                    }
-                  },
-                  "$return": { "$var": "value" }
+                    "value": { "$params": [], "$returns": { "type": "integer" }, "$return": 1 }
+                  }
                 }
               },
               "$in": {

@@ -85,7 +85,7 @@
       "module": {
         "f": {
           "$params": [],
-          "$sig": { "required": [], "optional": [], "returns": { "type": "string" } },
+          "$returns": { "type": "string" },
           "$return": { "$as": 1, "$type": { "type": "string" } }
         }
       },
@@ -96,15 +96,16 @@
       "comment": "End-to-end version of the local direct-synth unit test: the second tuple element still sees integer | string.",
       "module": {
         "f": {
-          "$params": ["value"],
-          "$sig": {
-            "required": [{ "anyOf": [{ "type": "integer" }, { "type": "string" }] }],
-            "optional": [],
-            "returns": {
-              "type": "array",
-              "prefixItems": [{ "type": "integer" }, { "type": "integer" }],
-              "items": false
+          "$params": [
+            {
+              "$param": "value",
+              "$type": { "anyOf": [{ "type": "integer" }, { "type": "string" }] }
             }
+          ],
+          "$returns": {
+            "type": "array",
+            "prefixItems": [{ "type": "integer" }, { "type": "integer" }],
+            "items": false
           },
           "$return": [
             { "$as": { "$var": "value" }, "$type": { "type": "integer" } },

@@ -70,12 +70,8 @@
         "$call": "map",
         "$args": [
           {
-            "$params": ["n"],
-            "$sig": {
-              "required": [{ "type": "string" }],
-              "optional": [],
-              "returns": { "type": "integer" }
-            },
+            "$params": [{ "$param": "n", "$type": { "type": "string" } }],
+            "$returns": { "type": "integer" },
             "$return": 1
           },
           [10, 20]

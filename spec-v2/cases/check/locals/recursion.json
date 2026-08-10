@@ -40,12 +40,8 @@
       "expression": {
         "$let": {
           "count": {
-            "$params": ["n"],
-            "$sig": {
-              "required": [{ "type": "integer" }],
-              "optional": [],
-              "returns": { "type": "integer" }
-            },
+            "$params": [{ "$param": "n", "$type": { "type": "integer" } }],
+            "$returns": { "type": "integer" },
             "$return": {
               "$if": { "$call": "eq", "$args": [{ "$var": "n" }, 0] },
               "$then": 0,
@@ -56,24 +52,16 @@
             }
           },
           "even": {
-            "$params": ["n"],
-            "$sig": {
-              "required": [{ "type": "integer" }],
-              "optional": [],
-              "returns": { "type": "boolean" }
-            },
+            "$params": [{ "$param": "n", "$type": { "type": "integer" } }],
+            "$returns": { "type": "boolean" },
             "$return": {
               "$call": "odd",
               "$args": [{ "$call": "sub", "$args": [{ "$var": "n" }, 1] }]
             }
           },
           "odd": {
-            "$params": ["n"],
-            "$sig": {
-              "required": [{ "type": "integer" }],
-              "optional": [],
-              "returns": { "type": "boolean" }
-            },
+            "$params": [{ "$param": "n", "$type": { "type": "integer" } }],
+            "$returns": { "type": "boolean" },
             "$return": {
               "$if": { "$call": "eq", "$args": [{ "$var": "n" }, 0] },
               "$then": false,
@@ -105,24 +93,6 @@
             "path": ["$let", "helper"],
             "severity": "error",
             "messageIncludes": "function binding \"helper\" must declare a signature (typed parameters and return)"
-          }
-        ]
-      }
-    },
-    {
-      "description": "can allow an unannotated named local function for migration",
-      "options": { "allowUntypedFunctions": true },
-      "expression": {
-        "$let": { "helper": { "$params": [], "$return": 1 } },
-        "$in": { "$var": "helper" }
-      },
-      "expected": {
-        "type": true,
-        "diagnostics": [
-          {
-            "path": ["$let", "helper"],
-            "severity": "info",
-            "messageIncludes": "expression degraded to `any` because function binding \"helper\" has no declared signature"
           }
         ]
       }

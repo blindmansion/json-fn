@@ -9,12 +9,8 @@
       "module": {
         "$types": { "Color": { "enum": ["w", "b"] } },
         "rowOf": {
-          "$params": ["idx"],
-          "$sig": {
-            "required": [{ "type": "integer" }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [{ "$param": "idx", "$type": { "type": "integer" } }],
+          "$returns": { "type": "integer" },
           "$return": {
             "$call": "floor",
             "$args": [{ "$call": "div", "$args": [{ "$var": "idx" }, 8] }]
@@ -28,12 +24,8 @@
       "module": {
         "$types": { "Color": { "enum": ["w", "b"] } },
         "colOf": {
-          "$params": ["idx"],
-          "$sig": {
-            "required": [{ "type": "integer" }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [{ "$param": "idx", "$type": { "type": "integer" } }],
+          "$returns": { "type": "integer" },
           "$return": { "$call": "mod", "$args": [{ "$var": "idx" }, 8] }
         }
       },
@@ -44,12 +36,11 @@
       "module": {
         "$types": { "Color": { "enum": ["w", "b"] } },
         "toIdx": {
-          "$params": ["row", "col"],
-          "$sig": {
-            "required": [{ "type": "integer" }, { "type": "integer" }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [
+            { "$param": "row", "$type": { "type": "integer" } },
+            { "$param": "col", "$type": { "type": "integer" } }
+          ],
+          "$returns": { "type": "integer" },
           "$return": {
             "$call": "add",
             "$args": [{ "$call": "mul", "$args": [{ "$var": "row" }, 8] }, { "$var": "col" }]
@@ -63,12 +54,11 @@
       "module": {
         "$types": { "Color": { "enum": ["w", "b"] } },
         "inBounds": {
-          "$params": ["row", "col"],
-          "$sig": {
-            "required": [{ "type": "integer" }, { "type": "integer" }],
-            "optional": [],
-            "returns": { "type": "boolean" }
-          },
+          "$params": [
+            { "$param": "row", "$type": { "type": "integer" } },
+            { "$param": "col", "$type": { "type": "integer" } }
+          ],
+          "$returns": { "type": "boolean" },
           "$return": {
             "$and": [
               { "$call": "gte", "$args": [{ "$var": "row" }, 0] },
@@ -86,12 +76,8 @@
       "module": {
         "$types": { "Color": { "enum": ["w", "b"] } },
         "otherColor": {
-          "$params": ["color"],
-          "$sig": {
-            "required": [{ "$ref": "#/$defs/Color" }],
-            "optional": [],
-            "returns": { "$ref": "#/$defs/Color" }
-          },
+          "$params": [{ "$param": "color", "$type": { "$ref": "#/$defs/Color" } }],
+          "$returns": { "$ref": "#/$defs/Color" },
           "$return": {
             "$if": { "$call": "eq", "$args": [{ "$var": "color" }, "w"] },
             "$then": "b",
@@ -106,45 +92,35 @@
       "module": {
         "$types": { "Color": { "enum": ["w", "b"] } },
         "rowOf": {
-          "$params": ["idx"],
-          "$sig": {
-            "required": [{ "type": "integer" }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [{ "$param": "idx", "$type": { "type": "integer" } }],
+          "$returns": { "type": "integer" },
           "$return": {
             "$call": "floor",
             "$args": [{ "$call": "div", "$args": [{ "$var": "idx" }, 8] }]
           }
         },
         "colOf": {
-          "$params": ["idx"],
-          "$sig": {
-            "required": [{ "type": "integer" }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [{ "$param": "idx", "$type": { "type": "integer" } }],
+          "$returns": { "type": "integer" },
           "$return": { "$call": "mod", "$args": [{ "$var": "idx" }, 8] }
         },
         "toIdx": {
-          "$params": ["row", "col"],
-          "$sig": {
-            "required": [{ "type": "integer" }, { "type": "integer" }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [
+            { "$param": "row", "$type": { "type": "integer" } },
+            { "$param": "col", "$type": { "type": "integer" } }
+          ],
+          "$returns": { "type": "integer" },
           "$return": {
             "$call": "add",
             "$args": [{ "$call": "mul", "$args": [{ "$var": "row" }, 8] }, { "$var": "col" }]
           }
         },
         "inBounds": {
-          "$params": ["row", "col"],
-          "$sig": {
-            "required": [{ "type": "integer" }, { "type": "integer" }],
-            "optional": [],
-            "returns": { "type": "boolean" }
-          },
+          "$params": [
+            { "$param": "row", "$type": { "type": "integer" } },
+            { "$param": "col", "$type": { "type": "integer" } }
+          ],
+          "$returns": { "type": "boolean" },
           "$return": {
             "$and": [
               { "$call": "gte", "$args": [{ "$var": "row" }, 0] },
@@ -155,12 +131,8 @@
           }
         },
         "otherColor": {
-          "$params": ["color"],
-          "$sig": {
-            "required": [{ "$ref": "#/$defs/Color" }],
-            "optional": [],
-            "returns": { "$ref": "#/$defs/Color" }
-          },
+          "$params": [{ "$param": "color", "$type": { "$ref": "#/$defs/Color" } }],
+          "$returns": { "$ref": "#/$defs/Color" },
           "$return": {
             "$if": { "$call": "eq", "$args": [{ "$var": "color" }, "w"] },
             "$then": "b",
@@ -180,12 +152,8 @@
           "Cell": { "anyOf": [{ "$ref": "#/$defs/Piece" }, { "type": "null" }] }
         },
         "isEmpty": {
-          "$params": ["piece"],
-          "$sig": {
-            "required": [{ "$ref": "#/$defs/Cell" }],
-            "optional": [],
-            "returns": { "type": "boolean" }
-          },
+          "$params": [{ "$param": "piece", "$type": { "$ref": "#/$defs/Cell" } }],
+          "$returns": { "type": "boolean" },
           "$return": { "$call": "isNull", "$args": [{ "$var": "piece" }] }
         }
       },
@@ -201,12 +169,8 @@
           "Cell": { "anyOf": [{ "$ref": "#/$defs/Piece" }, { "type": "null" }] }
         },
         "pieceColor": {
-          "$params": ["piece"],
-          "$sig": {
-            "required": [{ "$ref": "#/$defs/Cell" }],
-            "optional": [],
-            "returns": { "anyOf": [{ "$ref": "#/$defs/Color" }, { "type": "null" }] }
-          },
+          "$params": [{ "$param": "piece", "$type": { "$ref": "#/$defs/Cell" } }],
+          "$returns": { "anyOf": [{ "$ref": "#/$defs/Color" }, { "type": "null" }] },
           "$return": {
             "$if": { "$call": "isNull", "$args": [{ "$var": "piece" }] },
             "$then": null,
@@ -233,12 +197,8 @@
           "Cell": { "anyOf": [{ "$ref": "#/$defs/Piece" }, { "type": "null" }] }
         },
         "afterWhite": {
-          "$params": ["color"],
-          "$sig": {
-            "required": [{ "$ref": "#/$defs/Color" }],
-            "optional": [],
-            "returns": { "$ref": "#/$defs/Color" }
-          },
+          "$params": [{ "$param": "color", "$type": { "$ref": "#/$defs/Color" } }],
+          "$returns": { "$ref": "#/$defs/Color" },
           "$return": {
             "$if": { "$call": "eq", "$args": [{ "$var": "color" }, "w"] },
             "$then": "b",
@@ -258,10 +218,10 @@
           "Cell": { "anyOf": [{ "$ref": "#/$defs/Piece" }, { "type": "null" }] }
         },
         "fileOf": {
-          "$params": ["sq"],
-          "$sig": {
-            "required": [
-              {
+          "$params": [
+            {
+              "$param": "sq",
+              "$type": {
                 "anyOf": [
                   {
                     "type": "object",
@@ -272,10 +232,9 @@
                   { "type": "null" }
                 ]
               }
-            ],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+            }
+          ],
+          "$returns": { "type": "integer" },
           "$return": {
             "$if": { "$call": "isNull", "$args": [{ "$var": "sq" }] },
             "$then": 0,
@@ -295,12 +254,11 @@
           "Cell": { "anyOf": [{ "$ref": "#/$defs/Piece" }, { "type": "null" }] }
         },
         "makePiece": {
-          "$params": ["color", "type"],
-          "$sig": {
-            "required": [{ "$ref": "#/$defs/Color" }, { "$ref": "#/$defs/PieceType" }],
-            "optional": [],
-            "returns": { "$ref": "#/$defs/Piece" }
-          },
+          "$params": [
+            { "$param": "color", "$type": { "$ref": "#/$defs/Color" } },
+            { "$param": "type", "$type": { "$ref": "#/$defs/PieceType" } }
+          ],
+          "$returns": { "$ref": "#/$defs/Piece" },
           "$return": {
             "$if": { "$call": "eq", "$args": [{ "$var": "color" }, "w"] },
             "$then": { "$var": "type" },
@@ -328,12 +286,8 @@
           "Cell": { "anyOf": [{ "$ref": "#/$defs/Piece" }, { "type": "null" }] }
         },
         "bad": {
-          "$params": ["color"],
-          "$sig": {
-            "required": [{ "$ref": "#/$defs/Color" }],
-            "optional": [],
-            "returns": { "$ref": "#/$defs/Color" }
-          },
+          "$params": [{ "$param": "color", "$type": { "$ref": "#/$defs/Color" } }],
+          "$returns": { "$ref": "#/$defs/Color" },
           "$return": { "$call": "length", "$args": ["abc"] }
         }
       },
@@ -353,12 +307,8 @@
           "Cell": { "anyOf": [{ "$ref": "#/$defs/Piece" }, { "type": "null" }] }
         },
         "pieceMoves": {
-          "$params": ["piece"],
-          "$sig": {
-            "required": [{ "$ref": "#/$defs/Cell" }],
-            "optional": [],
-            "returns": { "type": "array", "items": { "type": "string" } }
-          },
+          "$params": [{ "$param": "piece", "$type": { "$ref": "#/$defs/Cell" } }],
+          "$returns": { "type": "array", "items": { "type": "string" } },
           "$return": {
             "$let": {
               "type": { "$call": "upper", "$args": [{ "$var": "piece" }] },
@@ -384,12 +334,8 @@
           "Cell": { "anyOf": [{ "$ref": "#/$defs/Piece" }, { "type": "null" }] }
         },
         "slideDir": {
-          "$params": ["target"],
-          "$sig": {
-            "required": [{ "$ref": "#/$defs/Cell" }],
-            "optional": [],
-            "returns": { "anyOf": [{ "type": "string" }, { "type": "null" }] }
-          },
+          "$params": [{ "$param": "target", "$type": { "$ref": "#/$defs/Cell" } }],
+          "$returns": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
           "$return": {
             "$let": {
               "empty": { "$call": "isNull", "$args": [{ "$var": "target" }] },
@@ -417,22 +363,21 @@
           "Cell": { "anyOf": [{ "$ref": "#/$defs/Piece" }, { "type": "null" }] }
         },
         "localTruthy": {
-          "$params": ["x"],
-          "$sig": {
-            "required": [{ "anyOf": [{ "type": "string" }, { "type": "null" }] }],
-            "optional": [],
-            "returns": { "type": "string" }
-          },
+          "$params": [
+            { "$param": "x", "$type": { "anyOf": [{ "type": "string" }, { "type": "null" }] } }
+          ],
+          "$returns": { "type": "string" },
           "$return": {
             "$let": {
               "h": { "$call": "maybe", "$args": [{ "$var": "x" }] },
               "maybe": {
-                "$params": ["y"],
-                "$sig": {
-                  "required": [{ "anyOf": [{ "type": "string" }, { "type": "null" }] }],
-                  "optional": [],
-                  "returns": { "anyOf": [{ "type": "string" }, { "type": "null" }] }
-                },
+                "$params": [
+                  {
+                    "$param": "y",
+                    "$type": { "anyOf": [{ "type": "string" }, { "type": "null" }] }
+                  }
+                ],
+                "$returns": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
                 "$return": { "$var": "y" }
               }
             },
@@ -452,24 +397,23 @@
           "Cell": { "anyOf": [{ "$ref": "#/$defs/Piece" }, { "type": "null" }] }
         },
         "parseMove": {
-          "$params": ["from", "to"],
-          "$sig": {
-            "required": [{ "$ref": "#/$defs/Cell" }, { "$ref": "#/$defs/Cell" }],
-            "optional": [],
-            "returns": {
-              "anyOf": [
-                {
-                  "type": "object",
-                  "properties": {
-                    "from": { "$ref": "#/$defs/Piece" },
-                    "to": { "$ref": "#/$defs/Piece" }
-                  },
-                  "required": ["from", "to"],
-                  "additionalProperties": false
+          "$params": [
+            { "$param": "from", "$type": { "$ref": "#/$defs/Cell" } },
+            { "$param": "to", "$type": { "$ref": "#/$defs/Cell" } }
+          ],
+          "$returns": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "from": { "$ref": "#/$defs/Piece" },
+                  "to": { "$ref": "#/$defs/Piece" }
                 },
-                { "type": "null" }
-              ]
-            }
+                "required": ["from", "to"],
+                "additionalProperties": false
+              },
+              { "type": "null" }
+            ]
           },
           "$return": {
             "$if": {
@@ -495,16 +439,15 @@
           "Cell": { "anyOf": [{ "$ref": "#/$defs/Piece" }, { "type": "null" }] }
         },
         "divergent": {
-          "$params": ["p", "q"],
-          "$sig": {
-            "required": [{ "$ref": "#/$defs/Color" }, { "$ref": "#/$defs/Cell" }],
-            "optional": [],
-            "returns": {
-              "type": "array",
-              "prefixItems": [{ "type": "string" }, { "const": "w" }],
-              "items": false,
-              "minItems": 2
-            }
+          "$params": [
+            { "$param": "p", "$type": { "$ref": "#/$defs/Color" } },
+            { "$param": "q", "$type": { "$ref": "#/$defs/Cell" } }
+          ],
+          "$returns": {
+            "type": "array",
+            "prefixItems": [{ "type": "string" }, { "const": "w" }],
+            "items": false,
+            "minItems": 2
           },
           "$return": {
             "$let": { "d": [{ "$call": "upper", "$args": [{ "$var": "q" }] }, { "$var": "p" }] },
@@ -541,12 +484,8 @@
           "Cell": { "anyOf": [{ "$ref": "#/$defs/Piece" }, { "type": "null" }] }
         },
         "plain": {
-          "$params": ["q"],
-          "$sig": {
-            "required": [{ "$ref": "#/$defs/Cell" }],
-            "optional": [],
-            "returns": { "type": "string" }
-          },
+          "$params": [{ "$param": "q", "$type": { "$ref": "#/$defs/Cell" } }],
+          "$returns": { "type": "string" },
           "$return": { "$call": "upper", "$args": [{ "$var": "q" }] }
         }
       },
@@ -570,10 +509,10 @@
           "Cell": { "anyOf": [{ "$ref": "#/$defs/Piece" }, { "type": "null" }] }
         },
         "firstGlyph": {
-          "$params": ["move"],
-          "$sig": {
-            "required": [
-              {
+          "$params": [
+            {
+              "$param": "move",
+              "$type": {
                 "type": "object",
                 "properties": {
                   "from": { "$ref": "#/$defs/Cell" },
@@ -582,10 +521,9 @@
                 "required": ["from", "to"],
                 "additionalProperties": false
               }
-            ],
-            "optional": [],
-            "returns": { "anyOf": [{ "type": "string" }, { "type": "null" }] }
-          },
+            }
+          ],
+          "$returns": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
           "$return": {
             "$if": {
               "$call": "isNull",
@@ -623,12 +561,8 @@
           }
         },
         "area": {
-          "$params": ["s"],
-          "$sig": {
-            "required": [{ "$ref": "#/$defs/Shape" }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [{ "$param": "s", "$type": { "$ref": "#/$defs/Shape" } }],
+          "$returns": { "type": "integer" },
           "$return": {
             "$if": {
               "$call": "eq",
@@ -651,19 +585,15 @@
           "Cell": { "anyOf": [{ "$ref": "#/$defs/Piece" }, { "type": "null" }] }
         },
         "needInt": {
-          "$params": ["n"],
-          "$sig": {
-            "required": [{ "type": "integer" }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [{ "$param": "n", "$type": { "type": "integer" } }],
+          "$returns": { "type": "integer" },
           "$return": { "$var": "n" }
         },
         "badField": {
-          "$params": ["move"],
-          "$sig": {
-            "required": [
-              {
+          "$params": [
+            {
+              "$param": "move",
+              "$type": {
                 "type": "object",
                 "properties": {
                   "from": { "$ref": "#/$defs/Cell" },
@@ -672,10 +602,9 @@
                 "required": ["from", "to"],
                 "additionalProperties": false
               }
-            ],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+            }
+          ],
+          "$returns": { "type": "integer" },
           "$return": {
             "$if": {
               "$call": "not",
@@ -711,10 +640,10 @@
           "Cell": { "anyOf": [{ "$ref": "#/$defs/Piece" }, { "type": "null" }] }
         },
         "firstGlyphLocal": {
-          "$params": ["move"],
-          "$sig": {
-            "required": [
-              {
+          "$params": [
+            {
+              "$param": "move",
+              "$type": {
                 "type": "object",
                 "properties": {
                   "from": { "$ref": "#/$defs/Cell" },
@@ -723,10 +652,9 @@
                 "required": ["from", "to"],
                 "additionalProperties": false
               }
-            ],
-            "optional": [],
-            "returns": { "anyOf": [{ "type": "string" }, { "type": "null" }] }
-          },
+            }
+          ],
+          "$returns": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
           "$return": {
             "$let": {
               "glyph": {
@@ -757,10 +685,10 @@
           "Cell": { "anyOf": [{ "$ref": "#/$defs/Piece" }, { "type": "null" }] }
         },
         "target": {
-          "$params": ["move"],
-          "$sig": {
-            "required": [
-              {
+          "$params": [
+            {
+              "$param": "move",
+              "$type": {
                 "type": "object",
                 "properties": {
                   "from": { "$ref": "#/$defs/Cell" },
@@ -769,10 +697,9 @@
                 "required": ["from", "to"],
                 "additionalProperties": false
               }
-            ],
-            "optional": [],
-            "returns": { "anyOf": [{ "$ref": "#/$defs/Piece" }, { "type": "null" }] }
-          },
+            }
+          ],
+          "$returns": { "anyOf": [{ "$ref": "#/$defs/Piece" }, { "type": "null" }] },
           "$return": {
             "$if": {
               "$call": "not",
@@ -792,12 +719,8 @@
       "module": {
         "$types": { "Color": { "enum": ["w", "b"] } },
         "f": {
-          "$params": ["color"],
-          "$sig": {
-            "required": [{ "$ref": "#/$defs/Color" }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [{ "$param": "color", "$type": { "$ref": "#/$defs/Color" } }],
+          "$returns": { "type": "integer" },
           "$return": { "$match": { "$var": "color" }, "$cases": [["w", 1]] }
         }
       },
@@ -816,12 +739,8 @@
       "module": {
         "$types": { "Color": { "enum": ["w", "b"] } },
         "f": {
-          "$params": ["color"],
-          "$sig": {
-            "required": [{ "$ref": "#/$defs/Color" }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [{ "$param": "color", "$type": { "$ref": "#/$defs/Color" } }],
+          "$returns": { "type": "integer" },
           "$return": {
             "$match": { "$var": "color" },
             "$cases": [
@@ -838,12 +757,8 @@
       "module": {
         "$types": { "Color": { "enum": ["w", "b"] } },
         "f": {
-          "$params": ["color"],
-          "$sig": {
-            "required": [{ "$ref": "#/$defs/Color" }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [{ "$param": "color", "$type": { "$ref": "#/$defs/Color" } }],
+          "$returns": { "type": "integer" },
           "$return": { "$match": { "$var": "color" }, "$cases": [["w", 1]], "$else": 2 }
         }
       },
@@ -871,12 +786,8 @@
           }
         },
         "f": {
-          "$params": ["s"],
-          "$sig": {
-            "required": [{ "$ref": "#/$defs/Shape" }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [{ "$param": "s", "$type": { "$ref": "#/$defs/Shape" } }],
+          "$returns": { "type": "integer" },
           "$return": {
             "$match": { "$get": "tag", "$from": { "$var": "s" } },
             "$cases": [["circle", 1]]
@@ -915,12 +826,8 @@
           }
         },
         "f": {
-          "$params": ["s"],
-          "$sig": {
-            "required": [{ "$ref": "#/$defs/Shape" }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [{ "$param": "s", "$type": { "$ref": "#/$defs/Shape" } }],
+          "$returns": { "type": "integer" },
           "$return": {
             "$match": { "$get": "tag", "$from": { "$var": "s" } },
             "$cases": [
@@ -954,12 +861,8 @@
           }
         },
         "f": {
-          "$params": ["s"],
-          "$sig": {
-            "required": [{ "$ref": "#/$defs/Shape" }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [{ "$param": "s", "$type": { "$ref": "#/$defs/Shape" } }],
+          "$returns": { "type": "integer" },
           "$return": {
             "$match": { "$get": "tag", "$from": { "$var": "s" } },
             "$cases": [
@@ -976,12 +879,8 @@
       "module": {
         "$types": { "Color": { "enum": ["w", "b"] } },
         "f": {
-          "$params": ["color"],
-          "$sig": {
-            "required": [{ "$ref": "#/$defs/Color" }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [{ "$param": "color", "$type": { "$ref": "#/$defs/Color" } }],
+          "$returns": { "type": "integer" },
           "$return": {
             "$match": { "$var": "color" },
             "$cases": [
@@ -1006,12 +905,8 @@
       "description": "a match over an infinite subject is not linted (undecidable universe)",
       "module": {
         "f": {
-          "$params": ["s"],
-          "$sig": {
-            "required": [{ "type": "string" }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [{ "$param": "s", "$type": { "type": "string" } }],
+          "$returns": { "type": "integer" },
           "$return": { "$match": { "$var": "s" }, "$cases": [["hi", 1]] }
         }
       },

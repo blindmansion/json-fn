@@ -8,7 +8,7 @@
       "module": {
         "f": {
           "$params": [],
-          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$returns": { "type": "integer" },
           "$return": { "$if": true, "$then": 1, "$else": 2 }
         }
       },
@@ -19,7 +19,7 @@
       "module": {
         "f": {
           "$params": [],
-          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$returns": { "type": "integer" },
           "$return": { "$if": true, "$then": 1, "$else": "x" }
         }
       },
@@ -40,15 +40,11 @@
       "module": {
         "f": {
           "$params": [],
-          "$sig": {
-            "required": [],
-            "optional": [],
-            "returns": {
-              "type": "object",
-              "properties": { "a": { "type": "integer" } },
-              "required": ["a"],
-              "additionalProperties": false
-            }
+          "$returns": {
+            "type": "object",
+            "properties": { "a": { "type": "integer" } },
+            "required": ["a"],
+            "additionalProperties": false
           },
           "$return": { "$if": true, "$then": { "a": 1 }, "$else": { "a": "x" } }
         }
@@ -67,12 +63,10 @@
       "description": "$if: truthiness narrowing threads into the checked arm",
       "module": {
         "f": {
-          "$params": ["x"],
-          "$sig": {
-            "required": [{ "anyOf": [{ "type": "string" }, { "type": "null" }] }],
-            "optional": [],
-            "returns": { "type": "string" }
-          },
+          "$params": [
+            { "$param": "x", "$type": { "anyOf": [{ "type": "string" }, { "type": "null" }] } }
+          ],
+          "$returns": { "type": "string" },
           "$return": { "$if": { "$var": "x" }, "$then": { "$var": "x" }, "$else": "" }
         }
       },
@@ -83,12 +77,13 @@
       "builtins": "standard",
       "module": {
         "f": {
-          "$params": ["value"],
-          "$sig": {
-            "required": [{ "anyOf": [{ "type": "number" }, { "type": "string" }] }],
-            "optional": [],
-            "returns": { "type": "array", "items": { "type": "integer" } }
-          },
+          "$params": [
+            {
+              "$param": "value",
+              "$type": { "anyOf": [{ "type": "number" }, { "type": "string" }] }
+            }
+          ],
+          "$returns": { "type": "array", "items": { "type": "integer" } },
           "$return": {
             "$if": { "$call": "isInteger", "$args": [{ "$var": "value" }] },
             "$then": { "$call": "range", "$args": [{ "$var": "value" }] },
@@ -103,12 +98,10 @@
       "builtins": "standard",
       "module": {
         "viaAnd": {
-          "$params": ["value"],
-          "$sig": {
-            "required": [{ "anyOf": [{ "type": "integer" }, { "type": "null" }] }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [
+            { "$param": "value", "$type": { "anyOf": [{ "type": "integer" }, { "type": "null" }] } }
+          ],
+          "$returns": { "type": "integer" },
           "$return": {
             "$if": {
               "$and": [
@@ -121,12 +114,10 @@
           }
         },
         "viaOr": {
-          "$params": ["value"],
-          "$sig": {
-            "required": [{ "anyOf": [{ "type": "integer" }, { "type": "null" }] }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [
+            { "$param": "value", "$type": { "anyOf": [{ "type": "integer" }, { "type": "null" }] } }
+          ],
+          "$returns": { "type": "integer" },
           "$return": {
             "$if": {
               "$or": [
@@ -146,12 +137,8 @@
       "builtins": "standard",
       "module": {
         "asString": {
-          "$params": ["value"],
-          "$sig": {
-            "required": [{ "type": "number" }],
-            "optional": [],
-            "returns": { "type": "string" }
-          },
+          "$params": [{ "$param": "value", "$type": { "type": "number" } }],
+          "$returns": { "type": "string" },
           "$return": {
             "$if": { "$call": "isInteger", "$args": [{ "$var": "value" }] },
             "$then": "",
@@ -159,12 +146,8 @@
           }
         },
         "asInteger": {
-          "$params": ["value"],
-          "$sig": {
-            "required": [{ "type": "number" }],
-            "optional": [],
-            "returns": { "type": "array", "items": { "type": "integer" } }
-          },
+          "$params": [{ "$param": "value", "$type": { "type": "number" } }],
+          "$returns": { "type": "array", "items": { "type": "integer" } },
           "$return": {
             "$if": { "$call": "isInteger", "$args": [{ "$var": "value" }] },
             "$then": [],
@@ -192,21 +175,13 @@
       "builtins": "standard",
       "module": {
         "fractionalOnly": {
-          "$params": ["value"],
-          "$sig": {
-            "required": [{ "const": 1.5 }],
-            "optional": [],
-            "returns": { "type": "array", "items": { "type": "integer" } }
-          },
+          "$params": [{ "$param": "value", "$type": { "const": 1.5 } }],
+          "$returns": { "type": "array", "items": { "type": "integer" } },
           "$return": []
         },
         "f": {
-          "$params": ["value"],
-          "$sig": {
-            "required": [{ "enum": [1, 1.5] }],
-            "optional": [],
-            "returns": { "type": "array", "items": { "type": "integer" } }
-          },
+          "$params": [{ "$param": "value", "$type": { "enum": [1, 1.5] } }],
+          "$returns": { "type": "array", "items": { "type": "integer" } },
           "$return": {
             "$if": { "$call": "isInteger", "$args": [{ "$var": "value" }] },
             "$then": { "$call": "range", "$args": [{ "$var": "value" }] },
@@ -221,17 +196,19 @@
       "builtins": "standard",
       "module": {
         "f": {
-          "$params": ["value", "isInteger"],
-          "$sig": {
-            "required": [
-              { "anyOf": [{ "type": "number" }, { "type": "string" }] },
-              {
+          "$params": [
+            {
+              "$param": "value",
+              "$type": { "anyOf": [{ "type": "number" }, { "type": "string" }] }
+            },
+            {
+              "$param": "isInteger",
+              "$type": {
                 "$fnType": { "required": [true], "optional": [], "returns": { "type": "boolean" } }
               }
-            ],
-            "optional": [],
-            "returns": { "type": "array", "items": { "type": "integer" } }
-          },
+            }
+          ],
+          "$returns": { "type": "array", "items": { "type": "integer" } },
           "$return": {
             "$if": { "$call": "isInteger", "$args": [{ "$var": "value" }] },
             "$then": { "$call": "range", "$args": [{ "$var": "value" }] },
@@ -254,7 +231,7 @@
       "module": {
         "f": {
           "$params": [],
-          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$returns": { "type": "integer" },
           "$return": {
             "$cond": [
               [true, 1],
@@ -279,12 +256,8 @@
       "description": "$cond: a cond over literal results fits a string return",
       "module": {
         "label": {
-          "$params": ["n"],
-          "$sig": {
-            "required": [{ "type": "integer" }],
-            "optional": [],
-            "returns": { "type": "string" }
-          },
+          "$params": [{ "$param": "n", "$type": { "type": "integer" } }],
+          "$returns": { "type": "string" },
           "$return": { "$cond": [[{ "$var": "n" }, "a"]], "$else": "b" }
         }
       },
@@ -296,12 +269,10 @@
       "builtins": "standard",
       "module": {
         "f": {
-          "$params": ["x"],
-          "$sig": {
-            "required": [{ "anyOf": [{ "type": "string" }, { "type": "null" }] }],
-            "optional": [],
-            "returns": { "type": "string" }
-          },
+          "$params": [
+            { "$param": "x", "$type": { "anyOf": [{ "type": "string" }, { "type": "null" }] } }
+          ],
+          "$returns": { "type": "string" },
           "$return": {
             "$cond": [[{ "$call": "isNull", "$args": [{ "$var": "x" }] }, "d"]],
             "$else": { "$var": "x" }
@@ -314,12 +285,8 @@
       "description": "$match: a mismatching case arm is pinpointed to that arm",
       "module": {
         "f": {
-          "$params": ["p"],
-          "$sig": {
-            "required": [{ "enum": ["a", "b"] }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [{ "$param": "p", "$type": { "enum": ["a", "b"] } }],
+          "$returns": { "type": "integer" },
           "$return": {
             "$match": { "$var": "p" },
             "$cases": [
@@ -344,12 +311,8 @@
       "description": "$match: exhaustiveness lint still fires in checked position",
       "module": {
         "f": {
-          "$params": ["p"],
-          "$sig": {
-            "required": [{ "enum": ["a", "b"] }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [{ "$param": "p", "$type": { "enum": ["a", "b"] } }],
+          "$returns": { "type": "integer" },
           "$return": { "$match": { "$var": "p" }, "$cases": [["a", 1]] }
         }
       },
@@ -406,12 +369,10 @@
       "comment": "End-to-end version of the local direct-synth short-circuit unit tests: the null-coalescing idiom.",
       "module": {
         "f": {
-          "$params": ["x"],
-          "$sig": {
-            "required": [{ "anyOf": [{ "type": "string" }, { "type": "null" }] }],
-            "optional": [],
-            "returns": { "type": "string" }
-          },
+          "$params": [
+            { "$param": "x", "$type": { "anyOf": [{ "type": "string" }, { "type": "null" }] } }
+          ],
+          "$returns": { "type": "string" },
           "$return": { "$or": [{ "$var": "x" }, "def"] }
         }
       },
@@ -422,12 +383,10 @@
       "comment": "End-to-end version of the local direct-synth short-circuit unit tests.",
       "module": {
         "f": {
-          "$params": ["x"],
-          "$sig": {
-            "required": [{ "anyOf": [{ "type": "string" }, { "type": "null" }] }],
-            "optional": [],
-            "returns": { "anyOf": [{ "const": "" }, { "type": "null" }, { "const": "tail" }] }
-          },
+          "$params": [
+            { "$param": "x", "$type": { "anyOf": [{ "type": "string" }, { "type": "null" }] } }
+          ],
+          "$returns": { "anyOf": [{ "const": "" }, { "type": "null" }, { "const": "tail" }] },
           "$return": { "$and": [{ "$var": "x" }, "tail"] }
         }
       },

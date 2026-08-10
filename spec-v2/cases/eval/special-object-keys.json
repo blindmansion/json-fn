@@ -165,7 +165,13 @@
     },
     {
       "description": "a destructured field may be named __proto__",
-      "body": { "$params": [{ "$fields": ["__proto__"] }], "$return": { "$var": "__proto__" } },
+      "body": {
+        "$params": ["__p0"],
+        "$return": {
+          "$let": { "__proto__": { "$get": "__proto__", "$from": { "$var": "__p0" } } },
+          "$in": { "$var": "__proto__" }
+        }
+      },
       "args": [{ "__proto__": 3 }],
       "expected": 3
     },

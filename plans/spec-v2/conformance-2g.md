@@ -119,6 +119,42 @@ plus schema validation and format checks green. The transform scripts are
 one-shot (Stage B artifacts, not maintained tooling); each emits its
 flagged-for-hand-review list before writing anything.
 
+**Done 2026-08-09** via `typescript/scripts/migrate-spec-v2-stage-b.ts`
+(one-shot; kept for the record) plus hand edits for pass 1. Gate, schema
+validation, and format checks green; the `checking.md` remnant check found
+the docs already clean. Outcomes beyond the plan's letter, all listed in the
+script's report:
+
+- **Flags (23 cases, left byte-identical, allowlisted per file for Stage C).**
+  Besides the anticipated alignment set (`check/functions/signatures.json`
+  #3–#5/#7–#8) and the two malformed `$fields` entries, the flag rules caught:
+  diagnostics whose *paths* point into `$sig` (`check/locals/captures.json`
+  #5, `check/modules/references.json` #0/#1/#4/#5 — mechanical path rewrites
+  to `$params[i].$type`/`$returns`, deferred as flagged); eval errors
+  asserting pattern-specific identities that 2b/2d replace
+  (`eval/destructured-params.json` #3/#5–#10,
+  `eval/strict-parameter-runtime.json` #8 — miss/non-object/missing-argument
+  identity changes); and pattern validation the lowering makes inexpressible
+  (`eval/parameter-defaults.json` #21–#25 — duplicate-binding and
+  descriptor-form cases; duplicates across a pattern and a positional slot
+  become ordinary `$let` shadowing, so those likely move to parse suites or
+  delete).
+- **`true` schemas stay explicit** (`$type: true` / `$returns: true`, 12
+  case sites) instead of the planned drop-when-`true`: a `$sig`-carrying body
+  was "declared" in v1, and dropping them would demote named functions and
+  concrete lambdas to partially annotated, changing checker expectations —
+  Stage B's correctness-preservation premise wins over the cosmetic rule. No
+  parse case is affected (typed shorthand never produced `true` schemas).
+  Stage C may hand-tighten these to real types where it touches the files.
+- **Array-path deletes (5)**: `eval/property-access.json` "path access walks
+  nested structure", "path with array index", "missing path segment returns
+  null", "dot notation: missing intermediate returns null" (path-walk miss
+  short-circuit is gone with the form; the single-key null-on-miss queue
+  covers the rest, shrinking it 11 → 9), and "folded paths validate each
+  segment against its current target" (unfolded, it duplicates "object access
+  rejects a numeric key"). The `parse/property-access.json` "collapses"
+  description is reworded to the nested-chain wording.
+
 ## Stage C — semantic triage, per chunk
 
 Hand work over the review-category queues, in the stage's dependency order.

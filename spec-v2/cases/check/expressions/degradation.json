@@ -59,8 +59,8 @@
       "description": "a reported dynamic result keeps strict assignability with an actionable hint",
       "module": {
         "f": {
-          "$params": ["dynamic"],
-          "$sig": { "required": [true], "optional": [], "returns": { "type": "integer" } },
+          "$params": [{ "$param": "dynamic", "$type": true }],
+          "$returns": { "type": "integer" },
           "$return": { "$call": { "$var": "dynamic" }, "$args": [] }
         }
       },
@@ -85,8 +85,8 @@
       "description": "a static any remains strictly non-assignable without a reported degradation",
       "module": {
         "f": {
-          "$params": ["value"],
-          "$sig": { "required": [true], "optional": [], "returns": { "type": "integer" } },
+          "$params": [{ "$param": "value", "$type": true }],
+          "$returns": { "type": "integer" },
           "$return": { "$var": "value" }
         }
       },
@@ -141,21 +141,18 @@
       "builtins": "standard",
       "module": {
         "sum": {
-          "$params": ["a", "b"],
-          "$sig": {
-            "required": [{ "type": "integer" }, { "type": "integer" }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [
+            { "$param": "a", "$type": { "type": "integer" } },
+            { "$param": "b", "$type": { "type": "integer" } }
+          ],
+          "$returns": { "type": "integer" },
           "$return": { "$call": "add", "$args": [{ "$var": "a" }, { "$var": "b" }] }
         },
         "run": {
-          "$params": ["xs"],
-          "$sig": {
-            "required": [{ "type": "array", "items": { "type": "integer" } }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [
+            { "$param": "xs", "$type": { "type": "array", "items": { "type": "integer" } } }
+          ],
+          "$returns": { "type": "integer" },
           "$return": { "$call": "apply", "$args": [{ "$fn": "sum" }, { "$var": "xs" }] }
         }
       },

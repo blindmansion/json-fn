@@ -8,12 +8,8 @@
       "description": "a bare-var case pins the matched literal",
       "module": {
         "f": {
-          "$params": ["color"],
-          "$sig": {
-            "required": [{ "enum": ["w", "b"] }],
-            "optional": [],
-            "returns": { "const": "w" }
-          },
+          "$params": [{ "$param": "color", "$type": { "enum": ["w", "b"] } }],
+          "$returns": { "const": "w" },
           "$return": {
             "$match": { "$var": "color" },
             "$cases": [["w", { "$var": "color" }]],
@@ -27,12 +23,8 @@
       "description": "the else arm excludes the handled case literal",
       "module": {
         "f": {
-          "$params": ["color"],
-          "$sig": {
-            "required": [{ "enum": ["w", "b"] }],
-            "optional": [],
-            "returns": { "const": "b" }
-          },
+          "$params": [{ "$param": "color", "$type": { "enum": ["w", "b"] } }],
+          "$returns": { "const": "b" },
           "$return": {
             "$match": { "$var": "color" },
             "$cases": [["w", "b"]],
@@ -46,12 +38,10 @@
       "description": "a null case pins null in its arm",
       "module": {
         "f": {
-          "$params": ["x"],
-          "$sig": {
-            "required": [{ "anyOf": [{ "type": "integer" }, { "type": "null" }] }],
-            "optional": [],
-            "returns": { "type": "null" }
-          },
+          "$params": [
+            { "$param": "x", "$type": { "anyOf": [{ "type": "integer" }, { "type": "null" }] } }
+          ],
+          "$returns": { "type": "null" },
           "$return": {
             "$match": { "$var": "x" },
             "$cases": [[null, { "$var": "x" }]],
@@ -65,12 +55,10 @@
       "description": "a null case leaves the non-null arm for else",
       "module": {
         "f": {
-          "$params": ["x"],
-          "$sig": {
-            "required": [{ "anyOf": [{ "type": "integer" }, { "type": "null" }] }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [
+            { "$param": "x", "$type": { "anyOf": [{ "type": "integer" }, { "type": "null" }] } }
+          ],
+          "$returns": { "type": "integer" },
           "$return": { "$match": { "$var": "x" }, "$cases": [[null, 0]], "$else": { "$var": "x" } }
         }
       },
@@ -80,10 +68,10 @@
       "description": "a discriminant-path case narrows the base to the matching arm",
       "module": {
         "f": {
-          "$params": ["s"],
-          "$sig": {
-            "required": [
-              {
+          "$params": [
+            {
+              "$param": "s",
+              "$type": {
                 "anyOf": [
                   {
                     "type": "object",
@@ -99,10 +87,9 @@
                   }
                 ]
               }
-            ],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+            }
+          ],
+          "$returns": { "type": "integer" },
           "$return": {
             "$match": { "$get": "tag", "$from": { "$var": "s" } },
             "$cases": [
@@ -118,10 +105,10 @@
       "description": "a discriminant-path else arm drops the matched arm",
       "module": {
         "f": {
-          "$params": ["s"],
-          "$sig": {
-            "required": [
-              {
+          "$params": [
+            {
+              "$param": "s",
+              "$type": {
                 "anyOf": [
                   {
                     "type": "object",
@@ -137,10 +124,9 @@
                   }
                 ]
               }
-            ],
-            "optional": [],
-            "returns": { "type": "string" }
-          },
+            }
+          ],
+          "$returns": { "type": "string" },
           "$return": {
             "$match": { "$get": "tag", "$from": { "$var": "s" } },
             "$cases": [["a", ""]],
@@ -156,15 +142,11 @@
       "builtins": "standard",
       "module": {
         "f": {
-          "$params": ["x", "xs"],
-          "$sig": {
-            "required": [
-              { "anyOf": [{ "type": "integer" }, { "type": "null" }] },
-              { "type": "array", "items": { "type": "integer" } }
-            ],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [
+            { "$param": "x", "$type": { "anyOf": [{ "type": "integer" }, { "type": "null" }] } },
+            { "$param": "xs", "$type": { "type": "array", "items": { "type": "integer" } } }
+          ],
+          "$returns": { "type": "integer" },
           "$return": {
             "$match": { "$call": "length", "$args": [{ "$var": "xs" }] },
             "$cases": [[0, { "$var": "x" }]],

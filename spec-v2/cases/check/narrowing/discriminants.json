@@ -8,10 +8,10 @@
       "description": "s.tag == literal then-branch keeps the matching arm (refines the base)",
       "module": {
         "f": {
-          "$params": ["s"],
-          "$sig": {
-            "required": [
-              {
+          "$params": [
+            {
+              "$param": "s",
+              "$type": {
                 "anyOf": [
                   {
                     "type": "object",
@@ -27,10 +27,9 @@
                   }
                 ]
               }
-            ],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+            }
+          ],
+          "$returns": { "type": "integer" },
           "$return": {
             "$if": { "$call": "eq", "$args": [{ "$get": "tag", "$from": { "$var": "s" } }, "a"] },
             "$then": { "$get": "r", "$from": { "$var": "s" } },
@@ -44,10 +43,10 @@
       "description": "s.tag == literal else-branch drops the exact-const arm",
       "module": {
         "f": {
-          "$params": ["s"],
-          "$sig": {
-            "required": [
-              {
+          "$params": [
+            {
+              "$param": "s",
+              "$type": {
                 "anyOf": [
                   {
                     "type": "object",
@@ -63,10 +62,9 @@
                   }
                 ]
               }
-            ],
-            "optional": [],
-            "returns": { "type": "string" }
-          },
+            }
+          ],
+          "$returns": { "type": "string" },
           "$return": {
             "$if": { "$call": "eq", "$args": [{ "$get": "tag", "$from": { "$var": "s" } }, "a"] },
             "$then": "",
@@ -80,10 +78,10 @@
       "description": "a singleton-enum discriminant counts as exact on the else branch",
       "module": {
         "f": {
-          "$params": ["s"],
-          "$sig": {
-            "required": [
-              {
+          "$params": [
+            {
+              "$param": "s",
+              "$type": {
                 "anyOf": [
                   {
                     "type": "object",
@@ -99,10 +97,9 @@
                   }
                 ]
               }
-            ],
-            "optional": [],
-            "returns": { "type": "string" }
-          },
+            }
+          ],
+          "$returns": { "type": "string" },
           "$return": {
             "$if": { "$call": "eq", "$args": [{ "$get": "tag", "$from": { "$var": "s" } }, "a"] },
             "$then": "",
@@ -117,10 +114,10 @@
       "comment": "tag: enum [a, c] can still be \"c\" on the else branch, so the arm is kept, the base is not narrowed, and projecting side from the full union fails.",
       "module": {
         "f": {
-          "$params": ["s"],
-          "$sig": {
-            "required": [
-              {
+          "$params": [
+            {
+              "$param": "s",
+              "$type": {
                 "anyOf": [
                   {
                     "type": "object",
@@ -136,10 +133,9 @@
                   }
                 ]
               }
-            ],
-            "optional": [],
-            "returns": { "type": "string" }
-          },
+            }
+          ],
+          "$returns": { "type": "string" },
           "$return": {
             "$if": { "$call": "eq", "$args": [{ "$get": "tag", "$from": { "$var": "s" } }, "a"] },
             "$then": "",

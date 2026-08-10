@@ -8,12 +8,8 @@
       "description": "eq(subject, literal) then-branch pins the literal",
       "module": {
         "f": {
-          "$params": ["color"],
-          "$sig": {
-            "required": [{ "enum": ["w", "b"] }],
-            "optional": [],
-            "returns": { "const": "w" }
-          },
+          "$params": [{ "$param": "color", "$type": { "enum": ["w", "b"] } }],
+          "$returns": { "const": "w" },
           "$return": {
             "$if": { "$call": "eq", "$args": [{ "$var": "color" }, "w"] },
             "$then": { "$var": "color" },
@@ -27,12 +23,8 @@
       "description": "eq(subject, literal) else-branch excludes the literal",
       "module": {
         "f": {
-          "$params": ["color"],
-          "$sig": {
-            "required": [{ "enum": ["w", "b"] }],
-            "optional": [],
-            "returns": { "const": "b" }
-          },
+          "$params": [{ "$param": "color", "$type": { "enum": ["w", "b"] } }],
+          "$returns": { "const": "b" },
           "$return": {
             "$if": { "$call": "eq", "$args": [{ "$var": "color" }, "w"] },
             "$then": "b",
@@ -46,12 +38,8 @@
       "description": "argument order is symmetric: eq(literal, subject) pins the literal",
       "module": {
         "f": {
-          "$params": ["color"],
-          "$sig": {
-            "required": [{ "enum": ["w", "b"] }],
-            "optional": [],
-            "returns": { "const": "w" }
-          },
+          "$params": [{ "$param": "color", "$type": { "enum": ["w", "b"] } }],
+          "$returns": { "const": "w" },
           "$return": {
             "$if": { "$call": "eq", "$args": ["w", { "$var": "color" }] },
             "$then": { "$var": "color" },
@@ -65,12 +53,8 @@
       "description": "neq is eq with the sense flipped: the then-branch excludes the literal",
       "module": {
         "f": {
-          "$params": ["color"],
-          "$sig": {
-            "required": [{ "enum": ["w", "b"] }],
-            "optional": [],
-            "returns": { "const": "b" }
-          },
+          "$params": [{ "$param": "color", "$type": { "enum": ["w", "b"] } }],
+          "$returns": { "const": "b" },
           "$return": {
             "$if": { "$call": "neq", "$args": [{ "$var": "color" }, "w"] },
             "$then": { "$var": "color" },
@@ -84,12 +68,10 @@
       "description": "neq(x, null) then-branch removes a primitive null union arm",
       "module": {
         "f": {
-          "$params": ["x"],
-          "$sig": {
-            "required": [{ "anyOf": [{ "type": "integer" }, { "type": "null" }] }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [
+            { "$param": "x", "$type": { "anyOf": [{ "type": "integer" }, { "type": "null" }] } }
+          ],
+          "$returns": { "type": "integer" },
           "$return": {
             "$if": { "$call": "neq", "$args": [{ "$var": "x" }, null] },
             "$then": { "$var": "x" },
@@ -103,12 +85,10 @@
       "description": "eq(x, null) else-branch removes a primitive null union arm",
       "module": {
         "f": {
-          "$params": ["x"],
-          "$sig": {
-            "required": [{ "anyOf": [{ "type": "integer" }, { "type": "null" }] }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [
+            { "$param": "x", "$type": { "anyOf": [{ "type": "integer" }, { "type": "null" }] } }
+          ],
+          "$returns": { "type": "integer" },
           "$return": {
             "$if": { "$call": "eq", "$args": [{ "$var": "x" }, null] },
             "$then": 0,
@@ -122,12 +102,10 @@
       "description": "null exclusion is symmetric in argument order",
       "module": {
         "f": {
-          "$params": ["x"],
-          "$sig": {
-            "required": [{ "anyOf": [{ "type": "integer" }, { "type": "null" }] }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [
+            { "$param": "x", "$type": { "anyOf": [{ "type": "integer" }, { "type": "null" }] } }
+          ],
+          "$returns": { "type": "integer" },
           "$return": {
             "$if": { "$call": "neq", "$args": [null, { "$var": "x" }] },
             "$then": { "$var": "x" },
@@ -141,12 +119,10 @@
       "description": "eq(x, null) then-branch still pins null",
       "module": {
         "f": {
-          "$params": ["x"],
-          "$sig": {
-            "required": [{ "anyOf": [{ "type": "integer" }, { "type": "null" }] }],
-            "optional": [],
-            "returns": { "type": "null" }
-          },
+          "$params": [
+            { "$param": "x", "$type": { "anyOf": [{ "type": "integer" }, { "type": "null" }] } }
+          ],
+          "$returns": { "type": "null" },
           "$return": {
             "$if": { "$call": "eq", "$args": [{ "$var": "x" }, null] },
             "$then": { "$var": "x" },
@@ -160,12 +136,8 @@
       "description": "null exclusion handles type-array unions",
       "module": {
         "f": {
-          "$params": ["x"],
-          "$sig": {
-            "required": [{ "type": ["integer", "null"] }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [{ "$param": "x", "$type": { "type": ["integer", "null"] } }],
+          "$returns": { "type": "integer" },
           "$return": {
             "$if": { "$call": "neq", "$args": [{ "$var": "x" }, null] },
             "$then": { "$var": "x" },
@@ -180,12 +152,8 @@
       "module": {
         "$types": { "MaybeInt": { "anyOf": [{ "type": "integer" }, { "type": "null" }] } },
         "f": {
-          "$params": ["x"],
-          "$sig": {
-            "required": [{ "$ref": "#/$defs/MaybeInt" }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [{ "$param": "x", "$type": { "$ref": "#/$defs/MaybeInt" } }],
+          "$returns": { "type": "integer" },
           "$return": {
             "$if": { "$call": "neq", "$args": [{ "$var": "x" }, null] },
             "$then": { "$var": "x" },

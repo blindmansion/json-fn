@@ -9,15 +9,11 @@
       "comment": "eq over a call result identifies no narrowable path, so the nullable parameter keeps its declared union in the then-branch.",
       "module": {
         "f": {
-          "$params": ["x", "xs"],
-          "$sig": {
-            "required": [
-              { "anyOf": [{ "type": "string" }, { "type": "null" }] },
-              { "type": "array", "items": { "type": "string" } }
-            ],
-            "optional": [],
-            "returns": { "type": "string" }
-          },
+          "$params": [
+            { "$param": "x", "$type": { "anyOf": [{ "type": "string" }, { "type": "null" }] } },
+            { "$param": "xs", "$type": { "type": "array", "items": { "type": "string" } } }
+          ],
+          "$returns": { "type": "string" },
           "$return": {
             "$if": {
               "$call": "eq",
@@ -45,12 +41,10 @@
       "comment": "gt is not a recognized guard, so the nullable parameter does not narrow: the condition's own argument mismatch and the un-narrowed then-branch are both reported.",
       "module": {
         "f": {
-          "$params": ["x"],
-          "$sig": {
-            "required": [{ "anyOf": [{ "type": "integer" }, { "type": "null" }] }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [
+            { "$param": "x", "$type": { "anyOf": [{ "type": "integer" }, { "type": "null" }] } }
+          ],
+          "$returns": { "type": "integer" },
           "$return": {
             "$if": { "$call": "gt", "$args": [{ "$var": "x" }, 3] },
             "$then": { "$var": "x" },

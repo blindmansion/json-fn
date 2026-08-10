@@ -6,20 +6,18 @@
     {
       "description": "captures are visible to defaults and $return",
       "expression": {
-        "$params": [{ "$param": "value", "$default": { "$call": "helper", "$args": [] } }],
-        "$sig": {
-          "required": [],
-          "optional": [{ "type": "integer" }],
-          "returns": { "type": "integer" }
-        },
-        "$captures": {
-          "helper": {
-            "$params": [],
-            "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
-            "$return": 7
+        "$params": [
+          {
+            "$param": "value",
+            "$default": { "$call": "helper", "$args": [] },
+            "$type": { "type": "integer" }
           }
-        },
-        "$return": { "$call": "helper", "$args": [] }
+        ],
+        "$returns": { "type": "integer" },
+        "$return": { "$call": "helper", "$args": [] },
+        "$captures": {
+          "helper": { "$params": [], "$returns": { "type": "integer" }, "$return": 7 }
+        }
       },
       "expected": {
         "type": {
@@ -36,9 +34,9 @@
       "description": "reports null $captures as malformed",
       "expression": {
         "$params": [],
-        "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
-        "$captures": null,
-        "$return": 1
+        "$returns": { "type": "integer" },
+        "$return": 1,
+        "$captures": null
       },
       "expected": {
         "type": { "$fnType": { "required": [], "optional": [], "returns": { "type": "integer" } } },
@@ -55,9 +53,9 @@
       "description": "reports array $captures as malformed",
       "expression": {
         "$params": [],
-        "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
-        "$captures": [],
-        "$return": 1
+        "$returns": { "type": "integer" },
+        "$return": 1,
+        "$captures": []
       },
       "expected": {
         "type": { "$fnType": { "required": [], "optional": [], "returns": { "type": "integer" } } },
@@ -74,9 +72,9 @@
       "description": "reports scalar $captures as malformed",
       "expression": {
         "$params": [],
-        "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
-        "$captures": 1,
-        "$return": 1
+        "$returns": { "type": "integer" },
+        "$return": 1,
+        "$captures": 1
       },
       "expected": {
         "type": { "$fnType": { "required": [], "optional": [], "returns": { "type": "integer" } } },
@@ -93,9 +91,9 @@
       "description": "reports a non-function capture value as malformed",
       "expression": {
         "$params": [],
-        "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
-        "$captures": { "helper": 1 },
-        "$return": 1
+        "$returns": { "type": "integer" },
+        "$return": 1,
+        "$captures": { "helper": 1 }
       },
       "expected": {
         "type": { "$fnType": { "required": [], "optional": [], "returns": { "type": "integer" } } },

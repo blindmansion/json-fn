@@ -80,12 +80,8 @@
       "description": "recursive helpers retain their eager Task completion signatures",
       "module": {
         "loop": {
-          "$params": ["fuel"],
-          "$sig": {
-            "required": [{ "type": "integer" }],
-            "optional": [],
-            "returns": { "$taskType": { "type": "integer" } }
-          },
+          "$params": [{ "$param": "fuel", "$type": { "type": "integer" } }],
+          "$returns": { "$taskType": { "type": "integer" } },
           "$return": {
             "$if": { "$call": "lte", "$args": [{ "$var": "fuel" }, 0] },
             "$then": { "$call": "pure", "$args": [0] },
@@ -114,11 +110,7 @@
       "description": "a helper body must produce its declared Task completion type",
       "module": {
         "wrong": {
-          "$sig": {
-            "required": [],
-            "optional": [],
-            "returns": { "$taskType": { "type": "integer" } }
-          },
+          "$returns": { "$taskType": { "type": "integer" } },
           "$return": { "$call": "pure", "$args": ["wrong"] }
         },
         "main": { "$return": { "$call": "wrong", "$args": [] } }

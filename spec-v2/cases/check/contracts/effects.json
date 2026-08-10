@@ -9,7 +9,10 @@
       "module": {
         "main": {
           "$return": {
-            "$call": { "$get": ["sensor", "read"], "$from": { "$var": "effects" } },
+            "$call": {
+              "$get": "read",
+              "$from": { "$get": "sensor", "$from": { "$var": "effects" } }
+            },
             "$args": []
           }
         }
@@ -31,14 +34,13 @@
       "description": "explicitly typed helpers preserve effect completion types",
       "module": {
         "read": {
+          "$returns": { "$taskType": { "type": "integer" } },
           "$return": {
-            "$call": { "$get": ["sensor", "read"], "$from": { "$var": "effects" } },
+            "$call": {
+              "$get": "read",
+              "$from": { "$get": "sensor", "$from": { "$var": "effects" } }
+            },
             "$args": []
-          },
-          "$sig": {
-            "required": [],
-            "optional": [],
-            "returns": { "$taskType": { "type": "integer" } }
           }
         },
         "main": { "$return": { "$call": "read", "$args": [] } }
@@ -61,7 +63,7 @@
       "module": {
         "main": {
           "$return": {
-            "$call": { "$get": ["log"], "$from": { "$var": "effects" } },
+            "$call": { "$get": "log", "$from": { "$var": "effects" } },
             "$args": ["wrong"]
           }
         }
@@ -93,6 +95,8 @@
       "description": "handler clauses receive contextual effect, resume, and return types",
       "module": {
         "interpret": {
+          "$params": [{ "$param": "task", "$type": { "$taskType": { "type": "integer" } } }],
+          "$returns": { "type": "integer" },
           "$return": {
             "$call": "handle",
             "$args": [
@@ -115,13 +119,7 @@
               },
               { "$raw": { "type": "integer" } }
             ]
-          },
-          "$sig": {
-            "required": [{ "$taskType": { "type": "integer" } }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
-          "$params": ["task"]
+          }
         },
         "main": { "$return": { "$call": "pure", "$args": [1] } }
       },
@@ -142,6 +140,8 @@
       "description": "handler resume inputs and clause results are checked without degradation",
       "module": {
         "interpret": {
+          "$params": [{ "$param": "task", "$type": { "$taskType": { "type": "integer" } } }],
+          "$returns": { "type": "integer" },
           "$return": {
             "$call": "handle",
             "$args": [
@@ -158,13 +158,7 @@
               },
               { "$raw": { "type": "integer" } }
             ]
-          },
-          "$sig": {
-            "required": [{ "$taskType": { "type": "integer" } }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
-          "$params": ["task"]
+          }
         },
         "main": { "$return": { "$call": "pure", "$args": [1] } }
       },

@@ -8,12 +8,8 @@
       "module": {
         "$types": { "A": { "$ref": "#/$defs/A" } },
         "f": {
-          "$params": ["x"],
-          "$sig": {
-            "required": [{ "$ref": "#/$defs/A" }],
-            "optional": [],
-            "returns": { "$ref": "#/$defs/A" }
-          },
+          "$params": [{ "$param": "x", "$type": { "$ref": "#/$defs/A" } }],
+          "$returns": { "$ref": "#/$defs/A" },
           "$return": { "$var": "x" }
         }
       },
@@ -32,12 +28,10 @@
       "module": {
         "$types": { "B": { "anyOf": [{ "$ref": "#/$defs/B" }, { "type": "null" }] } },
         "f": {
-          "$params": ["x"],
-          "$sig": {
-            "required": [{ "anyOf": [{ "$ref": "#/$defs/B" }, { "type": "null" }] }],
-            "optional": [],
-            "returns": { "anyOf": [{ "$ref": "#/$defs/B" }, { "type": "null" }] }
-          },
+          "$params": [
+            { "$param": "x", "$type": { "anyOf": [{ "$ref": "#/$defs/B" }, { "type": "null" }] } }
+          ],
+          "$returns": { "anyOf": [{ "$ref": "#/$defs/B" }, { "type": "null" }] },
           "$return": { "$var": "x" }
         }
       },

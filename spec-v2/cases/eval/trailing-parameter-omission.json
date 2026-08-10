@@ -45,8 +45,11 @@
     {
       "description": "object pattern after a default is rejected",
       "body": {
-        "$params": [{ "$param": "fallback", "$default": 2 }, { "$fields": ["required"] }],
-        "$return": null
+        "$params": [{ "$param": "fallback", "$default": 2 }, "__p1"],
+        "$return": {
+          "$let": { "required": { "$get": "required", "$from": { "$var": "__p1" } } },
+          "$in": null
+        }
       },
       "args": [1, { "required": 2 }],
       "error": "Required positional parameters must precede defaulted parameters"
@@ -54,11 +57,11 @@
     {
       "description": "an all-defaulted object pattern remains required",
       "body": {
-        "$params": [
-          { "$fields": [{ "$field": "value", "$default": 2 }] },
-          { "$param": "fallback", "$default": 3 }
-        ],
-        "$return": [{ "$var": "value" }, { "$var": "fallback" }]
+        "$params": ["__p0", { "$param": "fallback", "$default": 3 }],
+        "$return": {
+          "$let": { "value": { "$get": "value", "$from": { "$var": "__p0" }, "$else": 2 } },
+          "$in": [{ "$var": "value" }, { "$var": "fallback" }]
+        }
       },
       "args": [{}],
       "expected": [2, 3]

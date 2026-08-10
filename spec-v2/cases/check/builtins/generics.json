@@ -17,21 +17,23 @@
       "description": "head and last drop null for declared nonempty arrays",
       "module": {
         "head": {
-          "$params": ["xs"],
-          "$sig": {
-            "required": [{ "type": "array", "items": { "type": "integer" }, "minItems": 1 }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [
+            {
+              "$param": "xs",
+              "$type": { "type": "array", "items": { "type": "integer" }, "minItems": 1 }
+            }
+          ],
+          "$returns": { "type": "integer" },
           "$return": { "$call": "head", "$args": [{ "$var": "xs" }] }
         },
         "last": {
-          "$params": ["xs"],
-          "$sig": {
-            "required": [{ "type": "array", "items": { "type": "integer" }, "minItems": 1 }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [
+            {
+              "$param": "xs",
+              "$type": { "type": "array", "items": { "type": "integer" }, "minItems": 1 }
+            }
+          ],
+          "$returns": { "type": "integer" },
           "$return": { "$call": "last", "$args": [{ "$var": "xs" }] }
         }
       },
@@ -41,12 +43,10 @@
       "description": "head of a possibly empty array retains null",
       "module": {
         "f": {
-          "$params": ["xs"],
-          "$sig": {
-            "required": [{ "type": "array", "items": { "type": "integer" } }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [
+            { "$param": "xs", "$type": { "type": "array", "items": { "type": "integer" } } }
+          ],
+          "$returns": { "type": "integer" },
           "$return": { "$call": "head", "$args": [{ "$var": "xs" }] }
         }
       },

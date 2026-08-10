@@ -2,16 +2,28 @@
   "description": "destructured (object-pattern) parameters — $fields (plans/destructured-params.md)",
   "functions": {
     "move": {
-      "$params": [{ "$fields": ["from", "to"] }],
-      "$return": { "$call": "sub", "$args": [{ "$var": "to" }, { "$var": "from" }] }
+      "$params": ["__p0"],
+      "$return": {
+        "$let": {
+          "from": { "$get": "from", "$from": { "$var": "__p0" } },
+          "to": { "$get": "to", "$from": { "$var": "__p0" } }
+        },
+        "$in": { "$call": "sub", "$args": [{ "$var": "to" }, { "$var": "from" }] }
+      }
     }
   },
   "cases": [
     {
       "description": "binds named fields from an object argument",
       "body": {
-        "$params": [{ "$fields": ["from", "to"] }],
-        "$return": { "$call": "sub", "$args": [{ "$var": "to" }, { "$var": "from" }] }
+        "$params": ["__p0"],
+        "$return": {
+          "$let": {
+            "from": { "$get": "from", "$from": { "$var": "__p0" } },
+            "to": { "$get": "to", "$from": { "$var": "__p0" } }
+          },
+          "$in": { "$call": "sub", "$args": [{ "$var": "to" }, { "$var": "from" }] }
+        }
       },
       "args": [{ "from": 3, "to": 7 }],
       "expected": 4
@@ -24,8 +36,11 @@
     {
       "description": "single field pattern",
       "body": {
-        "$params": [{ "$fields": ["x"] }],
-        "$return": { "$call": "mul", "$args": [{ "$var": "x" }, 2] }
+        "$params": ["__p0"],
+        "$return": {
+          "$let": { "x": { "$get": "x", "$from": { "$var": "__p0" } } },
+          "$in": { "$call": "mul", "$args": [{ "$var": "x" }, 2] }
+        }
       },
       "args": [{ "x": 21 }],
       "expected": 42
@@ -39,8 +54,14 @@
     {
       "description": "extra keys are ignored",
       "body": {
-        "$params": [{ "$fields": ["from", "to"] }],
-        "$return": { "$call": "add", "$args": [{ "$var": "from" }, { "$var": "to" }] }
+        "$params": ["__p0"],
+        "$return": {
+          "$let": {
+            "from": { "$get": "from", "$from": { "$var": "__p0" } },
+            "to": { "$get": "to", "$from": { "$var": "__p0" } }
+          },
+          "$in": { "$call": "add", "$args": [{ "$var": "from" }, { "$var": "to" }] }
+        }
       },
       "args": [{ "from": 1, "to": 2, "extra": 99 }],
       "expected": 3
@@ -95,10 +116,16 @@
     {
       "description": "mixed positional and pattern slots",
       "body": {
-        "$params": ["label", { "$fields": ["x", "y"] }],
+        "$params": ["label", "__p1"],
         "$return": {
-          "label": { "$var": "label" },
-          "sum": { "$call": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] }
+          "$let": {
+            "x": { "$get": "x", "$from": { "$var": "__p1" } },
+            "y": { "$get": "y", "$from": { "$var": "__p1" } }
+          },
+          "$in": {
+            "label": { "$var": "label" },
+            "sum": { "$call": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] }
+          }
         }
       },
       "args": ["p", { "x": 1, "y": 2 }],
@@ -107,8 +134,11 @@
     {
       "description": "pattern slot followed by a rest parameter",
       "body": {
-        "$params": [{ "$fields": ["x"] }, "...rest"],
-        "$return": { "x": { "$var": "x" }, "rest": { "$var": "rest" } }
+        "$params": ["__p0", "...rest"],
+        "$return": {
+          "$let": { "x": { "$get": "x", "$from": { "$var": "__p0" } } },
+          "$in": { "x": { "$var": "x" }, "rest": { "$var": "rest" } }
+        }
       },
       "args": [{ "x": 1 }, 2, 3],
       "expected": { "x": 1, "rest": [2, 3] }
@@ -116,8 +146,14 @@
     {
       "description": "multiple pattern slots each destructure their own argument",
       "body": {
-        "$params": [{ "$fields": ["a"] }, { "$fields": ["b"] }],
-        "$return": { "$call": "add", "$args": [{ "$var": "a" }, { "$var": "b" }] }
+        "$params": ["__p0", "__p1"],
+        "$return": {
+          "$let": {
+            "a": { "$get": "a", "$from": { "$var": "__p0" } },
+            "b": { "$get": "b", "$from": { "$var": "__p1" } }
+          },
+          "$in": { "$call": "add", "$args": [{ "$var": "a" }, { "$var": "b" }] }
+        }
       },
       "args": [{ "a": 1 }, { "b": 2 }],
       "expected": 3
@@ -125,10 +161,13 @@
     {
       "description": "fields are visible to lazy locals",
       "body": {
-        "$params": [{ "$fields": ["n"] }],
+        "$params": ["__p0"],
         "$return": {
-          "$let": { "twice": { "$call": "mul", "$args": [{ "$var": "n" }, 2] } },
-          "$in": { "$var": "twice" }
+          "$let": { "n": { "$get": "n", "$from": { "$var": "__p0" } } },
+          "$in": {
+            "$let": { "twice": { "$call": "mul", "$args": [{ "$var": "n" }, 2] } },
+            "$in": { "$var": "twice" }
+          }
         }
       },
       "args": [{ "n": 21 }],
@@ -137,13 +176,16 @@
     {
       "description": "fields are visible inside a nested inline function call",
       "body": {
-        "$params": [{ "$fields": ["x"] }],
+        "$params": ["__p0"],
         "$return": {
-          "$call": {
-            "$params": ["y"],
-            "$return": { "$call": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] }
-          },
-          "$args": [5]
+          "$let": { "x": { "$get": "x", "$from": { "$var": "__p0" } } },
+          "$in": {
+            "$call": {
+              "$params": ["y"],
+              "$return": { "$call": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] }
+            },
+            "$args": [5]
+          }
         }
       },
       "args": [{ "x": 10 }],
@@ -152,8 +194,11 @@
     {
       "description": "an inner parameter shadows an outer field of the same name",
       "body": {
-        "$params": [{ "$fields": ["x"] }],
-        "$return": { "$call": { "$params": ["x"], "$return": { "$var": "x" } }, "$args": [99] }
+        "$params": ["__p0"],
+        "$return": {
+          "$let": { "x": { "$get": "x", "$from": { "$var": "__p0" } } },
+          "$in": { "$call": { "$params": ["x"], "$return": { "$var": "x" } }, "$args": [99] }
+        }
       },
       "args": [{ "x": 1 }],
       "expected": 99
@@ -163,7 +208,16 @@
       "body": {
         "$return": {
           "$let": {
-            "fn": { "$params": [{ "$fields": ["from", "to"] }], "$return": { "$var": "from" } }
+            "fn": {
+              "$params": ["__p0"],
+              "$return": {
+                "$let": {
+                  "from": { "$get": "from", "$from": { "$var": "__p0" } },
+                  "to": { "$get": "to", "$from": { "$var": "__p0" } }
+                },
+                "$in": { "$var": "from" }
+              }
+            }
           },
           "$in": { "$call": "arity", "$args": [{ "$var": "fn" }] }
         }
@@ -175,7 +229,16 @@
       "body": {
         "$return": {
           "$let": {
-            "fn": { "$params": ["a", { "$fields": ["x", "y"] }], "$return": { "$var": "a" } }
+            "fn": {
+              "$params": ["a", "__p1"],
+              "$return": {
+                "$let": {
+                  "x": { "$get": "x", "$from": { "$var": "__p1" } },
+                  "y": { "$get": "y", "$from": { "$var": "__p1" } }
+                },
+                "$in": { "$var": "a" }
+              }
+            }
           },
           "$in": { "$call": "arity", "$args": [{ "$var": "fn" }] }
         }
@@ -187,7 +250,13 @@
       "body": {
         "$return": {
           "$let": {
-            "fn": { "$params": [{ "$fields": ["x"] }, "...rest"], "$return": { "$var": "x" } }
+            "fn": {
+              "$params": ["__p0", "...rest"],
+              "$return": {
+                "$let": { "x": { "$get": "x", "$from": { "$var": "__p0" } } },
+                "$in": { "$var": "x" }
+              }
+            }
           },
           "$in": { "$call": "arity", "$args": [{ "$var": "fn" }] }
         }

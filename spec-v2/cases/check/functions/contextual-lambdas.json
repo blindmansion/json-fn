@@ -8,12 +8,8 @@
       "module": {
         "f": {
           "$params": [],
-          "$sig": {
-            "required": [],
-            "optional": [],
-            "returns": {
-              "$fnType": { "required": [], "optional": [], "returns": { "type": "integer" } }
-            }
+          "$returns": {
+            "$fnType": { "required": [], "optional": [], "returns": { "type": "integer" } }
           },
           "$return": { "$params": [], "$return": 1 }
         }
@@ -25,15 +21,11 @@
       "module": {
         "f": {
           "$params": [],
-          "$sig": {
-            "required": [],
-            "optional": [],
-            "returns": {
-              "$fnType": {
-                "required": [{ "type": "integer" }],
-                "optional": [],
-                "returns": { "type": "integer" }
-              }
+          "$returns": {
+            "$fnType": {
+              "required": [{ "type": "integer" }],
+              "optional": [],
+              "returns": { "type": "integer" }
             }
           },
           "$return": { "$params": ["x"], "$return": { "$var": "x" } }
@@ -46,15 +38,11 @@
       "module": {
         "f": {
           "$params": [],
-          "$sig": {
-            "required": [],
-            "optional": [],
-            "returns": {
-              "$fnType": {
-                "required": [{ "type": "integer" }],
-                "optional": [],
-                "returns": { "type": "string" }
-              }
+          "$returns": {
+            "$fnType": {
+              "required": [{ "type": "integer" }],
+              "optional": [],
+              "returns": { "type": "string" }
             }
           },
           "$return": { "$params": ["x"], "$return": { "$var": "x" } }
@@ -77,19 +65,15 @@
       "module": {
         "f": {
           "$params": [],
-          "$sig": {
-            "required": [],
-            "optional": [],
-            "returns": {
-              "$fnType": {
-                "required": [],
-                "optional": [],
-                "returns": {
-                  "type": "object",
-                  "properties": { "a": { "type": "integer" } },
-                  "required": ["a"],
-                  "additionalProperties": false
-                }
+          "$returns": {
+            "$fnType": {
+              "required": [],
+              "optional": [],
+              "returns": {
+                "type": "object",
+                "properties": { "a": { "type": "integer" } },
+                "required": ["a"],
+                "additionalProperties": false
               }
             }
           },
@@ -111,12 +95,8 @@
       "module": {
         "f": {
           "$params": [],
-          "$sig": {
-            "required": [],
-            "optional": [],
-            "returns": {
-              "$fnType": { "required": [], "optional": [], "returns": { "type": "integer" } }
-            }
+          "$returns": {
+            "$fnType": { "required": [], "optional": [], "returns": { "type": "integer" } }
           },
           "$return": { "$params": ["x"], "$return": { "$var": "x" } }
         }
@@ -136,16 +116,12 @@
       "module": {
         "f": {
           "$params": [],
-          "$sig": {
-            "required": [],
-            "optional": [],
-            "returns": {
-              "$fnType": {
-                "required": [],
-                "optional": [],
-                "rest": { "type": "integer" },
-                "returns": { "type": "integer" }
-              }
+          "$returns": {
+            "$fnType": {
+              "required": [],
+              "optional": [],
+              "rest": { "type": "integer" },
+              "returns": { "type": "integer" }
             }
           },
           "$return": { "$params": ["...xs"], "$return": 1 }
@@ -158,16 +134,12 @@
       "module": {
         "f": {
           "$params": [],
-          "$sig": {
-            "required": [],
-            "optional": [],
-            "returns": {
-              "$fnType": {
-                "required": [],
-                "optional": [],
-                "rest": { "type": "integer" },
-                "returns": { "type": "integer" }
-              }
+          "$returns": {
+            "$fnType": {
+              "required": [],
+              "optional": [],
+              "rest": { "type": "integer" },
+              "returns": { "type": "integer" }
             }
           },
           "$return": { "$params": ["x"], "$return": { "$var": "x" } }
@@ -193,7 +165,7 @@
         },
         "f": {
           "$params": [],
-          "$sig": { "required": [], "optional": [], "returns": { "$ref": "#/$defs/Thunk" } },
+          "$returns": { "$ref": "#/$defs/Thunk" },
           "$return": { "$params": [], "$return": "nope" }
         }
       },
@@ -213,7 +185,7 @@
       "module": {
         "f": {
           "$params": [],
-          "$sig": { "required": [], "optional": [], "returns": true },
+          "$returns": true,
           "$return": { "$params": ["x"], "$return": { "$var": "x" } }
         }
       },
@@ -223,25 +195,24 @@
       "description": "a lambda argument to a user function is contextually typed: clean",
       "module": {
         "apply": {
-          "$params": ["cb"],
-          "$sig": {
-            "required": [
-              {
+          "$params": [
+            {
+              "$param": "cb",
+              "$type": {
                 "$fnType": {
                   "required": [{ "type": "integer" }],
                   "optional": [],
                   "returns": { "type": "integer" }
                 }
               }
-            ],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+            }
+          ],
+          "$returns": { "type": "integer" },
           "$return": { "$call": { "$var": "cb" }, "$args": [1] }
         },
         "good": {
           "$params": [],
-          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$returns": { "type": "integer" },
           "$return": {
             "$call": "apply",
             "$args": [{ "$params": ["n"], "$return": { "$var": "n" } }]
@@ -254,25 +225,24 @@
       "description": "a lambda argument to a user function is contextually typed: body mismatch pinpointed",
       "module": {
         "apply": {
-          "$params": ["cb"],
-          "$sig": {
-            "required": [
-              {
+          "$params": [
+            {
+              "$param": "cb",
+              "$type": {
                 "$fnType": {
                   "required": [{ "type": "integer" }],
                   "optional": [],
                   "returns": { "type": "integer" }
                 }
               }
-            ],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+            }
+          ],
+          "$returns": { "type": "integer" },
           "$return": { "$call": { "$var": "cb" }, "$args": [1] }
         },
         "caller": {
           "$params": [],
-          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$returns": { "type": "integer" },
           "$return": { "$call": "apply", "$args": [{ "$params": ["n"], "$return": "x" }] }
         }
       },
@@ -292,15 +262,11 @@
       "module": {
         "f": {
           "$params": [],
-          "$sig": {
-            "required": [],
-            "optional": [],
-            "returns": {
-              "$fnType": {
-                "required": [{ "type": "integer" }],
-                "optional": [],
-                "returns": { "type": "integer" }
-              }
+          "$returns": {
+            "$fnType": {
+              "required": [{ "type": "integer" }],
+              "optional": [],
+              "returns": { "type": "integer" }
             }
           },
           "$return": { "$params": [{ "$param": "value" }], "$return": { "$var": "missing" } }

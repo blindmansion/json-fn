@@ -8,12 +8,10 @@
       "description": "a boolean guard local adopts its binding's facts",
       "module": {
         "f": {
-          "$params": ["target"],
-          "$sig": {
-            "required": [{ "anyOf": [{ "type": "string" }, { "type": "null" }] }],
-            "optional": [],
-            "returns": { "type": "string" }
-          },
+          "$params": [
+            { "$param": "target", "$type": { "anyOf": [{ "type": "string" }, { "type": "null" }] } }
+          ],
+          "$returns": { "type": "string" },
           "$return": {
             "$let": { "empty": { "$call": "isNull", "$args": [{ "$var": "target" }] } },
             "$in": { "$if": { "$var": "empty" }, "$then": "", "$else": { "$var": "target" } }
@@ -26,12 +24,13 @@
       "description": "a named integer guard adopts its binding's facts",
       "module": {
         "f": {
-          "$params": ["target"],
-          "$sig": {
-            "required": [{ "anyOf": [{ "type": "number" }, { "type": "string" }] }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [
+            {
+              "$param": "target",
+              "$type": { "anyOf": [{ "type": "number" }, { "type": "string" }] }
+            }
+          ],
+          "$returns": { "type": "integer" },
           "$return": {
             "$let": { "integral": { "$call": "isInteger", "$args": [{ "$var": "target" }] } },
             "$in": { "$if": { "$var": "integral" }, "$then": { "$var": "target" }, "$else": 0 }
@@ -44,12 +43,10 @@
       "description": "guard aliases are followed (ok: not(empty), empty: isNull(target))",
       "module": {
         "f": {
-          "$params": ["target"],
-          "$sig": {
-            "required": [{ "anyOf": [{ "type": "string" }, { "type": "null" }] }],
-            "optional": [],
-            "returns": { "type": "string" }
-          },
+          "$params": [
+            { "$param": "target", "$type": { "anyOf": [{ "type": "string" }, { "type": "null" }] } }
+          ],
+          "$returns": { "type": "string" },
           "$return": {
             "$let": {
               "empty": { "$call": "isNull", "$args": [{ "$var": "target" }] },
@@ -66,12 +63,10 @@
       "comment": "head(xs) is a plain call, not a recognized guard, so the bare local h narrows by its own truthiness from integer | null to integer in the then-branch.",
       "module": {
         "f": {
-          "$params": ["xs"],
-          "$sig": {
-            "required": [{ "type": "array", "items": { "type": "integer" } }],
-            "optional": [],
-            "returns": { "type": "integer" }
-          },
+          "$params": [
+            { "$param": "xs", "$type": { "type": "array", "items": { "type": "integer" } } }
+          ],
+          "$returns": { "type": "integer" },
           "$return": {
             "$let": { "h": { "$call": "head", "$args": [{ "$var": "xs" }] } },
             "$in": { "$if": { "$var": "h" }, "$then": { "$var": "h" }, "$else": 0 }

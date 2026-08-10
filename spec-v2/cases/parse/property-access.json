@@ -11,7 +11,7 @@
     {
       "description": "chained dotted access",
       "source": "a.b.c",
-      "expected": { "$get": ["b", "c"], "$from": { "$var": "a" } }
+      "expected": { "$get": "c", "$from": { "$get": "b", "$from": { "$var": "a" } } }
     },
     {
       "description": "numeric index",
@@ -29,9 +29,12 @@
       "expected": { "$get": "b", "$from": { "$call": "f", "$args": [{ "$var": "x" }] } }
     },
     {
-      "description": "mixed dotted and numeric access collapses",
+      "description": "mixed dotted and numeric access lowers to a nested chain",
       "source": "a.b[0].c",
-      "expected": { "$get": ["b", 0, "c"], "$from": { "$var": "a" } }
+      "expected": {
+        "$get": "c",
+        "$from": { "$get": 0, "$from": { "$get": "b", "$from": { "$var": "a" } } }
+      }
     },
     {
       "description": "dynamic index after dotted access uses $from",

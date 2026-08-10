@@ -65,7 +65,7 @@
             }
           },
           "$in": {
-            "$call": { "$get": ["db", "query"], "$from": { "$var": "caps" } },
+            "$call": { "$get": "query", "$from": { "$get": "db", "$from": { "$var": "caps" } } },
             "$args": ["SELECT 1"]
           }
         }

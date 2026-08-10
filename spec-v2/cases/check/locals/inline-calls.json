@@ -21,12 +21,8 @@
             "$params": ["value"],
             "$captures": {
               "helper": {
-                "$params": ["value"],
-                "$sig": {
-                  "required": [{ "type": "integer" }],
-                  "optional": [],
-                  "returns": { "type": "integer" }
-                },
+                "$params": [{ "$param": "value", "$type": { "type": "integer" } }],
+                "$returns": { "type": "integer" },
                 "$return": { "$var": "value" }
               }
             },

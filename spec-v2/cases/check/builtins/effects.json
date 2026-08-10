@@ -225,12 +225,12 @@
       "module": {
         "precise": {
           "$params": [],
-          "$sig": { "required": [], "optional": [], "returns": { "$taskType": true } },
+          "$returns": { "$taskType": true },
           "$return": { "$call": "perform", "$args": ["e", []] }
         },
         "portable": {
           "$params": [],
-          "$sig": { "required": [], "optional": [], "returns": { "$ref": "#/$defs/Task" } },
+          "$returns": { "$ref": "#/$defs/Task" },
           "$return": { "$call": "perform", "$args": ["e", []] }
         }
       },

@@ -50,12 +50,13 @@
       "description": "values entries and fromEntries preserve typed maps through modules",
       "module": {
         "roundTrip": {
-          "$params": ["m"],
-          "$sig": {
-            "required": [{ "type": "object", "additionalProperties": { "type": "integer" } }],
-            "optional": [],
-            "returns": { "type": "object", "additionalProperties": { "type": "integer" } }
-          },
+          "$params": [
+            {
+              "$param": "m",
+              "$type": { "type": "object", "additionalProperties": { "type": "integer" } }
+            }
+          ],
+          "$returns": { "type": "object", "additionalProperties": { "type": "integer" } },
           "$return": {
             "$call": "fromEntries",
             "$args": [{ "$call": "entries", "$args": [{ "$var": "m" }] }]
@@ -76,12 +77,8 @@
           }
         },
         "update": {
-          "$params": ["a"],
-          "$sig": {
-            "required": [{ "$ref": "#/$defs/A" }],
-            "optional": [],
-            "returns": { "$ref": "#/$defs/A" }
-          },
+          "$params": [{ "$param": "a", "$type": { "$ref": "#/$defs/A" } }],
+          "$returns": { "$ref": "#/$defs/A" },
           "$return": {
             "$call": "merge",
             "$args": [
@@ -105,12 +102,8 @@
           }
         },
         "update": {
-          "$params": ["a"],
-          "$sig": {
-            "required": [{ "$ref": "#/$defs/A" }],
-            "optional": [],
-            "returns": { "$ref": "#/$defs/A" }
-          },
+          "$params": [{ "$param": "a", "$type": { "$ref": "#/$defs/A" } }],
+          "$returns": { "$ref": "#/$defs/A" },
           "$return": { "$call": "merge", "$args": [{ "$var": "a" }, { "n": "oops" }] }
         }
       },
@@ -170,12 +163,13 @@
       "description": "mapValues flows typed maps through module checking",
       "module": {
         "transform": {
-          "$params": ["obj"],
-          "$sig": {
-            "required": [{ "type": "object", "additionalProperties": { "type": "integer" } }],
-            "optional": [],
-            "returns": { "type": "object", "additionalProperties": { "type": "integer" } }
-          },
+          "$params": [
+            {
+              "$param": "obj",
+              "$type": { "type": "object", "additionalProperties": { "type": "integer" } }
+            }
+          ],
+          "$returns": { "type": "object", "additionalProperties": { "type": "integer" } },
           "$return": {
             "$call": "mapValues",
             "$args": [
@@ -194,12 +188,8 @@
       "description": "mapValues retains callback precision for open objects",
       "module": {
         "transform": {
-          "$params": ["obj"],
-          "$sig": {
-            "required": [{ "type": "object" }],
-            "optional": [],
-            "returns": { "type": "object", "additionalProperties": { "const": "ok" } }
-          },
+          "$params": [{ "$param": "obj", "$type": { "type": "object" } }],
+          "$returns": { "type": "object", "additionalProperties": { "const": "ok" } },
           "$return": {
             "$call": "mapValues",
             "$args": [{ "$params": ["v", "k"], "$return": "ok" }, { "$var": "obj" }]
@@ -214,12 +204,11 @@
         "$call": "mapValues",
         "$args": [
           {
-            "$params": ["v", "k"],
-            "$sig": {
-              "required": [{ "type": "integer" }, { "type": "string" }],
-              "optional": [],
-              "returns": { "type": "string" }
-            },
+            "$params": [
+              { "$param": "v", "$type": { "type": "integer" } },
+              { "$param": "k", "$type": { "type": "string" } }
+            ],
+            "$returns": { "type": "string" },
             "$return": { "$var": "v" }
           },
           { "a": 1 }

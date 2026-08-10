@@ -9,21 +9,13 @@
         "$let": {
           "value": 1,
           "callTarget": {
-            "$params": ["value"],
-            "$sig": {
-              "required": [{ "type": "integer" }],
-              "optional": [],
-              "returns": { "type": "integer" }
-            },
+            "$params": [{ "$param": "value", "$type": { "type": "integer" } }],
+            "$returns": { "type": "integer" },
             "$return": { "$var": "value" }
           },
           "refTarget": {
-            "$params": ["value"],
-            "$sig": {
-              "required": [{ "type": "integer" }],
-              "optional": [],
-              "returns": { "type": "integer" }
-            },
+            "$params": [{ "$param": "value", "$type": { "type": "integer" } }],
+            "$returns": { "type": "integer" },
             "$return": { "$var": "value" }
           },
           "transitive": { "$var": "value" }
@@ -43,12 +35,8 @@
         "$let": {
           "value": 1,
           "helper": {
-            "$params": ["value"],
-            "$sig": {
-              "required": [{ "type": "integer" }],
-              "optional": [],
-              "returns": { "type": "integer" }
-            },
+            "$params": [{ "$param": "value", "$type": { "type": "integer" } }],
+            "$returns": { "type": "integer" },
             "$return": { "$var": "value" }
           }
         },
@@ -88,18 +76,10 @@
       "module": {
         "main": {
           "$params": [],
-          "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
+          "$returns": { "type": "integer" },
           "$return": {
             "$let": {
-              "helper": {
-                "$params": [],
-                "$sig": {
-                  "required": [],
-                  "optional": [],
-                  "returns": { "$ref": "#/$defs/Missing" }
-                },
-                "$return": 1
-              }
+              "helper": { "$params": [], "$returns": { "$ref": "#/$defs/Missing" }, "$return": 1 }
             },
             "$in": 1
           }
@@ -119,16 +99,12 @@
       "description": "sees parameters and shadows parameters and nested let bindings",
       "module": {
         "f": {
-          "$params": ["value"],
-          "$sig": {
-            "required": [{ "type": "string" }],
-            "optional": [],
-            "returns": {
-              "type": "array",
-              "prefixItems": [{ "type": "string" }, { "const": 2 }, { "type": "string" }],
-              "items": false,
-              "minItems": 3
-            }
+          "$params": [{ "$param": "value", "$type": { "type": "string" } }],
+          "$returns": {
+            "type": "array",
+            "prefixItems": [{ "type": "string" }, { "const": 2 }, { "type": "string" }],
+            "items": false,
+            "minItems": 3
           },
           "$return": {
             "$let": { "local": { "$var": "value" }, "value": "shadowed" },
