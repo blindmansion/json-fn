@@ -33,7 +33,7 @@
         },
         "functions": {
           "$ref": "#/$defs/functions",
-          "description": "Functions available only to this case, overriding suite functions with the same name."
+          "description": "Module entries available only to this case, overriding suite entries with the same name."
         },
         "limits": { "$ref": "#/$defs/limits" },
         "expected": {
@@ -43,7 +43,8 @@
         "error": {
           "type": "string",
           "description": "A substring expected in the thrown error. Mutually exclusive with expected."
-        }
+        },
+        "observations": { "$ref": "#/$defs/observations" }
       },
       "oneOf": [
         { "required": ["expected"], "not": { "required": ["error"] } },
@@ -58,8 +59,8 @@
     },
     "functions": {
       "type": "object",
-      "description": "Named json-fn functions added to the evaluator registry.",
-      "additionalProperties": { "$ref": "#/$defs/functionBody" }
+      "description": "Named module entries forming the outermost lexical scope. An entry whose literal value is a function body is callable by name; any other entry is a module value entry, evaluated per the entry-closure rule with the case body as the selected entry.",
+      "additionalProperties": { "$ref": "#/$defs/jsonValue" }
     },
     "limits": {
       "type": "object",
@@ -79,6 +80,26 @@
           "type": "integer",
           "minimum": 0,
           "description": "Maximum produced array length or string length."
+        }
+      },
+      "additionalProperties": false
+    },
+    "observations": {
+      "type": "object",
+      "description": "Observed side channels compared when present, alongside expected or error.",
+      "properties": {
+        "logs": {
+          "type": "array",
+          "description": "The exact ordered sequence of logger calls.",
+          "items": {
+            "type": "object",
+            "required": ["value"],
+            "properties": {
+              "value": { "$ref": "#/$defs/jsonValue" },
+              "label": { "type": "string" }
+            },
+            "additionalProperties": false
+          }
         }
       },
       "additionalProperties": false

@@ -1,0 +1,184 @@
+{
+  "description": "binding evaluation order: the dependency schedule observed through error selection and tap order, the call-position exemption's cycle consequences, and dynamic references during binding evaluation",
+  "comment": "Bindings evaluate one at a time; at each step the first binding in source order whose dependencies have all been evaluated runs next. The order is observable through exactly which error surfaces when several bindings fail, tap output order, and the fuel-exhaustion point (the last is pinned in the cost suite).",
+  "cases": [
+    {
+      "description": "when independent bindings both fail, the first in source order errors",
+      "comment": "Neither binding references the other, so both are ready at the first step and source order decides which evaluates — and therefore which failure surfaces.",
+      "body": {
+        "$return": {
+          "$let": {
+            "first": { "$call": "missingFirst", "$args": [] },
+            "second": { "$call": "missingSecond", "$args": [] }
+          },
+          "$in": null
+        }
+      },
+      "error": "Function missingFirst not found"
+    },
+    {
+      "description": "a dependency evaluates before the binding that references it, so its failure surfaces first",
+      "comment": "The source-first binding references its source-later sibling, so the sibling evaluates first and its error wins even though both bindings would fail.",
+      "body": {
+        "$return": {
+          "$let": {
+            "first": { "$call": "missingFirst", "$args": [{ "$var": "second" }] },
+            "second": { "$call": "missingSecond", "$args": [] }
+          },
+          "$in": { "$var": "first" }
+        }
+      },
+      "error": "Function missingSecond not found"
+    },
+    {
+      "description": "tap output follows dependency order, not source order",
+      "body": {
+        "$return": {
+          "$let": {
+            "late": {
+              "$call": "tap",
+              "$args": [{ "$call": "add", "$args": [{ "$var": "early" }, 1] }, "late"]
+            },
+            "early": { "$call": "tap", "$args": [1, "early"] }
+          },
+          "$in": { "$var": "late" }
+        }
+      },
+      "expected": 2,
+      "observations": {
+        "logs": [
+          { "value": 1, "label": "early" },
+          { "value": 2, "label": "late" }
+        ]
+      }
+    },
+    {
+      "description": "independent bindings evaluate in source order",
+      "comment": "When more than one binding is ready, source order breaks the tie.",
+      "body": {
+        "$return": {
+          "$let": {
+            "b": { "$call": "tap", "$args": [2, "b"] },
+            "a": { "$call": "tap", "$args": [1, "a"] }
+          },
+          "$in": { "$call": "add", "$args": [{ "$var": "a" }, { "$var": "b" }] }
+        }
+      },
+      "expected": 3,
+      "observations": {
+        "logs": [
+          { "value": 2, "label": "b" },
+          { "value": 1, "label": "a" }
+        ]
+      }
+    },
+    {
+      "description": "a tap in an unreferenced binding fires",
+      "comment": "Bindings are strict: every binding evaluates whether or not $in references it, so the tap's output is observable.",
+      "body": {
+        "$return": {
+          "$let": {
+            "logged": { "$call": "tap", "$args": ["side effect", "unreferenced"] },
+            "value": 1
+          },
+          "$in": { "$var": "value" }
+        }
+      },
+      "expected": 1,
+      "observations": { "logs": [{ "value": "side effect", "label": "unreferenced" }] }
+    },
+    {
+      "description": "sibling functions recurse mutually through calls without forming a cycle",
+      "comment": "A call-position reference to a sibling binding whose literal value is a function body resolves by name and adds no dependency edge.",
+      "body": {
+        "$params": ["n"],
+        "$return": {
+          "$let": {
+            "isEven": {
+              "$params": ["m"],
+              "$return": {
+                "$if": { "$call": "eq", "$args": [{ "$var": "m" }, 0] },
+                "$then": true,
+                "$else": {
+                  "$call": "isOdd",
+                  "$args": [{ "$call": "sub", "$args": [{ "$var": "m" }, 1] }]
+                }
+              }
+            },
+            "isOdd": {
+              "$params": ["m"],
+              "$return": {
+                "$if": { "$call": "eq", "$args": [{ "$var": "m" }, 0] },
+                "$then": false,
+                "$else": {
+                  "$call": "isEven",
+                  "$args": [{ "$call": "sub", "$args": [{ "$var": "m" }, 1] }]
+                }
+              }
+            }
+          },
+          "$in": { "$call": "isEven", "$args": [{ "$var": "n" }] }
+        }
+      },
+      "args": [4],
+      "expected": true
+    },
+    {
+      "description": "a value-position cycle between sibling functions is a cycle error",
+      "comment": "Taking a sibling function's closure as a value ($fn or $var) requires the closure to exist, so each binding waits on the other and the schedule stalls.",
+      "body": {
+        "$return": {
+          "$let": {
+            "f": { "$params": ["x"], "$return": { "$fn": "g" } },
+            "g": { "$params": ["x"], "$return": { "$fn": "f" } }
+          },
+          "$in": 1
+        }
+      },
+      "error": "Circular variable dependency detected: f -> g -> f"
+    },
+    {
+      "description": "the static-reference relation continues through an exempted call",
+      "comment": "The call-position exemption removes only the edge to the sibling function itself. A binding that calls a sibling function depends on every name that function references in value position — here the calling binding itself, so the dependency is a direct self-cycle.",
+      "body": {
+        "$return": {
+          "$let": {
+            "a": { "$call": "helper", "$args": [] },
+            "helper": { "$return": { "$var": "a" } }
+          },
+          "$in": { "$var": "a" }
+        }
+      },
+      "error": "Circular variable dependency detected: a -> a"
+    },
+    {
+      "description": "a dynamic reference to a sibling binding not yet evaluated is an error naming the binding",
+      "comment": "A dynamic callee can resolve to a sibling binding's name at runtime without appearing in the static reference graph, so no order edge exists. Resolution that reaches a not-yet-evaluated sibling fails closed rather than observing a partial scope; the schedule makes the error deterministic.",
+      "body": {
+        "$params": ["name"],
+        "$return": {
+          "$let": {
+            "result": { "$call": { "$var": "name" }, "$args": [] },
+            "helper": { "$return": 7 }
+          },
+          "$in": { "$var": "result" }
+        }
+      },
+      "args": ["helper"],
+      "error": "Dynamic reference to binding \"helper\" before it is evaluated"
+    },
+    {
+      "description": "the same dynamic reference inside $in succeeds",
+      "comment": "Inside $in every binding has been evaluated, so dynamic resolution cannot reach an unevaluated sibling.",
+      "body": {
+        "$params": ["name"],
+        "$return": {
+          "$let": { "helper": { "$return": 7 } },
+          "$in": { "$call": { "$var": "name" }, "$args": [] }
+        }
+      },
+      "args": ["helper"],
+      "expected": 7
+    }
+  ]
+}

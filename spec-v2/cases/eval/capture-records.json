@@ -1,0 +1,110 @@
+{
+  "description": "capture records: escape as the identity, entry selection by static reference kind, and the record as the first resolution tier for an applied value",
+  "cases": [
+    {
+      "description": "escape is idempotent: a value passed through another scope is unchanged",
+      "comment": "Capture happens at creation; there is no separate escape step. A value that leaves its defining scope already carries its record, so passing it through another function is the identity on it.",
+      "body": {
+        "$params": ["x"],
+        "$return": {
+          "$let": { "pass": { "$params": ["f"], "$return": { "$var": "f" } } },
+          "$in": {
+            "$call": "pass",
+            "$args": [
+              {
+                "$params": ["y"],
+                "$return": { "$call": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] }
+              }
+            ]
+          }
+        }
+      },
+      "args": [10],
+      "expected": {
+        "$params": ["y"],
+        "$return": { "$call": "add", "$args": [{ "$var": "x" }, { "$var": "y" }] },
+        "$captures": { "x": 10 }
+      }
+    },
+    {
+      "description": "a member both called and taken as a value contributes a value entry, not an open body",
+      "comment": "Any value-position reference forces the order edge, so the sibling's value exists and is captured — carrying its own record — and call-position resolution applies that captured value. Open-body entries appear only for members reached exclusively through call-position references, so record shapes depend only on static reference kinds.",
+      "body": {
+        "$params": ["k"],
+        "$return": {
+          "$let": {
+            "scaleBy": {
+              "$params": ["m"],
+              "$return": { "$call": "mul", "$args": [{ "$var": "m" }, { "$var": "k" }] }
+            }
+          },
+          "$in": {
+            "$params": ["n"],
+            "$return": [{ "$fn": "scaleBy" }, { "$call": "scaleBy", "$args": [{ "$var": "n" }] }]
+          }
+        }
+      },
+      "args": [3],
+      "expected": {
+        "$params": ["n"],
+        "$return": [{ "$fn": "scaleBy" }, { "$call": "scaleBy", "$args": [{ "$var": "n" }] }],
+        "$captures": {
+          "scaleBy": {
+            "$params": ["m"],
+            "$return": { "$call": "mul", "$args": [{ "$var": "m" }, { "$var": "k" }] },
+            "$captures": { "k": 3 }
+          }
+        }
+      }
+    },
+    {
+      "description": "an applied value's record resolves before module entries",
+      "comment": "The record is the capture component of the parameters-and-captures tier, so the captured local wins over the same-named module function where the value is applied.",
+      "functions": { "helper": { "$params": [], "$return": "module" } },
+      "body": {
+        "$return": {
+          "$call": {
+            "$let": { "helper": { "$params": [], "$return": "local" } },
+            "$in": { "$params": [], "$return": { "$call": "helper", "$args": [] } }
+          },
+          "$args": []
+        }
+      },
+      "expected": "local"
+    },
+    {
+      "description": "a record member applied by name resolves group siblings through the same containing record",
+      "comment": "The record is one flat, mutually recursive binding group: the member's own body resolves names through the containing record before module entries, so the group sibling wins over the same-named module function.",
+      "functions": { "g": { "$params": [], "$return": "module" } },
+      "body": {
+        "$return": {
+          "$call": {
+            "$let": {
+              "f": { "$params": [], "$return": { "$call": "g", "$args": [] } },
+              "g": { "$params": [], "$return": "group" }
+            },
+            "$in": { "$params": [], "$return": { "$call": "f", "$args": [] } }
+          },
+          "$args": []
+        }
+      },
+      "expected": "group"
+    },
+    {
+      "description": "an applied value's record resolves before builtins",
+      "comment": "The captured local function shadows the builtin of the same name when the escaped value is applied.",
+      "body": {
+        "$params": ["xs"],
+        "$return": {
+          "$call": {
+            "$let": { "length": { "$params": ["v"], "$return": 999 } },
+            "$in": { "$params": [], "$return": { "$call": "length", "$args": [{ "$var": "xs" }] } }
+          },
+          "$args": []
+        }
+      },
+      "args": [[1, 2, 3]],
+      "expected": 999
+    }
+  ]
+}

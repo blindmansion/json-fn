@@ -1,0 +1,58 @@
+{
+  "description": "module value entries: the selected entry's static reference closure evaluates at invocation start, dependency-ordered; entries outside the closure do not evaluate",
+  "comment": "The case body is the selected entry and the functions map holds the module's entries. An entry whose literal value is a function body is callable by name; any other entry is a value entry.",
+  "cases": [
+    {
+      "description": "value entries in the entry's closure evaluate before the entry function runs",
+      "functions": {
+        "W": 20,
+        "H": 12,
+        "SIZE": { "$call": "mul", "$args": [{ "$var": "W" }, { "$var": "H" }] }
+      },
+      "body": { "$return": { "$var": "SIZE" } },
+      "expected": 240
+    },
+    {
+      "description": "a value entry outside the entry's closure does not evaluate",
+      "comment": "Unlike a $let binding, an unreferenced module entry never runs: entry evaluation is scoped to the selected entry's static reference closure, so the failing entry is inert for this invocation.",
+      "functions": { "used": 7, "broken": { "$call": "missingHelper", "$args": [] } },
+      "body": { "$return": { "$var": "used" } },
+      "expected": 7
+    },
+    {
+      "description": "a referenced value entry evaluates at invocation start even when no runtime branch reads it",
+      "comment": "The closure is static: the reference from the untaken branch is enough, so the entry's failure fails the invocation.",
+      "functions": { "broken": { "$call": "missingHelper", "$args": [] } },
+      "body": { "$return": { "$if": false, "$then": { "$var": "broken" }, "$else": "fallback" } },
+      "error": "Function missingHelper not found"
+    },
+    {
+      "description": "the reference closure continues through a called module function",
+      "comment": "The call-position exemption removes only the edge to the function itself; the value entries its body references in value position join the closure, so the failing entry evaluates even though the selected entry never references it directly.",
+      "functions": {
+        "broken": { "$call": "missingHelper", "$args": [] },
+        "reader": { "$params": [], "$return": { "$var": "broken" } }
+      },
+      "body": {
+        "$return": { "$if": false, "$then": { "$call": "reader", "$args": [] }, "$else": "unused" }
+      },
+      "error": "Function missingHelper not found"
+    },
+    {
+      "description": "a dependency cycle among evaluated value entries is a cycle error",
+      "functions": {
+        "A": { "$call": "add", "$args": [{ "$var": "B" }, 1] },
+        "B": { "$call": "add", "$args": [{ "$var": "A" }, 1] }
+      },
+      "body": { "$return": { "$var": "A" } },
+      "error": "Circular variable dependency detected: A -> B -> A"
+    },
+    {
+      "description": "a module value entry referenced from a closure body is captured by value",
+      "comment": "Module functions and builtins resolve by name and are never captured; module value entries are the other half of the same rule — the closure's record carries the evaluated value, so a resumed continuation never re-enters module entries.",
+      "functions": { "K": { "$call": "add", "$args": [40, 2] } },
+      "body": { "$return": { "$params": [], "$return": { "$var": "K" } } },
+      "expected": { "$params": [], "$return": { "$var": "K" }, "$captures": { "K": 42 } }
+    }
+  ]
+}

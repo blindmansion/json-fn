@@ -60,6 +60,19 @@
       "expected": "five is greater"
     },
     {
+      "description": "$if: a non-boolean condition is an immediate error",
+      "comment": "Condition positions are runtime boolean positions — validation against the boolean schema, attached to evaluation. There is no truthiness; the error names the position and the evaluated value's kind, and it is a host error, not a raise-catchable signal.",
+      "body": { "$return": { "$if": "yes", "$then": 1, "$else": 0 } },
+      "error": "$if condition must be a boolean; got string"
+    },
+    {
+      "description": "$if: a null condition is the same immediate error",
+      "comment": "A null test is written out as an explicit comparison — x != null — never as a bare condition.",
+      "body": { "$params": ["x"], "$return": { "$if": { "$var": "x" }, "$then": 1, "$else": 0 } },
+      "args": [null],
+      "error": "$if condition must be a boolean; got null"
+    },
+    {
       "description": "$cond: classify negative",
       "body": { "$return": { "$call": "classify", "$args": [-5] } },
       "expected": "negative"
@@ -163,6 +176,34 @@
       "description": "$cond: rejects malformed branches",
       "body": { "$return": { "$cond": [[true, "yes", "extra"]], "$else": "fallback" } },
       "error": "Each $cond branch must be a [condition, result] pair"
+    },
+    {
+      "description": "$cond: a non-boolean arm condition reached by evaluation is an immediate error",
+      "comment": "Every earlier condition evaluated to false, so evaluation reaches the malformed condition and validation fires there; the error names the arm position.",
+      "body": {
+        "$return": {
+          "$cond": [
+            [false, "no"],
+            [7, "never"]
+          ],
+          "$else": "fallback"
+        }
+      },
+      "error": "$cond arm 2 condition must be a boolean; got number"
+    },
+    {
+      "description": "$cond: an arm condition behind an earlier true is neither evaluated nor validated",
+      "comment": "Validation attaches to evaluation, never a pre-pass: only the tested prefix of conditions evaluates, so which position errors is a pure function of the values evaluation produces.",
+      "body": {
+        "$return": {
+          "$cond": [
+            [true, "taken"],
+            ["not a boolean", "skipped"]
+          ],
+          "$else": "fallback"
+        }
+      },
+      "expected": "taken"
     },
     {
       "description": "$match: returns result for first strict-equal case",
@@ -318,6 +359,11 @@
       "description": "$or: rejects a singleton operand array",
       "body": { "$return": { "$or": [true] } },
       "error": "$or must be an array of at least two expressions"
+    },
+    {
+      "description": "$or: an operand past the deciding true is not validated",
+      "body": { "$return": { "$or": [true, "never validated"] } },
+      "expected": true
     },
     {
       "description": "$or: a non-boolean operand is an immediate error",

@@ -715,6 +715,31 @@
       }
     },
     {
+      "description": "a literal index beyond a tuple's tracked arity is a hard error",
+      "comment": "The tuple type tracks exactly two positions, so the literal index 2 can never hit; the bare read is a static error, matching the closed-object unknown-key precedent.",
+      "module": {
+        "f": {
+          "$params": [
+            {
+              "$param": "pair",
+              "$type": {
+                "type": "array",
+                "prefixItems": [{ "type": "integer" }, { "type": "integer" }],
+                "items": false
+              }
+            }
+          ],
+          "$returns": true,
+          "$return": { "$get": 2, "$from": { "$var": "pair" } }
+        }
+      },
+      "expected": {
+        "diagnostics": [
+          { "path": ["f", "$return", "$get"], "severity": "error", "messageIncludes": "index 2" }
+        ]
+      }
+    },
+    {
       "description": "projection on an open object stays permissive without diagnostics",
       "comment": "End-to-end version of the local direct-synth missing-closed-field unit tests.",
       "module": {

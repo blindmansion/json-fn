@@ -492,6 +492,77 @@
       "description": "object access reads an own __proto__ property",
       "body": { "$return": { "$get": "__proto__", "$from": { "$raw": { "__proto__": "data" } } } },
       "expected": "data"
+    },
+    {
+      "description": "a bare read of a present null value returns null",
+      "comment": "A key mapped to null is present, so the read is a hit: absence and present-and-null stay distinct.",
+      "body": { "$params": ["o"], "$return": { "$get": "value", "$from": { "$var": "o" } } },
+      "args": [{ "value": null }],
+      "expected": null
+    },
+    {
+      "description": "an $else arm does not fire on a present null value",
+      "comment": "$else fires on absence only — never on a present null. The read returns null and the arm does not evaluate.",
+      "body": {
+        "$params": ["o"],
+        "$return": { "$get": "value", "$from": { "$var": "o" }, "$else": "fallback" }
+      },
+      "args": [{ "value": null }],
+      "expected": null
+    },
+    {
+      "description": "the $else arm is not evaluated on a hit",
+      "comment": "Arm selection is branch selection — at most one arm taken — so a hit never evaluates the arm and its failure is unobservable.",
+      "body": {
+        "$params": ["o"],
+        "$return": {
+          "$get": "present",
+          "$from": { "$var": "o" },
+          "$else": { "$call": "missingFunction", "$args": [] }
+        }
+      },
+      "args": [{ "present": 5 }],
+      "expected": 5
+    },
+    {
+      "description": "an $else arm supplies the value on an out-of-range array index",
+      "body": {
+        "$return": {
+          "$let": { "items": [1, 2] },
+          "$in": { "$get": 5, "$from": { "$var": "items" }, "$else": 0 }
+        }
+      },
+      "expected": 0
+    },
+    {
+      "description": "a negative index is a genuine miss, so an $else arm fires",
+      "comment": "Negative indices are the same miss as over-large ones; with an arm the miss selects the arm instead of erroring.",
+      "body": {
+        "$return": {
+          "$let": { "items": [1, 2] },
+          "$in": { "$get": -1, "$from": { "$var": "items" }, "$else": 0 }
+        }
+      },
+      "expected": 0
+    },
+    {
+      "description": "a miss error fires at the access site inside a fold",
+      "comment": "Nothing about a higher-order context softens a bare read: the callback's miss carries the ordinary error identity out of the fold.",
+      "body": {
+        "$params": ["inventory", "ids"],
+        "$return": {
+          "$call": "map",
+          "$args": [
+            {
+              "$params": ["id"],
+              "$return": { "$get": { "$var": "id" }, "$from": { "$var": "inventory" } }
+            },
+            { "$var": "ids" }
+          ]
+        }
+      },
+      "args": [{ "sku-1": 3 }, ["sku-1", "sku-2"]],
+      "error": "Missing key \"sku-2\": the target is an object with keys \"sku-1\""
     }
   ]
 }

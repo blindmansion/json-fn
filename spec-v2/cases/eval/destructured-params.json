@@ -302,6 +302,54 @@
         }
       },
       "expected": 1
+    },
+    {
+      "description": "an own property whose value is null binds null and suppresses the field default",
+      "comment": "A present null is supplied data: the projection's $else arm fires on absence only, so the default never evaluates.",
+      "body": {
+        "$params": ["__p0"],
+        "$return": {
+          "$let": { "count": { "$get": "count", "$from": { "$var": "__p0" }, "$else": 10 } },
+          "$in": { "$var": "count" }
+        }
+      },
+      "args": [{ "count": null }],
+      "expected": null
+    },
+    {
+      "description": "an absent field whose default errors fails the call even when the binding is never read",
+      "comment": "Field defaults evaluate at bind time on absence — body-top, dependency-ordered — not lazily on first read. The positional $default is the language's one remaining lazy construct.",
+      "body": {
+        "$params": ["__p0"],
+        "$return": {
+          "$let": {
+            "label": {
+              "$get": "label",
+              "$from": { "$var": "__p0" },
+              "$else": { "$call": "missingFallback", "$args": [] }
+            }
+          },
+          "$in": "never reads label"
+        }
+      },
+      "args": [{}],
+      "error": "Function missingFallback not found"
+    },
+    {
+      "description": "mutually referencing field defaults are a static cycle error",
+      "comment": "The projections are ordinary strict bindings and default references are ordinary dependency edges, so the cycle stalls the schedule even when both fields are supplied and neither arm would fire.",
+      "body": {
+        "$params": ["__p0"],
+        "$return": {
+          "$let": {
+            "a": { "$get": "a", "$from": { "$var": "__p0" }, "$else": { "$var": "b" } },
+            "b": { "$get": "b", "$from": { "$var": "__p0" }, "$else": { "$var": "a" } }
+          },
+          "$in": [{ "$var": "a" }, { "$var": "b" }]
+        }
+      },
+      "args": [{ "a": 1, "b": 2 }],
+      "error": "Circular variable dependency detected: a -> b -> a"
     }
   ]
 }

@@ -1,6 +1,6 @@
 {
   "$schema": "../parse.schema.json",
-  "description": "destructured (object-pattern) parameters — $fields (plans/destructured-params.md)",
+  "description": "destructured (object-pattern) parameters: shorthand sugar lowering to a plain __p<i> slot plus body-top strict-read projections",
   "cases": [
     {
       "description": "single field pattern",
@@ -121,6 +121,22 @@
       "error": true
     },
     { "description": "rest pattern is not supported", "source": "(...{ x }) => x", "error": true },
-    { "description": "non-identifier field is rejected", "source": "({ 1 }) => 1", "error": true }
+    { "description": "non-identifier field is rejected", "source": "({ 1 }) => 1", "error": true },
+    {
+      "description": "a pattern field duplicating a positional parameter is rejected",
+      "comment": "Uniqueness of the names bound by one parameter list — positional parameters, pattern fields, and the rest parameter — is a parse rule; the lowering never has to give the collision a meaning.",
+      "source": "({ x }, x) => x",
+      "error": true
+    },
+    {
+      "description": "a field name duplicated across two patterns is rejected",
+      "source": "({ x }, { x }) => x",
+      "error": true
+    },
+    {
+      "description": "a pattern field duplicating the rest parameter is rejected",
+      "source": "({ xs }, ...xs) => xs",
+      "error": true
+    }
   ]
 }

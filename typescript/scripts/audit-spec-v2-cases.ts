@@ -94,11 +94,6 @@ const CATEGORIES: Category[] = [
 
 // Entries are `"<category-id> <path relative to spec-v2/cases>"`.
 const ALLOWLIST = new Set<string>([
-  // Stage B flagged this file's remaining findings for hand triage
-  // (see the migrate-spec-v2-stage-b.ts report): pattern-form validation
-  // cases whose descriptor grammar 2d replaced. Resolved by the Stage D
-  // eval pass; remove the entry with it.
-  "fields-descriptors eval/parameter-defaults.json",
   // Stage C (2a) deliberate survivors: cycles are still errors under strict
   // $let — these cases now pin the schedule-stall identity (docs
   // language/json/execution-limits.md), so their "cycle" wording is accurate.
@@ -111,6 +106,18 @@ const ALLOWLIST = new Set<string>([
   // lazy construct (docs language/json/functions.md), so its laziness and
   // default-cycle cases keep their wording.
   "lazy-forcing-wording eval/parameter-defaults.json",
+  // Stage D adds: a present null is a hit, not a miss — these cases pin the
+  // absence-vs-present-null distinction, so the null expectation beside a
+  // bare $get is the rule itself, not a stale null-on-miss reliance.
+  "null-on-miss eval/destructured-params.json",
+  "null-on-miss eval/property-access.json",
+  // Stage D adds: cycle wording pins the schedule-stall identity (docs
+  // language/json/execution-limits.md), and the laziness wording contrasts
+  // bind-time field defaults with the positional $default, the language's
+  // one lazy construct.
+  "lazy-forcing-wording eval/binding-order.json",
+  "lazy-forcing-wording eval/destructured-params.json",
+  "lazy-forcing-wording eval/module-entries.json",
 ]);
 
 // --- CLI ---

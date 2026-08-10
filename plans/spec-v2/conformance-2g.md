@@ -531,6 +531,92 @@ suite. Written after Stage C so they land in migrated files.
   idempotence; resolution-order cases (record tier vs module entry vs
   builtin; group-internal by-name application; value-vs-open-body entry
   selection); multi-shot resume sharing one record.
+
+  **Done 2026-08-10.** Gate, schema validation, and format checks green.
+  Outcomes beyond the plan's letter:
+
+  - Two suite-format extensions, because two adds were inexpressible: the
+    eval schema gained `observations.logs` (the exact ordered logger-call
+    sequence, mirroring the builtin suite) so `tap`-order vectors have an
+    observable, and the `functions` map widened from function bodies to
+    module entries generally, so value entries — and with them the
+    entry-closure rule — are expressible (the case body is the selected
+    entry).
+  - The order/cycle/TDZ adds landed as a new `eval/binding-order.json`
+    (ten cases): error selection between independent failures (source
+    order) and through a dependency edge (the dependency's error wins),
+    `tap` order under reordering and under the source-order tie-break, the
+    unreferenced binding's `tap` firing, the call-position/value-position
+    sibling-function contrast pair, transitivity through the exempted call
+    pinned as a direct self-cycle (`a -> a`), and the dynamic-reference
+    error beside its always-safe `$in` counterpart. Settled while writing:
+    the rendering `Dynamic reference to binding "b" before it is
+    evaluated`. The erroring-unreferenced-binding case needed no add — the
+    Stage C 2a sweep had already rewritten `let-regressions.json` #0 to
+    it.
+  - Module entries landed as a new `eval/module-entries.json` (six cases):
+    the closure evaluating before the entry, an outside-closure failing
+    entry staying inert (the contrast with `$let` strictness), a
+    reference from an untaken branch still evaluating, the closure
+    continuing through a called module function, the entry-cycle identity,
+    and the module-value-entry-captured-by-value record pin.
+  - Reads: `property-access.json` gained the present-`null` bare read, the
+    `$else` arm not firing on present `null`, arm laziness on a hit, the
+    array-miss and negative-index arm selections, and the fold-site
+    regression (the miss identity surviving a `map` callback). In-range
+    reads and misses were verified already covered per runtime container
+    kind; map/tuple/closed-object/optional-field are checker
+    distinctions. That audit surfaced the one 2b add no chunk had owned —
+    the tuple literal-index bound — now a checker case in
+    `check/expressions/objects-and-arrays.json` beside the closed-object
+    unknown-key precedent.
+  - Lowering runtime cases: the non-object-argument and
+    required-field-miss identities were verified already pinned
+    (`destructured-params.json`, from the Stage C 2b sweep); the file
+    gained present-`null` suppressing a field default, an absent field's
+    erroring default failing the call with the binding never read
+    (bind-time, not first-read), and mutually referencing field defaults
+    stalling as a static cycle even with both fields supplied.
+  - The owed `eval/parameter-defaults.json` work: the old descriptor
+    family re-pinned at its three sites plus the top-level-body case that
+    had pinned a generic invalid-expression error; two sibling renderings
+    settled while writing (closedness — `A parameter descriptor allows
+    only $param, $optional, $default, and $type` — and `A rest parameter
+    descriptor admits only $type`). The five flagged cases triaged: the
+    pattern-vs-positional duplicate rewrote to its lowered meaning — the
+    projection is an ordinary `$let` binding shadowing the parameter, a
+    positive case — and the four descriptor-form cases deleted, with the
+    parameter-list uniqueness rule moving to `parse/destructured-params.json`
+    as three parse-error cases (field vs positional, across patterns, vs
+    rest). The `fields-descriptors` allowlist entry is removed and the
+    category is clear corpus-wide.
+  - Boolean positions: `conditionals.json` gained the `$if` condition
+    errors (`string`, `null` — the defaulting migration's loud case), the
+    reached `$cond` arm-condition error naming `arm 2`, the
+    behind-an-earlier-`true` neither-evaluated-nor-validated case, and
+    `$or`'s past-the-deciding-operand twin of the existing `$and` case;
+    `higher-order.json` gained the predicate-callback result error
+    (settled rendering: `filter callback result must be a boolean; got
+    number`) and callback validation attaching to evaluation (`find`
+    stopping at the first `true`). The `$and`/`$or` operand renderings,
+    arity rejections, and logic-builtin argument errors were already
+    pinned.
+  - Records and resolution order landed as a new
+    `eval/capture-records.json` (five cases): escape idempotence through a
+    pass-through function, value-vs-open-body entry selection (a member
+    both called and taken as a value captures as an evaluated value
+    carrying its own record), the applied value's record beating a
+    same-named module function, group-internal by-name application
+    resolving a sibling through the containing record over a module
+    function, and the record beating a builtin. `name-resolution.json`
+    gained the module-function-shadows-builtin tier case, and
+    `effects-handle.json` the multi-shot resume: one continuation resumed
+    twice, both applications reading the same captured value.
+  - New allowlist entries, each justified in the audit script: the two
+    present-`null` files under `null-on-miss` (a present `null` is a hit —
+    the expectation is the rule itself) and the three new/extended files
+    whose cycle-and-laziness wording states current rules under
+    `lazy-forcing-wording`.
 - `cost/`: `$let` region folding and the narrowed default-force event;
   path-unfolding region constants; capture-record materialization (the D2
   named vector: per-iteration closure creation charges per iteration;

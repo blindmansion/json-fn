@@ -311,6 +311,28 @@
         }
       },
       "error": "Expected exactly 2 arguments, received 3"
+    },
+    {
+      "description": "a non-boolean predicate-callback result is an immediate error",
+      "comment": "A predicate callback's result is a boolean position: the same validation as a condition, naming the builtin's callback result and the evaluated value's kind. Returning the item itself is the classic truthiness shape, and it is rejected.",
+      "body": {
+        "$return": {
+          "$call": "filter",
+          "$args": [{ "$params": ["x"], "$return": { "$var": "x" } }, [1, 2]]
+        }
+      },
+      "error": "filter callback result must be a boolean; got number"
+    },
+    {
+      "description": "a predicate-callback result past the deciding one is neither evaluated nor validated",
+      "comment": "Validation attaches to evaluation: find stops at the first true result, so the callback never runs on the later non-boolean-producing element.",
+      "body": {
+        "$return": {
+          "$call": "find",
+          "$args": [{ "$params": ["x"], "$return": { "$var": "x" } }, [true, 3]]
+        }
+      },
+      "expected": true
     }
   ]
 }

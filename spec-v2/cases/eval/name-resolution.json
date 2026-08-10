@@ -235,6 +235,13 @@
       },
       "args": [10],
       "expected": 11
+    },
+    {
+      "description": "a module function shadows a builtin in call position",
+      "comment": "Module entries are the second-to-last resolution tier; builtins and host functions are the last.",
+      "functions": { "length": { "$params": ["v"], "$return": 999 } },
+      "body": { "$return": { "$call": "length", "$args": [[1, 2, 3]] } },
+      "expected": 999
     }
   ]
 }

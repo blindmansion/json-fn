@@ -128,14 +128,15 @@
       "expected": 4
     },
     {
-      "description": "arity rejects malformed defaulted parameters",
+      "description": "arity rejects a descriptor carrying only $param",
+      "comment": "A descriptor must carry at least one of $optional, $default, or $type — the bare name string is the one canonical spelling of a plain required slot.",
       "body": {
         "$return": {
           "$call": "arity",
           "$args": [{ "$raw": { "$params": [{ "$param": "value" }], "$return": null } }]
         }
       },
-      "error": "$params[0]: A defaulted parameter must contain exactly"
+      "error": "$params[0]: A parameter descriptor must carry $optional, $default, or $type"
     },
     {
       "description": "field defaults depend on positional parameters and earlier fields",
@@ -297,7 +298,7 @@
     {
       "description": "malformed nested parameters fail while creating a closure",
       "body": { "$return": { "$params": [{ "$param": "value" }], "$return": null } },
-      "error": "$params[0]: A defaulted parameter must contain exactly"
+      "error": "$params[0]: A parameter descriptor must carry $optional, $default, or $type"
     },
     {
       "description": "required and defaulted fields work in either order",
@@ -337,19 +338,22 @@
       ]
     },
     {
-      "description": "defaulted parameter descriptors require a default or optional marker",
+      "description": "a descriptor carrying only $param is rejected at the body's own parameter surface",
+      "comment": "The same descriptor rule applies wherever function-body shape is validated; the top-level body is no exception.",
       "body": { "$params": [{ "$param": "x" }], "$return": null },
-      "error": "Invalid JSON expression"
+      "error": "$params[0]: A parameter descriptor must carry $optional, $default, or $type"
     },
     {
-      "description": "defaulted parameter descriptors reject extra properties",
+      "description": "parameter descriptors reject extra properties",
+      "comment": "Descriptors are closed: no keys other than $param, $optional, $default, and $type are allowed.",
       "body": { "$params": [{ "$param": "x", "$default": 1, "extra": true }], "$return": null },
-      "error": "Invalid JSON expression"
+      "error": "$params[0]: A parameter descriptor allows only $param, $optional, $default, and $type"
     },
     {
-      "description": "defaulted parameter descriptors cannot use rest names",
+      "description": "a rest descriptor admits only $type",
+      "comment": "A rest slot in descriptor form carries the ... prefix inside $param and cannot be defaulted or optional.",
       "body": { "$params": [{ "$param": "...xs", "$default": [] }], "$return": null },
-      "error": "Invalid JSON expression"
+      "error": "$params[0]: A rest parameter descriptor admits only $type"
     },
     {
       "description": "rest parameters must be final",
@@ -362,38 +366,17 @@
       "error": "Duplicate parameter binding \"x\""
     },
     {
-      "description": "field and named parameter bindings cannot be duplicated",
+      "description": "a lowered field projection shadows a same-named positional parameter",
+      "comment": "Uniqueness of the names bound by one parameter list is a shorthand parse rule. Canonically the projection is an ordinary $let binding, so the field name shadows the parameter throughout $in — a program the parser never emits, given a meaning by the ordinary rules rather than policed.",
       "body": {
-        "$params": [{ "$fields": ["x"] }, { "$param": "x", "$default": 1 }],
-        "$return": null
+        "$params": ["__p0", { "$param": "x", "$default": 1 }],
+        "$return": {
+          "$let": { "x": { "$get": "x", "$from": { "$var": "__p0" } } },
+          "$in": { "$var": "x" }
+        }
       },
-      "error": "Duplicate parameter binding \"x\""
-    },
-    {
-      "description": "field descriptors require a default or optional marker",
-      "body": { "$params": [{ "$fields": [{ "$field": "x" }] }], "$return": null },
-      "error": "Invalid JSON expression"
-    },
-    {
-      "description": "field descriptors reject extra properties",
-      "body": {
-        "$params": [{ "$fields": [{ "$field": "x", "$default": 1, "extra": true }] }],
-        "$return": null
-      },
-      "error": "Invalid JSON expression"
-    },
-    {
-      "description": "object patterns reject parameter descriptors as fields",
-      "body": { "$params": [{ "$fields": [{ "$param": "x", "$default": 1 }] }], "$return": null },
-      "error": "Invalid JSON expression"
-    },
-    {
-      "description": "object-pattern field bindings cannot be duplicated",
-      "body": {
-        "$params": [{ "$fields": ["x", { "$field": "x", "$default": 1 }] }],
-        "$return": null
-      },
-      "error": "Duplicate parameter binding \"x\""
+      "args": [{ "x": 10 }],
+      "expected": 10
     },
     {
       "description": "specific malformed descriptor errors survive a preceding default",
@@ -401,7 +384,7 @@
         "$params": [{ "$param": "first", "$default": 1 }, { "$param": "second" }],
         "$return": null
       },
-      "error": "A defaulted parameter must contain exactly"
+      "error": "$params[1]: A parameter descriptor must carry $optional, $default, or $type"
     },
     {
       "description": "specific duplicate errors survive a preceding default",

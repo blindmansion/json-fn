@@ -275,6 +275,42 @@
       "expected": [3, 2, 1]
     },
     {
+      "description": "a continuation resumed more than once shares one capture record",
+      "comment": "Calling resume twice runs the remainder twice. The language has no mutation, so both applications read the same captured scale from one record and each produces its own completion.",
+      "body": {
+        "$params": ["scale"],
+        "$return": {
+          "$call": "handle",
+          "$args": [
+            {
+              "$call": "bind",
+              "$args": [
+                { "$call": "perform", "$args": ["choose", []] },
+                {
+                  "$params": ["x"],
+                  "$return": {
+                    "$call": "pure",
+                    "$args": [{ "$call": "mul", "$args": [{ "$var": "x" }, { "$var": "scale" }] }]
+                  }
+                }
+              ]
+            },
+            {
+              "choose": {
+                "$params": ["resume"],
+                "$return": [
+                  { "$call": { "$var": "resume" }, "$args": [10] },
+                  { "$call": { "$var": "resume" }, "$args": [20] }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "args": [3],
+      "expected": [30, 60]
+    },
+    {
       "description": "handle charges fuel; a tight budget trips the fuel limit",
       "body": {
         "$return": {
