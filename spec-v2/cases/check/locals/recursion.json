@@ -5,6 +5,7 @@
   "cases": [
     {
       "description": "reports a direct cycle once with a stable path",
+      "comment": "The checker reports a binding cycle statically, with the evaluator's pinned schedule-stall rendering: the cycle named through the earliest stalled binding in source order, path in reference order.",
       "expression": { "$let": { "a": { "$var": "a" } }, "$in": { "$var": "a" } },
       "expected": {
         "type": true,
@@ -12,7 +13,7 @@
           {
             "path": ["$let", "a"],
             "severity": "error",
-            "messageIncludes": "Circular local type dependency: a -> a"
+            "messageIncludes": "Circular variable dependency detected: a -> a"
           }
         ]
       }
@@ -29,7 +30,7 @@
           {
             "path": ["$let", "a"],
             "severity": "error",
-            "messageIncludes": "Circular local type dependency: a -> b -> a"
+            "messageIncludes": "Circular variable dependency detected: a -> b -> a"
           }
         ]
       }

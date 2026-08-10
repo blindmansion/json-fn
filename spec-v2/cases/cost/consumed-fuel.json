@@ -57,8 +57,8 @@
       "consumedFuel": 10
     },
     {
-      "description": "forcing a $let binding enters its region once; the memoized reread adds nothing",
-      "comment": "program entry 1 + invocation 1 + body entry region 3 + binding region 2 + add builtin 1 + mul builtin 1 = 9.",
+      "description": "a strict $let binding charges once in its containing region; rereads add nothing",
+      "comment": "program entry 1 + invocation 1 + body entry region 5 (the $let node, the binding's $var and literal, and the two $var reads in $in) + add builtin 1 + mul builtin 1 = 9. The binding folds into the body region; each later $var read is an already-counted node, not a new charge.",
       "program": {
         "$params": ["x"],
         "$return": {

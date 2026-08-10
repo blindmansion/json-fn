@@ -2,11 +2,12 @@
   "description": "$let final scoping and closure regressions",
   "cases": [
     {
-      "description": "unused bindings are lazy",
+      "description": "an erroring unreferenced binding fails the $let",
+      "comment": "Bindings are strict: every binding evaluates before $in, so a failing binding fails the whole $let even though $in never references it.",
       "body": {
         "$return": { "$let": { "unused": { "$call": "missing", "$args": [] } }, "$in": "ok" }
       },
-      "expected": "ok"
+      "error": "Function missing not found"
     },
     {
       "description": "bindings capture parameters while nested lets shadow both",

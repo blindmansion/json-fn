@@ -1,6 +1,6 @@
 {
   "description": "Static region constants",
-  "comment": "The static cost function assigns one constant per straight-line region of the post-normalization canonical program. A region's constant counts its expression nodes and static-data value nodes (object keys count nothing). Invocation, branch, lazy, and builtin-call boundary nodes belong to no region; their charges arrive as events or as entry into the region they select. See docs/runtime/execution-limits.md.",
+  "comment": "The static cost function assigns one constant per straight-line region of the post-normalization canonical program. A region's constant counts its expression nodes and static-data value nodes (object keys count nothing). Invocation, branch, parameter-default, and builtin-call boundary nodes belong to no region; their charges arrive as events or as entry into the region they select. See docs/runtime/execution-limits.md.",
   "cases": [
     {
       "description": "constant array program is one region counting the array node and its items",
@@ -31,8 +31,8 @@
       ]
     },
     {
-      "description": "each $let binding expression is its own region behind the lazy boundary",
-      "comment": "The body entry region counts the $let node and the two $var reads in $in; the binding region counts its $var and literal.",
+      "description": "$let is not a region boundary: binding nodes fold into the containing region",
+      "comment": "Bindings are strict, so the body entry region counts the $let node, the binding's $var and literal, and the two $var reads in $in; the add and mul call nodes are builtin-call boundaries.",
       "program": {
         "$params": ["x"],
         "$return": {
@@ -42,8 +42,7 @@
       },
       "regions": [
         { "at": "", "constant": 1 },
-        { "at": "/$return", "constant": 3 },
-        { "at": "/$return/$let/y", "constant": 2 }
+        { "at": "/$return", "constant": 5 }
       ]
     },
     {

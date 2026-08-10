@@ -108,7 +108,7 @@
     },
     {
       "description": "walks signatures nested under $let and $captures for dangling refs",
-      "comment": "Both nested signatures report the dangling ref; the forced local call additionally fails assignability against the declared integer return.",
+      "comment": "Both nested signatures report the dangling ref; the local call additionally fails assignability against the declared integer return.",
       "module": {
         "entry": {
           "$params": [],

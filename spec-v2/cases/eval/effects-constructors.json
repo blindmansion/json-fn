@@ -20,7 +20,8 @@
       "expected": { "wrapped": { "@task": "effect", "name": "e", "args": [1, 2] } }
     },
     {
-      "description": "a task in an unreferenced lazy local never runs (laziness interaction)",
+      "description": "a task constructed in an unreferenced binding is inert",
+      "comment": "The binding evaluates strictly and constructs the effect task, but construction performs nothing — only sequencing by a runtime adapter would.",
       "body": {
         "$return": {
           "$let": { "unused": { "$call": "perform", "$args": ["boom", []] } },

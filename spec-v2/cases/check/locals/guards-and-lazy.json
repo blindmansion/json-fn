@@ -1,6 +1,6 @@
 {
   "$schema": "../../check.schema.json",
-  "description": "locals: narrowing through named boolean guards and lazy bindings",
+  "description": "locals: narrowing through named boolean guards and value bindings",
   "builtins": "standard",
   "cases": [
     {
@@ -27,9 +27,10 @@
       "expected": { "diagnostics": [] }
     },
     {
-      "description": "uses creation-site and forcing-site facts for lazy bindings",
+      "description": "checks value bindings with the facts at their use sites",
+      "comment": "A reachable value binding is checked wherever it is referenced, with the narrowing facts in scope there: `bindingSite` narrows because the binding is created and used inside the guarded branch; `useSite` narrows because the guarded use site supplies the fact, even though the binding is created outside it.",
       "module": {
-        "creationSite": {
+        "bindingSite": {
           "$params": [
             {
               "$param": "value",
@@ -46,7 +47,7 @@
             "$else": 0
           }
         },
-        "forcingSite": {
+        "useSite": {
           "$params": [
             {
               "$param": "value",

@@ -34,8 +34,8 @@
       "expected": { "type": { "$taskType": { "const": 1 } }, "diagnostics": [] }
     },
     {
-      "description": "synthesizes the result in a lazy recursive scope",
-      "comment": "The unused binding is reported without its unresolved contents cascading.",
+      "description": "synthesizes the result while reporting an unused binding",
+      "comment": "An unreachable binding's contents are not checked, so its unresolved reference does not cascade into the result type.",
       "expression": { "$let": { "x": 1, "unused": { "$var": "missing" } }, "$in": { "$var": "x" } },
       "expected": {
         "type": { "const": 1 },
@@ -132,7 +132,7 @@
     },
     {
       "description": "reports an unused binding without classifying its contents",
-      "comment": "The malformed empty $let inside the unused binding is never forced, so only the unused-binding error is reported.",
+      "comment": "The unused binding's contents are not checked, so the malformed empty $let inside it goes unreported and only the unused-binding error surfaces.",
       "expression": { "$let": { "unused": { "$let": {} } }, "$in": "ok" },
       "expected": {
         "type": { "const": "ok" },
@@ -181,7 +181,7 @@
       }
     },
     {
-      "description": "classifies a mixed $let binding as malformed when forced",
+      "description": "classifies a reachable mixed $let binding as malformed",
       "expression": {
         "$let": { "bad": { "$let": { "x": 1 }, "$in": 1, "$return": 1 } },
         "$in": { "$var": "bad" }

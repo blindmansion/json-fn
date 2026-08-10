@@ -106,6 +106,18 @@ const ALLOWLIST = new Set<string>([
   "fields-descriptors eval/destructured-params.json",
   "fields-descriptors eval/parameter-defaults.json",
   "fields-descriptors eval/strict-parameter-runtime.json",
+  // Stage C (2a) deliberate survivors: cycles are still errors under strict
+  // $let — these cases now pin the schedule-stall identity (docs
+  // language/json/execution-limits.md), so their "cycle" wording is accurate.
+  "lazy-forcing-wording check/locals/recursion.json",
+  "lazy-forcing-wording eval/safety-limits.json",
+  // Stage C (2a): type-level ($types) recursion is 2a-adjacent wording only;
+  // the non-contractive-cycle rule is untouched by strict $let.
+  "lazy-forcing-wording check/modules/recursive-types.json",
+  // Stage C (2a): the positional $default is the language's one surviving
+  // lazy construct (docs language/json/functions.md), so its laziness and
+  // default-cycle cases keep their wording.
+  "lazy-forcing-wording eval/parameter-defaults.json",
 ]);
 
 // --- CLI ---

@@ -168,6 +168,46 @@ landed spec text, and error cases pin the error identities those texts fixed.
   schedule-stall identity ([`strict-let.md`](strict-let.md) rule 3);
   explicitly keep the flagged non-2a cases (type-level recursion,
   `$default` laziness — the one surviving lazy construct).
+
+  **Done 2026-08-10.** Queue clear; gate, schema validation, and format
+  checks green. Outcomes beyond the plan's letter:
+
+  - The unforced-error-suppression case (`eval/let-regressions.json` #0) was
+    rewritten in place to the strict-failure expectation rather than
+    deleted, covering Stage D's "erroring unreferenced binding" add early.
+  - The `eval/safety-limits.json` cycle cases keep their error strings —
+    the v1 renderings coincide with the rule-3 identity, including the
+    stalled-prefix case (`x, a, b, c` reports `b -> c -> b`) — so they were
+    kept with schedule-stall comments rather than deleted. The checker's
+    static cycle report (`check/locals/recursion.json`) now pins the same
+    evaluator rendering ("Circular variable dependency detected: …"),
+    replacing v1's "Circular local type dependency".
+  - `check/locals/guards-and-lazy.json` #1 was kept, not deleted: the
+    landed checker text retains use-site checking of value bindings
+    (`expressions.md` "checked wherever it is referenced", `narrowing.md`
+    "facts at the point where that binding is used"), so its expectations
+    stay and only the creation/forcing vocabulary was rewritten.
+  - The audit regex does not match "forcing", so two stale cases outside
+    the queue were caught and re-derived by hand: `cost/consumed-fuel.json`'s
+    binding-force vector (same total, 9 — the binding region folds into the
+    body region) and `check/programs/chess.json` #12. `cost/static-regions.json`
+    #3 re-derived to the folding rule (body 3 + binding 2 → one region of 5).
+  - Chess (#12, #21) got wording-only fixes to the use-site vocabulary; the
+    full rewrite stays with the Programs pass. Note for that pass and
+    [`status.md`](status.md): use-site checking means a checked program can
+    still fail at runtime on eager binding evaluation — chess #21
+    (`upper(move.from)` bound outside the null guard) is now exactly the
+    authoring-pattern break `strict-let.md` documents, blessed by the
+    checker but erroring under strict evaluation whenever `from` is null.
+  - Allowlisted survivors, justified in the audit script:
+    `check/locals/recursion.json` and `eval/safety-limits.json` (cycle
+    wording is accurate — cycles survive as schedule stalls),
+    `check/modules/recursive-types.json` (type-level recursion),
+    `eval/parameter-defaults.json` (`$default` laziness, including the
+    default-spanning cycle case #6 — the forcing-cycle identity for the one
+    surviving lazy construct carries over; the v2 docs pin field-default
+    cycles but are silent on positional-default cycles, a gap for
+    [`status.md`](status.md)).
 - **2b — strict reads** (queue: `null-on-miss`, 11 findings, plus the
   computed-key cases). Each null-on-miss case either deletes or rewrites
   to the error identity / an explicit `$else` arm, whichever the case was

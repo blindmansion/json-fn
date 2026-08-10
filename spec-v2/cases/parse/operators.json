@@ -58,7 +58,7 @@
       }
     },
     {
-      "description": "a nontrivial middle comparison operand is evaluated through a lazy memo",
+      "description": "a nontrivial interior comparison operand is hoisted into a shared $let binding",
       "source": "0 <= value() < 100",
       "expected": {
         "$let": { "__jfn_cmp_0": { "$call": "value", "$args": [] } },

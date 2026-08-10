@@ -3,6 +3,7 @@
   "cases": [
     {
       "description": "detects self-referential variable",
+      "comment": "Bindings evaluate in dependency order; direct self-reference is the one-binding case of a schedule stall.",
       "body": { "$return": { "$let": { "x": { "$var": "x" } }, "$in": { "$var": "x" } } },
       "error": "Circular variable dependency detected: x -> x"
     },
@@ -28,6 +29,7 @@
     },
     {
       "description": "detects cycle not starting from first variable",
+      "comment": "x evaluates, then the schedule stalls. The earliest stalled binding in source order is `a`, and the error names the cycle reached from it — b -> c -> b, in reference order — not the stalled prefix.",
       "body": {
         "$return": {
           "$let": {

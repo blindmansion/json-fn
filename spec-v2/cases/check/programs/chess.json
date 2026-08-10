@@ -1,6 +1,6 @@
 {
   "$schema": "../../check.schema.json",
-  "description": "realistic chess-program fragments across coordinates, nullable pieces, lazy locals, field paths, discriminants, and finite matches",
+  "description": "realistic chess-program fragments across coordinates, nullable pieces, local bindings, field paths, discriminants, and finite matches",
   "comment": "Canonical checker corpus migrated from typescript/test/check/chess.test.ts. Cases retain the original fragment names and intentionally include both focused coordinate checks and their aggregate module check.",
   "builtins": "standard",
   "cases": [
@@ -298,7 +298,7 @@
       }
     },
     {
-      "description": "pieceMoves: locals bound from a guarded var narrow at their forcing site",
+      "description": "pieceMoves: locals bound from a guarded var narrow at their use sites",
       "module": {
         "$types": {
           "Color": { "enum": ["w", "b"] },
@@ -631,7 +631,7 @@
       }
     },
     {
-      "description": "lazy local through a path: a $let binding from move.from narrows at forcing",
+      "description": "local through a path: a $let binding from move.from narrows at its use site",
       "module": {
         "$types": {
           "Color": { "enum": ["w", "b"] },
