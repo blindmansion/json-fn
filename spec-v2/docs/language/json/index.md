@@ -7,8 +7,8 @@ evaluation, scope, static checking, effects, and limits.
 
 - [Expressions](expressions.md) — values, calls, bindings, access, control flow,
   and structural rules.
-- [Functions](functions.md) — parameters, signatures, local bindings, and
-  recursion.
+- [Functions](functions.md) — parameters, inline types and the interface
+  derivation, object-pattern lowering, and recursion.
 - [Closures](closures.md) — captured values and local functions.
 - [Modules and scope](modules.md) — module bindings and name resolution.
 - [Flow narrowing](narrowing.md) — branch-sensitive type refinement.

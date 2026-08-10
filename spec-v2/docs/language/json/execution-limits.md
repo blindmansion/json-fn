@@ -50,6 +50,26 @@ function value — one arriving as input, such as a resumed continuation —
 charges re-entry (1), its record's cost having been paid at the original
 creation. Fuel does not cross suspensions.
 
+## Typing is free
+
+Inline type annotations — `$type` on parameter descriptors and `$returns` on
+function bodies — contribute **zero** to region constants: like object keys,
+and unlike data literals, they are static syntax that never produces a value.
+Typing a function cannot change its fuel; one program, annotated and bare,
+consumes identical fuel. The `$type` of a
+[`$as` expression](expressions.md#checked-type-ascription--as-type) is
+different: a declared runtime position whose validation cost is unchanged and
+out of scope here.
+
+The lowered projections of an
+[object-pattern parameter](functions.md#object-pattern-parameters) charge as
+what they are: `$let` and `$get` nodes in their region's static constant. An
+optional or defaulted field is a branch point whose `$else` arm is its own
+region, entered by an arm-selection event on a genuine miss — the
+property-access rule above, verbatim. The default-force event attaches only
+to the positional `$default`, the language's one lazy construct; a supplied
+or absent pattern field never fires it.
+
 ## Resource limits
 
 Evaluation may set these limits:

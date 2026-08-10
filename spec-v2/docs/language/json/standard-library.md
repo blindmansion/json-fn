@@ -60,8 +60,8 @@ A callback may be a function reference, an inline function body, or a string
 name.
 
 Inline callbacks receive a contextual type. Their required, optional, and rest
-parameters must exactly match the shape supplied by the builtin. Referenced and
-`$sig`-annotated callbacks must have a compatible complete shape. String names
+parameters must exactly match the shape supplied by the builtin. Referenced
+and annotated callbacks must have a compatible complete shape. String names
 are not statically resolved. Use a wrapper when a function's public parameter
 shape differs from the callback shape.
 

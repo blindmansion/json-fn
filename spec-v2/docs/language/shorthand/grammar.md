@@ -66,6 +66,11 @@ positional parameters; a rest parameter, when present, is final. These ordering
 rules apply to `param` entries, not to `fieldBinding` entries within one
 required object pattern.
 
+An identifier matching `__p` followed by digits is not a valid shorthand
+identifier anywhere — as binder or reference. The scheme is reserved for the
+synthesized parameter slots of the
+[object-pattern lowering](../json/functions.md#object-pattern-parameters).
+
 See [Type syntax](type-syntax-spec.md#informal-grammar) for typed function
 parameters, return annotations, type expressions, and type declarations.
 

@@ -35,9 +35,11 @@ Preserved:
 - **mutual recursion** between sibling function-valued bindings;
 - **cycles are errors** (now a schedule property, not a forcing property);
 - **lazy parameter defaults** — positional `$default` and `$fields` field
-  defaults (2d keeps the latter primitive) become the *only* lazy construct
-  in the language, and the cost model's lazy boundary narrows to exactly
-  them.
+  defaults become the *only* lazy construct in the language, and the cost
+  model's lazy boundary narrows to exactly them. (Superseded in part by 2d,
+  [`param-surface-2d.md`](param-surface-2d.md) rule 2: field defaults lower
+  to eager `$else` arms, so the lazy boundary narrows further, to the
+  positional `$default` alone.)
 
 The determinism payoff, stated once in the runtime limits document: with
 demand gone, the trace is fully determined by values alone, and speculative

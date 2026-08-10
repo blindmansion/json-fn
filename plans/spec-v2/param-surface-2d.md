@@ -252,7 +252,10 @@ none" into a triviality.
   annotated body are used as declared, and a named (module or reachable
   local) function that is not fully annotated receives the existing
   missing-signature treatment — error under full-coverage policy, info under
-  `allowUntypedFunctions`. Contextually typed bare lambdas are untouched; an
+  `allowUntypedFunctions`. *(Revised 2026-08-09 as the text landed:
+  `allowUntypedFunctions` is removed from spec-v2 — it was the v1 migration
+  escape hatch — so the missing-annotation diagnostic is an error, the only
+  policy; see [`status.md`](status.md).)* Contextually typed bare lambdas are untouched; an
   annotated lambda remains a concrete function value (the registry text
   rewords "`$sig`-annotated" accordingly).
 
@@ -426,7 +429,9 @@ Consistency sweep:
     signature check suites to per-slot `$type`/`$returns`;
   - add: derivation cases (entry satisfaction, `$fnType` value
     compatibility, task-entry mapping); per-slot typing and the
-    fully-typed lint under both policies; fold-back round-trips including
+    missing-annotation error (single policy — `allowUntypedFunctions` is
+    removed, so its schema field and option cases delete rather than
+    migrate); fold-back round-trips including
     deliberate no-fold cases (extra binding, reordered projections, foreign
     reference to the synthesized name); the raw-inference matrix row
     (schema payloads under `$params`/`$returns` are never wrapped); cost

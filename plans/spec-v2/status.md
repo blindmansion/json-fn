@@ -1,6 +1,6 @@
 # Spec v2 status: what remains to be decided
 
-Status: **living document**, 2026-08-08. Everything not yet decided, grouped
+Status: **living document**, 2026-08-09. Everything not yet decided, grouped
 by what it blocks. The settled sequence is in [`plan.md`](plan.md); rationale
 for the settled items is in [`review.md`](review.md) and
 [`type-eval-coherence.md`](type-eval-coherence.md).
@@ -110,6 +110,33 @@ stated in the Stage 2 spec text and the pattern-matching spec respectively:
   also settled there: `??` is kept, miss-only, access-only (its divergence
   from JS's null-coalescing prior is documented prominently in the guide,
   and the checker keeps the null residue visible in the type).
+- **Field defaults after the `$fields` collapse: resolved for Stage 2,
+  `= e` lowers to the projection's `$else` arm** (2026-08-09, with chunk 2d's
+  spec text — [`param-surface-2d.md`](param-surface-2d.md) rule 2). The arm
+  fires on absence only, so present-`null` suppression is preserved exactly.
+  Two documented deltas: a field default evaluates at bind time on absence
+  (body-top, dependency-ordered) rather than lazily on first read, and a
+  positional default can no longer reference a destructured field. The
+  positional `$default` is the language's one remaining lazy construct and
+  the sole default-force attachment. Fallback criterion: if the 2g corpus
+  audit or a blind-authoring run shows real use of positional defaults
+  reading pattern fields, the lowering re-projects field references inside
+  default expressions (deterministic and printable, since the reserved
+  `__p<i>` name cannot be authored) — an additive lowering rule, no format
+  break.
+- **`allowUntypedFunctions`: removed from spec-v2** (2026-08-09, revising
+  2d rule 5 as the spec text landed). The option was the v1 migration escape
+  hatch — its only effect was downgrading the missing-annotation error to an
+  information diagnostic. spec-v2 fixes one policy: a named function that is
+  not fully annotated is an error. Partial annotations remain legal syntax
+  and are used as declared (2d rule 5), and contextually typed bare lambdas
+  are untouched, so the option no longer earned its conformance surface —
+  the portable `options` object is now empty and its concept deletes from
+  `conformance/checking.md`. The option's schema field and its check cases
+  delete with 2g's case migration; `info` diagnostics remain the encoding
+  for other coverage degradation. The v1 spec, cases, and implementation
+  flag (`--allow-untyped-functions`) are untouched until spec-v2 lands in
+  the implementation.
 - **Proposal 6, signature-shape axis.** Whether the
   `required`/`optional`/`rest` signature shape ever changes; gated on a
   deliberate contract-format revision, not on any plan stage. Unaffected by

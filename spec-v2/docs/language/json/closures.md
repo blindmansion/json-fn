@@ -96,7 +96,8 @@ to a flat binding group:
 - The record carries one **open-body entry** per group member referenced by
   name from the escaping body or from any member's body: the member's
   unrewritten literal binding value — its whole authored body object,
-  preserving `$params` and `$comment` — with **no record of its own**. It
+  preserving `$params` (typed descriptors included), `$returns`, and
+  `$comment` — with **no record of its own**. It
   also carries one value entry per name in the union of the group's
   value-position free names.
 - A member that is *both* called and taken as a value contributes by its

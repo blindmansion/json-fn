@@ -259,46 +259,34 @@ type position except refinements and literal enums.
 
 ## Function signatures
 
-A fully typed function literal annotates every parameter and includes a return
-type:
+A typed function literal annotates parameters in place and may include a
+return type:
 
 ```jfn
 otherColor: (color: Color) -> Color =>
   if color == "w" then "b" else "w"
 ```
 
-It lowers the annotations to `$sig` beside `$params` and `$return`:
+Annotations lower inline: each parameter type becomes a `$type` on its
+`$params` slot, and the return type becomes `$returns` beside `$return`:
 
 ```json
 {
-  "$sig": {
-    "required": [{ "$ref": "#/$defs/Color" }],
-    "optional": [],
-    "returns": { "$ref": "#/$defs/Color" }
-  },
-  "$params": ["color"],
+  "$params": [{ "$param": "color", "$type": { "$ref": "#/$defs/Color" } }],
+  "$returns": { "$ref": "#/$defs/Color" },
   "$return": "..."
 }
 ```
 
-A function literal is either fully typed or bare. Partial signatures are
-invalid. Named module and local functions must be fully typed. Bare inline
-lambdas are allowed when a higher-order call supplies their signature
-contextually. Every reachable named function body is checked against its
-signature.
+There is no separate signature object: a type lives on the slot it
+describes, so an annotation cannot misalign with the parameter layout. The
+callable shape consumed by contracts, `$fnType` compatibility, and the
+builtin registry is produced by the
+[interface derivation](../json/functions.md#the-interface-description) from
+the inline form.
 
-Local-binding reachability starts at `$in` and follows lexical references
-transitively. Reachable value bindings are checked where referenced. An
-unreachable binding produces one unused-binding error, and its contents are not
-checked.
-
-### Parameter alignment
-
-`$sig.required` aligns with leading required `$params` slots.
-`$sig.optional` then aligns with optional and defaulted slots in source order.
-An object pattern consumes one slot. Its fields do not consume signature
-positions. A final rest parameter aligns separately with `$sig.rest`, which is
-the element schema rather than an array schema.
+An untyped required parameter stays a bare name string; a typed one uses
+descriptor form. A mixed layout illustrates the lowering:
 
 ```jfn
 greet: (
@@ -310,16 +298,13 @@ greet: (
 
 ```json
 {
-  "$sig": {
-    "required": [{ "type": "string" }],
-    "optional": [{ "type": "string" }, { "type": "string" }],
-    "returns": { "type": "string" }
-  },
   "$params": [
-    "name",
-    { "$param": "title", "$optional": true },
-    { "$param": "punctuation", "$default": "!" }
-  ]
+    { "$param": "name", "$type": { "type": "string" } },
+    { "$param": "title", "$optional": true, "$type": { "type": "string" } },
+    { "$param": "punctuation", "$default": "!", "$type": { "type": "string" } }
+  ],
+  "$returns": { "type": "string" },
+  "$return": "..."
 }
 ```
 
@@ -329,21 +314,54 @@ defaulted parameter is `T`.
 
 `?` and `=` are mutually exclusive. Either makes a slot omittable, so required
 parameters must come first and only rest may follow. A default expression is
-checked against `T` even if unused. Defaults are lazy and use the complete
-recursive function-body scope. Omission of a plain optional parameter binds
+checked against `T` even if unused. Positional defaults are lazy and use the
+function invocation scope. Omission of a plain optional parameter binds
 `null`; explicit `null` is supplied data, must be admitted by `T`, and never
 activates a default.
 
-Rest syntax carries an array type, but `$sig.rest` stores its element type:
+Rest syntax carries an array type, stored on the slot as written:
 
 ```jfn
 concatAll: (first: string, ...rest: string[]) -> string => ...
 ```
 
-### Object-pattern contracts
+```json
+{
+  "$params": [
+    { "$param": "first", "$type": { "type": "string" } },
+    {
+      "$param": "...rest",
+      "$type": { "type": "array", "items": { "type": "string" } }
+    }
+  ],
+  "$returns": { "type": "string" },
+  "$return": "..."
+}
+```
 
-An object-pattern annotation describes the one object argument consumed by the
-pattern:
+A rest slot's `$type` must be an array schema without `prefixItems`; the
+interface derivation takes its `items` as the `$fnType` and contract `rest`
+element schema.
+
+Annotations may be partial: a body annotating only some slots, or only the
+return, is valid, and its present annotations are used as declared. A
+**named** function — a module binding or a reachable local binding whose
+value is a function literal — that is not fully annotated is a
+missing-annotation error; the requirement is not configurable. Bare inline
+lambdas are typed contextually where a higher-order call supplies their
+function type. Every reachable named function body is checked against its
+declared types.
+
+Local-binding reachability starts at `$in` and follows lexical references
+transitively. Reachable value bindings are checked where referenced. An
+unreachable binding produces one unused-binding error, and its contents are not
+checked.
+
+### Object-pattern annotations
+
+An object-pattern annotation describes the one object argument the pattern
+consumes. It attaches as the `$type` of the pattern's
+[synthesized slot](../json/functions.md#object-pattern-parameters):
 
 ```jfn
 daysInMonth: ({ year, month }: Date) -> integer => ...
@@ -351,12 +369,15 @@ daysInMonth: ({ year, month }: Date) -> integer => ...
 
 ```json
 {
-  "$sig": {
-    "required": [{ "$ref": "#/$defs/Date" }],
-    "optional": [],
-    "returns": { "type": "integer" }
-  },
-  "$params": [{ "$fields": ["year", "month"] }]
+  "$params": [{ "$param": "__p0", "$type": { "$ref": "#/$defs/Date" } }],
+  "$returns": { "type": "integer" },
+  "$return": {
+    "$let": {
+      "year": { "$get": "year", "$from": { "$var": "__p0" } },
+      "month": { "$get": "month", "$from": { "$var": "__p0" } }
+    },
+    "$in": "..."
+  }
 }
 ```
 
@@ -366,20 +387,23 @@ Inline object types are also allowed:
 ({ from, to }: {from: integer, to: integer}) -> integer => ...
 ```
 
-Pattern-field omission and object-property omission must align:
+Because the pattern lowers to body-top strict-read projections, every
+field-versus-property rule is a consequence of
+[checking the reads](../json/expressions.md#checking-reads) against the
+slot's `$type` — none is a bespoke pattern rule:
 
-- a required pattern field corresponds to a required input property;
-- an optional or defaulted pattern field corresponds to an optional input
-  property.
+- a required field over an optional property (`k?: T`) is the ordinary
+  optional-field bare-read error: the checker cannot rule out the miss;
+- an optional field types as `T | null` — `$else: null` union typing;
+- a defaulted field types as `T | typeof(e)`, collapsing to `T` when the
+  default's type is subsumed;
+- a defaulted field over a *required* property leaves its `$else` arm dead;
+  the arm is unreachable, not an error.
 
-Thus a required property cannot back a defaulted field, because the default
-would be unreachable. `field?` lowers to
-`{"$field":"field","$optional":true}`, and `field = expression` lowers to
-`{"$field":"field","$default":expression}` independently of the object schema.
-
-The pattern slot remains required and contributes one schema to
-`$sig.required`, even when all its fields are omittable. Whole-pattern optional
-and defaulted forms, renamed fields, and nested patterns are invalid.
+The pattern slot remains required and contributes one schema — the object
+schema — to the derived interface `required` list, even when all its fields
+are omittable. Whole-pattern optional and defaulted forms, renamed fields,
+and nested patterns are invalid.
 
 ### Returned functions
 
@@ -522,7 +546,6 @@ non-associative. Repeated checks require parentheses:
 
 The following forms are invalid:
 
-- partial function signatures;
 - a required function slot after an optional slot;
 - a slot after a rest parameter;
 - incompatible or object refinements;
@@ -588,7 +611,6 @@ objField     := (ident | string) "?"? ":" type
 refinement   := ident ("(" (number | string) ")")?
 ```
 
-Within one function literal, annotations are all-or-nothing. In a rest
-parameter annotation, the written type must have an array suffix. `?` is
-contextual: it marks an object property, a function parameter or pattern field,
-or a function-type slot according to its grammatical position.
+In a rest parameter annotation, the written type must have an array suffix.
+`?` is contextual: it marks an object property, a function parameter or
+pattern field, or a function-type slot according to its grammatical position.

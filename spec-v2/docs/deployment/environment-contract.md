@@ -90,8 +90,10 @@ and `sensor.read` cannot coexist. `raise` is intrinsic and cannot be declared.
 - `returns`: either a direct result schema `A` or `{"task": A}` for a task
   whose completion value is `A`.
 
-The contract owns this boundary. The selected module function must satisfy it,
-even when the module has its own `$sig`.
+The contract owns this boundary. The selected module function must satisfy
+it: the callable shape compared against the entry is produced by the
+[interface derivation](../language/json/functions.md#the-interface-description)
+from the function's inline parameter and return types.
 
 `effects` is a reserved top-level binding in a linked module and cannot be the
 entry name. The binding is generated from the contract's effect declarations.

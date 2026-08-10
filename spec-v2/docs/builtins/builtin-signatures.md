@@ -123,9 +123,9 @@ of its possible overload results, while `length(any)` returns `integer`.
 
 ### Contextual callbacks
 
-A bare inline lambda without `$sig` receives the function schema expected at
-its argument position. Its required, optional, and rest parameter counts must
-match that schema exactly.
+A bare inline lambda — one without inline parameter or return types —
+receives the function schema expected at its argument position. Its required,
+optional, and rest parameter counts must match that schema exactly.
 
 Variables produced by a callback return join with bindings from other
 arguments. If that join widens a variable also used by the callback's
@@ -133,8 +133,10 @@ parameters, the callback is checked again under the final joined type. This
 ensures, for example, that a `reduce` callback accepts every accumulator type
 that a later iteration can produce.
 
-A `$sig`-annotated lambda or function reference is a concrete function value.
-Its declared signature is preserved and checked after call-site variables are
+An annotated lambda or function reference is a concrete function value. Its
+declared callable shape — the
+[interface derivation](../language/json/functions.md#the-interface-description)
+of its inline types — is preserved and checked after call-site variables are
 resolved. Function parameters are contravariant: a callback may accept a
 broader input than the builtin supplies, but not a narrower one.
 
@@ -189,7 +191,7 @@ A rule may own specified contextual argument positions. An owned position is
 checked once under the rule's context; all other fallback checks remain in
 force. Ownership may cover a top-level bare lambda or a composite value
 containing contextual lambdas. It does not cover function references or
-`$sig`-annotated lambdas unless the rule explicitly handles those concrete
+annotated lambdas unless the rule explicitly handles those concrete
 values.
 
 A semantic-rule registry contains at most one definition for each identifier.

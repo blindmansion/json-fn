@@ -31,8 +31,8 @@ outermost lexical scope.
   "H": 12,
   "SIZE": { "$call": "mul", "$args": [{ "$var": "W" }, { "$var": "H" }] },
   "area": {
-    "$sig": { "required": [], "optional": [], "returns": { "type": "integer" } },
     "$params": [],
+    "$returns": { "type": "integer" },
     "$return": { "$var": "SIZE" }
   }
 }

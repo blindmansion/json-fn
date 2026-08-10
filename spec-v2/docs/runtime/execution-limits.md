@@ -56,8 +56,8 @@ fires no event.
 Bindings are not boundaries. Since `$let` and module bindings evaluate
 strictly, a `$let` whose bindings and `$in` contain no invocation, branch
 point, parameter-default boundary, or builtin call folds entirely into its
-containing region. The only lazy construct in the language is the parameter
-default (`$default` on positional and `$fields` slots), and it is the only
+containing region. The only lazy construct in the language is the positional
+parameter default (a `$params` slot's `$default`), and it is the only
 boundary evaluation strategy could otherwise leak through.
 
 The static function produces constants, never functions of inputs. A program's
@@ -75,9 +75,9 @@ Execution charges fuel only at these events:
   dispatching a `handle` clause, continuing into a further `$and` or `$or`
   operand, or taking a `$get` `$else` arm on a miss enters the selected arm's
   entry region;
-- **default force** — evaluating an omitted parameter's or field's `$default`
-  expression when its binding is first read enters the default expression's
-  entry region;
+- **default force** — evaluating an omitted parameter's `$default` expression
+  when its binding is first read enters the default expression's entry
+  region; the event attaches only to the positional `$default`;
 - **builtin call** — charges the builtin's metering declaration from the
   signature registry: a base constant plus the top-level lengths of its
   size-metered arguments;
@@ -119,9 +119,9 @@ over the event multiset and aggregation is order-independent, so the trace —
 and therefore fuel — is a pure function of the program, its inputs, and
 recorded effect results, on every conforming implementation. Parser metadata,
 caching, serialization, and ingestion route do not change it. Bindings are
-strict, so no event depends on demand; the one lazy construct, the parameter
-default, keeps the property because whether and when a default is first read
-is itself determined by values.
+strict, so no event depends on demand; the one lazy construct, the positional
+parameter default, keeps the property because whether and when a default is
+first read is itself determined by values.
 
 Evaluation strategy is outside the observable surface. Memoization,
 speculative or parallel evaluation, and
@@ -138,8 +138,11 @@ version**, currently 1. The event vocabulary is closed per version and
 extended only by versioned addition. A new event kind attaches only to a new
 node kind, so an existing program's cost is invariant under vocabulary
 extension. Which node kinds carry each event — the attachment lists above —
-is likewise fixed per version, not extended independently. Events are defined
-as canonically encodable data.
+is likewise fixed per version, not extended independently. Narrowing or
+moving an existing attachment — for example, the default-force event
+attaching only to the positional `$default` — is a redefinition and rides a
+cost-model version break, never an in-version change. Events are defined as
+canonically encodable data.
 
 ### Exhaustion
 

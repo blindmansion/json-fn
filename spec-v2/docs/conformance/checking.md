@@ -27,7 +27,7 @@ Inputs are canonical JSON, never shorthand source. Pass a case's `contract`
 through the implementation's ordinary checker/linker entry point; do not
 reconstruct contract behavior inside the test adapter.
 
-## Builtins and options
+## Builtins
 
 The required `builtins` field selects the callable table:
 
@@ -37,11 +37,11 @@ The required `builtins` field selects the callable table:
 A case-level `builtins` overrides the suite value. Fixtures never embed
 implementation-owned callable tables or type rules.
 
-The portable `options` object currently supports only
-`allowUntypedFunctions`, which permits module-level functions without declared
-signatures and records the loss of coverage as an information diagnostic
-instead of an error. Full-coverage policy is not an option: consumers derive
-it from the presence of `info` diagnostics.
+There is no portable options object: checking has exactly one policy. A named
+function that is not fully annotated is an `error`
+(see [Function signatures](../language/shorthand/type-syntax-spec.md#function-signatures));
+coverage degradation from other sources remains visible as `info`
+diagnostics.
 
 ## Expected outcomes
 

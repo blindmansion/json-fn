@@ -48,10 +48,10 @@ may shadow names from enclosing scopes.
 The checker rejects a binding that is not lexically reachable from the result,
 directly or through another binding. Its contents are not checked.
 Every reachable value binding is checked where it is referenced. A reachable
-function-valued binding is a named function: it must include complete parameter
-and return annotations, and its body is checked against that declared
-signature. Bare inline lambdas remain available where a higher-order call
-supplies their signature contextually.
+function-valued binding is a named function: its body is checked against its
+declared parameter and return types, and one that is not fully annotated is a
+missing-annotation error. Bare inline lambdas remain available where a
+higher-order call supplies their type contextually.
 
 `where` is a lowest-precedence postfix clause on a body. Bodies occur after
 `=>`, inside a parenthesized group, in a `where` binding value, in a
@@ -162,11 +162,12 @@ Omitting a defaulted slot installs its `$default` expression as the binding's
 lazy value, evaluated only if first read. Explicit `null` is supplied data and
 suppresses either omission behavior. json-fn has no `undefined` value.
 
-Default expressions use the function invocation scope. They may reference any
-parameter, other defaults, object-pattern fields, captures, and outer or module
-bindings. They cannot reference a `where` binding inside `$return`. A
-self-reference or dependency cycle among defaults fails only when the default
-is read.
+A positional default expression uses the function invocation scope. It may
+reference any parameter, other positional defaults, captures, and outer or
+module bindings. It cannot reference a `where` binding inside `$return` —
+including the destructured fields of an object pattern, which are body-top
+bindings (see below). A self-reference or dependency cycle among positional
+defaults fails only when the default is read.
 
 Canonical parameter layouts place every required positional or object-pattern
 slot before all optional/defaulted positional slots, with a rest parameter last
@@ -177,14 +178,21 @@ optional or defaulted. Combining both omission forms on one binding
 (`value? = expr`) is also invalid: an omittable binding either produces `null`
 or has a default, never both.
 
-Every name bound by one canonical `$params` array must be unique, including
-names introduced by object patterns and the rest parameter.
+Every name bound by one parameter list must be unique — positional
+parameters, object-pattern fields, and the rest parameter. This is a parse
+rule of the shorthand surface: canonically, lowered pattern fields are
+ordinary `$let` bindings, so the parser simply never emits a duplicate.
 
 ### Object-pattern parameters
 
 A parameter may be an **object pattern** `{ f1, f2 }` that destructures a single
-object argument into named locals, instead of relying on positional order. It
-lowers to a `{ "$fields": [...] }` slot in `$params`.
+object argument into named locals, instead of relying on positional order. The
+pattern is parse-time sugar: it lowers to a plain required positional slot
+with the reserved synthesized name `__p<i>` (`<i>` the slot's zero-based
+index) plus a body-top `$let` of strict-read projections, one binding per
+field — see
+[Object-pattern parameters](../json/functions.md#object-pattern-parameters)
+for the canonical form and its semantics.
 
 ```jfn
 ({ from, to }) => sub(to, from)
@@ -192,20 +200,26 @@ lowers to a `{ "$fields": [...] }` slot in `$params`.
 
 ```json
 {
-  "$params": [{ "$fields": ["from", "to"] }],
-  "$return": { "$call": "sub", "$args": [{ "$var": "to" }, { "$var": "from" }] }
+  "$params": ["__p0"],
+  "$return": {
+    "$let": {
+      "from": { "$get": "from", "$from": { "$var": "__p0" } },
+      "to": { "$get": "to", "$from": { "$var": "__p0" } }
+    },
+    "$in": { "$call": "sub", "$args": [{ "$var": "to" }, { "$var": "from" }] }
+  }
 }
 ```
 
 `move({ from: 3, to: 7 })` is an ordinary positional call passing one data
-object. The parameter destructures that object. The argument is
-required and must be a plain object (not an array or `null`); omitting it or
-supplying any non-object value is an evaluation error. Each unmarked shorthand
-field is required and must be an own property of that object. Absent or
-non-own required fields are treated as missing, while extra object keys are
-ignored.
+object, and the projections read from it. The argument is required and must
+be a plain object (not an array or `null`); omitting it or supplying any
+non-object value is an evaluation error, because the reads reject a
+non-container target. An unmarked field is a bare read: a field that is not
+an own property of the argument is a miss error naming the key. Extra object
+keys are ignored, as by any read.
 
-`?` and `= expr` apply the same binding behaviors to individual fields:
+`?` and `= expr` mark individual fields and lower to `$else` arms:
 
 ```jfn
 ({ from, via?, to = 0 }) => ...
@@ -213,31 +227,51 @@ ignored.
 
 ```json
 {
-  "$fields": [
-    "from",
-    { "$field": "via", "$optional": true },
-    { "$field": "to", "$default": 0 }
-  ]
+  "$let": {
+    "from": { "$get": "from", "$from": { "$var": "__p0" } },
+    "via": { "$get": "via", "$from": { "$var": "__p0" }, "$else": null },
+    "to": { "$get": "to", "$from": { "$var": "__p0" }, "$else": 0 }
+  },
+  "$in": "..."
 }
 ```
 
-An absent optional own field binds `null`; an absent defaulted own field
-evaluates its default lazily when read. An own field whose value is explicitly
-`null` binds `null` and suppresses a default. The whole object-pattern argument
-remains required even when every field is omittable. Omission inside `$fields`
-does not make the containing positional pattern omittable, so that pattern must
-still precede every optional or defaulted positional slot. There is no syntax
-for an optional or defaulted whole object-pattern argument.
+An absent optional field binds `null`. An absent defaulted field evaluates
+its default **at bind time**: the projections are strict body-top bindings,
+so the default runs on omission whether or not the binding is read — unlike
+the lazy positional `$default`. An own field whose value is explicitly `null`
+binds `null` and suppresses a default (`$else` fires on absence only). Field
+defaults may reference parameters and sibling fields; mutually referencing
+field defaults are a static cycle error even when both fields are supplied.
+
+The whole object-pattern argument remains required even when every field is
+omittable. Field omission does not make the containing positional slot
+omittable, so a pattern must still precede every optional or defaulted
+positional slot. There is no syntax for an optional or defaulted
+whole object-pattern argument.
 
 - A pattern consumes exactly **one required** positional slot, so it may mix
   with other required and rest params: `(label, { x, y }) => …`,
-  `({ x }, ...rest) => …`, `({ a }, { b }) => …`.
+  `({ x }, ...rest) => …`, `({ a }, { b }) => …`. Multiple patterns lower
+  into **one** body-top `$let`, in parameter order, then field order.
 - A **trailing comma** inside the pattern is accepted and normalizes away.
 - A field cannot combine `?` and `=`, and field order does not affect whether
   the containing positional slot is required.
 
 Object patterns must be non-empty and contain identifier fields. Renamed,
-nested, and rest object patterns are invalid.
+nested, and rest object patterns are invalid. Identifiers matching the
+reserved `__p<digits>` scheme are not valid shorthand identifiers anywhere,
+as binder or reference (see the [grammar](grammar.md)).
+
+The printer folds the canonical form back to the pattern exactly when all of:
+the slot name matches the reserved scheme at its own index; `$return` is a
+`$let` every one of whose bindings is a projection from the pattern slot's
+variable with `$get` key equal to the binding name — bare, `$else: null`, and
+`$else: e` printing as `f`, `f?`, and `f = e`, the slot's `$type` printing as
+the pattern's annotation; and the synthesized variable appears nowhere else.
+Any other reference, reordering, or extra binding prints the explicit
+canonical form instead. Not folding is never an error;
+`parse(print(node)) = normalize(node)` holds on both paths.
 
 ## Closures & recursion
 

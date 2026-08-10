@@ -143,8 +143,9 @@ The checker applies these rules:
 
 - the binding must be lexically reachable from `$in`, including through
   transitive `$var`, named `$call`, and `$fn` references;
-- a reachable named function must declare a complete signature, and its body
-  must satisfy that signature;
+- a reachable named function's body is checked against its declared parameter
+  and return types; one that is not fully annotated is a missing-annotation
+  error;
 - a reachable value binding is checked wherever it is referenced;
 - a binding cycle under the dependency relation above is reported statically.
 
@@ -300,10 +301,14 @@ where the `$else` arm earns its keep.
 ## Function body — `{ $return, ... }`
 
 Defines a function. `$return` is required. Author-written bodies may also
-contain `$params` (an ordered array of parameter **slots** — see
-[Parameters](functions.md#parameters--params)), `$sig`, and a string-valued `$comment`.
-No other source fields are allowed; expression-local bindings belong in a
-`$let` under `$return`.
+contain `$params` (an ordered array of parameter **slots** — name strings,
+rest strings, and `{ "$param": name, ... }` descriptors with optional
+`$optional`, `$default`, and `$type` keys — see
+[Parameters](functions.md#parameters--params)), `$returns` (a result type
+schema — see
+[Parameter and result types](functions.md#parameter-and-result-types--type-and-returns)),
+and a string-valued `$comment`. No other source fields are allowed;
+expression-local bindings belong in a `$let` under `$return`.
 
 ```json
 {
@@ -475,8 +480,8 @@ Rules:
 - A function call has exactly `$call` (the callee) and `$args` (an array of arguments) and no other keys.
 - A function reference has `$fn` as its sole key; `$fn` is never an array.
 - `$return` cannot coexist with `$call` or `$fn`.
-- A source function body has `$return` and only optional `$params`, `$sig`, and
-  string-valued `$comment`; `$captures` (the
+- A source function body has `$return` and only optional `$params`,
+  `$returns`, and string-valued `$comment`; `$captures` (the
   [capture record](closures.md#the-capture-record--captures)) and
   `$runtimeContract` appear only on evaluated function values and are invalid
   in source, and `$types` is module-only.

@@ -190,8 +190,10 @@ normal JSON escapes.
 (a: number, b: number) -> number => a + b // fully typed
 ```
 
-Signatures are **all-or-nothing**: annotate every parameter and the return
-type, or nothing.
+Annotate named functions **completely** — every parameter and the return
+type. Partial annotations are legal and used as declared, but a named
+function is a checker error until it is fully typed; inline HOF lambdas stay
+bare and are typed by the call site.
 
 ### Parameters
 
@@ -216,12 +218,15 @@ configure: ({ label = "", retries?, tags = [] }:
 
 Required parameters come first, followed by optional (`x?`) and defaulted
 (`x = expr`) parameters, then at most one rest parameter (`...rest`), which
-arrives as an array. Defaults are lazy and may reference any parameter in the
-invocation; `?` and `=` cannot combine. Calls are positional, so a later
-argument cannot be supplied while skipping an earlier slot—prefer one
-object-pattern argument for independent options. Object patterns take one
-plain object, have no renames or nesting, require their non-optional fields,
-and ignore extra keys.
+arrives as an array. Positional defaults are lazy and may reference any
+parameter in the invocation; `?` and `=` cannot combine. Calls are
+positional, so a later argument cannot be supplied while skipping an earlier
+slot—prefer one object-pattern argument for independent options. Object
+patterns take one plain object, have no renames or nesting, require their
+non-optional fields, and ignore extra keys. Two pattern-default rules differ
+from positional slots: a **field** default runs at call time when the field
+is absent (even if the binding is never read — keep field defaults cheap and
+total), and a positional default cannot read a destructured field.
 
 ### Callback shape discipline
 
@@ -564,6 +569,7 @@ Coming from JS/TS:
 - Exact arity; callback first, data last; `*Indexed` variants for the index (§6).
 - `==` is deep structural, no `===`; `+` never concatenates — `++`/templates, `${str(n)}` (§5).
 - Omitted optionals bind `null` (no `undefined`); explicit `null` suppresses defaults and must be admitted by the annotation — no skipping middle slots (§6).
+- Object-pattern field defaults run at call time on absence (positional defaults stay lazy); a positional default cannot read a destructured field (§6).
 - A read that misses **errors** — it never reads `null`; expected absence is `?? default` or a `hasKey` guard; reading through a present `null` errors; no `?.` (§9).
 - `??` fires on **absence**, not on `null` — a present `null` passes through it, and the checker keeps `null` in the type to catch JS instincts (§9).
 - Object types are closed by default (`...` opens); `&` is refinement, not intersection (§10).
